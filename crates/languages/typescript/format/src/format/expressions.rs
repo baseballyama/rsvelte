@@ -43,9 +43,19 @@ pub(super) fn print_number(raw: &str) -> String {
 }
 
 impl Formatter<'_> {
+    /// Every nesting cycle through expressions passes here; the parser bounds its depth.
+    pub(super) fn expression(
+        &mut self,
+        identifier: NodeIdentifier,
+        parent: Option<NodeIdentifier>,
+        slot: Slot,
+    ) -> R<LayoutInstructionIdentifier> {
+        rsvelte_kernel::performance::stack::grow(|| self.expression_chain(identifier, parent, slot))
+    }
+
     /// Member objects and callees nest thousands deep in real input, so a chain of them is walked
     /// down by a loop and its links are finished from a stack, in the order recursion would.
-    pub(super) fn expression(
+    fn expression_chain(
         &mut self,
         identifier: NodeIdentifier,
         parent: Option<NodeIdentifier>,

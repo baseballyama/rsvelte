@@ -117,20 +117,32 @@ impl LayoutInstructions {
         len: u32,
         ws: fn(&Self, LayoutInstructionIdentifier) -> bool,
     ) -> u32 {
-        let items = self.children(start, len);
-        let first = items
-            .iter()
-            .position(|&d| !self.is_empty(d) && !ws(self, d))
-            .unwrap_or(items.len());
-        // A removed whitespace doc ends the trim; removed empty docs do not.
-        if first < items.len() && items[..first].iter().all(|&d| self.is_empty(d)) {
-            let d = items[first];
-            if let Some((s, l)) = self.parts(d) {
-                let dropped = self.trim_left_range(s, l, ws);
-                self.set_parts(d, s + dropped, l - dropped);
+        // The first kept doc is trimmed in turn; documents nest as deep as their input, so the
+        // descent is a loop and each level's range is narrowed on the way back, innermost first.
+        let (mut start, mut len) = (start, len);
+        let mut dropped = Vec::new();
+        let mut path = Vec::new();
+        loop {
+            let items = self.children(start, len);
+            let first = items
+                .iter()
+                .position(|&d| !self.is_empty(d) && !ws(self, d))
+                .unwrap_or(items.len());
+            dropped.push(first as u32);
+            // A removed whitespace doc ends the trim; removed empty docs do not.
+            if first == items.len() || !items[..first].iter().all(|&d| self.is_empty(d)) {
+                break;
             }
+            let d = items[first];
+            let Some((s, l)) = self.parts(d) else { break };
+            path.push((d, s, l));
+            (start, len) = (s, l);
         }
-        first as u32
+        for (level, &(d, s, l)) in path.iter().enumerate().rev() {
+            let inner = dropped[level + 1];
+            self.set_parts(d, s + inner, l - inner);
+        }
+        dropped[0]
     }
 
     /// Trims the tail of `children[start..start + len]` and returns how many items it keeps.
@@ -140,18 +152,29 @@ impl LayoutInstructions {
         len: u32,
         ws: fn(&Self, LayoutInstructionIdentifier) -> bool,
     ) -> u32 {
-        let items = self.children(start, len);
-        let keep = items
-            .iter()
-            .rposition(|&d| !self.is_empty(d) && !ws(self, d))
-            .map_or(0, |i| i + 1);
-        if keep > 0 && items[keep..].iter().all(|&d| self.is_empty(d)) {
-            let d = items[keep - 1];
-            if let Some((s, l)) = self.parts(d) {
-                let kept = self.trim_right_range(s, l, ws);
-                self.set_parts(d, s, kept);
+        // The last kept doc is trimmed in turn; documents nest as deep as their input, so the
+        // descent is a loop and each level's range is narrowed on the way back, innermost first.
+        let (mut start, mut len) = (start, len);
+        let mut kept = Vec::new();
+        let mut path = Vec::new();
+        loop {
+            let items = self.children(start, len);
+            let keep = items
+                .iter()
+                .rposition(|&d| !self.is_empty(d) && !ws(self, d))
+                .map_or(0, |i| i + 1);
+            kept.push(keep as u32);
+            if keep == 0 || !items[keep..].iter().all(|&d| self.is_empty(d)) {
+                break;
             }
+            let d = items[keep - 1];
+            let Some((s, l)) = self.parts(d) else { break };
+            path.push((d, s));
+            (start, len) = (s, l);
         }
-        keep as u32
+        for (level, &(d, s)) in path.iter().enumerate().rev() {
+            self.set_parts(d, s, kept[level + 1]);
+        }
+        kept[0]
     }
 }

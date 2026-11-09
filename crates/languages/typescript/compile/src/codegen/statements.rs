@@ -24,8 +24,13 @@ impl Gen<'_> {
         self.e.push("}");
     }
 
-    #[expect(clippy::too_many_lines, reason = "one arm per statement kind")]
+    /// Every nesting cycle through statements passes here; the parser bounds its depth.
     pub(super) fn statement(&mut self, identifier: NodeIdentifier) {
+        rsvelte_kernel::performance::stack::grow(|| self.statement_kind(identifier));
+    }
+
+    #[expect(clippy::too_many_lines, reason = "one arm per statement kind")]
+    fn statement_kind(&mut self, identifier: NodeIdentifier) {
         self.mark(identifier);
         match self.syntax_tree.kind(identifier) {
             Kind::Class(class) => self.class(class),

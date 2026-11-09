@@ -41,8 +41,11 @@ pub fn copy<R: Rewrite + ?Sized>(
     r: &mut R,
     identifier: NodeIdentifier,
 ) -> NodeIdentifier {
-    r.rewrite(from, to, identifier)
-        .unwrap_or_else(|| copy_node(from, to, r, identifier))
+    // Every nesting cycle of a copy, rewriters included, passes here; the parser bounds its depth.
+    rsvelte_kernel::performance::stack::grow(|| {
+        r.rewrite(from, to, identifier)
+            .unwrap_or_else(|| copy_node(from, to, r, identifier))
+    })
 }
 
 pub fn copy_opt<R: Rewrite + ?Sized>(
