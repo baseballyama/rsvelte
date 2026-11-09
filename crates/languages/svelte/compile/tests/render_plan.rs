@@ -174,8 +174,12 @@ fn both_targets_keep_the_oracle_checked_whitespace_modules() {
     let source = include_str!("preserve_whitespace/App.svelte");
     let component = rsvelte_svelte::syntax::parse::parse(source).expect("parses");
     let tree = rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, source);
-    let resolution =
-        rsvelte_svelte::semantic::resolve::resolve(&component.javascript, component.program, &tree);
+    let resolution = rsvelte_svelte::semantic::resolve::resolve(
+        &component.javascript,
+        source,
+        component.program,
+        &tree,
+    );
     let mut input = rsvelte_svelte_compile::CompileInput::from(rsvelte_svelte::svelte_input(
         &component,
         &tree,

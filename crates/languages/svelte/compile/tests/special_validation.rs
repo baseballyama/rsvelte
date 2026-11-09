@@ -46,7 +46,7 @@ fn invalid_special_attributes_are_refused_on_both_targets() {
         let component = rsvelte_svelte::syntax::parse::parse(source).expect("valid syntax");
         let tree = compiler_syntax_tree::lower(&component, source);
         let input = rsvelte_svelte::svelte_input(&component, &tree, source, "test.svelte");
-        let resolution = resolve::resolve(&component.javascript, component.program, &tree);
+        let resolution = resolve::resolve(&component.javascript, source, component.program, &tree);
         let analysis = analyze::analyze(&input, &resolution);
         for target in [Target::Client, Target::Server] {
             let error = compile(&CompileInput::from(input), &resolution, &analysis, target)

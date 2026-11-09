@@ -14,7 +14,10 @@ fn every_public_rune_is_recognized_in_both_supported_shapes() {
             Some((rune, Some(argument))),
             "{rune}"
         );
-        if let Some((root, member)) = rune.split_once('.') {
+        // `$inspect().with` calls a member of a call; `inspect_with_is_a_rune` builds it.
+        if let Some((root, member)) = rune.split_once('.')
+            && !root.ends_with("()")
+        {
             let root = tree.identifier(root);
             let callee = tree.dot(root, member);
             let call = tree.call0(callee, &[]);
@@ -59,7 +62,7 @@ fn destructured_runes_classify_every_leaf_without_classifying_keys() {
             .expect("valid JavaScript");
     let compiler_syntax_tree =
         CompilerSyntaxTreeBuilder::new(source, 0, 0).finish(Children::default());
-    let resolution = resolve::resolve(&tree, program, &compiler_syntax_tree);
+    let resolution = resolve::resolve(&tree, source, program, &compiler_syntax_tree);
     for (name, kind) in [
         ("a", BindingKind::Derived),
         ("b", BindingKind::Derived),
@@ -99,7 +102,7 @@ fn nested_runes_classify_bindings_in_their_own_scope() {
             .expect("valid JavaScript");
     let compiler_syntax_tree =
         CompilerSyntaxTreeBuilder::new(source, 0, 0).finish(Children::default());
-    let resolution = resolve::resolve(&tree, program, &compiler_syntax_tree);
+    let resolution = resolve::resolve(&tree, source, program, &compiler_syntax_tree);
     let kinds: Vec<_> = resolution
         .sem
         .bindings
@@ -119,5 +122,114 @@ fn nested_runes_classify_bindings_in_their_own_scope() {
             ("offset", BindingKind::Derived),
             ("value", BindingKind::Normal)
         ]
+    );
+}
+
+/// The kind of the top-level binding `name`, whether `$<rune>` is a store subscription, and the
+/// rune of the initializer of `name`'s declarator, in `source`.
+fn store_or_rune(
+    source: &str,
+    name: &str,
+    rune: &str,
+) -> (
+    rsvelte_svelte_semantic::semantic::resolve::BindingKind,
+    bool,
+    Option<&'static str>,
+) {
+    use rsvelte_kernel::source::positions::Span;
+    use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
+        Children, CompilerSyntaxTreeBuilder,
+    };
+    use rsvelte_svelte_semantic::semantic::resolve;
+    use rsvelte_typescript::parser;
+
+    let mut tree = SyntaxTree::new();
+    let program =
+        parser::parse_program(&mut tree, source, Span::new(0, source.len() as u32), false)
+            .expect("valid JavaScript");
+    let compiler_syntax_tree =
+        CompilerSyntaxTreeBuilder::new(source, 0, 0).finish(Children::default());
+    let resolution = resolve::resolve(&tree, source, program, &compiler_syntax_tree);
+    let atom = tree.atoms.lookup(name).expect("a declared name");
+    let binding = resolution.sem.root_binding(atom).expect("a root binding");
+    let initializer = resolution.sem.bindings[binding]
+        .initializer(&tree)
+        .expect("an initializer");
+    (
+        resolution.bindings[binding].kind,
+        resolution.is_store_subscription(rune),
+        resolution
+            .rune(&tree, initializer)
+            .map(|(called, _)| called),
+    )
+}
+
+#[test]
+fn a_binding_named_after_a_rune_makes_the_rune_a_store_subscription() {
+    use rsvelte_svelte_semantic::semantic::resolve::BindingKind;
+
+    let imported = "import { state } from './store.js'; let a = $state(0);";
+    assert_eq!(
+        store_or_rune(imported, "a", "$state"),
+        (BindingKind::Normal, true, None)
+    );
+    let declared = "let state = 1; let a = $state(0);";
+    assert_eq!(
+        store_or_rune(declared, "a", "$state"),
+        (BindingKind::Normal, true, None)
+    );
+    // A binding initialized by a rune shadows nothing.
+    let rune = "let state = $state(1); let a = $state(0);";
+    assert_eq!(
+        store_or_rune(rune, "a", "$state"),
+        (BindingKind::State, false, Some("$state"))
+    );
+    // Only `$state` is a subscription; `$derived` is still the rune.
+    let other = "import { state } from './store.js'; let a = $derived(0);";
+    assert_eq!(
+        store_or_rune(other, "a", "$derived"),
+        (BindingKind::Derived, false, Some("$derived"))
+    );
+}
+
+#[test]
+fn derived_from_svelte_store_and_props_keep_their_runes() {
+    use rsvelte_svelte_semantic::semantic::resolve::BindingKind;
+
+    let store = "import { derived } from 'svelte/store'; let a = $derived(0);";
+    assert_eq!(
+        store_or_rune(store, "a", "$derived"),
+        (BindingKind::Derived, false, Some("$derived"))
+    );
+    let elsewhere = "import { derived } from './derived.js'; let a = $derived(0);";
+    assert_eq!(
+        store_or_rune(elsewhere, "a", "$derived"),
+        (BindingKind::Normal, true, None)
+    );
+    // `$props()` makes a prop called `props` no subscription, and any other prop one.
+    let props = "let { props } = $props(); let a = $props.id();";
+    assert_eq!(
+        store_or_rune(props, "a", "$props"),
+        (BindingKind::Normal, false, Some("$props.id"))
+    );
+    let state = "let { state } = $props(); let a = $state(0);";
+    assert_eq!(
+        store_or_rune(state, "a", "$state"),
+        (BindingKind::Normal, true, None)
+    );
+}
+
+#[test]
+fn inspect_with_is_a_rune() {
+    let mut tree = SyntaxTree::new();
+    let inspect = tree.identifier("$inspect");
+    let value = tree.identifier("value");
+    let inspected = tree.call0(inspect, &[value]);
+    let callee = tree.dot(inspected, "with");
+    let callback = tree.identifier("callback");
+    let call = tree.call0(callee, &[callback]);
+    assert_eq!(
+        rune_call(&tree, call),
+        Some(("$inspect().with", Some(callback)))
     );
 }

@@ -3,7 +3,7 @@ use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{CompilerSyntaxTr
 use rsvelte_typescript::scope::{BindingIdentifier, DeclarationKind, Semantic};
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 
-use super::{BindingInformation, BindingKind, rune_call};
+use super::{BindingInformation, BindingKind, runes};
 
 mod props;
 mod template;
@@ -11,6 +11,7 @@ mod template;
 pub(super) fn classify(
     syntax_tree: &SyntaxTree,
     sem: &Semantic,
+    subscribed: &[&str],
     program: NodeIdentifier,
     module: Option<NodeIdentifier>,
     compiler_syntax_tree: &CompilerSyntaxTree,
@@ -45,7 +46,7 @@ pub(super) fn classify(
     }));
     while let Some(node) = pending.pop() {
         if matches!(syntax_tree.kind(node), Kind::VariableDeclaration { .. }) {
-            classify_declaration(syntax_tree, sem, node, &mut out);
+            classify_declaration(syntax_tree, sem, subscribed, node, &mut out);
         }
         syntax_tree.for_each_child(node, |child| pending.push(child));
     }
@@ -56,6 +57,7 @@ pub(super) fn classify(
 fn classify_declaration(
     syntax_tree: &SyntaxTree,
     sem: &Semantic,
+    subscribed: &[&str],
     statement: NodeIdentifier,
     out: &mut IndexVector<BindingIdentifier, BindingInformation>,
 ) {
@@ -74,7 +76,7 @@ fn classify_declaration(
         else {
             continue;
         };
-        let Some((rune, arg)) = rune_call(syntax_tree, initializer) else {
+        let Some((rune, arg)) = runes::rune(syntax_tree, sem, subscribed, initializer) else {
             continue;
         };
         match rune {
@@ -93,7 +95,7 @@ fn classify_declaration(
                     }
                 });
             }
-            "$props" => props::classify_props(syntax_tree, sem, identifier, out),
+            "$props" => props::classify_props(syntax_tree, sem, subscribed, identifier, out),
             _ => {}
         }
     }

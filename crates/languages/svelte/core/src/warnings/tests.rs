@@ -257,6 +257,24 @@ fn a_comment_in_a_default_slot_warns_once() {
 }
 
 #[test]
+fn a_rune_named_after_a_binding_subscribes_to_a_store() {
+    let source = "<script>\n  import { state } from './s.js';\n  let foo = $state(0);\n  foo = 1;\n</script>\n{foo}\n";
+    // `foo` is no state, so updating it does not render.
+    assert_eq!(texts("store_rune_conflict", source), ["$state"]);
+    assert_eq!(texts("non_reactive_update", source), ["foo"]);
+}
+
+#[test]
+fn store_rune_conflicts_come_name_by_name() {
+    let source = "<script>\n  import { state, effect } from './s.js';\n  $state(1);\n  $effect(() => {});\n  $state(2);\n</script>\n";
+    // Upstream warns each name's references together, in the order the names first appear.
+    assert_eq!(
+        texts("store_rune_conflict", source),
+        ["$state", "$state", "$effect"]
+    );
+}
+
+#[test]
 fn a_props_fallback_does_not_read_state_locally() {
     let source = "<script>\n  let { a, b = a } = $props();\n</script>\n";
     assert_eq!(texts("state_referenced_locally", source), [""; 0]);

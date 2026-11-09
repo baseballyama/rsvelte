@@ -296,7 +296,7 @@ pub fn warnings(
     let runes = runes(component, resolution, source, &out.awaits, options.runes);
     dollar_names(component, resolution, source, runes, &mut out.errors);
     if runes {
-        rune_placement(component, &mut out.errors);
+        rune_placement(component, resolution, &mut out.errors);
     }
     let mut found = Found::default();
     let custom_options = runes::svelte_option(component, source, "customElement").is_some();

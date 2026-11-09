@@ -102,6 +102,7 @@ fn run(case: &Case, mode: &str) {
         "resolve" => {
             black_box(resolve::resolve_with_module(
                 &case.component.javascript,
+                &case.source,
                 case.component.program,
                 case.component.module.as_ref().map(|module| module.program),
                 &case.tree,
@@ -138,6 +139,7 @@ fn dump(list: &str) -> Result<(), Box<dyn std::error::Error>> {
         let tree = lower(&component, &source);
         let resolution = resolve::resolve_with_module(
             &component.javascript,
+            &source,
             component.program,
             component.module.as_ref().map(|module| module.program),
             &tree,
@@ -209,6 +211,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let tree = lower(&component, &source);
             let resolution = resolve::resolve_with_module(
                 &component.javascript,
+                &source,
                 component.program,
                 component.module.as_ref().map(|module| module.program),
                 &tree,

@@ -17,6 +17,7 @@ fn direct_lowering_and_compilation_refuse_runtime_typescript() {
         ));
         let resolution = rsvelte_svelte::semantic::resolve::resolve(
             &component.javascript,
+            &source,
             component.program,
             &tree,
         );
@@ -48,8 +49,12 @@ fn an_interpolated_attribute_decodes_references_as_an_attribute_value() {
         source,
         "App.svelte",
     ));
-    let resolution =
-        rsvelte_svelte::semantic::resolve::resolve(&component.javascript, component.program, &tree);
+    let resolution = rsvelte_svelte::semantic::resolve::resolve(
+        &component.javascript,
+        source,
+        component.program,
+        &tree,
+    );
     let analysis = rsvelte_svelte::semantic::analyze::analyze(&input.component, &resolution);
     for (target, expected) in [
         (

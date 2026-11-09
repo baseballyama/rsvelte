@@ -76,6 +76,7 @@ impl<S: Side> Artifact for Resolved<S> {
         let t = context.get::<Translated<S>>().as_ref()?.as_ref().ok()?;
         Some(rsvelte_svelte::semantic::resolve::resolve(
             &t.javascript,
+            context.source_text(),
             t.program,
             &t.compiler_syntax_tree,
         ))

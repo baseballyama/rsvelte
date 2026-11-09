@@ -2,7 +2,7 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_semantic::semantic::resolve::{RUNES, Resolution, rune_call};
+use rsvelte_svelte_semantic::semantic::resolve::{RUNES, Resolution};
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Component, Part, Script, TemplateNode};
 use rsvelte_typescript::scope::DeclarationKind;
 use rsvelte_typescript::syntax_tree::{Kind, TypeScriptFeature, flag};
@@ -37,44 +37,12 @@ pub(super) fn runes(
     if !awaits.is_empty() {
         return true;
     }
-    let stores = stores(component, resolution);
     resolution.sem.references.iter().any(|reference| {
         reference.binding.is_none() && {
             let name = component.javascript.name(reference.node);
-            RUNES
-                .iter()
-                .any(|rune| rune.split('.').next() == Some(name))
-                && !stores.contains(&name[1..])
+            RUNES.contains(&name) && !resolution.is_store_subscription(name)
         }
     })
-}
-
-/// The top-level names whose `$name` is a store subscription rather than a rune: a declaration
-/// not initialized by a rune, or a prop other than `props`.
-pub(super) fn stores<'a>(component: &'a Component, resolution: &Resolution) -> FxHashSet<&'a str> {
-    let javascript = &component.javascript;
-    let sem = &resolution.sem;
-    let programs: Vec<NodeIdentifier> = scripts(component).map(|s| s.program).collect();
-    sem.bindings
-        .iter()
-        .filter(|binding| programs.contains(&sem.scopes[binding.scope].node))
-        .filter_map(|binding| {
-            let name = javascript.name(binding.node);
-            let rune = binding
-                .initializer(javascript)
-                .and_then(|init| rune_call(javascript, init))
-                .map(|(rune, _)| rune);
-            let store = match rune {
-                None => {
-                    // `import { derived } from 'svelte/store'` beside `$derived(…)` is no subscription.
-                    !(binding.kind == DeclarationKind::Import && name == "derived")
-                }
-                Some("$props") => name != "props",
-                Some(_) => false,
-            };
-            store.then_some(name)
-        })
-        .collect()
 }
 
 /// The value of attribute `name` of `<svelte:options>`.
@@ -247,7 +215,11 @@ pub(super) fn enum_names(component: &Component, source: &str, found: &mut Vec<(R
 }
 
 /// Runes mode's `legacy_export_invalid`, `props_duplicate` and `props_invalid_placement`.
-pub(super) fn rune_placement(component: &Component, out: &mut Vec<(Raised, Diagnostic)>) {
+pub(super) fn rune_placement(
+    component: &Component,
+    resolution: &Resolution,
+    out: &mut Vec<(Raised, Diagnostic)>,
+) {
     let javascript = &component.javascript;
     let walk = |section, at| Raised {
         phase: Phase::Walk,
@@ -300,7 +272,7 @@ pub(super) fn rune_placement(component: &Component, out: &mut Vec<(Raised, Diagn
             }
         }
         let mut calls = Vec::new();
-        props_calls(javascript, script.program, &mut calls);
+        props_calls(javascript, resolution, script.program, &mut calls);
         for (i, call) in calls.into_iter().enumerate() {
             let Some(span) = javascript.source_location(call).span() else {
                 continue;
@@ -328,13 +300,19 @@ pub(super) fn rune_placement(component: &Component, out: &mut Vec<(Raised, Diagn
 /// The `$props()` calls under `node`, in source order.
 pub(super) fn props_calls(
     javascript: &SyntaxTree,
+    resolution: &Resolution,
     node: NodeIdentifier,
     out: &mut Vec<NodeIdentifier>,
 ) {
-    if rune_call(javascript, node).is_some_and(|(rune, _)| rune == "$props") {
+    if resolution
+        .rune(javascript, node)
+        .is_some_and(|(rune, _)| rune == "$props")
+    {
         out.push(node);
     }
-    javascript.for_each_child(node, |child| props_calls(javascript, child, out));
+    javascript.for_each_child(node, |child| {
+        props_calls(javascript, resolution, child, out);
+    });
 }
 
 /// `custom_element_props_identifier`: a custom element whose `$props()` the compiler cannot
@@ -398,11 +376,9 @@ pub(super) fn custom_element(
             else {
                 continue;
             };
-            let Kind::Call { callee, .. } = javascript.kind(initializer) else {
-                continue;
-            };
-            let is_props =
-                javascript.name(callee) == "$props" && resolution.sem.binding_of(callee).is_none();
+            let is_props = resolution
+                .rune(javascript, initializer)
+                .is_some_and(|(rune, _)| rune == "$props");
             if !is_props {
                 continue;
             }
