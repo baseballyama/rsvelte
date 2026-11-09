@@ -350,12 +350,7 @@ impl Parser<'_, '_> {
         }
         let s = self.expect(T::String, "module specifier")?;
         let source = self.string_node(s);
-        let attributes = if self.is_kw("assert") || self.is_kw("with") {
-            self.bump()?;
-            Some(self.object()?)
-        } else {
-            None
-        };
+        let attributes = self.maybe_attributes()?;
         self.semicolon()?;
         let span = self.span_from(start_offset);
         Ok(self.close(specs, |syntax_tree, specs| {

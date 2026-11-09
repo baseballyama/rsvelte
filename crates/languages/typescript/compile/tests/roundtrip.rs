@@ -293,3 +293,15 @@ fn same_name_property_prints_shorthand_except_proto() {
         assert_eq!(stable(input, false), printed, "{input}");
     }
 }
+
+#[test]
+fn type_only_export_specifiers_are_erased() {
+    assert_eq!(
+        stable(
+            "export { type A, b } from 'm' with { type: 'json' }; export { type C };",
+            true
+        ),
+        "export { b } from 'm' with { type: 'json' };
+"
+    );
+}

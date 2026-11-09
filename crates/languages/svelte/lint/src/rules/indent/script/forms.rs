@@ -287,7 +287,9 @@ impl Script<'_, '_> {
                 self.layout.offset(colon, 1, first);
                 self.layout.offset(body, 1, first);
             }
-            Control::ExportList { specifiers, source } => {
+            Control::ExportList {
+                specifiers, source, ..
+            } => {
                 let Some(export) = first else {
                     return;
                 };
@@ -325,7 +327,9 @@ impl Script<'_, '_> {
                 }
             }
             Control::ExportSpecifier { .. } => self.specifier(node),
-            Control::ExportAll { source, exported } => {
+            Control::ExportAll {
+                source, exported, ..
+            } => {
                 let (Some(export), Some(source_token)) = (first, self.first(source)) else {
                     return;
                 };

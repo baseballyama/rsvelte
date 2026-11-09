@@ -183,7 +183,7 @@ impl Parser<'_, '_> {
     pub(in crate::syntax::parser) fn starts_index_signature(&self) -> bool {
         self.token.t == T::LBracket
             && self.peek().t == T::Identifier
-            && matches!(self.peek2().t, T::Colon | T::Comma)
+            && matches!(self.peek_nth(2).t, T::Colon | T::Comma)
     }
 
     /// The parameters and return type of a signature, at its `<` or `(`.

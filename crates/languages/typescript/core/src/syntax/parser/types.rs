@@ -481,7 +481,7 @@ impl Parser<'_, '_> {
         }
         let next = self.peek();
         let named = self.token.t == T::Identifier
-            && (next.t == T::Colon || (next.t == T::Question && self.peek2().t == T::Colon));
+            && (next.t == T::Colon || (next.t == T::Question && self.peek_nth(2).t == T::Colon));
         if named {
             let t = self.bump()?;
             let label = self.syntax_tree.ident(self.text(t), t.span);

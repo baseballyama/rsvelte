@@ -473,17 +473,22 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.syntax_tree.scratch.truncate(checkpoint.scratch);
     }
 
-    /// The token two after the current one.
-    fn peek2(&self) -> LexedToken {
+    /// The token `n` after the current one.
+    fn peek_nth(&self, n: usize) -> LexedToken {
         let mut l = self.lex;
         let mut scratch = Vec::new();
-        l.next(&mut scratch)
-            .and_then(|_| l.next(&mut scratch))
-            .unwrap_or_else(|_| LexedToken {
-                t: T::Eof,
-                span: Span::new(self.end, self.end),
-                newline_before: false,
-            })
+        let mut token = Err(());
+        for _ in 0..n {
+            token = l.next(&mut scratch).map_err(drop);
+            if token.is_err() {
+                break;
+            }
+        }
+        token.unwrap_or_else(|()| LexedToken {
+            t: T::Eof,
+            span: Span::new(self.end, self.end),
+            newline_before: false,
+        })
     }
 
     /// A peek at the token after the current one.
