@@ -1,3 +1,5 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+
 use super::*;
 
 /// The operators, longest first: the table the dispatch in [`Lexer::punct`] replaces.
@@ -106,4 +108,27 @@ fn a_carriage_return_ends_a_string_unterminated() {
     lexer
         .next(&mut Vec::new())
         .expect_err("a string cannot cross a line break");
+}
+
+#[test]
+fn every_ecmascript_whitespace_separates_tokens() {
+    let spaces = ('\u{80}'..='\u{FFFF}')
+        .filter(|&c| is_ecmascript_whitespace(c) && !matches!(c, '\u{2028}' | '\u{2029}'));
+    let mut checked = 0;
+    for space in spaces {
+        let source_text = format!("a{space}b");
+        let mut lexer = Lexer::new(&source_text, 0, source_text.len());
+        let a = lexer.next(&mut Vec::new()).expect("lexes");
+        let b = lexer.next(&mut Vec::new()).expect("lexes");
+        assert_eq!(lexer.text(a.span), "a", "{space:?}");
+        assert_eq!(
+            b.span.start_offset as usize,
+            1 + space.len_utf8(),
+            "{space:?}"
+        );
+        assert!(!b.newline_before, "{space:?}");
+        checked += 1;
+    }
+    // U+00A0, U+1680, U+2000 to U+200A, U+202F, U+205F, U+3000 and U+FEFF.
+    assert_eq!(checked, 17);
 }

@@ -4,6 +4,7 @@
 //! detection) is a struct copy, not a token buffer. Regex literals and template continuations are
 //! context-dependent and are lexed on the parser's request.
 
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -131,6 +132,20 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    /// The character starting at byte `at`, which is in the source and starts a character.
+    fn char_at(&self, at: usize) -> char {
+        let width = match self.source_text[at] {
+            0..0x80 => 1,
+            0xC0..0xE0 => 2,
+            0xE0..0xF0 => 3,
+            _ => 4,
+        };
+        std::str::from_utf8(&self.source_text[at..(at + width).min(self.end)])
+            .ok()
+            .and_then(|s| s.chars().next())
+            .unwrap_or(char::REPLACEMENT_CHARACTER)
+    }
+
     /// Skips whitespace and comments; returns whether a line terminator was crossed.
     fn skip_trivia(&mut self, comments: &mut Vec<Span>) -> R<bool> {
         let mut newline = false;
@@ -168,12 +183,14 @@ impl<'a> Lexer<'a> {
                     }
                     comments.push(Span::new(start_offset as u32, self.position as u32));
                 }
-                0xE2 if self.line_terminator(self.position) == 3 => {
-                    newline = true;
-                    self.position += 3;
+                0x80.. => {
+                    let c = self.char_at(self.position);
+                    if !is_ecmascript_whitespace(c) {
+                        break;
+                    }
+                    newline |= matches!(c, '\u{2028}' | '\u{2029}');
+                    self.position += c.len_utf8();
                 }
-                0xC2 if self.peek(1) == 0xA0 => self.position += 2,
-                0xEF if self.peek(1) == 0xBB && self.peek(2) == 0xBF => self.position += 3,
                 _ => break,
             }
         }
@@ -290,10 +307,7 @@ impl<'a> Lexer<'a> {
                     0xE0..=0xEF => 3,
                     _ => 4,
                 };
-                if b == 0xE2 && self.peek(1) == 0x80 && matches!(self.peek(2), 0xA8 | 0xA9) {
-                    break;
-                }
-                if b == 0xC2 && self.peek(1) == 0xA0 {
+                if is_ecmascript_whitespace(self.char_at(self.position)) {
                     break;
                 }
                 self.position += ch_len;
