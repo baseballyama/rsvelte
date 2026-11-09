@@ -548,3 +548,12 @@ fn rule_names_separated_by_wide_spaces() {
         lint("<!-- eslint-disable no-undef\u{3000}space-infix-ops\u{a0}x -->\n{@html a+b}\n");
     assert_eq!(rules(&found), [HTML]);
 }
+
+#[test]
+fn next_line_directives_count_a_lone_carriage_return_as_a_line_end() {
+    let found = lint("<!-- eslint-disable-next-line space-infix-ops -->\r{@html a+b}\r");
+    assert_eq!(rules(&found), [HTML, UNDEF, UNDEF]);
+    // A block comment, since the JavaScript lexer ends a line comment only at `\n`.
+    let found = lint("<script>\r/* eslint-disable-next-line no-undef */\ra;\r</script>\r");
+    assert_eq!(rules(&found), Vec::<&str>::new());
+}

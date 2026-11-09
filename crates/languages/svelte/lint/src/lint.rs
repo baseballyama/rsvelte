@@ -28,7 +28,8 @@ pub fn lint(
         &file,
     );
     let mut findings = findings.finish();
-    let lines = context.line_index();
+    // Directive lines are `ESLint`'s, which any ECMAScript line terminator ends.
+    let lines = context.ecmascript_line_index();
     let source = file.source();
     directives::apply_javascript(&mut findings, &file.javascript().comments, source, lines);
     let Some(component) = file.component() else {

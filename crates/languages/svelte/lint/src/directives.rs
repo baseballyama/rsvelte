@@ -67,7 +67,9 @@ pub(crate) fn html_directives(component: &Component, source: &str) -> Vec<HtmlDi
         }) else {
             continue;
         };
-        let single_line = !span.text(source).contains(['\n', '\r']);
+        let single_line = !span
+            .text(source)
+            .contains(['\n', '\r', '\u{2028}', '\u{2029}']);
         if matches!(kind, Kind::DisableLine | Kind::DisableNextLine) && !single_line {
             continue;
         }
