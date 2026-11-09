@@ -43,7 +43,7 @@ impl Task for CountElements {
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        if let Err(diagnostic) = context.get::<Parsed>() {
+        if let Err(diagnostic) = rsvelte_svelte::fully_parsed(context) {
             out.diagnostics.push(diagnostic.clone());
             return;
         }

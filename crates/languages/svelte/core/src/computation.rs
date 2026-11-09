@@ -49,7 +49,7 @@ impl Artifact for Normalized {
 pub struct Analyzed;
 
 impl Artifact for Analyzed {
-    /// `None` when the document did not parse; the parse error is on [`Parsed`].
+    /// `None` when the document did not fully parse; the error is from [`fully_parsed`].
     type Output = Option<analyze::Analysis>;
 
     const NAME: &'static str = "svelte.analyze";
@@ -62,7 +62,7 @@ impl Artifact for Analyzed {
 }
 
 /// What the compiler reads of a Svelte component: its script from [`Parsed`], its template from
-/// [`Normalized`]. `None` when the document did not parse.
+/// [`Normalized`]. `None` when the document did not fully parse, its style sheet included.
 #[must_use]
 pub fn component_input<'a>(context: &'a DocumentContext<'_>) -> Option<input::ComponentInput<'a>> {
     let c = fully_parsed(context).ok()?;
