@@ -298,33 +298,36 @@ fn get_rune(javascript: &SyntaxTree, res: &Resolution, e: NodeIdentifier) -> Opt
     let Kind::Call { callee, .. } = javascript.kind(e) else {
         return None;
     };
-    let keypath = global_keypath(javascript, res, callee)?;
-    RUNES.contains(&keypath.as_str()).then_some(keypath)
-}
-
-/// Upstream `get_global_keypath`.
-fn global_keypath(javascript: &SyntaxTree, res: &Resolution, e: NodeIdentifier) -> Option<String> {
-    match javascript.kind(e) {
-        Kind::Identifier(_) => res
-            .sem
-            .binding_of(e)
-            .is_none()
-            .then(|| javascript.name(e).to_owned()),
+    // Every rune's keypath is `$name`, `$name.member` or `$name().member`, so deeper callees
+    // cannot name one and are not walked.
+    let (root, called, member) = match javascript.kind(callee) {
+        Kind::Identifier(_) => (callee, false, None),
         Kind::Member {
             object,
             property,
             computed: false,
             ..
-        } => Some(format!(
-            "{}.{}",
-            global_keypath(javascript, res, object)?,
-            javascript.name(property)
-        )),
-        Kind::Call { callee, .. } => {
-            Some(format!("{}()", global_keypath(javascript, res, callee)?))
-        }
-        _ => None,
+        } => match javascript.kind(object) {
+            Kind::Identifier(_) => (object, false, Some(property)),
+            Kind::Call { callee: inner, .. } if javascript.is_identifier(inner) => {
+                (inner, true, Some(property))
+            }
+            _ => return None,
+        },
+        _ => return None,
+    };
+    if res.sem.binding_of(root).is_some() {
+        return None;
     }
+    let mut keypath = javascript.name(root).to_owned();
+    if called {
+        keypath.push_str("()");
+    }
+    if let Some(property) = member {
+        keypath.push('.');
+        keypath.push_str(javascript.name(property));
+    }
+    RUNES.contains(&keypath.as_str()).then_some(keypath)
 }
 
 /// The module an import specifier of the instance script imports from.
