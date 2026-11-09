@@ -57,3 +57,11 @@ fn deep_nesting_on_one_line_is_linear() {
     // A walk of every base chain per token takes tens of seconds here.
     assert!(started.elapsed().as_secs() < 3, "{:?}", started.elapsed());
 }
+
+#[test]
+fn an_implicitly_closed_element_does_not_take_a_child_end_tag() {
+    let p = "<div>\n<p>\n  text <b>x\n    </b>\n<div>y</div>\n</div>\n";
+    assert_eq!(reported_lines(p), [2, 5]);
+    let li = "<ul>\n<li>one <i>a\n    </i>\n  <li>two\n</ul>\n";
+    assert_eq!(reported_lines(li), [2]);
+}

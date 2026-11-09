@@ -383,9 +383,9 @@ impl<'a> Template<'_, 'a> {
                 attributes,
                 children,
                 start_tag,
-                self_closing,
+                end_tag,
                 ..
-            } => self.element(span, name, attributes, children, start_tag, self_closing),
+            } => self.element(span, name, attributes, children, start_tag, end_tag),
             TemplateNode::If { .. } => self.if_block(id),
             TemplateNode::Each {
                 expression,
@@ -573,13 +573,13 @@ impl<'a> Template<'_, 'a> {
         attributes: Range,
         children: Range,
         start_tag: Span,
-        self_closing: bool,
+        has_end_tag: bool,
     ) {
         let component = self.component;
         let source = self.source();
         let name_text = name.text(source);
         let open = self.first(span);
-        let end_tag = self.end_tag_span(span, start_tag, self_closing);
+        let end_tag = has_end_tag.then(|| self.end_tag_span(span)).flatten();
         if PREFORMATTED.contains(&name_text) || name_text == "style" {
             if name_text != "style" {
                 let end_open = end_tag.and_then(|s| self.first(s));
@@ -620,20 +620,11 @@ impl<'a> Template<'_, 'a> {
         }
     }
 
-    fn end_tag_span(&self, span: Span, start_tag: Span, self_closing: bool) -> Option<Span> {
-        if self_closing {
-            return None;
-        }
+    /// `</name>`, the last tokens of an element that has its own end tag.
+    fn end_tag_span(&self, span: Span) -> Option<Span> {
         let tokens = self.tokens();
-        let mut t = tokens.last(span)?;
-        while tokens.kind(t) != TokenType::EndTagOpen {
-            t = tokens.before(t)?;
-            if tokens.span(t).start_offset < start_tag.end_offset {
-                return None;
-            }
-        }
-        (tokens.span(t).start_offset >= start_tag.end_offset)
-            .then(|| Span::new(tokens.span(t).start_offset, span.end_offset))
+        let t = tokens.last_matching(span, |t| tokens.kind(t) == TokenType::EndTagOpen)?;
+        Some(Span::new(tokens.span(t).start_offset, span.end_offset))
     }
 
     fn element_attribute(&mut self, attribute: &Attribute) {
