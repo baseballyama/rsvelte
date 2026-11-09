@@ -1,8 +1,10 @@
 //! Members and calls of the built-in globals, strings and arrays.
 
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+
 use crate::semantic::number::number;
 
-use super::conversions::{is_js_whitespace, join, to_integer, to_number, to_string, to_uint32};
+use super::conversions::{join, to_integer, to_number, to_string, to_uint32};
 use super::operators::{power, same_value_zero, strict_equals};
 use super::{Global, MAX_BUILT_LENGTH, OBJECT_PROTOTYPE, Value};
 
@@ -324,11 +326,13 @@ pub(super) fn string_method(s: &str, name: &str, arguments: &[Value]) -> Option<
         "toLowerCase" => Value::String(s.to_lowercase()),
         "toUpperCase" => Value::String(s.to_uppercase()),
         "toString" => Value::String(s.to_owned()),
-        "trim" => Value::String(s.trim_matches(is_js_whitespace).to_owned()),
+        "trim" => Value::String(s.trim_matches(is_ecmascript_whitespace).to_owned()),
         "trimStart" | "trimLeft" => {
-            Value::String(s.trim_start_matches(is_js_whitespace).to_owned())
+            Value::String(s.trim_start_matches(is_ecmascript_whitespace).to_owned())
         }
-        "trimEnd" | "trimRight" => Value::String(s.trim_end_matches(is_js_whitespace).to_owned()),
+        "trimEnd" | "trimRight" => {
+            Value::String(s.trim_end_matches(is_ecmascript_whitespace).to_owned())
+        }
         _ => return None,
     })
 }

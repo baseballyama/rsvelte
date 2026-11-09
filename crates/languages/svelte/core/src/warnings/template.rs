@@ -1,6 +1,7 @@
 //! The template's warnings and errors, in one walk.
 
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::names::is_component_name;
 use rsvelte_svelte_syntax::syntax_tree::{
@@ -8,7 +9,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 
 use super::a11y;
-use super::{Phase, Raised, Section, error, is_js_whitespace, slot_name_error, warning};
+use super::{Phase, Raised, Section, error, slot_name_error, warning};
 
 pub(super) struct Template<'a> {
     pub(super) component: &'a Component,
@@ -61,7 +62,7 @@ impl<'a> Template<'a> {
             && let TemplateNode::Text { span } = *self.component.node(*only)
             && span
                 .text(self.source)
-                .trim_matches(is_js_whitespace)
+                .trim_matches(is_ecmascript_whitespace)
                 .is_empty()
         {
             self.out.push(warning("block_empty", "Empty block", span));

@@ -1,5 +1,7 @@
 //! JavaScript's type conversions: `ToBoolean`, `ToString`, `ToNumber` and their kin.
 
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+
 use crate::semantic::number::number;
 
 use super::{Global, Value};
@@ -80,7 +82,7 @@ pub(super) fn to_number(value: &Value) -> Option<f64> {
 
 /// `StringToNumber`: JavaScript's numeric string grammar, not Rust's.
 pub(super) fn string_to_number(s: &str) -> f64 {
-    let s = s.trim_matches(is_js_whitespace);
+    let s = s.trim_matches(is_ecmascript_whitespace);
     if s.is_empty() {
         return 0.0;
     }
@@ -120,21 +122,6 @@ pub(super) fn string_to_number(s: &str) -> f64 {
         return f64::NAN;
     }
     unsigned.parse::<f64>().map_or(f64::NAN, |v| sign * v)
-}
-
-/// `WhiteSpace` and `LineTerminator` in the ECMAScript grammar.
-pub(super) const fn is_js_whitespace(c: char) -> bool {
-    matches!(
-        c,
-        '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'
-            ..='\u{200a}'
-                | '\u{2028}'
-                | '\u{2029}'
-                | '\u{202f}'
-                | '\u{205f}'
-                | '\u{3000}'
-                | '\u{feff}'
-    )
 }
 
 #[expect(

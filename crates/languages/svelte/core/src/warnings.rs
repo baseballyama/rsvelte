@@ -226,22 +226,6 @@ impl CompileWarnings {
     ];
 }
 
-/// JavaScript's `\s`, which `trim()` removes.
-#[must_use]
-pub const fn is_js_whitespace(c: char) -> bool {
-    matches!(
-        c,
-        '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'
-            ..='\u{200a}'
-                | '\u{2028}'
-                | '\u{2029}'
-                | '\u{202f}'
-                | '\u{205f}'
-                | '\u{3000}'
-                | '\u{feff}'
-    )
-}
-
 /// `SlotElement`'s check of a `<slot>`'s `name`, given its static text (`None` for any other
 /// value): the error's code and message.
 #[must_use]

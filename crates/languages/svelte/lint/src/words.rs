@@ -2,7 +2,7 @@
 
 use rsvelte_kernel::source::positions::Span;
 
-pub(crate) use rsvelte_svelte::warnings::is_js_whitespace as is_js_space;
+pub(crate) use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_js_space;
 
 /// The runs of `text` between commas and `\s`, as spans of the document `text` starts at `base` in.
 pub(crate) fn words(text: &str, base: u32) -> Vec<Span> {
