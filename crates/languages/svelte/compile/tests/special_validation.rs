@@ -54,3 +54,56 @@ fn invalid_special_attributes_are_refused_on_both_targets() {
         }
     }
 }
+
+#[test]
+fn misplaced_runes_and_wrong_rune_arguments_raise_upstream_errors_on_both_targets() {
+    for (script, code) in [
+        (
+            "function f() { let p = $props(); }",
+            "props_invalid_placement",
+        ),
+        ("{ let p = $props(); }", "props_invalid_placement"),
+        ("let p = $props(); let q = $props();", "props_duplicate"),
+        ("let p = $props(1);", "rune_invalid_arguments"),
+        ("let { id } = $props.id();", "props_id_invalid_placement"),
+        (
+            "let i = $props.id(); let j = $props.id();",
+            "props_duplicate",
+        ),
+        ("let a = $bindable(1);", "bindable_invalid_location"),
+        (
+            "let { a = $bindable(1, 2) } = $props();",
+            "rune_invalid_arguments_length",
+        ),
+        ("let o = { a: $state(1) };", "state_invalid_placement"),
+        ("let a = $state?.(1);", "state_invalid_placement"),
+        ("let a = $state(1, 2);", "rune_invalid_arguments_length"),
+        ("let a = $state(...[1]);", "rune_invalid_spread"),
+        ("let a = $derived();", "rune_invalid_arguments_length"),
+        ("let x = $effect(() => {});", "effect_invalid_placement"),
+        ("$effect();", "rune_invalid_arguments_length"),
+        ("let t = $effect.tracking(1);", "rune_invalid_arguments"),
+        ("let r = $effect.root();", "rune_invalid_arguments_length"),
+        (
+            "let s = $state.snapshot();",
+            "rune_invalid_arguments_length",
+        ),
+        ("$inspect();", "rune_invalid_arguments_length"),
+        ("$inspect.trace(1, 2);", "rune_invalid_arguments_length"),
+        ("let h = $host(1);", "rune_invalid_arguments"),
+        ("let h = $host();", "host_invalid_placement"),
+    ] {
+        let source = format!("<script>{script}</script>");
+        let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid syntax");
+        let tree = compiler_syntax_tree::lower(&component, &source);
+        let input =
+            rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
+        let resolution = resolve::resolve(&component.javascript, component.program, &tree);
+        let analysis = analyze::analyze(&input, &resolution);
+        for target in [Target::Client, Target::Server] {
+            let error = compile_input(&CompileInput::from(input), &resolution, &analysis, target)
+                .expect_err("a misplaced rune");
+            assert_eq!(error.code, code, "{script} on {target:?}");
+        }
+    }
+}

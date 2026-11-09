@@ -1,7 +1,11 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
-use rsvelte_svelte_semantic::resolve::{BindingKind, RUNES, for_each_pattern_target, rune};
+use rsvelte_svelte_semantic::resolve::{
+    BindingKind, RUNES, for_each_pattern_target, rune, rune_call,
+};
 use rsvelte_typescript_semantic::scope::{Binding, DeclarationKind, ScopeIdentifier, Semantic};
-use rsvelte_typescript_syntax::syntax_tree::{Control, TypeScriptFeature, TypeScriptRuntime, flag};
+use rsvelte_typescript_syntax::syntax_tree::{
+    Class, Control, TypeScriptFeature, TypeScriptRuntime, flag,
+};
 use rustc_hash::FxHashSet;
 
 use crate::render_plan::{is_mathml, is_svg};
@@ -157,7 +161,7 @@ fn names_class_expression(javascript: &SyntaxTree, sem: &Semantic, b: &Binding) 
     !node.is_none()
         && matches!(
             javascript.kind(node),
-            Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition {
+            Kind::Class(Class::Definition {
                 name: Some(name),
                 declaration: false,
                 ..
@@ -265,36 +269,108 @@ pub(super) fn check_stores(
     Ok(())
 }
 
-/// Refuses a rune call this port does not lower, a state rune in a class body (class fields are
-/// not lowered yet), and on the server an `$effect` that is not a statement of its own (upstream
-/// only drops it as an `ExpressionStatement`).
+/// Where a node sits, as far as upstream's rune checks ask.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Parent {
+    Other,
+    /// A statement of the instance script's body.
+    InstanceBody,
+    /// A declarator of a declaration in the instance script's body.
+    TopDeclarator,
+    /// A declarator's initializer; `top` at the instance's top level, `named` binding one name.
+    Initializer {
+        top: bool,
+        named: bool,
+    },
+    Statement,
+    /// The value of a class field that is neither static nor computed.
+    ClassField,
+    /// The pattern a `$props()` declarator binds, one of its properties, and a property's value.
+    Props,
+    PropsProperty,
+    PropsValue,
+    /// The default of a `$props()` property.
+    PropsDefault,
+}
+
+/// Where an expression sits.
+#[derive(Clone, Copy)]
+struct Place {
+    parent: Parent,
+    in_class: bool,
+    module: bool,
+    /// Upstream evaluates it when the component renders: the instance's top level or a
+    /// template expression, outside any function.
+    rendering: bool,
+}
+
+/// The rune checks of upstream's analysis, then the runes this port does not lower yet.
+struct RuneWalk<'a> {
+    javascript: &'a SyntaxTree,
+    res: &'a Resolution,
+    target: Target,
+    custom_element: bool,
+    props: bool,
+    props_id: bool,
+    /// The first rune this port does not lower, refused only when upstream raises nothing later.
+    refused: Option<Diagnostic>,
+}
+
+/// Raises upstream's rune placement and argument errors, then refuses a rune call this port does
+/// not lower, a state rune in a class body (class fields are not lowered yet), and on the server an
+/// `$effect` that is not a statement of its own (upstream only drops it as an `ExpressionStatement`).
 ///
 /// # Errors
 ///
-/// An `unsupported` [`Diagnostic`] at the first such call.
+/// The upstream or `unsupported` [`Diagnostic`] at the first such call.
 pub(super) fn check_runes(
     input: &CompileInput<'_>,
     res: &Resolution,
     target: Target,
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
-    /// Where an expression sits.
-    #[derive(Clone, Copy)]
-    struct Place {
-        statement: bool,
-        in_class: bool,
-        /// Upstream evaluates it when the component renders: the instance's top level or a
-        /// template expression, outside any function.
-        rendering: bool,
+    let mut walk = RuneWalk {
+        javascript: input.component.javascript,
+        res,
+        target,
+        custom_element,
+        props: false,
+        props_id: false,
+        refused: None,
+    };
+    let module = input
+        .component
+        .module
+        .map(|module| (module, Parent::Other, true, false));
+    let template =
+        (input.component.template_expressions.iter()).map(|&e| (e, Parent::Other, false, true));
+    let roots = module
+        .into_iter()
+        .chain([(input.component.program, Parent::InstanceBody, false, true)])
+        .chain(template);
+    for (root, parent, module, rendering) in roots {
+        let place = Place {
+            parent: Parent::Other,
+            in_class: false,
+            module,
+            rendering,
+        };
+        if parent == Parent::InstanceBody {
+            let mut statements = Vec::new();
+            walk.javascript.for_each_child(root, |c| statements.push(c));
+            for statement in statements {
+                walk.walk(statement, Place { parent, ..place })?;
+            }
+        } else {
+            walk.walk(root, place)?;
+        }
     }
-    fn walk(
-        javascript: &SyntaxTree,
-        res: &Resolution,
-        target: Target,
-        custom_element: bool,
-        e: NodeIdentifier,
-        place: Place,
-    ) -> Result<(), Diagnostic> {
+    walk.refused.map_or(Ok(()), Err)
+}
+
+impl RuneWalk<'_> {
+    fn walk(&mut self, e: NodeIdentifier, place: Place) -> Result<(), Diagnostic> {
+        let javascript = self.javascript;
         // A `for await` suspends rendering as an `await` does; upstream prints it into a
         // function that is not async.
         if place.rendering
@@ -303,47 +379,26 @@ pub(super) fn check_runes(
                 Kind::Await(_) | Kind::Control(Control::ForEach { is_await: true, .. })
             )
         {
-            let Some(span) = javascript.source_location(e).span() else {
-                unreachable!("an await is parsed from source")
-            };
             return super::special::invalid(
                 "experimental_async",
                 "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`",
-                span,
+                span_of(javascript, e),
             );
         }
-        if let Some(rune) = rune(javascript, e, Some(&res.sem)) {
-            let supported = match rune {
-                "$state" | "$state.raw" | "$derived" | "$derived.by" => !place.in_class,
-                "$props" | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
-                "$host" => custom_element,
-                "$effect" | "$effect.pre" => place.statement || target == Target::Client,
-                _ => false,
-            };
-            if !supported {
-                let Some(span) = javascript.source_location(e).span() else {
-                    unreachable!("a rune call is parsed from source")
-                };
-                return if place.in_class {
-                    unsupported(&format!("`{rune}` in a class body"), span)
-                } else {
-                    unsupported(&format!("`{rune}`"), span)
-                };
-            }
+        if let Some(rune) = rune(javascript, e, Some(&self.res.sem)) {
+            self.check_rune(e, rune, place)?;
         }
         if matches!(javascript.kind(e), Kind::Declarator { .. }) {
             super::script::check_destructured_rune(javascript, e)?;
         }
-        check_pattern_assignment(javascript, res, target, custom_element, e)?;
+        check_pattern_assignment(javascript, self.res, self.target, self.custom_element, e)?;
         let mut children = Vec::new();
         javascript.for_each_child(e, |c| children.push(c));
-        let place = Place {
-            statement: matches!(javascript.kind(e), Kind::ExpressionStatement(_)),
+        let inner = Place {
+            parent: Parent::Other,
             in_class: place.in_class
-                || matches!(
-                    javascript.kind(e),
-                    Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition { .. })
-                ),
+                || matches!(javascript.kind(e), Kind::Class(Class::Definition { .. })),
+            module: place.module,
             rendering: place.rendering
                 && !matches!(
                     javascript.kind(e),
@@ -351,33 +406,247 @@ pub(super) fn check_runes(
                 ),
         };
         for c in children {
-            walk(javascript, res, target, custom_element, c, place)?;
+            let parent = self.parent_of(e, c, place.parent);
+            self.walk(c, Place { parent, ..inner })?;
         }
         Ok(())
     }
-    let javascript = input.component.javascript;
-    let roots = input
-        .component
-        .module
-        .map(|module| (module, false))
-        .into_iter()
-        .chain([(input.component.program, true)])
-        .chain(
-            input
-                .component
-                .template_expressions
-                .iter()
-                .map(|&e| (e, true)),
-        );
-    for (root, rendering) in roots {
-        let place = Place {
-            statement: false,
-            in_class: false,
-            rendering,
-        };
-        walk(javascript, res, target, custom_element, root, place)?;
+
+    /// Where `child`, a child of `e`, sits, given where `e` sits.
+    fn parent_of(&self, e: NodeIdentifier, child: NodeIdentifier, parent: Parent) -> Parent {
+        let javascript = self.javascript;
+        match (javascript.kind(e), parent) {
+            (Kind::VariableDeclaration { .. }, Parent::InstanceBody) => Parent::TopDeclarator,
+            (
+                Kind::Declarator {
+                    identifier,
+                    initializer,
+                },
+                _,
+            ) if Some(child) == initializer => Parent::Initializer {
+                top: parent == Parent::TopDeclarator,
+                named: javascript.is_identifier(identifier),
+            },
+            (
+                Kind::Declarator {
+                    initializer: Some(initializer),
+                    ..
+                },
+                _,
+            ) if rune(javascript, initializer, Some(&self.res.sem)) == Some("$props") => {
+                Parent::Props
+            }
+            (Kind::ObjectPattern(_), Parent::Props) => Parent::PropsProperty,
+            (Kind::Property { value, .. }, Parent::PropsProperty) if value == child => {
+                Parent::PropsValue
+            }
+            (Kind::AssignPattern(_, default), Parent::PropsValue) if default == child => {
+                Parent::PropsDefault
+            }
+            (Kind::ExpressionStatement(_), _) => Parent::Statement,
+            (
+                Kind::Class(Class::Field {
+                    value: Some(value),
+                    computed: false,
+                    is_static: false,
+                    ..
+                }),
+                _,
+            ) if value == child => Parent::ClassField,
+            _ => Parent::Other,
+        }
     }
-    Ok(())
+
+    /// Upstream's `CallExpression` checks for a rune call, then whether this port lowers it.
+    fn check_rune(
+        &mut self,
+        e: NodeIdentifier,
+        rune: &'static str,
+        place: Place,
+    ) -> Result<(), Diagnostic> {
+        let javascript = self.javascript;
+        // A rune call a frontend wrote has no source, and raises nothing.
+        let span = javascript.source_location(e).span();
+        let Kind::Call { arguments, .. } = javascript.kind(e) else {
+            unreachable!("a rune is a call")
+        };
+        let spread = (arguments.iter()).any(|&a| matches!(javascript.kind(a), Kind::Spread(_)));
+        if rune != "$inspect" && spread {
+            return invalid_rune(
+                "rune_invalid_spread",
+                &format!("`{rune}` cannot be called with a spread argument"),
+                span,
+            );
+        }
+        // Upstream's parent of an optional call is its `ChainExpression`.
+        let parent = if javascript.is_chain(e) {
+            Parent::Other
+        } else {
+            place.parent
+        };
+        // Upstream counts the arguments of these two before it asks where they are.
+        if matches!(rune, "$bindable" | "$host") {
+            check_rune_arguments(rune, arguments.len(), span)?;
+            self.check_rune_placement(rune, parent, place, span)?;
+        } else {
+            self.check_rune_placement(rune, parent, place, span)?;
+            check_rune_arguments(rune, arguments.len(), span)?;
+        }
+        self.refuse_unlowered(e, rune, place, span);
+        Ok(())
+    }
+
+    /// Upstream's placement errors, and its errors for a second `$props()` or `$props.id()`.
+    fn check_rune_placement(
+        &mut self,
+        rune: &'static str,
+        parent: Parent,
+        place: Place,
+        span: Option<Span>,
+    ) -> Result<(), Diagnostic> {
+        let top = matches!(parent, Parent::Initializer { top: true, .. }) && !place.module;
+        let (code, message) = match rune {
+            "$bindable" if parent != Parent::PropsDefault => (
+                "bindable_invalid_location",
+                "`$bindable()` can only be used inside a `$props()` declaration".to_owned(),
+            ),
+            "$host" if place.module || !self.custom_element => (
+                "host_invalid_placement",
+                "`$host()` can only be used inside custom element component instances".to_owned(),
+            ),
+            "$props" | "$props.id" => {
+                let seen = if rune == "$props" {
+                    &mut self.props
+                } else {
+                    &mut self.props_id
+                };
+                if std::mem::replace(seen, true) {
+                    (
+                        "props_duplicate",
+                        format!("Cannot use `{rune}()` more than once"),
+                    )
+                } else if !top
+                    || rune == "$props.id"
+                        && !matches!(parent, Parent::Initializer { named: true, .. })
+                {
+                    let code = if rune == "$props" {
+                        "props_invalid_placement"
+                    } else {
+                        "props_id_invalid_placement"
+                    };
+                    (
+                        code,
+                        format!(
+                            "`{rune}()` can only be used at the top level of components as a variable declaration initializer"
+                        ),
+                    )
+                } else {
+                    return Ok(());
+                }
+            }
+            // A class body is refused later, so a constructor's assignment is not told apart.
+            "$state" | "$state.raw" | "$derived" | "$derived.by"
+                if !matches!(parent, Parent::Initializer { .. } | Parent::ClassField)
+                    && !place.in_class =>
+            {
+                (
+                    "state_invalid_placement",
+                    format!(
+                        "`{rune}(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor."
+                    ),
+                )
+            }
+            "$effect" | "$effect.pre" if parent != Parent::Statement => (
+                "effect_invalid_placement",
+                "`$effect()` can only be used as an expression statement".to_owned(),
+            ),
+            _ => return Ok(()),
+        };
+        invalid_rune(code, &message, span)
+    }
+
+    /// Keeps the first rune call this port does not lower, refused when the walk ends.
+    fn refuse_unlowered(
+        &mut self,
+        e: NodeIdentifier,
+        rune: &'static str,
+        place: Place,
+        span: Option<Span>,
+    ) {
+        let lowered = rune_call(self.javascript, e).is_some();
+        let supported = lowered
+            && match rune {
+                "$state" | "$state.raw" | "$derived" | "$derived.by" => !place.in_class,
+                "$props" | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
+                "$host" => self.custom_element,
+                "$effect" | "$effect.pre" => {
+                    place.parent == Parent::Statement || self.target == Target::Client
+                }
+                _ => false,
+            };
+        if supported || self.refused.is_some() {
+            return;
+        }
+        let what = if place.in_class {
+            format!("`{rune}` in a class body")
+        } else if lowered {
+            format!("`{rune}`")
+        } else {
+            format!("`{rune}` in an optional chain")
+        };
+        self.refused = unsupported::<()>(&what, located(span)).err();
+    }
+}
+
+/// Upstream's errors for a rune called with the wrong number of arguments.
+fn check_rune_arguments(
+    rune: &'static str,
+    count: usize,
+    span: Option<Span>,
+) -> Result<(), Diagnostic> {
+    let expected = match rune {
+        "$props" | "$props.id" | "$host" | "$effect.tracking" if count > 0 => {
+            return invalid_rune(
+                "rune_invalid_arguments",
+                &format!("`{rune}` cannot be called with arguments"),
+                span,
+            );
+        }
+        "$derived" | "$derived.by" | "$effect" | "$effect.pre" | "$effect.root"
+        | "$inspect().with" | "$state.eager" | "$state.snapshot"
+            if count != 1 =>
+        {
+            "exactly one argument"
+        }
+        "$bindable" | "$state" | "$state.raw" | "$inspect.trace" if count > 1 => {
+            "zero or one arguments"
+        }
+        "$inspect" if count < 1 => "one or more arguments",
+        _ => return Ok(()),
+    };
+    invalid_rune(
+        "rune_invalid_arguments_length",
+        &format!("`{rune}` must be called with {expected}"),
+        span,
+    )
+}
+
+fn span_of(javascript: &SyntaxTree, e: NodeIdentifier) -> Span {
+    let Some(span) = javascript.source_location(e).span() else {
+        unreachable!("a checked node is parsed from source")
+    };
+    span
+}
+
+fn invalid_rune(code: &'static str, message: &str, span: Option<Span>) -> Result<(), Diagnostic> {
+    super::special::invalid(code, message, located(span))
+}
+
+fn located(span: Option<Span>) -> Span {
+    let Some(span) = span else {
+        unreachable!("a refused rune call is parsed from source")
+    };
+    span
 }
 
 /// Refuses a pattern assigned to a name the target reads through a signal or a call, or to a
