@@ -6802,7 +6802,7 @@ svelte/svar-grid/svelte/demos/cases/SortCustom.svelte	refused
 svelte/svar-grid/svelte/demos/cases/StaticData.svelte	refused
 svelte/svar-grid/svelte/demos/cases/TableAPI.svelte	refused
 svelte/svar-grid/svelte/demos/cases/TableHeaderFooterSpans.svelte	refused
-svelte/svar-grid/svelte/demos/cases/TableHeaderFooterVertical.svelte	mismatch
+svelte/svar-grid/svelte/demos/cases/TableHeaderFooterVertical.svelte	refused
 svelte/svar-grid/svelte/demos/cases/Toolbar.svelte	refused
 svelte/svar-grid/svelte/demos/cases/Tooltips.svelte	refused
 svelte/svar-grid/svelte/demos/cases/TreeTable.svelte	refused
@@ -9480,7 +9480,7 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/destructure-async-assi
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/destructure-derived-by/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/destructure-derived-event/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/destructure-derived-object/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/destructure-state-from-props/Child.svelte	mismatch
+svelte/svelte/packages/svelte/tests/runtime-runes/samples/destructure-state-from-props/Child.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/details-binding-initial/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/directives-with-member-access/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/directives/main.svelte	refused
@@ -9867,8 +9867,8 @@ svelte/svelte/packages/svelte/tests/server-side-rendering/samples/css-injected-o
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/css-injected-options-nested/Nested.svelte	refused
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/css-injected-options/main.svelte	refused
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/declaration-tags-transform/main.svelte	refused
-svelte/svelte/packages/svelte/tests/server-side-rendering/samples/destructure-state-iterable/main.svelte	mismatch
-svelte/svelte/packages/svelte/tests/server-side-rendering/samples/destructure-state/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/server-side-rendering/samples/destructure-state-iterable/main.svelte	refused
+svelte/svelte/packages/svelte/tests/server-side-rendering/samples/destructure-state/main.svelte	refused
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/directives/main.svelte	refused
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/empty-elements-closed/main.svelte	missing
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/head-component-props-id/HeadNested.svelte	refused

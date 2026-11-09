@@ -332,7 +332,7 @@ pub(super) fn check_runes(
             }
         }
         if matches!(javascript.kind(e), Kind::Declarator { .. }) {
-            super::script::check_destructured_rune(javascript, target, e)?;
+            super::script::check_destructured_rune(javascript, e)?;
         }
         check_pattern_assignment(javascript, res, target, custom_element, e)?;
         let mut children = Vec::new();

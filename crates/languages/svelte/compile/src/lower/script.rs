@@ -525,9 +525,6 @@ pub(super) fn lower_script(
                 );
             }
             Kind::VariableDeclaration { kind, declarations } => {
-                for &d in declarations {
-                    check_destructured_rune(from, rw.target, d)?;
-                }
                 // Upstream's instance gives each declarator its own declaration.
                 let split = context == ScriptContext::Instance;
                 let location = from.source_location(statement);

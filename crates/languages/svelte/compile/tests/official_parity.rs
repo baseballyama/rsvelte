@@ -72,6 +72,25 @@ fn a_destructuring_assignment_is_refused_where_the_target_reads_a_signal() {
 
 /// Upstream splits each into one declaration per path, which this port does not do yet.
 #[test]
+fn a_destructured_state_or_derived_is_refused_on_both_targets() {
+    for script in [
+        "const { a, b: c } = $state({ a: 1, b: 2 });",
+        "let [x] = $state.raw([1]);",
+        "const { a } = $derived({ a: 1 });",
+    ] {
+        let source = format!("<script>{script}</script>");
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(
+                compile(&source, target).err().as_deref(),
+                Some("unsupported"),
+                "{source} on {target:?}"
+            );
+        }
+    }
+}
+
+/// Upstream prints such a head as invalid JavaScript (`for ($.get(n) of xs)`, `for (d() of xs)`).
+#[test]
 fn a_loop_head_that_assigns_a_signal_is_refused_on_both_targets() {
     for script in [
         "let n = $state(0); n = 2; function f() { for (n of [1]) {} }",

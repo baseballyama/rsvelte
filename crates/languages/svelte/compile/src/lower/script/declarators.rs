@@ -8,11 +8,10 @@ use super::{
     unsupported,
 };
 
-/// Upstream splits a destructured `$derived` (both targets) and a destructured `$state` (client)
-/// into one declaration per path; this port has no `extract_paths` yet.
+/// Upstream splits a destructured `$state` or `$derived` into one declaration per path on both
+/// targets; this port has no `extract_paths` yet.
 pub(in crate::lower) fn check_destructured_rune(
     from: &SyntaxTree,
-    target: Target,
     d: NodeIdentifier,
 ) -> Result<(), Diagnostic> {
     let Kind::Declarator {
@@ -28,12 +27,7 @@ pub(in crate::lower) fn check_destructured_rune(
     let Some((rune, _)) = rune_call(from, initializer) else {
         return Ok(());
     };
-    let split = match rune {
-        "$derived" | "$derived.by" => true,
-        "$state" | "$state.raw" => target == Target::Client,
-        _ => false,
-    };
-    if split {
+    if matches!(rune, "$derived" | "$derived.by" | "$state" | "$state.raw") {
         return unsupported(
             &format!("a destructured `{rune}` declaration"),
             from.source_location(d)
