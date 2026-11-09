@@ -71,3 +71,12 @@ fn punctuators_are_the_longest_match_of_the_operator_table() {
         (1..=4).map(|n| alphabet.len().pow(n)).sum::<usize>()
     );
 }
+
+// From Node: the cooked values of `a\x62`, `a<CR>b` and `a<CR><LF>b` written in a template.
+#[test]
+fn a_template_cooks_escapes_and_reads_a_carriage_return_as_a_line_feed() {
+    assert_eq!(cook_template("a\\x62"), "ab");
+    assert_eq!(cook_template("a\rb"), "a\nb");
+    assert_eq!(cook_template("a\r\nb"), "a\nb");
+    assert_eq!(cook_template("a\\\r\nb"), "ab");
+}

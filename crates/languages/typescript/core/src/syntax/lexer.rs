@@ -529,6 +529,17 @@ pub fn decode_string(raw_body: &str) -> Option<String> {
     Some(out)
 }
 
+/// A template element's cooked value from its raw text.
+#[must_use]
+pub fn cook_template(raw: &str) -> std::borrow::Cow<'_, str> {
+    if !raw.contains(['\\', '\r']) {
+        return std::borrow::Cow::Borrowed(raw);
+    }
+    // A template reads a CRLF as LF, escaped or not.
+    let raw = raw.replace("\r\n", "\n").replace('\r', "\n");
+    std::borrow::Cow::Owned(decode_string(&raw).unwrap_or(raw))
+}
+
 #[cfg(test)]
 mod tests;
 
