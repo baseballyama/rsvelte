@@ -131,3 +131,42 @@ fn server_output_is_unchanged() {
         "SSR already matched the official compiler. Got:\n{out}"
     );
 }
+
+#[test]
+fn a_default_is_visited_after_every_array_is_named() {
+    // Upstream names the outer `$$array`s before it visits the default, so the
+    // pattern nested in the default takes the next name.
+    let out = compile_client(
+        r#"<script>
+	let [a = () => { let [x] = $state([1]); return x; }, [b]] = $state([]);
+</script>
+<p>{a()}{b}</p>"#,
+    );
+    let expected = "\tlet tmp = [],
+		$$array = $.derived(() => $.to_array(tmp, 2)),
+		$$array_1 = $.derived(() => $.to_array($.get($$array)[1], 1)),
+		a = $.proxy($.fallback($.get($$array)[0], () => {
+			let tmp_1 = [1],
+				$$array_2 = $.derived(() => $.to_array(tmp_1, 1)),
+				x = $.proxy($.get($$array_2)[0]);
+
+			return x;
+		})),
+		b = $.proxy($.get($$array_1)[0]);";
+    assert!(out.contains(expected), "Got:\n{out}");
+}
+
+#[test]
+fn an_empty_object_pattern_keeps_only_the_tmp() {
+    let out = compile_client(
+        r#"<script>
+	let {} = $state({});
+</script>
+<p>x</p>"#,
+    );
+    assert!(out.contains("\tlet tmp = {};\n"), "Got:\n{out}");
+    assert!(
+        !out.contains("$state("),
+        "the rune was left in place:\n{out}"
+    );
+}
