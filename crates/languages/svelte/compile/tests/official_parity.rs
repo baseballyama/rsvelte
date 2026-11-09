@@ -38,3 +38,13 @@ fn squashed(source: &str, target: Target) -> String {
 fn a_byte_order_mark_is_no_text() {
     assert!(squashed("\u{feff}<p>a</p>", Target::Server).contains("`<p>a</p>`"));
 }
+
+#[test]
+fn an_optional_global_member_is_not_folded() {
+    for (markup, kept) in [
+        ("<p>{Math?.PI}</p>", "Math?.PI"),
+        ("<p>{Math.max?.(1, 2)}</p>", "Math.max?.(1,2)"),
+    ] {
+        assert!(squashed(markup, Target::Client).contains(kept), "{markup}");
+    }
+}
