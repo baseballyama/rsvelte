@@ -1,6 +1,7 @@
 use crate::rule::RuleDefinition;
 
 mod button_has_type;
+mod derived_has_same_inputs_outputs;
 mod javascript;
 mod no_add_event_listener;
 mod no_extra_reactive_curlies;
@@ -17,6 +18,7 @@ mod valid_each_key;
 pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_unused_variables::RULE,
     &button_has_type::RULE,
+    &derived_has_same_inputs_outputs::RULE,
     &no_add_event_listener::RULE,
     &no_extra_reactive_curlies::RULE,
     &no_ignored_unsubscribe::RULE,
