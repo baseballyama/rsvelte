@@ -255,15 +255,10 @@ impl Rewrite for ScriptRewrite<'_> {
             Kind::Identifier(_) => self.read(from, to, identifier),
             Kind::Assign(op, target, value) => self.assign(from, to, identifier, op, target, value),
             Kind::Update { op, prefix, arg } => self.update(from, to, identifier, op, prefix, arg),
-            Kind::Block(body)
-                if self.target == Target::Server && body.iter().any(|&s| is_effect(from, s)) =>
+            Kind::ExpressionStatement(_)
+                if self.target == Target::Server && is_effect(from, identifier) =>
             {
-                let kept: Vec<NodeIdentifier> = body
-                    .iter()
-                    .filter(|&&s| !is_effect(from, s))
-                    .map(|&s| copy(from, to, self, s))
-                    .collect();
-                Some(to.block(&kept, from.source_location(identifier)))
+                Some(to.empty(from.source_location(identifier)))
             }
             Kind::Call { arguments, .. } => {
                 let name = match (self.target, rune_call(from, identifier)?.0) {
@@ -478,7 +473,6 @@ pub(super) fn lower_script(
     for &statement in body {
         match from.kind(statement) {
             Kind::TypeScriptDeclaration => {}
-            _ if rw.target == Target::Server && is_effect(from, statement) => {}
             Kind::Import { .. } => hoisted.push(copy(from, to, rw, statement)),
             // Upstream turns these into the component's exports; copying them would put an
             // `export` inside the component function.

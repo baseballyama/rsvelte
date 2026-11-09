@@ -156,6 +156,22 @@ fn a_derived_keeps_its_arrow_only_when_the_callee_may_change() {
     }
 }
 
+/// Official 5.57.3 output for each statement position an effect can take.
+#[test]
+fn the_server_empties_an_effect_wherever_a_statement_stands() {
+    let source = "<script>let x = 1; if (x) $effect(() => {}); else $effect.pre(() => {}); \
+                  for (;;) $effect(() => {}); while (x) $effect(() => {}); l: $effect(() => {}); \
+                  function f() { a(); $effect(() => {}); b(); } switch (x) { case 1: $effect(() => {}); } \
+                  $effect(() => {});</script>";
+    assert!(
+        squashed(source, Target::Server).ends_with(
+            "letx=1;if(x);else;for(;;);while(x);l:;functionf(){a();b();}switch(x){case1:;}});}"
+        ),
+        "{}",
+        compiled(source, Target::Server)
+    );
+}
+
 /// esrap skips an empty statement only in a block or program body, not in a `switch` case.
 #[test]
 fn an_empty_statement_is_dropped_from_a_block_or_program_body() {
