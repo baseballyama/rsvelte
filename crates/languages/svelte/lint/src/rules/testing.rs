@@ -11,6 +11,15 @@ use serde_json::value::RawValue;
 
 use crate::{Configuration, LintSettings};
 
+/// Whether `options` configure `rule`, or why not.
+pub(super) fn configure(rule: &str, options: &str) -> Result<(), String> {
+    let options: Vec<Box<RawValue>> =
+        serde_json::from_str(options).map_err(|error| error.to_string())?;
+    Configuration::new(LintSettings::default())
+        .rule(rule, Severity::Error, &options, &[])
+        .map(|_| ())
+}
+
 /// What `rule` reports on `source_text`, as `line:column message`, and the code with its fixes
 /// applied.
 pub(super) fn lint(rule: &str, options: &str, source_text: &str) -> (Vec<String>, String) {

@@ -12,14 +12,14 @@ pub(super) static RULE: RuleDefinition = RuleDefinition {
 };
 
 /// One option: an element name, or names that share a message.
-#[derive(Deserialize)]
+#[derive(Deserialize, PartialEq, Eq)]
 #[serde(untagged)]
 enum Restriction {
     Name(String),
     Group(Group),
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 struct Group {
     elements: Vec<String>,
@@ -30,22 +30,45 @@ fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
     if options.options.is_empty() {
         return Err("takes at least one element".to_owned());
     }
-    let mut restrictions = Vec::new();
+    let mut seen: Vec<Restriction> = Vec::new();
     for index in 0..options.options.len() {
         let restriction = options
             .get::<Restriction>(index)?
             .expect("an option at each index");
-        restrictions.push(match restriction {
-            Restriction::Name(name) => (vec![name], None),
-            Restriction::Group(group) => {
-                if group.elements.is_empty() {
-                    return Err("`elements` names at least one element".to_owned());
-                }
-                (group.elements, group.message.filter(|m| !m.is_empty()))
+        if let Restriction::Group(group) = &restriction {
+            if group.elements.is_empty() {
+                return Err("`elements` names at least one element".to_owned());
             }
-        });
+            if group.message.as_deref() == Some("") {
+                return Err("`message` is not empty".to_owned());
+            }
+            if let Some(name) = repeated(&group.elements) {
+                return Err(format!("`elements` names `{name}` twice"));
+            }
+        }
+        // Configuration is checked once, and option lists are short.
+        if seen.contains(&restriction) {
+            return Err(format!("option {index} repeats an earlier option"));
+        }
+        seen.push(restriction);
     }
+    let restrictions = seen
+        .into_iter()
+        .map(|restriction| match restriction {
+            Restriction::Name(name) => (vec![name], None),
+            Restriction::Group(group) => (group.elements, group.message),
+        })
+        .collect();
     Ok(Box::new(NoRestrictedHtmlElements(restrictions)))
+}
+
+/// A name that `names` holds twice (the schema's `uniqueItems`).
+fn repeated(names: &[String]) -> Option<&str> {
+    names
+        .iter()
+        .enumerate()
+        .find(|&(index, name)| names[..index].contains(name))
+        .map(|(_, name)| name.as_str())
 }
 
 /// Each option's names and its message.
@@ -80,3 +103,6 @@ impl SvelteRule for NoRestrictedHtmlElements {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
