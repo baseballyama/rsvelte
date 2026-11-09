@@ -1,4 +1,4 @@
-# svelte.compile/client: 8511 match
+# svelte.compile/client: 8513 match
 svelte/animotion/src/lib/components/action.svelte	refused
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -3428,8 +3428,6 @@ svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-auto
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-declaration-tag.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatcher-typed-non-literal/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-5.v5/input.svelte	refused
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-8.v5/input.svelte	mismatch
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-9.v5/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-with-slot.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune.v5/+page.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-type-assertion/input.svelte	missing

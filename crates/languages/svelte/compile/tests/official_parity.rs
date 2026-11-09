@@ -156,6 +156,18 @@ fn a_derived_keeps_its_arrow_only_when_the_callee_may_change() {
     }
 }
 
+/// esrap skips an empty statement only in a block or program body, not in a `switch` case.
+#[test]
+fn an_empty_statement_is_dropped_from_a_block_or_program_body() {
+    let source = "<script>function f() { a();; b(); } ; if (x) ; switch (x) { case 1: ; default: ; }</script>";
+    assert!(
+        squashed(source, Target::Client)
+            .ends_with("functionf(){a();b();}if(x);switch(x){case1:;default:;}}"),
+        "{}",
+        compiled(source, Target::Client)
+    );
+}
+
 #[test]
 fn effect_tracking_is_read_inside_an_effect() {
     let source = "<script>import C from './C.svelte';</script><C t={$effect.tracking()} /><p>{$effect.tracking()}</p>";

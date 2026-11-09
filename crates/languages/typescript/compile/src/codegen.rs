@@ -23,7 +23,7 @@ pub fn print_program(
     if let Kind::Program(body) = syntax_tree.kind(program) {
         let mut first = true;
         for &s in body {
-            if !g.emits(s) {
+            if !g.emits(s, true) {
                 continue;
             }
             if !first {
@@ -83,10 +83,12 @@ impl Gen<'_> {
         }
     }
 
-    /// Whether a statement produces output (TypeScript-only statements do not).
-    fn emits(&self, s: NodeIdentifier) -> bool {
+    /// Whether a statement produces output in a list: TypeScript-only statements do not, nor does
+    /// an empty statement in a block or program body, where esrap's `sequence` skips it.
+    fn emits(&self, s: NodeIdentifier, sequence: bool) -> bool {
         match self.syntax_tree.kind(s) {
             Kind::TypeScriptDeclaration | Kind::TypeScriptInterface { .. } => false,
+            Kind::Empty => !sequence,
             Kind::Import {
                 specifiers,
                 type_only,
@@ -98,7 +100,7 @@ impl Gen<'_> {
                             .iter()
                             .any(|&sp| self.syntax_tree.flags(sp) & flag::TYPE_ONLY == 0))
             }
-            Kind::ExportNamed(d) => self.emits(d),
+            Kind::ExportNamed(d) => self.emits(d, sequence),
             _ => true,
         }
     }

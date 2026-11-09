@@ -92,7 +92,7 @@ impl Gen<'_> {
                 }
                 self.e.push(":");
                 self.indent += 1;
-                self.statements(consequent);
+                self.statements(consequent, false);
                 self.indent -= 1;
             }
             Control::Jump { label, is_continue } => {
