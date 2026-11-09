@@ -1,0 +1,4 @@
+- message: Move variable declaration to program root.
+  line: 2
+  column: 2
+  suggestions: null

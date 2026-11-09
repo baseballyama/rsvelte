@@ -3,6 +3,7 @@ use crate::rule::RuleDefinition;
 mod button_has_type;
 mod experimental_require_slot_types;
 mod inactive;
+mod no_inner_declarations;
 mod no_svelte_internal;
 mod no_top_level_browser_globals;
 mod no_unnecessary_state_wrap;
@@ -22,6 +23,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &button_has_type::RULE,
     &experimental_require_slot_types::RULE,
     &inactive::EXPERIMENTAL_REQUIRE_STRICT_EVENTS,
+    &no_inner_declarations::RULE,
     &no_svelte_internal::RULE,
     &no_top_level_browser_globals::RULE,
     &no_unnecessary_state_wrap::RULE,
