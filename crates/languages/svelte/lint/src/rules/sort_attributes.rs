@@ -186,28 +186,33 @@ impl SortAttributes {
     fn check_tag(&self, attributes: &[Keyed<'_>], source: &str, reporter: &mut Reporter<'_>) {
         // Each kept attribute goes after every one before it, so the list stays sorted.
         let mut valid: Vec<usize> = Vec::new();
+        // Since the last spread, each attribute that goes after every one before it: the first
+        // attribute there that goes after another is one of them.
+        let mut since_spread: Vec<usize> = Vec::new();
+        let mut last_spread = None;
         for (index, attribute) in attributes.iter().enumerate() {
-            if attribute.spread || attribute.group.is_none() {
+            if attribute.spread {
+                last_spread = Some(index);
+                since_spread.clear();
                 continue;
+            }
+            if attribute.group.is_none() {
+                continue;
+            }
+            let later = since_spread.partition_point(|&p| !self.after(&attributes[p], attribute));
+            let later_since_spread = since_spread.get(later).copied();
+            if later_since_spread.is_none() {
+                since_spread.push(index);
             }
             let first = valid.partition_point(|&p| !self.after(&attributes[p], attribute));
             let Some(&previous) = valid.get(first) else {
                 valid.push(index);
                 continue;
             };
-            let spread_between = attributes[previous..index].iter().any(|a| a.spread);
+            let spread_between = last_spread.is_some_and(|spread| spread > previous);
             if !attribute.plain || !spread_between {
                 report(attributes, previous, index, source, reporter);
-                continue;
-            }
-            // Only the attributes since the last spread count.
-            let since = attributes[..index]
-                .iter()
-                .rposition(|a| a.spread)
-                .map_or(0, |spread| spread + 1);
-            if let Some(previous) = (since..index)
-                .find(|&p| attributes[p].group.is_some() && self.after(&attributes[p], attribute))
-            {
+            } else if let Some(previous) = later_since_spread {
                 report(attributes, previous, index, source, reporter);
             }
         }
