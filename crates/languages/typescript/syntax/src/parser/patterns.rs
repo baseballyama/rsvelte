@@ -1,5 +1,22 @@
 use super::{NodeIdentifier, ParseError, Parser, R, RESERVED, Span, T, flag};
 
+/// Keywords that start an expression, so they are not reserved there but cannot be bound.
+const EXPRESSION_KEYWORDS: &[&str] = &[
+    "const",
+    "delete",
+    "false",
+    "function",
+    "in",
+    "instanceof",
+    "new",
+    "null",
+    "this",
+    "true",
+    "typeof",
+    "var",
+    "void",
+];
+
 impl Parser<'_, '_> {
     // ---- binding patterns
     // ------------------------------------------------------------------------
@@ -9,7 +26,7 @@ impl Parser<'_, '_> {
         match self.token.t {
             T::Identifier => {
                 let t = self.bump()?;
-                if RESERVED.contains(&self.text(t)) {
+                if RESERVED.contains(&self.text(t)) || EXPRESSION_KEYWORDS.contains(&self.text(t)) {
                     return Err(ParseError {
                         message: format!("unexpected keyword `{}`", self.text(t)),
                         span: t.span,
