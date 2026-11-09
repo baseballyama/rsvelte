@@ -1,6 +1,7 @@
 //! Rules do no per-item work over the whole file, and deep expressions do not exhaust the
 //! stack.
 
+use std::fmt::Write as _;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -80,4 +81,22 @@ fn infinite_reactive_loop_is_near_baseline() {
             n,
         )
     });
+}
+
+#[test]
+fn no_immutable_reactive_statements_is_near_baseline() {
+    near_baseline(
+        "svelte/no-immutable-reactive-statements",
+        "a.svelte",
+        4000,
+        1,
+        |n| {
+            component(
+                |out, i| {
+                    writeln!(out, "const c{i} = 1; let x{i}; $: x{i} = c{i};").expect("a string");
+                },
+                n,
+            )
+        },
+    );
 }

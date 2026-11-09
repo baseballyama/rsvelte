@@ -10,7 +10,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::javascript::span;
 use super::legacy_reactivity::{bindings, legacy};
-use super::reactive_statements::reactive_statements;
+use super::reactive_statements::{by_statement, reactive_statements};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -30,30 +30,30 @@ struct NoImmutableReactiveStatements;
 impl SvelteRule for NoImmutableReactiveStatements {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        let mut statements = reactive_statements(component, file.source()).peekable();
-        if statements.peek().is_none() {
+        let statements: Vec<_> = reactive_statements(component, file.source()).collect();
+        if statements.is_empty() {
             return;
         }
         let mut checker = Checker::new(file, component);
         let javascript = &component.javascript;
         let sem = file.semantic();
-        for (statement, body) in statements {
-            let range = span(javascript, statement);
-            let within = |node| {
-                let at = span(javascript, node);
-                range.start_offset <= at.start_offset && at.end_offset <= range.end_offset
-            };
-            let mut reactive = false;
-            for (index, (reference, top)) in sem
-                .references
+        let ranges: Vec<Span> = statements
+            .iter()
+            .map(|&(statement, _)| span(javascript, statement))
+            .collect();
+        let references = by_statement(
+            &ranges,
+            sem.references
                 .iter()
-                .zip(&checker.legacy.references)
                 .enumerate()
-            {
-                if !within(reference.node) {
-                    continue;
-                }
-                match top {
+                .map(|(index, reference)| (span(javascript, reference.node).start_offset, index))
+                .collect(),
+        );
+        for ((_, body), indices) in statements.into_iter().zip(references) {
+            let mut reactive = false;
+            for index in indices {
+                let reference = &sem.references[index];
+                match checker.legacy.references[index] {
                     Some(top) => {
                         let write_only = !top.store && reference.write && !reference.read;
                         if !write_only && checker.is_mutable_reference(index) {
