@@ -172,6 +172,11 @@ fn store_or_rune(
     let initializer = resolution.sem.bindings[binding]
         .initializer(&tree)
         .expect("an initializer");
+    assert_eq!(
+        resolve::runes(&tree, source, program, None).rune(&tree, initializer),
+        resolution.rune(&tree, initializer),
+        "the narrower query agrees with the resolution"
+    );
     (
         resolution.bindings[binding].kind,
         resolution.is_store_subscription(rune),

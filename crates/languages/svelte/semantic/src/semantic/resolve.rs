@@ -100,6 +100,39 @@ pub fn resolve_with_module(
     }
 }
 
+/// What decides whether a call is a rune, without the template or the binding classes that
+/// [`resolve`] also computes; a script's scopes do not depend on the template.
+#[derive(Debug)]
+pub struct Runes {
+    sem: Semantic,
+    subscribed: Vec<&'static str>,
+}
+
+/// [`Runes`] of the instance `program` and the `module` beside it.
+#[must_use]
+pub fn runes(
+    syntax_tree: &SyntaxTree,
+    source_text: &str,
+    program: NodeIdentifier,
+    module: Option<NodeIdentifier>,
+) -> Runes {
+    let sem = scope::analyze_enclosed(syntax_tree, module, program, &[]);
+    let subscribed = runes::subscribed(syntax_tree, source_text, &sem, program, module);
+    Runes { sem, subscribed }
+}
+
+impl Runes {
+    /// [`Resolution::rune`] of a call in a script.
+    #[must_use]
+    pub fn rune(
+        &self,
+        syntax_tree: &SyntaxTree,
+        e: NodeIdentifier,
+    ) -> Option<(&'static str, Option<NodeIdentifier>)> {
+        runes::rune(syntax_tree, &self.sem, &self.subscribed, e)
+    }
+}
+
 /// The identifiers a binding pattern declares.
 pub fn for_each_pattern_identifier(
     syntax_tree: &SyntaxTree,
