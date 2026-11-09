@@ -1,4 +1,4 @@
-use super::{Formatter, Kind, Layout, LayoutInstructionIdentifier, NodeIdentifier};
+use super::{Formatter, Kind, Layout, LayoutInstructionIdentifier, NodeIdentifier, R, Unsupported};
 
 impl Formatter<'_> {
     /// Prettier's `printAssignment`.
@@ -9,8 +9,9 @@ impl Formatter<'_> {
         right: LayoutInstructionIdentifier,
         target: NodeIdentifier,
         value: NodeIdentifier,
-    ) -> LayoutInstructionIdentifier {
-        match self.assignment_layout(target, value) {
+        declarator: bool,
+    ) -> R<LayoutInstructionIdentifier> {
+        Ok(match self.assignment_layout(target, value, declarator) {
             Layout::BreakAfterOperator => {
                 let l = self.docs.group(&[left]);
                 let line = self.docs.line();
@@ -39,11 +40,20 @@ impl Formatter<'_> {
                 self.docs.group(&[l, op, g, r])
             }
             Layout::Unported => {
+                // Measured: a lookup whose key breaks moves after the operator in most cases.
+                if matches!(self.syntax_tree.kind(value), Kind::Member { .. })
+                    && self.docs.will_break(right)
+                {
+                    return Err(Unsupported::at(
+                        "a member expression with a line break on the right of `=`",
+                        self.syntax_tree.source_location(value),
+                    ));
+                }
                 let sp = self.lit(" ");
                 let flat = self.cat(&[left, op, sp, right]);
                 self.docs.flat_only(flat)
             }
-        }
+        })
     }
 
     /// Prettier's `chooseLayout`. Its `canBreakLeftDoc` holds only for a non-empty destructuring
@@ -52,6 +62,7 @@ impl Formatter<'_> {
         &self,
         target: NodeIdentifier,
         value: NodeIdentifier,
+        declarator: bool,
     ) -> Layout {
         let left_can_break = match self.syntax_tree.kind(target) {
             Kind::ObjectPattern(p) | Kind::ArrayPattern(p) => !p.is_empty(),
@@ -68,16 +79,21 @@ impl Formatter<'_> {
             return Layout::BreakLhs;
         }
         match v {
-            Kind::Arrow { .. } if left_can_break => Layout::BreakLhs,
+            // `isArrowFunctionVariableDeclarator`: a declarator only, not an assignment.
+            Kind::Arrow { .. } if declarator && left_can_break => Layout::BreakLhs,
             Kind::String | Kind::Sequence(_) => Layout::BreakAfterOperator,
             Kind::Conditional { test, .. } if self.breaks_after_operator(test) => {
                 Layout::BreakAfterOperator
             }
             Kind::Unary(_, a) | Kind::Await(a) => match self.syntax_tree.kind(a) {
                 Kind::String => Layout::BreakAfterOperator,
+                _ if self.member_expression_chain(a) => Layout::BreakAfterOperator,
                 Kind::Member { .. } | Kind::Call { .. } | Kind::New { .. } => Layout::Unported,
                 _ => Layout::Fluid,
             },
+            Kind::Member { .. } if self.member_expression_chain(value) => {
+                Layout::BreakAfterOperator
+            }
             // `isPoorlyBreakableMemberOrCallChain` decides these.
             Kind::Member { .. } | Kind::Call { .. } | Kind::New { .. } => Layout::Unported,
             Kind::Template { .. } | Kind::Boolean(_) | Kind::Number(_) if !left_can_break => {
@@ -97,6 +113,21 @@ impl Formatter<'_> {
                 _ => true,
             },
             _ => false,
+        }
+    }
+
+    /// Prettier's `isMemberExpressionChain`: lookups only, down to a name.
+    fn member_expression_chain(&self, mut node: NodeIdentifier) -> bool {
+        let mut is_member = false;
+        loop {
+            match self.syntax_tree.kind(node) {
+                Kind::Member { object, .. } => {
+                    is_member = true;
+                    node = object;
+                }
+                Kind::Identifier(_) => return is_member,
+                _ => return false,
+            }
         }
     }
 

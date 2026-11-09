@@ -1,44 +1,94 @@
 use super::{
-    Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, PatternContext, R, Slot,
-    TypeScriptKind, TypeScriptSyntax, Unsupported, op_of, should_flatten,
+    Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, Op, PatternContext, R, Slot,
+    TypeScriptKind, TypeScriptSyntax, Unsupported, flag, mixes_nullish, op_of, should_flatten,
 };
 
 /// Prettier's `printNumber`.
 #[must_use]
 pub(super) fn print_number(raw: &str) -> String {
+    if raw.len() == 1 {
+        return raw.to_owned();
+    }
     let s = raw.to_ascii_lowercase();
-    if s.starts_with("0x") || s.starts_with("0o") || s.starts_with("0b") || s.ends_with('n') {
+    if s.ends_with('n') {
         return s;
     }
-    let (mantissa, exponent) = match s.split_once('e') {
-        Some((m, e)) => (m, Some(e)),
-        None => (s.as_str(), None),
-    };
-    let mut m = if mantissa.starts_with('.') {
-        format!("0{mantissa}")
-    } else {
-        mantissa.to_owned()
-    };
-    if let Some(dot) = m.find('.') {
-        let frac = &m[dot + 1..];
-        let kept = frac.trim_end_matches('0').len().max(1).min(frac.len());
-        m.truncate(dot + 1 + kept);
-        if m.ends_with('.') {
-            m.pop();
+    // Prettier's regexes match `\d`, so a run broken by `_` is never trimmed.
+    let b = s.as_bytes();
+    let sign = usize::from(matches!(b.first(), Some(b'+' | b'-')));
+    let run = sign
+        + b[sign..]
+            .iter()
+            .take_while(|c| c.is_ascii_digit() || **c == b'.')
+            .count();
+    let mut out = s.clone();
+    if run > sign && b.get(run) == Some(&b'e') {
+        // `^([+-]?[\d.]+e)(?:\+|(-))?0*(?=\d)` → `$1$2`
+        let mut at = run + 1;
+        let minus = b.get(at) == Some(&b'-');
+        if matches!(b.get(at), Some(b'+' | b'-')) {
+            at += 1;
+        }
+        let zeros = b[at..].iter().take_while(|c| **c == b'0').count();
+        // `0*` backs off one zero when no digit follows the zeros.
+        let drop = if b.get(at + zeros).is_some_and(u8::is_ascii_digit) {
+            Some(zeros)
+        } else {
+            zeros.checked_sub(1)
+        };
+        if let Some(drop) = drop {
+            out = format!(
+                "{}{}{}",
+                &s[..=run],
+                if minus { "-" } else { "" },
+                &s[at + drop..]
+            );
         }
     }
-    match exponent {
-        None => m,
-        Some(e) => {
-            let sign = if e.starts_with('-') { "-" } else { "" };
-            let digits = e.trim_start_matches(['+', '-']).trim_start_matches('0');
-            if digits.is_empty() {
-                m
-            } else {
-                format!("{m}e{sign}{digits}")
-            }
+    // `^([+-]?[\d.]+)e[+-]?0+$` → `$1`
+    if let Some((m, e)) = out.split_once('e') {
+        let mb = m.as_bytes();
+        let ms = usize::from(matches!(mb.first(), Some(b'+' | b'-')));
+        let e = e.strip_prefix(['+', '-']).unwrap_or(e);
+        if mb.len() > ms
+            && mb[ms..].iter().all(|c| c.is_ascii_digit() || *c == b'.')
+            && !e.is_empty()
+            && e.bytes().all(|c| c == b'0')
+        {
+            out.truncate(m.len());
         }
     }
+    // `^([+-])?\.` → `$10.`
+    let lead = usize::from(matches!(out.as_bytes().first(), Some(b'+' | b'-')));
+    if out.as_bytes().get(lead) == Some(&b'.') {
+        out.insert(lead, '0');
+    }
+    // `(\.\d+?)0+(?=e|$)` → `$1`, at the leftmost `.` where it matches.
+    let trim = out.match_indices('.').find_map(|(dot, _)| {
+        let ob = out.as_bytes();
+        let digits = ob[dot + 1..]
+            .iter()
+            .take_while(|c| c.is_ascii_digit())
+            .count();
+        let end = dot + 1 + digits;
+        let kept = ob[dot + 1..end]
+            .iter()
+            .rposition(|c| *c != b'0')
+            .map_or(1, |p| p + 1);
+        (kept < digits && matches!(ob.get(end), None | Some(b'e'))).then_some(dot + 1 + kept..end)
+    });
+    if let Some(range) = trim {
+        out.replace_range(range, "");
+    }
+    // `\.(?=e|$)` → ``
+    let dot = out
+        .match_indices('.')
+        .map(|(dot, _)| dot)
+        .find(|&dot| matches!(out.as_bytes().get(dot + 1), None | Some(b'e')));
+    if let Some(dot) = dot {
+        out.remove(dot);
+    }
+    out
 }
 
 impl Formatter<'_> {
@@ -48,6 +98,10 @@ impl Formatter<'_> {
         parent: Option<NodeIdentifier>,
         slot: Slot,
     ) -> R<LayoutInstructionIdentifier> {
+        let leftmost = self.paren_leftmost == Some(identifier);
+        if leftmost {
+            self.paren_leftmost = None;
+        }
         let saved = self.at;
         self.at = parent.map(|p| (p, slot));
         let document = self
@@ -55,16 +109,10 @@ impl Formatter<'_> {
             .and_then(|d| self.typescript_expression_suffix(identifier, d));
         self.at = saved;
         let document = document?;
-        let leftmost = self.paren_leftmost == Some(identifier);
         if leftmost
-            || self.syntax_tree.flags(identifier)
-                & rsvelte_typescript_syntax::syntax_tree::flag::GROUPED
-                != 0
+            || self.syntax_tree.flags(identifier) & flag::GROUPED != 0
             || parent.is_some_and(|p| self.needs_parens(identifier, p, slot))
         {
-            if leftmost {
-                self.paren_leftmost = None;
-            }
             let lp = self.lit("(");
             let rp = self.lit(")");
             return Ok(self.cat(&[lp, document, rp]));
@@ -111,8 +159,17 @@ impl Formatter<'_> {
             None | Some(
                 Slot::Init | Slot::Argument | Slot::Value | Slot::Element | Slot::Statement
             )
-        );
-        if !simple || (cast && !cast_ok) {
+        ) && !self
+            .at
+            .is_some_and(|(p, _)| matches!(self.syntax_tree.kind(p), Kind::Spread(_)));
+        // `(a as T)!` needs the parentheses that the suffixes alone do not carry.
+        let cast_then_non_null = entries.iter().enumerate().any(|(i, t)| {
+            t.kind != TypeScriptKind::NonNull
+                && entries[i + 1..]
+                    .iter()
+                    .any(|n| n.kind == TypeScriptKind::NonNull)
+        });
+        if !simple || (cast && !cast_ok) || cast_then_non_null {
             return Err(Unsupported::at(
                 "TypeScript cast in this position",
                 entries[0].span,
@@ -141,6 +198,13 @@ impl Formatter<'_> {
         identifier: NodeIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
         match self.syntax_tree.kind(identifier) {
+            // Svelte parses a module, where `await` is a keyword; the tree read it as a name.
+            Kind::Identifier(_) if self.syntax_tree.name(identifier) == "await" => {
+                Err(Unsupported::at(
+                    "`await` read as a name",
+                    self.syntax_tree.source_location(identifier),
+                ))
+            }
             Kind::Identifier(_) => Ok(self.docs.text(self.syntax_tree.name(identifier))),
             Kind::Number(_) => {
                 let raw = self.span(identifier).text(self.source_text);
@@ -154,10 +218,10 @@ impl Formatter<'_> {
             Kind::Template {
                 quasis,
                 expressions,
-            } => self.template(quasis, expressions),
+            } => self.template(identifier, quasis, expressions),
             Kind::Array(items) => {
                 let e = self.docs.nil();
-                self.array(items, e)
+                self.array(identifier, items, e)
             }
             Kind::Object(props) => {
                 let e = self.docs.nil();
@@ -208,7 +272,7 @@ impl Formatter<'_> {
                 // `printBinaryishExpression`'s broken layouts depend on the parent; not ported.
                 let parts = self.binaryish(identifier)?;
                 let flat = self.cat(&parts);
-                Ok(self.docs.flat_only(flat))
+                self.flat_unless_forced(identifier, flat)
             }
             Kind::Conditional {
                 test,
@@ -221,14 +285,14 @@ impl Formatter<'_> {
                 let column = self.lit(" : ");
                 let a = self.expression(alternate, Some(identifier), Slot::Branch)?;
                 let flat = self.cat(&[t, q, c, column, a]);
-                Ok(self.docs.flat_only(flat))
+                self.flat_unless_forced(identifier, flat)
             }
             Kind::Assign(op, l, r) => {
                 let left = self.pattern(l, PatternContext::AssignLeft)?;
                 let right = self.expression(r, Some(identifier), Slot::Right)?;
                 let op = format!(" {}", op.as_str());
                 let op = self.docs.text(&op);
-                Ok(self.assignment(left, op, right, l, r))
+                self.assignment(left, op, right, l, r, false)
             }
             Kind::Sequence(items) => {
                 let mut parts = Vec::new();
@@ -239,8 +303,12 @@ impl Formatter<'_> {
                     parts.push(self.expression(it, Some(identifier), Slot::Element)?);
                 }
                 let flat = self.cat(&parts);
-                Ok(self.docs.flat_only(flat))
+                self.flat_unless_forced(identifier, flat)
             }
+            Kind::Await(_) if self.in_async == Some(false) => Err(Unsupported::at(
+                "`await` outside an async function",
+                self.syntax_tree.source_location(identifier),
+            )),
             Kind::Await(a) => {
                 let kw = self.lit("await ");
                 let a = self.expression(a, Some(identifier), Slot::Operand)?;
@@ -272,10 +340,30 @@ impl Formatter<'_> {
             Kind::Logical(op, l, r) => (op.as_str(), l, r),
             _ => unreachable!("binaryish"),
         };
-        let flatten = match (
-            op_of(self.syntax_tree, identifier),
-            op_of(self.syntax_tree, l),
-        ) {
+        let parent = op_of(self.syntax_tree, identifier);
+        for child in [l, r] {
+            let Some(c) = op_of(self.syntax_tree, child) else {
+                continue;
+            };
+            let grouped = self.syntax_tree.flags(child) & flag::GROUPED != 0;
+            // JavaScript rejects `a ?? b || c`; Svelte's parser does too.
+            if parent.is_some_and(|p| mixes_nullish(p, c)) && !grouped {
+                return Err(Unsupported::at(
+                    "`??` mixed with `||` or `&&` without parentheses",
+                    self.syntax_tree.source_location(identifier),
+                ));
+            }
+        }
+        // Prettier rebalances `a || (b || c)` into `a || b || c`.
+        if let (Some(Op::Log(p)), Some(Op::Log(c))) = (parent, op_of(self.syntax_tree, r))
+            && p == c
+        {
+            return Err(Unsupported::at(
+                "a logical expression nested on the right of the same operator",
+                self.syntax_tree.source_location(identifier),
+            ));
+        }
+        let flatten = match (parent, op_of(self.syntax_tree, l)) {
             (Some(p), Some(c)) => should_flatten(p, c) && !self.has_typescript(l),
             _ => false,
         };
@@ -288,6 +376,21 @@ impl Formatter<'_> {
         parts.push(self.docs.text(&op));
         parts.push(self.expression(r, Some(identifier), Slot::Right)?);
         Ok(parts)
+    }
+
+    /// `flat` as the one layout ported; Prettier breaks its lines around a forced break inside.
+    fn flat_unless_forced(
+        &mut self,
+        identifier: NodeIdentifier,
+        flat: LayoutInstructionIdentifier,
+    ) -> R<LayoutInstructionIdentifier> {
+        if self.docs.will_break(flat) {
+            return Err(Unsupported::at(
+                "a line break inside an operator or a conditional",
+                self.syntax_tree.source_location(identifier),
+            ));
+        }
+        Ok(self.docs.flat_only(flat))
     }
 
     pub(super) fn has_typescript(&self, identifier: NodeIdentifier) -> bool {

@@ -1,14 +1,23 @@
 use super::{
-    Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, PatternContext, R, Slot,
+    Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, PatternContext, R, Slot, Span,
     Unsupported, flag,
 };
 
 impl Formatter<'_> {
-    /// Prettier's `printStatementSequence`.
+    /// Prettier's `printStatementSequence`; a program or function body (`directives`) starts
+    /// with its directive prologue.
     pub(super) fn statements(
         &mut self,
         body: &[NodeIdentifier],
+        directives: bool,
     ) -> R<Vec<LayoutInstructionIdentifier>> {
+        let prologue = if directives {
+            body.iter()
+                .take_while(|&&s| self.directive(s).is_some())
+                .count()
+        } else {
+            0
+        };
         let body: Vec<NodeIdentifier> = body
             .iter()
             .copied()
@@ -16,7 +25,11 @@ impl Formatter<'_> {
             .collect();
         let mut out = Vec::new();
         for (i, &s) in body.iter().enumerate() {
-            out.push(self.statement(s)?);
+            // The prologue holds no empty statement, so it keeps its indices here.
+            out.push(match self.directive(s) {
+                Some(raw) if i < prologue => self.print_directive(raw),
+                _ => self.statement(s)?,
+            });
             if let Some(&next) = body.get(i + 1) {
                 out.push(self.docs.hardline());
                 if self.blank_line_between(s, next) {
@@ -25,6 +38,31 @@ impl Formatter<'_> {
             }
         }
         Ok(out)
+    }
+
+    /// The raw text of a statement that reads as a directive: a string, not in parentheses.
+    fn directive(&self, statement: NodeIdentifier) -> Option<Span> {
+        let Kind::ExpressionStatement(e) = self.syntax_tree.kind(statement) else {
+            return None;
+        };
+        let span = self.span(e);
+        let parenthesized = self.source_text[..span.start_offset as usize]
+            .trim_end()
+            .ends_with('(');
+        (matches!(self.syntax_tree.kind(e), Kind::String) && !parenthesized).then_some(span)
+    }
+
+    /// Prettier's `printDirective`: the raw text, with the preferred quotes when it holds none.
+    fn print_directive(&mut self, raw: Span) -> LayoutInstructionIdentifier {
+        let raw = raw.text(self.source_text);
+        let content = &raw[1..raw.len() - 1];
+        let text = if content.contains(['"', '\'']) {
+            format!("{raw};")
+        } else {
+            let q = if self.options.single_quote { '\'' } else { '"' };
+            format!("{q}{content}{q};")
+        };
+        self.docs.text(&text)
     }
 
     pub(super) fn statement(
@@ -36,8 +74,13 @@ impl Formatter<'_> {
                 self.var_declaration(kind, declarations)
             }
             Kind::ExpressionStatement(e) => {
+                // A statement nested in this one (in a function body) sets its own and gives
+                // this one back.
+                let saved = self.paren_leftmost;
                 self.paren_leftmost = self.leftmost_needing_parens(e, false);
-                let e = self.expression(e, Some(identifier), Slot::Statement)?;
+                let e = self.expression(e, Some(identifier), Slot::Statement);
+                self.paren_leftmost = saved;
+                let e = e?;
                 let semi = self.lit(";");
                 Ok(self.cat(&[e, semi]))
             }
@@ -145,6 +188,6 @@ impl Formatter<'_> {
         };
         let right = self.expression(initializer, Some(identifier), Slot::Init)?;
         let op = self.lit(" =");
-        Ok(self.assignment(left, op, right, target, initializer))
+        self.assignment(left, op, right, target, initializer, true)
     }
 }

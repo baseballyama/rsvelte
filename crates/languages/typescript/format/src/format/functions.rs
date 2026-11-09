@@ -28,24 +28,33 @@ impl Formatter<'_> {
                 self.syntax_tree.source_location(identifier),
             ));
         }
+        self.refuse_object_return_type(identifier)?;
         let mut parts = Vec::new();
         if is_async {
             parts.push(self.lit("async "));
         }
-        parts.push(self.lit("function "));
+        let generator = self.syntax_tree.flags(identifier) & flag::GENERATOR != 0;
+        parts.push(self.lit(if generator { "function* " } else { "function " }));
         if let Some(n) = name {
             parts.push(self.docs.text(self.syntax_tree.name(n)));
         }
         // `shouldGroupFunctionParameters` needs an object-type or breaking return type; a plain
         // type reference is neither.
-        let ps = self.parameters(parameters)?;
+        let saved = self.in_async;
+        // `await` in a parameter list is an error, async or not.
+        self.in_async = Some(false);
+        let ps = self.parameters(parameters);
+        self.in_async = Some(is_async);
+        let b = ps.and_then(|ps| Ok((ps, self.block(body, true)?)));
+        self.in_async = saved;
+        let (ps, b) = b?;
         let ret = self.type_suffix(
             self.typescript_of(identifier, TypeScriptKind::ReturnType),
             ": ",
         )?;
         parts.push(self.docs.group(&[ps, ret]));
         parts.push(self.lit(" "));
-        parts.push(self.block(body, true)?);
+        parts.push(b);
         Ok(self.cat(&parts))
     }
 
@@ -56,6 +65,14 @@ impl Formatter<'_> {
     ) -> R<LayoutInstructionIdentifier> {
         if parameters.is_empty() {
             return Ok(self.lit("()"));
+        }
+        if let [p] = parameters
+            && self.is_object_type(self.typescript_of(*p, TypeScriptKind::Annotation))
+        {
+            return Err(Unsupported::at(
+                "the only parameter with an object type, which Prettier hugs",
+                self.syntax_tree.source_location(*p),
+            ));
         }
         let hug = self.hug_only_param(parameters);
         let mut printed = Vec::new();
@@ -91,6 +108,31 @@ impl Formatter<'_> {
     }
 
     /// Prettier's `shouldHugTheOnlyFunctionParameter`.
+    /// Whether a type annotation or return type is an object type (`{ … }`), which changes how
+    /// Prettier groups the parameters.
+    pub(super) fn is_object_type(
+        &self,
+        span: Option<rsvelte_kernel::source::positions::Span>,
+    ) -> bool {
+        span.is_some_and(|s| {
+            s.text(self.source_text)
+                .trim_start_matches([':', ' ', '\t', '\n', '\r'])
+                .starts_with('{')
+        })
+    }
+
+    /// Refuses an object return type, with which Prettier groups the parameters differently.
+    pub(super) fn refuse_object_return_type(&self, function: NodeIdentifier) -> R<()> {
+        let ret = self.typescript_of(function, TypeScriptKind::ReturnType);
+        if self.is_object_type(ret) {
+            return Err(Unsupported::at(
+                "an object return type",
+                self.syntax_tree.source_location(function),
+            ));
+        }
+        Ok(())
+    }
+
     pub(super) fn hug_only_param(&self, parameters: &[NodeIdentifier]) -> bool {
         let [p] = parameters else { return false };
         match self.syntax_tree.kind(*p) {
@@ -122,7 +164,7 @@ impl Formatter<'_> {
                 self.syntax_tree.source_location(identifier),
             ));
         };
-        let statements = self.statements(body)?;
+        let statements = self.statements(body, fn_body)?;
         let open = self.lit("{");
         let close = self.lit("}");
         if statements.is_empty() {
@@ -189,6 +231,16 @@ impl Formatter<'_> {
         let inner = self.docs.indent(inner);
         let soft = self.docs.softline();
         let test_doc = self.docs.group(&[inner, soft]);
+        // An operator test is not grouped (`isInsideParenthesis`): once the parentheses break,
+        // every operator breaks, which is not built.
+        let test_doc = if matches!(
+            self.syntax_tree.kind(test),
+            Kind::Binary(..) | Kind::Logical(..)
+        ) {
+            self.docs.flat_only(test_doc)
+        } else {
+            test_doc
+        };
         let open = self.lit("if (");
         let close = self.lit(")");
         let c = self.clause(consequent, false)?;
@@ -223,7 +275,17 @@ impl Formatter<'_> {
                 Ok(self.cat(&[sp, b]))
             }
             _ => {
-                let s = self.statement(body)?;
+                let s = match self.syntax_tree.kind(body) {
+                    // Only a string in a statement list could read as a directive and is wrapped.
+                    Kind::ExpressionStatement(e)
+                        if matches!(self.syntax_tree.kind(e), Kind::String) =>
+                    {
+                        let e = self.expression(e, None, Slot::Statement)?;
+                        let semi = self.lit(";");
+                        self.cat(&[e, semi])
+                    }
+                    _ => self.statement(body)?,
+                };
                 if force_space {
                     let sp = self.lit(" ");
                     Ok(self.cat(&[sp, s]))

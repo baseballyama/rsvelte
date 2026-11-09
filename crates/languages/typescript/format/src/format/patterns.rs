@@ -40,7 +40,7 @@ impl Formatter<'_> {
                     self.typescript_of(identifier, TypeScriptKind::Annotation),
                     ": ",
                 )?;
-                self.array(items, ty)
+                self.array(identifier, items, ty)
             }
             Kind::AssignPattern(l, r) => {
                 let l = self.pattern(l, PatternContext::DefaultLeft)?;
@@ -192,6 +192,7 @@ impl Formatter<'_> {
     /// Prettier's `printArrayItems` in a group, for arrays that are not concisely printed.
     pub(super) fn array(
         &mut self,
+        owner: NodeIdentifier,
         items: &[NodeIdentifier],
         suffix: LayoutInstructionIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
@@ -209,7 +210,7 @@ impl Formatter<'_> {
                 _ => false,
             })
         {
-            return self.concise_array(items, suffix);
+            return self.concise_array(owner, items, suffix);
         }
         let mut parts = Vec::new();
         for (i, &it) in items.iter().enumerate() {
@@ -228,7 +229,7 @@ impl Formatter<'_> {
                 | Kind::AssignPattern(..)
                 | Kind::ObjectPattern(_)
                 | Kind::ArrayPattern(_) => self.pattern(it, PatternContext::Nested)?,
-                _ => self.expression(it, None, Slot::Element)?,
+                _ => self.expression(it, Some(owner), Slot::Element)?,
             });
         }
         let ends_in_rest = matches!(
@@ -279,13 +280,14 @@ impl Formatter<'_> {
     /// follows the array's own group.
     pub(super) fn concise_array(
         &mut self,
+        owner: NodeIdentifier,
         items: &[NodeIdentifier],
         suffix: LayoutInstructionIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
         let identifier = self.docs.new_group_identifier();
         let mut parts = Vec::with_capacity(items.len() * 2);
         for (i, &it) in items.iter().enumerate() {
-            let e = self.expression(it, None, Slot::Element)?;
+            let e = self.expression(it, Some(owner), Slot::Element)?;
             let c = self.lit(",");
             let Some(&next) = items.get(i + 1) else {
                 let nil = self.docs.nil();
