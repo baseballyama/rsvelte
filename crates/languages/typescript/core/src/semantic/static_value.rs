@@ -5,7 +5,7 @@
 //! does not model gives `None`, so a caller can treat `Some` as proof. Type syntax is erased in the
 //! tree, so `e as T`, `e satisfies T`, `e!` and `<T>e` are `e`.
 
-use std::cell::OnceCell;
+use std::cell::{OnceCell, RefCell};
 
 use rustc_hash::FxHashMap;
 
@@ -47,6 +47,16 @@ pub struct StaticValues<'a> {
     semantic: Option<&'a Semantic>,
     /// Built on the first object-valued variable, to find its mutating method calls.
     parents: OnceCell<Vec<NodeIdentifier>>,
+    /// What the references of each variable met so far say, so that a variable named many times
+    /// has its references read once.
+    variables: RefCell<FxHashMap<BindingIdentifier, Variable>>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Variable {
+    constant: bool,
+    /// Asked only of a variable that holds an object.
+    mutated: Option<bool>,
 }
 
 /// A value and whether an optional chain short-circuited on the way to it.
@@ -100,7 +110,7 @@ const MAX_BUILT_LENGTH: f64 = 1_048_576.0;
 
 impl<'a> StaticValues<'a> {
     #[must_use]
-    pub const fn new(
+    pub fn new(
         syntax_tree: &'a SyntaxTree,
         source_text: &'a str,
         semantic: Option<&'a Semantic>,
@@ -110,6 +120,7 @@ impl<'a> StaticValues<'a> {
             source_text,
             semantic,
             parents: OnceCell::new(),
+            variables: RefCell::new(FxHashMap::default()),
         }
     }
 
@@ -344,7 +355,7 @@ impl<'a> StaticValues<'a> {
         let Some(binding) = semantic.binding_of(node) else {
             return plain(global(self.syntax_tree.name(node))?);
         };
-        if visiting.contains(&binding) || !considered_const(semantic, binding) {
+        if visiting.contains(&binding) || !self.variable(semantic, binding).constant {
             return None;
         }
         let declaration = &semantic.bindings[binding];
@@ -370,9 +381,31 @@ impl<'a> StaticValues<'a> {
         plain(value)
     }
 
+    fn variable(&self, semantic: &Semantic, binding: BindingIdentifier) -> Variable {
+        *self
+            .variables
+            .borrow_mut()
+            .entry(binding)
+            .or_insert_with(|| Variable {
+                constant: considered_const(semantic, binding),
+                mutated: None,
+            })
+    }
+
+    fn is_mutated(&self, semantic: &Semantic, binding: BindingIdentifier) -> bool {
+        if let Some(mutated) = self.variable(semantic, binding).mutated {
+            return mutated;
+        }
+        let mutated = self.find_mutation(semantic, binding);
+        if let Some(variable) = self.variables.borrow_mut().get_mut(&binding) {
+            variable.mutated = Some(mutated);
+        }
+        mutated
+    }
+
     /// Whether code changes what `binding`'s object holds: an assignment or update through a
     /// member, or a call of an array method that changes the array.
-    fn is_mutated(&self, semantic: &Semantic, binding: BindingIdentifier) -> bool {
+    fn find_mutation(&self, semantic: &Semantic, binding: BindingIdentifier) -> bool {
         if semantic.bindings[binding].mutations > 0 {
             return true;
         }
