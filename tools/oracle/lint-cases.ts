@@ -72,7 +72,8 @@ export async function main(args: string[]): Promise<void> {
 	const projectLinter = new Linter({ cwd: project });
 	let written = 0;
 	let cases = 0;
-	// After a run with a TypeScript project, one without it fails in ESLint (`addGlobals`).
+	// In one process, a run with `@typescript-eslint/parser` makes a later espree run fail
+	// (`scopeManager.addGlobals is not a function`), so the cases without it run first.
 	const ordered = rules(ROOT).toSorted((a, b) => Number(typedRule(a)) - Number(typedRule(b)));
 	for (const rule of ordered) {
 		const typed = typedRule(rule);
