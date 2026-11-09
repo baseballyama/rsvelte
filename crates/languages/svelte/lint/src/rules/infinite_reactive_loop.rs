@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript::scope::{DeclarationKind, ScopeIdentifier};
-use rsvelte_typescript::semantic::imports::import_references;
+use rsvelte_typescript::semantic::reference_tracker::{global_references, import_references};
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashSet;
 
@@ -51,46 +51,19 @@ impl SvelteRule for InfiniteReactiveLoop {
         .filter(|&call| matches!(javascript.kind(call), Kind::Call { .. }))
         .map(|call| span(javascript, call))
         .collect();
-        // `ReferenceTracker` also follows `const alias = setTimeout`.
-        let mut pending: Vec<NodeIdentifier> = sem
-            .references
-            .iter()
-            .zip(&legacy.references)
-            .filter(|(reference, top)| {
-                reference.binding.is_none()
-                    && top.is_none()
-                    && matches!(
-                        javascript.name(reference.node),
-                        "setTimeout" | "setInterval" | "queueMicrotask"
-                    )
-            })
-            .map(|(reference, _)| reference.node)
-            .collect();
-        let mut followed = FxHashSet::default();
-        while let Some(node) = pending.pop() {
-            let parent = parents[node.index()];
-            if parent.is_none() {
-                continue;
-            }
-            match javascript.kind(parent) {
-                Kind::Call { callee, .. } if callee == node => later.push(span(javascript, parent)),
-                Kind::Declarator {
-                    identifier,
-                    initializer: Some(initializer),
-                } if initializer == node => {
-                    if let Some(binding) = sem.binding_of(identifier)
-                        && followed.insert(binding)
-                    {
-                        pending.extend(
-                            sem.references_to(binding)
-                                .filter(|reference| reference.read)
-                                .map(|reference| reference.node),
-                        );
-                    }
-                }
-                _ => {}
-            }
-        }
+        later.extend(
+            global_references(
+                javascript,
+                sem,
+                parents,
+                file.source(),
+                &["setTimeout", "setInterval", "queueMicrotask"],
+            )
+            .into_iter()
+            .filter_map(|reference| reference.call)
+            .filter(|&call| matches!(javascript.kind(call), Kind::Call { .. }))
+            .map(|call| span(javascript, call)),
+        );
         let reactive: FxHashSet<NodeIdentifier> = sem
             .references
             .iter()

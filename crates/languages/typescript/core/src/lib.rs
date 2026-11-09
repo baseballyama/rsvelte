@@ -16,8 +16,8 @@ pub use syntax::{lexer, operators, parser, syntax_tree};
 
 pub mod semantic {
     pub mod globals;
-    pub mod imports;
     pub mod number;
+    pub mod reference_tracker;
     pub mod scope;
 }
 pub use semantic::scope;

@@ -3,7 +3,7 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_typescript::scope::BindingIdentifier;
-use rsvelte_typescript::semantic::imports::import_references;
+use rsvelte_typescript::semantic::reference_tracker::import_references;
 use rsvelte_typescript::{Kind, NodeIdentifier};
 
 use super::javascript::span;
@@ -34,7 +34,7 @@ pub(super) fn store_calls(
     .into_iter()
     .filter_map(|reference| {
         let call = reference.call?;
-        matches!(javascript.kind(call), Kind::Call { .. }).then_some((call, reference.export))
+        matches!(javascript.kind(call), Kind::Call { .. }).then_some((call, reference.name))
     })
     .collect();
     out.sort_by_key(|&(call, _)| span(javascript, call).start_offset);
