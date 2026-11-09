@@ -270,10 +270,14 @@ impl Parser<'_, '_> {
         &mut self,
         f: NodeIdentifier,
         type_parameters: Option<Span>,
+        this: Option<Span>,
         ret: Option<Span>,
     ) {
         if let Some(s) = type_parameters {
             self.typescript(f, TypeScriptKind::TypeParameters, s);
+        }
+        if let Some(s) = this {
+            self.typescript(f, TypeScriptKind::ThisParameter, s);
         }
         if let Some(s) = ret {
             self.typescript(f, TypeScriptKind::ReturnType, s);

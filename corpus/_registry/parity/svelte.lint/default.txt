@@ -1,4 +1,4 @@
-# svelte.lint/default: 15813 match
+# svelte.lint/default: 15811 match
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/routes/+page.svelte	refused
 svelte/animotion/src/slides/200/slide.svelte	refused

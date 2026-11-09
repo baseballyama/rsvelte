@@ -95,7 +95,10 @@ impl Parser<'_, '_> {
             self.item(p);
             parameters
         } else if self.token.t == T::LParen && Self::paren_arrow_ahead(self.lex, &mut Vec::new())? {
-            let p = self.parameters()?;
+            let (p, this) = self.parameters()?;
+            if this.is_some() {
+                return self.fail("an arrow function cannot have a `this` parameter");
+            }
             ret = self.maybe_return_type(true)?;
             p
         } else {
@@ -114,7 +117,7 @@ impl Parser<'_, '_> {
         let f = self.close(parameters, |syntax_tree, parameters| {
             syntax_tree.arrow(parameters, body, expression_body, is_async, span)
         });
-        self.signature_typescript(f, type_parameters, ret);
+        self.signature_typescript(f, type_parameters, None, ret);
         Ok(Some(f))
     }
 

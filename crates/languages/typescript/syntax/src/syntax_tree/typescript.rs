@@ -17,6 +17,8 @@ pub enum TypeScriptKind {
     ReturnType,
     /// `<T>` on a function or arrow.
     TypeParameters,
+    /// `this: T` before a function's parameters, on the function.
+    ThisParameter,
     /// `e as T`, on `e`.
     As,
     /// `<T>e`, on `e`, including the angle brackets.

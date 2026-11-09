@@ -1,4 +1,4 @@
-use super::{List, NodeIdentifier, Parser, R, RESERVED, T, TypeScriptKind, flag};
+use super::{List, NodeIdentifier, Parser, R, RESERVED, Span, T, TypeScriptKind, flag};
 
 impl Parser<'_, '_> {
     // ---- statements
@@ -172,7 +172,7 @@ impl Parser<'_, '_> {
             None
         };
         let type_parameters = self.maybe_type_parameters()?;
-        let parameters = self.parameters()?;
+        let (parameters, this) = self.parameters()?;
         let ret = self.maybe_return_type(false)?;
         let body = self.block()?;
         let span = self.span_from(start_offset);
@@ -180,12 +180,28 @@ impl Parser<'_, '_> {
             syntax_tree.function(declaration, name, parameters, body, is_async, span)
         });
         self.syntax_tree.mark_generator(f, generator);
-        self.signature_typescript(f, type_parameters, ret);
+        self.signature_typescript(f, type_parameters, this, ret);
         Ok(f)
     }
 
-    pub(super) fn parameters(&mut self) -> R<List> {
+    /// `(…)`, and the span of a leading `this: T`, which TypeScript reads as the type of `this`
+    /// and JavaScript does not have.
+    pub(super) fn parameters(&mut self) -> R<(List, Option<Span>)> {
         self.expect(T::LParen, "(")?;
+        let this = if self.typescript && self.is_kw("this") {
+            let start_offset = self.token.span.start_offset;
+            self.bump()?;
+            if self.eat(T::Colon)? {
+                self.skip_type(false)?;
+            }
+            let span = self.span_from(start_offset);
+            if self.token.t != T::RParen {
+                self.expect(T::Comma, ",")?;
+            }
+            Some(span)
+        } else {
+            None
+        };
         let parameters = self.open();
         while self.token.t != T::RParen {
             let p = self.param()?;
@@ -195,7 +211,7 @@ impl Parser<'_, '_> {
             }
         }
         self.expect(T::RParen, ")")?;
-        Ok(parameters)
+        Ok((parameters, this))
     }
 
     pub(super) fn param(&mut self) -> R<NodeIdentifier> {

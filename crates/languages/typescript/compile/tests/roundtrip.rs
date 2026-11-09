@@ -85,6 +85,21 @@ fn typescript_is_erased() {
 }
 
 #[test]
+fn a_this_parameter_is_erased_with_the_types() {
+    let out = stable(
+        "function f(this: HTMLElement, e: Event) {}\
+         \nconst g = function (this: Window) {};\
+         \nconst o = { m(this: Q, a) {} };\
+         \nclass C { m(this) {} }",
+        true,
+    );
+    assert_eq!(
+        out,
+        "function f(e) {}\n\nconst g = function () {};\n\nconst o = { m(a) {} };\n\nclass C {\n\tm() {}\n}\n"
+    );
+}
+
+#[test]
 fn templates_strings_and_members() {
     let out = stable(
         "const s = `a${b}c${`d${e}`}`; o?.p?.[q]?.(r); new Foo(1).bar; 'it\\'s';",

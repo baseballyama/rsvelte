@@ -203,7 +203,7 @@ impl Parser<'_, '_> {
                 };
                 let (key, computed, key_token) = self.property_key()?;
                 if self.token.t == T::LParen {
-                    let parameters = self.parameters()?;
+                    let (parameters, this) = self.parameters()?;
                     if accessor != 0 {
                         if generator {
                             return self.fail("an accessor cannot be a generator");
@@ -217,7 +217,7 @@ impl Parser<'_, '_> {
                         syntax_tree.function(false, None, parameters, body, is_async, span)
                     });
                     self.syntax_tree.mark_generator(f, generator);
-                    self.signature_typescript(f, None, ret);
+                    self.signature_typescript(f, None, this, ret);
                     let flags = if accessor == 0 {
                         flag::METHOD
                     } else {

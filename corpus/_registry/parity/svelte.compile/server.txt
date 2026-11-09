@@ -1,4 +1,4 @@
-# svelte.compile/server: 8507 match
+# svelte.compile/server: 8509 match
 svelte/animotion/src/lib/components/action.svelte	refused
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -2565,7 +2565,6 @@ svelte/flowbite-svelte/src/routes/docs-examples/components/pagination/Icons2.sve
 svelte/flowbite-svelte/src/routes/docs-examples/components/pagination/PreviousNextIcons.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/components/pagination/TableDataIcons.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/components/pagination/TableDataIcons2.svelte	refused
-svelte/flowbite-svelte/src/routes/docs-examples/components/popover/Password.svelte	unparseable
 svelte/flowbite-svelte/src/routes/docs-examples/components/progress/Animation.svelte	missing
 svelte/flowbite-svelte/src/routes/docs-examples/components/rating/Advanced.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/components/rating/Comment.svelte	refused
@@ -2707,7 +2706,6 @@ svelte/flowbite-svelte/src/routes/utils/FathomAnalytics.svelte	refused
 svelte/flowbite-svelte/src/routes/utils/Footer.svelte	refused
 svelte/flowbite-svelte/src/routes/utils/GitHubSource.svelte	refused
 svelte/flowbite-svelte/src/routes/utils/GitHubSourceList.svelte	refused
-svelte/flowbite-svelte/src/routes/utils/Newsletter.svelte	unparseable
 svelte/flowbite-svelte/src/routes/utils/Paging.svelte	refused
 svelte/flowbite-svelte/src/routes/utils/PlusPlaceholder.svelte	refused
 svelte/flowbite-svelte/src/routes/utils/TableDefaultRow.svelte	refused

@@ -101,7 +101,7 @@ impl Parser<'_, '_> {
         let (key, computed, _) = self.property_key()?;
         let type_parameters = self.maybe_type_parameters()?;
         if self.token.t == T::LParen {
-            let parameters = self.parameters()?;
+            let (parameters, this) = self.parameters()?;
             if let Some(getter) = accessor {
                 if is_async || generator {
                     return self.fail("an accessor cannot be async or a generator");
@@ -115,7 +115,7 @@ impl Parser<'_, '_> {
                 tree.function(false, None, parameters, body, is_async, span)
             });
             self.syntax_tree.mark_generator(function, generator);
-            self.signature_typescript(function, type_parameters, ret);
+            self.signature_typescript(function, type_parameters, this, ret);
             Ok(self.syntax_tree.class(
                 Class::Method {
                     key,

@@ -16,6 +16,12 @@
 ["svelte/svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte".skip]
 "svelte.compile/client" = "svelte 5.57.1 emits invalid JS here (duplicate declaration of `foo`); the sample expects a compile error"
 
+["svelte/svelte-bits/src/lib/components/library/Animations/StickerPeel/StickerPeel.svelte".skip]
+"svelte.lint" = "upstream bug: the core no-unused-vars rule reports a TypeScript `this` parameter, which is a type and not a parameter, as an unused variable"
+
+["svelte/syntaxfm-website/src/params/ThemeMaker.svelte".skip]
+"svelte.lint" = "upstream bug: the core no-unused-vars rule reports a TypeScript `this` parameter, which is a type and not a parameter, as an unused variable"
+
 ["svelte/bits-ui/docs/src/lib/components/homepage/card-timer.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
