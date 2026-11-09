@@ -7,6 +7,7 @@ mod legacy_reactivity;
 mod no_add_event_listener;
 mod no_extra_reactive_curlies;
 mod no_ignored_unsubscribe;
+mod no_immutable_reactive_statements;
 mod no_reactive_functions;
 mod no_reactive_literals;
 mod no_reactive_reassign;
@@ -26,6 +27,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_add_event_listener::RULE,
     &no_extra_reactive_curlies::RULE,
     &no_ignored_unsubscribe::RULE,
+    &no_immutable_reactive_statements::RULE,
     &no_reactive_functions::RULE,
     &no_reactive_literals::RULE,
     &no_reactive_reassign::RULE,
