@@ -15,6 +15,7 @@ use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::{Finding, apply_fix, apply_fixes};
+use rsvelte_svelte_lint::computation::SvelteConfiguration;
 use rsvelte_svelte_lint::{Configuration, Kit, KitFiles, LintSettings, SvelteConfig};
 use rsvelte_typescript::parser::parse_program;
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
@@ -436,12 +437,12 @@ fn run(case: &Case<'_>) -> Verdict {
             settings: None,
         },
     };
-    let mut settings: LintSettings = config
+    let settings: LintSettings = config
         .settings
         .and_then(|s| s.svelte)
         .map(|raw| serde_json::from_str(raw.get()).expect("svelte settings"))
         .unwrap_or_default();
-    settings.svelte_config = match svelte_config(case, config.language_options) {
+    let svelte_config = match svelte_config(case, config.language_options) {
         Ok(svelte_config) => svelte_config,
         Err(why) => return Verdict::Unmeasured(format!("a svelte.config.js {why}")),
     };
@@ -456,7 +457,7 @@ fn run(case: &Case<'_>) -> Verdict {
         source.clone(),
     )
     .expect("a fixture is small");
-    let findings = match lint(&document, &configuration) {
+    let findings = match lint(&document, &configuration, svelte_config) {
         Ok(findings) => findings,
         Err(error) => return Verdict::Fail(format!("the input does not lint: {}", error.message)),
     };
@@ -602,7 +603,7 @@ fn conflicting_module_names() -> usize {
         let source = code.map_or_else(|| read(&path), str::to_owned);
         let document = Document::new(path.to_str().expect("UTF-8 path").to_owned(), source)
             .expect("a case is small");
-        let actual: Vec<(String, u32)> = match lint(&document, &configuration) {
+        let actual: Vec<(String, u32)> = match lint(&document, &configuration, None) {
             Ok(findings) => findings
                 .iter()
                 .map(|f| (f.diagnostic.message.clone(), f.diagnostic.span.start_offset))
@@ -627,7 +628,7 @@ fn conflicting_module_names() -> usize {
 }
 
 /// `svelte-eslint-parser`'s `svelteConfig` option, else what it reads from the nearest file; the
-/// host gives rsvelte the same as [`LintSettings::svelte_config`].
+/// host gives rsvelte the same per document (`SvelteConfiguration`).
 fn svelte_config(
     case: &Case<'_>,
     language_options: Option<LanguageOptions>,
@@ -732,9 +733,13 @@ fn property(
 fn lint(
     document: &Document,
     configuration: &Configuration,
+    svelte_config: Option<SvelteConfig>,
 ) -> Result<Vec<Finding>, rsvelte_kernel::diagnostics::Diagnostic> {
     let mut registry = Registry::new();
     rsvelte_svelte_lint::register_artifacts(&mut registry);
+    if let Some(svelte_config) = svelte_config {
+        registry.provide::<SvelteConfiguration>("test", |_| true, move |_| svelte_config.clone());
+    }
     let context = DocumentContext::new(document, registry.artifacts());
     rsvelte_svelte_lint::lint(&context, configuration)
 }

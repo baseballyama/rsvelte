@@ -2,7 +2,7 @@ use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
 use rsvelte_svelte::Parsed;
 use rsvelte_typescript::NodeIdentifier;
 
-use crate::Configuration;
+use crate::{Configuration, SvelteConfig};
 
 #[derive(Debug)]
 pub struct LintConfiguration;
@@ -48,4 +48,14 @@ impl Artifact for ModuleParents {
             .syntax_tree
             .parents()
     }
+}
+
+/// The document's `svelte.config.js`, as `svelte-eslint-parser` finds it; the host loads it.
+#[derive(Debug)]
+pub struct SvelteConfiguration;
+
+impl Facet for SvelteConfiguration {
+    type Output = SvelteConfig;
+
+    const NAME: &'static str = "svelte.lint.svelte_config";
 }
