@@ -195,7 +195,7 @@ impl Parser<'_> {
         let len = memchr::memmem::find(self.rest().as_bytes(), close.as_bytes())
             .unwrap_or_else(|| self.rest().len());
         self.position += len;
-        self.token(TokenType::Text, start_offset);
+        self.words(TokenType::Text, start_offset);
         let text = (len > 0).then(|| {
             self.push_node(TemplateNode::Text {
                 span: Span::new(start_offset as u32, self.position as u32),

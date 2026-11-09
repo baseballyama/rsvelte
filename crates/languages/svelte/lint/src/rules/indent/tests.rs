@@ -109,3 +109,12 @@ fn indentation_is_ecmascript_whitespace() {
         "<div>\n  <p>x</p>\n</div>\n"
     );
 }
+
+#[test]
+fn raw_text_and_script_attribute_values_are_words() {
+    let head = "<svelte:head>\n  <script type=\"application/ld+json\">\n{\n\"a\": 1\n}\n    </script>\n</svelte:head>\n";
+    assert_eq!(reported_lines(head), [3, 4, 5, 6]);
+    let attribute =
+        "<script\n  data-x=\"a\nb\"\n>\n  let a;\n</script>\n<div\n  data-x=\"a\nb\"\n></div>\n";
+    assert_eq!(reported_lines(attribute), [3, 9]);
+}
