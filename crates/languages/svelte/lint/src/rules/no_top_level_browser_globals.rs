@@ -5,6 +5,7 @@ use rsvelte_typescript::operators::BinaryOperator::{Eq, InstanceOf, NotEq, Stric
 use rsvelte_typescript::operators::{LogicalOperator, UnaryOperator};
 use rsvelte_typescript::scope::Semantic;
 use rsvelte_typescript::semantic::globals::{Global, global};
+use rsvelte_typescript::semantic::static_value::{StaticValues, Value};
 use rsvelte_typescript::syntax_tree::Control;
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
@@ -194,8 +195,7 @@ impl Checker {
 /// What the guards are decided by: the tree, and the template's `{#if}` tests and snippets.
 struct Guards<'a> {
     tree: &'a SyntaxTree,
-    sem: &'a Semantic,
-    source: &'a str,
+    values: StaticValues<'a>,
     parents: &'a [NodeIdentifier],
     /// A template `{#if}` test, with the ranges its branch and its `{:else}` cover.
     if_tests: FxHashMap<NodeIdentifier, (Option<Span>, Option<Span>)>,
@@ -249,8 +249,7 @@ impl<'a> Guards<'a> {
         }
         Self {
             tree,
-            sem,
-            source: file.source(),
+            values: StaticValues::new(tree, file.source(), Some(sem)),
             parents,
             if_tests,
             snippets,
@@ -294,11 +293,11 @@ impl<'a> Guards<'a> {
                 if !is_member {
                     return None;
                 }
-                match (self.static_value(operand)?, operator) {
-                    (Static::Undefined, StrictNotEq | NotEq) | (Static::Null, NotEq) => {
+                match (self.values.value(operand)?, operator) {
+                    (Value::Undefined, StrictNotEq | NotEq) | (Value::Null, NotEq) => {
                         self.checker(parent, false)
                     }
-                    (Static::Undefined, StrictEq | Eq) | (Static::Null, Eq) => {
+                    (Value::Undefined, StrictEq | Eq) | (Value::Null, Eq) => {
                         self.checker(parent, true)
                     }
                     _ => None,
@@ -310,9 +309,9 @@ impl<'a> Guards<'a> {
                     return None;
                 };
                 let other = if left == parent { right } else { left };
-                let undefined = match self.static_value(other)? {
-                    Static::String("undefined") => true,
-                    Static::String("object") => false,
+                let undefined = match self.values.value(other)? {
+                    Value::String(s) if s == "undefined" => true,
+                    Value::String(s) if s == "object" => false,
                     _ => return None,
                 };
                 match operator {
@@ -420,37 +419,6 @@ impl<'a> Guards<'a> {
             _ => false,
         }
     }
-
-    /// The few values `getStaticValue` finds that a guard compares with.
-    fn static_value(&self, node: NodeIdentifier) -> Option<Static<'a>> {
-        let tree = self.tree;
-        Some(match tree.kind(node) {
-            Kind::Identifier(_)
-                if is_named(tree, node, "undefined") && self.sem.binding_of(node).is_none() =>
-            {
-                Static::Undefined
-            }
-            Kind::Unary(UnaryOperator::Void, argument) => {
-                self.static_value(argument)?;
-                Static::Undefined
-            }
-            Kind::Null => Static::Null,
-            Kind::String => Static::String(tree.str_value(node, self.source)),
-            Kind::Template {
-                quasis: &[quasi],
-                expressions: [],
-            } => Static::String(tree.str_value(quasi, self.source)),
-            Kind::Number(_) | Kind::Boolean(_) | Kind::BigInt => Static::Other,
-            _ => return None,
-        })
-    }
-}
-
-enum Static<'a> {
-    Undefined,
-    Null,
-    String(&'a str),
-    Other,
 }
 
 /// From the first child's start to the last child's end; `None` without children.
