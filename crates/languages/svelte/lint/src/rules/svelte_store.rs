@@ -1,10 +1,12 @@
 //! What the rules on `svelte/store` share: its calls, and renaming a callback's parameter.
 
+use rsvelte_kernel::source::interning::Atom;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
-use rsvelte_typescript::scope::BindingIdentifier;
+use rsvelte_typescript::scope::{BindingIdentifier, ScopeIdentifier};
 use rsvelte_typescript::semantic::reference_tracker::import_references;
 use rsvelte_typescript::{Kind, NodeIdentifier};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::javascript::span;
 use super::reactive_statements::programs;
@@ -41,46 +43,67 @@ pub(super) fn store_calls(
     out
 }
 
-/// `findVariableForReplacement`: the binding named `name` in `function`'s own scope, unless
-/// that scope already declares or refers to `replacement` (`Err`).
-pub(super) fn replaceable(
-    file: &File<'_>,
-    function: NodeIdentifier,
-    name: Option<&str>,
-    replacement: &str,
-) -> Result<Option<BindingIdentifier>, ()> {
-    let javascript = file.javascript();
-    let sem = file.semantic();
-    let Some(scope) = sem.scope_of(function) else {
-        return Ok(None);
-    };
-    let function_name = match javascript.kind(function) {
-        Kind::Function { name, .. } => name,
-        _ => None,
-    };
-    let named = |node| javascript.atom(node).map(|atom| javascript.atoms.get(atom));
-    if sem
-        .references
-        .iter()
-        .any(|reference| reference.scope == scope && named(reference.node) == Some(replacement))
-    {
-        return Err(());
-    }
-    let mut found = None;
-    for (binding, declared) in sem.bindings.iter_enumerated() {
-        // `ESLint` declares a function expression's own name in a scope around the function's.
-        if declared.scope != scope || Some(declared.node) == function_name {
-            continue;
+/// The names each scope declares and refers to, for `findVariableForReplacement`.
+pub(super) struct Scopes {
+    declared: FxHashMap<(ScopeIdentifier, Atom), Vec<BindingIdentifier>>,
+    referred: FxHashSet<(ScopeIdentifier, Atom)>,
+}
+
+impl Scopes {
+    pub(super) fn new(file: &File<'_>) -> Self {
+        let javascript = file.javascript();
+        let sem = file.semantic();
+        let mut declared: FxHashMap<_, Vec<BindingIdentifier>> = FxHashMap::default();
+        for (binding, declaration) in sem.bindings.iter_enumerated() {
+            declared
+                .entry((declaration.scope, declaration.name))
+                .or_default()
+                .push(binding);
         }
-        let declared_name = javascript.atoms.get(declared.name);
-        if declared_name == replacement {
+        let referred = sem
+            .references
+            .iter()
+            .filter_map(|reference| Some((reference.scope, javascript.atom(reference.node)?)))
+            .collect();
+        Self { declared, referred }
+    }
+
+    /// `findVariableForReplacement`: the binding named `name` in `function`'s own scope, unless
+    /// that scope already declares or refers to `replacement` (`Err`).
+    pub(super) fn replaceable(
+        &self,
+        file: &File<'_>,
+        function: NodeIdentifier,
+        name: Option<&str>,
+        replacement: &str,
+    ) -> Result<Option<BindingIdentifier>, ()> {
+        let javascript = file.javascript();
+        let sem = file.semantic();
+        let Some(scope) = sem.scope_of(function) else {
+            return Ok(None);
+        };
+        let function_name = match javascript.kind(function) {
+            Kind::Function { name, .. } => name,
+            _ => None,
+        };
+        // `ESLint` declares a function expression's own name in a scope around the function's.
+        let own = |atom: Atom| {
+            self.declared
+                .get(&(scope, atom))
+                .into_iter()
+                .flatten()
+                .copied()
+                .filter(|&binding| Some(sem.bindings[binding].node) != function_name)
+        };
+        if let Some(atom) = javascript.atoms.lookup(replacement)
+            && (self.referred.contains(&(scope, atom)) || own(atom).next().is_some())
+        {
             return Err(());
         }
-        if Some(declared_name) == name {
-            found = Some(binding);
-        }
+        Ok(name
+            .and_then(|name| javascript.atoms.lookup(name))
+            .and_then(|atom| own(atom).next_back()))
     }
-    Ok(found)
 }
 
 /// Renames `declaration` and every reference to `binding` to `replacement`.

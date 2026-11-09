@@ -7,7 +7,7 @@ use rsvelte_typescript::Kind;
 use rsvelte_typescript::lexer::T;
 
 use super::javascript::span;
-use super::svelte_store::{rename, replaceable, store_calls};
+use super::svelte_store::{Scopes, rename, store_calls};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -27,7 +27,12 @@ struct RequireStoreCallbacksUseSetParam;
 impl SvelteRule for RequireStoreCallbacksUseSetParam {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let javascript = file.javascript();
-        for (call, _) in store_calls(file, &["readable", "writable"]) {
+        let calls = store_calls(file, &["readable", "writable"]);
+        if calls.is_empty() {
+            return;
+        }
+        let scopes = Scopes::new(file);
+        for (call, _) in calls {
             let Kind::Call { arguments, .. } = javascript.kind(call) else {
                 continue;
             };
@@ -58,7 +63,7 @@ impl SvelteRule for RequireStoreCallbacksUseSetParam {
                 span(javascript, function),
             )
             .message_id("unexpected");
-            if let Ok(binding) = replaceable(file, function, name, "set") {
+            if let Ok(binding) = scopes.replaceable(file, function, name, "set") {
                 if let (Some(parameter), Some(name)) = (parameter, name) {
                     report = report.suggest(Suggestion {
                         message_id: Some("updateParam".into()),

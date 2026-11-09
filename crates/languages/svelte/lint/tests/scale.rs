@@ -100,3 +100,45 @@ fn no_immutable_reactive_statements_is_near_baseline() {
         },
     );
 }
+
+#[test]
+fn require_store_callbacks_use_set_param_is_near_baseline() {
+    near_baseline(
+        "svelte/require-store-callbacks-use-set-param",
+        "a.svelte",
+        4000,
+        1,
+        |n| {
+            component(
+                |out, i| {
+                    if i == 0 {
+                        out.push_str("import { readable } from 'svelte/store';\n");
+                    }
+                    writeln!(out, "const r{i} = readable(0, (v{i}) => v{i});").expect("a string");
+                },
+                n,
+            )
+        },
+    );
+}
+
+#[test]
+fn derived_has_same_inputs_outputs_is_near_baseline() {
+    near_baseline(
+        "svelte/derived-has-same-inputs-outputs",
+        "a.svelte",
+        4000,
+        1,
+        |n| {
+            component(
+                |out, i| {
+                    if i == 0 {
+                        out.push_str("import { derived } from 'svelte/store';\n");
+                    }
+                    writeln!(out, "const d{i} = derived(a, (b{i}) => b{i});").expect("a string");
+                },
+                n,
+            )
+        },
+    );
+}

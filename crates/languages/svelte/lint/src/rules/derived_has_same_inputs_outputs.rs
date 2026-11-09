@@ -3,7 +3,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript::{Kind, NodeIdentifier};
 
 use super::javascript::span;
-use super::svelte_store::{rename, replaceable, store_calls};
+use super::svelte_store::{Scopes, rename, store_calls};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -24,7 +24,12 @@ impl SvelteRule for DerivedHasSameInputsOutputs {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let javascript = file.javascript();
         let name = |node| javascript.atom(node).map(|atom| javascript.atoms.get(atom));
-        for (call, _) in store_calls(file, &["derived"]) {
+        let calls = store_calls(file, &["derived"]);
+        if calls.is_empty() {
+            return;
+        }
+        let scopes = Scopes::new(file);
+        for (call, _) in calls {
             let Kind::Call { arguments, .. } = javascript.kind(call) else {
                 continue;
             };
@@ -41,12 +46,12 @@ impl SvelteRule for DerivedHasSameInputsOutputs {
             };
             match (javascript.kind(inputs), javascript.kind(parameter)) {
                 (Kind::Identifier(_), Kind::Identifier(_)) => {
-                    check(file, function, parameter, name(inputs), reporter);
+                    check(file, &scopes, function, parameter, name(inputs), reporter);
                 }
                 (Kind::Array(inputs), Kind::ArrayPattern(outputs)) => {
                     for (&input, &output) in inputs.iter().zip(outputs) {
                         if matches!(javascript.kind(output), Kind::Identifier(_)) {
-                            check(file, function, output, name(input), reporter);
+                            check(file, &scopes, function, output, name(input), reporter);
                         }
                     }
                 }
@@ -59,6 +64,7 @@ impl SvelteRule for DerivedHasSameInputsOutputs {
 /// Reports `output` unless it is `$input`.
 fn check(
     file: &File<'_>,
+    scopes: &Scopes,
     function: NodeIdentifier,
     output: NodeIdentifier,
     input: Option<&str>,
@@ -78,7 +84,7 @@ fn check(
         span(javascript, output),
     )
     .message_id("unexpected");
-    if let Ok(binding) = replaceable(file, function, Some(actual), &expected) {
+    if let Ok(binding) = scopes.replaceable(file, function, Some(actual), &expected) {
         report = report.suggest(Suggestion {
             message_id: Some("renameParam".into()),
             message: format!("Rename the parameter from {actual} to {expected}."),
