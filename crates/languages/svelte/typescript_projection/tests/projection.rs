@@ -204,3 +204,14 @@ fn template_nodes(tree: &SyntaxTree) -> &[NodeIdentifier] {
     }
     panic!("the template has a deferred function");
 }
+
+#[test]
+fn a_style_sheet_error_stops_the_content_mapper() {
+    let mut output = rsvelte_kernel::output::structured_data::StructuredDataWriter::new(false);
+    rsvelte_svelte_typescript_projection::content_mapper::write_transform(
+        "<script>let a = 1;</script><style>a { b: c; </style>",
+        &mut output,
+    );
+    let output = output.finish();
+    assert!(output.contains("\"diagnostics\""), "{output}");
+}

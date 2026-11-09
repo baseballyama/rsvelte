@@ -7,9 +7,11 @@ mod block_lang;
 mod button_has_type;
 pub(crate) mod comment_directive;
 mod compile_warnings;
+mod consistent_selector_style;
 mod constant_string;
 mod derived_has_same_inputs_outputs;
 mod duplicate_directives;
+mod element_kind;
 mod experimental_require_slot_types;
 mod expressions;
 mod first_attribute_linebreak;
@@ -37,6 +39,7 @@ mod no_conflicting_module_names;
 mod no_dom_manipulating;
 mod no_dupe_else_if_blocks;
 mod no_dupe_on_directives;
+mod no_dupe_style_properties;
 mod no_dupe_use_directives;
 mod no_dynamic_slot_name;
 mod no_export_load_in_svelte_module_in_kit_pages;
@@ -44,6 +47,7 @@ mod no_extra_reactive_curlies;
 mod no_goto_without_base;
 mod no_ignored_unsubscribe;
 mod no_immutable_reactive_statements;
+mod no_inline_styles;
 mod no_inner_declarations;
 mod no_inspect;
 mod no_navigation_without_base;
@@ -56,27 +60,33 @@ mod no_reactive_functions;
 mod no_reactive_literals;
 mod no_reactive_reassign;
 mod no_restricted_html_elements;
+mod no_shorthand_style_property_overrides;
 mod no_spaces_around_equal_signs_in_attribute;
 mod no_store_async;
 mod no_svelte_internal;
 mod no_target_blank;
 mod no_top_level_browser_globals;
 mod no_trailing_spaces;
+mod no_unknown_style_directive_property;
 mod no_unnecessary_condition;
 mod no_unnecessary_state_wrap;
+mod no_unused_class_name;
 mod no_unused_svelte_ignore;
 mod no_unused_variables;
 mod no_useless_children_snippet;
 mod no_useless_mustaches;
 mod nodes;
 mod prefer_attribute_interpolation;
+mod prefer_class_directive;
 mod prefer_const;
 mod prefer_derived_over_derived_by;
 mod prefer_destructured_store_props;
+mod prefer_style_directive;
 mod prefer_svelte_reactivity;
 mod prefer_writable_derived;
 mod reactive_statements;
 mod require_each_key;
+mod require_optimized_style_attribute;
 mod require_store_callbacks_use_set_param;
 mod require_store_reactive_access;
 mod require_stores_init;
@@ -87,6 +97,8 @@ mod shorthand_directive;
 mod sort_attributes;
 mod spaced_html_comment;
 mod string_escape;
+pub(crate) mod style_attribute;
+pub(crate) mod style_sheet;
 mod svelte_store;
 pub(crate) mod system;
 mod tags;
@@ -95,6 +107,7 @@ mod testing;
 mod valid_compile;
 mod valid_each_key;
 mod valid_prop_names_in_kit_pages;
+mod valid_style_parse;
 
 /// Every built-in rule.
 pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
@@ -106,6 +119,15 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_goto_without_base::RULE,
     &no_navigation_without_base::RULE,
     &no_navigation_without_resolve::RULE,
+    &consistent_selector_style::RULE,
+    &no_dupe_style_properties::RULE,
+    &no_inline_styles::RULE,
+    &no_shorthand_style_property_overrides::RULE,
+    &no_unknown_style_directive_property::RULE,
+    &no_unused_class_name::RULE,
+    &prefer_class_directive::RULE,
+    &prefer_style_directive::RULE,
+    &require_optimized_style_attribute::RULE,
     &first_attribute_linebreak::RULE,
     &html_closing_bracket_new_line::RULE,
     &html_closing_bracket_spacing::RULE,
@@ -175,6 +197,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &max_lines_per_block::RULE,
     &valid_each_key::RULE,
     &valid_prop_names_in_kit_pages::RULE,
+    &valid_style_parse::RULE,
 ];
 
 /// A JavaScript node's span: every node a rule reads was parsed from the document.

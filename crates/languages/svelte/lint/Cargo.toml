@@ -21,6 +21,7 @@ rsvelte_markup.workspace = true
 regress = { workspace = true, features = ["utf16"] }
 rsvelte_kernel.workspace = true
 rsvelte_typescript_lint.workspace = true
+rsvelte_stylesheet.workspace = true
 
 [dev-dependencies]
 rsvelte_test_harness.workspace = true

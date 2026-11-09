@@ -970,6 +970,7 @@ dependencies = [
  "rsvelte_lint_runner",
  "rsvelte_markup",
  "rsvelte_plugin_interface",
+ "rsvelte_stylesheet",
  "rsvelte_svelte",
  "rsvelte_test_harness",
  "rsvelte_typescript",

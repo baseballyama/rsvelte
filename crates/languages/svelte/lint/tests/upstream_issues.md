@@ -96,13 +96,13 @@ Test: `no_dynamic_slot_name::tests::a_name_that_the_markup_cannot_hold_as_writte
 - Measured with eslint-plugin-svelte 3.23.1 and svelte-eslint-parser 1.10.0.
 - Cause: svelte-eslint-parser's `LinesAndColumns` (`lib/context/index.js`) ends lines at `\r\n`,
   `\r` and `\n` only. ESLint's `SourceCode` also ends lines at U+2028 and U+2029, as ECMAScript
-  does. A rule that compares `node.loc` lines therefore treats a tag as one line, while the same
+  does. So a rule that compares `node.loc` lines treats a tag as one line, while the same
   report's position and `sourceCode.lines` (for example in `no-trailing-spaces`) treat it as two.
 - Case: `<div d="1"` U+2028 `e="2" f="3"></div>` with `svelte/max-attributes-per-line`.
   Upstream reports `'e' should be on a new line.` at 1:12, as if `d` and `e` were on one line.
   ESLint itself ends that line before `e`. Likewise, `<div` U+2028 `b="1"></div>` with
   `svelte/html-closing-bracket-new-line` reports nothing upstream, but the tag spans two lines,
-  so a line break before `>` is expected.
+  so the rule should want a line break before `>`.
 - Correct: count node lines with ECMAScript's line terminators, as ESLint does. This crate counts
   lines once, with ECMAScript's terminators (`LineBreaks::Ecmascript`).
 
@@ -117,16 +117,16 @@ Test: `no_dynamic_slot_name::tests::a_name_that_the_markup_cannot_hold_as_writte
   branch of whitespace alone. Blanking the comments to apply them itself changes what the compiler
   warns about.
 
-## `svelte/no-unused-svelte-ignore` and `svelte/valid-compile`: the last of several codes is dropped
+## `svelte/no-unused-svelte-ignore` and `svelte/valid-compile` drop the last of two or more codes
 
 - Case: none upstream; rsvelte's own
   `tests/cases/no-unused-svelte-ignore/invalid/last-code-without-separator`.
-- Upstream reads a code only before a separator (`extractSvelteIgnore` in
-  `shared/svelte-compile-warns/ignore-comment.ts` slices up to each match of `/\s*[\s,]\s*/`). With
-  several codes and nothing after the last one, as in `<!-- svelte-ignore a b-->` or
-  `// svelte-ignore a b` at the end of a line, the last code is never read. It neither ignores its
-  warning nor is reported unused.
-- Correct: every code is read. The compiler's own `extract_svelte_ignore` matches each word, the
+- Upstream reads a code only before a separator: `extractSvelteIgnore` in
+  `shared/svelte-compile-warns/ignore-comment.ts` slices up to each match of the separator
+  pattern `/\s*[\s,]\s*/`. With two or more codes and nothing after the last one, as in
+  `<!-- svelte-ignore a b-->` or `// svelte-ignore a b` at the end of a line, upstream never reads
+  the last code. It neither ignores its warning nor reports it unused.
+- Correct: read every code. The compiler's own `extract_svelte_ignore` matches each word, the
   last one included. rsvelte reads the last code too, so in the case above it reports
   `export_let_unused` and `a11y_accesskey` as unused.
 
@@ -202,30 +202,30 @@ The rule throws `source.isSpaceBetweenTokens is not a function`, a `SourceCode` 
 ESLint 10 removed, while it builds the report. This crate reports the statement as upstream's
 tests expect.
 
-## svelte/prefer-const: a `<script module>` export is treated as a prop
+## `svelte/prefer-const` treats a `<script module>` export as a prop
 
 - Case: `tests/cases/prefer-const/invalid/script-module-input.svelte`,
   `<script module>\n\texport let m = 1;\n</script>`.
-- Upstream reports nothing. svelte-eslint-parser's `analyzePropsScope` adds a write to every
+- Upstream reports nothing. The `analyzePropsScope` of svelte-eslint-parser adds a write to every
   `export let` in a script whose `context` attribute is not `"module"`, and Svelte 5's `module`
   attribute does not count.
 - Correct: report `m`, as for `<script context="module">`. A module script's exports are not
   props, so nothing writes `m` after its declaration.
 
-## svelte/prefer-svelte-reactivity: a reassigned variable hides its later constructions
+## `svelte/prefer-svelte-reactivity`: a reassigned variable hides its later constructions
 
 - Case: `tests/cases/prefer-svelte-reactivity/invalid/reassigned-input.svelte.js`,
   `let q = new Set(); q = new Set(); q.add(1);`.
 - Upstream reports only the first `new Set()`. The mutation check takes one result of
   `ReferenceTracker.iteratePropertyReferences` with `.next()` and never closes the generator,
-  so `q` stays on the tracker's `variableStack` and the second construction is skipped as a cycle.
-- Correct: report the second `Set` too. It is the one `q.add(1)` mutates, so upstream misses
+  so `q` stays on the tracker's `variableStack` and the tracker skips the second construction as a cycle.
+- Correct: report the second `Set` too. `q.add(1)` mutates that one, so upstream misses
   exactly the construction the rule exists to catch. rsvelte follows every reference of `q`
   from each construction and reports both.
 
-## svelte/indent: a snippet without parameters takes a `(` from its body
+## `svelte/indent`: a snippet without parameters takes a `(` from its body
 
-eslint-plugin-svelte 3.23.1, default options.
+With eslint-plugin-svelte 3.23.1 and default options.
 
 ```svelte
 <div>
@@ -247,9 +247,9 @@ parameter list by searching back from the end of the whole `{#snippet}` block. I
 parameters. With one parameter (`{#snippet foo(a)}`) the same body reports nothing. The `(` is the
 first one after the snippet's name.
 
-## svelte/indent and svelte/max-lines-per-block: U+2028 and U+2029 do not end a line
+## `svelte/indent` and `svelte/max-lines-per-block`: U+2028 and U+2029 do not end a line
 
-eslint-plugin-svelte 3.23.1. Take each input below with every `\n` replaced by U+2028 (or
+With eslint-plugin-svelte 3.23.1, take each input below with every `\n` replaced by U+2028 (or
 U+2029):
 
 ```svelte
@@ -277,6 +277,117 @@ terminators it reports lines 2 and 5.
 ESLint's `sourceCode.lines` splits at all five ECMAScript line terminators. The node locations
 from svelte-eslint-parser count `\r\n`, `\r` and `\n` but not U+2028 or U+2029, so the rules see
 the whole file as one line. This crate ends a line at every ECMAScript line terminator.
+
+## The style directive fix cuts a value after a comment
+
+- Rule: `prefer-style-directive`.
+- Case: `src/rules/prefer_style_directive/tests.rs`,
+  `a_declaration_writes_the_whole_cleaned_value`.
+- Upstream: the fix turns `<div style="color: a /* c */ b;">` into `<div style:color="a /*">`.
+- Correct: `<div style:color="a  b">`, the value that `PostCSS` gives.
+- Why: the fix slices the source from the value's start by the length of the cleaned value
+  (`decl.value.range`), and a comment makes the cleaned value shorter than the written one.
+
+## A shorthand ID attribute does not count
+
+- Rule: `consistent-selector-style`.
+- Case: `src/rules/consistent_selector_style/tests.rs`, `a_shorthand_id_is_read_as_its_attribute`.
+- Upstream: with `let { id } = $props()`, `<div {id}>` reports `#a` as "Selector should select by
+  element type instead of ID", while `<div id={id}>` reports nothing.
+- Correct: both report nothing, because the element may carry any ID.
+- Why: the rule reads IDs from `SvelteAttribute` only and skips `SvelteShorthandAttribute`.
+
+## A selector inside `@keyframes` counts as an element type
+
+- Rule: `consistent-selector-style`.
+- Case: `src/rules/consistent_selector_style/tests.rs`, `a_keyframe_selector_selects_no_element`.
+- Upstream: with `style: ["class"]`, `@keyframes a { from {} 50% {} }` reports `from` and `50%` as
+  "Selector should select by class instead of element type".
+- Correct: no report, because these selectors select no element.
+- Why: the rule checks every rule inside an at-rule, `@keyframes` included.
+
+## An each block's else branch counts as repeated
+
+- Rule: `consistent-selector-style`.
+- Case: `src/rules/consistent_selector_style/tests.rs`, `an_each_else_branch_renders_at_most_once`.
+- Upstream: with `style: ["id", "class"]`, the rule says nothing about `.a` on the only element in
+  `{#each xs as x}…{:else}…`. For the same element in `{#if c}…{:else}…`, it reports "Selector
+  should select by ID instead of class".
+- Correct: the rule reports both. The `{:else}` branch of an each block renders at most once.
+- Why: `elementOccurrenceCount` multiplies the else block's count by the count of its parent each
+  block, which is `ZeroToInf`.
+
+## A space beside an expression names an empty class
+
+- Rule: `no-unused-class-name`.
+- Case: `src/rules/no_unused_class_name/tests.rs`, `a_space_beside_an_expression_names_no_class`.
+- Upstream: `<div class="{b} ">` and `<div class=" {b}">` report `Unused class "".`.
+- Correct: no report.
+- Why: `findClassesInAttribute` trims a literal part and splits it on spaces, so a part that
+  holds only spaces gives one empty string.
+
+## The style directive fix breaks a value with a double quote
+
+- Rule: `prefer-style-directive`.
+- Case: `src/rules/prefer_style_directive/tests.rs`,
+  `a_value_with_a_double_quote_is_reported_without_a_fix`.
+- Upstream: the fix turns `<div style='font-family: "Arial"'>` into
+  `<div style:font-family=""Arial"">`.
+- Correct: no fix, and the report stays.
+- Why: the fix always quotes the value with `"`.
+
+## The style directive fix drops `!important` from a conditional
+
+- Rule: `prefer-style-directive`.
+- Case: `src/rules/prefer_style_directive/tests.rs`, `a_conditional_keeps_important`.
+- Upstream: the fix turns `style={c ? "color: red !important" : ""}` into
+  `style:color={c ? "red" : null}`.
+- Correct: `style:color|important={c ? "red" : null}`.
+- Why: the fix writes the declaration's value, and `PostCSS` keeps `!important` apart from it.
+
+## The style directive fix changes a property that the style sets twice
+
+- Rule: `prefer-style-directive`.
+- Case: `src/rules/prefer_style_directive/tests.rs`,
+  `a_property_set_twice_is_reported_without_a_fix`.
+- Upstream: the fix turns `<div style="color: red; color: blue">` into
+  `<div style:color="red" style="color: blue">`. A directive wins over the attribute, so the text
+  turns red.
+- Correct: no fix while another declaration or conditional in the style sets the same property,
+  and the reports stay.
+- Why: the rule fixes each declaration on its own.
+
+## The class directive fix duplicates a directive
+
+- Rule: `prefer-class-directive`.
+- Case: `src/rules/prefer_class_directive/tests.rs`,
+  `a_class_with_a_directive_is_reported_without_a_fix`.
+- Upstream: the fix turns `<div class={a ? "" : "x"} class:x={b}>` into
+  `<div class:x={!a} class:x={b}>`, and Svelte rejects the duplicate attribute.
+- Correct: no fix, and the report stays.
+- Why: the fix does not look at the element's other directives.
+
+## Quirks of the CSS parsers that upstream uses
+
+A differential fuzz finds these. It compares this crate's port with `postcss` 8.5.32,
+`postcss-scss` 4.0.9 and the inline style reader of `eslint-plugin-svelte` 3.23.1 on 173,841
+inputs: corpus style bodies, their mutations and random strings. The fuzz harness is not in the
+repository, and no lint case covers these quirks.
+
+- An escaped astral character splits a surrogate pair. For `\😀&`, `PostCSS` reports
+  `Unknown word \�`. This crate reports `Unknown word \😀`.
+- Some errors have no position. For `:<FF>;<TAB>,{{`, `PostCSS` reports
+  `undefined:undefined: Unknown word`. This crate reports line 1, column 2.
+- `postcss-scss` throws a `TypeError` on a nested declaration without a word, for example
+  `{:]{/_`. This crate reports `Unknown word /_` at line 1, column 5.
+- In an inline style, `convertChild` places a declaration's value from the property's end. A hack
+  prefix (`*a: b`) moves that end one character left. This crate places the value at its own
+  position.
+- The safe parser ends an open comment, string or escape one character past the source, and the
+  declaration that holds it too. For `a: b /* c`, the comment ends at 10. This crate ends it at the
+  source's end, 9.
+- An at-rule in an inline style, such as `style="@media x"`, has no end, and `convertChild`
+  throws. This crate does not convert that style.
 
 ## The SvelteKit navigation rules: `$app/paths` through a namespace, a constant or a pattern
 

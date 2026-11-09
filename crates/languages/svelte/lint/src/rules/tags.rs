@@ -175,10 +175,7 @@ pub(super) fn whitespace_before(tokens: &Tokens<TokenType>, offset: u32) -> Span
     Span::new(start, offset)
 }
 
-/// JavaScript's `\s`: Unicode `White_Space` without U+0085, with U+FEFF.
-pub(super) const fn is_javascript_whitespace(c: char) -> bool {
-    (c.is_whitespace() && c != '\u{85}') || c == '\u{feff}'
-}
+pub(super) use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_javascript_whitespace;
 
 /// The whitespace that starts at `offset`, empty at `offset` when there is none.
 pub(super) fn whitespace_after(tokens: &Tokens<TokenType>, offset: u32) -> Span {

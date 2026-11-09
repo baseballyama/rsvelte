@@ -168,7 +168,8 @@ export async function main(args: string[]): Promise<void> {
 								parserOptions: { parser: { ts: '@typescript-eslint/parser', js: 'espree' } },
 							},
 						},
-						input,
+						// The path the lint crate's test names, which upstream's runner gives its fixtures.
+						path.join('tests/fixtures/rules', path.relative(ROOT, input)),
 					);
 				}
 				const fatal = messages.find((m) => m.fatal);

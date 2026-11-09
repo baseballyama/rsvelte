@@ -23,5 +23,12 @@ pub fn trim_ecmascript(text: &str) -> &str {
     text.trim_matches(is_ecmascript_whitespace)
 }
 
+/// The words of `text` between runs of ECMAScript whitespace: `text.trim().split(/\s+/u)` without
+/// the empty word that a blank text gives.
+pub fn split_ecmascript_whitespace(text: &str) -> impl Iterator<Item = &str> {
+    text.split(is_ecmascript_whitespace)
+        .filter(|word| !word.is_empty())
+}
+
 #[cfg(test)]
 mod tests;

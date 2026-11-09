@@ -11,6 +11,8 @@ use crate::computation::{
     ConditionTypes, LegacyReactivity, LintConfiguration, ModuleParents, NativeConditionTypes,
     Parents, SameNamedFileOnDisk,
 };
+use crate::rules::style_attribute::InlineStyles;
+use crate::rules::style_sheet::StyleSheetVerdict;
 use crate::types::TypeFacts;
 
 pub static PLUGIN: Plugin = Plugin {
@@ -41,6 +43,8 @@ pub fn register_artifacts(registry: &mut Registry) {
     registry
         .artifact::<Parents>()
         .artifact::<ModuleParents>()
+        .artifact::<InlineStyles>()
+        .artifact::<StyleSheetVerdict>()
         .artifact::<NativeConditionTypes>()
         .artifact::<LegacyReactivity>()
         .artifact::<SameNamedFileOnDisk>();

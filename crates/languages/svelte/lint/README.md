@@ -32,6 +32,11 @@ configuration order breaks ties.
 `register` turns on `svelte.lint/default`. `register_artifacts` registers the plugin and the
 shared facts without turning on its task.
 
+Known gap: `svelte/no-unused-class-name` and `svelte/consistent-selector-style` read selectors from
+rsvelte's CSS parser, so they say nothing on a sheet that `PostCSS` accepts and that parser
+rejects. No corpus component has such a sheet: 0 of the 2,190 whose `<style>` has the language
+`css` or `scss`, and none the other way. The same count reports a hand-made sheet with `.a-#{$b}`.
+
 ## Types
 
 A type-aware rule reads `File::condition_types`: one condition type per JS/TS node

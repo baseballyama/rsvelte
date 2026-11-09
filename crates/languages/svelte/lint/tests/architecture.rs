@@ -311,3 +311,45 @@ fn markup_layout_rules_request_only_the_surface_tree() {
         );
     }
 }
+
+#[test]
+fn style_rules_share_inline_styles_and_the_style_verdict_without_scopes() {
+    let mut registry = Registry::new();
+    rsvelte_svelte_lint::register(&mut registry);
+    let document = Document::new(
+        "test.svelte".to_owned(),
+        "<div class=\"a {b ? 'c' : ''}\" style=\"color: red; color: blue\" style:colour=\"x\"></div>\
+         <style>.a { margin: 0 } div {}</style>"
+            .to_owned(),
+    )
+    .expect("valid input");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let rules = configuration(
+        &[
+            "svelte/consistent-selector-style",
+            "svelte/no-dupe-style-properties",
+            "svelte/no-inline-styles",
+            "svelte/no-shorthand-style-property-overrides",
+            "svelte/no-unknown-style-directive-property",
+            "svelte/no-unused-class-name",
+            "svelte/prefer-class-directive",
+            "svelte/prefer-style-directive",
+            "svelte/require-optimized-style-attribute",
+            "svelte/valid-style-parse",
+        ]
+        .map(|name| (name, Severity::Error)),
+    );
+    assert!(
+        !rsvelte_svelte_lint::lint(&context, &rules)
+            .expect("source parses")
+            .is_empty()
+    );
+    assert_eq!(
+        context.computed(),
+        [
+            "svelte.parse",
+            "svelte.lint.style_sheet_verdict",
+            "svelte.lint.inline_styles"
+        ]
+    );
+}

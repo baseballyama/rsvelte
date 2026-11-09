@@ -40,7 +40,7 @@ const INITIAL_TOKEN_CAPACITY_LIMIT: usize = 8192;
 ///
 /// A `parse_error` [`Diagnostic`] at the first syntax error in the markup or the scripts, or at
 /// syntax this parser does not support. A style sheet's error alone is kept on
-/// [`Style::sheet`](rsvelte_svelte_syntax::syntax_tree::Style::sheet); [`crate::component`]
+/// [`Style::sheet`](rsvelte_svelte_syntax::syntax_tree::Style::sheet); [`crate::fully_parsed`]
 /// reports it.
 pub fn parse(source_text: &str) -> ParseResult<Component> {
     let mut parser = Parser {

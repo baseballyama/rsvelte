@@ -15,6 +15,9 @@ fn counts_elements_reports_parse_errors_and_skips_other_languages() {
             .document("Broken.svelte", "<p>")
             .expect("valid size"),
         registry
+            .document("Style.svelte", "<p></p><style>a {</style>")
+            .expect("valid size"),
+        registry
             .document("Other.vue", "<p>Hello</p>")
             .expect("valid size"),
     ];
@@ -35,5 +38,7 @@ fn counts_elements_reports_parse_errors_and_skips_other_languages() {
     let (_, broken) = &results[1].outputs[1];
     assert!(broken.files.is_empty());
     assert_eq!(broken.diagnostics.len(), 1);
-    assert!(results[2].outputs.is_empty());
+    let (_, style) = &results[2].outputs[1];
+    assert_eq!(style.diagnostics.len(), 1);
+    assert!(results[3].outputs.is_empty());
 }

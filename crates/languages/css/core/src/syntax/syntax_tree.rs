@@ -133,6 +133,8 @@ pub enum Simple {
     PseudoElement {
         span: Span,
         name: Span,
+        /// Its argument, which only lint reads: the compiler leaves it as Svelte does.
+        selectors: Box<[ComplexSelector]>,
     },
 }
 
