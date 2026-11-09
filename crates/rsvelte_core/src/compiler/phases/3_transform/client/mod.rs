@@ -218,6 +218,9 @@ thread_local! {
     // $.safe_get() handles this by returning undefined if not yet initialized.
     // Reference: declarations.js line 26
     pub(super) static VAR_STATE_VARS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    // Set while a declaration tag runs the instance-script pipeline: its temps
+    // continue the component's numbering, as upstream's `scope.generate` does.
+    static CONTINUE_SCRIPT_COUNTERS: Cell<bool> = const { Cell::new(false) };
 }
 
 struct AstStateCounterSnapshot {
@@ -6314,6 +6317,17 @@ fn transform_module_script_runes_with_target(
     result
 }
 
+/// The temp counters a declaration tag's pipeline run draws from, with the
+/// base name each one numbers.
+pub(crate) fn declaration_tag_temp_counters()
+-> [(&'static std::thread::LocalKey<Cell<usize>>, &'static str); 3] {
+    [
+        (&STATE_TMP_COUNTER, "tmp"),
+        (&DERIVED_TMP_COUNTER, "$$d"),
+        (&SCRIPT_ARRAY_COUNTER, "$$array"),
+    ]
+}
+
 /// Transform instance script content for the visitor-based code generation.
 /// Handles $state, $derived, $effect, $props transformations.
 /// Public wrapper around the instance-script rune-rewrite pipeline. Used by
@@ -6332,6 +6346,7 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
     // of its five stage timers rather than missing this entry point's share.
     let _script_start = super::profile::timer_start();
     let _parent_scope = super::profile::ParentScope::new();
+    CONTINUE_SCRIPT_COUNTERS.with(|c| c.set(true));
     let out = transform_instance_script_for_visitors(
         script,
         analysis,
@@ -6342,6 +6357,7 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
         None,
         &mut false,
     );
+    CONTINUE_SCRIPT_COUNTERS.with(|c| c.set(false));
     super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
     super::profile::record_parent_site(true);
     out
@@ -7413,12 +7429,17 @@ fn transform_instance_script_for_visitors(
 
     // Reset the $$array counters for this component
     // This ensures unique names across multiple $derived destructuring patterns
-    SCRIPT_ARRAY_COUNTER.with(|c| c.set(0));
-    ARRAY_LOOKUP_COUNTER.with(|c| c.set(0));
-    // Reset the tmp counter for $state destructuring
-    STATE_TMP_COUNTER.with(|c| c.set(0));
-    // Reset the $$d counter for $derived destructuring
-    DERIVED_TMP_COUNTER.with(|c| c.set(0));
+    if !CONTINUE_SCRIPT_COUNTERS.with(Cell::get) {
+        SCRIPT_ARRAY_COUNTER.with(|c| c.set(0));
+        ARRAY_LOOKUP_COUNTER.with(|c| c.set(0));
+        // Reset the tmp counter for $state destructuring
+        STATE_TMP_COUNTER.with(|c| c.set(0));
+        // Reset the $$d counter for $derived destructuring
+        DERIVED_TMP_COUNTER.with(|c| c.set(0));
+    } else {
+        // Helpers are numbered from the script counter, so their lookups start there too.
+        ARRAY_LOOKUP_COUNTER.with(|c| c.set(SCRIPT_ARRAY_COUNTER.with(Cell::get)));
+    }
 
     // Use Cow to avoid unnecessary String copies when no transformation is needed.
     // In runes mode, comments are safe to preserve (no store transforms that break on them).

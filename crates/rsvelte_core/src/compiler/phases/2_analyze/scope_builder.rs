@@ -4234,6 +4234,30 @@ impl<'a> ScopeBuilder<'a> {
             _ => None,
         };
         let Some(name) = pattern_name else {
+            // Upstream gives every destructured name the declarator's init as
+            // its `initial`. Without a type here a destructured `$state(arg)`
+            // reads as the no-argument `$state()`, whose value is `undefined`.
+            let JsNode::CallExpression { arguments, .. } = init else {
+                return;
+            };
+            if self.arena.get_js_children(*arguments).is_empty() {
+                return;
+            }
+            let mut names = Vec::new();
+            destructured_names(pattern, self.arena, &mut names);
+            for name in names {
+                if let Some(&idx) = self.scopes[self.current_scope]
+                    .declarations
+                    .get(name.as_str())
+                    && matches!(
+                        self.bindings[idx].kind,
+                        crate::compiler::phases::phase2_analyze::scope::BindingKind::State
+                            | crate::compiler::phases::phase2_analyze::scope::BindingKind::RawState
+                    )
+                {
+                    self.bindings[idx].initial_node_type = Some(init.type_str().to_string());
+                }
+            }
             return;
         };
         let Some(&idx) = self.scopes[self.current_scope].declarations.get(name) else {
@@ -4687,6 +4711,38 @@ fn node_slot_name<'n>(node: &'n TemplateNode<'_>) -> Option<&'n str> {
     }
 
     None
+}
+
+/// Names a destructuring pattern binds (not those declared inside its defaults).
+fn destructured_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<String>) {
+    match node {
+        JsNode::Identifier { name, .. } => out.push(name.to_string()),
+        JsNode::ObjectPattern { properties, .. } | JsNode::ObjectExpression { properties, .. } => {
+            for prop in arena.get_js_children(*properties) {
+                match prop {
+                    JsNode::Property { value, .. } => {
+                        destructured_names(arena.get_js_node(*value), arena, out);
+                    }
+                    JsNode::RestElement { argument, .. } => {
+                        destructured_names(arena.get_js_node(*argument), arena, out);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } | JsNode::ArrayExpression { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                destructured_names(elem, arena, out);
+            }
+        }
+        JsNode::AssignmentPattern { left, .. } => {
+            destructured_names(arena.get_js_node(*left), arena, out);
+        }
+        JsNode::RestElement { argument, .. } => {
+            destructured_names(arena.get_js_node(*argument), arena, out);
+        }
+        _ => {}
+    }
 }
 
 /// Names a pattern binds, for the `root.conflicts` seed only — no scope is
