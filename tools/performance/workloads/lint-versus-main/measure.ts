@@ -1,5 +1,6 @@
-// `measure.ts <command> --main <arm> --experimental <arm> --out <directory> [options]` runs the two
-// arms that `arms.ts` writes, and writes what it measures to `<directory>`:
+// `measure.ts <command> --main <arm> --experimental <arm> [--eslint eslint.ts] --out <directory>
+// [options]` runs the two arms that `arms.ts` writes, and ESLint when `--eslint` names `eslint.ts`,
+// and writes what it measures to `<directory>`:
 //
 // - `universe`: the rules both arms run, `rules.txt` for mode `rules` and
 //   `product-<arm>.txt` for mode `product`, and `universe.json` with every rule left out and why.
@@ -8,7 +9,7 @@
 // - `findings`: `findings-<mode>-<arm>.tsv`, the findings of each rule.
 // - `wall --repetitions <n> --rounds <n> --threads <list> --allocators <list>`: `wall.jsonl`, one
 //   process per line. Each repetition runs every configuration in both arm orders, alternating.
-// - `files --rounds <n>`: `files-<mode>-<arm>.tsv`, each input's fastest round alone.
+// - `files --rounds <n>`: `files-<mode>-<arm>.tsv`, each input's fastest round alone and its size.
 // - `instructions --part whole|rules-<i>-of-<n>`: `instructions-<part>.jsonl`, Valgrind's
 //   instruction count of one round less that of no round. `whole` lints `inputs.txt` with all the
 //   rules; `rules-<i>-of-<n>` lints `sample.txt` with each rule of its share alone, and with no rule.
@@ -33,13 +34,18 @@ const option = (name: string): string => {
 const out = path.resolve(option('out'));
 fs.mkdirSync(out, { recursive: true });
 const at = (name: string) => path.join(out, name);
-const arms = { main: options.main ?? '', experimental: options.experimental ?? '' };
+const arms = {
+	main: options.main ?? '',
+	experimental: options.experimental ?? '',
+	eslint: options.eslint ?? '',
+};
 type ArmName = keyof typeof arms;
-const armNames: ArmName[] = ['main', 'experimental'];
+const armNames = (['main', 'experimental', 'eslint'] as const).filter((arm) => arms[arm] !== '');
 const modes = ['rules', 'product'] as const;
 type Mode = (typeof modes)[number];
 
 function run(file: string, args: string[], env: Record<string, string> = {}): string {
+	if (file.endsWith('.ts')) [file, args] = [process.execPath, [file, ...args]];
 	const result = spawnSync(file, args, {
 		encoding: 'utf8',
 		maxBuffer: 1 << 30,
@@ -55,8 +61,11 @@ const lines = (text: string) => text.split('\n').filter((line) => line !== '');
 const read = (name: string) => lines(fs.readFileSync(at(name), 'utf8'));
 const write = (name: string, rows: string[]) =>
 	fs.writeFileSync(at(name), rows.map((row) => row + '\n').join(''));
+// ESLint's product is this branch's: the plugin's rules and `svelte/valid-compile`.
 const rulesFile = (mode: Mode, arm: ArmName) =>
-	mode === 'rules' ? at('rules.txt') : at(`product-${arm}.txt`);
+	mode === 'rules'
+		? at('rules.txt')
+		: at(`product-${arm === 'main' ? 'main' : 'experimental'}.txt`);
 
 function universe() {
 	const main = new Map(
@@ -92,6 +101,12 @@ function universe() {
 			...(experimental.get('svelte/valid-compile') === 'ok' ? ['svelte/valid-compile'] : []),
 		].toSorted(),
 	);
+	if (arms.eslint !== '') {
+		const missing = lines(run(arms.eslint, ['rules', at('product-experimental.txt')])).filter(
+			(row) => !row.endsWith('\tok'),
+		);
+		if (missing.length > 0) throw new Error(`ESLint lacks rules:\n${missing.join('\n')}`);
+	}
 	const summary = {
 		rules: rules.length,
 		meta,
@@ -151,15 +166,18 @@ function wall() {
 		for (const mode of modes)
 			for (const allocator of allocators)
 				for (const thread of new Set(threads)) {
-					const order = repetition % 2 === 0 ? armNames : armNames.toReversed();
+					// Each arm takes each place in turn.
+					const order = armNames.map((_, i) => armNames[(i + repetition) % armNames.length]!);
 					order.forEach((arm, position) => {
+						// ESLint has no allocator to pick, so it runs once.
+						if (arm === 'eslint' && allocator !== allocators[0]) return;
 						const output = run(
 							arms[arm],
 							['lint', mode, rulesFile(mode, arm), at('inputs.txt'), rounds, thread],
 							{ LINT_ALLOCATOR: allocator },
 						);
 						const record = { ...JSON.parse(output), repetition, position };
-						if (record.allocator !== allocator)
+						if (arm !== 'eslint' && record.allocator !== allocator)
 							throw new Error(`asked for ${allocator}, ran ${record.allocator}`);
 						fs.appendFileSync(file, JSON.stringify(record) + '\n');
 					});
@@ -170,9 +188,11 @@ function files() {
 	const rounds = option('rounds');
 	for (const mode of modes)
 		for (const arm of armNames)
-			fs.writeFileSync(
-				at(`files-${mode}-${arm}.tsv`),
-				run(arms[arm], ['files', mode, rulesFile(mode, arm), at('inputs.txt'), rounds]),
+			write(
+				`files-${mode}-${arm}.tsv`,
+				lines(run(arms[arm], ['files', mode, rulesFile(mode, arm), at('inputs.txt'), rounds])).map(
+					(row) => `${row}\t${fs.statSync(row.split('\t')[0]!).size}`,
+				),
 			);
 }
 
@@ -244,6 +264,10 @@ function instructionsPart() {
 	}
 }
 
+const oracle = JSON.parse(
+	fs.readFileSync(path.join(import.meta.dirname, '../../../oracle/package.json'), 'utf8'),
+);
+
 function platform() {
 	const cpu = os.cpus()[0]?.model ?? 'unknown';
 	// Both arms build with the toolchain this tree pins.
@@ -261,6 +285,18 @@ function platform() {
 		main: option('main-revision'),
 		experimental: option('experimental-revision'),
 		runner: process.env.RUNNER_NAME ?? null,
+		eslint:
+			arms.eslint === ''
+				? null
+				: Object.fromEntries(
+						[
+							'eslint',
+							'eslint-plugin-svelte',
+							'svelte-eslint-parser',
+							'@typescript-eslint/parser',
+							'svelte',
+						].map((name) => [name, oracle.dependencies[name]]),
+					),
 		label: options.label ?? null,
 	};
 	fs.writeFileSync(at('platform.json'), JSON.stringify(record, null, '\t') + '\n');

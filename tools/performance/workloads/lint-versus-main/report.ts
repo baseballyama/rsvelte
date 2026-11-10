@@ -1,6 +1,7 @@
 // `report.ts <report.md> <results directory>…`: compares the arms from what `measure.ts` wrote.
 // A results directory holds one platform's files, one instruction part's or both. A ratio is
-// experimental over main, so below 1 means experimental is faster or smaller.
+// experimental over main, so below 1 means experimental is faster or smaller. A platform measured
+// with `--eslint` gets a section of its own, against ESLint.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -40,6 +41,26 @@ const table = (header: string[], body: (string | number)[][]) =>
 		...body.map((row) => `| ${row.join(' | ')} |`),
 	].join('\n');
 
+// Each component's fastest round and its size in bytes.
+const fileTimes = (directory: string, name: string) =>
+	new Map(
+		rows(directory, name).map((row) => {
+			const [file, ns, bytes] = row.split('\t');
+			return [file!, { ns: Number(ns), bytes: bytes === undefined ? NaN : Number(bytes) }];
+		}),
+	);
+const findingCounts = (directory: string, name: string) =>
+	exists(directory, name)
+		? new Map(
+				rows(directory, name).map((row) => {
+					const [code, n] = row.split('\t');
+					return [code!, Number(n)];
+				}),
+			)
+		: undefined;
+
+const total = (counts: Map<string, number>) => [...counts.values()].reduce((s, n) => s + n, 0);
+
 const out: string[] = ['# Lint: main against experimental', ''];
 out.push(
 	'A ratio is experimental over main: below 1 means experimental is faster or smaller. Both arms',
@@ -51,7 +72,10 @@ out.push(
 	'',
 );
 
-const platforms = directories.filter((d) => exists(d, 'platform.json'));
+const platformOf = (directory: string) => JSON.parse(text(directory, 'platform.json'));
+const measured = directories.filter((d) => exists(d, 'platform.json'));
+const platforms = measured.filter((d) => platformOf(d).eslint == null);
+const eslintPlatforms = measured.filter((d) => platformOf(d).eslint != null);
 const first = platforms[0];
 if (first) {
 	const p = JSON.parse(text(first, 'platform.json'));
@@ -166,21 +190,17 @@ for (const directory of platforms) {
 	for (const mode of ['rules', 'product']) {
 		const name = (arm: string) => `files-${mode}-${arm}.tsv`;
 		if (!exists(directory, name('main')) || !exists(directory, name('experimental'))) continue;
-		const time = (arm: string) =>
-			new Map(
-				rows(directory, name(arm)).map((row) => {
-					const [file, ns] = row.split('\t');
-					return [file!, Number(ns)];
-				}),
-			);
-		const [main, experimental] = [time('main'), time('experimental')];
+		const [main, experimental] = [
+			fileTimes(directory, name('main')),
+			fileTimes(directory, name('experimental')),
+		];
 		const files = [...main.keys()].filter((file) => experimental.has(file));
 		const ratios = files.map((file) => ({
 			file,
-			main: main.get(file)!,
-			experimental: experimental.get(file)!,
-			ratio: experimental.get(file)! / main.get(file)!,
-			bytes: fs.existsSync(file) ? fs.statSync(file).size : NaN,
+			main: main.get(file)!.ns,
+			experimental: experimental.get(file)!.ns,
+			ratio: experimental.get(file)!.ns / main.get(file)!.ns,
+			bytes: main.get(file)!.bytes,
 		}));
 		const values = ratios.map((r) => r.ratio);
 		const top = (list: typeof ratios) =>
@@ -287,16 +307,10 @@ if (perRule.length > 0) {
 
 if (first) {
 	for (const mode of ['rules', 'product']) {
-		const counts = (arm: string) =>
-			exists(first, `findings-${mode}-${arm}.tsv`)
-				? new Map(
-						rows(first, `findings-${mode}-${arm}.tsv`).map((row) => {
-							const [code, n] = row.split('\t');
-							return [code!, Number(n)];
-						}),
-					)
-				: undefined;
-		const [main, experimental] = [counts('main'), counts('experimental')];
+		const [main, experimental] = [
+			findingCounts(first, `findings-${mode}-main.tsv`),
+			findingCounts(first, `findings-${mode}-experimental.tsv`),
+		];
 		if (!main || !experimental) continue;
 		const codes = [...new Set([...main.keys(), ...experimental.keys()])].toSorted();
 		const differ = codes.filter((code) => main.get(code) !== experimental.get(code));
@@ -310,6 +324,153 @@ if (first) {
 			table(
 				['code', 'main', 'experimental'],
 				codes.map((code) => [`\`${code}\``, main.get(code) ?? 0, experimental.get(code) ?? 0]),
+			),
+			'',
+			'</details>',
+			'',
+		);
+	}
+}
+
+for (const directory of eslintPlatforms) {
+	const p = platformOf(directory);
+	const versions = Object.entries(p.eslint as Record<string, string>)
+		.map(([name, version]) => `${name} ${version}`)
+		.join(', ');
+	const excludedFiles = rows(directory, 'excluded.tsv');
+	out.push(
+		`## Against ESLint: ${p.label ?? p.os} (${p.arch}, ${p.cpu}, ${p.parallelism} threads)`,
+		'',
+		`${versions}, with the parsers of the corpus's lint oracle. The same rules as above; mode \`product\` gives ESLint this branch's rules, \`svelte/valid-compile\` and the plugin's processor. ${rows(directory, 'inputs.txt').length} components: those no arm fails on, ${excludedFiles.length} fewer than every component. The Rust arms use the system allocator, and ESLint runs one linter in each worker thread. A ratio is the Rust arm over ESLint.`,
+		'',
+	);
+	if (excludedFiles.length > 0)
+		out.push(
+			'<details><summary>Components left out</summary>',
+			'',
+			table(
+				['component', 'reason'],
+				excludedFiles.map((row) => {
+					const [file, reason] = row.split('\t');
+					return [short(file!), reason!];
+				}),
+			),
+			'',
+			'</details>',
+			'',
+		);
+	const records = jsonl(directory, 'wall.jsonl').filter((r) => r.allocator !== 'mimalloc');
+	const keys = [...new Set(records.map((r) => `${r.mode}\t${r.threads}`))];
+	const of = (mode: string, threads: string, arm: string) =>
+		records.filter((r) => r.mode === mode && String(r.threads) === threads && r.arm === arm);
+	const best = (rs: typeof records) => median(rs.map((r) => Math.min(...r.round_ns.slice(1))));
+	const cold = (rs: typeof records) => median(rs.map((r) => r.round_ns[0]));
+	const repetitions = new Set(records.map((r) => r.repetition)).size;
+	out.push(
+		`Wall-clock time of one pass over every component, in ms: the median over ${repetitions} processes of each process's fastest warm round. The cold round is each process's first; the set-up includes loading ESLint.`,
+		'',
+		table(
+			[
+				'mode',
+				'threads',
+				'ESLint',
+				'main',
+				'experimental',
+				'main / ESLint',
+				'experimental / ESLint',
+				'cold experimental / ESLint',
+				'set-up ESLint / experimental',
+			],
+			keys.map((key) => {
+				const [mode, threads] = key.split('\t') as [string, string];
+				const [e, m, x] = ['eslint', 'main', 'experimental'].map((arm) => of(mode, threads, arm));
+				return [
+					mode,
+					threads,
+					ms(best(e!)),
+					ms(best(m!)),
+					ms(best(x!)),
+					ratio(best(m!), best(e!)),
+					ratio(best(x!), best(e!)),
+					ratio(cold(x!), cold(e!)),
+					`${ms(median(e!.map((r) => r.setup_ns)))} / ${ms(median(x!.map((r) => r.setup_ns)))}`,
+				];
+			}),
+		),
+		'',
+		'Peak resident set of the process, in MiB:',
+		'',
+		table(
+			['mode', 'threads', 'ESLint', 'main', 'experimental'],
+			keys.map((key) => {
+				const [mode, threads] = key.split('\t') as [string, string];
+				const peak = (arm: string) =>
+					mib(median(of(mode, threads, arm).map((r) => r.peak_resident_bytes)));
+				return [mode, threads, peak('eslint'), peak('main'), peak('experimental')];
+			}),
+		),
+		'',
+	);
+	for (const mode of ['rules', 'product']) {
+		const name = (arm: string) => `files-${mode}-${arm}.tsv`;
+		if (!exists(directory, name('eslint')) || !exists(directory, name('experimental'))) continue;
+		const [eslint, experimental] = [
+			fileTimes(directory, name('eslint')),
+			fileTimes(directory, name('experimental')),
+		];
+		const ratios = [...eslint.keys()]
+			.filter((file) => experimental.has(file))
+			.map((file) => ({
+				file,
+				eslint: eslint.get(file)!.ns,
+				experimental: experimental.get(file)!.ns,
+				ratio: experimental.get(file)!.ns / eslint.get(file)!.ns,
+				bytes: eslint.get(file)!.bytes,
+			}))
+			.toSorted((a, b) => b.ratio - a.ratio);
+		const values = ratios.map((r) => r.ratio);
+		const top = (list: typeof ratios) =>
+			list.map((r) => [
+				short(r.file),
+				r.bytes,
+				(r.eslint / 1e3).toFixed(0),
+				(r.experimental / 1e3).toFixed(0),
+				r.ratio.toFixed(3),
+			]);
+		out.push(
+			`### Each component alone against ESLint, mode \`${mode}\``,
+			'',
+			`Experimental over ESLint, the fastest of the rounds for each of ${ratios.length} components. Quantiles: p1 ${quantile(values, 0.01).toFixed(3)}, p10 ${quantile(values, 0.1).toFixed(3)}, p50 ${median(values).toFixed(3)}, p90 ${quantile(values, 0.9).toFixed(3)}, p99 ${quantile(values, 0.99).toFixed(3)}, max ${Math.max(...values).toFixed(3)}. Sum: ESLint ${ms(ratios.reduce((s, r) => s + r.eslint, 0))} ms, experimental ${ms(ratios.reduce((s, r) => s + r.experimental, 0))} ms.`,
+			'',
+			'<details><summary>Components with the highest and the lowest ratio</summary>',
+			'',
+			table(
+				['component', 'bytes', 'ESLint µs', 'experimental µs', 'ratio'],
+				[...top(ratios.slice(0, 15)), ...top(ratios.slice(-15))],
+			),
+			'',
+			'</details>',
+			'',
+		);
+	}
+	for (const mode of ['rules', 'product']) {
+		const [eslint, experimental] = [
+			findingCounts(directory, `findings-${mode}-eslint.tsv`),
+			findingCounts(directory, `findings-${mode}-experimental.tsv`),
+		];
+		if (!eslint || !experimental) continue;
+		const codes = [...new Set([...eslint.keys(), ...experimental.keys()])].toSorted();
+		const differ = codes.filter((code) => eslint.get(code) !== experimental.get(code));
+		out.push(
+			`### Findings against ESLint, mode \`${mode}\``,
+			'',
+			`ESLint ${total(eslint)}, experimental ${total(experimental)}. ${codes.length} codes; ${differ.length} have different counts.`,
+			'',
+			'<details><summary>Findings of each code</summary>',
+			'',
+			table(
+				['code', 'ESLint', 'experimental'],
+				codes.map((code) => [`\`${code}\``, eslint.get(code) ?? 0, experimental.get(code) ?? 0]),
 			),
 			'',
 			'</details>',

@@ -30,6 +30,12 @@ node $W/measure.ts check --main … --inputs <stage>/inputs.txt --sample 20
 node $W/report.ts report.md <results>
 ```
 
+`--eslint $W/eslint.ts` adds ESLint with eslint-plugin-svelte as a third arm. It needs
+`pnpm install`, and takes the same commands and the parsers of the corpus's lint oracle. Its
+`product` runs this branch's rules, `svelte/valid-compile` and the plugin's processor. The workflow
+runs it in a job of its own, with the Rust arms on the same runner, over the components ESLint
+lints too.
+
 The header of `measure.ts` lists its other commands: findings per rule, wall-clock time, each
 component alone, and Valgrind's instruction counts. Wall-clock time and memory depend on the
 runner. Instruction counts do not, so compare those across runs.
