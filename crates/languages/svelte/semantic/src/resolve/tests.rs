@@ -132,3 +132,39 @@ fn props_and_runes_shadowed_by_bindings() {
     );
     assert!(res.is_store_subscription("$state"));
 }
+
+#[test]
+fn what_a_module_rejects_is_a_syntax_error_and_template_names_are_not() {
+    let clean = concat!(
+        "<script module>export const shared = 1;</script>\n",
+        "<script>let a = $state(1); let { b } = $props(); function f(a) { return a; }</script>\n",
+        "{#snippet row(item)}{item}{/snippet}{#snippet other(item)}{item}{/snippet}\n",
+        "{#each [1] as item, i (item)}{@const c = item}{c}{i}{/each}\n",
+        "{#each [2] as item}{@const c = item}{c}{/each}\n",
+        "{#await p then value}{value}{:catch error}{error}{/await}\n",
+        "<Comp let:item let:other={x}>{item}{x}</Comp>{a}{b}{shared}",
+    );
+    assert_eq!(
+        analyze(clean).syntax_error().map(|e| e.message.clone()),
+        None
+    );
+    for source in [
+        "<script>let a; let a;</script>",
+        "<script>delete x;</script>",
+        "{(() => { let y; let y; })()}",
+        "<script>/(?<n>x)(?<n>y)/;</script>",
+    ] {
+        let rejected = parse(source).is_err() || analyze(source).syntax_error().is_some();
+        assert!(rejected, "{source}");
+    }
+}
+
+#[test]
+fn the_module_may_export_a_top_level_snippet_and_nothing_else_undeclared() {
+    let snippet = "<script module>export { row };</script>{#snippet row()}x{/snippet}";
+    assert!(analyze(snippet).syntax_error().is_none());
+    let nested = "<script module>export { row };</script>{#if a}{#snippet row()}x{/snippet}{/if}";
+    assert!(analyze(nested).syntax_error().is_some());
+    let missing = "<script module>export { row };</script>";
+    assert!(analyze(missing).syntax_error().is_some());
+}

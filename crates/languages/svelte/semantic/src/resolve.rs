@@ -16,7 +16,7 @@ use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 use rustc_hash::FxHashMap;
 
 use crate::compiler_syntax_tree::{
-    AttributeIdentifier, CompilerNodeIdentifier, CompilerSyntaxTree,
+    AttributeIdentifier, CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind,
 };
 
 mod classify;
@@ -137,11 +137,19 @@ pub fn resolve(
             names: &template_names,
             scopes: RefCell::new(FxHashMap::default()),
         };
-        let mut semantic = builder.build_with_host(root, &host).semantic;
-        counts::mark_bound_writes(tree, compiler_syntax_tree, semantic.scoping_mut());
+        let mut built = builder.build_with_host(root, &host);
+        if let Some(module) = module {
+            allow_snippet_exports(
+                tree,
+                tree.get_program(module),
+                compiler_syntax_tree,
+                &mut built,
+            );
+        }
+        counts::mark_bound_writes(tree, compiler_syntax_tree, built.semantic.scoping_mut());
         scopes = host.scopes.take();
         names = template_names.symbols();
-        semantic
+        built
     });
     Resolution(cell::Cell::new(semantic, |semantic| {
         let tree = semantic.tree();
@@ -170,6 +178,53 @@ pub fn resolve(
             instance_scope,
         }
     }))
+}
+
+/// Svelte lets the module script export a snippet the template declares at its top level, which
+/// is no binding of the module's scope.
+fn allow_snippet_exports(
+    tree: &Tree,
+    module: &Program<'_>,
+    compiler_syntax_tree: &CompilerSyntaxTree,
+    built: &mut oxc_semantic::SemanticBuilderReturn<'_>,
+) {
+    let snippets: Vec<&str> = compiler_syntax_tree
+        .children(compiler_syntax_tree.root)
+        .iter()
+        .filter_map(|&node| match &compiler_syntax_tree.node(node).kind {
+            NodeKind::Snippet(snippet) => match tree.get_expression(snippet.name) {
+                Expression::Identifier(name) => Some(name.name.as_str()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect();
+    if snippets.is_empty() {
+        return;
+    }
+    let exported: Vec<u32> = module
+        .body
+        .iter()
+        .filter_map(|statement| match statement {
+            oxc_ast::ast::Statement::ExportNamedDeclaration(export) => Some(&export.specifiers),
+            _ => None,
+        })
+        .flatten()
+        .filter_map(|specifier| match &specifier.local {
+            oxc_ast::ast::ModuleExportName::IdentifierReference(local)
+                if snippets.contains(&local.name.as_str()) =>
+            {
+                Some(local.span.start)
+            }
+            _ => None,
+        })
+        .collect();
+    built.diagnostics.retain(|diagnostic| {
+        !diagnostic
+            .labels
+            .first()
+            .is_some_and(|label| exported.contains(&label.offset()))
+    });
 }
 
 /// The program a component without scripts resolves its template in.
@@ -202,6 +257,12 @@ impl Resolution {
     #[must_use]
     pub fn scoping(&self) -> &Scoping {
         self.semantic().scoping()
+    }
+
+    /// The first error a module rejects that no parser reported, in the scripts or the template.
+    #[must_use]
+    pub fn syntax_error(&self) -> Option<&rsvelte_kernel::diagnostics::Diagnostic> {
+        self.semantic().syntax_error()
     }
 
     /// The instance script's scope, where the template's names resolve first; the root scope when

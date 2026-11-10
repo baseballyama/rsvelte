@@ -4,7 +4,8 @@
 //! references. A host language such as Svelte adds its template through an [`oxc_semantic::Host`],
 //! so one [`Scoping`] holds the scripts' and the template's symbols.
 
-use oxc_semantic::{AstNodes, Scoping, SemanticBuilder};
+use oxc_semantic::{AstNodes, Scoping, SemanticBuilder, SemanticBuilderReturn};
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 
 mod cell {
@@ -28,6 +29,9 @@ mod cell {
 
 struct Analyzed<'a> {
     semantic: oxc_semantic::Semantic<'a>,
+    /// The first error a module rejects that the parser does not: `delete x`, a name declared
+    /// twice, an octal escape, ….
+    syntax_error: Option<Diagnostic>,
 }
 
 /// The scope analysis of one document.
@@ -44,12 +48,12 @@ impl std::fmt::Debug for Semantic {
 }
 
 impl Semantic {
-    /// The builder every analysis starts from: the parsers have already reported syntax errors,
-    /// the scripts of a component are not all at the top level, and the tasks walk to parents.
+    /// The builder every analysis starts from: it reports the errors the parsers leave to it,
+    /// and the tasks walk to parents.
     #[must_use]
     pub fn builder<'a>() -> SemanticBuilder<'a> {
         SemanticBuilder::new()
-            .with_check_syntax_error(false)
+            .with_check_syntax_error(true)
             .with_build_nodes(true)
     }
 
@@ -57,10 +61,19 @@ impl Semantic {
     /// what the builder returns, such as a host language's writes the builder cannot see.
     pub fn build(
         tree: Tree,
-        build: impl for<'a> FnOnce(&'a Tree, SemanticBuilder<'a>) -> oxc_semantic::Semantic<'a>,
+        build: impl for<'a> FnOnce(&'a Tree, SemanticBuilder<'a>) -> SemanticBuilderReturn<'a>,
     ) -> Self {
-        Self(cell::Cell::new(tree, |tree| Analyzed {
-            semantic: build(tree, Self::builder()),
+        Self(cell::Cell::new(tree, |tree| {
+            let analysis = build(tree, Self::builder());
+            let syntax_error = analysis
+                .diagnostics
+                .errors()
+                .next()
+                .map(|error| rsvelte_typescript_tree::syntax_error([error.clone()], 0, 0));
+            Analyzed {
+                semantic: analysis.semantic,
+                syntax_error,
+            }
         }))
     }
 
@@ -68,7 +81,7 @@ impl Semantic {
     #[must_use]
     pub fn program(tree: Tree, program: ProgramIdentifier) -> Self {
         Self::build(tree, |tree, builder| {
-            builder.build(tree.get_program(program)).semantic
+            builder.build(tree.get_program(program))
         })
     }
 
@@ -80,6 +93,12 @@ impl Semantic {
     #[must_use]
     pub fn scoping(&self) -> &Scoping {
         self.0.borrow_dependent().semantic.scoping()
+    }
+
+    /// The first error a module rejects that the parser does not report.
+    #[must_use]
+    pub fn syntax_error(&self) -> Option<&Diagnostic> {
+        self.0.borrow_dependent().syntax_error.as_ref()
     }
 
     /// Every node with its parent and scope.
