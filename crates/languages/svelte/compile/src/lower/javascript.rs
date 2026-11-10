@@ -85,6 +85,19 @@ pub(crate) fn init_property(
     )
 }
 
+/// `{ name }` for each exported name, as both targets hand the exports over.
+pub(crate) fn export_properties<'a>(
+    out: &'a mut SyntaxTree,
+    javascript: &'a SyntaxTree,
+    exports: &'a [NodeIdentifier],
+) -> impl Iterator<Item = NodeIdentifier> + 'a {
+    exports.iter().map(|&name| {
+        let name = javascript.name(name);
+        let value = out.identifier(name);
+        init_property(out, name, value)
+    })
+}
+
 /// `b.key(name)`: an identifier key when `name` is one, a string key otherwise.
 fn property_key(out: &mut SyntaxTree, name: &str) -> NodeIdentifier {
     if is_valid_identifier(name) {

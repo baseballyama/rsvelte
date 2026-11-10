@@ -37,7 +37,7 @@ use rsvelte_typescript_syntax::syntax_tree::flag;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
-use super::javascript::{init_property, runtime_call, unthunk};
+use super::javascript::{export_properties, init_property, runtime_call, unthunk};
 use super::names::Names;
 use super::script::{Read, ScriptRewrite};
 use super::{
@@ -222,13 +222,8 @@ pub(super) fn lower_prepared(
     let template = context.fragment(input.component.compiler_syntax_tree.root)?;
 
     let stylesheet = context.custom_element_stylesheet(facts.stylesheet);
-    let mut returned: Vec<NodeIdentifier> = (exports.iter())
-        .map(|&name| {
-            let name = javascript.name(name);
-            let value = context.out.identifier(name);
-            init_property(&mut context.out, name, value)
-        })
-        .collect();
+    let mut returned: Vec<NodeIdentifier> =
+        export_properties(&mut context.out, javascript, &exports).collect();
     returned.extend(context.custom_element_exports());
     let func = context.component_function(instance, template, &returned, stylesheet.is_some());
     let registration = context.custom_element_registration(&exports);

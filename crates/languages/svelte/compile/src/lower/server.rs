@@ -201,11 +201,7 @@ fn bind_props(
         let value = o.identifier(name);
         bound.push(init_property(o, &key, value));
     }
-    for &name in exports {
-        let name = javascript.name(name);
-        let value = o.identifier(name);
-        bound.push(init_property(o, name, value));
-    }
+    bound.extend(super::javascript::export_properties(o, javascript, exports));
     if bound.is_empty() {
         return None;
     }

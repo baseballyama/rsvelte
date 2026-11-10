@@ -441,48 +441,49 @@ fn proxyable(syntax_tree: &SyntaxTree, res: Option<&Resolution>, e: NodeIdentifi
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum ScriptContext {
-    Instance,
+/// Which script is lowered; the instance's exports are collected while it is.
+pub(super) enum ScriptContext<'e> {
+    Instance {
+        exports: &'e mut Vec<NodeIdentifier>,
+    },
     Module,
 }
 
-/// The names an instance `export` declaration gives the component's exports, when it is one this
-/// port lowers: a `const` of plain names, or a named function. Upstream reads an exported class
-/// through a getter and a setter.
-fn exported_names(from: &SyntaxTree, declaration: NodeIdentifier) -> Option<Vec<NodeIdentifier>> {
-    match from.kind(declaration) {
-        Kind::VariableDeclaration { kind, declarations } if kind == flag::CONST => declarations
-            .iter()
-            .map(|&d| match from.kind(d) {
-                Kind::Declarator { identifier, .. } if from.is_identifier(identifier) => {
-                    Some(identifier)
-                }
-                _ => None,
-            })
-            .collect(),
-        Kind::Function {
-            name: Some(name), ..
-        } => Some(vec![name]),
-        _ => None,
-    }
-}
-
-/// Refuses an instance export this port does not lower: upstream raises an error for an exported
-/// `let`, and reads an exported signal through a getter.
+/// Pushes the names an instance export gives the component's exports, when it is one this port
+/// lowers: a `const` of plain names, or a named function. Upstream raises an error for an exported
+/// `let`, and reads an exported signal or class through accessors.
 fn check_export(
     from: &SyntaxTree,
     res: &Resolution,
     statement: NodeIdentifier,
     declaration: NodeIdentifier,
+    exports: &mut Vec<NodeIdentifier>,
 ) -> Result<(), Diagnostic> {
-    let plain = exported_names(from, declaration).is_some_and(|names| {
-        names.iter().all(|&name| {
+    let start = exports.len();
+    let named = match from.kind(declaration) {
+        Kind::VariableDeclaration { kind, declarations } if kind == flag::CONST => {
+            declarations.iter().all(|&d| match from.kind(d) {
+                Kind::Declarator { identifier, .. } if from.is_identifier(identifier) => {
+                    exports.push(identifier);
+                    true
+                }
+                _ => false,
+            })
+        }
+        Kind::Function {
+            name: Some(name), ..
+        } => {
+            exports.push(name);
+            true
+        }
+        _ => false,
+    };
+    let plain = named
+        && exports[start..].iter().all(|&name| {
             res.binding(name).is_some_and(|(_, info)| {
                 matches!(info.kind, BindingKind::Normal | BindingKind::RestProperty)
             })
-        })
-    });
+        });
     if plain {
         return Ok(());
     }
@@ -490,20 +491,6 @@ fn check_export(
         "this export from the instance script",
         super::span_of(from, statement),
     )
-}
-
-/// The names the instance script exports, in source order.
-pub(super) fn instance_exports(from: &SyntaxTree, program: NodeIdentifier) -> Vec<NodeIdentifier> {
-    let Kind::Program(body) = from.kind(program) else {
-        unreachable!("scripts parse to programs")
-    };
-    (body.iter())
-        .filter_map(|&statement| match from.kind(statement) {
-            Kind::ExportNamed(declaration) => exported_names(from, declaration),
-            _ => None,
-        })
-        .flatten()
-        .collect()
 }
 
 /// Script statements share rune lowering; imports go to `hoisted`.
@@ -523,16 +510,19 @@ pub(super) fn lower_script(
     program: NodeIdentifier,
     hoisted: &mut Vec<NodeIdentifier>,
     names: &mut Names,
-    context: ScriptContext,
+    mut context: ScriptContext<'_>,
 ) -> Result<Vec<NodeIdentifier>, Diagnostic> {
+    let instance = matches!(context, ScriptContext::Instance { .. });
     let Kind::Program(body) = from.kind(program) else {
         unreachable!("scripts parse to programs")
     };
     let mut out = Vec::with_capacity(body.len());
     for &statement in body {
         let statement = match from.kind(statement) {
-            Kind::ExportNamed(declaration) if context == ScriptContext::Instance => {
-                check_export(from, rw.res, statement, declaration)?;
+            Kind::ExportNamed(declaration)
+                if let ScriptContext::Instance { exports } = &mut context =>
+            {
+                check_export(from, rw.res, statement, declaration, exports)?;
                 declaration
             }
             _ => statement,
@@ -546,7 +536,7 @@ pub(super) fn lower_script(
             | Kind::Control(
                 rsvelte_typescript_syntax::syntax_tree::Control::ExportList { .. }
                 | rsvelte_typescript_syntax::syntax_tree::Control::ExportAll { .. },
-            ) if context == ScriptContext::Instance => {
+            ) if instance => {
                 return unsupported(
                     "an export from the instance script",
                     from.source_location(statement)
@@ -556,7 +546,7 @@ pub(super) fn lower_script(
             }
             Kind::VariableDeclaration { kind, declarations } => {
                 // Upstream's instance gives each declarator its own declaration.
-                let split = context == ScriptContext::Instance;
+                let split = instance;
                 let location = from.source_location(statement);
                 let mut lowered = Vec::with_capacity(declarations.len());
                 for (i, &d) in declarations.iter().enumerate() {

@@ -57,6 +57,7 @@ pub(super) fn prepare<'a>(
         )?;
         module_statements.extend(statements);
     }
+    let mut exports = Vec::new();
     let instance = script::lower_script(
         javascript,
         &mut out,
@@ -64,7 +65,9 @@ pub(super) fn prepare<'a>(
         input.component.program,
         &mut hoisted,
         &mut names,
-        script::ScriptContext::Instance,
+        script::ScriptContext::Instance {
+            exports: &mut exports,
+        },
     )?;
     Ok(Prepared {
         out,
@@ -73,7 +76,7 @@ pub(super) fn prepare<'a>(
         module: module_statements,
         hoisted,
         instance,
-        exports: script::instance_exports(javascript, input.component.program),
+        exports,
         custom_element,
         component_name,
     })
