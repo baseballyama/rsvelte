@@ -1302,10 +1302,8 @@ version = "0.0.0"
 dependencies = [
  "oxc_formatter",
  "oxc_formatter_core",
- "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
- "rsvelte_typescript_syntax",
  "rsvelte_typescript_tree",
 ]
 
