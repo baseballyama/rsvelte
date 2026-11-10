@@ -120,23 +120,18 @@ fn validate_globals(
 
 fn validate_snippet_parameters(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
     let component = input.component;
-    let tree = component.compiler_syntax_tree;
-    for node in &tree.nodes {
+    for node in &component.compiler_syntax_tree.nodes {
         let NodeKind::Snippet(snippet) = &node.kind else {
             continue;
         };
-        for &parameter in tree.javascript_list(snippet.parameters) {
-            if matches!(component.javascript.kind(parameter), super::Kind::Rest(_)) {
-                return invalid(
-                    "snippet_invalid_rest_parameter",
-                    "Snippets do not support rest parameters; use an array instead",
-                    component
-                        .javascript
-                        .source_location(parameter)
-                        .span()
-                        .expect("a parsed parameter"),
-                );
-            }
+        if let Some(rest) =
+            (snippet.parameters).and_then(|p| component.javascript.get_parameters(p).rest.as_ref())
+        {
+            return invalid(
+                "snippet_invalid_rest_parameter",
+                "Snippets do not support rest parameters; use an array instead",
+                super::span_of(&**rest),
+            );
         }
     }
     Ok(())
@@ -215,8 +210,8 @@ fn validate_options(
         let value = match attribute.value {
             AttributeValue::Boolean => Some(true),
             _ => single_expression(&attribute.value).and_then(|e| {
-                match input.component.javascript.kind(e) {
-                    super::Kind::Boolean(value) => Some(value),
+                match input.component.javascript.get_expression(e) {
+                    oxc_ast::ast::Expression::BooleanLiteral(literal) => Some(literal.value),
                     _ => None,
                 }
             }),

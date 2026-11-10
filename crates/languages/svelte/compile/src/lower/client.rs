@@ -19,9 +19,14 @@ mod template;
 mod template_chunk;
 mod title;
 
+use oxc_allocator::ArenaBox;
+use oxc_ast::ast::{
+    Expression, FormalParameters, ImportDeclarationSpecifier, ImportOrExportKind, Statement,
+    StringLiteral,
+};
+use oxc_semantic::{ReferenceId, ScopeId, SymbolId};
+use oxc_span::SPAN;
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_kernel::source::interning::Atom;
-use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_markup_syntax::decode_attribute;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
@@ -30,20 +35,16 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::parse::is_void;
-use rsvelte_typescript_compile::copy::copy;
-use rsvelte_typescript_semantic::scope::{BindingIdentifier, ScopeIdentifier};
-use rsvelte_typescript_syntax::operators::{AssignmentOperator, BinaryOperator, LogicalOperator};
-use rsvelte_typescript_syntax::syntax_tree::flag;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
-use rustc_hash::FxHashMap;
+use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
+use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::javascript::{export_properties, init_property, runtime_call, unthunk};
+use super::javascript::export_properties;
 use super::names::Names;
 use super::script::{Read, ScriptRewrite};
 use super::{
-    Item, Prepared, Target, check_foreign_element, escape_markup, event_attribute, has_dependency,
-    is_custom_element_node, is_customizable_select, is_directive, is_load_error_element,
-    needs_clsx, sanitize_template_string, synthetic_value, unsupported,
+    Builder, Item, Prepared, Target, check_foreign_element, escape_markup, event_attribute,
+    has_dependency, is_custom_element_node, is_customizable_select, is_directive,
+    is_load_error_element, needs_clsx, synthetic_value, unsupported,
 };
 use crate::render_plan::RenderPlan;
 
@@ -77,27 +78,27 @@ use template::Template;
 
 /// Per fragment: the template and the memoized expressions (`$0`, `$1`, …) of its render effect.
 #[derive(Default)]
-struct Frag {
+struct Frag<'o> {
     tpl: Template,
-    memo: Memo,
+    memo: Memo<'o>,
 }
 
 /// Upstream's `Memoizer`: the memoized expressions of one render effect or one component's props.
 #[derive(Default)]
-struct Memo {
-    entries: Vec<Memoized>,
+struct Memo<'o> {
+    entries: Vec<Memoized<'o>>,
     /// A component reads each value from a derived (`$.get($0)`), a render effect as a parameter.
     derived: bool,
 }
 
-struct Memoized {
-    value: NodeIdentifier,
-    /// The expression `value` was built from, which a derived's callback reads.
-    source: NodeIdentifier,
-    name: Atom,
+struct Memoized<'o> {
+    value: Expression<'o>,
+    /// The template expression `value` was built from, which a derived's callback reads.
+    source: ExpressionIdentifier,
+    name: String,
 }
 
-impl Memo {
+impl<'o> Memo<'o> {
     const fn derived() -> Self {
         Self {
             entries: Vec::new(),
@@ -105,39 +106,29 @@ impl Memo {
         }
     }
 
-    /// Upstream `Memoizer.apply` for an effect: the callback over `body` that takes the values as
-    /// its parameters, and the array of thunks that compute them, which is absent when none is.
+    /// Upstream `Memoizer.apply` for an effect: the parameters of the callback that takes the
+    /// values, and the array of thunks that compute them, which is absent when none is.
     fn into_effect(
         self,
-        out: &mut SyntaxTree,
-        body: NodeIdentifier,
-        expression_body: bool,
-    ) -> (NodeIdentifier, Option<NodeIdentifier>) {
-        let parameters: Vec<NodeIdentifier> = (self.entries.iter())
-            .map(|m| out.ident_atom(m.name, SourceLocation::SYNTHETIC))
-            .collect();
-        let callback = out.arrow(
-            &parameters,
-            body,
-            expression_body,
-            false,
-            SourceLocation::SYNTHETIC,
-        );
+        b: &Builder<'o>,
+    ) -> (ArenaBox<'o, FormalParameters<'o>>, Option<Expression<'o>>) {
+        let parameters = b.params(self.entries.iter().map(|m| m.name.as_str()));
         let thunks = (!self.entries.is_empty()).then(|| {
-            let thunks: Vec<NodeIdentifier> = (self.entries.iter())
-                .map(|m| out.arrow(&[], m.value, true, false, SourceLocation::SYNTHETIC))
-                .collect();
-            out.array(&thunks, SourceLocation::SYNTHETIC)
+            b.array(
+                self.entries
+                    .into_iter()
+                    .map(|m| b.arrow(b.params([]), m.value)),
+            )
         });
-        (callback, thunks)
+        (parameters, thunks)
     }
 }
 
 #[derive(Default)]
-struct Lists {
-    initializer: Vec<NodeIdentifier>,
-    update: Vec<NodeIdentifier>,
-    after: Vec<NodeIdentifier>,
+struct Lists<'o> {
+    initializer: Vec<Statement<'o>>,
+    update: Vec<Statement<'o>>,
+    after: Vec<Statement<'o>>,
 }
 
 /// How to reach the first node of a child list (upstream `process_children`'s `initial`).
@@ -147,34 +138,36 @@ enum Prev {
     Identifier(String),
 }
 
-struct ClientCompilationContext<'a> {
-    javascript: &'a SyntaxTree,
-    compiler_syntax_tree: &'a CompilerSyntaxTree,
-    source_text: &'a str,
-    res: &'a Resolution,
-    an: &'a Analysis,
-    out: SyntaxTree,
+struct ClientCompilationContext<'c, 'o> {
+    b: &'c Builder<'o>,
+    javascript: &'o Tree,
+    compiler_syntax_tree: &'o CompilerSyntaxTree,
+    source_text: &'o str,
+    res: &'c Resolution,
+    an: &'c Analysis,
     names: Names,
-    hoisted: Vec<NodeIdentifier>,
+    hoisted: Vec<Statement<'o>>,
     templates: FxHashMap<String, String>,
     events: Vec<String>,
     /// How the template's names in scope are read.
-    reads: FxHashMap<BindingIdentifier, Read>,
+    reads: FxHashMap<SymbolId, Read>,
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
-    /// Where names in lowered expressions resolve: the innermost `{#each}` scope.
-    scope: ScopeIdentifier,
-    plan: &'a RenderPlan,
-    identity: &'a crate::OutputIdentity,
+    /// Where a name of a tree this lowering built resolves when it is evaluated: the innermost
+    /// `{#each}` or snippet scope.
+    scope: ScopeId,
+    plan: &'c RenderPlan,
+    identity: &'c crate::OutputIdentity,
     component_name: String,
-    custom_element: Option<&'a super::custom_element::CustomElement>,
-    rest_reads: &'a rustc_hash::FxHashSet<NodeIdentifier>,
+    custom_element: Option<&'c super::custom_element::CustomElement>,
+    rest_reads: &'c FxHashSet<ReferenceId>,
     needs_props: bool,
 }
 
-pub(super) fn lower_prepared(
-    facts: super::Lowering<'_, '_>,
-    prepared: Prepared<'_>,
-) -> R<(SyntaxTree, NodeIdentifier)> {
+pub(super) fn lower_prepared<'c, 'o>(
+    facts: super::Lowering<'c, 'o>,
+    prepared: Prepared<'c, 'o>,
+    b: &Builder<'o>,
+) -> R<Vec<Statement<'o>>> {
     let super::Lowering {
         input,
         res,
@@ -183,9 +176,7 @@ pub(super) fn lower_prepared(
         identity,
         ..
     } = facts;
-    let javascript = input.component.javascript;
     let Prepared {
-        out,
         names,
         each_index,
         module,
@@ -196,67 +187,85 @@ pub(super) fn lower_prepared(
         component_name,
     } = prepared;
     let mut context = ClientCompilationContext {
-        javascript,
+        b,
+        javascript: input.component.javascript,
         compiler_syntax_tree: input.component.compiler_syntax_tree,
         source_text: input.component.source_text,
         res,
         an,
-        out,
         names,
         hoisted,
         templates: FxHashMap::default(),
         events: Vec::new(),
         reads: FxHashMap::default(),
         each_index,
-        scope: ScopeIdentifier::ROOT,
+        scope: res.instance_scope(),
         plan,
         identity,
         component_name,
         custom_element,
         rest_reads: &facts.validated.rest_reads,
-        needs_props: res.sem.references.iter().any(|reference| {
-            javascript.name(reference.node) == "$host"
-                && res.sem.binding_of(reference.node).is_none()
-        }),
+        needs_props: res.unresolved_names().any(|name| name == "$host"),
     };
     let template = context.fragment(input.component.compiler_syntax_tree.root)?;
 
     let stylesheet = context.custom_element_stylesheet(facts.stylesheet);
-    let mut returned: Vec<NodeIdentifier> =
-        export_properties(&mut context.out, javascript, &exports).collect();
+    let mut returned: Vec<_> = export_properties(b, &exports).collect();
     returned.extend(context.custom_element_exports());
-    let func = context.component_function(instance, template, &returned, stylesheet.is_some());
+    let func = context.component_function(instance, template, returned, stylesheet.is_some());
     let registration = context.custom_element_registration(&exports);
-    let o = &mut context.out;
 
     let mut program = Vec::new();
-    let src1 = o.write_string("svelte/internal/disclose-version");
-    program.push(o.import(&[], src1, false, SourceLocation::SYNTHETIC));
-    let ns = o.identifier("$");
-    let spec = o.import_namespace(ns, SourceLocation::SYNTHETIC);
-    let src2 = o.write_string("svelte/internal/client");
-    let runtime = o.import(&[spec], src2, false, SourceLocation::SYNTHETIC);
+    program.push(import(b, None, "svelte/internal/disclose-version"));
+    let runtime = import(b, Some("$"), "svelte/internal/client");
     // Upstream lists `[...module, $, ...hoisted]` and moves every import to the top in that order.
     let (imports, rest): (Vec<_>, Vec<_>) = module
-        .iter()
-        .copied()
+        .into_iter()
         .chain([runtime])
-        .chain(context.hoisted.iter().copied())
-        .partition(|&statement| matches!(o.kind(statement), Kind::Import { .. }));
+        .chain(context.hoisted)
+        .partition(|statement| matches!(statement, Statement::ImportDeclaration(_)));
     program.extend(imports);
     program.extend(rest);
     program.extend(stylesheet);
-    let o = &mut context.out;
-    program.push(o.export_default(func, SourceLocation::SYNTHETIC));
+    program.push(export_default(b, func));
     if !context.events.is_empty() {
-        let names: Vec<NodeIdentifier> = context.events.iter().map(|e| o.write_string(e)).collect();
-        let arr = o.array(&names, SourceLocation::SYNTHETIC);
-        let d = o.runtime("$", "delegate", &[arr]);
-        program.push(o.expression_statement(d));
+        let names = b.array(context.events.iter().map(|e| b.string(e)));
+        program.push(b.stmt(b.runtime("delegate", [names])));
     }
     program.extend(registration);
-    let root = o.program(&program, SourceLocation::SYNTHETIC);
-    Ok((context.out, root))
+    Ok(program)
+}
+
+/// `import 'source'`, or `import * as namespace from 'source'`.
+fn import<'o>(b: &Builder<'o>, namespace: Option<&str>, source: &str) -> Statement<'o> {
+    let specifiers = namespace.map(|n| {
+        b.vec([ImportDeclarationSpecifier::new_import_namespace_specifier(
+            SPAN,
+            oxc_ast::ast::BindingIdentifier::new(SPAN, b.str(n), b),
+            b,
+        )])
+    });
+    Statement::new_import_declaration(
+        SPAN,
+        specifiers,
+        StringLiteral::new(SPAN, b.str(source), None, b),
+        None,
+        None,
+        ImportOrExportKind::Value,
+        b,
+    )
+}
+
+/// `export default function …`, from a function declaration.
+fn export_default<'o>(b: &Builder<'o>, function: Statement<'o>) -> Statement<'o> {
+    let Statement::FunctionDeclaration(function) = function else {
+        unreachable!("the component is a function declaration")
+    };
+    Statement::new_export_default_declaration(
+        SPAN,
+        oxc_ast::ast::ExportDefaultDeclarationKind::FunctionDeclaration(function),
+        b,
+    )
 }
 
 struct Walk {
@@ -274,59 +283,40 @@ impl Walk {
     }
 }
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     fn component_function(
-        &mut self,
-        instance: Vec<NodeIdentifier>,
-        template: Vec<NodeIdentifier>,
-        exports: &[NodeIdentifier],
+        &self,
+        instance: Vec<Statement<'o>>,
+        template: Vec<Statement<'o>>,
+        exports: Vec<oxc_ast::ast::ObjectPropertyKind<'o>>,
         stylesheet: bool,
-    ) -> NodeIdentifier {
-        let needs_context = self.an.needs_context || !exports.is_empty();
-        let o = &mut self.out;
+    ) -> Statement<'o> {
+        let b = self.b;
+        let has_exports = !exports.is_empty();
+        let needs_context = self.an.needs_context || has_exports;
         let mut body = Vec::new();
         if needs_context {
-            let props = o.identifier("$$props");
-            let t = o.write_boolean(true, SourceLocation::SYNTHETIC);
-            let push = o.runtime("$", "push", &[props, t]);
-            body.push(o.expression_statement(push));
+            body.push(b.stmt(b.runtime("push", [b.id("$$props"), b.boolean(true)])));
         }
         if stylesheet {
-            let anchor = o.identifier("$$anchor");
-            let stylesheet = o.identifier("$$css");
-            let call = o.runtime("$", "append_styles", &[anchor, stylesheet]);
-            body.push(o.expression_statement(call));
+            body.push(b.stmt(b.runtime("append_styles", [b.id("$$anchor"), b.id("$$css")])));
         }
         body.extend(instance);
-        if !exports.is_empty() {
-            let object = o.object(exports, SourceLocation::SYNTHETIC);
-            let name = o.identifier("$$exports");
-            body.push(o.let_(flag::VAR, name, Some(object)));
+        if has_exports {
+            body.push(b.var("$$exports", b.object(exports)));
         }
         body.extend(template);
         if needs_context {
-            if exports.is_empty() {
-                let pop = o.runtime("$", "pop", &[]);
-                body.push(o.expression_statement(pop));
+            if has_exports {
+                body.push(b.return_(Some(b.runtime("pop", [b.id("$$exports")]))));
             } else {
-                let exports = o.identifier("$$exports");
-                let pop = o.runtime("$", "pop", &[exports]);
-                body.push(o.return_(Some(pop), SourceLocation::SYNTHETIC));
+                body.push(b.stmt(b.runtime("pop", [])));
             }
         }
-        let mut parameters = vec![o.identifier("$$anchor")];
-        if self.res.uses_props || needs_context || self.needs_props {
-            parameters.push(o.identifier("$$props"));
+        let mut parameters = vec!["$$anchor"];
+        if self.res.uses_props() || needs_context || self.needs_props {
+            parameters.push("$$props");
         }
-        let block = o.block(&body, SourceLocation::SYNTHETIC);
-        let name = o.identifier(&self.component_name);
-        o.function(
-            true,
-            Some(name),
-            &parameters,
-            block,
-            false,
-            SourceLocation::SYNTHETIC,
-        )
+        b.function_declaration(&self.component_name, b.params(parameters), body, false)
     }
 }

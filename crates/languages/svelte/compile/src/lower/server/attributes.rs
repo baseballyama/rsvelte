@@ -2,45 +2,41 @@ mod class;
 mod with_spread;
 mod without_spread;
 
+use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 use super::{
-    Attribute, AttributeValue, NodeIdentifier, Part, ServerCompilationContext, SourceLocation,
-    decode_attribute, escape_markup, known_string, needs_clsx, sanitize_template_string,
+    Attribute, AttributeValue, Part, ServerCompilationContext, decode_attribute, escape_markup,
+    known_string, needs_clsx,
 };
 
-impl ServerCompilationContext<'_> {
+impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_attribute_value` (server), with text as written: an element's caller
     /// escapes it, a component's does not. A `class` written as one unquoted expression goes
     /// through `$.clsx` when upstream's `needs_clsx`.
-    pub(super) fn attribute_value(
-        &mut self,
-        a: &Attribute,
-        trim: bool,
-        class: bool,
-    ) -> NodeIdentifier {
+    pub(super) fn attribute_value(&self, a: &Attribute, trim: bool, class: bool) -> Expression<'o> {
+        let b = self.b;
         let parts = match &a.value {
             &AttributeValue::Expression { expression, quoted } => {
                 let v = self.expression(expression);
-                return if class && !quoted && needs_clsx(self.javascript, expression) {
-                    self.out.runtime("$", "clsx", &[v])
+                return if class && !quoted && needs_clsx(self.javascript.get_expression(expression))
+                {
+                    b.runtime("clsx", [v])
                 } else {
                     v
                 };
             }
             &AttributeValue::Shorthand(expression) => {
                 let v = self.expression(expression);
-                return if class && needs_clsx(self.javascript, expression) {
-                    self.out.runtime("$", "clsx", &[v])
+                return if class && needs_clsx(self.javascript.get_expression(expression)) {
+                    b.runtime("clsx", [v])
                 } else {
                     v
                 };
             }
             AttributeValue::Interpolated(parts) => parts,
-            AttributeValue::Boolean => {
-                return self.out.write_boolean(true, SourceLocation::SYNTHETIC);
-            }
-            AttributeValue::Static(v) => return self.out.write_string(&attribute_text(v, trim)),
+            AttributeValue::Boolean => return b.boolean(true),
+            AttributeValue::Static(v) => return b.string(&attribute_text(v, trim)),
             _ => {
                 unreachable!("directives are handled by the caller")
             }
@@ -59,9 +55,7 @@ impl ServerCompilationContext<'_> {
                     quasis.last_mut().expect("never empty").push_str(&data);
                 }
                 Part::Expression { expression, .. } => {
-                    let evaluated =
-                        self.res
-                            .evaluate(self.javascript, self.source_text, *expression);
+                    let evaluated = self.evaluate(*expression);
                     if evaluated.is_known {
                         quasis
                             .last_mut()
@@ -72,7 +66,7 @@ impl ServerCompilationContext<'_> {
                         let v = if evaluated.is_string && evaluated.is_defined {
                             v
                         } else {
-                            self.out.runtime("$", "stringify", &[v])
+                            b.runtime("stringify", [v])
                         };
                         expressions.push(v);
                         quasis.push(String::new());
@@ -81,19 +75,9 @@ impl ServerCompilationContext<'_> {
             }
         }
         if expressions.is_empty() {
-            return self.out.write_string(&quasis[0]);
+            return b.string(&quasis[0]);
         }
-        let n = quasis.len();
-        let elements: Vec<NodeIdentifier> = quasis
-            .iter()
-            .enumerate()
-            .map(|(i, q)| {
-                self.out
-                    .template_element(&sanitize_template_string(q), i + 1 == n)
-            })
-            .collect();
-        self.out
-            .template(&elements, &expressions, SourceLocation::SYNTHETIC)
+        b.template(quasis.iter().map(String::as_str), expressions)
     }
 }
 

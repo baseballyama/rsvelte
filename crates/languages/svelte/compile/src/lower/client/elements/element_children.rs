@@ -1,16 +1,18 @@
+use oxc_ast::ast::{Argument, Expression, Statement};
+
 use crate::lower::client::{
-    AssignmentOperator, ClientCompilationContext, CompilerNodeIdentifier, Frag, Item, Kind, Lists,
-    NodeIdentifier, NodeKind, Prev, R, SourceLocation,
+    ClientCompilationContext, CompilerNodeIdentifier, Frag, Item, Lists, NodeKind, Prev, R,
 };
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// The children half of upstream `RegularElement`, under the element's whitespace rule.
     pub(super) fn element_children(
         &mut self,
         identifier: CompilerNodeIdentifier,
         node: &str,
-        frag: &mut Frag,
-    ) -> R<Lists> {
+        frag: &mut Frag<'o>,
+    ) -> R<Lists<'o>> {
+        let b = self.b;
         let compiler_syntax_tree = self.compiler_syntax_tree;
         let NodeKind::Element(el) = &compiler_syntax_tree.node(identifier).kind else {
             unreachable!()
@@ -26,18 +28,12 @@ impl ClientCompilationContext<'_> {
         }) && items.iter().any(|i| matches!(i, Item::Expression(_)));
         if use_text_content {
             let (value, _) = self.template_chunk(items, &mut frag.memo, false);
-            let empty = matches!(self.out.kind(value), Kind::String)
-                && self.out.str_value(value, self.source_text).is_empty();
+            let empty = matches!(&value, Expression::StringLiteral(s) if s.value.is_empty());
             if !empty {
-                let x = self.out.identifier(node);
-                let target = self.out.dot(x, "textContent");
-                let assign = self.out.assign(
-                    AssignmentOperator::Assign,
-                    target,
-                    value,
-                    SourceLocation::SYNTHETIC,
-                );
-                child.initializer.push(self.statement(assign));
+                let target = b.member(b.id(node), "textContent");
+                child
+                    .initializer
+                    .push(b.stmt(b.assign_member(target, value)));
             }
         } else {
             let needs_reset = items.iter().any(|i| match i {
@@ -56,9 +52,9 @@ impl ClientCompilationContext<'_> {
                 &mut child,
             )?;
             if needs_reset && !self.fold_reset_into_child(&mut child.initializer, node) {
-                let x = self.out.identifier(node);
-                let call = self.call("reset", vec![Some(x)]);
-                child.initializer.push(self.statement(call));
+                child
+                    .initializer
+                    .push(b.stmt(b.runtime("reset", [b.id(node)])));
             }
         }
         Ok(child)
@@ -66,51 +62,29 @@ impl ClientCompilationContext<'_> {
 
     /// Upstream `fold_reset_into_child`: `var x = $.child(el)` + `$.reset(el)` →
     /// `$.only_child(el)`.
-    fn fold_reset_into_child(&mut self, initializer: &mut [NodeIdentifier], node: &str) -> bool {
-        let Some(&last) = initializer.last() else {
+    fn fold_reset_into_child(&self, initializer: &mut [Statement<'o>], node: &str) -> bool {
+        let Some(Statement::VariableDeclaration(declaration)) = initializer.last_mut() else {
             return false;
         };
-        let Kind::VariableDeclaration {
-            declarations: [d],
-            kind,
-        } = self.out.kind(last)
-        else {
+        let [declarator] = declaration.declarations.as_mut_slice() else {
             return false;
         };
-        let d = *d;
-        let Kind::Declarator {
-            identifier,
-            initializer: Some(call),
-        } = self.out.kind(d)
-        else {
+        let Some(Expression::CallExpression(call)) = &mut declarator.init else {
             return false;
         };
-        let Kind::Call {
-            callee, arguments, ..
-        } = self.out.kind(call)
-        else {
-            return false;
-        };
-        let is_child = matches!(
-            self.out.kind(callee),
-            Kind::Member { object, property, computed: false, .. }
-                if self.out.name(object) == "$" && self.out.name(property) == "child"
+        let first_is_node = matches!(
+            call.arguments.first(),
+            Some(Argument::Identifier(a)) if a.name == node
         );
-        let first_is_node = arguments
-            .first()
-            .is_some_and(|&a| self.out.is_identifier(a) && self.out.name(a) == node);
+        let Expression::StaticMemberExpression(callee) = &mut call.callee else {
+            return false;
+        };
+        let is_child = matches!(&callee.object, Expression::Identifier(o) if o.name == "$")
+            && callee.property.name == "child";
         if !is_child || !first_is_node {
             return false;
         }
-        let arguments = arguments.to_vec();
-        let new_call = self.out.runtime("$", "only_child", &arguments);
-        let declaration =
-            self.out
-                .declarator(identifier, Some(new_call), SourceLocation::SYNTHETIC);
-        let var = self
-            .out
-            .var_declaration(kind, &[declaration], SourceLocation::SYNTHETIC);
-        *initializer.last_mut().expect("checked above") = var;
+        callee.property.name = self.b.str("only_child").into();
         true
     }
 }

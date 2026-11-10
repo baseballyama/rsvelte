@@ -7,7 +7,7 @@ use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::{LineColumn, LineIndex};
 use rsvelte_svelte_semantic::warnings::{self, Options};
-use rsvelte_svelte_semantic::{Analyzed, Resolved};
+use rsvelte_svelte_semantic::{Analyzed, Lowered, Resolved};
 use rsvelte_svelte_syntax::Parsed;
 
 /// `warnings.json`: what `compile(source, { runes: true })` returns as `warnings`.
@@ -40,6 +40,9 @@ impl Task for Warn {
         let Some(resolution) = context.get::<Resolved>().as_ref() else {
             return;
         };
+        let Some(compiler_syntax_tree) = context.get::<Lowered>().as_ref() else {
+            return;
+        };
         let source = context.source_text();
         let analysis = if component.style.is_some() {
             context.get::<Analyzed>().as_ref()
@@ -48,6 +51,7 @@ impl Task for Warn {
         };
         let found = warnings::warnings(
             component,
+            compiler_syntax_tree,
             resolution,
             analysis,
             source,

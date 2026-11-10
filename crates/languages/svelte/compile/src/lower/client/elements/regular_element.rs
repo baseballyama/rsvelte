@@ -4,14 +4,14 @@ use crate::lower::client::{
     is_directive, is_load_error_element, unsupported,
 };
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `RegularElement`.
     pub(in crate::lower::client) fn element(
         &mut self,
         identifier: CompilerNodeIdentifier,
         node: &str,
-        frag: &mut Frag,
-        l: &mut Lists,
+        frag: &mut Frag<'o>,
+        l: &mut Lists<'o>,
     ) -> R<()> {
         let compiler_syntax_tree = self.compiler_syntax_tree;
         let NodeKind::Element(el) = &compiler_syntax_tree.node(identifier).kind else {
@@ -65,9 +65,9 @@ impl ClientCompilationContext<'_> {
             !is_directive(&a.value) && matches!(a.name.text(self.source_text), "onload" | "onerror")
         });
         if is_load_error_element(&tag) && (has_spread || load_error_events) {
-            let x = self.out.identifier(node);
-            let call = self.call("replay_events", vec![Some(x)]);
-            l.after.push(self.statement(call));
+            let b = self.b;
+            l.after
+                .push(b.stmt(b.runtime("replay_events", [b.id(node)])));
         }
 
         let mut child = self.element_children(identifier, node, frag)?;

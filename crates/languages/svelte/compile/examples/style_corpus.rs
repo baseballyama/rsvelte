@@ -39,10 +39,9 @@ fn visit(
                 let tree = compiler_syntax_tree::lower(&component, &source);
                 let input =
                     rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, &filename);
-                let resolution = resolve::resolve_with_module(
+                let resolution = resolve::resolve(
                     &component.javascript,
-                    &source,
-                    component.program,
+                    component.instance.as_ref().map(|s| s.program),
                     component.module.as_ref().map(|s| s.program),
                     &tree,
                 );

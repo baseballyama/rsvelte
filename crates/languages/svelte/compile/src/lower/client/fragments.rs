@@ -1,26 +1,24 @@
-use super::{
-    ClientCompilationContext, Frag, Item, Kind, Lists, NodeIdentifier, NodeKind, Prev, R,
-    SourceLocation, Template, sanitize_template_string,
-};
+use oxc_ast::ast::{Expression, Statement};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerNodeIdentifier};
+
+use super::{ClientCompilationContext, Frag, Item, Lists, NodeKind, Prev, R, Template};
 
 const TEMPLATE_FRAGMENT: u32 = 1;
 
 const TEMPLATE_USE_IMPORT_NODE: u32 = 2;
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `Fragment` visitor: the statements of one block.
-    pub(super) fn fragment(
-        &mut self,
-        children: rsvelte_svelte_semantic::compiler_syntax_tree::Children,
-    ) -> R<Vec<NodeIdentifier>> {
+    pub(super) fn fragment(&mut self, children: Children) -> R<Vec<Statement<'o>>> {
         self.fragment_with_snippets(children, true)
     }
 
     pub(super) fn fragment_with_snippets(
         &mut self,
-        children: rsvelte_svelte_semantic::compiler_syntax_tree::Children,
+        children: Children,
         include_snippets: bool,
-    ) -> R<Vec<NodeIdentifier>> {
+    ) -> R<Vec<Statement<'o>>> {
+        let b = self.b;
         let cleaned = self.plan.fragment(children);
         let items = &cleaned.items;
         let mut frag = Frag::default();
@@ -48,11 +46,10 @@ impl ClientCompilationContext<'_> {
                 0
             };
             let callee = self.transform_template(&frag.tpl, cleaned.namespace, "root", flags);
-            Some((identifier, self.out.call0(callee, &[])))
+            Some((identifier, b.call(callee, [])))
         } else if let [Item::Text { data, .. }] = items.as_ref() {
             let identifier = self.names.generate("text");
-            let s = self.out.write_string(data);
-            Some((identifier, self.call("text", vec![Some(s)])))
+            Some((identifier, b.runtime("text", [b.string(data)])))
         } else {
             let identifier = self.names.generate("fragment");
             let use_space_template = items.iter().any(|i| matches!(i, Item::Expression(_)))
@@ -63,7 +60,7 @@ impl ClientCompilationContext<'_> {
                 let text = self.names.generate("text");
                 let initial = Prev::Identifier(text.clone());
                 self.process_children(items, initial, false, &mut frag, &mut l)?;
-                Some((text, self.call("text", vec![])))
+                Some((text, b.runtime("text", [])))
             } else if let Some(component) = super::super::component::standalone_component(
                 self.compiler_syntax_tree,
                 self.javascript,
@@ -84,23 +81,21 @@ impl ClientCompilationContext<'_> {
                     flags |= TEMPLATE_USE_IMPORT_NODE;
                 }
                 let callee = self.transform_template(&frag.tpl, cleaned.namespace, "root", flags);
-                Some((identifier, self.out.call0(callee, &[])))
+                Some((identifier, b.call(callee, [])))
             }
         };
         let close = root.map(|(identifier, call)| {
-            let declaration = self.var(&identifier, call);
-            l.initializer.insert(0, declaration);
+            l.initializer.insert(0, b.var(&identifier, call));
             self.append(&identifier)
         });
 
         let mut body = Vec::new();
         if cleaned.text_first {
-            let next = self.call("next", vec![]);
-            body.push(self.statement(next));
+            body.push(b.stmt(b.runtime("next", [])));
         }
         body.append(&mut l.initializer);
         if !l.update.is_empty() {
-            let effect = self.render_statement(&mut frag, &std::mem::take(&mut l.update));
+            let effect = self.render_statement(&mut frag, std::mem::take(&mut l.update));
             body.push(effect);
         }
         body.append(&mut l.after);
@@ -110,10 +105,10 @@ impl ClientCompilationContext<'_> {
 
     fn fragment_hoisted(
         &mut self,
-        identifiers: &[super::CompilerNodeIdentifier],
+        identifiers: &[CompilerNodeIdentifier],
         include_snippets: bool,
-        frag: &mut Frag,
-        lists: &mut Lists,
+        frag: &mut Frag<'o>,
+        lists: &mut Lists<'o>,
     ) -> R<()> {
         for &identifier in identifiers {
             if !include_snippets
@@ -129,34 +124,29 @@ impl ClientCompilationContext<'_> {
         Ok(())
     }
 
-    fn append(&mut self, identifier: &str) -> NodeIdentifier {
-        let anchor = self.out.identifier("$$anchor");
-        let x = self.out.identifier(identifier);
-        let call = self.call("append", vec![Some(anchor), Some(x)]);
-        self.statement(call)
+    fn append(&self, identifier: &str) -> Statement<'o> {
+        let b = self.b;
+        b.stmt(b.runtime("append", [b.id("$$anchor"), b.id(identifier)]))
     }
 
     /// Upstream `build_render_statement`.
     pub(super) fn render_statement(
-        &mut self,
-        frag: &mut Frag,
-        update: &[NodeIdentifier],
-    ) -> NodeIdentifier {
-        let single = match update {
-            [s] => match self.out.kind(*s) {
-                Kind::ExpressionStatement(e) => Some(e),
-                _ => None,
-            },
-            _ => None,
+        &self,
+        frag: &mut Frag<'o>,
+        mut update: Vec<Statement<'o>>,
+    ) -> Statement<'o> {
+        let b = self.b;
+        let (parameters, values) = std::mem::take(&mut frag.memo).into_effect(b);
+        let callback = match update.as_mut_slice() {
+            [Statement::ExpressionStatement(s)] => {
+                let e = std::mem::replace(&mut s.expression, b.null());
+                b.arrow(parameters, e)
+            }
+            _ => b.arrow_block(parameters, update, false),
         };
-        let (body, expression_body) = match single {
-            Some(e) => (e, true),
-            None => (self.out.block(update, SourceLocation::SYNTHETIC), false),
-        };
-        let (body, values) =
-            std::mem::take(&mut frag.memo).into_effect(&mut self.out, body, expression_body);
-        let call = self.call("template_effect", vec![Some(body), values]);
-        self.statement(call)
+        let mut arguments = vec![Some(callback)];
+        arguments.push(values);
+        b.stmt(b.runtime_some("template_effect", arguments))
     }
 
     /// Upstream `transform_template`: hoists `var root = $.from_html(…)` (shared by identical
@@ -167,10 +157,10 @@ impl ClientCompilationContext<'_> {
         namespace: crate::render_plan::Namespace,
         name: &str,
         flags: u32,
-    ) -> NodeIdentifier {
+    ) -> Expression<'o> {
+        let b = self.b;
         if tpl.is_lone_comment() {
-            let ns = self.out.identifier("$");
-            return self.out.dot(ns, "comment");
+            return b.member(b.id("$"), "comment");
         }
         let markup = tpl.markup();
         let namespace = match namespace {
@@ -180,14 +170,11 @@ impl ClientCompilationContext<'_> {
         };
         let key = format!("{namespace} {flags} {markup}");
         if let Some(existing) = self.templates.get(&key) {
-            let existing = existing.clone();
-            return self.out.identifier(&existing);
+            return b.id(existing);
         }
-        let raw = sanitize_template_string(&markup).into_owned();
-        let q = self.out.template_element(&raw, true);
-        let t = self.out.template(&[q], &[], SourceLocation::SYNTHETIC);
-        let flags_arg = (flags != 0).then(|| self.write_number(flags));
-        let call = self.call(
+        let t = b.template([markup.as_str()], []);
+        let flags_arg = (flags != 0).then(|| b.number(f64::from(flags)));
+        let call = b.runtime_some(
             match namespace {
                 "svg" => "from_svg",
                 "mathml" => "from_mathml",
@@ -196,9 +183,9 @@ impl ClientCompilationContext<'_> {
             vec![Some(t), flags_arg],
         );
         let identifier = self.names.unique(name);
-        let declaration = self.var(&identifier, call);
-        self.hoisted.push(declaration);
-        self.templates.insert(key, identifier.clone());
-        self.out.identifier(&identifier)
+        self.hoisted.push(b.var(&identifier, call));
+        let read = b.id(&identifier);
+        self.templates.insert(key, identifier);
+        read
     }
 }

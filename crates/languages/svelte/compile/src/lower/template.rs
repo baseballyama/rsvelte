@@ -1,6 +1,11 @@
+use oxc_ast::ast::{ArrowFunctionExpression, Expression, Function, IdentifierReference};
+use oxc_ast_visit::{Visit, walk};
+use oxc_syntax::scope::ScopeFlags;
+use rsvelte_typescript_tree::ExpressionIdentifier;
+
 use super::{
     Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Cow, Element,
-    Kind, NodeIdentifier, NodeKind, Resolution, SyntaxTree,
+    NodeKind, Resolution,
 };
 
 /// Upstream `sanitize_template_string`: cooked text → raw template literal text.
@@ -82,23 +87,31 @@ pub(super) fn is_dom_property(name: &str) -> bool {
 /// Upstream's `EACH_ITEM_REACTIVE` test: the collection reads a binding (references inside a
 /// function of the expression are not its dependencies).
 #[must_use]
-pub(super) fn has_dependency(javascript: &SyntaxTree, res: &Resolution, e: NodeIdentifier) -> bool {
-    match javascript.kind(e) {
-        Kind::Identifier(_) => res
-            .binding(e)
-            .is_some_and(|(b, _)| res.sem.bindings[b].node != e),
-        Kind::Function { .. } | Kind::Arrow { .. } => false,
-        _ => {
-            let mut any = false;
-            javascript.for_each_child(e, |c| any = any || has_dependency(javascript, res, c));
-            any
+pub(super) fn has_dependency(res: &Resolution, e: &Expression<'_>) -> bool {
+    struct Dependency<'r> {
+        res: &'r Resolution,
+        found: bool,
+    }
+    impl<'a> Visit<'a> for Dependency<'_> {
+        fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
+            self.found |= self.res.symbol(it).is_some();
+        }
+        fn visit_function(&mut self, _: &Function<'a>, _: ScopeFlags) {}
+        fn visit_arrow_function_expression(&mut self, _: &ArrowFunctionExpression<'a>) {}
+        fn visit_expression(&mut self, it: &Expression<'a>) {
+            if !self.found {
+                walk::walk_expression(self, it);
+            }
         }
     }
+    let mut dependency = Dependency { res, found: false };
+    dependency.visit_expression(e);
+    dependency.found
 }
 
 /// Upstream `is_event_attribute` for this port's attribute shapes.
 #[must_use]
-pub(super) fn event_attribute(source_text: &str, a: &Attribute) -> Option<NodeIdentifier> {
+pub(super) fn event_attribute(source_text: &str, a: &Attribute) -> Option<ExpressionIdentifier> {
     let expression = single_expression(&a.value)?;
     a.name
         .text(source_text)
@@ -127,7 +140,7 @@ pub(super) fn synthetic_value(
     source_text: &str,
     tag: &str,
     el: &Element,
-) -> Option<NodeIdentifier> {
+) -> Option<ExpressionIdentifier> {
     if tag != "option"
         || compiler_syntax_tree
             .attributes(el.attributes)
@@ -219,7 +232,7 @@ pub(super) fn is_load_error_element(name: &str) -> bool {
 
 /// The expression of a value written as exactly one `{expression}`.
 #[must_use]
-pub(super) const fn single_expression(v: &AttributeValue) -> Option<NodeIdentifier> {
+pub(super) const fn single_expression(v: &AttributeValue) -> Option<ExpressionIdentifier> {
     match *v {
         AttributeValue::Expression { expression, .. } | AttributeValue::Shorthand(expression) => {
             Some(expression)

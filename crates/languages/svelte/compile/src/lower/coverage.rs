@@ -1,14 +1,16 @@
 //! The template syntax this port does not lower yet, refused before lowering starts so neither
 //! target meets it.
 
+use oxc_ast::ast::{Expression, VariableDeclarationKind};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, ElementKind, MetadataTag,
 };
-use rsvelte_typescript_semantic::scope::DeclarationKind;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
+use super::javascript::member_root;
 use super::{
-    Attribute, AttributeValue, BindingKind, CompileInput, Diagnostic, Element, NodeIdentifier,
-    NodeKind, Resolution, unsupported,
+    Attribute, AttributeValue, BindingKind, CompileInput, Diagnostic, Element, NodeKind,
+    Resolution, unsupported,
 };
 
 pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
@@ -20,7 +22,7 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             | NodeKind::Expression { .. }
             | NodeKind::If { .. } => None,
             NodeKind::Each(each) => each
-                .context()
+                .context
                 .is_none()
                 .then_some("an `{#each}` block without `as`"),
             NodeKind::Element(el) => {
@@ -33,8 +35,8 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
                 let parent_is_boundary = tree.node(identifier).parent.is_some_and(|parent| matches!(&tree.node(parent).kind, NodeKind::Element(element) if element.kind == ElementKind::Metadata(Some(MetadataTag::Boundary))));
                 if parent_is_boundary
                     && matches!(
-                        input.component.javascript.name(snippet.name),
-                        "failed" | "pending"
+                        input.component.javascript.get_expression(snippet.name),
+                        Expression::Identifier(name) if matches!(name.name.as_str(), "failed" | "pending")
                     )
                 {
                     None
@@ -145,17 +147,20 @@ fn has_content(input: &CompileInput<'_>, el: &Element) -> bool {
 fn is_bindable(
     input: &CompileInput<'_>,
     res: &Resolution,
-    target: NodeIdentifier,
+    target: ExpressionIdentifier,
     component: bool,
 ) -> bool {
-    let javascript = input.component.javascript;
-    let root = javascript.member_root(target);
-    if !javascript.is_identifier(root) {
+    let target = input
+        .component
+        .javascript
+        .get_expression(target)
+        .get_inner_expression();
+    let Some(root) = member_root(target) else {
         return false;
-    }
-    let member = root != target;
-    res.binding(root)
-        .is_some_and(|(binding, info)| match info.kind {
+    };
+    let member = !matches!(target, Expression::Identifier(_));
+    res.symbol(root)
+        .is_some_and(|symbol| match res.binding(symbol).kind {
             BindingKind::State | BindingKind::RawState => true,
             BindingKind::Each => member,
             _ if !component => false,
@@ -163,8 +168,8 @@ fn is_bindable(
             BindingKind::Normal => {
                 member
                     || matches!(
-                        res.sem.bindings[binding].kind,
-                        DeclarationKind::Let | DeclarationKind::Variable
+                        res.variable_kind(symbol),
+                        Some(VariableDeclarationKind::Let | VariableDeclarationKind::Var)
                     )
             }
             _ => member,
@@ -188,11 +193,18 @@ fn check_component_attribute(a: &Attribute) -> Result<(), Diagnostic> {
 }
 
 /// A binding to a name nothing declares, for which the rune walk raises `bind_invalid_value`.
-fn unbound(input: &CompileInput<'_>, res: &Resolution, target: NodeIdentifier) -> bool {
-    let javascript = input.component.javascript;
-    javascript.is_identifier(target)
-        && res.binding(target).is_none()
-        && !res.is_store_subscription(javascript.name(target))
+fn unbound(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIdentifier) -> bool {
+    match input
+        .component
+        .javascript
+        .get_expression(target)
+        .get_inner_expression()
+    {
+        Expression::Identifier(name) => {
+            res.symbol(name).is_none() && !res.is_store_subscription(&name.name)
+        }
+        _ => false,
+    }
 }
 
 /// A supported property on a supported element, as upstream's `binding_properties` names it,
@@ -203,7 +215,7 @@ fn check_element_binding(
     tag: &str,
     attributes: &[Attribute],
     a: &Attribute,
-    target: NodeIdentifier,
+    target: ExpressionIdentifier,
 ) -> Result<(), Diagnostic> {
     let source_text = input.component.source_text;
     let property = a.name.text(source_text);

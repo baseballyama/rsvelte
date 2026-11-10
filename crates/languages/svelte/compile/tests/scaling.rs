@@ -18,8 +18,8 @@ fn allocations(script: &str) -> u64 {
     ));
     let resolution = rsvelte_svelte_semantic::resolve::resolve(
         &component.javascript,
-        &source,
-        component.program,
+        component.instance.as_ref().map(|s| s.program),
+        component.module.as_ref().map(|s| s.program),
         &tree,
     );
     let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
@@ -28,54 +28,41 @@ fn allocations(script: &str) -> u64 {
     thread_allocations().0 - before
 }
 
-/// Runs the stages before `small` on a 1 GiB stack and `small` itself on a 1 MiB one, so only
-/// that stage's depth is measured.
-fn on_a_small_stack(source: &str, small: Stage) {
-    std::thread::scope(|scope| {
-        std::thread::Builder::new()
-            .stack_size(1 << 30)
-            .spawn_scoped(scope, || {
-                let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
-                let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
-                let input = CompileInput::from(rsvelte_svelte_semantic::svelte_input(
-                    &component,
-                    &tree,
-                    source,
-                    "App.svelte",
-                ));
-                let resolution = rsvelte_svelte_semantic::resolve::resolve(
-                    &component.javascript,
-                    source,
-                    component.program,
-                    &tree,
-                );
-                let analyze =
-                    || rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
-                let analysis = (small == Stage::Compile).then(analyze);
-                std::thread::scope(|scope| {
-                    std::thread::Builder::new()
-                        .stack_size(1 << 20)
-                        .spawn_scoped(scope, || {
-                            let analysis = analysis.unwrap_or_else(analyze);
-                            if small == Stage::Compile {
-                                rsvelte_svelte_compile::compile_input(
-                                    &input,
-                                    &resolution,
-                                    &analysis,
-                                    Target::Client,
-                                )
-                                .expect("compiles");
-                            }
-                        })
-                        .expect("spawns")
-                        .join()
-                        .expect("runs within a 1 MiB stack");
-                });
-            })
-            .expect("spawns")
-            .join()
-            .expect("the stage on a small stack succeeds");
-    });
+/// Parses, analyzes and, for [`Stage::Compile`], compiles `source` on a worker's 2 MiB stack.
+/// The analysis is not `Send`, so every stage runs on that one stack.
+fn on_a_small_stack(source: &str, stage: Stage) {
+    let source = source.to_owned();
+    std::thread::Builder::new()
+        .stack_size(2 << 20)
+        .spawn(move || {
+            let component = rsvelte_svelte_syntax::parse::parse(&source).expect("parses");
+            let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, &source);
+            let input = CompileInput::from(rsvelte_svelte_semantic::svelte_input(
+                &component,
+                &tree,
+                &source,
+                "App.svelte",
+            ));
+            let resolution = rsvelte_svelte_semantic::resolve::resolve(
+                &component.javascript,
+                component.instance.as_ref().map(|s| s.program),
+                component.module.as_ref().map(|s| s.program),
+                &tree,
+            );
+            let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
+            if stage == Stage::Compile {
+                rsvelte_svelte_compile::compile_input(
+                    &input,
+                    &resolution,
+                    &analysis,
+                    Target::Client,
+                )
+                .expect("compiles");
+            }
+        })
+        .expect("spawns")
+        .join()
+        .expect("runs within a 2 MiB stack");
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -121,8 +108,8 @@ fn a_call_chain_in_markup_is_judged_pure_once_per_link() {
                     rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "App.svelte");
                 let resolution = rsvelte_svelte_semantic::resolve::resolve(
                     &component.javascript,
-                    &source,
-                    component.program,
+                    component.instance.as_ref().map(|s| s.program),
+                    component.module.as_ref().map(|s| s.program),
                     &tree,
                 );
                 let start = std::time::Instant::now();

@@ -1,88 +1,70 @@
-use super::{
-    AssignmentOperator, ClientCompilationContext, Kind, NodeIdentifier, SourceLocation, unthunk,
-};
-use crate::lower::BindingKind;
-use crate::lower::script::mutate_bindable_prop;
+use oxc_ast::ast::Expression;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
-impl ClientCompilationContext<'_> {
+use super::ClientCompilationContext;
+use crate::lower::BindingKind;
+use crate::lower::script::mutated_bindable_prop;
+
+impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn binding_accessors(
-        &mut self,
-        expression: NodeIdentifier,
+        &self,
+        expression: ExpressionIdentifier,
         primitive: bool,
-    ) -> (NodeIdentifier, NodeIdentifier) {
-        if let Kind::Sequence([get, set]) = self.javascript.kind(expression) {
-            return (self.expression(*get), self.expression(*set));
+    ) -> (Expression<'o>, Expression<'o>) {
+        if let Expression::SequenceExpression(s) = self.javascript.get_expression(expression)
+            && let [get, set] = s.expressions.as_slice()
+        {
+            return (self.rewrite(get, true), self.rewrite(set, true));
         }
-        let get = self.expression(expression);
-        let get = self.thunk(get);
+        let get = self.b.thunk(self.expression(expression));
         let set = self.binding_setter(expression, primitive);
         (get, set)
     }
 
     pub(super) fn binding_setter(
-        &mut self,
-        expression: NodeIdentifier,
+        &self,
+        expression: ExpressionIdentifier,
         primitive: bool,
-    ) -> NodeIdentifier {
-        if let Kind::Sequence([_, set]) = self.javascript.kind(expression) {
-            return self.expression(*set);
+    ) -> Expression<'o> {
+        if let Expression::SequenceExpression(s) = self.javascript.get_expression(expression)
+            && let [_, set] = s.expressions.as_slice()
+        {
+            return self.rewrite(set, true);
         }
+        let b = self.b;
         let assignment = self.binding_assignment(expression, primitive);
-        let parameter = self.out.identifier("$$value");
-        let set = self.out.arrow(
-            &[parameter],
-            assignment,
-            true,
-            false,
-            SourceLocation::SYNTHETIC,
-        );
-        unthunk(&self.out, set)
+        crate::lower::builder::unthunk(b.arrow(b.params(["$$value"]), assignment))
     }
 
     /// `expression = $$value`, as the script rewrites an assignment to it.
     pub(super) fn binding_assignment(
-        &mut self,
-        expression: NodeIdentifier,
+        &self,
+        expression: ExpressionIdentifier,
         primitive: bool,
-    ) -> NodeIdentifier {
-        let value = self.out.identifier("$$value");
-        if let Kind::Identifier(_) = self.javascript.kind(expression) {
-            let target = self.out.identifier(self.javascript.name(expression));
-            match self.res.binding(expression) {
-                Some((binding, info)) if self.res.is_state_source(binding) => {
+    ) -> Expression<'o> {
+        let b = self.b;
+        let value = b.id("$$value");
+        let source = self.javascript.get_expression(expression);
+        if let Expression::Identifier(identifier) = source {
+            let target = b.id(&identifier.name);
+            match self.res.symbol(identifier) {
+                Some(symbol) if self.res.is_state_source(symbol) => {
                     let mut arguments = vec![target, value];
-                    if !primitive && info.kind == BindingKind::State {
-                        arguments.push(self.tru());
+                    if !primitive && self.res.binding(symbol).kind == BindingKind::State {
+                        arguments.push(b.boolean(true));
                     }
-                    self.out.runtime("$", "set", &arguments)
+                    b.runtime("set", arguments)
                 }
-                Some((binding, _)) if self.res.is_prop_source(binding) => {
-                    self.out.call0(target, &[value])
-                }
-                _ => self.out.assign(
-                    AssignmentOperator::Assign,
-                    target,
-                    value,
-                    SourceLocation::SYNTHETIC,
-                ),
+                Some(symbol) if self.res.is_prop_source(symbol) => b.call(target, [value]),
+                _ => b.assign_name(&identifier.name, value),
             }
         } else {
             let target = self.expression_with_rest_reads(expression, false);
-            let mutation = self.out.assign(
-                AssignmentOperator::Assign,
-                target,
-                value,
-                SourceLocation::SYNTHETIC,
-            );
-            mutate_bindable_prop(
-                self.res,
-                self.custom_element.is_some(),
-                self.javascript,
-                &mut self.out,
-                expression,
-                |_| mutation,
-            )
-            .unwrap_or(mutation)
+            let mutation = b.assign_member(target, value);
+            match mutated_bindable_prop(self.res, self.custom_element.is_some(), source) {
+                Some(prop) => b.call(b.id_at(&prop.name, prop.span), [mutation, b.boolean(true)]),
+                None => mutation,
+            }
         }
     }
 }

@@ -1,14 +1,11 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`
 
 <p> </p>
   <span> b </span>
 
 <button>  inc  </button>`, 1);
-
 export default function App($$anchor) {
 	let n = $.state(1);
 	$.next();
@@ -17,11 +14,10 @@ export default function App($$anchor) {
 	var text = $.only_child(p);
 	var button = $.sibling(p, 4);
 	$.template_effect(() => $.set_text(text, `
-	  a   ${$.get(n) ?? ''}
+	  a   ${$.get(n) ?? ""}
 
 `));
-	$.delegated('click', button, () => $.update(n));
+	$.delegated("click", button, () => $.update(n));
 	$.append($$anchor, fragment);
 }
-
-$.delegate(['click']);
+$.delegate(["click"]);

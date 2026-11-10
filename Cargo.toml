@@ -66,6 +66,7 @@ oxc_formatter_css = { git = "https://github.com/baseballyama/oxc", rev = "548bdc
 oxc_parser = { git = "https://github.com/baseballyama/oxc", rev = "548bdcd796055ae287d3243635e3df7b964a028d" }
 oxc_semantic = { git = "https://github.com/baseballyama/oxc", rev = "548bdcd796055ae287d3243635e3df7b964a028d" }
 oxc_span = { git = "https://github.com/baseballyama/oxc", rev = "548bdcd796055ae287d3243635e3df7b964a028d" }
+oxc_str = { git = "https://github.com/baseballyama/oxc", rev = "548bdcd796055ae287d3243635e3df7b964a028d" }
 oxc_syntax = { git = "https://github.com/baseballyama/oxc", rev = "548bdcd796055ae287d3243635e3df7b964a028d" }
 self_cell = "1.2.0"
 rayon = "1.12.0"

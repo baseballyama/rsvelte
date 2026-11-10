@@ -2,19 +2,21 @@ mod class;
 mod with_spread;
 mod without_spread;
 
-use super::{Attribute, AttributeValue, ClientCompilationContext, Memo, NodeIdentifier};
+use oxc_ast::ast::Expression;
 
-impl ClientCompilationContext<'_> {
+use super::{Attribute, AttributeValue, ClientCompilationContext, Memo};
+
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_attribute_value` (client).
     pub(super) fn attribute_value(
-        &mut self,
+        &self,
         a: &Attribute,
-        memo: &mut Memo,
+        memo: &mut Memo<'o>,
         if_state: bool,
-    ) -> (NodeIdentifier, bool) {
+    ) -> (Expression<'o>, bool) {
         match &a.value {
-            AttributeValue::Boolean => (self.tru(), false),
-            AttributeValue::Static(v) => (self.out.write_string(v), false),
+            AttributeValue::Boolean => (self.b.boolean(true), false),
+            AttributeValue::Static(v) => (self.b.string(v), false),
             &(AttributeValue::Expression { expression, .. }
             | AttributeValue::Shorthand(expression)) => {
                 let built = self.expression(expression);

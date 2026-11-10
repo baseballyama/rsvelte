@@ -1,5 +1,6 @@
+use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKey};
 use rsvelte_svelte_semantic::compiler_syntax_tree::AttributeValue;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
 use super::template::single_expression;
 use super::{Attribute, CompileInput, Diagnostic, Span};
@@ -7,22 +8,38 @@ use super::{Attribute, CompileInput, Diagnostic, Span};
 #[derive(Debug)]
 pub(super) struct CustomElement {
     pub tag: Option<Tag>,
-    pub props: Option<NodeIdentifier>,
+    /// The `customElement={{ … }}` object, whose `props`, `shadow` and `extend` the client reads.
+    pub options: Option<ExpressionIdentifier>,
     pub shadow: Shadow,
-    pub extend: Option<NodeIdentifier>,
 }
 
 #[derive(Debug)]
 pub(super) enum Tag {
     Static(Box<str>),
-    Expression(NodeIdentifier),
+    /// The options' `tag` string.
+    Expression,
 }
 
 #[derive(Debug)]
 pub(super) enum Shadow {
     Open,
     None,
-    Expression(NodeIdentifier),
+    /// The options' `shadow` object.
+    Expression,
+}
+
+impl CustomElement {
+    /// The value of the option `name`, its first occurrence as `parse` read it.
+    pub(super) fn option<'t>(&self, tree: &'t Tree, name: &str) -> Option<&'t Expression<'t>> {
+        let Expression::ObjectExpression(object) = tree.get_expression(self.options?) else {
+            return None;
+        };
+        object
+            .properties
+            .iter()
+            .filter_map(option_property)
+            .find_map(|(key, value)| (key == name).then_some(value))
+    }
 }
 
 pub(super) fn parse(
@@ -30,12 +47,10 @@ pub(super) fn parse(
     attribute: &Attribute,
 ) -> Result<Option<CustomElement>, Diagnostic> {
     let tree = input.component.javascript;
-    let source = input.component.source_text;
     let mut result = CustomElement {
         tag: None,
-        props: None,
+        options: None,
         shadow: Shadow::Open,
-        extend: None,
     };
     if let AttributeValue::Static(value) = &attribute.value {
         validate_tag(value, attribute.span)?;
@@ -45,15 +60,15 @@ pub(super) fn parse(
     let Some(expression) = single_expression(&attribute.value) else {
         return invalid("svelte_options_invalid_customelement", attribute.span);
     };
-    if matches!(tree.kind(expression), Kind::Null) {
-        return Ok(None);
-    }
-    let Kind::Object(properties) = tree.kind(expression) else {
-        return invalid("svelte_options_invalid_customelement", attribute.span);
+    let properties = match tree.get_expression(expression) {
+        Expression::NullLiteral(_) => return Ok(None),
+        Expression::ObjectExpression(object) => &object.properties,
+        _ => return invalid("svelte_options_invalid_customelement", attribute.span),
     };
+    result.options = Some(expression);
     let mut seen = 0_u8;
-    for &property in properties {
-        let Some((name, value)) = option_property(tree, property) else {
+    for property in properties {
+        let Some((name, value)) = option_property(property) else {
             return invalid("svelte_options_invalid_customelement", attribute.span);
         };
         let bit = match name {
@@ -69,21 +84,18 @@ pub(super) fn parse(
         seen |= bit;
         match name {
             "tag" => {
-                if !matches!(tree.kind(value), Kind::String) {
+                let Some(tag) = string(value) else {
                     return invalid("svelte_options_invalid_tagname", attribute.span);
-                }
-                validate_tag(tree.str_value(value, source), attribute.span)?;
-                result.tag = Some(Tag::Expression(value));
+                };
+                validate_tag(tag, attribute.span)?;
+                result.tag = Some(Tag::Expression);
             }
-            "props" => {
-                validate_props(tree, source, value, attribute.span)?;
-                result.props = Some(value);
-            }
+            "props" => validate_props(value, attribute.span)?,
             "shadow" => {
-                result.shadow = match tree.kind(value) {
-                    Kind::String => match tree.str_value(value, source) {
-                        "open" => Shadow::Open,
-                        "none" => Shadow::None,
+                result.shadow = match value {
+                    Expression::StringLiteral(_) => match string(value) {
+                        Some("open") => Shadow::Open,
+                        Some("none") => Shadow::None,
                         _ => {
                             return invalid(
                                 "svelte_options_invalid_customelement_shadow",
@@ -91,7 +103,7 @@ pub(super) fn parse(
                             );
                         }
                     },
-                    Kind::Object(_) => Shadow::Expression(value),
+                    Expression::ObjectExpression(_) => Shadow::Expression,
                     _ => {
                         return invalid(
                             "svelte_options_invalid_customelement_shadow",
@@ -100,56 +112,52 @@ pub(super) fn parse(
                     }
                 };
             }
-            "extend" => result.extend = Some(value),
+            "extend" => {}
             _ => unreachable!("a known option"),
         }
     }
     Ok(Some(result))
 }
 
-pub(super) fn option_property(
-    tree: &SyntaxTree,
-    property: NodeIdentifier,
-) -> Option<(&str, NodeIdentifier)> {
-    let Kind::Property {
-        key,
-        value,
-        computed: false,
-        ..
-    } = tree.kind(property)
-    else {
-        return None;
-    };
-    tree.is_identifier(key).then(|| (tree.name(key), value))
+/// A string literal's value; a lone surrogate matches no option value.
+fn string<'t>(e: &Expression<'t>) -> Option<&'t str> {
+    match e {
+        Expression::StringLiteral(literal) => literal.value.as_str(),
+        _ => None,
+    }
 }
 
-fn validate_props(
-    tree: &SyntaxTree,
-    source: &str,
-    expression: NodeIdentifier,
-    span: Span,
-) -> Result<(), Diagnostic> {
-    let Kind::Object(properties) = tree.kind(expression) else {
+/// `name: value` with a plain name as its key.
+pub(super) fn option_property<'t>(
+    property: &'t ObjectPropertyKind<'t>,
+) -> Option<(&'t str, &'t Expression<'t>)> {
+    let ObjectPropertyKind::ObjectProperty(property) = property else {
+        return None;
+    };
+    match &property.key {
+        PropertyKey::StaticIdentifier(key) if !property.computed => {
+            Some((key.name.as_str(), &property.value))
+        }
+        _ => None,
+    }
+}
+
+fn validate_props(expression: &Expression<'_>, span: Span) -> Result<(), Diagnostic> {
+    let Expression::ObjectExpression(object) = expression else {
         return invalid("svelte_options_invalid_customelement_props", span);
     };
-    for &property in properties {
-        let Some((_, value)) = option_property(tree, property) else {
+    for property in &object.properties {
+        let Some((_, Expression::ObjectExpression(fields))) = option_property(property) else {
             return invalid("svelte_options_invalid_customelement_props", span);
         };
-        let Kind::Object(fields) = tree.kind(value) else {
-            return invalid("svelte_options_invalid_customelement_props", span);
-        };
-        for &field in fields {
-            let valid = match option_property(tree, field) {
-                Some(("attribute", value)) => matches!(tree.kind(value), Kind::String),
-                Some(("reflect", value)) => matches!(tree.kind(value), Kind::Boolean(_)),
-                Some(("type", value)) => {
-                    matches!(tree.kind(value), Kind::String)
-                        && matches!(
-                            tree.str_value(value, source),
-                            "String" | "Number" | "Boolean" | "Array" | "Object"
-                        )
-                }
+        for field in &fields.properties {
+            let valid = match option_property(field) {
+                Some(("attribute", value)) => matches!(value, Expression::StringLiteral(_)),
+                Some(("reflect", value)) => matches!(value, Expression::BooleanLiteral(_)),
+                Some(("type", value)) => matches!(
+                    string(value),
+                    Some("String" | "Number" | "Boolean" | "Array" | "Object")
+                ),
                 _ => false,
             };
             if !valid {

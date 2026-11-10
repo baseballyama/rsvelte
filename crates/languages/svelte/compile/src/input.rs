@@ -28,18 +28,11 @@ pub(crate) fn static_string<'a>(
     use rsvelte_svelte_semantic::compiler_syntax_tree::AttributeValue;
     match value {
         AttributeValue::Static(value) => Some(value),
-        AttributeValue::Expression { expression, .. } | AttributeValue::Shorthand(expression)
-            if matches!(
-                input.component.javascript.kind(*expression),
-                rsvelte_typescript_syntax::Kind::String
-            ) =>
-        {
-            Some(
-                input
-                    .component
-                    .javascript
-                    .str_value(*expression, input.component.source_text),
-            )
+        AttributeValue::Expression { expression, .. } | AttributeValue::Shorthand(expression) => {
+            match input.component.javascript.get_expression(*expression) {
+                oxc_ast::ast::Expression::StringLiteral(literal) => literal.value.as_str(),
+                _ => None,
+            }
         }
         _ => None,
     }

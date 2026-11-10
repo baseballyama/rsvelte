@@ -1,19 +1,24 @@
 //! Upstream's rune and assignment checks over the scripts and the template expressions.
 
+use oxc_ast::AstKind;
+use oxc_ast::ast::{
+    AssignmentOperator, AssignmentTarget, BindingPattern, Expression, ForStatementLeft,
+    MethodDefinitionKind, Statement, VariableDeclaration, VariableDeclarator,
+};
+use oxc_ast_visit::Visit;
+use oxc_span::GetSpan;
+use rsvelte_kernel::performance::stack::grow;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, NodeKind};
-use rsvelte_svelte_semantic::resolve::lowers;
-use rsvelte_typescript_syntax::operators::AssignmentOperator;
-use rsvelte_typescript_syntax::syntax_tree::{Class, Control, flag};
+use rsvelte_typescript_compile::strip::is_type_only;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 use rustc_hash::FxHashMap;
 
-use crate::lower::{
-    CompileInput, Diagnostic, Kind, NodeIdentifier, Resolution, Span, SyntaxTree, Target, span_of,
-    unsupported,
-};
+use crate::lower::{CompileInput, Diagnostic, Resolution, Span, Target, span_of};
 
 mod assignments;
+mod calls;
 
-use assignments::check_assignment;
+use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
 
 use super::state_invalid_placement;
 
@@ -58,7 +63,7 @@ struct Body {
     generator: bool,
 }
 
-/// Where an expression sits.
+/// Where a node sits.
 #[derive(Clone, Copy)]
 struct Place {
     parent: Parent,
@@ -69,23 +74,40 @@ struct Place {
     rendering: bool,
 }
 
+/// A node the walk is inside, with where it sits and the rune a declarator calls.
+struct Frame<'a> {
+    kind: AstKind<'a>,
+    place: Place,
+    rune: Option<&'static str>,
+}
+
 /// Upstream's rune and assignment checks over the scripts and the template expressions, in
-/// document order, then the runes this port does not lower yet.
+/// document order, then the runes this port does not lower.
 struct RuneWalk<'a> {
-    javascript: &'a SyntaxTree,
-    source_text: &'a str,
     res: &'a Resolution,
     target: Target,
     custom_element: bool,
     props: bool,
     props_id: bool,
+    /// Where the root being walked sits.
+    root: Place,
+    frames: Vec<Frame<'a>>,
+    error: Option<Diagnostic>,
     /// The first rune this port does not lower, refused only when upstream raises nothing later.
     refused: Option<Diagnostic>,
 }
 
+/// A template root: an expression, or a `{@const}` declaration.
+#[derive(Clone, Copy)]
+enum Root<'a> {
+    Expression(ExpressionIdentifier, &'a Expression<'a>),
+    Declaration(&'a VariableDeclaration<'a>),
+}
+
 /// Raises upstream's rune placement, rune argument and assignment errors, a `bind:` target's
-/// among them, then refuses a rune call this port does not lower, a state rune in a class body (class fields are not lowered yet), and on the server an
-/// `$effect` that is not a statement of its own (upstream only drops it as an `ExpressionStatement`).
+/// among them, then refuses a rune call this port does not lower, a state rune in a class body
+/// (class fields are not lowered yet), and on the server an `$effect` that is not a statement of
+/// its own (upstream only drops it as an `ExpressionStatement`).
 ///
 /// # Errors
 ///
@@ -96,19 +118,35 @@ pub(in crate::lower) fn check_runes(
     target: Target,
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
+    let javascript = input.component.javascript;
+    let place = |module, rendering| Place {
+        parent: Parent::Other,
+        in_class: false,
+        module,
+        rendering,
+    };
     let mut walk = RuneWalk {
-        javascript: input.component.javascript,
-        source_text: input.component.source_text,
         res,
         target,
         custom_element,
         props: false,
         props_id: false,
+        root: place(false, false),
+        frames: Vec::new(),
+        error: None,
         refused: None,
     };
+    if let Some(module) = input.component.module {
+        walk.root = place(true, false);
+        walk.visit_program(javascript.get_program(module));
+    }
+    if let Some(instance) = input.component.instance {
+        walk.root = place(false, true);
+        walk.visit_program(javascript.get_program(instance));
+    }
     // Upstream checks a binding's target where it visits the directive, before the expression.
     let tree = input.component.compiler_syntax_tree;
-    let binds: FxHashMap<NodeIdentifier, (Span, bool)> = (tree.nodes.iter())
+    let binds: FxHashMap<ExpressionIdentifier, (Span, bool)> = (tree.nodes.iter())
         .filter_map(|n| match &n.kind {
             NodeKind::Element(el) => Some(tree.attributes(el.attributes)),
             _ => None,
@@ -122,467 +160,319 @@ pub(in crate::lower) fn check_runes(
             _ => None,
         })
         .collect();
-    let module = (input.component.module).map(|module| (module, true, false));
-    let template = (input.component.template_expressions.iter()).map(|&e| (e, false, true));
-    let roots = module
-        .into_iter()
-        .chain([(input.component.program, false, true)])
-        .chain(template);
-    // Pre-order from one stack: expressions nest thousands deep in real input.
-    let mut pending = Vec::new();
-    for (root, module, rendering) in roots {
-        let place = Place {
-            parent: Parent::Other,
-            in_class: false,
-            module,
-            rendering,
-        };
-        if let Some(&(span, this)) = binds.get(&root) {
-            walk.check_binding(root, span, this)?;
+    let mut template: Vec<(u32, Root<'_>)> = (javascript.expressions())
+        .map(|(identifier, e)| (e.span().start, Root::Expression(identifier, e)))
+        .chain((javascript.declarations()).map(|(_, d)| (d.span.start, Root::Declaration(d))))
+        .collect();
+    // The tree keeps them in the order the parser met them, which is not the document's.
+    template.sort_by_key(|&(start, _)| start);
+    walk.root = place(false, true);
+    for (_, root) in template {
+        if walk.error.is_some() {
+            break;
         }
-        pending.push((root, place));
-        while let Some((e, place)) = pending.pop() {
-            walk.visit(e, place, &mut pending)?;
+        match root {
+            Root::Expression(identifier, e) => {
+                if let Some(&(span, this)) = binds.get(&identifier)
+                    && let Err(error) = walk.check_binding(e, span, this)
+                {
+                    walk.error = Some(error);
+                    break;
+                }
+                walk.visit_expression(e);
+            }
+            Root::Declaration(d) => walk.visit_variable_declaration(d),
         }
     }
-    walk.refused.map_or(Ok(()), Err)
+    match (walk.error, walk.refused) {
+        (Some(error), _) | (None, Some(error)) => Err(error),
+        (None, None) => Ok(()),
+    }
 }
 
-impl RuneWalk<'_> {
+impl<'a> Visit<'a> for RuneWalk<'a> {
+    fn enter_node(&mut self, kind: AstKind<'a>) {
+        let (place, parent) = match self.frames.last() {
+            Some(frame) => (place_of(frame, kind), Some(frame.kind)),
+            None => (self.root, None),
+        };
+        let rune = if self.error.is_none() {
+            self.check(kind, parent, place).unwrap_or_else(|error| {
+                self.error = Some(error);
+                None
+            })
+        } else {
+            None
+        };
+        self.frames.push(Frame { kind, place, rune });
+    }
+
+    fn leave_node(&mut self, _kind: AstKind<'a>) {
+        self.frames.pop();
+    }
+
+    // Expressions nest thousands deep in real input.
+    fn visit_expression(&mut self, it: &Expression<'a>) {
+        if self.error.is_none() {
+            grow(|| oxc_ast_visit::walk::walk_expression(self, it));
+        }
+    }
+
+    fn visit_statement(&mut self, it: &Statement<'a>) {
+        if self.error.is_none() {
+            grow(|| oxc_ast_visit::walk::walk_statement(self, it));
+        }
+    }
+}
+
+impl<'a> RuneWalk<'a> {
     /// Upstream's `BindDirective` checks of the `bind:` target `e` at `span`; `bind:this` also
     /// takes a global.
-    fn check_binding(&self, e: NodeIdentifier, span: Span, this: bool) -> Result<(), Diagnostic> {
-        let javascript = self.javascript;
-        check_assignment(javascript, self.res, e, true, || span)?;
+    fn check_binding(&self, e: &Expression<'_>, span: Span, this: bool) -> Result<(), Diagnostic> {
+        check_assignment(fixed_expression(self.res, e, true), true, || span)?;
         if !this
-            && javascript.is_identifier(e)
-            && self.res.binding(e).is_none()
-            && !self.res.is_store_subscription(javascript.name(e))
+            && let Expression::Identifier(name) = e.get_inner_expression()
+            && self.res.symbol(name).is_none()
+            && !self.res.is_store_subscription(&name.name)
         {
             return crate::lower::special::invalid(
                 "bind_invalid_value",
                 "Can only bind to state or props",
-                span_of(javascript, e),
+                span_of(e),
             );
         }
         Ok(())
     }
 
-    /// Checks `e` and pushes its children, each with where it sits, so that they pop in order.
-    fn visit(
+    /// Checks the node `kind`, a child of `parent`; a declarator returns the rune it calls.
+    fn check(
         &mut self,
-        e: NodeIdentifier,
+        kind: AstKind<'a>,
+        parent: Option<AstKind<'a>>,
         place: Place,
-        pending: &mut Vec<(NodeIdentifier, Place)>,
-    ) -> Result<(), Diagnostic> {
-        let javascript = self.javascript;
-        let kind = javascript.kind(e);
+    ) -> Result<Option<&'static str>, Diagnostic> {
         // A `for await` suspends rendering as an `await` does; upstream prints it into a
         // function that is not async.
-        if place.rendering
-            && matches!(
-                kind,
-                Kind::Await(_) | Kind::Control(Control::ForEach { is_await: true, .. })
-            )
-        {
+        let suspends = match kind {
+            AstKind::AwaitExpression(_) => true,
+            AstKind::ForOfStatement(f) => f.r#await,
+            _ => false,
+        };
+        if place.rendering && suspends {
             return crate::lower::special::invalid(
                 "experimental_async",
                 "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`",
-                span_of(javascript, e),
+                span_of(&kind),
             );
         }
-        let mut rune = None;
+        let res = self.res;
         match kind {
-            Kind::Call { arguments, .. } => {
-                let named = match place.parent {
-                    Parent::Initializer { rune, .. } => rune,
-                    _ => self.res.rune_named(javascript, e),
+            AstKind::CallExpression(call) => {
+                if let Some(rune) = res.rune_of_call(call) {
+                    let chained = matches!(parent, Some(AstKind::ChainExpression(_)));
+                    self.check_rune(call, rune, place, chained)?;
+                }
+            }
+            AstKind::VariableDeclarator(declarator) => {
+                let Some(init) = &declarator.init else {
+                    return Ok(None);
                 };
-                if let Some(named) = named {
-                    self.check_rune(e, arguments, named, place)?;
-                }
-            }
-            Kind::Declarator {
-                identifier,
-                initializer: Some(initializer),
-            } => {
-                rune = self.res.rune_named(javascript, initializer);
+                // Upstream erases types before it analyzes the script.
+                let rune = res.rune_named(init.get_inner_expression());
                 if rune == Some("$props") {
-                    check_props_pattern(javascript, e, identifier)?;
+                    check_props_pattern(declarator)?;
                 }
+                return Ok(rune);
             }
-            Kind::Update { arg, .. } => {
-                check_assignment(javascript, self.res, arg, false, || span_of(javascript, e))?;
+            AstKind::UpdateExpression(update) => {
+                check_assignment(fixed_simple(res, &update.argument, true), false, || {
+                    span_of(update)
+                })?;
             }
-            Kind::Assign(_, pattern, _) => {
-                check_assignment(javascript, self.res, pattern, false, || {
-                    span_of(javascript, e)
+            AstKind::AssignmentExpression(assign) => {
+                check_assignment(fixed_target(res, &assign.left, true), false, || {
+                    span_of(assign)
                 })?;
                 if matches!(
-                    javascript.kind(pattern),
-                    Kind::ArrayPattern(_) | Kind::ObjectPattern(_)
+                    assign.left,
+                    AssignmentTarget::ArrayAssignmentTarget(_)
+                        | AssignmentTarget::ObjectAssignmentTarget(_)
                 ) {
-                    self.check_pattern_assignment(e, pattern, self.target)?;
+                    self.check_pattern_assignment(span_of(assign), &assign.left, self.target)?;
                 }
             }
             // Upstream prints any non-plain head as invalid JavaScript, on the server too.
-            Kind::Control(Control::ForEach { left, .. })
-                if !matches!(javascript.kind(left), Kind::VariableDeclaration { .. }) =>
-            {
-                self.check_pattern_assignment(e, left, Target::Client)?;
-            }
+            AstKind::ForInStatement(f) => self.check_head(span_of(f), &f.left)?,
+            AstKind::ForOfStatement(f) => self.check_head(span_of(f), &f.left)?,
             _ => {}
         }
-        let inner = Place {
-            parent: Parent::Other,
-            in_class: place.in_class || matches!(kind, Kind::Class(Class::Definition { .. })),
-            module: place.module,
-            // A class's heritage and computed keys run where the class is defined.
-            rendering: place.rendering
-                && !matches!(kind, Kind::Function { .. } | Kind::Arrow { .. }),
-        };
-        let base = pending.len();
-        javascript.for_each_child(e, |c| pending.push((c, inner)));
-        for (child, child_place) in &mut pending[base..] {
-            child_place.parent = self.parent_of(e, kind, rune, *child, place);
-        }
-        pending[base..].reverse();
-        Ok(())
+        Ok(None)
     }
 
-    /// Where `child`, a child of `e`, sits, given where `e` sits; `rune` is the rune a declarator
-    /// `e` calls.
-    fn parent_of(
-        &self,
-        e: NodeIdentifier,
-        kind: Kind<'_>,
-        rune: Option<&'static str>,
-        child: NodeIdentifier,
-        place: Place,
-    ) -> Parent {
-        let javascript = self.javascript;
-        let parent = place.parent;
-        match (kind, parent) {
-            (Kind::Program(_), _) if !place.module => Parent::InstanceBody,
-            (Kind::VariableDeclaration { .. }, Parent::InstanceBody) => Parent::TopDeclarator,
-            // Upstream asks for the instance scope, which an `export` does not leave.
-            (Kind::ExportNamed(_), Parent::InstanceBody) => Parent::InstanceBody,
-            (
-                Kind::Declarator {
-                    identifier,
-                    initializer,
+    fn check_head(&self, span: Span, left: &ForStatementLeft<'_>) -> Result<(), Diagnostic> {
+        left.as_assignment_target().map_or(Ok(()), |target| {
+            self.check_pattern_assignment(span, target, Target::Client)
+        })
+    }
+}
+
+/// Where `kind`, a child of `frame`, sits.
+fn place_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Place {
+    let place = frame.place;
+    // Upstream's tree has no parentheses, and no type wrappers once types are erased.
+    if matches!(
+        frame.kind,
+        AstKind::ParenthesizedExpression(_)
+            | AstKind::TSAsExpression(_)
+            | AstKind::TSSatisfiesExpression(_)
+            | AstKind::TSNonNullExpression(_)
+            | AstKind::TSTypeAssertion(_)
+            | AstKind::TSInstantiationExpression(_)
+    ) {
+        return place;
+    }
+    Place {
+        parent: parent_of(frame, kind),
+        in_class: place.in_class || matches!(frame.kind, AstKind::Class(_)),
+        module: place.module,
+        // A class's heritage and computed keys run where the class is defined.
+        rendering: place.rendering
+            && !matches!(
+                frame.kind,
+                AstKind::Function(_) | AstKind::ArrowFunctionExpression(_)
+            ),
+    }
+}
+
+/// Where `kind`, a child of `frame`, sits, given where `frame` sits.
+fn parent_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Parent {
+    let parent = frame.place.parent;
+    let is = |span: oxc_span::Span| kind.span() == span;
+    match (frame.kind, parent) {
+        (AstKind::Program(_), _) if !frame.place.module => Parent::InstanceBody,
+        (AstKind::VariableDeclaration(_), Parent::InstanceBody) => Parent::TopDeclarator,
+        // Upstream asks for the instance scope, which an `export` does not leave.
+        (
+            AstKind::ExportDeclaration(_) | AstKind::ExportNamedDeclaration(_),
+            Parent::InstanceBody,
+        ) => Parent::InstanceBody,
+        (AstKind::VariableDeclarator(d), _) if d.init.as_ref().is_some_and(|i| is(i.span())) => {
+            Parent::Initializer {
+                top: parent == Parent::TopDeclarator,
+                named: matches!(d.id, BindingPattern::BindingIdentifier(_)),
+                rune: frame.rune,
+            }
+        }
+        (AstKind::VariableDeclarator(_), _) if frame.rune == Some("$props") => Parent::Props,
+        (AstKind::ObjectPattern(_), Parent::Props) => Parent::PropsProperty,
+        // A shorthand's key spans its value too, and is a name.
+        (AstKind::BindingProperty(p), Parent::PropsProperty)
+            if is(p.value.span()) && !matches!(kind, AstKind::IdentifierName(_)) =>
+        {
+            Parent::PropsValue
+        }
+        (AstKind::AssignmentPattern(p), Parent::PropsValue) if is(p.right.span()) => {
+            Parent::PropsDefault
+        }
+        (AstKind::MethodDefinition(m), _) if m.kind == MethodDefinitionKind::Constructor => {
+            Parent::Constructor
+        }
+        (AstKind::Function(f), _) if matches!(kind, AstKind::FunctionBody(_)) => {
+            Parent::Body(Body {
+                constructor: parent == Parent::Constructor,
+                generator: f.generator,
+            })
+        }
+        (AstKind::ArrowFunctionExpression(_), _) if matches!(kind, AstKind::FunctionBody(_)) => {
+            Parent::Body(Body {
+                constructor: false,
+                generator: false,
+            })
+        }
+        (AstKind::FunctionBody(body), Parent::Body(function)) => {
+            // Upstream's body starts with its directives, and has no statement types erase.
+            let first = body.directives.is_empty()
+                && (body.statements.iter())
+                    .find(|s| !is_type_only(s))
+                    .is_some_and(|s| is(s.span()));
+            Parent::BodyStatement(function, first)
+        }
+        (AstKind::ExpressionStatement(_), Parent::BodyStatement(body, first)) => {
+            Parent::Statement(Some((body, first)))
+        }
+        (AstKind::ExpressionStatement(_), _) => Parent::Statement(None),
+        (
+            AstKind::AssignmentExpression(assign),
+            Parent::Statement(Some((
+                Body {
+                    constructor: true, ..
                 },
                 _,
-            ) if Some(child) == initializer => Parent::Initializer {
-                top: parent == Parent::TopDeclarator,
-                named: javascript.is_identifier(identifier),
-                rune,
-            },
-            (Kind::Declarator { .. }, _) if rune == Some("$props") => Parent::Props,
-            (Kind::ObjectPattern(_), Parent::Props) => Parent::PropsProperty,
-            (Kind::Property { value, .. }, Parent::PropsProperty) if value == child => {
-                Parent::PropsValue
-            }
-            (Kind::AssignPattern(_, default), Parent::PropsValue) if default == child => {
-                Parent::PropsDefault
-            }
-            (
-                Kind::Class(Class::Method {
-                    key,
-                    computed: false,
-                    is_static: false,
-                    getter: false,
-                    setter: false,
-                    ..
-                }),
-                _,
-            ) if is_constructor_key(javascript, self.source_text, key) => Parent::Constructor,
-            (Kind::Function { body, .. } | Kind::Arrow { body, .. }, _) if body == child => {
-                Parent::Body(Body {
-                    constructor: parent == Parent::Constructor,
-                    generator: javascript.flags(e) & flag::GENERATOR != 0,
-                })
-            }
-            (Kind::Block(statements), Parent::Body(body)) => {
-                Parent::BodyStatement(body, statements.first() == Some(&child))
-            }
-            (Kind::ExpressionStatement(_), Parent::BodyStatement(body, first)) => {
-                Parent::Statement(Some((body, first)))
-            }
-            (Kind::ExpressionStatement(_), _) => Parent::Statement(None),
-            (
-                Kind::Assign(AssignmentOperator::Assign, target, value),
-                Parent::Statement(Some((
-                    Body {
-                        constructor: true, ..
-                    },
-                    _,
-                ))),
-            ) if value == child && assigns_this_property(javascript, target) => {
-                Parent::ConstructorAssignment
-            }
-            (
-                Kind::Class(Class::Field {
-                    value: Some(value),
-                    computed: false,
-                    is_static: false,
-                    ..
-                }),
-                _,
-            ) if value == child => Parent::ClassField,
-            _ => Parent::Other,
-        }
-    }
-
-    /// Upstream's `CallExpression` checks for a rune call, then whether this port lowers it.
-    fn check_rune(
-        &mut self,
-        e: NodeIdentifier,
-        arguments: &[NodeIdentifier],
-        rune: &'static str,
-        place: Place,
-    ) -> Result<(), Diagnostic> {
-        let javascript = self.javascript;
-        let spread = (arguments.iter()).any(|&a| matches!(javascript.kind(a), Kind::Spread(_)));
-        if rune != "$inspect" && spread {
-            return crate::lower::special::invalid(
-                "rune_invalid_spread",
-                &format!("`{rune}` cannot be called with a spread argument"),
-                span_of(javascript, e),
-            );
-        }
-        // Upstream's parent of an optional call is its `ChainExpression`.
-        let parent = if javascript.is_chain(e) {
-            Parent::Other
-        } else {
-            place.parent
-        };
-        // Upstream counts the arguments of these before it asks where they are.
-        if matches!(rune, "$bindable" | "$host" | "$inspect.trace") {
-            check_rune_arguments(javascript, e, rune, arguments.len())?;
-            self.check_rune_placement(e, rune, parent, place)?;
-        } else {
-            self.check_rune_placement(e, rune, parent, place)?;
-            check_rune_arguments(javascript, e, rune, arguments.len())?;
-        }
-        self.refuse_unlowered(e, rune, place);
-        Ok(())
-    }
-
-    /// Upstream's placement errors, and its errors for a second `$props()` or `$props.id()`.
-    fn check_rune_placement(
-        &mut self,
-        e: NodeIdentifier,
-        rune: &'static str,
-        parent: Parent,
-        place: Place,
-    ) -> Result<(), Diagnostic> {
-        let top = matches!(parent, Parent::Initializer { top: true, .. }) && !place.module;
-        let (code, message) = match rune {
-            "$bindable" if parent != Parent::PropsDefault => (
-                "bindable_invalid_location",
-                "`$bindable()` can only be used inside a `$props()` declaration".to_owned(),
-            ),
-            "$host" if place.module || !self.custom_element => (
-                "host_invalid_placement",
-                "`$host()` can only be used inside custom element component instances".to_owned(),
-            ),
-            "$props" | "$props.id" => {
-                let seen = if rune == "$props" {
-                    &mut self.props
-                } else {
-                    &mut self.props_id
-                };
-                if std::mem::replace(seen, true) {
-                    (
-                        "props_duplicate",
-                        format!("Cannot use `{rune}()` more than once"),
-                    )
-                } else if !top
-                    || rune == "$props.id"
-                        && !matches!(parent, Parent::Initializer { named: true, .. })
-                {
-                    let code = if rune == "$props" {
-                        "props_invalid_placement"
-                    } else {
-                        "props_id_invalid_placement"
-                    };
-                    (
-                        code,
-                        format!(
-                            "`{rune}()` can only be used at the top level of components as a variable declaration initializer"
-                        ),
-                    )
-                } else {
-                    return Ok(());
-                }
-            }
-            "$state" | "$state.raw" | "$derived" | "$derived.by"
-                if !matches!(
-                    parent,
-                    Parent::Initializer { .. } | Parent::ClassField | Parent::ConstructorAssignment
-                ) =>
-            {
-                return state_invalid_placement(rune, span_of(self.javascript, e));
-            }
-            "$effect" | "$effect.pre" if !matches!(parent, Parent::Statement(_)) => (
-                "effect_invalid_placement",
-                "`$effect()` can only be used as an expression statement".to_owned(),
-            ),
-            "$inspect.trace" => match parent {
-                Parent::Statement(Some((
-                    Body {
-                        generator: true, ..
-                    },
-                    true,
-                ))) => (
-                    "inspect_trace_generator",
-                    "`$inspect.trace(...)` cannot be used inside a generator function".to_owned(),
-                ),
-                Parent::Statement(Some((_, true))) => return Ok(()),
-                _ => (
-                    "inspect_trace_invalid_placement",
-                    "`$inspect.trace(...)` must be the first statement of a function body"
-                        .to_owned(),
-                ),
-            },
-            _ => return Ok(()),
-        };
-        crate::lower::special::invalid(code, &message, span_of(self.javascript, e))
-    }
-
-    /// Keeps the first rune call this port does not lower, refused when the walk ends.
-    fn refuse_unlowered(&mut self, e: NodeIdentifier, rune: &'static str, place: Place) {
-        let lowered = lowers(self.javascript, e);
-        // Upstream splits a destructured state or derived into one declaration per path; this
-        // port has no `extract_paths` yet.
-        let destructured = matches!(rune, "$state" | "$state.raw" | "$derived" | "$derived.by")
-            && matches!(place.parent, Parent::Initializer { named: false, .. });
-        let supported = lowered
-            && !destructured
-            && match rune {
-                "$state" | "$state.raw" | "$derived" | "$derived.by" => !place.in_class,
-                "$props" | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
-                "$host" => self.custom_element,
-                "$effect" | "$effect.pre" => {
-                    matches!(place.parent, Parent::Statement(_)) || self.target == Target::Client
-                }
-                _ => false,
-            };
-        if supported || self.refused.is_some() {
-            return;
-        }
-        let what = if place.in_class {
-            format!("`{rune}` in a class body")
-        } else if !lowered {
-            format!("`{rune}` in an optional chain")
-        } else if destructured {
-            format!("a destructured `{rune}` declaration")
-        } else {
-            format!("`{rune}`")
-        };
-        self.refused = unsupported::<()>(&what, span_of(self.javascript, e)).err();
-    }
-}
-
-/// Upstream's errors for a rune called with the wrong number of arguments.
-fn check_rune_arguments(
-    javascript: &SyntaxTree,
-    e: NodeIdentifier,
-    rune: &'static str,
-    count: usize,
-) -> Result<(), Diagnostic> {
-    let expected = match rune {
-        "$props" | "$props.id" | "$host" | "$effect.tracking" if count > 0 => {
-            return crate::lower::special::invalid(
-                "rune_invalid_arguments",
-                &format!("`{rune}` cannot be called with arguments"),
-                span_of(javascript, e),
-            );
-        }
-        "$derived" | "$derived.by" | "$effect" | "$effect.pre" | "$effect.root"
-        | "$inspect().with" | "$state.eager" | "$state.snapshot"
-            if count != 1 =>
+            ))),
+        ) if assign.operator == AssignmentOperator::Assign
+            && is(assign.right.span())
+            && assigns_this_property(&assign.left) =>
         {
-            "exactly one argument"
+            Parent::ConstructorAssignment
         }
-        "$bindable" | "$state" | "$state.raw" | "$inspect.trace" if count > 1 => {
-            "zero or one arguments"
+        (AstKind::PropertyDefinition(p), _)
+            if !p.computed && !p.r#static && p.value.as_ref().is_some_and(|v| is(v.span())) =>
+        {
+            Parent::ClassField
         }
-        "$inspect" if count < 1 => "one or more arguments",
-        _ => return Ok(()),
-    };
-    crate::lower::special::invalid(
-        "rune_invalid_arguments_length",
-        &format!("`{rune}` must be called with {expected}"),
-        span_of(javascript, e),
-    )
-}
-
-/// acorn's `kind === 'constructor'`: a plain method keyed `constructor` by a name or a string.
-fn is_constructor_key(javascript: &SyntaxTree, source_text: &str, key: NodeIdentifier) -> bool {
-    match javascript.kind(key) {
-        Kind::Identifier(_) => javascript.name(key) == "constructor",
-        Kind::String => javascript.str_value(key, source_text) == "constructor",
-        _ => false,
+        _ => Parent::Other,
     }
 }
 
 /// Upstream's `this.x`, `this.#x` or `this[<literal>]`.
-fn assigns_this_property(javascript: &SyntaxTree, target: NodeIdentifier) -> bool {
-    let Kind::Member {
-        object,
-        property,
-        computed,
-        ..
-    } = javascript.kind(target)
-    else {
-        return false;
-    };
-    matches!(javascript.kind(object), Kind::This)
-        && (!computed
-            || matches!(
-                javascript.kind(property),
-                Kind::String
-                    | Kind::Number(_)
-                    | Kind::Boolean(_)
-                    | Kind::Null
-                    | Kind::Regex { .. }
-                    | Kind::BigInt
-            ))
+fn assigns_this_property(target: &AssignmentTarget<'_>) -> bool {
+    match target {
+        AssignmentTarget::StaticMemberExpression(m) => {
+            matches!(m.object, Expression::ThisExpression(_))
+        }
+        AssignmentTarget::PrivateFieldExpression(m) => {
+            matches!(m.object, Expression::ThisExpression(_))
+        }
+        AssignmentTarget::ComputedMemberExpression(m) => {
+            matches!(m.object, Expression::ThisExpression(_))
+                && matches!(
+                    m.expression,
+                    Expression::StringLiteral(_)
+                        | Expression::NumericLiteral(_)
+                        | Expression::BooleanLiteral(_)
+                        | Expression::NullLiteral(_)
+                        | Expression::RegExpLiteral(_)
+                        | Expression::BigIntLiteral(_)
+                )
+        }
+        _ => false,
+    }
 }
 
 /// Upstream `VariableDeclarator`: `$props()` binds a name or flat object pattern, checked before
 /// the call and its `$bindable` defaults.
-fn check_props_pattern(
-    javascript: &SyntaxTree,
-    declarator: NodeIdentifier,
-    pattern: NodeIdentifier,
-) -> Result<(), Diagnostic> {
-    let properties = match javascript.kind(pattern) {
-        Kind::Identifier(_) => return Ok(()),
-        Kind::ObjectPattern(properties) => properties,
+fn check_props_pattern(declarator: &VariableDeclarator<'_>) -> Result<(), Diagnostic> {
+    let properties = match &declarator.id {
+        BindingPattern::BindingIdentifier(_) => return Ok(()),
+        BindingPattern::ObjectPattern(pattern) => &pattern.properties,
         _ => {
             return crate::lower::special::invalid(
                 "props_invalid_identifier",
                 "`$props()` can only be used with an object destructuring pattern",
-                span_of(javascript, declarator),
+                span_of(declarator),
             );
         }
     };
-    for &property in properties {
-        let Kind::Property { value, .. } = javascript.kind(property) else {
-            continue;
+    for property in properties {
+        let value = match &property.value {
+            BindingPattern::AssignmentPattern(p) => &p.left,
+            value => value,
         };
-        let value = match javascript.kind(value) {
-            Kind::AssignPattern(left, _) => left,
-            _ => value,
-        };
-        if javascript.flags(property) & flag::COMPUTED != 0 || !javascript.is_identifier(value) {
+        if property.computed || !matches!(value, BindingPattern::BindingIdentifier(_)) {
             return crate::lower::special::invalid(
                 "props_invalid_pattern",
                 "`$props()` assignment must not contain nested properties or computed keys",
-                span_of(javascript, property),
+                span_of(property),
             );
         }
     }

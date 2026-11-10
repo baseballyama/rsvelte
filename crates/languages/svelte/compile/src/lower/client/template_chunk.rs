@@ -1,18 +1,19 @@
-use super::{
-    ClientCompilationContext, Item, Kind, LogicalOperator, Memo, NodeIdentifier, Part,
-    SourceLocation, decode_attribute, sanitize_template_string,
-};
+use oxc_ast::ast::{Expression, LogicalOperator};
+use rsvelte_svelte_semantic::evaluate::{Evaluator, Value};
 
-impl<'a> ClientCompilationContext<'a> {
+use super::{ClientCompilationContext, Item, Memo, Part, decode_attribute};
+
+impl<'a, 'o> ClientCompilationContext<'a, 'o> {
     /// Upstream `build_template_chunk`.
     pub(super) fn template_chunk(
-        &mut self,
+        &self,
         values: &[Item<'_>],
-        memo: &mut Memo,
+        memo: &mut Memo<'o>,
         if_state: bool,
-    ) -> (NodeIdentifier, bool) {
+    ) -> (Expression<'o>, bool) {
+        let b = self.b;
         let mut quasis: Vec<String> = vec![String::new()];
-        let mut expressions: Vec<NodeIdentifier> = Vec::new();
+        let mut expressions: Vec<Expression<'o>> = Vec::new();
         let mut has_state = false;
         for item in values {
             let expression = match item {
@@ -23,22 +24,21 @@ impl<'a> ClientCompilationContext<'a> {
                 Item::Expression(e) => *e,
                 Item::Node(_) => unreachable!("sequences hold text and expression tags"),
             };
-            let javascript = self.javascript;
-            match javascript.kind(expression) {
-                Kind::String | Kind::Number(_) | Kind::Boolean(_) | Kind::Null => {
-                    if !matches!(javascript.kind(expression), Kind::Null) {
-                        let v = self
-                            .res
-                            .evaluate(javascript, self.source_text, expression)
-                            .value
-                            .to_javascript_string();
-                        quasis.last_mut().expect("never empty").push_str(&v);
-                    }
+            let source = self.javascript.get_expression(expression);
+            match source {
+                Expression::StringLiteral(_)
+                | Expression::NumericLiteral(_)
+                | Expression::BooleanLiteral(_) => {
+                    let v = Evaluator::new(self.res).evaluate(source).value;
+                    quasis
+                        .last_mut()
+                        .expect("never empty")
+                        .push_str(&v.to_javascript_string());
                     continue;
                 }
-                Kind::Identifier(_)
-                    if javascript.name(expression) == "undefined"
-                        && self.res.binding(expression).is_none() =>
+                Expression::NullLiteral(_) => continue,
+                Expression::Identifier(i)
+                    if i.name == "undefined" && self.res.symbol(i).is_none() =>
                 {
                     continue;
                 }
@@ -47,43 +47,30 @@ impl<'a> ClientCompilationContext<'a> {
             let meta = self.an.meta(expression);
             let built = self.expression(expression);
             let mut value = self.memoize(memo, expression, built, if_state);
-            let evaluated = self.res.evaluate_output(
-                javascript,
-                self.source_text,
-                &self.out,
-                value,
-                self.scope,
-            );
+            let evaluated = Evaluator::in_scope(self.res, self.scope).evaluate(&value);
             let known = evaluated.is_known.then_some(&evaluated);
             has_state |= meta.has_state && known.is_none();
             if values.len() == 1 {
                 if let Some(k) = known {
-                    let s = Self::template_string(&k.value);
-                    value = self.out.write_string(&s);
+                    value = b.string(&Self::template_string(&k.value));
                 }
                 return (value, has_state);
             }
-            if let Kind::Logical(op @ (LogicalOperator::Nullish | LogicalOperator::Or), l, r) =
-                self.out.kind(value)
-                && matches!(self.out.kind(r), Kind::Null)
+            if let Expression::LogicalExpression(logical) = &mut value
+                && matches!(
+                    logical.operator,
+                    LogicalOperator::Coalesce | LogicalOperator::Or
+                )
+                && logical.right.is_null()
             {
-                let empty = self.out.write_string("");
-                value = self
-                    .out
-                    .logical(op, l, empty, self.out.source_location(value));
+                logical.right = b.string("");
             }
             if let Some(k) = known {
                 let s = Self::template_string(&k.value);
                 quasis.last_mut().expect("never empty").push_str(&s);
             } else {
                 if !evaluated.is_defined {
-                    let empty = self.out.write_string("");
-                    value = self.out.logical(
-                        LogicalOperator::Nullish,
-                        value,
-                        empty,
-                        SourceLocation::SYNTHETIC,
-                    );
+                    value = b.logical(value, LogicalOperator::Coalesce, b.string(""));
                 }
                 expressions.push(value);
                 quasis.push(String::new());
@@ -91,28 +78,17 @@ impl<'a> ClientCompilationContext<'a> {
         }
         if expressions.is_empty() {
             let s = quasis.pop().expect("never empty");
-            return (self.out.write_string(&s), has_state);
+            return (b.string(&s), has_state);
         }
-        let n = quasis.len();
-        let elements: Vec<NodeIdentifier> = quasis
-            .iter()
-            .enumerate()
-            .map(|(i, q)| {
-                self.out
-                    .template_element(&sanitize_template_string(q), i + 1 == n)
-            })
-            .collect();
         (
-            self.out
-                .template(&elements, &expressions, SourceLocation::SYNTHETIC),
+            b.template(quasis.iter().map(String::as_str), expressions),
             has_state,
         )
     }
 
-    fn template_string(value: &rsvelte_svelte_semantic::evaluate::Value) -> String {
+    fn template_string(value: &Value) -> String {
         match value {
-            rsvelte_svelte_semantic::evaluate::Value::Null
-            | rsvelte_svelte_semantic::evaluate::Value::Undefined => String::new(),
+            Value::Null | Value::Undefined => String::new(),
             value => value.to_javascript_string(),
         }
     }

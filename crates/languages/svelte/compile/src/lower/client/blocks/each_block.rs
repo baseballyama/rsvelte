@@ -1,9 +1,14 @@
+use oxc_ast::ast::{BindingIdentifier, Expression, Statement};
+use oxc_semantic::SymbolId;
+use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Each;
+use rsvelte_svelte_semantic::resolve::TemplateScope;
 
 use crate::lower::client::{
-    BindingIdentifier, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists,
-    NodeIdentifier, NodeKind, R, Read, SourceLocation, has_dependency, unsupported,
+    ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R, Read,
+    has_dependency, unsupported,
 };
+use crate::lower::span_of;
 
 const EACH_ITEM_REACTIVE: u32 = 1;
 
@@ -16,12 +21,12 @@ const EACH_ITEM_IMMUTABLE: u32 = 1 << 4;
 /// The bindings an `{#each}` block declares: its item and its index.
 #[derive(Clone, Copy)]
 struct EachBindings {
-    item: Option<BindingIdentifier>,
-    index: Option<BindingIdentifier>,
+    item: Option<SymbolId>,
+    index: Option<SymbolId>,
 }
 
 impl EachBindings {
-    fn iter(self) -> impl Iterator<Item = BindingIdentifier> {
+    fn iter(self) -> impl Iterator<Item = SymbolId> {
         [self.item, self.index].into_iter().flatten()
     }
 }
@@ -32,29 +37,32 @@ struct IndexUse {
     key: bool,
 }
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `EachBlock` (client, runes mode) for a block whose context is an identifier.
     pub(in crate::lower::client) fn each_block(
         &mut self,
         identifier: CompilerNodeIdentifier,
         node: &str,
         controlled: bool,
-        frag: &mut Frag,
-        l: &mut Lists,
+        frag: &mut Frag<'o>,
+        l: &mut Lists<'o>,
     ) -> R<()> {
-        let (compiler_syntax_tree, javascript, res) =
-            (self.compiler_syntax_tree, self.javascript, self.res);
+        let (compiler_syntax_tree, javascript, b) =
+            (self.compiler_syntax_tree, self.javascript, self.b);
         let NodeKind::Each(each) = &compiler_syntax_tree.node(identifier).kind else {
             unreachable!()
         };
-        let context = each.context().expect("the parser requires `as`");
-        if !javascript.is_identifier(context) {
-            let span = javascript
-                .source_location(context)
-                .span()
-                .expect("parsed from source");
-            return unsupported("a destructuring `{#each}` context", span);
-        }
+        let context = each.context.expect("the parser requires `as`");
+        let context_pattern = &javascript.get_pattern(context).pattern;
+        let Some(context) = context_pattern.get_binding_identifier() else {
+            return unsupported(
+                "a destructuring `{#each}` context",
+                span_of(context_pattern),
+            );
+        };
+        let index = each
+            .index
+            .and_then(|i| javascript.get_pattern(i).pattern.get_binding_identifier());
         let collection = self.expression(each.collection);
         if !controlled {
             frag.tpl.push_comment();
@@ -62,81 +70,73 @@ impl ClientCompilationContext<'_> {
         let keyed = each.keyed(javascript);
         let flags = self.each_flags(each, context, keyed, controlled);
         let bindings = EachBindings {
-            item: res.sem.binding_of(context),
-            index: each.index().and_then(|i| res.sem.binding_of(i)),
+            item: context.symbol_id.get(),
+            index: index.and_then(|i| i.symbol_id.get()),
         };
         let collection_id = self
             .shadows_outer_name(bindings)
             .then(|| self.names.unique("$$array"));
-        let index_name = each.index().map_or_else(
+        let index_name = index.map_or_else(
             || self.each_index[&identifier].clone(),
-            |i| javascript.name(i).to_owned(),
+            |i| i.name.as_str().to_owned(),
         );
         let index_use = self.index_use(each, bindings);
 
-        let body = self.each_body(each, context, bindings, flags)?;
+        let body = self.each_body(each, identifier, bindings, flags)?;
         let key_function = if keyed {
             self.key_function(each, context, bindings, &index_name, index_use.key)
         } else {
-            let ns = self.out.identifier("$");
-            self.out.dot(ns, "index")
+            b.member(b.id("$"), "index")
         };
-        for b in bindings.iter() {
-            self.reads.remove(&b);
+        for symbol in bindings.iter() {
+            self.reads.remove(&symbol);
         }
 
-        let thunk = self.thunk(collection);
+        let thunk = b.thunk(collection);
         let mut render_args = vec![
-            self.out.identifier("$$anchor"),
-            self.out.ident(
-                javascript.name(context),
-                javascript.source_location(context),
-            ),
+            b.parameter(b.binding("$$anchor")),
+            b.parameter(b.binding_at(&context.name, context.span)),
         ];
         if index_use.body || collection_id.is_some() {
-            render_args.push(self.out.identifier(&index_name));
+            render_args.push(b.parameter(b.binding(&index_name)));
         }
         if let Some(c) = &collection_id {
-            render_args.push(self.out.identifier(c));
+            render_args.push(b.parameter(b.binding(c)));
         }
-        let block = self.out.block(&body, SourceLocation::SYNTHETIC);
-        let render = self
-            .out
-            .arrow(&render_args, block, false, false, SourceLocation::SYNTHETIC);
-        let x = self.out.identifier(node);
-        let flags = self.write_number(flags);
+        let render = b.arrow_block(b.formal_parameters(render_args), body, false);
         let mut arguments = vec![
-            Some(x),
-            Some(flags),
+            Some(b.id(node)),
+            Some(b.number(f64::from(flags))),
             Some(thunk),
             Some(key_function),
             Some(render),
         ];
         if let Some(f) = each.fallback {
             let fallback = self.fragment(f)?;
-            arguments.push(Some(self.anchor_arrow(&fallback)));
+            arguments.push(Some(self.anchor_arrow(fallback)));
         }
-        let call = self.call("each", arguments);
-        l.initializer.push(self.statement(call));
+        l.initializer
+            .push(b.stmt(b.runtime_some("each", arguments)));
         Ok(())
     }
 
     fn each_flags(
         &self,
         each: &Each,
-        context: NodeIdentifier,
+        context: &BindingIdentifier<'_>,
         keyed: bool,
         controlled: bool,
     ) -> u32 {
         let javascript = self.javascript;
         let mut flags = 0;
-        if keyed && each.index().is_some() {
+        if keyed && each.index.is_some() {
             flags |= EACH_INDEX_REACTIVE;
         }
-        let key_is_item = each.key().is_some_and(|k| {
-            javascript.is_identifier(k) && javascript.atom(k) == javascript.atom(context)
+        let key_is_item = each.key.is_some_and(|k| {
+            let key = javascript.get_expression(k);
+            matches!(key, Expression::Identifier(k) if k.name == context.name)
         });
-        if !key_is_item && has_dependency(javascript, self.res, each.collection) {
+        if !key_is_item && has_dependency(self.res, javascript.get_expression(each.collection)) {
             flags |= EACH_ITEM_REACTIVE;
         }
         flags |= EACH_ITEM_IMMUTABLE;
@@ -149,33 +149,28 @@ impl ClientCompilationContext<'_> {
     /// Upstream passes the collection to the render function when the item or the index hides a
     /// name of an outer scope.
     fn shadows_outer_name(&self, bindings: EachBindings) -> bool {
-        let sem = &self.res.sem;
-        bindings.iter().any(|b| {
-            let s = &sem.bindings[b];
-            sem.scopes[s.scope]
-                .parent
-                .is_some_and(|p| sem.lookup(p, s.name).is_some())
+        let scoping = self.res.scoping();
+        bindings.iter().any(|symbol| {
+            scoping
+                .scope_parent_id(scoping.symbol_scope_id(symbol))
+                .is_some_and(|p| {
+                    scoping
+                        .find_binding(p, scoping.symbol_name(symbol).into())
+                        .is_some()
+                })
         })
     }
 
     fn index_use(&self, each: &Each, bindings: EachBindings) -> IndexUse {
-        let (javascript, sem) = (self.javascript, &self.res.sem);
-        let key_span = each
-            .key()
-            .and_then(|k| javascript.source_location(k).span());
-        let in_key = |n: NodeIdentifier| {
-            let at = javascript.source_location(n).span();
-            key_span.is_some_and(|k| {
-                at.is_some_and(|a| k.start_offset <= a.start_offset && a.end_offset <= k.end_offset)
-            })
-        };
+        let key_span = each.key.map(|k| self.javascript.get_expression(k).span());
         let mut index_use = IndexUse {
             body: false,
             key: false,
         };
-        if let Some(b) = bindings.index {
-            for r in sem.references_to(b) {
-                if in_key(r.node) {
+        if let Some(symbol) = bindings.index {
+            for &reference in self.res.scoping().get_resolved_reference_ids(symbol) {
+                let at = self.res.reference_span(reference);
+                if key_span.is_some_and(|k| k.start <= at.start && at.end <= k.end) {
                     index_use.key = true;
                 } else {
                     index_use.body = true;
@@ -183,9 +178,8 @@ impl ClientCompilationContext<'_> {
             }
         }
         // Upstream's `assign` and `mutate` transforms of the item set `uses_index`.
-        if let Some(b) = bindings.item {
-            let s = &sem.bindings[b];
-            index_use.body |= s.writes > 0 || s.mutations > 0;
+        if let Some(symbol) = bindings.item {
+            index_use.body |= self.res.writes(symbol) > 0 || self.res.mutations(symbol) > 0;
         }
         index_use
     }
@@ -195,23 +189,22 @@ impl ClientCompilationContext<'_> {
     fn each_body(
         &mut self,
         each: &Each,
-        context: NodeIdentifier,
+        identifier: CompilerNodeIdentifier,
         bindings: EachBindings,
         flags: u32,
-    ) -> R<Vec<NodeIdentifier>> {
-        if let Some(b) = bindings.item {
+    ) -> R<Vec<Statement<'o>>> {
+        if let Some(symbol) = bindings.item {
             self.reads
-                .insert(b, Read::get_if(flags & EACH_ITEM_REACTIVE != 0));
+                .insert(symbol, Read::get_if(flags & EACH_ITEM_REACTIVE != 0));
         }
-        if let Some(b) = bindings.index {
+        if let Some(symbol) = bindings.index {
             self.reads
-                .insert(b, Read::get_if(flags & EACH_INDEX_REACTIVE != 0));
+                .insert(symbol, Read::get_if(flags & EACH_INDEX_REACTIVE != 0));
         }
         let outer = self.scope;
         self.scope = self
             .res
-            .sem
-            .scope_of(context)
+            .template_scope(TemplateScope::Each(identifier))
             .expect("an `{#each}` context opens a scope");
         let body = self.fragment(each.body);
         self.scope = outer;
@@ -222,25 +215,20 @@ impl ClientCompilationContext<'_> {
     fn key_function(
         &mut self,
         each: &Each,
-        context: NodeIdentifier,
+        context: &BindingIdentifier<'_>,
         bindings: EachBindings,
         index_name: &str,
         key_uses_index: bool,
-    ) -> NodeIdentifier {
-        let javascript = self.javascript;
-        for b in bindings.iter() {
-            self.reads.insert(b, Read::Plain);
+    ) -> Expression<'o> {
+        let b = self.b;
+        for symbol in bindings.iter() {
+            self.reads.insert(symbol, Read::Plain);
         }
-        let pattern = self.out.ident(
-            javascript.name(context),
-            javascript.source_location(context),
-        );
-        let key = self.expression(each.key().expect("a keyed block has a key"));
-        let mut parameters = vec![pattern];
+        let key = self.expression(each.key.expect("a keyed block has a key"));
+        let mut parameters = vec![b.parameter(b.binding_at(&context.name, context.span))];
         if key_uses_index {
-            parameters.push(self.out.identifier(index_name));
+            parameters.push(b.parameter(b.binding(index_name)));
         }
-        self.out
-            .arrow(&parameters, key, true, false, SourceLocation::SYNTHETIC)
+        b.arrow(b.formal_parameters(parameters), key)
     }
 }

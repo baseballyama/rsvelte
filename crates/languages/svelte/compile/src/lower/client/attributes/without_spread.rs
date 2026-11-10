@@ -1,10 +1,11 @@
+use oxc_ast::ast::Expression;
+
 use crate::lower::client::{
-    AssignmentOperator, Attribute, AttributeValue, ClientCompilationContext,
-    CompilerNodeIdentifier, Frag, Lists, NodeIdentifier, R, SourceLocation, event_attribute,
-    normalize_attribute, unsupported,
+    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, R,
+    event_attribute, normalize_attribute, unsupported,
 };
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// The attribute loop of upstream `RegularElement` (no spread).
     pub(in crate::lower::client) fn element_attributes(
         &mut self,
@@ -12,8 +13,8 @@ impl ClientCompilationContext<'_> {
         tag: &str,
         attributes: &[Attribute],
         node: &str,
-        frag: &mut Frag,
-        l: &mut Lists,
+        frag: &mut Frag<'o>,
+        l: &mut Lists<'o>,
     ) -> R<()> {
         let class_directives: Vec<&Attribute> = attributes
             .iter()
@@ -62,8 +63,9 @@ impl ClientCompilationContext<'_> {
                 return unsupported(&format!("a dynamic `{attribute_name}` attribute"), a.span);
             } else {
                 let (value, has_state) = self.attribute_value(a, &mut frag.memo, false);
-                let update = self.attribute_update(node, &attribute_name, value);
-                let s = self.statement(update);
+                let s = self
+                    .b
+                    .stmt(self.attribute_update(node, &attribute_name, value));
                 if has_state {
                     l.update.push(s);
                 } else {
@@ -86,7 +88,7 @@ impl ClientCompilationContext<'_> {
 
     fn static_attribute(
         &self,
-        frag: &mut Frag,
+        frag: &mut Frag<'o>,
         identifier: CompilerNodeIdentifier,
         raw_name: &str,
         attribute_name: &str,
@@ -111,43 +113,22 @@ impl ClientCompilationContext<'_> {
     }
 
     /// Upstream `build_element_attribute_update`.
-    fn attribute_update(
-        &mut self,
-        node: &str,
-        name: &str,
-        value: NodeIdentifier,
-    ) -> NodeIdentifier {
-        let x = self.out.identifier(node);
+    fn attribute_update(&self, node: &str, name: &str, value: Expression<'o>) -> Expression<'o> {
+        let b = self.b;
+        let x = b.id(node);
         match name {
-            "muted" => {
-                let target = self.out.dot(x, "muted");
-                self.out.assign(
-                    AssignmentOperator::Assign,
-                    target,
-                    value,
-                    SourceLocation::SYNTHETIC,
-                )
-            }
-            "value" => self.call("set_value", vec![Some(x), Some(value)]),
-            "checked" => self.call("set_checked", vec![Some(x), Some(value)]),
-            "selected" => self.call("set_selected", vec![Some(x), Some(value)]),
-            _ if crate::lower::is_dom_property(name) => {
-                let target = self.out.dot(x, name);
-                self.out.assign(
-                    AssignmentOperator::Assign,
-                    target,
-                    value,
-                    SourceLocation::SYNTHETIC,
-                )
-            }
+            "muted" => b.assign_member(b.member(x, "muted"), value),
+            "value" => b.runtime("set_value", [x, value]),
+            "checked" => b.runtime("set_checked", [x, value]),
+            "selected" => b.runtime("set_selected", [x, value]),
+            _ if crate::lower::is_dom_property(name) => b.assign_member(b.member(x, name), value),
             _ => {
                 let method = if name.starts_with("xlink") {
                     "set_xlink_attribute"
                 } else {
                     "set_attribute"
                 };
-                let n = self.out.write_string(name);
-                self.call(method, vec![Some(x), Some(n), Some(value)])
+                b.runtime(method, [x, b.string(name), value])
             }
         }
     }

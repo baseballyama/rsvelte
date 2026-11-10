@@ -1,18 +1,21 @@
+use oxc_ast::ast::Expression;
+
 use super::{escaped_text, scoped_class};
+use crate::lower::javascript::string_value;
 use crate::lower::server::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, Kind, Piece, R, ServerCompilationContext,
-    SourceLocation, capture_event, escape_markup, event_attribute, is_boolean_attribute,
-    is_directive, push_captured_events, unsupported,
+    Attribute, AttributeValue, CompilerNodeIdentifier, Piece, R, ServerCompilationContext,
+    capture_event, escape_markup, event_attribute, is_boolean_attribute, is_directive,
+    push_captured_events, unsupported,
 };
 
-impl<'a> ServerCompilationContext<'a> {
+impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_element_attributes` (no spread).
     pub(in crate::lower::server) fn element_attributes(
-        &mut self,
+        &self,
         identifier: CompilerNodeIdentifier,
         tag: &str,
-        list: &'a [Attribute],
-        template: &mut Vec<Piece>,
+        list: &'o [Attribute],
+        template: &mut Vec<Piece<'o>>,
     ) -> R<()> {
         let source_text = self.source_text;
         // A `defaultValue` on an `<input>` deopts to the spread path, which orders it at runtime.
@@ -78,11 +81,11 @@ impl<'a> ServerCompilationContext<'a> {
                 return unsupported("a dynamic `style` attribute", a.span);
             }
             let value = match literal {
-                Some(Some(v)) => self.out.write_string(&v),
+                Some(Some(v)) => self.b.string(&v),
                 _ => self.attribute_value(a, trim, raw_name == "class"),
             };
-            if can_use_literal && matches!(self.out.kind(value), Kind::String) {
-                let mut v = self.out.str_value(value, self.source_text).to_owned();
+            if can_use_literal && let Expression::StringLiteral(literal) = &value {
+                let mut v = string_value(literal.value).into_owned();
                 if name == "class"
                     && let Some(h) = &hash
                 {
@@ -94,12 +97,11 @@ impl<'a> ServerCompilationContext<'a> {
                 let call = self.attribute_class(&class_directives, value, hash.as_deref());
                 template.push(Piece::Expression(call));
             } else {
-                let n = self.out.write_string(&name);
-                let mut arguments = vec![n, value];
+                let mut arguments = vec![self.b.string(&name), value];
                 if is_boolean_attribute(&name) {
-                    arguments.push(self.out.write_boolean(true, SourceLocation::SYNTHETIC));
+                    arguments.push(self.b.boolean(true));
                 }
-                template.push(Piece::Expression(self.out.runtime("$", "attr", &arguments)));
+                template.push(Piece::Expression(self.b.runtime("attr", arguments)));
             }
         }
         // Upstream's analysis appends `class=""` to such an element.
@@ -108,8 +110,7 @@ impl<'a> ServerCompilationContext<'a> {
                 && a.name.text(self.source_text).eq_ignore_ascii_case("class")
         });
         if !has_class && !class_directives.is_empty() {
-            let value = self.out.write_string("");
-            let call = self.attribute_class(&class_directives, value, hash.as_deref());
+            let call = self.attribute_class(&class_directives, self.b.string(""), hash.as_deref());
             template.push(Piece::Expression(call));
         } else if !has_class && self.an.scoped[identifier] {
             Self::literal_attribute(template, "class", Some(String::new()), hash.as_deref());
@@ -119,7 +120,7 @@ impl<'a> ServerCompilationContext<'a> {
     }
 
     fn literal_attribute(
-        template: &mut Vec<Piece>,
+        template: &mut Vec<Piece<'o>>,
         name: &str,
         value: Option<String>,
         hash: Option<&str>,

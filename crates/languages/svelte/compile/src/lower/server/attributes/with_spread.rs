@@ -1,8 +1,9 @@
+use oxc_ast::ast::{Expression, ObjectPropertyKind};
+
 use super::escaped_text;
 use crate::lower::server::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, NodeIdentifier, Piece,
-    ServerCompilationContext, SourceLocation, capture_event, event_attribute, init_property,
-    is_directive, is_load_error_element, push_captured_events, runtime_call,
+    Attribute, AttributeValue, CompilerNodeIdentifier, Piece, ServerCompilationContext,
+    capture_event, event_attribute, is_directive, is_load_error_element, push_captured_events,
 };
 
 const ELEMENT_IS_INPUT: u32 = 1 << 2;
@@ -10,18 +11,18 @@ const ELEMENT_IS_INPUT: u32 = 1 << 2;
 const ELEMENT_IS_NAMESPACED: u32 = 1;
 const ELEMENT_PRESERVE_ATTRIBUTE_CASE: u32 = 1 << 1;
 
-impl<'a> ServerCompilationContext<'a> {
+impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_element_attributes`' spread path: `build_element_spread_attributes` and
     /// `prepare_element_spread`.
     pub(super) fn spread_attributes(
-        &mut self,
+        &self,
         identifier: CompilerNodeIdentifier,
         tag: &str,
-        list: &'a [Attribute],
-        template: &mut Vec<Piece>,
+        list: &'o [Attribute],
+        template: &mut Vec<Piece<'o>>,
     ) {
         let (arguments, events) = self.spread_args(identifier, tag, list, false);
-        let call = runtime_call(&mut self.out, "attributes", arguments);
+        let call = self.b.runtime_some("attributes", arguments);
         template.push(Piece::Expression(call));
         push_captured_events(template, &events);
     }
@@ -30,14 +31,15 @@ impl<'a> ServerCompilationContext<'a> {
     /// which keeps every attribute; otherwise the spread path of `build_element_attributes`
     /// filters events (returned for capture) and the values the runtime sets elsewhere.
     pub(in crate::lower::server) fn spread_args(
-        &mut self,
+        &self,
         identifier: CompilerNodeIdentifier,
         tag: &str,
-        list: &'a [Attribute],
+        list: &'o [Attribute],
         all: bool,
-    ) -> (Vec<Option<NodeIdentifier>>, Vec<&'a str>) {
+    ) -> (Vec<Option<Expression<'o>>>, Vec<&'o str>) {
+        let b = self.b;
         let mut events = Vec::new();
-        let mut props = Vec::with_capacity(list.len());
+        let mut props: Vec<ObjectPropertyKind<'o>> = Vec::with_capacity(list.len());
         let mut class_directives = Vec::new();
         for a in list {
             let raw_name = a.name.text(self.source_text);
@@ -48,7 +50,7 @@ impl<'a> ServerCompilationContext<'a> {
                 AttributeValue::Bind(e) => {
                     let value = self.expression(e);
                     let name = raw_name.to_ascii_lowercase();
-                    props.push(init_property(&mut self.out, &name, value));
+                    props.push(b.init(&name, value));
                     continue;
                 }
                 AttributeValue::Attach(_) | AttributeValue::On { .. } => continue,
@@ -58,7 +60,7 @@ impl<'a> ServerCompilationContext<'a> {
                 }
                 AttributeValue::Spread(e) => {
                     let v = self.expression(e);
-                    props.push(self.out.spread(v, SourceLocation::SYNTHETIC));
+                    props.push(b.spread_property(v));
                     if is_load_error_element(tag) {
                         capture_event(&mut events, tag, "onload");
                         capture_event(&mut events, tag, "onerror");
@@ -87,10 +89,10 @@ impl<'a> ServerCompilationContext<'a> {
             }
             let trim = matches!(name.as_str(), "class" | "style");
             let value = match &a.value {
-                AttributeValue::Static(v) => self.out.write_string(&escaped_text(v, trim)),
+                AttributeValue::Static(v) => b.string(&escaped_text(v, trim)),
                 _ => self.attribute_value(a, trim, raw_name == "class"),
             };
-            props.push(init_property(&mut self.out, &name, value));
+            props.push(b.init(&name, value));
         }
         // Upstream's analysis appends `class=""` to such an element.
         let has_class = list.iter().any(|a| {
@@ -101,26 +103,22 @@ impl<'a> ServerCompilationContext<'a> {
             .any(|a| matches!(a.value, AttributeValue::Spread(_)));
         if !has_spread && !has_class && (self.an.scoped[identifier] || !class_directives.is_empty())
         {
-            let empty = self.out.write_string("");
-            props.push(init_property(&mut self.out, "class", empty));
+            props.push(b.init("class", b.string("")));
         }
-        let object = self.out.object(&props, SourceLocation::SYNTHETIC);
+        let object = b.object(props);
         let classes = (!class_directives.is_empty()).then(|| {
-            let props: Vec<NodeIdentifier> = class_directives
-                .iter()
-                .map(|&(name, e)| {
-                    let v = self.expression(e);
-                    init_property(&mut self.out, name, v)
-                })
-                .collect();
-            self.out.object(&props, SourceLocation::SYNTHETIC)
+            b.object(
+                class_directives
+                    .iter()
+                    .map(|&(name, e)| b.init(name, self.expression(e))),
+            )
         });
         let hash = if self.an.scoped[identifier] {
             self.identity.stylesheet_hash.clone()
         } else {
             None
         };
-        let hash = hash.map(|h| self.out.write_string(&h));
+        let hash = hash.map(|h| b.string(&h));
         let flags = if self.plan.namespace(identifier) != crate::render_plan::Namespace::Html {
             ELEMENT_IS_NAMESPACED | ELEMENT_PRESERVE_ATTRIBUTE_CASE
         } else if tag == "input" {
@@ -128,10 +126,7 @@ impl<'a> ServerCompilationContext<'a> {
         } else {
             0
         };
-        let flags = (flags != 0).then(|| {
-            self.out
-                .write_number(f64::from(flags), SourceLocation::SYNTHETIC)
-        });
+        let flags = (flags != 0).then(|| b.number(f64::from(flags)));
         (vec![Some(object), hash, classes, None, flags], events)
     }
 }

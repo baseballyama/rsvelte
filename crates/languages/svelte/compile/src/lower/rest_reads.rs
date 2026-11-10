@@ -1,28 +1,21 @@
 use std::borrow::Cow;
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use oxc_ast::AstKind;
+use oxc_ast::ast::BindingPattern;
+use oxc_semantic::ReferenceId;
+use rustc_hash::FxHashSet;
 
 use super::javascript::prop_alias;
-use super::{BindingKind, CompileInput, Kind, NodeIdentifier, Resolution};
+use super::{BindingKind, Resolution};
 
-pub(super) fn build(
-    input: &CompileInput<'_>,
-    res: &Resolution,
-    custom_element: bool,
-) -> FxHashSet<NodeIdentifier> {
+/// The reads `rest.name` of a rest prop that upstream turns into `$$props.name`: a name the
+/// pattern does not take out of the rest, read and not written.
+pub(super) fn build(res: &Resolution, custom_element: bool) -> FxHashSet<ReferenceId> {
     let mut reads = FxHashSet::default();
-    if !res
-        .bindings
-        .iter()
-        .any(|info| info.kind == BindingKind::RestProperty)
-    {
-        return reads;
-    }
-    let tree = input.component.javascript;
-    let parents = tree.parents();
-    let mut excluded = FxHashMap::default();
-    for (binding, info) in res.bindings.iter_enumerated() {
-        if info.kind != BindingKind::RestProperty {
+    let scoping = res.scoping();
+    let nodes = res.semantic().nodes();
+    for symbol in scoping.symbol_ids() {
+        if res.binding(symbol).kind != BindingKind::RestProperty {
             continue;
         }
         let mut keys: FxHashSet<Cow<'_, str>> =
@@ -30,46 +23,28 @@ pub(super) fn build(
         if custom_element {
             keys.insert(Cow::Borrowed("$$host"));
         }
-        let parent = parents[res.sem.bindings[binding].node.index()];
-        if parent != NodeIdentifier::NONE && matches!(tree.kind(parent), Kind::Rest(_)) {
-            let pattern = parents[parent.index()];
-            if let Kind::ObjectPattern(properties) = tree.kind(pattern) {
-                for &property in properties {
-                    if let Kind::Property { key, .. } = tree.kind(property) {
-                        keys.insert(prop_alias(tree, input.component.source_text, key));
-                    }
-                }
-            }
-        }
-        excluded.insert(binding, keys);
-    }
-    for reference in &res.sem.references {
-        let Some(keys) = reference.binding.and_then(|binding| excluded.get(&binding)) else {
-            continue;
-        };
-        let member = parents[reference.node.index()];
-        if member == NodeIdentifier::NONE {
-            continue;
-        }
-        let Kind::Member {
-            object,
-            property,
-            computed: false,
-            ..
-        } = tree.kind(member)
-        else {
-            continue;
-        };
-        if object != reference.node || keys.contains(tree.name(property)) {
-            continue;
-        }
-        let parent = parents[member.index()];
-        if parent != NodeIdentifier::NONE
-            && matches!(tree.kind(parent), Kind::Assign(..) | Kind::Update { .. })
+        if let AstKind::VariableDeclarator(declarator) = res.declaration(symbol)
+            && let BindingPattern::ObjectPattern(pattern) = &declarator.id
         {
-            continue;
+            keys.extend(pattern.properties.iter().map(|p| prop_alias(&p.key)));
         }
-        reads.insert(reference.node);
+        for &reference in scoping.get_resolved_reference_ids(symbol) {
+            let node = scoping.get_reference(reference).node_id();
+            let member = nodes.parent_id(node);
+            let AstKind::StaticMemberExpression(read) = nodes.kind(member) else {
+                continue;
+            };
+            if keys.contains(read.property.name.as_str()) {
+                continue;
+            }
+            if matches!(
+                nodes.parent_kind(member),
+                AstKind::AssignmentExpression(_) | AstKind::UpdateExpression(_)
+            ) {
+                continue;
+            }
+            reads.insert(reference);
+        }
     }
     reads
 }

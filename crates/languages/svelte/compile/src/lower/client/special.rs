@@ -2,15 +2,15 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::MetadataTag;
 
 use super::{
     AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
-    NodeKind, R, SourceLocation, event_attribute, unsupported,
+    NodeKind, R, event_attribute, unsupported,
 };
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn hoisted_elements(
         &mut self,
         identifiers: &[CompilerNodeIdentifier],
-        frag: &mut Frag,
-        lists: &mut Lists,
+        frag: &mut Frag<'o>,
+        lists: &mut Lists<'o>,
     ) -> R<()> {
         for &identifier in identifiers {
             self.special_element(identifier, "", frag, lists)?;
@@ -22,9 +22,10 @@ impl ClientCompilationContext<'_> {
         &mut self,
         identifier: CompilerNodeIdentifier,
         node: &str,
-        frag: &mut Frag,
-        lists: &mut Lists,
+        frag: &mut Frag<'o>,
+        lists: &mut Lists<'o>,
     ) -> R<()> {
+        let b = self.b;
         let tree = self.compiler_syntax_tree;
         let NodeKind::Element(element) = &tree.node(identifier).kind else {
             unreachable!("special elements are elements")
@@ -32,19 +33,16 @@ impl ClientCompilationContext<'_> {
         match element.kind {
             ElementKind::Metadata(Some(MetadataTag::Head)) => {
                 let body = self.fragment(element.children)?;
-                let block = self.out.block(&body, SourceLocation::SYNTHETIC);
-                let anchor = self.out.identifier("$$anchor");
-                let callback =
-                    self.out
-                        .arrow(&[anchor], block, false, false, SourceLocation::SYNTHETIC);
-                let hash = self.out.write_string(
+                let callback = b.arrow_block(b.params(["$$anchor"]), body, false);
+                let hash = b.string(
                     self.identity
                         .head_hash
                         .as_deref()
                         .expect("a head has an identity"),
                 );
-                let call = self.call("head", vec![Some(hash), Some(callback)]);
-                lists.initializer.push(self.statement(call));
+                lists
+                    .initializer
+                    .push(b.stmt(b.runtime("head", [hash, callback])));
             }
             ElementKind::Title => self.title(element.children, lists),
             ElementKind::Metadata(Some(

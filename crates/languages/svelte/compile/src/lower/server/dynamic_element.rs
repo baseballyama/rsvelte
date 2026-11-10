@@ -1,14 +1,12 @@
-use super::{
-    CompilerNodeIdentifier, NodeKind, Piece, R, ServerCompilationContext, SourceLocation,
-    call_arguments,
-};
+use super::{CompilerNodeIdentifier, NodeKind, Piece, R, ServerCompilationContext};
 
-impl ServerCompilationContext<'_> {
+impl<'o> ServerCompilationContext<'_, 'o> {
     pub(super) fn dynamic_element(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        template: &mut Vec<Piece>,
+        template: &mut Vec<Piece<'o>>,
     ) -> R<()> {
+        let b = self.b;
         let tree = self.compiler_syntax_tree;
         let NodeKind::Element(element) = &tree.node(identifier).kind else {
             unreachable!("an element")
@@ -19,32 +17,16 @@ impl ServerCompilationContext<'_> {
         let mut pieces = Vec::new();
         self.element_attributes(identifier, "svelte:element", attributes, &mut pieces)?;
         let statements = self.build_template(pieces);
-        let attributes = if statements.is_empty() {
-            None
-        } else {
-            let block = self.out.block(&statements, SourceLocation::SYNTHETIC);
-            Some(
-                self.out
-                    .arrow(&[], block, false, false, SourceLocation::SYNTHETIC),
-            )
-        };
+        let attributes =
+            (!statements.is_empty()).then(|| b.arrow_block(b.params([]), statements, false));
         let statements = self.fragment(element.children)?;
-        let children = if statements.is_empty() {
-            None
-        } else {
-            let block = self.out.block(&statements, SourceLocation::SYNTHETIC);
-            Some(
-                self.out
-                    .arrow(&[], block, false, false, SourceLocation::SYNTHETIC),
-            )
-        };
-        let renderer = self.out.identifier("$$renderer");
-        let arguments = call_arguments(
-            &mut self.out,
-            vec![Some(renderer), Some(tag), attributes, children],
+        let children =
+            (!statements.is_empty()).then(|| b.arrow_block(b.params([]), statements, false));
+        let call = b.runtime_some(
+            "element",
+            vec![Some(b.id("$$renderer")), Some(tag), attributes, children],
         );
-        let call = self.out.runtime("$", "element", &arguments);
-        template.push(Piece::Statement(self.out.expression_statement(call)));
+        template.push(Piece::Statement(b.stmt(call)));
         Ok(())
     }
 }

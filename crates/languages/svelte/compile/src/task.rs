@@ -1,3 +1,5 @@
+use oxc_allocator::Allocator;
+use oxc_ast::ast::Program;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
@@ -7,6 +9,8 @@ use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_svelte_semantic::{Analyzed, Resolved};
+
+use rsvelte_typescript_compile::print;
 
 use crate::computation::Validated;
 use crate::lower::{self, Target};
@@ -66,7 +70,7 @@ impl Task for Compile {
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        match compiled(context, self.target) {
+        match compiled(context, self.target, false) {
             Ok(compiled) => {
                 out.file("js", compiled.javascript.out);
                 if let Some(stylesheet) = compiled.stylesheet {
@@ -90,11 +94,20 @@ pub(crate) struct Compiled<'a> {
 pub(crate) fn compiled<'a>(
     context: &'a DocumentContext<'_>,
     target: Target,
+    mapped: bool,
 ) -> Result<Compiled<'a>, Diagnostic> {
-    let module = lower_document(context, target)?;
+    let allocator = Allocator::default();
+    let module = lower_document(context, target, &allocator)?;
     let javascript = {
         let _p = measurement::phase("js.print");
-        module.emit()
+        if mapped {
+            print::print_mapped(&module)
+        } else {
+            Emitter {
+                out: print::print(&module),
+                mappings: Vec::new(),
+            }
+        }
     };
     let validated = context.get::<Validated>().as_ref().map_err(Clone::clone)?;
     let stylesheet = if validated.is_custom_element() {
@@ -121,10 +134,11 @@ pub(crate) fn compiled<'a>(
 ///
 /// If a parsed component lacks its compiler tree, resolution, analysis or render plan, which every
 /// registered Svelte document has.
-pub fn lower_document<'a>(
-    context: &'a DocumentContext<'_>,
+pub fn lower_document<'o>(
+    context: &'o DocumentContext<'_>,
     target: Target,
-) -> Result<crate::LoweredModule<'a>, Diagnostic> {
+    allocator: &'o Allocator,
+) -> Result<Program<'o>, Diagnostic> {
     if let Err(e) = rsvelte_svelte_syntax::fully_parsed(context) {
         return Err(e.clone());
     }
@@ -156,6 +170,7 @@ pub fn lower_document<'a>(
             stylesheet: stylesheet.as_deref(),
         },
         target,
+        allocator,
     )
 }
 
@@ -212,18 +227,20 @@ fn compile_with_facts(
     facts: lower::Lowering<'_, '_>,
     target: Target,
 ) -> Result<String, Diagnostic> {
-    let module = lower_measured(facts, target)?;
+    let allocator = Allocator::default();
+    let module = lower_measured(facts, target, &allocator)?;
     let _p = measurement::phase("js.print");
-    Ok(module.emit().out)
+    Ok(print::print(&module))
 }
 
-fn lower_measured<'a>(
-    facts: lower::Lowering<'_, 'a>,
+fn lower_measured<'o>(
+    facts: lower::Lowering<'_, 'o>,
     target: Target,
-) -> Result<crate::LoweredModule<'a>, Diagnostic> {
+    allocator: &'o Allocator,
+) -> Result<Program<'o>, Diagnostic> {
     let _p = measurement::phase(match target {
         Target::Client => "svelte.lower.client",
         Target::Server => "svelte.lower.server",
     });
-    lower::lower_with_facts(facts, target)
+    lower::lower_with_facts(facts, target, allocator)
 }

@@ -1,21 +1,24 @@
-use crate::lower::client::{
-    AssignmentOperator, Attribute, AttributeValue, ClientCompilationContext,
-    CompilerNodeIdentifier, Kind, Lists, Memo, NodeIdentifier, SourceLocation, escape_markup, flag,
-    init_property, needs_clsx,
-};
+use oxc_ast::ast::Expression;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
-impl ClientCompilationContext<'_> {
+use crate::lower::client::{
+    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo,
+    escape_markup, needs_clsx,
+};
+use crate::lower::javascript::string_value;
+
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// A `class` value written as one expression, through `$.clsx` when upstream's `needs_clsx`.
     fn class_expression(
-        &mut self,
-        expression: NodeIdentifier,
+        &self,
+        expression: ExpressionIdentifier,
         unquoted: bool,
-        memo: &mut Memo,
-    ) -> (NodeIdentifier, bool) {
+        memo: &mut Memo<'o>,
+    ) -> (Expression<'o>, bool) {
         let meta = self.an.meta(expression);
         let mut built = self.expression(expression);
-        if unquoted && needs_clsx(self.javascript, expression) {
-            built = self.call("clsx", vec![Some(built)]);
+        if unquoted && needs_clsx(self.javascript.get_expression(expression)) {
+            built = self.b.runtime("clsx", [built]);
         }
         (self.memoize(memo, expression, built, false), meta.has_state)
     }
@@ -28,11 +31,12 @@ impl ClientCompilationContext<'_> {
         node: &str,
         attribute: Option<&Attribute>,
         directives: &[&Attribute],
-        memo: &mut Memo,
-        l: &mut Lists,
+        memo: &mut Memo<'o>,
+        l: &mut Lists<'o>,
     ) {
+        let b = self.b;
         let (mut value, mut has_state) = match attribute.map(|a| &a.value) {
-            None => (self.out.write_string(""), false),
+            None => (b.string(""), false),
             Some(&AttributeValue::Expression { expression, quoted }) => {
                 self.class_expression(expression, !quoted, memo)
             }
@@ -54,46 +58,37 @@ impl ClientCompilationContext<'_> {
                 let built = self.expression(e);
                 let v = self.memoize(memo, e, built, false);
                 has_state |= meta.has_state;
-                props.push(init_property(
-                    &mut self.out,
-                    d.name.text(self.source_text),
-                    v,
-                ));
+                props.push(b.init(d.name.text(self.source_text), v));
             }
-            next = Some(self.out.object(&props, SourceLocation::SYNTHETIC));
+            next = Some(b.object(props));
             if has_state {
                 let name = self.names.generate("classes");
-                let x = self.out.identifier(&name);
-                l.initializer.push(self.out.let_(flag::LET, x, None));
-                prev = Some(self.out.identifier(&name));
+                l.initializer.push(b.let_(&name, None));
+                prev = Some(b.id(&name));
                 previous_id = Some(name);
             } else {
-                prev = Some(self.out.object(&[], SourceLocation::SYNTHETIC));
+                prev = Some(b.object([]));
             }
         }
         let mut stylesheet_hash = None;
         if self.an.scoped[identifier]
-            && let Some(hash) = self.identity.stylesheet_hash.clone()
+            && let Some(hash) = &self.identity.stylesheet_hash
         {
-            let literal = match self.out.kind(value) {
-                Kind::String => Some(self.out.str_value(value, self.source_text).to_owned()),
-                Kind::Null => Some(String::new()),
+            let literal = match &value {
+                Expression::StringLiteral(s) => Some(string_value(s.value)),
+                Expression::NullLiteral(_) => Some("".into()),
                 _ => None,
             };
-            match literal {
-                Some(v) if v.is_empty() => value = self.out.write_string(&hash),
-                Some(v) => {
-                    value = self
-                        .out
-                        .write_string(&format!("{} {hash}", escape_markup(&v, true)));
-                }
-                None => stylesheet_hash = Some(self.out.write_string(&hash)),
+            match literal.as_deref() {
+                Some("") => value = b.string(hash),
+                Some(v) => value = b.string(&format!("{} {hash}", escape_markup(v, true))),
+                None => stylesheet_hash = Some(b.string(hash)),
             }
         }
         if stylesheet_hash.is_none() && next.is_some() {
-            stylesheet_hash = Some(self.out.null(SourceLocation::SYNTHETIC));
+            stylesheet_hash = Some(b.null());
         }
-        let x = self.out.identifier(node);
+        let x = b.id(node);
         let super::super::NodeKind::Element(element) =
             &self.compiler_syntax_tree.node(identifier).kind
         else {
@@ -101,8 +96,8 @@ impl ClientCompilationContext<'_> {
         };
         let markup_namespace = element.kind == super::super::ElementKind::Regular
             && self.plan.namespace(identifier) == crate::render_plan::Namespace::Html;
-        let is_markup = self.write_number(u32::from(markup_namespace));
-        let mut set_class = self.call(
+        let is_markup = b.number(f64::from(u8::from(markup_namespace)));
+        let mut set_class = b.runtime_some(
             "set_class",
             vec![
                 Some(x),
@@ -114,15 +109,9 @@ impl ClientCompilationContext<'_> {
             ],
         );
         if let Some(name) = previous_id {
-            let target = self.out.identifier(&name);
-            set_class = self.out.assign(
-                AssignmentOperator::Assign,
-                target,
-                set_class,
-                SourceLocation::SYNTHETIC,
-            );
+            set_class = b.assign_name(&name, set_class);
         }
-        let s = self.statement(set_class);
+        let s = b.stmt(set_class);
         if has_state {
             l.update.push(s);
         } else {

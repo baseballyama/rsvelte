@@ -7,7 +7,7 @@ pub(super) fn capture_event<'a>(events: &mut Vec<&'a str>, tag: &str, name: &'a 
     }
 }
 
-pub(super) fn push_captured_events(template: &mut Vec<Piece>, events: &[&str]) {
+pub(super) fn push_captured_events(template: &mut Vec<Piece<'_>>, events: &[&str]) {
     for e in events {
         template.push(Piece::Text(format!(" {e}=\"this.__e=event\"")));
     }

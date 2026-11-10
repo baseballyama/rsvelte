@@ -173,8 +173,8 @@ fn both_targets_keep_the_oracle_checked_whitespace_modules() {
     let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
     let resolution = rsvelte_svelte_semantic::resolve::resolve(
         &component.javascript,
-        source,
-        component.program,
+        component.instance.as_ref().map(|s| s.program),
+        component.module.as_ref().map(|s| s.program),
         &tree,
     );
     let mut input = rsvelte_svelte_compile::CompileInput::from(
@@ -193,11 +193,22 @@ fn both_targets_keep_the_oracle_checked_whitespace_modules() {
             include_str!("preserve_whitespace/server.js"),
         ),
     ] {
+        let allocator = oxc_allocator::Allocator::default();
         let module =
-            lower::lower_with_plan(&input, &resolution, &analysis, target, &plan).expect("lowers");
-        let actual = module.emit().out;
-        assert_eq!(actual, expected, "{target:?}");
+            lower::lower_with_plan(&input, &resolution, &analysis, target, &plan, &allocator)
+                .expect("lowers");
+        let actual = rsvelte_typescript_compile::print::print(&module);
+        assert_eq!(actual, reprinted(expected), "{target:?}");
     }
 }
 
 const fn send_sync<T: Send + Sync>(_: &T) {}
+
+/// `javascript` as the compiler prints it, so that an official module compares by its tree.
+fn reprinted(javascript: &str) -> String {
+    let allocator = oxc_allocator::Allocator::default();
+    let parsed =
+        oxc_parser::Parser::new(&allocator, javascript, oxc_span::SourceType::mjs()).parse();
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    rsvelte_typescript_compile::print::print(&parsed.program)
+}

@@ -1,69 +1,81 @@
-use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
-
-use crate::lower::client::{
-    BindingIdentifier, ClientCompilationContext, Kind, NodeIdentifier, Read, SourceLocation, flag,
+use oxc_allocator::{CloneIn, GetAllocator};
+use oxc_ast::ast::{
+    BindingPattern, BindingProperty, BindingRestElement, Expression, FormalParameter, PropertyKey,
+    Statement, VariableDeclarationKind,
 };
+use oxc_semantic::SymbolId;
+use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
+use rsvelte_svelte_semantic::evaluate::Evaluator;
 
-pub(super) struct Parameters {
-    pub(super) arguments: Vec<NodeIdentifier>,
-    pub(super) declarations: Vec<NodeIdentifier>,
-    pub(super) saved_reads: Vec<(BindingIdentifier, Option<Read>)>,
+use crate::lower::client::{ClientCompilationContext, Read};
+use crate::lower::javascript::is_simple_expression;
+
+pub(super) struct Parameters<'o> {
+    pub(super) arguments: Vec<FormalParameter<'o>>,
+    pub(super) declarations: Vec<Statement<'o>>,
+    pub(super) saved_reads: Vec<(SymbolId, Option<Read>)>,
 }
 
-struct Path {
-    name: NodeIdentifier,
-    value: NodeIdentifier,
+struct Path<'o> {
+    name: &'o str,
+    value: Expression<'o>,
     default: bool,
 }
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     pub(in crate::lower::client::boundary) fn snippet_parameters(
         &mut self,
         snippet: &Snippet,
-    ) -> Parameters {
-        let parameters = self
-            .compiler_syntax_tree
-            .javascript_list(snippet.parameters);
+    ) -> Parameters<'o> {
+        let b = self.b;
+        let parameters: &'o [FormalParameter<'o>] = snippet
+            .parameters
+            .map_or(&[], |p| self.javascript.get_parameters(p).items.as_slice());
         let mut arguments = Vec::with_capacity(parameters.len() + 1);
-        arguments.push(self.out.identifier("$$anchor"));
+        arguments.push(b.parameter(b.binding("$$anchor")));
         let mut result = Parameters {
             arguments,
             declarations: Vec::new(),
             saved_reads: Vec::with_capacity(parameters.len()),
         };
-        for &parameter in parameters {
-            self.parameter_reads(parameter, false, &mut result.saved_reads);
+        for parameter in parameters {
+            let default = parameter.initializer.is_some();
+            self.parameter_reads(&parameter.pattern, default, &mut result.saved_reads);
         }
-        for (index, &parameter) in parameters.iter().enumerate() {
-            if self.javascript.is_identifier(parameter) {
-                let name = self.out.identifier(self.javascript.name(parameter));
-                let namespace = self.out.identifier("$");
-                let noop = self.out.dot(namespace, "noop");
-                result
-                    .arguments
-                    .push(self.out.assign_pat(name, noop, SourceLocation::SYNTHETIC));
+        for (index, parameter) in parameters.iter().enumerate() {
+            if let (BindingPattern::BindingIdentifier(name), None) =
+                (&parameter.pattern, &parameter.initializer)
+            {
+                let noop = b.member(b.id("$"), "noop");
+                result.arguments.push(b.default_parameter(&name.name, noop));
                 continue;
             }
-            let alias = self.out.identifier(&format!("$$arg{index}"));
-            result.arguments.push(alias);
-            let value = self.out.call(alias, &[], true, SourceLocation::SYNTHETIC);
+            let alias = format!("$$arg{index}");
+            let value = b.optional_call(b.id(&alias), []);
+            result.arguments.push(b.parameter(b.binding(&alias)));
             let mut paths = Vec::new();
-            self.parameter_paths(
-                parameter,
-                value,
-                false,
-                &mut result.declarations,
-                &mut paths,
-            );
+            match &parameter.initializer {
+                Some(fallback) => self.default_path(
+                    &parameter.pattern,
+                    fallback,
+                    value,
+                    &mut result.declarations,
+                    &mut paths,
+                ),
+                None => self.parameter_paths(
+                    &parameter.pattern,
+                    value,
+                    false,
+                    &mut result.declarations,
+                    &mut paths,
+                ),
+            }
             for path in paths {
-                let mut value = self.thunk(path.value);
+                let mut value = b.thunk(path.value);
                 if path.default {
-                    value = self.out.runtime("$", "derived_safe_equal", &[value]);
+                    value = b.runtime("derived_safe_equal", [value]);
                 }
-                let name = self.out.identifier(self.javascript.name(path.name));
-                result
-                    .declarations
-                    .push(self.out.let_(flag::LET, name, Some(value)));
+                result.declarations.push(b.let_(path.name, Some(value)));
             }
         }
         result
@@ -71,185 +83,180 @@ impl ClientCompilationContext<'_> {
 
     fn parameter_reads(
         &mut self,
-        parameter: NodeIdentifier,
+        pattern: &BindingPattern<'_>,
         default: bool,
-        saved: &mut Vec<(BindingIdentifier, Option<Read>)>,
+        saved: &mut Vec<(SymbolId, Option<Read>)>,
     ) {
-        match self.javascript.kind(parameter) {
-            Kind::Identifier(_) => {
-                let (binding, _) = self.res.binding(parameter).expect("a parameter binding");
-                self.scope = self.res.sem.bindings[binding].scope;
-                saved.push((
-                    binding,
-                    self.reads
-                        .insert(binding, if default { Read::Get } else { Read::Call }),
-                ));
+        match pattern {
+            BindingPattern::BindingIdentifier(identifier) => {
+                let symbol = identifier.symbol_id.get().expect("a parameter binding");
+                self.scope = self.res.scoping().symbol_scope_id(symbol);
+                let read = if default { Read::Get } else { Read::Call };
+                saved.push((symbol, self.reads.insert(symbol, read)));
             }
-            Kind::ObjectPattern(properties) => {
-                for &property in properties {
-                    let (Kind::Property { value, .. } | Kind::Rest(value)) =
-                        self.javascript.kind(property)
-                    else {
-                        unreachable!("pattern properties")
-                    };
-                    self.parameter_reads(value, default, saved);
+            BindingPattern::ObjectPattern(object) => {
+                for property in &object.properties {
+                    self.parameter_reads(&property.value, default, saved);
+                }
+                if let Some(rest) = &object.rest {
+                    self.parameter_reads(&rest.argument, default, saved);
                 }
             }
-            Kind::ArrayPattern(elements) => {
-                for &element in elements {
-                    if !element.is_none() && !matches!(self.javascript.kind(element), Kind::Hole) {
-                        self.parameter_reads(element, default, saved);
-                    }
+            BindingPattern::ArrayPattern(array) => {
+                for element in array.elements.iter().flatten() {
+                    self.parameter_reads(element, default, saved);
+                }
+                if let Some(rest) = &array.rest {
+                    self.parameter_reads(&rest.argument, default, saved);
                 }
             }
-            Kind::AssignPattern(left, _) => self.parameter_reads(left, true, saved),
-            Kind::Rest(argument) => self.parameter_reads(argument, default, saved),
-            _ => unreachable!("a parameter pattern"),
+            BindingPattern::AssignmentPattern(assignment) => {
+                self.parameter_reads(&assignment.left, true, saved);
+            }
         }
     }
 
     fn parameter_paths(
         &mut self,
-        pattern: NodeIdentifier,
-        value: NodeIdentifier,
+        pattern: &'o BindingPattern<'o>,
+        value: Expression<'o>,
         default: bool,
-        inserts: &mut Vec<NodeIdentifier>,
-        paths: &mut Vec<Path>,
+        inserts: &mut Vec<Statement<'o>>,
+        paths: &mut Vec<Path<'o>>,
     ) {
-        match self.javascript.kind(pattern) {
-            Kind::Identifier(_) => paths.push(Path {
-                name: pattern,
+        match pattern {
+            BindingPattern::BindingIdentifier(identifier) => paths.push(Path {
+                name: identifier.name.as_str(),
                 value,
                 default,
             }),
-            Kind::ObjectPattern(properties) => {
-                let mut excluded = Vec::new();
-                if properties
-                    .iter()
-                    .any(|&property| matches!(self.javascript.kind(property), Kind::Rest(_)))
-                {
-                    for &property in properties {
-                        if let Kind::Property { key, computed, .. } = self.javascript.kind(property)
-                        {
-                            let key = if !computed && self.javascript.is_identifier(key) {
-                                self.out.write_string(self.javascript.name(key))
-                            } else if matches!(
-                                self.javascript.kind(key),
-                                Kind::String | Kind::Number(_)
-                            ) {
-                                let key = self
-                                    .res
-                                    .evaluate(self.javascript, self.source_text, key)
-                                    .value
-                                    .to_javascript_string();
-                                self.out.write_string(&key)
-                            } else {
-                                let key = self.expression(key);
-                                let string = self.out.identifier("String");
-                                self.out.call0(string, &[key])
-                            };
-                            excluded.push(key);
-                        }
-                    }
-                }
-                for &property in properties {
-                    match self.javascript.kind(property) {
-                        Kind::Property {
-                            key,
-                            value: pattern,
-                            computed,
-                            ..
-                        } => {
-                            let computed = computed || !self.javascript.is_identifier(key);
-                            let key = if computed {
-                                self.expression(key)
-                            } else {
-                                self.out.identifier(self.javascript.name(key))
-                            };
-                            let value = self.out.grouped(value);
-                            let value = self.out.member(
-                                value,
-                                key,
-                                computed,
-                                false,
-                                SourceLocation::SYNTHETIC,
-                            );
-                            self.parameter_paths(pattern, value, default, inserts, paths);
-                        }
-                        Kind::Rest(pattern) => {
-                            let excluded = self.out.array(&excluded, SourceLocation::SYNTHETIC);
-                            let value =
-                                self.out
-                                    .runtime("$", "exclude_from_object", &[value, excluded]);
-                            self.parameter_paths(pattern, value, default, inserts, paths);
-                        }
-                        _ => unreachable!("pattern properties"),
-                    }
-                }
+            BindingPattern::ObjectPattern(object) => {
+                self.object_parameter(
+                    &object.properties,
+                    object.rest.as_deref(),
+                    value,
+                    default,
+                    inserts,
+                    paths,
+                );
             }
-            Kind::ArrayPattern(elements) => {
-                self.array_parameter(elements, value, default, inserts, paths);
+            BindingPattern::ArrayPattern(array) => {
+                let rest = array.rest.as_deref();
+                self.array_parameter(&array.elements, rest, value, default, inserts, paths);
             }
-            Kind::AssignPattern(pattern, fallback) => {
-                let simple =
-                    crate::lower::javascript::is_simple_expression(self.javascript, fallback);
-                let fallback = self.expression(fallback);
-                let fallback = if simple {
-                    fallback
-                } else {
-                    self.thunk(fallback)
-                };
-                let mut arguments = vec![value, fallback];
-                if !simple {
-                    arguments.push(self.tru());
+            BindingPattern::AssignmentPattern(assignment) => {
+                self.default_path(&assignment.left, &assignment.right, value, inserts, paths);
+            }
+        }
+    }
+
+    /// `pattern = fallback`, read from `value`.
+    fn default_path(
+        &mut self,
+        pattern: &'o BindingPattern<'o>,
+        fallback: &Expression<'_>,
+        value: Expression<'o>,
+        inserts: &mut Vec<Statement<'o>>,
+        paths: &mut Vec<Path<'o>>,
+    ) {
+        let b = self.b;
+        let simple = is_simple_expression(fallback);
+        let fallback = self.rewrite(fallback, true);
+        let value = if simple {
+            b.runtime("fallback", [value, fallback])
+        } else {
+            b.runtime("fallback", [value, b.thunk(fallback), b.boolean(true)])
+        };
+        self.parameter_paths(pattern, value, true, inserts, paths);
+    }
+
+    fn object_parameter(
+        &mut self,
+        properties: &'o [BindingProperty<'o>],
+        rest: Option<&'o BindingRestElement<'o>>,
+        value: Expression<'o>,
+        default: bool,
+        inserts: &mut Vec<Statement<'o>>,
+        paths: &mut Vec<Path<'o>>,
+    ) {
+        let b = self.b;
+        let excluded: Vec<_> = if rest.is_some() {
+            properties.iter().map(|p| self.excluded_key(p)).collect()
+        } else {
+            Vec::new()
+        };
+        for property in properties {
+            let object = b.parenthesized(value.clone_in(b.allocator()));
+            let member = match &property.key {
+                PropertyKey::StaticIdentifier(key) if !property.computed => {
+                    b.member(object, &key.name)
                 }
-                let value = self.out.runtime("$", "fallback", &arguments);
-                self.parameter_paths(pattern, value, true, inserts, paths);
+                key => {
+                    let key = key.as_expression().expect("a computed or literal key");
+                    b.computed(object, self.rewrite(key, true))
+                }
+            };
+            self.parameter_paths(&property.value, member, default, inserts, paths);
+        }
+        if let Some(rest) = rest {
+            let value = b.runtime("exclude_from_object", [value, b.array(excluded)]);
+            self.parameter_paths(&rest.argument, value, default, inserts, paths);
+        }
+    }
+
+    /// A key `exclude_from_object` leaves out of the rest: its name as a string.
+    fn excluded_key(&self, property: &BindingProperty<'_>) -> Expression<'o> {
+        let b = self.b;
+        match &property.key {
+            PropertyKey::StaticIdentifier(key) if !property.computed => b.string(&key.name),
+            key @ (PropertyKey::StringLiteral(_) | PropertyKey::NumericLiteral(_)) => {
+                let key = key.as_expression().expect("a literal key");
+                let value = Evaluator::new(self.res).evaluate(key).value;
+                b.string(&value.to_javascript_string())
             }
-            _ => unreachable!("a parameter pattern"),
+            key => {
+                let key = key.as_expression().expect("a computed key");
+                b.call(b.id("String"), [self.rewrite(key, true)])
+            }
         }
     }
 
     fn array_parameter(
         &mut self,
-        elements: &[NodeIdentifier],
-        value: NodeIdentifier,
+        elements: &'o [Option<BindingPattern<'o>>],
+        rest: Option<&'o BindingRestElement<'o>>,
+        value: Expression<'o>,
         default: bool,
-        inserts: &mut Vec<NodeIdentifier>,
-        paths: &mut Vec<Path>,
+        inserts: &mut Vec<Statement<'o>>,
+        paths: &mut Vec<Path<'o>>,
     ) {
+        let b = self.b;
+        #[expect(clippy::cast_precision_loss, reason = "a pattern has few elements")]
+        let length = |n: usize| b.number(n as f64);
         let mut arguments = vec![value];
-        if !elements.last().is_some_and(|&element| {
-            !element.is_none() && matches!(self.javascript.kind(element), Kind::Rest(_))
-        }) {
-            arguments.push(
-                self.write_number(u32::try_from(elements.len()).expect("a file has u32 positions")),
+        if rest.is_none() {
+            arguments.push(length(elements.len()));
+        }
+        let derived = b.runtime("derived", [b.thunk(b.runtime("to_array", arguments))]);
+        let name = self.names.generate("$$array");
+        inserts.push(b.declare(VariableDeclarationKind::Var, &name, Some(derived)));
+        for (index, element) in elements.iter().enumerate() {
+            let Some(element) = element else {
+                continue;
+            };
+            let array = b.runtime("get", [b.id(&name)]);
+            self.parameter_paths(
+                element,
+                b.computed(array, length(index)),
+                default,
+                inserts,
+                paths,
             );
         }
-        let value = self.out.runtime("$", "to_array", &arguments);
-        let thunk = self.thunk(value);
-        let derived = self.out.runtime("$", "derived", &[thunk]);
-        let name = self.names.generate("$$array");
-        let identifier = self.out.identifier(&name);
-        inserts.push(self.out.let_(flag::VAR, identifier, Some(derived)));
-        for (index, &element) in elements.iter().enumerate() {
-            if element.is_none() || matches!(self.javascript.kind(element), Kind::Hole) {
-                continue;
-            }
-            let identifier = self.out.identifier(&name);
-            let array = self.out.runtime("$", "get", &[identifier]);
-            let index = self.write_number(u32::try_from(index).expect("a file has u32 positions"));
-            let (pattern, value) = if let Kind::Rest(pattern) = self.javascript.kind(element) {
-                let slice = self.out.dot(array, "slice");
-                (pattern, self.out.call0(slice, &[index]))
-            } else {
-                (
-                    element,
-                    self.out
-                        .member(array, index, true, false, SourceLocation::SYNTHETIC),
-                )
-            };
-            self.parameter_paths(pattern, value, default, inserts, paths);
+        if let Some(rest) = rest {
+            let array = b.runtime("get", [b.id(&name)]);
+            let value = b.call(b.member(array, "slice"), [length(elements.len())]);
+            self.parameter_paths(&rest.argument, value, default, inserts, paths);
         }
     }
 }

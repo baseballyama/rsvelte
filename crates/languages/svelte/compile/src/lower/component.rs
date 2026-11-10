@@ -1,23 +1,23 @@
 //! What a component call passes, in upstream `build_component`'s order. The targets differ only
 //! in how they spell each prop, the children callback and the call.
 
-use rsvelte_kernel::source::positions::SourceLocation;
+use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
 use rsvelte_svelte_semantic::compiler_syntax_tree::ElementKind;
-use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
-use super::javascript::{accessor, getter, init_property};
+use super::javascript::member_root;
 use super::{
-    Attribute, AttributeValue, BindingKind, CompilerNodeIdentifier, CompilerSyntaxTree, Item,
-    NodeIdentifier, NodeKind, Resolution, SyntaxTree, Target,
+    Attribute, AttributeValue, BindingKind, Builder, CompilerNodeIdentifier, CompilerSyntaxTree,
+    Item, NodeKind, Resolution, Target,
 };
 
 #[derive(Clone, Copy)]
 pub(super) enum Prop<'t> {
     /// `name`, `name="text"`, `name={value}` or `name="a {b}"`.
     Value(&'t Attribute),
-    Spread(NodeIdentifier),
+    Spread(ExpressionIdentifier),
     /// `bind:name={target}`: a getter and a setter.
-    Bind(&'t Attribute, NodeIdentifier),
+    Bind(&'t Attribute, ExpressionIdentifier),
 }
 
 /// Values and spreads as written, then bindings, so that a spread cannot overwrite a binding.
@@ -36,21 +36,20 @@ pub(super) fn props(attributes: &[Attribute]) -> impl Iterator<Item = Prop<'_>> 
 
 /// Upstream `metadata.dynamic`: the component may change, so it is read through `$.component` on
 /// the client and tested on the server.
-pub(super) fn is_dynamic(
-    javascript: &SyntaxTree,
-    res: &Resolution,
-    reference: NodeIdentifier,
-) -> bool {
-    let root = javascript.member_root(reference);
-    res.binding(root)
-        .is_some_and(|(_, info)| root != reference || info.kind != BindingKind::Normal)
+pub(super) fn is_dynamic(res: &Resolution, reference: &Expression<'_>) -> bool {
+    member_root(reference)
+        .and_then(|root| res.symbol(root))
+        .is_some_and(|symbol| {
+            !matches!(reference, Expression::Identifier(_))
+                || res.binding(symbol).kind != BindingKind::Normal
+        })
 }
 
 /// The component node's reference: its name as an identifier or a member chain.
 pub(super) fn reference(
     compiler_syntax_tree: &CompilerSyntaxTree,
     identifier: CompilerNodeIdentifier,
-) -> NodeIdentifier {
+) -> ExpressionIdentifier {
     compiler_syntax_tree
         .component_reference(identifier)
         .expect("a component name parses to a reference")
@@ -60,7 +59,7 @@ pub(super) fn reference(
 /// template; it renders at the block's anchor.
 pub(super) fn standalone_component(
     compiler_syntax_tree: &CompilerSyntaxTree,
-    javascript: &SyntaxTree,
+    javascript: &Tree,
     res: &Resolution,
     items: &[Item<'_>],
 ) -> Option<CompilerNodeIdentifier> {
@@ -68,62 +67,59 @@ pub(super) fn standalone_component(
         return None;
     };
     (matches!(&compiler_syntax_tree.node(identifier).kind, NodeKind::Element(element) if element.kind == ElementKind::Component)
-        && !is_dynamic(javascript, res, reference(compiler_syntax_tree, identifier)))
+        && !is_dynamic(
+            res,
+            javascript.get_expression(reference(compiler_syntax_tree, identifier)),
+        ))
     .then_some(identifier)
 }
 
-pub(super) enum Entry {
-    Property(NodeIdentifier),
-    Spread(NodeIdentifier),
+pub(super) enum Entry<'o> {
+    Property(ObjectPropertyKind<'o>),
+    Spread(Expression<'o>),
 }
 
 /// A binding's `get name()` and `set name($$value)` props; the targets differ only in the
 /// setter's body, which writes `$$value`.
-pub(super) fn push_binding(
-    out: &mut SyntaxTree,
-    parts: &mut Vec<Entry>,
+pub(super) fn push_binding<'o>(
+    b: &Builder<'o>,
+    parts: &mut Vec<Entry<'o>>,
     name: &str,
-    value: NodeIdentifier,
-    setter: &[NodeIdentifier],
+    value: Expression<'o>,
+    setter: Vec<Statement<'o>>,
 ) {
-    parts.push(Entry::Property(getter(out, name, value)));
-    let parameter = out.identifier("$$value");
-    parts.push(Entry::Property(accessor(
-        out,
+    parts.push(Entry::Property(b.getter(name, value)));
+    parts.push(Entry::Property(b.accessor(
+        PropertyKind::Set,
         name,
-        &[parameter],
+        b.params(["$$value"]),
         setter,
-        flag::SETTER,
     )));
 }
 
 /// The children as a callback in the `children` prop, and `$$slots.default` so that a `<slot>` in
 /// the child renders it; the targets differ only in the callback's parameters.
-pub(super) fn push_children(
-    out: &mut SyntaxTree,
-    parts: &mut Vec<Entry>,
-    children: &[NodeIdentifier],
+pub(super) fn push_children<'o>(
+    b: &Builder<'o>,
+    parts: &mut Vec<Entry<'o>>,
+    children: Vec<Statement<'o>>,
     parameters: &[&str],
 ) {
     if children.is_empty() {
         return;
     }
-    let block = out.block(children, SourceLocation::SYNTHETIC);
-    let parameters: Vec<NodeIdentifier> = parameters.iter().map(|p| out.identifier(p)).collect();
-    let callback = out.arrow(&parameters, block, false, false, SourceLocation::SYNTHETIC);
-    parts.push(Entry::Property(init_property(out, "children", callback)));
-    let yes = out.write_boolean(true, SourceLocation::SYNTHETIC);
-    let default = init_property(out, "default", yes);
-    let slots = out.object(&[default], SourceLocation::SYNTHETIC);
-    parts.push(Entry::Property(init_property(out, "$$slots", slots)));
+    let callback = b.arrow_block(b.params(parameters.iter().copied()), children, false);
+    parts.push(Entry::Property(b.init("children", callback)));
+    let slots = b.object([b.init("default", b.boolean(true))]);
+    parts.push(Entry::Property(b.init("$$slots", slots)));
 }
 
 /// One object, or `$.spread_props` over the runs of properties and the spreads between them.
-pub(super) fn props_expression(
-    out: &mut SyntaxTree,
-    parts: Vec<Entry>,
+pub(super) fn props_expression<'o>(
+    b: &Builder<'o>,
+    parts: Vec<Entry<'o>>,
     target: Target,
-) -> NodeIdentifier {
+) -> Expression<'o> {
     let mut groups = Vec::new();
     let mut properties = Vec::new();
     for part in parts {
@@ -131,25 +127,20 @@ pub(super) fn props_expression(
             Entry::Property(property) => properties.push(property),
             Entry::Spread(expression) => {
                 if !properties.is_empty() {
-                    let object = out.object(&properties, SourceLocation::SYNTHETIC);
-                    properties.clear();
-                    groups.push(object);
+                    groups.push(b.object(std::mem::take(&mut properties)));
                 }
                 groups.push(expression);
             }
         }
     }
     if groups.is_empty() {
-        return out.object(&properties, SourceLocation::SYNTHETIC);
+        return b.object(properties);
     }
     if !properties.is_empty() {
-        groups.push(out.object(&properties, SourceLocation::SYNTHETIC));
+        groups.push(b.object(properties));
     }
     match target {
-        Target::Client => out.runtime("$", "spread_props", &groups),
-        Target::Server => {
-            let array = out.array(&groups, SourceLocation::SYNTHETIC);
-            out.runtime("$", "spread_props", &[array])
-        }
+        Target::Client => b.runtime("spread_props", groups),
+        Target::Server => b.runtime("spread_props", [b.array(groups)]),
     }
 }
