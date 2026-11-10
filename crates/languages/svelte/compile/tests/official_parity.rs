@@ -589,6 +589,69 @@ fn a_binding_needs_a_name_or_a_member_chain_on_both_targets() {
 }
 
 #[test]
+fn a_constant_cannot_be_assigned_or_bound_whatever_declares_it() {
+    let script = "<script>import C from './C.svelte'; import x from './x.js'; const s = $state(0); const r = $state.raw(0); const c = 1; let n = $state(0); let items = $state([{}]);";
+    for (body, expected) in [
+        ("</script><C bind:value={s} />", Some("constant_binding")),
+        (
+            "</script><input bind:value={r} />",
+            Some("constant_binding"),
+        ),
+        (
+            "</script><input bind:value={x} />",
+            Some("constant_binding"),
+        ),
+        (
+            "function f() { s = 1; }</script>",
+            Some("constant_assignment"),
+        ),
+        (
+            "function f() { s++; }</script>",
+            Some("constant_assignment"),
+        ),
+        (
+            "function f() { [n, c] = [1, 2]; }</script>",
+            Some("constant_assignment"),
+        ),
+        (
+            "function f() { ({ a: x } = {}); }</script>",
+            Some("constant_assignment"),
+        ),
+        (
+            "</script><button onclick={() => c++}>{c}</button>",
+            Some("constant_assignment"),
+        ),
+        (
+            "</script>{#each items as item, i}<button onclick={() => i++}>{i}</button>{/each}",
+            Some("constant_assignment"),
+        ),
+        (
+            "</script>{#each items as item}<input bind:value={item} />{/each}",
+            Some("each_item_invalid_assignment"),
+        ),
+        (
+            "</script>{#each items as item}<button onclick={() => item++}>{item}</button>{/each}",
+            Some("each_item_invalid_assignment"),
+        ),
+        (
+            "function f() { n = 1; s.a = 1; }</script><input bind:value={n} />",
+            None,
+        ),
+        ("function f() { [c = 1] = []; }</script>", None),
+        (
+            "</script>{#each items as item}<input bind:value={item.a} />{/each}",
+            None,
+        ),
+    ] {
+        let source = format!("{script}{body}");
+        for target in [Target::Client, Target::Server] {
+            let outcome = compile(&source, target).err();
+            assert_eq!(outcome.as_deref(), expected, "{body} on {target:?}");
+        }
+    }
+}
+
+#[test]
 fn a_reserved_or_legacy_name_raises_upstreams_error_on_both_targets() {
     for (source, code) in [
         (

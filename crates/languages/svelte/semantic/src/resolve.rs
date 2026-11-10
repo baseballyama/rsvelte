@@ -200,6 +200,23 @@ impl Resolution {
         Some((b, &self.bindings[b]))
     }
 
+    /// Upstream `validate_no_const_assignment`: what an assignment to or a binding of the name
+    /// `identifier` would change that cannot change, `"import"` or `"constant"`, whatever rune
+    /// declared it. An `{#each}` item is declared `const` but may be reassigned.
+    #[must_use]
+    pub fn constant(&self, identifier: NodeIdentifier) -> Option<&'static str> {
+        let (b, information) = self.binding(identifier)?;
+        match (self.sem.bindings[b].kind, information.kind) {
+            (scope::DeclarationKind::Import, _) => Some("import"),
+            (_, BindingKind::Each) => None,
+            (scope::DeclarationKind::Const, _)
+            | (_, BindingKind::Template | BindingKind::StaticIndex | BindingKind::KeyedIndex) => {
+                Some("constant")
+            }
+            _ => None,
+        }
+    }
+
     /// Upstream `is_state_source`: in runes mode a `$state` needs a signal only if it is
     /// reassigned.
     #[must_use]

@@ -394,7 +394,22 @@ impl RuneWalk<'_> {
                     );
                 }
             }
-            Kind::Assign(..) | Kind::Control(Control::ForEach { .. }) => {
+            Kind::Update { arg, .. } => {
+                check_assignment(javascript, self.res, arg, false, || span_of(javascript, e))?;
+            }
+            Kind::Assign(_, argument, _) => {
+                check_assignment(javascript, self.res, argument, false, || {
+                    span_of(javascript, e)
+                })?;
+                check_pattern_assignment(
+                    javascript,
+                    self.res,
+                    self.target,
+                    self.custom_element,
+                    e,
+                )?;
+            }
+            Kind::Control(Control::ForEach { .. }) => {
                 check_pattern_assignment(
                     javascript,
                     self.res,
@@ -764,6 +779,74 @@ fn check_props_pattern(
         }
     }
     Ok(())
+}
+
+/// Upstream `validate_assignment`: `argument`, assigned by the node at `span` or bound by the
+/// `bind:` directive at `span`, names nothing that cannot change. The span is asked for only on
+/// an error, because a frontend writes nodes with none where it raises none.
+pub(super) fn check_assignment(
+    javascript: &SyntaxTree,
+    res: &Resolution,
+    argument: NodeIdentifier,
+    binding: bool,
+    span: impl FnOnce() -> Span,
+) -> Result<(), Diagnostic> {
+    if let Some(thing) = constant_target(javascript, res, argument) {
+        return if binding {
+            super::special::invalid(
+                "constant_binding",
+                &format!("Cannot bind to {thing}"),
+                span(),
+            )
+        } else {
+            super::special::invalid(
+                "constant_assignment",
+                &format!("Cannot assign to {thing}"),
+                span(),
+            )
+        };
+    }
+    if !javascript.is_identifier(argument) {
+        return Ok(());
+    }
+    match res
+        .binding(argument)
+        .map(|(_, information)| information.kind)
+    {
+        Some(BindingKind::Each) => super::special::invalid(
+            "each_item_invalid_assignment",
+            "Cannot reassign or bind to each block argument in runes mode. Use the array and index variables instead (e.g. `array[i] = value` instead of `entry = value`, or `bind:value={array[i]}` instead of `bind:value={entry}`)",
+            span(),
+        ),
+        Some(BindingKind::Snippet) => super::special::invalid(
+            "snippet_parameter_assignment",
+            "Cannot reassign or bind to snippet parameter",
+            span(),
+        ),
+        _ => Ok(()),
+    }
+}
+
+/// What assigning to or binding `argument` would change that is [`Resolution::constant`]. As
+/// upstream, a default or a rest element in a pattern is not looked into.
+fn constant_target(
+    javascript: &SyntaxTree,
+    res: &Resolution,
+    argument: NodeIdentifier,
+) -> Option<&'static str> {
+    match javascript.kind(argument) {
+        Kind::Identifier(_) => res.constant(argument),
+        Kind::ArrayPattern(elements) => {
+            (elements.iter()).find_map(|&element| constant_target(javascript, res, element))
+        }
+        Kind::ObjectPattern(properties) => properties.iter().find_map(|&property| match javascript
+            .kind(property)
+        {
+            Kind::Property { value, .. } => constant_target(javascript, res, value),
+            _ => None,
+        }),
+        _ => None,
+    }
 }
 
 /// Refuses a pattern assigned to a name the target reads through a signal or a call, or to a

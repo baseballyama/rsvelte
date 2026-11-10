@@ -130,7 +130,7 @@ pub(crate) fn validate(
 ) -> Result<ValidatedOptions, Diagnostic> {
     let custom_element = special::validate(input)?;
     validation::check_names(input, res)?;
-    validation::markup::check(input)?;
+    validation::markup::check(input, res)?;
     coverage::check(input, res)?;
     validation::check_typescript(input)?;
     check_stores(input.component.javascript, res)?;
