@@ -64,7 +64,8 @@ pub(crate) fn is_simple_expression(e: &Expression<'_>) -> bool {
 /// The root identifier of the member chain `e`, if `e` is one.
 pub(crate) fn member_root<'e>(mut e: &'e Expression<'e>) -> Option<&'e IdentifierReference<'e>> {
     loop {
-        match e {
+        // Upstream erases types first: `a!.b` is `a.b`.
+        match e.get_inner_expression() {
             Expression::Identifier(identifier) => return Some(identifier),
             Expression::StaticMemberExpression(m) => e = &m.object,
             Expression::ComputedMemberExpression(m) => e = &m.object,
