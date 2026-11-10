@@ -1,6 +1,9 @@
 //! Upstream `html-tree-validation`: where the HTML parser would repair the tree a template writes.
 
+use rsvelte_svelte_syntax::parse::{AUTOCLOSING_CHILDREN, Autoclosing};
+
 /// Upstream `disallowed_children`, keyed by the parent or ancestor tag.
+#[derive(Clone, Copy)]
 enum Rule {
     /// Not allowed as a direct child.
     Direct(&'static [&'static str]),
@@ -13,67 +16,58 @@ enum Rule {
 const HEADINGS: &[&str] = &["h1", "h2", "h3", "h4", "h5", "h6"];
 const ROW_GROUP: &[&str] = &["tr", "style", "script", "template"];
 
-/// The tags with a [`Rule::Descendant`], in the order of [`Ancestors`]' slots.
-const DESCENDANT_RULES: [&str; 16] = [
-    "p", "dt", "dd", "rt", "rp", "optgroup", "option", "form", "a", "button", "h1", "h2", "h3",
-    "h4", "h5", "h6",
-];
-
-fn rule(tag: &str) -> Option<Rule> {
-    Some(match tag {
-        "li" => Rule::Direct(&["li"]),
-        "dt" | "dd" => Rule::Descendant(&["dt", "dd"]),
-        "p" => Rule::Descendant(&[
-            "address",
-            "article",
-            "aside",
-            "blockquote",
-            "div",
-            "dl",
-            "fieldset",
-            "footer",
-            "form",
-            "h1",
-            "h2",
-            "h3",
-            "h4",
-            "h5",
-            "h6",
-            "header",
-            "hgroup",
-            "hr",
-            "main",
-            "menu",
-            "nav",
-            "ol",
-            "p",
-            "pre",
-            "section",
-            "table",
-            "ul",
-        ]),
-        "rt" | "rp" => Rule::Descendant(&["rt", "rp"]),
-        "optgroup" => Rule::Descendant(&["optgroup"]),
-        "option" => Rule::Descendant(&["option", "optgroup"]),
-        "td" | "th" => Rule::Direct(&["td", "th", "tr"]),
-        "form" => Rule::Descendant(&["form"]),
-        "a" => Rule::Descendant(&["a"]),
-        "button" => Rule::Descendant(&["button"]),
-        "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => Rule::Descendant(HEADINGS),
-        "tr" => Rule::Only(&["th", "td", "style", "script", "template"]),
-        "tbody" | "thead" | "tfoot" => Rule::Only(ROW_GROUP),
-        "colgroup" => Rule::Only(&["col", "template"]),
-        "table" => Rule::Only(&[
+/// What upstream's `disallowed_children` adds to, or overrides in, [`AUTOCLOSING_CHILDREN`].
+const RULES: [(&str, Rule); 18] = [
+    ("form", Rule::Descendant(&["form"])),
+    ("a", Rule::Descendant(&["a"])),
+    ("button", Rule::Descendant(&["button"])),
+    ("h1", Rule::Descendant(HEADINGS)),
+    ("h2", Rule::Descendant(HEADINGS)),
+    ("h3", Rule::Descendant(HEADINGS)),
+    ("h4", Rule::Descendant(HEADINGS)),
+    ("h5", Rule::Descendant(HEADINGS)),
+    ("h6", Rule::Descendant(HEADINGS)),
+    (
+        "tr",
+        Rule::Only(&["th", "td", "style", "script", "template"]),
+    ),
+    ("tbody", Rule::Only(ROW_GROUP)),
+    ("thead", Rule::Only(ROW_GROUP)),
+    ("tfoot", Rule::Only(ROW_GROUP)),
+    ("colgroup", Rule::Only(&["col", "template"])),
+    (
+        "table",
+        Rule::Only(&[
             "caption", "colgroup", "tbody", "thead", "tfoot", "style", "script", "template",
         ]),
-        "head" => Rule::Only(&[
+    ),
+    (
+        "head",
+        Rule::Only(&[
             "base", "basefont", "bgsound", "link", "meta", "title", "noscript", "noframes",
             "style", "script", "template",
         ]),
-        "html" => Rule::Only(&["head", "body", "frameset"]),
-        "frameset" => Rule::Only(&["frame"]),
-        _ => return None,
-    })
+    ),
+    ("html", Rule::Only(&["head", "body", "frameset"])),
+    ("frameset", Rule::Only(&["frame"])),
+];
+
+/// The rule for `tag` and its slot in [`Ancestors`]: the index of its entry in the two tables,
+/// [`RULES`] first since it overrides.
+fn rule(tag: &str) -> Option<(usize, Rule)> {
+    let slot = match RULES.iter().position(|&(t, _)| t == tag) {
+        Some(index) => AUTOCLOSING_CHILDREN.len() + index,
+        None => AUTOCLOSING_CHILDREN.iter().position(|&(t, _)| t == tag)?,
+    };
+    Some((slot, entry(slot).1))
+}
+
+fn entry(slot: usize) -> (&'static str, Rule) {
+    match AUTOCLOSING_CHILDREN.get(slot) {
+        Some(&(tag, Autoclosing::Direct(tags))) => (tag, Rule::Direct(tags)),
+        Some(&(tag, Autoclosing::Descendant(tags))) => (tag, Rule::Descendant(tags)),
+        None => RULES[slot - AUTOCLOSING_CHILDREN.len()],
+    }
 }
 
 /// Upstream `is_tag_valid_with_parent`: why `child` (`#text` for text) cannot sit in `parent`.
@@ -81,7 +75,7 @@ pub(super) fn invalid_with_parent(child: &str, parent: &str) -> Option<String> {
     if child.contains('-') || parent.contains('-') || parent == "template" {
         return None;
     }
-    match rule(parent) {
+    match rule(parent).map(|(_, rule)| rule) {
         Some(Rule::Direct(tags)) if tags.contains(&child) => {
             return Some(format!(
                 "`<{child}>` cannot be a direct child of `<{parent}>`"
@@ -118,11 +112,11 @@ pub(super) fn invalid_with_parent(child: &str, parent: &str) -> Option<String> {
     }
 }
 
-/// The nearest element above the parent with each tag of [`DESCENDANT_RULES`], which upstream's
+/// The nearest element above the parent with each tag of a [`Rule::Descendant`], which upstream's
 /// `is_tag_valid_with_ancestor` asks about while it walks up to a component or snippet.
 #[derive(Clone, Copy, Default)]
 pub(super) struct Ancestors {
-    seen: [Option<Seen>; DESCENDANT_RULES.len()],
+    seen: [Option<Seen>; AUTOCLOSING_CHILDREN.len() + RULES.len()],
 }
 
 #[derive(Clone, Copy)]
@@ -138,7 +132,7 @@ impl Ancestors {
     /// `parent`, at `depth`, becomes an ancestor of the children of `element`, its child.
     pub(super) fn below(mut self, parent: (&str, u32, bool), element: &str) -> Self {
         let (tag, depth, crossed_block) = parent;
-        if let Some(slot) = DESCENDANT_RULES.iter().position(|&t| t == tag) {
+        if let Some((slot, Rule::Descendant(_))) = rule(tag) {
             self.seen[slot] = Some(Seen {
                 depth,
                 crossed_block,
@@ -165,12 +159,13 @@ impl Ancestors {
         if child.contains('-') {
             return None;
         }
-        let (tag, seen) = (DESCENDANT_RULES.iter().zip(&self.seen))
-            .filter_map(|(&tag, seen)| Some((tag, (*seen)?)))
-            .filter(|&(tag, seen)| {
+        let (tag, seen) = (self.seen.iter().enumerate())
+            .filter_map(|(slot, seen)| Some((entry(slot), (*seen)?)))
+            .filter(|&((tag, rule), seen)| {
                 let reset = seen.reset && matches!(tag, "dt" | "dd");
-                !reset && matches!(rule(tag), Some(Rule::Descendant(tags)) if tags.contains(&child))
+                !reset && matches!(rule, Rule::Descendant(tags) if tags.contains(&child))
             })
+            .map(|((tag, _), seen)| (tag, seen))
             .max_by_key(|(_, seen)| seen.depth)?;
         (!seen.crossed_block).then(|| format!("`<{child}>` cannot be a descendant of `<{tag}>`"))
     }

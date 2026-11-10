@@ -54,7 +54,7 @@ pub(in crate::lower) fn check(input: &CompileInput<'_>) -> Result<(), Diagnostic
         input,
         input.component.compiler_syntax_tree.root,
         None,
-        Placement::default(),
+        &Placement::default(),
         &mut FxHashSet::default(),
     )
 }
@@ -63,7 +63,7 @@ fn walk<'a>(
     input: &CompileInput<'a>,
     children: Children,
     owner: Option<Owner>,
-    placement: Placement<'a>,
+    placement: &Placement<'a>,
     names: &mut FxHashSet<(Namespace, &'a str)>,
 ) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
@@ -95,15 +95,15 @@ fn walk<'a>(
                     Placement {
                         crossed_block: true,
                         ancestors: placement.ancestors.cross_block(),
-                        ..placement
+                        ..*placement
                     },
                 )
             }
             NodeKind::Snippet(_) => (owner, Placement::default()),
-            _ => (owner, placement),
+            _ => (owner, *placement),
         };
         for children in tree.child_lists(identifier) {
-            walk(input, children, inner, inner_placement, names)?;
+            walk(input, children, inner, &inner_placement, names)?;
         }
     }
     Ok(())
@@ -124,7 +124,7 @@ fn element_placement<'a>(
     input: &CompileInput<'a>,
     identifier: CompilerNodeIdentifier,
     el: &Element,
-    placement: Placement<'a>,
+    placement: &Placement<'a>,
 ) -> Result<Placement<'a>, Diagnostic> {
     match el.kind {
         ElementKind::Regular => {}
@@ -132,7 +132,7 @@ fn element_placement<'a>(
         ElementKind::Metadata(Some(MetadataTag::Element | MetadataTag::Fragment)) => {
             return Ok(Placement::default());
         }
-        _ => return Ok(placement),
+        _ => return Ok(*placement),
     }
     let name = el.name.text(input.component.source_text);
     if let Some(parent) = placement.parent {
@@ -173,7 +173,7 @@ fn element<'a>(
     identifier: CompilerNodeIdentifier,
     el: &'a Element,
     owner: Option<Owner>,
-    placement: Placement<'a>,
+    placement: &Placement<'a>,
     names: &mut FxHashSet<(Namespace, &'a str)>,
 ) -> Result<(Option<Owner>, Placement<'a>), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;

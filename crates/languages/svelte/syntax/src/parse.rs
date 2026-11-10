@@ -20,7 +20,7 @@ mod tag;
 mod token;
 mod whitespace;
 
-pub use element_rules::is_void;
+pub use element_rules::{AUTOCLOSING_CHILDREN, Autoclosing, is_void};
 use identifier::is_identifier_continue;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
