@@ -51,9 +51,8 @@ rsvelte_stylesheet_format = { path = "crates/languages/css/format" }
 rsvelte_typescript_compile = { path = "crates/languages/typescript/compile" }
 rsvelte_svelte_compile = { path = "crates/languages/svelte/compile" }
 rsvelte_vue_compile = { path = "crates/languages/vue/compile" }
-# TODO(oxc-project/oxc#29124): back to an upstream revision once `parse_expression_at`,
-# `with_start` and `ExpressionRoot::without_parent` (fork branch
-# formatter-expression-root-without-parent) merge.
+# TODO(oxc-project/oxc#29124, oxc-project/oxc#29211): back to an upstream revision once
+# `parse_expression_at`, `with_start` and `ExpressionRoot::without_parent` merge.
 # Every oxc crate stays on one revision; `oxc_formatter` is not on crates.io.
 oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "b76a6f8497128fc3301d71e130cfde5a3cc9744a" }
 oxc_ast = { git = "https://github.com/baseballyama/oxc", rev = "b76a6f8497128fc3301d71e130cfde5a3cc9744a" }
