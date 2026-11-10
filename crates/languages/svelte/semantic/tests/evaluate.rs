@@ -117,6 +117,20 @@ fn output_identifiers_use_the_source_scope() {
 }
 
 #[test]
+fn an_output_identifier_folds_through_its_bindings_rune() {
+    let resolution = resolution("let text = $state('Hello');");
+    let allocator = Allocator::default();
+    let output = oxc_parser::Parser::new(&allocator, "text", oxc_span::SourceType::mjs())
+        .parse_expression()
+        .expect("an expression");
+    let mut evaluator = Evaluator::in_scope(&resolution, resolution.instance_scope());
+    assert_eq!(
+        evaluator.evaluate(&output).value,
+        Value::String("Hello".into())
+    );
+}
+
+#[test]
 fn a_string_converts_to_a_number_or_a_bigint_after_javascript_trims_it() {
     for (source, number) in [
         (r#""﻿ 2 " * 1;"#, Some(2.0)),
