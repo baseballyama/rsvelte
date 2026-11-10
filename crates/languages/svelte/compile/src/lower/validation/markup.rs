@@ -10,6 +10,8 @@ mod placement;
 
 use placement::Ancestors;
 
+use crate::render_plan::is_template_whitespace;
+
 use super::super::special::invalid;
 use super::super::{
     Attribute, AttributeValue, Children, CompileInput, CompilerNodeIdentifier, Diagnostic, Element,
@@ -71,12 +73,10 @@ fn walk<'a>(
     for &identifier in tree.children(children) {
         let node = tree.node(identifier);
         let text = match &node.kind {
-            NodeKind::Text { raw, decoded, .. } => {
-                let data = decoded.as_deref().unwrap_or_else(|| raw.text(source));
-                data.contains(|c| !matches!(c, ' ' | '\t' | '\r' | '\n'))
-            }
             NodeKind::Expression { .. } => true,
-            _ => false,
+            kind => kind
+                .text(source)
+                .is_some_and(|text| text.contains(|c| !is_template_whitespace(c))),
         };
         if text
             && let Some(parent) = placement.parent
