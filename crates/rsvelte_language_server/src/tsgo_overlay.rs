@@ -905,6 +905,17 @@ impl TsgoOverlay {
         shadow_path: &Path,
         position: Position,
     ) -> Option<Position> {
+        self.map_generated_boundary(shadow_path, position, false)
+    }
+
+    /// `closes_range`: the position is a range's end, so it names the byte
+    /// before it, and a verbatim chunk ending there maps to that chunk's end.
+    fn map_generated_boundary(
+        &self,
+        shadow_path: &Path,
+        position: Position,
+        closes_range: bool,
+    ) -> Option<Position> {
         let source_path = self.source_for_shadow(shadow_path)?;
         let entry = self.entries.get(source_path)?;
         let generated_offset = utf8_offset(&entry.document.text, position);
@@ -950,11 +961,12 @@ impl TsgoOverlay {
         if entry.preprocess_status == PreprocessStatus::Identity {
             // `originalPositionFor` reads the segment at this column first, so a
             // verbatim chunk's end only stands in where the next byte has none.
-            let mapped_here = previous.is_some_and(|token| {
-                token.source.is_some()
-                    && (token.generated_line, token.generated_column)
-                        == (generated_utf16.line, generated_utf16.character)
-            });
+            let mapped_here = !closes_range
+                && previous.is_some_and(|token| {
+                    token.source.is_some()
+                        && (token.generated_line, token.generated_column)
+                            == (generated_utf16.line, generated_utf16.character)
+                });
             if let Some(source) =
                 exact_generated_offset(&entry.exact_map, generated_offset, mapped_here)
             {
@@ -982,8 +994,8 @@ impl TsgoOverlay {
         if self.is_generated_range(shadow_path, range) {
             return None;
         }
-        let start = self.map_generated_position(shadow_path, range.start)?;
-        let end = self.map_generated_position(shadow_path, range.end)?;
+        let start = self.map_generated_boundary(shadow_path, range.start, false)?;
+        let end = self.map_generated_boundary(shadow_path, range.end, true)?;
         Some(ordered_range(start, end))
     }
 
@@ -3257,6 +3269,41 @@ mod tests {
         assert_eq!(
             overlay.map_generated_range(&shadow_path, range_of("page }", 4)),
             Some(Range::new(at(1, 11), at(1, 15)))
+        );
+    }
+
+    /// The tag name's chunk is followed by generated `);`, which carries a
+    /// mapping of its own; a range ending there still ends at the name.
+    /// Expected ranges are upstream's `diagnostics/fixtures/undeclared-component/expectedv2.json`.
+    #[test]
+    fn a_range_ending_at_a_verbatim_chunk_end_keeps_that_end() {
+        let workspace = TestWorkspace::new("component-name-range-end");
+        let app = workspace.0.join("src/App.svelte");
+        let source = "<script lang=\"ts\"></script>\n\n<Component />\n<SomeLongComponentName />";
+        write(&app, source);
+        let mut overlay = build_overlay(&workspace.0).unwrap();
+        let shadow = overlay.open_or_update(&app, source, 1).unwrap();
+        let shadow_path = overlay.shadow_dir.join("src/App.svelte.tsx");
+        let index = LineIndex::new(&shadow.text);
+        let range_of = |needle: &str| {
+            let start = shadow.text.find(needle).unwrap() + "ensureComponent(".len();
+            let name = &needle["ensureComponent(".len()..needle.len() - 1];
+            Range::new(
+                index.position(&shadow.text, start),
+                index.position(&shadow.text, start + name.len()),
+            )
+        };
+
+        assert_eq!(
+            overlay.map_generated_range(&shadow_path, range_of("ensureComponent(Component)")),
+            Some(Range::new(Position::new(2, 1), Position::new(2, 10)))
+        );
+        assert_eq!(
+            overlay.map_generated_range(
+                &shadow_path,
+                range_of("ensureComponent(SomeLongComponentName)")
+            ),
+            Some(Range::new(Position::new(3, 1), Position::new(3, 22)))
         );
     }
 
