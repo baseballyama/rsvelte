@@ -8,7 +8,7 @@ use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 /// The output, or the code of the diagnostic that refuses the source.
 fn compile(source: &str, target: Target) -> Result<String, String> {
     let component =
-        rsvelte_svelte_syntax::parse::parse(source).map_err(|error| format!("{error:?}"))?;
+        rsvelte_svelte_syntax::parse::parse(source).map_err(|error| error.code.to_string())?;
     let tree = compiler_syntax_tree::lower(&component, source);
     let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte");
     let resolution = resolve::resolve_with_module(

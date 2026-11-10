@@ -13,6 +13,7 @@ rsvelte_typescript_syntax.workspace = true
 rsvelte_stylesheet_syntax.workspace = true
 unicode-id-start.workspace = true
 memchr = "2.8.3"
+rustc-hash.workspace = true
 
 [lints]
 workspace = true

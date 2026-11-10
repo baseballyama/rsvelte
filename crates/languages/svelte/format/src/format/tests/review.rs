@@ -126,7 +126,6 @@ fn review_e_shapes_print_as_the_plugin_prints_them() {
 #[test]
 fn review_e_shapes_the_port_cannot_print_are_refused() {
     for source_text in [
-        "<script lang=\"ts\" lang=\"ts\">\n  let a;\n</script>\n",
         "<p>{\"\\8\"}</p>\n",
         "<p>{a?.b = 1}</p>\n",
         "<p>{-x ** 2}</p>\n",

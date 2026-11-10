@@ -27,6 +27,7 @@ use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
 use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
+use rustc_hash::FxHashSet;
 
 use crate::syntax_tree::{Component, Range, TemplateNode, TemplateNodeIdentifier, TokenType};
 
@@ -64,6 +65,7 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
         },
         typescript: false,
         pending_children: buffer_pool::take_keyed::<Parser<'static>, _>(),
+        unique_names: FxHashSet::default(),
     };
     // Upstream removes a leading byte order mark before parsing, so no node covers it.
     if source_text.starts_with('\u{feff}') {
@@ -100,6 +102,8 @@ struct Parser<'a> {
     component: Component,
     typescript: bool,
     pending_children: Vec<TemplateNodeIdentifier>,
+    /// Upstream's `unique_names` for the start tag being read.
+    unique_names: FxHashSet<(attribute::Unique, &'a str)>,
 }
 
 impl<'a> Parser<'a> {

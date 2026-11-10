@@ -218,3 +218,37 @@ fn attribute_values_end_at_javascript_whitespace() {
         assert_eq!(component.parts(parts).len(), 1, "{source}");
     }
 }
+
+/// Upstream's parser raises `attribute_duplicate` while it reads a start tag, root tags included.
+#[test]
+fn a_name_given_twice_in_a_start_tag_is_attribute_duplicate() {
+    for (source, duplicate) in [
+        ("<div a=1 a=2></div>", Some("a=2")),
+        ("<div {a} a={b}></div>", Some("a={b}")),
+        ("<input value={a} bind:value={b} />", Some("bind:value={b}")),
+        ("<div class:a class:a={b}></div>", Some("class:a={b}")),
+        (
+            "<div style:a=\"1\" style:a=\"2\"></div>",
+            Some("style:a=\"2\""),
+        ),
+        (
+            "<script lang=\"ts\" lang=\"ts\"></script>",
+            Some("lang=\"ts\""),
+        ),
+        ("<div class=\"a\" class:a style:a></div>", None),
+        (
+            "<svelte:element this={a} bind:this={b}></svelte:element>",
+            None,
+        ),
+        ("<div a=1></div><div a=1></div>", None),
+    ] {
+        match (parse(source), duplicate) {
+            (Err(error), Some(text)) => {
+                assert_eq!(error.code, "attribute_duplicate", "{source}");
+                assert_eq!(error.span.text(source), text, "{source}");
+            }
+            (Ok(_), None) => {}
+            (outcome, _) => panic!("{source}: {:?}", outcome.err()),
+        }
+    }
+}

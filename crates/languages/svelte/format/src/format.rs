@@ -174,19 +174,11 @@ fn refuse_template_comments(c: &Component) -> R<()> {
     }
 }
 
-/// What Svelte's parser rejects and this parser does not yet: a root-only `svelte:` tag twice,
-/// and an attribute named twice on one element.
+/// What Svelte's parser rejects and this parser does not yet: a root-only `svelte:` tag twice.
 fn refuse_rejected_tags(c: &Component, source_text: &str) -> R<()> {
     let mut seen: Vec<&str> = Vec::new();
-    let mut names: Vec<(AttributeKind, &str)> = Vec::new();
     for node in &c.nodes {
-        let TemplateNode::Element {
-            name,
-            attributes,
-            span,
-            ..
-        } = *node
-        else {
+        let TemplateNode::Element { name, span, .. } = *node else {
             continue;
         };
         let name = name.text(source_text);
@@ -198,41 +190,6 @@ fn refuse_rejected_tags(c: &Component, source_text: &str) -> R<()> {
                 return Err(Unsupported::at("a root-only `svelte:` tag twice", span));
             }
             seen.push(name);
-        }
-        names.clear();
-        for a in attributes.get(&c.attributes) {
-            // Svelte's `unique_names`: a binding and an attribute share names; `this` repeats.
-            let kind = match a.kind {
-                AttributeKind::Attribute | AttributeKind::Bind => AttributeKind::Attribute,
-                k @ (AttributeKind::Style | AttributeKind::Class) => k,
-                _ => continue,
-            };
-            let mut written = a.name.text(source_text);
-            if a.kind != AttributeKind::Attribute {
-                written = written.split_once(':').map_or(written, |(_, n)| n);
-                written = written.split_once('|').map_or(written, |(n, _)| n);
-            }
-            if written == "this" {
-                continue;
-            }
-            if names.contains(&(kind, written)) {
-                return Err(Unsupported::at("an attribute named twice", a.span));
-            }
-            names.push((kind, written));
-        }
-    }
-    // A root `<script>` or `<style>` reads every attribute as a plain one, named as written.
-    let roots = c.module.iter().chain(&c.instance).map(|s| &s.attributes);
-    for attributes in roots.chain(c.style.iter().map(|s| &s.attributes)) {
-        for (i, &(name, _)) in attributes.iter().enumerate() {
-            let written = name.text(source_text);
-            if written != "this"
-                && attributes[..i]
-                    .iter()
-                    .any(|(n, _)| n.text(source_text) == written)
-            {
-                return Err(Unsupported::at("an attribute named twice", name));
-            }
         }
     }
     Ok(())

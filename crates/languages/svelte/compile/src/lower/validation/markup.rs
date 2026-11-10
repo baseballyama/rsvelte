@@ -4,7 +4,6 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Each, ElementKind, MetadataTag};
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
-use rustc_hash::FxHashSet;
 
 mod placement;
 
@@ -14,18 +13,9 @@ use crate::render_plan::is_template_whitespace;
 
 use super::super::special::invalid;
 use super::super::{
-    Attribute, AttributeValue, Children, CompileInput, CompilerNodeIdentifier, Diagnostic, Element,
-    NodeKind, is_custom_element_node, is_directive,
+    AttributeValue, Children, CompileInput, CompilerNodeIdentifier, Diagnostic, Element, NodeKind,
+    is_custom_element_node, is_directive,
 };
-
-/// Which names an attribute shares: upstream's parser keeps one set per directive kind.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-enum Namespace {
-    /// An attribute or a binding.
-    Attribute,
-    Class,
-    Style,
-}
 
 /// The nearest component, `<svelte:element>` or custom element above a node, which decides where a
 /// `slot` attribute may go.
@@ -48,7 +38,7 @@ struct Placement<'a> {
 
 /// # Errors
 ///
-/// `attribute_duplicate`, `svelte_fragment_invalid_placement`, `slot_attribute_invalid_placement`,
+/// `svelte_fragment_invalid_placement`, `slot_attribute_invalid_placement`,
 /// `node_invalid_placement` or `bind_invalid_expression`, at the first node in document order
 /// that has one.
 pub(in crate::lower) fn check(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
@@ -57,7 +47,6 @@ pub(in crate::lower) fn check(input: &CompileInput<'_>) -> Result<(), Diagnostic
         input.component.compiler_syntax_tree.root,
         None,
         &Placement::default(),
-        &mut FxHashSet::default(),
     )
 }
 
@@ -66,7 +55,6 @@ fn walk<'a>(
     children: Children,
     owner: Option<Owner>,
     placement: &Placement<'a>,
-    names: &mut FxHashSet<(Namespace, &'a str)>,
 ) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
@@ -85,7 +73,7 @@ fn walk<'a>(
             return node_invalid_placement(&message, node.span);
         }
         let (inner, inner_placement) = match &node.kind {
-            NodeKind::Element(el) => element(input, identifier, el, owner, placement, names)?,
+            NodeKind::Element(el) => element(input, identifier, el, owner, placement)?,
             NodeKind::Each(each) if let Some(rune) = each_rune(input, each) => {
                 return super::state_invalid_placement(rune, node.span);
             }
@@ -103,7 +91,7 @@ fn walk<'a>(
             _ => (owner, *placement),
         };
         for children in tree.child_lists(identifier) {
-            walk(input, children, inner, &inner_placement, names)?;
+            walk(input, children, inner, &inner_placement)?;
         }
     }
     Ok(())
@@ -174,13 +162,11 @@ fn element<'a>(
     el: &'a Element,
     owner: Option<Owner>,
     placement: &Placement<'a>,
-    names: &mut FxHashSet<(Namespace, &'a str)>,
 ) -> Result<(Option<Owner>, Placement<'a>), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
     let node = tree.node(identifier);
     let attributes = tree.attributes(el.attributes);
-    check_unique(source, attributes, names)?;
     let parent = node.parent.map(|parent| &tree.node(parent).kind);
     // Upstream's `SvelteFragment` takes a component or `<svelte:component>`, not `<svelte:self>`.
     if el.kind == ElementKind::Metadata(Some(MetadataTag::Fragment))
@@ -237,35 +223,6 @@ fn element<'a>(
 
 /// Upstream's parser: an attribute or binding, a `class:` or a `style:` directive named twice
 /// (a `this` is not recorded, so `<svelte:element bind:this this=…>` passes).
-fn check_unique<'a>(
-    source: &'a str,
-    attributes: &'a [Attribute],
-    names: &mut FxHashSet<(Namespace, &'a str)>,
-) -> Result<(), Diagnostic> {
-    names.clear();
-    for a in attributes {
-        let kind = match a.value {
-            AttributeValue::Class(_) => Namespace::Class,
-            AttributeValue::Style { .. } => Namespace::Style,
-            AttributeValue::Bind(_) => Namespace::Attribute,
-            _ if !is_directive(&a.value) => Namespace::Attribute,
-            _ => continue,
-        };
-        let name = a.name.text(source);
-        if names.contains(&(kind, name)) {
-            return invalid(
-                "attribute_duplicate",
-                "Attributes need to be unique",
-                a.span,
-            );
-        }
-        if name != "this" {
-            names.insert((kind, name));
-        }
-    }
-    Ok(())
-}
-
 /// Upstream's `bind_invalid_expression` test: a `{get, set}` pair, or a member chain that starts
 /// from a name, with no optional chain in it, which cannot be assigned to.
 fn binds_a_name(javascript: &SyntaxTree, target: NodeIdentifier) -> bool {

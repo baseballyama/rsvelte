@@ -136,7 +136,6 @@ pub(crate) fn check(
             let spread = attributes
                 .iter()
                 .any(|a| matches!(a.value, AttributeValue::Spread(_)));
-            check_unique(source_text, attributes)?;
             for a in attributes {
                 if name == "slot" {
                     check_slot_attribute(source_text, a)?;
@@ -370,29 +369,6 @@ pub(super) fn check_element(
             })
     {
         return Err(unsupported("a block inside <textarea>", el.name));
-    }
-    Ok(())
-}
-
-/// The parser's `attribute_duplicate`, which the Svelte plugin's parser does not report: an
-/// attribute or binding, or a `class:` directive, named twice (`bind:this` is not recorded).
-pub(super) fn check_unique(source_text: &str, attributes: &[Attribute]) -> R<()> {
-    let mut seen = FxHashSet::default();
-    for a in attributes {
-        let key = match a.value {
-            AttributeValue::Spread(_) | AttributeValue::Attach(_) => continue,
-            AttributeValue::Class(_) => (true, a.name.text(source_text)),
-            _ => (false, a.name.text(source_text)),
-        };
-        if seen.contains(&key) {
-            return Err(unsupported(
-                "a duplicate attribute (Svelte rejects it as `attribute_duplicate`)",
-                a.span,
-            ));
-        }
-        if key.1 != "this" {
-            seen.insert(key);
-        }
     }
     Ok(())
 }
