@@ -1,7 +1,7 @@
 //! Cached artifacts and plugin registration.
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
-use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
+use rsvelte_kernel::computation::plugins::Plugin;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
@@ -31,14 +31,10 @@ impl Artifact for Parsed {
 pub static PLUGIN: Plugin = Plugin {
     identifier: "vue.syntax",
     version: env!("CARGO_PKG_VERSION"),
-    dependencies: &[Dependency {
-        identifier: "typescript.syntax",
-        requirement: concat!("=", env!("CARGO_PKG_VERSION")),
-    }],
+    dependencies: &[],
 };
 
 pub fn register(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_typescript_syntax::register(registry);
     registry.artifact::<Parsed>();
 }

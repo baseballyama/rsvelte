@@ -1,7 +1,6 @@
 use super::{
-    Attribute, AttributeKind, Diagnostic, Directive, DirectiveExpression, DirectiveName,
-    LoopExpression, P, R, Range, Span, TemplateNode, TemplateNodeIdentifier, TokenType, is_void,
-    parse_parameters,
+    Attribute, AttributeKind, Directive, DirectiveExpression, DirectiveName, LoopExpression, P, R,
+    Range, Span, TemplateNode, TemplateNodeIdentifier, TokenType, is_void, javascript_error,
 };
 
 /// `/([\s\S]*?)\s+(?:in|of)\s+(\S[\s\S]*)/`: (end of the alias, start of the keyword).
@@ -32,7 +31,7 @@ fn split_for(text: &str) -> Option<(usize, usize)> {
 /// A directive's name, argument and modifiers.
 type ParsedDirective = (DirectiveName, Option<Span>, Box<[Span]>);
 
-impl P<'_> {
+impl P<'_, '_> {
     // ---- the template ----------------------------------------------------------------------
 
     /// Nodes up to the end tag of `parent` (left unconsumed).
@@ -352,15 +351,12 @@ impl P<'_> {
         if inner_start_offset > trimmed_start_offset {
             self.eat_token(TokenType::ForParen, 1);
         }
-        let (t, c) = self.marks();
-        let parameters = parse_parameters(
-            &mut self.c.javascript,
-            self.source_text,
-            Span::new(at(inner_start_offset), at(inner_end_offset)),
-            self.c.typescript,
-        )
-        .map_err(|e| Diagnostic::error("js_parse_error", e.message, e.span))?;
-        self.javascript_region(at(inner_start_offset), at(inner_end_offset), t, c);
+        let inner = Span::new(at(inner_start_offset), at(inner_end_offset));
+        let parameters = self
+            .builder
+            .parameters(inner, self.source_type())
+            .map_err(javascript_error)?;
+        self.javascript_region(inner.start_offset, inner.end_offset);
         self.position = at(inner_end_offset) as usize;
         if inner_start_offset > trimmed_start_offset {
             self.eat_token(TokenType::ForParen, 1);
@@ -368,7 +364,7 @@ impl P<'_> {
         self.skip_to(at(kw_start_offset), TokenType::Whitespace);
         self.eat_token(TokenType::ForKeyword, 2);
         let source = self.expression(Span::new(at(kw_start_offset + 2), v.end_offset))?;
-        if parameters.is_empty() {
+        if self.builder.get_parameters(parameters).items.is_empty() {
             return Self::err_at(v, "v-for has no alias");
         }
         Ok(LoopExpression { parameters, source })

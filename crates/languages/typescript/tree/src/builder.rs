@@ -321,6 +321,12 @@ impl<'a> Builder<'a> {
         Ok(parameters)
     }
 
+    /// A parameter list read so far, for a host that checks its shape before the tree is done.
+    #[must_use]
+    pub fn get_parameters(&self, identifier: ParametersIdentifier) -> &FormalParameters<'a> {
+        &self.parameters[identifier.index()]
+    }
+
     pub fn keep_expression(&mut self, expression: Expression<'a>) -> ExpressionIdentifier {
         let identifier = ExpressionIdentifier::at(self.expressions.len());
         self.expressions.push(expression);
