@@ -49,7 +49,7 @@ impl<'a> Tree<'a> {
             let identifier = t.block(
                 "script",
                 &s.attributes,
-                Embed::Script(s.program),
+                Embed::Script(s.content),
                 s.span,
                 s.content,
             );
@@ -155,8 +155,8 @@ impl<'a> Tree<'a> {
                 TemplateNode::Comment { span, .. } => {
                     return Err(Unsupported::at("a template comment", span));
                 }
-                TemplateNode::Interpolation { expression, span } => {
-                    self.push(Kind2::Interpolation(expression), parent, span)
+                TemplateNode::Interpolation { span, .. } => {
+                    self.push(Kind2::Interpolation(span), parent, span)
                 }
                 TemplateNode::Element {
                     name,

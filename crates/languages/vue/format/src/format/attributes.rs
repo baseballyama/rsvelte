@@ -1,10 +1,11 @@
+use oxc_span::GetSpan;
+
 use super::{
-    Attribute, AttributeKind, Attributes, DirectiveExpression, DirectiveName, JavaScriptOptions,
-    Kind, Kind2, LayoutInstructionIdentifier, NodeIdentifier, Printer, R, Span, SyntaxTree,
-    Unsupported,
+    Attribute, AttributeKind, Attributes, DirectiveExpression, Kind2, LayoutInstructionIdentifier,
+    Printer, R, Span, Unsupported,
 };
 
-impl Printer<'_, '_> {
+impl Printer<'_, '_, '_> {
     /// `printAttributes`.
     pub(super) fn attributes(&mut self, i: usize) -> R<LayoutInstructionIdentifier> {
         let Kind2::Element { attributes, .. } = self.n(i).kind else {
@@ -106,15 +107,13 @@ impl Printer<'_, '_> {
                 if raw.contains(['&', '"']) {
                     return Err(Unsupported::at("an entity or quote in a directive", v));
                 }
-                let value = match (&d.exp, d.name) {
-                    (DirectiveExpression::For(f), _) => self.v_for(&f.parameters, f.source)?,
-                    (DirectiveExpression::Expression(e), DirectiveName::Bind) => {
-                        self.attribute_expression(*e, true)?
+                let value = match &d.exp {
+                    DirectiveExpression::For(f) => {
+                        let source = self.c.javascript.get_expression(f.source).span();
+                        self.v_for(v, f.parameters, Span::new(source.start, source.end))?
                     }
-                    (DirectiveExpression::Expression(e), _) => {
-                        self.attribute_expression(*e, false)?
-                    }
-                    (DirectiveExpression::None, _) => return Ok(self.d().text(name)),
+                    DirectiveExpression::Expression(_) => self.directive_value(d.name, v)?,
+                    DirectiveExpression::None => return Ok(self.d().text(name)),
                 };
                 let open = self.d().text(&format!("{name}=\""));
                 let g = self.d().group(&[value]);
@@ -122,101 +121,5 @@ impl Printer<'_, '_> {
                 Ok(self.cat(&[open, g, close]))
             }
         }
-    }
-
-    pub(super) fn expression(
-        &mut self,
-        e: NodeIdentifier,
-        markup_attribute: bool,
-    ) -> R<LayoutInstructionIdentifier> {
-        self.javascript.set_options(JavaScriptOptions {
-            markup_attribute,
-            ..JavaScriptOptions::default()
-        });
-        let d = self.javascript.format_expression(e);
-        self.javascript.set_options(JavaScriptOptions::default());
-        d
-    }
-
-    /// `formatAttributeValue` with `shouldHugJavaScriptExpression`; `vue` for `__vue_expression`
-    /// (`v-bind`), which also hugs string and template literals.
-    pub(super) fn attribute_expression(
-        &mut self,
-        e: NodeIdentifier,
-        vue: bool,
-    ) -> R<LayoutInstructionIdentifier> {
-        let document = self.expression(e, true)?;
-        let hug = match self.c.javascript.kind(e) {
-            Kind::Object(_) | Kind::Array(_) => true,
-            Kind::String | Kind::Template { .. } => vue,
-            _ => false,
-        };
-        if hug {
-            return Ok(self.d().group(&[document]));
-        }
-        let soft = self.d().softline();
-        let inner = self.cat(&[soft, document]);
-        let indentation = self.d().indent(inner);
-        let soft = self.d().softline();
-        Ok(self.cat(&[indentation, soft]))
-    }
-
-    /// `printVueVForDirective`.
-    pub(super) fn v_for(
-        &mut self,
-        parameters: &[NodeIdentifier],
-        source: NodeIdentifier,
-    ) -> R<LayoutInstructionIdentifier> {
-        let syntax_tree: &SyntaxTree = &self.c.javascript;
-        if parameters
-            .iter()
-            .any(|&p| !matches!(syntax_tree.kind(p), Kind::Identifier(_)))
-        {
-            return Err(Unsupported::nowhere("a destructuring v-for alias"));
-        }
-        let mut printed = Vec::new();
-        for &p in parameters {
-            printed.push(self.javascript.parameter(p)?);
-        }
-        let left = if let [one] = printed[..] {
-            one
-        } else {
-            let comma = self.lit(",");
-            let l = self.d().line();
-            let sep = self.cat(&[comma, l]);
-            let joined = self.d().join(sep, &printed);
-            let g = self.d().group(&joined);
-            let soft = self.d().softline();
-            let inner = self.cat(&[soft, g]);
-            let indentation = self.d().indent(inner);
-            let open = self.lit("(");
-            let soft = self.d().softline();
-            let close = self.lit(")");
-            self.cat(&[open, indentation, soft, close])
-        };
-        let left = self.d().group(&[left]);
-        let left = self.d().group(&[left]);
-        let source_text_start_offset = (syntax_tree
-            .source_location(source)
-            .span()
-            .expect("a parsed source")
-            .start_offset) as usize;
-        let attribute_start_offset = (syntax_tree
-            .source_location(parameters[0])
-            .span()
-            .expect("a parsed alias")
-            .start_offset) as usize;
-        let between = &self.source_text[attribute_start_offset..source_text_start_offset];
-        let op = if between.trim_end().ends_with("of") {
-            "of"
-        } else {
-            "in"
-        };
-        let right = self.expression(source, true)?;
-        let right = self.d().group(&[right]);
-        let sp = self.lit(" ");
-        let op = self.lit(op);
-        let sp2 = self.lit(" ");
-        Ok(self.cat(&[left, sp, op, sp2, right]))
     }
 }
