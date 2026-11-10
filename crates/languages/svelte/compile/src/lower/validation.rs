@@ -1,12 +1,12 @@
-use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
-use rsvelte_svelte_semantic::resolve::{BindingKind, for_each_pattern_target};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, NodeKind};
+use rsvelte_svelte_semantic::resolve::{BindingKind, for_each_pattern_target, lowers};
 use rsvelte_svelte_syntax::names::{is_mathml, is_svg};
 use rsvelte_typescript_semantic::scope::{Binding, DeclarationKind, ScopeIdentifier, Semantic};
 use rsvelte_typescript_syntax::operators::AssignmentOperator;
 use rsvelte_typescript_syntax::syntax_tree::{
     Class, Control, TypeScriptFeature, TypeScriptRuntime, flag,
 };
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(super) mod markup;
 
@@ -241,10 +241,12 @@ enum Parent {
     InstanceBody,
     /// A declarator of a declaration in the instance script's body.
     TopDeclarator,
-    /// A declarator's initializer; `top` at the instance's top level, `named` binding one name.
+    /// A declarator's initializer; `top` at the instance's top level, `named` binding one name,
+    /// and the rune it calls, named once at the declarator.
     Initializer {
         top: bool,
         named: bool,
+        rune: Option<&'static str>,
     },
     /// The function of a class's `constructor`.
     Constructor,
@@ -283,7 +285,8 @@ struct Place {
     rendering: bool,
 }
 
-/// The rune checks of upstream's analysis, then the runes this port does not lower yet.
+/// Upstream's rune and assignment checks over the scripts and the template expressions, in
+/// document order, then the runes this port does not lower yet.
 struct RuneWalk<'a> {
     javascript: &'a SyntaxTree,
     source_text: &'a str,
@@ -296,8 +299,8 @@ struct RuneWalk<'a> {
     refused: Option<Diagnostic>,
 }
 
-/// Raises upstream's rune placement and argument errors, then refuses a rune call this port does
-/// not lower, a state rune in a class body (class fields are not lowered yet), and on the server an
+/// Raises upstream's rune placement, rune argument and assignment errors, a `bind:` target's
+/// among them, then refuses a rune call this port does not lower, a state rune in a class body (class fields are not lowered yet), and on the server an
 /// `$effect` that is not a statement of its own (upstream only drops it as an `ExpressionStatement`).
 ///
 /// # Errors
@@ -319,6 +322,19 @@ pub(super) fn check_runes(
         props_id: false,
         refused: None,
     };
+    // Upstream checks a binding's target where it visits the directive, before the expression.
+    let tree = input.component.compiler_syntax_tree;
+    let binds: FxHashMap<NodeIdentifier, Span> = (tree.nodes.iter())
+        .filter_map(|n| match &n.kind {
+            NodeKind::Element(el) => Some(tree.attributes(el.attributes)),
+            _ => None,
+        })
+        .flatten()
+        .filter_map(|a| match a.value {
+            AttributeValue::Bind(target) => Some((target, a.span)),
+            _ => None,
+        })
+        .collect();
     let module = (input.component.module).map(|module| (module, true, false));
     let template = (input.component.template_expressions.iter()).map(|&e| (e, false, true));
     let roots = module
@@ -334,6 +350,9 @@ pub(super) fn check_runes(
             module,
             rendering,
         };
+        if let Some(&span) = binds.get(&root) {
+            walk.check_binding(root, span)?;
+        }
         pending.push((root, place));
         while let Some((e, place)) = pending.pop() {
             walk.visit(e, place, &mut pending)?;
@@ -343,6 +362,11 @@ pub(super) fn check_runes(
 }
 
 impl RuneWalk<'_> {
+    /// Upstream's `BindDirective` checks of the `bind:` target `e` at `span`.
+    fn check_binding(&self, e: NodeIdentifier, span: Span) -> Result<(), Diagnostic> {
+        check_assignment(self.javascript, self.res, e, true, || span)
+    }
+
     /// Checks `e` and pushes its children, each with where it sits, so that they pop in order.
     fn visit(
         &mut self,
@@ -366,57 +390,45 @@ impl RuneWalk<'_> {
                 span_of(javascript, e),
             );
         }
-        let mut props = false;
+        let mut rune = None;
         match kind {
             Kind::Call { arguments, .. } => {
-                if let Some(rune) = self.res.rune_named(javascript, e) {
-                    self.check_rune(e, arguments, rune, place)?;
+                let named = match place.parent {
+                    Parent::Initializer { rune, .. } => rune,
+                    _ => self.res.rune_named(javascript, e),
+                };
+                if let Some(named) = named {
+                    self.check_rune(e, arguments, named, place)?;
                 }
             }
             Kind::Declarator {
                 identifier,
                 initializer: Some(initializer),
             } => {
-                let rune = self.res.rune_named(javascript, initializer);
-                props = rune == Some("$props");
-                if props {
+                rune = self.res.rune_named(javascript, initializer);
+                if rune == Some("$props") {
                     check_props_pattern(javascript, e, identifier)?;
-                }
-                // Upstream splits a destructured state or derived into one declaration per path;
-                // this port has no `extract_paths` yet.
-                if let Some(rune @ ("$state" | "$state.raw" | "$derived" | "$derived.by")) = rune
-                    && !javascript.is_identifier(identifier)
-                    && !javascript.is_chain(initializer)
-                {
-                    return unsupported(
-                        &format!("a destructured `{rune}` declaration"),
-                        span_of(javascript, e),
-                    );
                 }
             }
             Kind::Update { arg, .. } => {
                 check_assignment(javascript, self.res, arg, false, || span_of(javascript, e))?;
             }
-            Kind::Assign(_, argument, _) => {
-                check_assignment(javascript, self.res, argument, false, || {
+            Kind::Assign(_, pattern, _) => {
+                check_assignment(javascript, self.res, pattern, false, || {
                     span_of(javascript, e)
                 })?;
-                check_pattern_assignment(
-                    javascript,
-                    self.res,
-                    self.target,
-                    self.custom_element,
-                    e,
-                )?;
+                if matches!(
+                    javascript.kind(pattern),
+                    Kind::ArrayPattern(_) | Kind::ObjectPattern(_)
+                ) {
+                    self.check_pattern_assignment(e, pattern, self.target)?;
+                }
             }
-            Kind::Control(Control::ForEach { .. }) => {
-                check_pattern_assignment(
-                    javascript,
-                    self.res,
-                    self.target,
-                    self.custom_element,
-                    e,
-                )?;
+            // Upstream prints any non-plain head as invalid JavaScript, on the server too.
+            Kind::Control(Control::ForEach { left, .. })
+                if !matches!(javascript.kind(left), Kind::VariableDeclaration { .. }) =>
+            {
+                self.check_pattern_assignment(e, left, Target::Client)?;
             }
             _ => {}
         }
@@ -431,19 +443,19 @@ impl RuneWalk<'_> {
         let base = pending.len();
         javascript.for_each_child(e, |c| pending.push((c, inner)));
         for (child, child_place) in &mut pending[base..] {
-            child_place.parent = self.parent_of(e, kind, props, *child, place);
+            child_place.parent = self.parent_of(e, kind, rune, *child, place);
         }
         pending[base..].reverse();
         Ok(())
     }
 
-    /// Where `child`, a child of `e`, sits, given where `e` sits.
-    /// `props` says that `e` is a `$props()` declarator.
+    /// Where `child`, a child of `e`, sits, given where `e` sits; `rune` is the rune a declarator
+    /// `e` calls.
     fn parent_of(
         &self,
         e: NodeIdentifier,
         kind: Kind<'_>,
-        props: bool,
+        rune: Option<&'static str>,
         child: NodeIdentifier,
         place: Place,
     ) -> Parent {
@@ -463,8 +475,9 @@ impl RuneWalk<'_> {
             ) if Some(child) == initializer => Parent::Initializer {
                 top: parent == Parent::TopDeclarator,
                 named: javascript.is_identifier(identifier),
+                rune,
             },
-            (Kind::Declarator { .. }, _) if props => Parent::Props,
+            (Kind::Declarator { .. }, _) if rune == Some("$props") => Parent::Props,
             (Kind::ObjectPattern(_), Parent::Props) => Parent::PropsProperty,
             (Kind::Property { value, .. }, Parent::PropsProperty) if value == child => {
                 Parent::PropsValue
@@ -639,8 +652,13 @@ impl RuneWalk<'_> {
 
     /// Keeps the first rune call this port does not lower, refused when the walk ends.
     fn refuse_unlowered(&mut self, e: NodeIdentifier, rune: &'static str, place: Place) {
-        let lowered = rsvelte_svelte_semantic::resolve::lowers(self.javascript, e);
+        let lowered = lowers(self.javascript, e);
+        // Upstream splits a destructured state or derived into one declaration per path; this
+        // port has no `extract_paths` yet.
+        let destructured = matches!(rune, "$state" | "$state.raw" | "$derived" | "$derived.by")
+            && matches!(place.parent, Parent::Initializer { named: false, .. });
         let supported = lowered
+            && !destructured
             && match rune {
                 "$state" | "$state.raw" | "$derived" | "$derived.by" => !place.in_class,
                 "$props" | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
@@ -655,10 +673,12 @@ impl RuneWalk<'_> {
         }
         let what = if place.in_class {
             format!("`{rune}` in a class body")
-        } else if lowered {
-            format!("`{rune}`")
-        } else {
+        } else if !lowered {
             format!("`{rune}` in an optional chain")
+        } else if destructured {
+            format!("a destructured `{rune}` declaration")
+        } else {
+            format!("`{rune}`")
         };
         self.refused = unsupported::<()>(&what, span_of(self.javascript, e)).err();
     }
@@ -781,124 +801,126 @@ fn check_props_pattern(
     Ok(())
 }
 
+/// A name an assignment or a binding cannot change, as upstream's `validate_assignment` sorts it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Fixed {
+    Import,
+    Constant,
+    EachItem,
+    SnippetParameter,
+}
+
 /// Upstream `validate_assignment`: `argument`, assigned by the node at `span` or bound by the
 /// `bind:` directive at `span`, names nothing that cannot change. The span is asked for only on
 /// an error, because a frontend writes nodes with none where it raises none.
-pub(super) fn check_assignment(
+fn check_assignment(
     javascript: &SyntaxTree,
     res: &Resolution,
     argument: NodeIdentifier,
     binding: bool,
     span: impl FnOnce() -> Span,
 ) -> Result<(), Diagnostic> {
-    if let Some(thing) = constant_target(javascript, res, argument) {
-        return if binding {
-            super::special::invalid(
-                "constant_binding",
-                &format!("Cannot bind to {thing}"),
-                span(),
-            )
-        } else {
-            super::special::invalid(
-                "constant_assignment",
-                &format!("Cannot assign to {thing}"),
-                span(),
-            )
-        };
-    }
-    if !javascript.is_identifier(argument) {
+    let Some(fixed) = fixed(javascript, res, argument, true) else {
         return Ok(());
-    }
-    match res
-        .binding(argument)
-        .map(|(_, information)| information.kind)
-    {
-        Some(BindingKind::Each) => super::special::invalid(
+    };
+    let (code, message) = match fixed {
+        Fixed::Import | Fixed::Constant => {
+            let thing = if fixed == Fixed::Import {
+                "import"
+            } else {
+                "constant"
+            };
+            let (code, verb) = if binding {
+                ("constant_binding", "bind to")
+            } else {
+                ("constant_assignment", "assign to")
+            };
+            (code, format!("Cannot {verb} {thing}"))
+        }
+        Fixed::EachItem => (
             "each_item_invalid_assignment",
-            "Cannot reassign or bind to each block argument in runes mode. Use the array and index variables instead (e.g. `array[i] = value` instead of `entry = value`, or `bind:value={array[i]}` instead of `bind:value={entry}`)",
-            span(),
+            "Cannot reassign or bind to each block argument in runes mode. Use the array and index variables instead (e.g. `array[i] = value` instead of `entry = value`, or `bind:value={array[i]}` instead of `bind:value={entry}`)".to_owned(),
         ),
-        Some(BindingKind::Snippet) => super::special::invalid(
+        Fixed::SnippetParameter => (
             "snippet_parameter_assignment",
-            "Cannot reassign or bind to snippet parameter",
-            span(),
+            "Cannot reassign or bind to snippet parameter".to_owned(),
         ),
-        _ => Ok(()),
-    }
+    };
+    super::special::invalid(code, &message, span())
 }
 
-/// What assigning to or binding `argument` would change that is [`Resolution::constant`]. As
-/// upstream, a default or a rest element in a pattern is not looked into.
-fn constant_target(
+/// What makes `argument`, or a name its pattern writes, [`Fixed`]: an `{#each}` item or a snippet
+/// parameter only as the whole `argument` (`whole`). As upstream, a default, a rest element and
+/// a `for … of` head are not looked into, so a `const` written there compiles.
+fn fixed(
     javascript: &SyntaxTree,
     res: &Resolution,
     argument: NodeIdentifier,
-) -> Option<&'static str> {
+    whole: bool,
+) -> Option<Fixed> {
     match javascript.kind(argument) {
-        Kind::Identifier(_) => res.constant(argument),
+        Kind::Identifier(_) => {
+            let (b, information) = res.binding(argument)?;
+            let fixed = match (res.sem.bindings[b].kind, information.kind) {
+                (DeclarationKind::Import, _) => Fixed::Import,
+                (_, BindingKind::Each) => Fixed::EachItem,
+                (_, BindingKind::Snippet) => Fixed::SnippetParameter,
+                (DeclarationKind::Const, _)
+                | (_, BindingKind::Template | BindingKind::StaticIndex | BindingKind::KeyedIndex) => {
+                    Fixed::Constant
+                }
+                _ => return None,
+            };
+            (whole || matches!(fixed, Fixed::Import | Fixed::Constant)).then_some(fixed)
+        }
         Kind::ArrayPattern(elements) => {
-            (elements.iter()).find_map(|&element| constant_target(javascript, res, element))
+            (elements.iter()).find_map(|&element| fixed(javascript, res, element, false))
         }
         Kind::ObjectPattern(properties) => properties.iter().find_map(|&property| match javascript
             .kind(property)
         {
-            Kind::Property { value, .. } => constant_target(javascript, res, value),
+            Kind::Property { value, .. } => fixed(javascript, res, value, false),
             _ => None,
         }),
         _ => None,
     }
 }
 
-/// Refuses a pattern assigned to a name the target reads through a signal or a call, or to a
-/// member of a `$bindable` prop: a destructuring assignment needs upstream's per-path assignment,
-/// and upstream prints a `for … in` or `for … of` head as invalid JavaScript.
-fn check_pattern_assignment(
-    javascript: &SyntaxTree,
-    res: &Resolution,
-    target: Target,
-    accessors: bool,
-    e: NodeIdentifier,
-) -> Result<(), Diagnostic> {
-    let (pattern, target) = match javascript.kind(e) {
-        Kind::Assign(_, pattern, _)
-            if matches!(
-                javascript.kind(pattern),
-                Kind::ArrayPattern(_) | Kind::ObjectPattern(_)
-            ) =>
-        {
-            (pattern, target)
+impl RuneWalk<'_> {
+    /// Refuses a `pattern`, written by `e`, that writes a name the `target` reads through a signal or a call, or a
+    /// member of a `$bindable` prop: a destructuring assignment needs upstream's per-path
+    /// assignment, and upstream prints a `for … in` or `for … of` head as invalid JavaScript.
+    fn check_pattern_assignment(
+        &self,
+        e: NodeIdentifier,
+        pattern: NodeIdentifier,
+        target: Target,
+    ) -> Result<(), Diagnostic> {
+        let (javascript, res, accessors) = (self.javascript, self.res, self.custom_element);
+        let mut transformed = false;
+        for_each_pattern_target(javascript, pattern, &mut |name| {
+            transformed |= if javascript.is_identifier(name) {
+                res.binding(name)
+                    .is_some_and(|(_, information)| match information.kind {
+                        BindingKind::Normal => false,
+                        // The server reads only a derived through a call.
+                        BindingKind::Derived | BindingKind::DerivedBy => true,
+                        _ => target == Target::Client,
+                    })
+            } else {
+                target == Target::Client
+                    && super::script::mutated_bindable_prop(res, accessors, javascript, name)
+                        .is_some()
+            };
+        });
+        if !transformed {
+            return Ok(());
         }
-        // Upstream prints any non-plain head as invalid JavaScript, on the server too.
-        Kind::Control(Control::ForEach { left, .. })
-            if !matches!(javascript.kind(left), Kind::VariableDeclaration { .. }) =>
-        {
-            (left, Target::Client)
-        }
-        _ => return Ok(()),
-    };
-    let mut transformed = false;
-    for_each_pattern_target(javascript, pattern, &mut |name| {
-        transformed |= if javascript.is_identifier(name) {
-            res.binding(name)
-                .is_some_and(|(_, information)| match information.kind {
-                    BindingKind::Normal => false,
-                    // The server reads only a derived through a call.
-                    BindingKind::Derived | BindingKind::DerivedBy => true,
-                    _ => target == Target::Client,
-                })
-        } else {
-            target == Target::Client
-                && super::script::mutated_bindable_prop(res, accessors, javascript, name).is_some()
-        };
-    });
-    if !transformed {
-        return Ok(());
+        unsupported(
+            "an assignment to state, a prop or a derived in a pattern",
+            span_of(javascript, e),
+        )
     }
-    let span = span_of(javascript, e);
-    unsupported(
-        "an assignment to state, a prop or a derived in a pattern",
-        span,
-    )
 }
 
 pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnostic> {

@@ -87,20 +87,21 @@ fn lowered(
     e: NodeIdentifier,
     rune: &'static str,
 ) -> Option<(&'static str, Option<NodeIdentifier>)> {
-    let Kind::Call { arguments, .. } = syntax_tree.kind(e) else {
+    let Kind::Call {
+        callee, arguments, ..
+    } = syntax_tree.kind(e)
+    else {
         return None;
     };
-    lowers(syntax_tree, e).then(|| (rune, arguments.first().copied()))
+    (!syntax_tree.is_chain(e) && !syntax_tree.is_chain(callee))
+        .then(|| (rune, arguments.first().copied()))
 }
 
 /// Whether the rune call `e` lowers as one: neither it nor its callee ends an optional chain,
 /// which upstream wraps in a `ChainExpression` that names no rune.
 #[must_use]
 pub fn lowers(syntax_tree: &SyntaxTree, e: NodeIdentifier) -> bool {
-    let Kind::Call { callee, .. } = syntax_tree.kind(e) else {
-        return false;
-    };
-    !syntax_tree.is_chain(e) && !syntax_tree.is_chain(callee)
+    lowered(syntax_tree, e, "").is_some()
 }
 
 /// The identifiers a rune starts with: each name in [`RUNES`] up to its first `.` or `(`.

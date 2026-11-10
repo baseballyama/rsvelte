@@ -597,10 +597,8 @@ fn a_constant_cannot_be_assigned_or_bound_whatever_declares_it() {
             "</script><input bind:value={r} />",
             Some("constant_binding"),
         ),
-        (
-            "</script><input bind:value={x} />",
-            Some("constant_binding"),
-        ),
+        // A binding this port does not lower is refused before upstream's error is raised.
+        ("</script><input bind:value={x} />", Some("unsupported")),
         (
             "function f() { s = 1; }</script>",
             Some("constant_assignment"),
@@ -627,7 +625,7 @@ fn a_constant_cannot_be_assigned_or_bound_whatever_declares_it() {
         ),
         (
             "</script>{#each items as item}<input bind:value={item} />{/each}",
-            Some("each_item_invalid_assignment"),
+            Some("unsupported"),
         ),
         (
             "</script>{#each items as item}<button onclick={() => item++}>{item}</button>{/each}",
@@ -637,6 +635,7 @@ fn a_constant_cannot_be_assigned_or_bound_whatever_declares_it() {
             "function f() { n = 1; s.a = 1; }</script><input bind:value={n} />",
             None,
         ),
+        // Upstream does not look into a default, so this compiles to a runtime TypeError.
         ("function f() { [c = 1] = []; }</script>", None),
         (
             "</script>{#each items as item}<input bind:value={item.a} />{/each}",
@@ -647,6 +646,59 @@ fn a_constant_cannot_be_assigned_or_bound_whatever_declares_it() {
         for target in [Target::Client, Target::Server] {
             let outcome = compile(&source, target).err();
             assert_eq!(outcome.as_deref(), expected, "{body} on {target:?}");
+        }
+    }
+}
+
+#[test]
+fn assignment_errors_come_in_document_order_after_the_binding_checks() {
+    let script = "<script>import C from './C.svelte'; const s = $state(0); let n = $state(0);";
+    for (body, expected) in [
+        (
+            "function f() { s = 1; }</script><input bind:value={s} />",
+            "constant_assignment",
+        ),
+        (
+            "</script><input bind:value={s} /><button onclick={() => s++}>x</button>",
+            "constant_binding",
+        ),
+        (
+            "</script><button onclick={() => s++}>x</button><C bind:value={s} />",
+            "constant_assignment",
+        ),
+        ("</script><div bind:foo={s}></div>", "unsupported"),
+    ] {
+        let source = format!("{script}{body}");
+        for target in [Target::Client, Target::Server] {
+            let outcome = compile(&source, target).err();
+            assert_eq!(outcome.as_deref(), Some(expected), "{body} on {target:?}");
+        }
+    }
+}
+
+#[test]
+fn a_destructured_rune_is_refused_only_when_upstream_raises_nothing() {
+    for (source, expected) in [
+        (
+            "<script>let { a } = $derived();</script>",
+            "rune_invalid_arguments_length",
+        ),
+        (
+            "<script>let { a } = $state({ a: 1 }); const c = 1; c = 2;</script>",
+            "constant_assignment",
+        ),
+        (
+            "<script>let { a } = $state({ a: 1 });</script>{a}",
+            "unsupported",
+        ),
+        (
+            "<script>let [a] = $derived.by(() => [1]);</script>{a}",
+            "unsupported",
+        ),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            let outcome = compile(source, target).err();
+            assert_eq!(outcome.as_deref(), Some(expected), "{source} on {target:?}");
         }
     }
 }

@@ -3,7 +3,6 @@
 
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Each, ElementKind, MetadataTag};
-use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 mod placement;
@@ -40,15 +39,11 @@ struct Placement<'a> {
 /// # Errors
 ///
 /// `svelte_fragment_invalid_placement`, `slot_attribute_invalid_placement`,
-/// `node_invalid_placement`, an invalid assignment or `bind_invalid_expression`, at the first node
-/// in document order that has one.
-pub(in crate::lower) fn check(
-    input: &CompileInput<'_>,
-    res: &Resolution,
-) -> Result<(), Diagnostic> {
+/// `node_invalid_placement` or `bind_invalid_expression`, at the first node in document order
+/// that has one.
+pub(in crate::lower) fn check(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
     walk(
         input,
-        res,
         input.component.compiler_syntax_tree.root,
         None,
         &Placement::default(),
@@ -57,7 +52,6 @@ pub(in crate::lower) fn check(
 
 fn walk<'a>(
     input: &CompileInput<'a>,
-    res: &Resolution,
     children: Children,
     owner: Option<Owner>,
     placement: &Placement<'a>,
@@ -79,7 +73,7 @@ fn walk<'a>(
             return node_invalid_placement(&message, node.span);
         }
         let (inner, inner_placement) = match &node.kind {
-            NodeKind::Element(el) => element(input, res, identifier, el, owner, placement)?,
+            NodeKind::Element(el) => element(input, identifier, el, owner, placement)?,
             NodeKind::Each(each) if let Some(rune) = each_rune(input, each) => {
                 return super::state_invalid_placement(rune, node.span);
             }
@@ -97,7 +91,7 @@ fn walk<'a>(
             _ => (owner, *placement),
         };
         for children in tree.child_lists(identifier) {
-            walk(input, res, children, inner, &inner_placement)?;
+            walk(input, children, inner, &inner_placement)?;
         }
     }
     Ok(())
@@ -164,7 +158,6 @@ fn node_invalid_placement<T>(message: &str, span: Span) -> Result<T, Diagnostic>
 /// The owner and placement are returned because the children are checked against them.
 fn element<'a>(
     input: &CompileInput<'a>,
-    res: &Resolution,
     identifier: CompilerNodeIdentifier,
     el: &'a Element,
     owner: Option<Owner>,
@@ -209,11 +202,9 @@ fn element<'a>(
     }
     let placement = element_placement(input, identifier, el, placement)?;
     for a in attributes {
-        let AttributeValue::Bind(target) = a.value else {
-            continue;
-        };
-        super::check_assignment(input.component.javascript, res, target, true, || a.span)?;
-        if !binds_a_name(input.component.javascript, target) {
+        if let AttributeValue::Bind(target) = a.value
+            && !binds_a_name(input.component.javascript, target)
+        {
             return invalid(
                 "bind_invalid_expression",
                 "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair",
