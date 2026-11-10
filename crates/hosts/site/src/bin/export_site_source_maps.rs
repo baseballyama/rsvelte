@@ -57,14 +57,15 @@ fn main() -> ExitCode {
     let mut registry = Registry::new();
     rsvelte_svelte_compile::register(&mut registry);
     let context = DocumentContext::new(&document, registry.artifacts());
-    let module = match lower_document(&context, target) {
-        Ok(module) => module,
+    let allocator = oxc_allocator::Allocator::default();
+    let program = match lower_document(&context, target, &allocator) {
+        Ok(program) => program,
         Err(d) => {
             eprintln!("{path}: {}", d.message);
             return ExitCode::FAILURE;
         }
     };
-    let e = module.emit();
+    let e = rsvelte_typescript_compile::print::print_mapped(&program);
     let mut w = StructuredDataWriter::new(true);
     w.begin_object()
         .key("source")
