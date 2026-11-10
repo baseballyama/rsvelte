@@ -1,5 +1,9 @@
 # @rsvelte/fmt-darwin-arm64
 
+## 0.7.27
+
+No changes in this release.
+
 ## 0.7.26
 
 No changes in this release.

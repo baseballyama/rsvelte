@@ -1,5 +1,27 @@
 # @rsvelte/language-server
 
+## 0.7.15
+
+### Patch Changes
+
+- a07dfed: An inline element whose body is only whitespace (`<i class="…"> </i>`) now moves its close tag to the next line when the one-line form is wider than `printWidth`, as prettier-plugin-svelte does, instead of always printing `> </i>`.
+- c5fc0b8: Format a self-closing element glued between block tags (`{:else if c}<Second viewer={v} {c} />{:else}`) the same way on every run. It used to alternate between a wrapped open tag and a single line wider than `printWidth`, because the trailing `{:else}` / `{/if}` stopped counting toward its width once the open tag had been wrapped (#4765). A void element split across lines without `/>` (`<input …>{/if}`) now counts those closers on the first run too, as it prints as `<input … />`.
+- 4aded79: Follow language-tools `f0eda319c400`:
+  - **svelte2tsx:** instance-script imports are hoisted as whole lines, one chunk per run of adjacent top-level imports; nested imports stay in place and no `;` is appended to the last import.
+  - **svelte2tsx:** a `$$ComponentProps` alias after an import is inserted on the next line, so it is not hoisted with the import.
+  - **svelte2tsx:** the `$$ComponentProps` alias emitted before `$$render` follows hoisted imports after a blank line, as upstream's does.
+  - **svelte2tsx:** prop widening is emitted as `x = __sveltets_2_any();x;`.
+  - **svelte2tsx:** `// @ts-check` and `// @ts-nocheck` among the script's leading comments are prepended to the output.
+  - **Language server:** the initialize result carries `customServerStatus` (`contentMapperModeEnabled: false`).
+- 0a7335e: fix(lsp): resolve package.json `imports` (`#lib/*`) from component shadows
+
+  A component's tsgo shadow lives under the overlay cache, so its nearest
+  package.json was not the project's and a `#lib/...` import resolved against the
+  wrong `imports` map (or none); a `.svelte` target also exists only in the shadow
+  tree. The overlay now writes the project package's `imports` into `paths`, each
+  target beside its shadow-tree twin, so go-to-definition, hover and completion
+  follow `#lib/Card.svelte` the way they follow a tsconfig `paths` alias.
+
 ## 0.7.14
 
 ### Patch Changes

@@ -1,5 +1,26 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.30
+
+### Patch Changes
+
+- 4aded79: Follow language-tools `f0eda319c400`:
+  - **svelte2tsx:** instance-script imports are hoisted as whole lines, one chunk per run of adjacent top-level imports; nested imports stay in place and no `;` is appended to the last import.
+  - **svelte2tsx:** a `$$ComponentProps` alias after an import is inserted on the next line, so it is not hoisted with the import.
+  - **svelte2tsx:** the `$$ComponentProps` alias emitted before `$$render` follows hoisted imports after a blank line, as upstream's does.
+  - **svelte2tsx:** prop widening is emitted as `x = __sveltets_2_any();x;`.
+  - **svelte2tsx:** `// @ts-check` and `// @ts-nocheck` among the script's leading comments are prepended to the output.
+  - **Language server:** the initialize result carries `customServerStatus` (`contentMapperModeEnabled: false`).
+- Updated dependencies [683292d]
+- Updated dependencies [4e6dd6a]
+- Updated dependencies [54ad138]
+- Updated dependencies [4aded79]
+- Updated dependencies [ac57780]
+- Updated dependencies [a949fc7]
+- Updated dependencies [b9de720]
+- Updated dependencies [a07dfed]
+  - @rsvelte/compiler@0.12.8
+
 ## 0.2.29
 
 ### Patch Changes
