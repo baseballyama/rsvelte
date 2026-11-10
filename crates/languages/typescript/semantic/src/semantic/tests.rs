@@ -26,7 +26,16 @@ fn the_trees_nodes_carry_the_analysis() {
     else {
         unreachable!()
     };
-    assert_eq!(scoping.get_reference(left.reference_id()).symbol_id(), Some(a));
-    assert_eq!(scoping.get_reference(right.reference_id()).symbol_id(), None);
-    assert_eq!(semantic.nodes().parent_kind(left.node_id()).span(), sum.span);
+    assert_eq!(
+        scoping.get_reference(left.reference_id()).symbol_id(),
+        Some(a)
+    );
+    assert_eq!(
+        scoping.get_reference(right.reference_id()).symbol_id(),
+        None
+    );
+    assert_eq!(
+        semantic.nodes().parent_kind(left.node_id()).span(),
+        sum.span
+    );
 }

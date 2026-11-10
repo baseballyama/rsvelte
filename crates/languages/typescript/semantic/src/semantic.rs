@@ -4,7 +4,7 @@
 //! references. A host language such as Svelte adds its template through an [`oxc_semantic::Host`],
 //! so one [`Scoping`] holds the scripts' and the template's symbols.
 
-use oxc_semantic::{AstNodes, Scoping, SemanticBuilder, SemanticBuilderReturn};
+use oxc_semantic::{AstNodes, Scoping, SemanticBuilder};
 use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 
 mod cell {
@@ -53,20 +53,23 @@ impl Semantic {
             .with_build_nodes(true)
     }
 
-    /// Analyzes what `build` reads of `tree`, which the analysis keeps alive.
+    /// Analyzes what `build` reads of `tree`, which the analysis keeps alive. `build` may adjust
+    /// what the builder returns, such as a host language's writes the builder cannot see.
     pub fn build(
         tree: Tree,
-        build: impl for<'a> FnOnce(&'a Tree, SemanticBuilder<'a>) -> SemanticBuilderReturn<'a>,
+        build: impl for<'a> FnOnce(&'a Tree, SemanticBuilder<'a>) -> oxc_semantic::Semantic<'a>,
     ) -> Self {
         Self(cell::Cell::new(tree, |tree| Analyzed {
-            semantic: build(tree, Self::builder()).semantic,
+            semantic: build(tree, Self::builder()),
         }))
     }
 
     /// Analyzes one program of `tree`, such as a `.ts` file.
     #[must_use]
     pub fn program(tree: Tree, program: ProgramIdentifier) -> Self {
-        Self::build(tree, |tree, builder| builder.build(tree.get_program(program)))
+        Self::build(tree, |tree, builder| {
+            builder.build(tree.get_program(program)).semantic
+        })
     }
 
     #[must_use]

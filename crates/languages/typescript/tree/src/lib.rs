@@ -181,6 +181,28 @@ impl Tree {
         &self.0.borrow_dependent().declarations[identifier.index()]
     }
 
+    /// Every expression kept apart from a program, with its identifier, in the order kept.
+    pub fn expressions(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (ExpressionIdentifier, &Expression<'_>)> {
+        let expressions = &self.0.borrow_dependent().expressions;
+        expressions
+            .iter()
+            .enumerate()
+            .map(|(i, e)| (ExpressionIdentifier::at(i), e))
+    }
+
+    /// Every declaration kept apart from a program, with its identifier, in the order kept.
+    pub fn declarations(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (DeclarationIdentifier, &VariableDeclaration<'_>)> {
+        let declarations = &self.0.borrow_dependent().declarations;
+        declarations
+            .iter()
+            .enumerate()
+            .map(|(i, d)| (DeclarationIdentifier::at(i), d))
+    }
+
     /// The comments outside the programs, in document order.
     #[must_use]
     pub fn comments(&self) -> &[Comment] {
