@@ -5853,10 +5853,22 @@ fn transform_module_script_runes_with_target(
     // Extract local reactive variable names from the module script
     // These are variables declared with $state() or $derived() inside functions
     let module_state_vars_with_const = extract_local_reactive_vars(&result);
-    let module_state_vars: Vec<String> = module_state_vars_with_const
+    let mut module_state_vars: Vec<String> = module_state_vars_with_const
         .iter()
         .map(|(name, _, _)| name.clone())
         .collect();
+    // The scan above sees only `let x = $state(…)`; a destructured declarator's
+    // leaves are state bindings too. A component's `<script module>` shares
+    // `bindings` with its instance script, so only `compileModule` can read them.
+    if module_entry && !server {
+        for b in &analysis.root.bindings {
+            if matches!(b.kind, BindingKind::State | BindingKind::RawState)
+                && !module_state_vars.contains(&b.name)
+            {
+                module_state_vars.push(b.name.clone());
+            }
+        }
+    }
 
     // Extract non-reactive module state vars: $state() variables that are NOT reassigned.
     // In runes mode (immutable=true), non-reassigned $state vars don't need $.state() or $.get().

@@ -3387,6 +3387,33 @@ fn package_json_resolve(
     }
 }
 
+/// Each `#` key of `manifest`'s package.json `imports` with the package-relative
+/// target template it selects under the conditions `tsconfig_path` implies. A
+/// key whose value excludes it (`null`) or names a bare package is omitted.
+pub fn package_imports_targets(
+    manifest: &Path,
+    tsconfig_path: Option<&Path>,
+) -> Vec<(String, String)> {
+    let Some(imports) = fs::read_to_string(manifest)
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .and_then(|parsed| parsed.get("imports")?.as_object().cloned())
+    else {
+        return Vec::new();
+    };
+    let conditions = package_json_conditions(tsconfig_path);
+    imports
+        .iter()
+        .filter(|(key, _)| key.starts_with('#'))
+        .filter_map(
+            |(key, value)| match package_json_target(value, "*", &conditions) {
+                PackageTarget::Path(target) => Some((key.clone(), target)),
+                PackageTarget::Excluded | PackageTarget::Unmatched => None,
+            },
+        )
+        .collect()
+}
+
 /// Every string target a package.json `imports` / `exports` value can produce,
 /// whatever the conditions.
 fn package_json_target_templates(value: &serde_json::Value) -> Vec<&str> {
