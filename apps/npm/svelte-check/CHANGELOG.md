@@ -1,5 +1,25 @@
 # @rsvelte/svelte-check
 
+## 0.5.34
+
+### Patch Changes
+
+- 4aded79: Follow language-tools `f0eda319c400`:
+  - **svelte2tsx:** instance-script imports are hoisted as whole lines, one chunk per run of adjacent top-level imports; nested imports stay in place and no `;` is appended to the last import.
+  - **svelte2tsx:** a `$$ComponentProps` alias after an import is inserted on the next line, so it is not hoisted with the import.
+  - **svelte2tsx:** the `$$ComponentProps` alias emitted before `$$render` follows hoisted imports after a blank line, as upstream's does.
+  - **svelte2tsx:** prop widening is emitted as `x = __sveltets_2_any();x;`.
+  - **svelte2tsx:** `// @ts-check` and `// @ts-nocheck` among the script's leading comments are prepended to the output.
+  - **Language server:** the initialize result carries `customServerStatus` (`contentMapperModeEnabled: false`).
+- 0a7335e: fix(lsp): resolve package.json `imports` (`#lib/*`) from component shadows
+
+  A component's tsgo shadow lives under the overlay cache, so its nearest
+  package.json was not the project's and a `#lib/...` import resolved against the
+  wrong `imports` map (or none); a `.svelte` target also exists only in the shadow
+  tree. The overlay now writes the project package's `imports` into `paths`, each
+  target beside its shadow-tree twin, so go-to-definition, hover and completion
+  follow `#lib/Card.svelte` the way they follow a tsconfig `paths` alias.
+
 ## 0.5.33
 
 ### Patch Changes

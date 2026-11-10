@@ -1,5 +1,29 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.19
+
+### Patch Changes
+
+- 683292d: Client: lower a nested destructured `$state` / `$state.raw` pattern (`let [x, [y]] = $state(…)`) as upstream does, where the whole declaration used to be left with its `$state` call in it. A default or computed key in such a pattern that reads state now gets `$.get`, and a reassigned `$state.raw` object rest keeps its `$.state` wrap.
+- 4e6dd6a: Compile a destructured `$state` / `$state.raw` / `$derived` / `$derived.by` in a `{let}` / `{const}` template tag as upstream does.
+  - **Server:** the declaration was emitted unchanged, with the `$state` call still in it.
+  - **Client:** every tag reused `tmp` / `$$array`, so the output declared a name twice and did not parse. The names now continue the component's numbering.
+  - **Both targets:** a template read of a destructured name was replaced by an empty string.
+- 54ad138: Declaration tags with a destructured `$state` / `$derived`:
+  - **Client:** in a component without an instance script, a tag's temps (`tmp`, `$$array`, `$$d`) took their numbers from the previous compile on the same thread, so the output depended on compile order.
+  - **Client:** a component without a `<script>` now lays the expanded declaration out as upstream does.
+  - **Client:** a tag that mixes a destructured rune with other declarators is emitted as one declaration.
+  - **Client:** a destructuring default that reads state is no longer wrapped in a thunk.
+  - **Server:** a name a tag declares no longer folds to the value of an outer constant it shadows.
+- ac57780: Client `compileModule`: wrap reads and writes of a name bound by a destructured `$state` / `$state.raw` declaration in `$.get` / `$.set`, as upstream does. They used to be left bare while the declaration itself was lowered.
+
+  A same-named import, `$state.snapshot` local or non-reassigned `$state` local is no longer wrapped as if it were that signal.
+
+- a949fc7: Client: a destructured `$state` / `$state.raw` names every `$$array` before it visits a default or computed key, so a pattern nested inside a default takes the next name as upstream numbers it. An empty object pattern (`let {} = $state({})`) is lowered to its `tmp` instead of being left with the `$state` call.
+- b9de720: Stop reporting `state_referenced_locally` for a template `{const}` / `{let}` that reads `$state`, `$derived` or props from the component's `<script>`, as the official compiler does. The warning now fires, with the same `closure` / `derived` wording, only for a declaration-tag binding of the same block read synchronously, after its declaration.
+
+  `$state(K)`, where `K` is a binding holding a primitive (`const K = 5`, or a prop whose fallback is one), now warns in both `<script>` and declaration tags, as upstream's `should_proxy` resolves the identifier. Defaults and computed keys in a declaration tag's destructuring pattern count as reads; class keys do not.
+
 ## 0.3.18
 
 ### Patch Changes
