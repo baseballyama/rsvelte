@@ -278,7 +278,7 @@ pub(super) fn handle_export_named_decl(
                                 str.append_left_fmt(
                                     id_end,
                                     format_args!(
-                                        "/*\u{03A9}ignore_start\u{03A9}*/: {kit};{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/"
+                                        "/*\u{03A9}ignore_start\u{03A9}*/: {kit};{name} = __sveltets_2_any();{name};/*\u{03A9}ignore_end\u{03A9}*/"
                                     ),
                                 );
                             } else {
@@ -286,7 +286,7 @@ pub(super) fn handle_export_named_decl(
                                     str.append_left_fmt(
                                         widen_pos,
                                         format_args!(
-                                            "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/"
+                                            "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any();{name};/*\u{03A9}ignore_end\u{03A9}*/"
                                         ),
                                     );
                                 }
@@ -441,7 +441,7 @@ pub(super) fn handle_export_named_decl(
                     && let Some(pe) = possible
                 {
                     let inject = format!(
-                        "/*\u{03A9}ignore_start\u{03A9}*/;{local} = __sveltets_2_any({local});/*\u{03A9}ignore_end\u{03A9}*/"
+                        "/*\u{03A9}ignore_start\u{03A9}*/;{local} = __sveltets_2_any();{local};/*\u{03A9}ignore_end\u{03A9}*/"
                     );
                     str.append_left(pe.decl_end + offset, &inject);
                 }

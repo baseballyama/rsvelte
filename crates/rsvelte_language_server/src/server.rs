@@ -154,6 +154,7 @@ pub fn run_stdio() -> Result<ExitCode> {
         serde_json::json!({
             "capabilities": capabilities(&client),
             "serverInfo": { "name": SERVER_NAME, "version": VERSION },
+            "customServerStatus": custom_server_status(),
         }),
     )?;
 
@@ -173,6 +174,13 @@ pub fn run_stdio() -> Result<ExitCode> {
     drop(connection);
     io_threads.join()?;
     Ok(code)
+}
+
+/// Upstream reports whether it switched to its TypeScript 7 content-mapper
+/// mode, which drops the TS6-backed capabilities. This server has no such
+/// mode: it keeps every capability whatever `tsGoContentMapperOptions` says.
+fn custom_server_status() -> serde_json::Value {
+    serde_json::json!({ "experimental": { "contentMapperModeEnabled": false } })
 }
 
 fn capabilities(client: &ClientState) -> ServerCapabilities {
@@ -5072,6 +5080,22 @@ mod folding_tests {
     fn a_single_line_range_survives_only_a_character_folding_client() {
         assert_eq!(kept(true), [0, 6]);
         assert_eq!(kept(false), [0, 1, 6]);
+    }
+}
+
+#[cfg(test)]
+mod custom_server_status_tests {
+    use super::custom_server_status;
+    use serde_json::json;
+
+    #[test]
+    fn matches_upstream_initialize_without_content_mapper_mode() {
+        // `server.ts` onInitialize with no `tsGoContentMapperOptions`:
+        // `contentMapperModeEnabled: !enableTs6Features`, `enableTs6Features = true`.
+        assert_eq!(
+            custom_server_status(),
+            json!({ "experimental": { "contentMapperModeEnabled": false } })
+        );
     }
 }
 

@@ -117,7 +117,7 @@ fn to_tsx_no_jsdoc(src: &str, filename: &str) -> String {
 
 /// The combined branch — kit type *and* widener in one ignore block — is written
 /// out as a single format string here, where upstream concatenates
-/// `` `${kitType};${name} = __sveltets_2_any(${name});` `` (`ExportedNames.ts:476`).
+/// `` `${kitType};${name} = __sveltets_2_any();${name};` `` (`ExportedNames.ts:498`).
 /// The two must agree byte for byte, and the separator between them is one
 /// character wide, so it is asserted as text rather than by `contains` on the
 /// pieces. Control: the *separate* branch below never had the space, which is
@@ -130,7 +130,7 @@ fn the_combined_kit_type_and_widener_glue_with_no_space() {
     );
     assert!(
         out.contains(
-            "/*\u{03A9}ignore_start\u{03A9}*/: import('./$types.js').PageData;data = __sveltets_2_any(data);/*\u{03A9}ignore_end\u{03A9}*/"
+            "/*\u{03A9}ignore_start\u{03A9}*/: import('./$types.js').PageData;data = __sveltets_2_any();data;/*\u{03A9}ignore_end\u{03A9}*/"
         ),
         "combined kit block does not match upstream's spelling:\n{out}"
     );
@@ -146,7 +146,7 @@ fn the_widener_alone_already_glued() {
     );
     assert!(
         out.contains(
-            "/*\u{03A9}ignore_start\u{03A9}*/;other = __sveltets_2_any(other);/*\u{03A9}ignore_end\u{03A9}*/"
+            "/*\u{03A9}ignore_start\u{03A9}*/;other = __sveltets_2_any();other;/*\u{03A9}ignore_end\u{03A9}*/"
         ),
         "standalone widener changed shape:\n{out}"
     );

@@ -3,6 +3,7 @@
 pub mod component_documentation;
 pub mod component_events;
 pub mod component_name;
+pub mod directive_comment;
 pub mod generics;
 pub mod runes_detection;
 pub mod scripts;

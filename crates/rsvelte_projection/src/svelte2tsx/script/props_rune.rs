@@ -3,6 +3,7 @@
 use oxc_ast::ast as oxc;
 use oxc_span::GetSpan;
 
+use super::super::nodes::scripts::next_line_or_non_whitespace;
 use super::ast_utils::{binding_pattern_simple_name, property_key_to_string};
 use super::hoistable_types::walk_back_through_trivia;
 use super::{classify_kit_route_file, is_kit_error_file};
@@ -59,6 +60,9 @@ fn upstream_rewrites_inline_object_jsdoc(comment: &str) -> bool {
 pub(super) struct PropsRuneInfo {
     /// Position of the `let` keyword (relative to `raw_content`)
     let_pos: u32,
+    /// End of the import statement directly before the declaration, if any
+    /// (relative to `raw_content`)
+    previous_import_end: Option<u32>,
     /// Position of the `{` in the destructuring pattern (relative to `raw_content`)
     destructure_start: u32,
     /// End position of the destructuring pattern (relative to `raw_content`)
@@ -102,6 +106,19 @@ impl PropsRuneFlags {
             self.0 |= flag;
         }
     }
+}
+
+/// `getInsertPosForComponentProps`: the start of the declaration's leading
+/// trivia, except after an import, where that position would be part of the
+/// import chunk `moveAllInstanceImports` hoists.
+fn insert_pos_for_component_props(info: &PropsRuneInfo, raw_content: &str) -> u32 {
+    if let Some(import_end) = info.previous_import_end {
+        return next_line_or_non_whitespace(raw_content, import_end);
+    }
+    source_offset(walk_back_through_trivia(
+        raw_content.as_bytes(),
+        info.let_pos as usize,
+    ))
 }
 
 impl PropsRuneInfo {
@@ -162,9 +179,8 @@ pub(super) fn apply_props_typedef(
         // or a generic). This matches the JS reference's
         // `move(generic_arg.pos, generic_arg.end, node.parent.pos)` — TypeScript's
         // `pos` lands right after the previous statement's trailing trivia.
-        let raw_bytes = raw_content.as_bytes();
-        let p = walk_back_through_trivia(raw_bytes, info.let_pos as usize);
-        exported_names.props_let_abs_pos = Some(source_offset(p) + offset);
+        exported_names.props_let_abs_pos =
+            Some(insert_pos_for_component_props(info, raw_content) + offset);
     } else if info.flags.contains(PropsRuneFlags::TYPE_ANNOTATION)
         && !info
             .flags
@@ -191,9 +207,8 @@ pub(super) fn apply_props_typedef(
         // svelte2tsx.rs uses it in `ts_component_props_before_render` to emit
         // `;type $$ComponentProps = <type_text>;` before `function $$render`.
         // Leave type_already_inserted = false so it goes BEFORE render.
-        let raw_bytes = raw_content.as_bytes();
-        let p = walk_back_through_trivia(raw_bytes, info.let_pos as usize);
-        exported_names.props_let_abs_pos = Some(source_offset(p) + offset);
+        exported_names.props_let_abs_pos =
+            Some(insert_pos_for_component_props(info, raw_content) + offset);
     } else if info
         .flags
         .contains(PropsRuneFlags::TYPE_ANNOTATION | PropsRuneFlags::NAMED_TYPE_REFERENCE)
@@ -434,9 +449,8 @@ pub(super) fn apply_props_typedef(
             // BEFORE any `//` / `/* */` comments that precede the `let` — walk
             // back through them too, otherwise the typedef gets appended onto a
             // preceding `// …` line and is swallowed by that line comment.
-            let raw_bytes = raw_content.as_bytes();
-            let p = walk_back_through_trivia(raw_bytes, info.let_pos as usize);
-            exported_names.props_let_abs_pos = Some(source_offset(p) + offset);
+            exported_names.props_let_abs_pos =
+                Some(insert_pos_for_component_props(info, raw_content) + offset);
         } else {
             // JS case: Insert JSDoc typedef between `let` and `{`
             let typedef_text = format!(
@@ -678,8 +692,17 @@ pub(super) fn collect_props_rune_info(
     flags.mark_if(PropsRuneFlags::HAS_REST, has_rest);
     flags.mark_if(PropsRuneFlags::HAS_UNKNOWN_PROPS, has_unknown_props);
 
+    let previous_import_end =
+        stmt_index
+            .checked_sub(1)
+            .and_then(|index| match &program.body[index] {
+                oxc::Statement::ImportDeclaration(import) => Some(import.span.end),
+                _ => None,
+            });
+
     Some(PropsRuneInfo {
         let_pos,
+        previous_import_end,
         destructure_start,
         destructure_end,
         props_call_end,
