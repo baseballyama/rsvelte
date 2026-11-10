@@ -133,7 +133,6 @@ fn review_e_shapes_the_port_cannot_print_are_refused() {
         "<p>{static}</p>\n",
         "<p>{a?.b = 1}</p>\n",
         "<p>{-x ** 2}</p>\n",
-        "<p>{await -1}</p>\n",
         "<p>{a || `x\ny`}</p>\n",
         "{#if z}{@const q = a = b}{q}{/if}\n",
         "{#if f(someQuiteLongIdentifierNumberOne + someQuiteLongIdentifierNumberOne, [a, b])}y{/if}\n",
@@ -222,6 +221,8 @@ fn review_f_shapes_print_as_prettier_does() {
             "<script>\n  (a?.b).c;\n</script>\n",
             "<script>\n  (a?.b).c;\n</script>\n",
         ),
+        // In a module `await` is a keyword, so this awaits `-1`.
+        ("<p>{await -1}</p>\n", "<p>{await -1}</p>\n"),
         // JavaScript's trim keeps U+0085, so this is no prettier-ignore comment.
         (
             "<!--\u{85}prettier-ignore -->\n<p>a</p>\n",

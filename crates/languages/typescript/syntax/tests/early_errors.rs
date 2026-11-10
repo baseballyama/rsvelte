@@ -25,6 +25,14 @@ fn await_is_an_expression_only_at_the_top_level_and_in_an_async_function() {
         "class K { m() { await 1; } }",
         "const o = { m() { await 1; } };",
         "async function f() { function g() { await 1; } }",
+        "function f(a = await 1) {}",
+        "async function f(a = await 1) {}",
+        "const f = (a = await 1) => a;",
+        "const f = async (a = await 1) => a;",
+        "async function f() { class K { m(a = await 1) {} } }",
+        "const o = { async m([a] = await b) {} };",
+        "await;",
+        "f(await);",
     ] {
         assert!(!parses(source_text, false), "{source_text}");
     }
@@ -36,6 +44,9 @@ fn await_is_an_expression_only_at_the_top_level_and_in_an_async_function() {
         "class K { async m() { await 1; } }",
         "const o = { async m() { await 1; } };",
         "function f() { const g = async () => await 1; }",
+        "await -1;",
+        "class K { [await 1] = 2; }",
+        "async function f(a = 1) { await a; }",
     ] {
         assert!(parses(source_text, false), "{source_text}");
     }

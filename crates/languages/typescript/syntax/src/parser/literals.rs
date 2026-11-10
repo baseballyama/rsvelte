@@ -211,7 +211,7 @@ impl Parser<'_, '_> {
                         self.accessor_parameters(parameters, accessor == flag::GETTER)?;
                     }
                     let ret = self.maybe_return_type(false)?;
-                    let body = self.function_body(is_async, Self::block)?;
+                    let body = self.with_async(is_async, Self::block)?;
                     let span = Span::new(key_token.start_offset, self.prev_end);
                     let f = self.close(parameters, |syntax_tree, parameters| {
                         syntax_tree.function(false, None, parameters, body, is_async, span)

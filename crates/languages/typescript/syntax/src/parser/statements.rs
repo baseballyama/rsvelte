@@ -155,17 +155,12 @@ impl Parser<'_, '_> {
         }))
     }
 
-    /// A function's body, a class field's value or a static block, where `await` is an expression
-    /// only when `is_async`.
-    pub(super) fn function_body(
-        &mut self,
-        is_async: bool,
-        body: fn(&mut Self) -> R<NodeIdentifier>,
-    ) -> R<NodeIdentifier> {
+    /// Parses with `await` an expression only when `is_async`, as a new function scope sets it.
+    pub(super) fn with_async<X>(&mut self, is_async: bool, parse: fn(&mut Self) -> R<X>) -> R<X> {
         let outer = std::mem::replace(&mut self.in_async, is_async);
-        let body = body(self);
+        let parsed = parse(self);
         self.in_async = outer;
-        body
+        parsed
     }
 
     pub(super) fn function(
@@ -187,7 +182,7 @@ impl Parser<'_, '_> {
         let type_parameters = self.maybe_type_parameters()?;
         let (parameters, this) = self.parameters()?;
         let ret = self.maybe_return_type(false)?;
-        let body = self.function_body(is_async, Self::block)?;
+        let body = self.with_async(is_async, Self::block)?;
         let span = self.span_from(start_offset);
         let f = self.close(parameters, |syntax_tree, parameters| {
             syntax_tree.function(declaration, name, parameters, body, is_async, span)
@@ -200,6 +195,10 @@ impl Parser<'_, '_> {
     /// `(…)`, and the span of a leading `this: T`, which TypeScript reads as the type of `this`
     /// and JavaScript does not have.
     pub(super) fn parameters(&mut self) -> R<(List, Option<Span>)> {
+        self.with_async(false, Self::parameter_list)
+    }
+
+    fn parameter_list(&mut self) -> R<(List, Option<Span>)> {
         self.expect(T::LParen, "(")?;
         let this = if self.typescript && self.is_kw("this") {
             let start_offset = self.token.span.start_offset;

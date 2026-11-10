@@ -109,9 +109,9 @@ impl Parser<'_, '_> {
         }
         self.bump()?;
         let (body, expression_body) = if self.token.t == T::LBrace {
-            (self.function_body(is_async, Self::block)?, false)
+            (self.with_async(is_async, Self::block)?, false)
         } else {
-            (self.function_body(is_async, Self::assignment)?, true)
+            (self.with_async(is_async, Self::assignment)?, true)
         };
         let span = self.span_from(start_offset);
         let f = self.close(parameters, |syntax_tree, parameters| {
@@ -252,12 +252,7 @@ impl Parser<'_, '_> {
                 .syntax_tree
                 .update(op, true, arg, self.span_from(start_offset)));
         }
-        if self.is_kw("await")
-            && !matches!(
-                self.peek().t,
-                T::Arrow | T::Op | T::RParen | T::Comma | T::Semi | T::Eof
-            )
-        {
+        if self.is_kw("await") {
             if !self.in_async {
                 return self.fail("`await` is only valid in an async function");
             }
