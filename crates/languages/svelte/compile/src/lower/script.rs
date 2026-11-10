@@ -9,8 +9,9 @@ mod props;
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::ast::{
     Argument, AssignmentOperator, AssignmentTarget, BindingIdentifier, Declaration, Expression,
-    IdentifierReference, ObjectProperty, Program, SimpleAssignmentTarget, Statement, SwitchCase,
-    UpdateOperator, VariableDeclaration, VariableDeclarationKind, VariableDeclarator,
+    IdentifierReference, ImportDeclaration, ObjectProperty, Program, SimpleAssignmentTarget,
+    Statement, SwitchCase, UpdateOperator, VariableDeclaration, VariableDeclarationKind,
+    VariableDeclarator, WithClause, WithClauseKeyword,
 };
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::{ReferenceId, SymbolId};
@@ -308,6 +309,19 @@ impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
             return;
         }
         walk_mut::walk_object_property(self, it);
+    }
+
+    // esrap prints `import {} from "x"` as `import "x"`.
+    fn visit_import_declaration(&mut self, it: &mut ImportDeclaration<'o>) {
+        if it.specifiers.as_ref().is_some_and(|s| s.is_empty()) {
+            it.specifiers = None;
+        }
+        walk_mut::walk_import_declaration(self, it);
+    }
+
+    // esrap prints every import attribute list with `with`.
+    fn visit_with_clause(&mut self, it: &mut WithClause<'o>) {
+        it.keyword = WithClauseKeyword::With;
     }
 
     // esrap prints no empty statement in a block or program body.
