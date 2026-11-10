@@ -38,7 +38,6 @@ impl Artifact for Resolved {
             &c.javascript,
             c.program,
             compiler_syntax_tree,
-            context.source_text(),
         ))
     }
 }

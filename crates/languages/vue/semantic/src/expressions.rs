@@ -1,4 +1,8 @@
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use oxc_ast::AstKind;
+use oxc_ast::ast::{Expression, StaticMemberExpression};
+use oxc_ast_visit::{Visit, walk};
+use oxc_semantic::ReferenceId;
+use rsvelte_kernel::source::positions::Span;
 
 /// `@vue/shared` `GLOBALS_ALLOWED`.
 const GLOBALS_ALLOWED: &[&str] = &[
@@ -72,40 +76,99 @@ pub fn is_simple_identifier(s: &str) -> bool {
         && b.all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'$')
 }
 
-/// Every identifier `walkIdentifiers` visits with `includeAll`, with its parent, but static object
-/// keys (`isStaticPropertyKey`).
-pub fn collect_identifiers(
-    syntax_tree: &SyntaxTree,
-    n: NodeIdentifier,
-    parent: Option<NodeIdentifier>,
-    out: &mut Vec<(NodeIdentifier, Option<NodeIdentifier>)>,
-) {
-    match syntax_tree.kind(n) {
-        Kind::Identifier(_) => out.push((n, parent)),
-        Kind::Property {
-            key,
-            value,
-            computed,
-            shorthand,
-            ..
-        } => {
-            if computed {
-                collect_identifiers(syntax_tree, key, Some(n), out);
-            }
-            if shorthand && !computed {
-                out.push((value, Some(n)));
-            } else {
-                collect_identifiers(syntax_tree, value, Some(n), out);
-            }
-        }
-        _ => {
-            let mut children = Vec::new();
-            syntax_tree.for_each_child(n, |k| children.push(k));
-            for k in children {
-                collect_identifiers(syntax_tree, k, Some(n), out);
-            }
-        }
+/// What holds an identifier, as far as the template compiler asks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Parent {
+    /// The value of a shorthand property, `{ a }`, which keeps its key when it is rewritten.
+    Shorthand,
+    /// A call, a `new` or a member access: the name is read for more than its value.
+    Accessed,
+    Other,
+}
+
+/// An identifier `walkIdentifiers` visits with `includeAll`.
+#[derive(Clone, Copy, Debug)]
+pub struct Identifier<'a> {
+    pub name: &'a str,
+    pub span: Span,
+    /// The reference it is; `None` for a name it declares or a member's property.
+    pub reference: Option<ReferenceId>,
+    pub parent: Parent,
+}
+
+/// Every identifier `walkIdentifiers` visits with `includeAll` in `e`, but static object keys
+/// (`isStaticPropertyKey`), in document order.
+pub fn collect_identifiers<'a>(e: &'a Expression<'a>, out: &mut Vec<Identifier<'a>>) {
+    let mut walk = Walk {
+        out,
+        parents: Vec::new(),
+    };
+    walk.visit_expression(e);
+}
+
+struct Walk<'o, 'a> {
+    out: &'o mut Vec<Identifier<'a>>,
+    parents: Vec<Parent>,
+}
+
+impl Walk<'_, '_> {
+    fn parent(&self) -> Parent {
+        self.parents.last().copied().unwrap_or(Parent::Other)
     }
+}
+
+impl<'a> Visit<'a> for Walk<'_, 'a> {
+    fn enter_node(&mut self, kind: AstKind<'a>) {
+        let parent = match kind {
+            AstKind::ObjectProperty(p) if p.shorthand => Parent::Shorthand,
+            AstKind::CallExpression(_)
+            | AstKind::NewExpression(_)
+            | AstKind::StaticMemberExpression(_)
+            | AstKind::ComputedMemberExpression(_)
+            | AstKind::PrivateFieldExpression(_) => Parent::Accessed,
+            AstKind::IdentifierReference(i) => {
+                let parent = self.parent();
+                self.out.push(Identifier {
+                    name: i.name.as_str(),
+                    span: span(i.span),
+                    reference: i.reference_id.get(),
+                    parent,
+                });
+                Parent::Other
+            }
+            AstKind::BindingIdentifier(i) => {
+                let parent = self.parent();
+                self.out.push(Identifier {
+                    name: i.name.as_str(),
+                    span: span(i.span),
+                    reference: None,
+                    parent,
+                });
+                Parent::Other
+            }
+            _ => Parent::Other,
+        };
+        self.parents.push(parent);
+    }
+
+    fn leave_node(&mut self, _: AstKind<'a>) {
+        self.parents.pop();
+    }
+
+    fn visit_static_member_expression(&mut self, it: &StaticMemberExpression<'a>) {
+        walk::walk_static_member_expression(self, it);
+        // Babel's member property is an `Identifier` too.
+        self.out.push(Identifier {
+            name: it.property.name.as_str(),
+            span: span(it.property.span),
+            reference: None,
+            parent: Parent::Accessed,
+        });
+    }
+}
+
+const fn span(span: oxc_span::Span) -> Span {
+    Span::new(span.start, span.end)
 }
 
 #[must_use]
