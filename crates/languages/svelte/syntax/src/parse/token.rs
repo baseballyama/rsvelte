@@ -5,7 +5,7 @@ use rsvelte_kernel::source::tokens::Tokens;
 use super::Parser;
 use crate::syntax_tree::TokenType;
 
-impl Parser<'_> {
+impl Parser<'_, '_> {
     pub(super) fn token(&mut self, kind: TokenType, start_offset: usize) {
         self.component
             .tokens
@@ -56,41 +56,28 @@ impl Parser<'_> {
         true
     }
 
-    pub(super) fn javascript_region(
-        &mut self,
-        start_offset: u32,
-        end_offset: u32,
-        tokens_from: usize,
-        comments_from: usize,
-    ) {
-        let javascript = &self.component.javascript;
-        let tokens = &mut self.component.tokens;
-        if comments_from == javascript.comments.len() {
-            append_javascript_region(
-                tokens,
-                start_offset,
-                end_offset,
-                javascript
-                    .tokens
-                    .since(tokens_from)
-                    .iter()
-                    .map(|token| (TokenType::JavaScript(token.kind), token.span)),
-            );
-        } else {
-            append_javascript_region(
-                tokens,
-                start_offset,
-                end_offset,
-                javascript
-                    .recorded_since(tokens_from, comments_from)
-                    .map(|(kind, span)| {
-                        (
-                            kind.map_or(TokenType::JavaScriptComment, TokenType::JavaScript),
-                            span,
-                        )
-                    }),
-            );
-        }
+    /// The tokens and comments the builder recorded for the part from `start_offset` to
+    /// `end_offset`, and the whitespace between them; the parser goes on after the last of them.
+    /// A comment after the part (`{a /* c */}`) is one of them.
+    pub(super) fn javascript_region(&mut self, start_offset: u32, end_offset: u32) {
+        let end_offset = self
+            .builder
+            .recorded()
+            .last()
+            .map_or(end_offset, |r| r.span.end_offset.max(end_offset));
+        let recorded = self.builder.recorded().iter().map(|r| {
+            let kind = r
+                .kind
+                .map_or(TokenType::JavaScriptComment, TokenType::JavaScript);
+            (kind, r.span)
+        });
+        append_javascript_region(
+            &mut self.component.tokens,
+            start_offset,
+            end_offset,
+            recorded,
+        );
+        self.position = end_offset as usize;
     }
 }
 

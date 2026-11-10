@@ -1,20 +1,23 @@
 //! The Svelte surface tree.
 //!
 //! Template nodes live in flat vectors and refer to each other by index;
-//! every JavaScript expression (script and template) lives in the one [`SyntaxTree`] of the
-//! component, so a single scope analysis sees both.
+//! every JavaScript part (scripts and template) lives in the one oxc [`Tree`] of the
+//! component, with spans in the component's text.
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{TokenKind, Tokens};
 use rsvelte_stylesheet_syntax::StyleSheet;
-use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_tree::{
+    DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
+    ProgramIdentifier, Tree,
+};
 
 pub type TemplateNodeIdentifier = u32;
 
 /// A slice of one of the side vectors (`children`, `attributes`, `parts`, `modifiers`,
-/// `javascript_lists`).
+/// `debug_identifiers`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Range {
     pub start: u32,
@@ -53,12 +56,13 @@ pub enum TemplateNode {
         data: Span,
     },
     Expression {
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
         span: Span,
     },
     Element {
         name: Span,
-        component: NodeIdentifier,
+        /// What a component's name (`Foo`, `ui.Button`) refers to.
+        component: Option<ExpressionIdentifier>,
         attributes: Range,
         children: Range,
         /// `<name …>` (or `<name … />`).
@@ -71,22 +75,21 @@ pub enum TemplateNode {
         span: Span,
     },
     If {
-        test: NodeIdentifier,
+        test: ExpressionIdentifier,
         consequent: Range,
         /// An `{:else if}` branch is an alternate holding one `If` with `elseif` set.
         alternate: Option<Range>,
         elseif: bool,
         span: Span,
     },
-    /// `{#each expression as context, index (key)}…{:else}…{/each}`; an absent part is
-    /// `NodeIdentifier::NONE`.
+    /// `{#each expression as context, index (key)}…{:else}…{/each}`
     Each {
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
         /// The pattern after `as`.
-        context: NodeIdentifier,
-        /// An identifier node in the component's [`SyntaxTree`], so scope analysis can declare it.
-        index: NodeIdentifier,
-        key: NodeIdentifier,
+        context: Option<PatternIdentifier>,
+        /// A binding identifier, so scope analysis can declare it.
+        index: Option<PatternIdentifier>,
+        key: Option<ExpressionIdentifier>,
         body: Range,
         /// Meaningful only with `has_fallback`: `{:else}` with nothing after it is an empty
         /// fallback, not an absent one.
@@ -96,55 +99,55 @@ pub enum TemplateNode {
     },
     /// `{#key expression}…{/key}`
     Key {
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
         body: Range,
         span: Span,
     },
     /// `{#await expression}…{:then value}…{:catch error}…{/await}`. `{#await p then v}` has no
-    /// pending branch. An absent pattern is `NodeIdentifier::NONE`; an absent branch is
-    /// `Range::ABSENT`.
+    /// pending branch. An absent branch is `Range::ABSENT`.
     Await {
-        expression: NodeIdentifier,
-        value: NodeIdentifier,
-        error: NodeIdentifier,
+        expression: ExpressionIdentifier,
+        value: Option<PatternIdentifier>,
+        error: Option<PatternIdentifier>,
         pending: Range,
         then: Range,
         catch: Range,
         span: Span,
     },
-    /// `{#snippet name(parameters)}…{/snippet}`; the parameters are patterns in
-    /// [`Component::javascript_lists`].
+    /// `{#snippet name(parameters)}…{/snippet}`
     Snippet {
-        name: NodeIdentifier,
+        /// An identifier reference.
+        name: ExpressionIdentifier,
         /// `<T>` after the name, as written; only in TypeScript.
         type_parameters: Option<Span>,
-        parameters: Range,
+        /// Absent without parentheses (`{#snippet name}`).
+        parameters: Option<ParametersIdentifier>,
         body: Range,
         span: Span,
     },
     /// `{@render expression}`, where the expression is a call or an optional call.
     Render {
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
         span: Span,
     },
     /// `{@html expression}`
     Html {
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
         span: Span,
     },
     /// `{@const pattern = expression}`, as the `const` declaration it stands for.
     Const {
-        declaration: NodeIdentifier,
+        declaration: DeclarationIdentifier,
         span: Span,
     },
-    /// `{@debug a, b}`; the identifiers are in [`Component::javascript_lists`].
+    /// `{@debug a, b}`; the identifiers are in [`Component::debug_identifiers`].
     Debug {
         identifiers: Range,
         span: Span,
     },
     /// `{let …}` or `{const …}`: a variable declaration in the template.
     Declaration {
-        declaration: NodeIdentifier,
+        declaration: DeclarationIdentifier,
         span: Span,
     },
 }
@@ -180,8 +183,8 @@ pub struct Attribute {
     /// A directive's `|modifier` names, in [`Component::modifiers`].
     pub modifiers: Range,
     /// What the name of a `use:`, `transition:`, `in:`, `out:` or `animate:` directive refers to:
-    /// an identifier or a member chain (`a.b`); `NodeIdentifier::NONE` for other attributes.
-    pub target: NodeIdentifier,
+    /// an identifier or a member chain (`a.b`); absent for other attributes.
+    pub target: Option<ExpressionIdentifier>,
     pub value: AttributeValue,
     pub span: Span,
     /// `a="…"` rather than `a={…}`; upstream keeps the two apart and a few rules differ.
@@ -270,7 +273,7 @@ pub enum AttributeValue {
 pub enum Part {
     Text(Span),
     Expression {
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
         /// Braces included.
         span: Span,
     },
@@ -284,7 +287,7 @@ pub struct Script {
     pub span: Span,
     pub attributes: Vec<TagAttributes>,
     pub content: Span,
-    pub program: NodeIdentifier,
+    pub program: ProgramIdentifier,
     pub typescript: bool,
 }
 
@@ -309,24 +312,20 @@ impl Component {
 
 #[derive(Debug)]
 pub struct Component {
-    pub javascript: SyntaxTree,
+    pub javascript: Tree,
     pub nodes: Vec<TemplateNode>,
     pub children: Vec<TemplateNodeIdentifier>,
     pub attributes: Vec<Attribute>,
     pub parts: Vec<Part>,
     /// The `|modifier` names of directives.
     pub modifiers: Vec<Span>,
-    /// Lists of JavaScript nodes: snippet parameters and `{@debug}` identifiers.
-    pub javascript_lists: Vec<NodeIdentifier>,
+    /// The identifiers of `{@debug}` tags.
+    pub debug_identifiers: Vec<ExpressionIdentifier>,
     pub root: Range,
-    /// `<script module>`, whose program is in the same [`SyntaxTree`].
+    /// `<script module>`, whose program is in the same [`Tree`].
     pub module: Option<Script>,
     pub instance: Option<Script>,
-    /// The instance script's program, or an empty one: scope analysis always has a root.
-    pub program: NodeIdentifier,
     pub style: Option<Style>,
-    /// Every template expression, in document order; roots for scope analysis.
-    pub template_expressions: Vec<NodeIdentifier>,
     /// The whole document as tokens: markup, the JavaScript parser's tokens and comments, and the
     /// whitespace between them. The style sheet is one [`TokenType::Stylesheet`] token.
     pub tokens: Tokens<TokenType>,
@@ -365,7 +364,7 @@ pub enum TokenType {
     BlockOpen,
     /// `if` in `{:else if`, `as` in `{#each … as …}`, `@attach` in `{@attach …}`.
     BlockKeyword,
-    JavaScript(rsvelte_typescript_syntax::lexer::T),
+    JavaScript(oxc_parser::Kind),
     JavaScriptComment,
     Whitespace,
     /// A style sheet's content, until the CSS parser records its own tokens.
@@ -389,8 +388,7 @@ impl Drop for Component {
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.attributes));
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.parts));
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.modifiers));
-        buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.javascript_lists));
-        buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.template_expressions));
+        buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.debug_identifiers));
     }
 }
 
@@ -442,8 +440,8 @@ impl Component {
     }
 
     #[must_use]
-    pub fn javascript_list(&self, r: Range) -> &[NodeIdentifier] {
-        r.get(&self.javascript_lists)
+    pub fn debug_identifiers(&self, r: Range) -> &[ExpressionIdentifier] {
+        r.get(&self.debug_identifiers)
     }
 }
 

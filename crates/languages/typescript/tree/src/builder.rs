@@ -152,7 +152,22 @@ impl<'a> Builder<'a> {
         start: u32,
         source_type: SourceType,
     ) -> Result<(Expression<'a>, u32), Diagnostic> {
-        let parsed = Parser::new(self.allocator, self.source_text, source_type)
+        self.read_expression_before(start, self.source_text.len() as u32, source_type)
+    }
+
+    /// [`Self::read_expression_at`] in the document up to `limit`, as if it ended there.
+    ///
+    /// # Errors
+    ///
+    /// The first syntax error in the expression.
+    pub fn read_expression_before(
+        &mut self,
+        start: u32,
+        limit: u32,
+        source_type: SourceType,
+    ) -> Result<(Expression<'a>, u32), Diagnostic> {
+        let text = &self.source_text[..limit as usize];
+        let parsed = Parser::new(self.allocator, text, source_type)
             .with_options(options())
             .with_config(TokensParserConfig)
             .parse_expression_at(start)
@@ -160,6 +175,17 @@ impl<'a> Builder<'a> {
         self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
         Ok((parsed.expression, parsed.end))
+    }
+
+    /// How many comments the parts read so far have, to [`Self::rewind`] to.
+    #[must_use]
+    pub const fn mark(&self) -> usize {
+        self.comments.len()
+    }
+
+    /// Forgets the comments of the parts read after `mark`, for a host that reads a part again.
+    pub fn rewind(&mut self, mark: usize) {
+        self.comments.truncate(mark);
     }
 
     /// Parses the statement that starts at `start`, such as the declaration of a `{let a = 1}`

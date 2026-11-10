@@ -1186,10 +1186,14 @@ name = "rsvelte_svelte_syntax"
 version = "0.0.0"
 dependencies = [
  "memchr",
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_parser",
+ "oxc_span",
  "rsvelte_kernel",
  "rsvelte_markup_syntax",
  "rsvelte_stylesheet_syntax",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
  "rustc-hash",
  "unicode-id-start",
 ]

@@ -4,7 +4,7 @@ use super::element_rules::closing_tag_omitted;
 use super::{End, ParseResult, Parser, element};
 use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
 
-impl Parser<'_> {
+impl Parser<'_, '_> {
     /// The children up to `end`. Elements and blocks nest through here, so the stack grows as the
     /// markup nests and the depth is checked in one place.
     pub(super) fn fragment(&mut self, end: End<'_>) -> ParseResult<Range> {

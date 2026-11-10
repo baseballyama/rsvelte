@@ -1,14 +1,20 @@
+use oxc_ast::ast::FormalParameter;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_syntax::NodeIdentifier;
-use rsvelte_typescript_syntax::parser::parse_parameters;
+use rsvelte_typescript_tree::PatternIdentifier;
 
 use super::identifier::match_bracket;
 use super::{ParseResult, Parser, javascript_error};
 
-impl Parser<'_> {
-    pub(super) fn pattern(&mut self) -> ParseResult<NodeIdentifier> {
+impl<'a> Parser<'a, '_> {
+    pub(super) fn pattern(&mut self) -> ParseResult<PatternIdentifier> {
+        let pattern = self.read_pattern()?;
+        Ok(self.builder.keep_pattern(pattern))
+    }
+
+    /// The pattern here and its type annotation, for a caller that takes it apart.
+    pub(super) fn read_pattern(&mut self) -> ParseResult<FormalParameter<'a>> {
         let start_offset = self.position;
         let mut len = match self.peek() {
             Some(b'{' | b'[') => {
@@ -39,22 +45,12 @@ impl Parser<'_> {
             len += self.type_annotation_len(start_offset + len);
         }
         let span = Span::new(start_offset as u32, (start_offset + len) as u32);
-        let (tokens, comments) = (
-            self.component.javascript.tokens.len(),
-            self.component.javascript.comments.len(),
-        );
-        let parameters = parse_parameters(
-            &mut self.component.javascript,
-            self.source_text,
-            span,
-            self.typescript,
-        )
-        .map_err(javascript_error)?;
-        let [pattern] = parameters[..] else {
-            return Self::err_at(span, "expected one pattern");
-        };
-        self.javascript_region(span.start_offset, span.end_offset, tokens, comments);
-        self.position = span.end_offset as usize;
+        let source_type = self.source_type();
+        let pattern = self
+            .builder
+            .read_pattern(span, source_type)
+            .map_err(javascript_error)?;
+        self.javascript_region(span.start_offset, span.end_offset);
         Ok(pattern)
     }
 

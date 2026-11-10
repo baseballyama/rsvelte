@@ -1,12 +1,11 @@
+use oxc_parser::Kind;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_syntax::lexer::T;
-use rsvelte_typescript_syntax::parser::parse_parameters;
 
 use super::identifier::match_bracket;
 use super::{End, ParseResult, Parser, javascript_error};
-use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
+use crate::syntax_tree::{TemplateNode, TemplateNodeIdentifier, TokenType};
 
-impl Parser<'_> {
+impl Parser<'_, '_> {
     pub(super) fn snippet_block(
         &mut self,
         start_offset: usize,
@@ -25,9 +24,9 @@ impl Parser<'_> {
             self.eat_token(TokenType::Text, len);
             self.skip_ws();
         }
-        let parameters_start = self.component.javascript_lists.len();
+        let mut parameters = None;
         if self.peek() == Some(b'(') {
-            self.eat_token(TokenType::JavaScript(T::LParen), 1);
+            self.eat_token(TokenType::JavaScript(Kind::LParen), 1);
             let start = self.position;
             let mut depth = 1usize;
             let bytes = self.source_text.as_bytes();
@@ -45,26 +44,16 @@ impl Parser<'_> {
                 return self.err("expected `)`");
             }
             let span = Span::new(start as u32, i as u32);
-            let (tokens, comments) = (
-                self.component.javascript.tokens.len(),
-                self.component.javascript.comments.len(),
+            let source_type = self.source_type();
+            parameters = Some(
+                self.builder
+                    .parameters(span, source_type)
+                    .map_err(javascript_error)?,
             );
-            let parameters = parse_parameters(
-                &mut self.component.javascript,
-                self.source_text,
-                span,
-                self.typescript,
-            )
-            .map_err(javascript_error)?;
-            self.javascript_region(span.start_offset, span.end_offset, tokens, comments);
+            self.javascript_region(span.start_offset, span.end_offset);
             self.position = i;
-            self.eat_token(TokenType::JavaScript(T::RParen), 1);
-            self.component.javascript_lists.extend(parameters);
+            self.eat_token(TokenType::JavaScript(Kind::RParen), 1);
         }
-        let parameters = Range {
-            start: parameters_start as u32,
-            len: (self.component.javascript_lists.len() - parameters_start) as u32,
-        };
         self.close_mustache()?;
         let body = self.fragment(End::Block)?;
         self.block_end("snippet")?;

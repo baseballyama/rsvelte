@@ -86,8 +86,7 @@ fn debug_tags_keep_single_and_multiple_identifiers() {
         let TemplateNode::Debug { identifiers, .. } = component.nodes[0] else {
             panic!("debug node");
         };
-        assert_eq!(component.javascript_list(identifiers).len(), count);
-        assert_eq!(component.template_expressions.len(), count);
+        assert_eq!(component.debug_identifiers(identifiers).len(), count);
     }
 }
 
@@ -101,7 +100,8 @@ fn unterminated_values_report_the_utf8_byte_offset() {
 
 #[test]
 fn component_names_keep_their_member_tree_and_source_positions() {
-    use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
+    use oxc_ast::ast::Expression;
+    use oxc_span::GetSpan;
     let source = "<UI.Button /><item.component /><div />";
     let parsed = parse(source).expect("component tags");
     parsed.tokens.check_lossless(source).expect("all bytes");
@@ -109,32 +109,33 @@ fn component_names_keep_their_member_tree_and_source_positions() {
         let TemplateNode::Element { component, .. } = parsed.nodes[index] else {
             panic!("an element");
         };
-        let Kind::Member {
-            object,
-            property,
-            computed: false,
-            ..
-        } = parsed.javascript.kind(component)
-        else {
+        let reference = parsed
+            .javascript
+            .get_expression(component.expect("a component reference"));
+        let Expression::StaticMemberExpression(member) = reference else {
             panic!("a member reference");
         };
-        for (node, name) in [(object, object_name), (property, property_name)] {
-            assert_eq!(parsed.javascript.name(node), name);
-            assert_eq!(
-                parsed
-                    .javascript
-                    .source_location(node)
-                    .span()
-                    .expect("source position")
-                    .text(source),
-                name
-            );
-        }
+        let Expression::Identifier(object) = &member.object else {
+            panic!("an identifier object");
+        };
+        let at = |span: oxc_span::Span| &source[span.start as usize..span.end as usize];
+        assert_eq!(
+            (object.name.as_str(), at(object.span)),
+            (object_name, object_name)
+        );
+        assert_eq!(
+            (member.property.name.as_str(), at(member.property.span)),
+            (property_name, property_name)
+        );
+        assert_eq!(
+            at(reference.span()),
+            format!("{object_name}.{property_name}")
+        );
     }
     let TemplateNode::Element { component, .. } = parsed.nodes[2] else {
         panic!("an element");
     };
-    assert_eq!(component, NodeIdentifier::NONE);
+    assert_eq!(component, None);
 }
 
 #[test]

@@ -1,7 +1,6 @@
+use oxc_parser::Kind;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_syntax::NodeIdentifier;
-use rsvelte_typescript_syntax::lexer::T;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 
@@ -43,7 +42,7 @@ pub(super) enum Unique {
     Style,
 }
 
-impl Parser<'_> {
+impl Parser<'_, '_> {
     /// Upstream raises `attribute_duplicate` as it reads a start tag; `this` may repeat.
     pub(super) fn unique(&mut self, namespace: Unique, name: Span, span: Span) -> ParseResult<()> {
         let name = name.text(self.source_text);
@@ -146,15 +145,15 @@ impl Parser<'_> {
         let kind = if self.eat_word(TokenType::BlockKeyword, "@attach") {
             self.require_ws()?;
             AttributeKind::Attach
-        } else if self.eat_word(TokenType::JavaScript(T::Ellipsis), "...") {
+        } else if self.eat_word(TokenType::JavaScript(Kind::Dot3), "...") {
             AttributeKind::Spread
         } else {
             AttributeKind::Attribute
         };
+        let name_start = self.position as u32;
+        let name_end = name_start + super::identifier::identifier_len(self.rest()) as u32;
         let expression = if kind == AttributeKind::Attribute {
-            let identifier = self.identifier()?;
-            self.component.template_expressions.push(identifier);
-            identifier
+            self.identifier()?
         } else {
             self.expression()?
         };
@@ -165,11 +164,7 @@ impl Parser<'_> {
             .parts
             .push(Part::Expression { expression, span });
         let name = if kind == AttributeKind::Attribute {
-            self.component
-                .javascript
-                .source_location(expression)
-                .span()
-                .expect("parsed from source")
+            Span::new(name_start, name_end)
         } else {
             Span::new(start_offset as u32, start_offset as u32)
         };
@@ -177,7 +172,7 @@ impl Parser<'_> {
             kind,
             name,
             modifiers: Range::default(),
-            target: NodeIdentifier::NONE,
+            target: None,
             value: AttributeValue::Parts(self.parts_since(parts)),
             span,
             quoted: false,
@@ -219,7 +214,7 @@ impl Parser<'_> {
             kind,
             name,
             modifiers,
-            target: NodeIdentifier::NONE,
+            target: None,
             value: AttributeValue::True,
             span: name,
             quoted: false,

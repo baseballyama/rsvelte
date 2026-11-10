@@ -1,5 +1,7 @@
+use oxc_ast::ast::{Expression, IdentifierName};
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{End, ParseResult, Parser, is_void};
 use crate::names::{META_TAGS, is_component_name, is_valid_element_name};
@@ -22,7 +24,7 @@ const ROOT_ONLY_META_TAGS: &[&str] = &[
     "svelte:body",
 ];
 
-impl Parser<'_> {
+impl<'a> Parser<'a, '_> {
     pub(super) fn element(&mut self, at_root: bool) -> ParseResult<Option<TemplateNodeIdentifier>> {
         let start_offset = self.position;
         self.eat_token(TokenType::TagOpen, 1);
@@ -47,8 +49,7 @@ impl Parser<'_> {
         }
         let component = component_name
             .then(|| self.component_reference(name))
-            .flatten()
-            .unwrap_or(rsvelte_typescript_syntax::NodeIdentifier::NONE);
+            .flatten();
         let (attributes, self_closing) = self.attributes()?;
         let start_tag = Span::new(start_offset as u32, self.position as u32);
         let regular = !name_text.starts_with("svelte:") && !component_name;
@@ -78,37 +79,31 @@ impl Parser<'_> {
         })))
     }
 
-    fn component_reference(
-        &mut self,
-        name: Span,
-    ) -> Option<rsvelte_typescript_syntax::NodeIdentifier> {
-        let text = name.text(self.source_text);
+    /// What a component's name refers to: `Foo`, or the member chain `ui.Button`.
+    fn component_reference(&mut self, name: Span) -> Option<ExpressionIdentifier> {
+        let text: &'a str = name.text(self.source_text);
         if text.split('.').any(str::is_empty) {
             return None;
         }
+        let ast = self.builder.ast();
         let mut offset = name.start_offset;
         let mut reference = None;
         for part in text.split('.') {
             let end = offset + u32::try_from(part.len()).expect("source positions use u32 bytes");
-            let identifier = self
-                .component
-                .javascript
-                .ident(part, Span::new(offset, end));
-            reference = Some(if let Some(object) = reference {
-                self.component.javascript.member(
+            let span = oxc_span::Span::new(offset, end);
+            reference = Some(match reference {
+                None => Expression::new_identifier(span, part, &ast),
+                Some(object) => Expression::new_static_member_expression(
+                    oxc_span::Span::new(name.start_offset, end),
                     object,
-                    identifier,
+                    IdentifierName::new(span, part, &ast),
                     false,
-                    false,
-                    Span::new(name.start_offset, end),
-                )
-            } else {
-                identifier
+                    &ast,
+                ),
             });
             offset = end + 1;
         }
-        self.component.template_expressions.extend(reference);
-        reference
+        reference.map(|reference| self.builder.keep_expression(reference))
     }
 
     pub(super) fn tag_name(&mut self) -> Span {
