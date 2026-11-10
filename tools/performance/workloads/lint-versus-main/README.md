@@ -1,22 +1,22 @@
 # Lint versus main
 
-Compares `main`'s lint crate, `rsvelte_lint`, with this branch's, `rsvelte_svelte_lint`, on every
-Svelte component of the corpus. `.github/workflows/lint-versus-main.yml` runs it on x86_64 Linux,
-arm64 Linux and macOS, and writes the report to the run's summary.
+Compares the lint crate of `main` (`rsvelte_lint`) with this branch's (`rsvelte_svelte_lint`) on
+every Svelte component of the corpus. `.github/workflows/lint-versus-main.yml` runs it on x86_64
+Linux, arm64 Linux and macOS, and writes the report to the run's summary.
 
 The two arms share everything but the library they call:
 
 - `arms.ts` writes one package for each arm outside every workspace. Each has the same release
   profile, the same versions of `libc` and `mimalloc`, and the harness in `harness.rs`. Each
-  takes the lockfile of its tree, and the `main` arm takes main's crates.io patches.
+  takes the `Cargo.lock` of its tree, and the `main` arm takes the `[patch.crates-io]` of `main`.
 - `harness.rs` reads every file before it starts timing, and counts each thread's allocations.
-  `LINT_ALLOCATOR=mimalloc` picks mimalloc; otherwise it uses the system allocator.
+  `LINT_ALLOCATOR=mimalloc` picks `mimalloc`; otherwise the arm uses the system's `malloc`.
 - Both arms run the rules both crates have, each with its default options. `universe.json` lists
   the rules left out and why.
 
 Mode `rules` runs those rules alone. Mode `product` adds what each tool runs on top of them.
 `main` compiles each component for the compiler's warnings. This branch runs
-`svelte/valid-compile`. A component that either arm fails on in either mode is left out, and
+`svelte/valid-compile`. The arms skip a component that either arm fails on in either mode, and
 `excluded.tsv` names it.
 
 ```sh
