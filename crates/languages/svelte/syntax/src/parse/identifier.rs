@@ -20,31 +20,79 @@ pub(super) fn identifier_len(s: &str) -> usize {
         .map_or(s.len(), |(i, _)| i)
 }
 
-/// The length of the bracketed text `s` starts with, through its matching bracket; strings and
-/// template literals are skipped. Upstream `match_bracket`.
-pub(super) const fn match_bracket(s: &str, open: u8, close: u8) -> Option<usize> {
+/// The length of the bracketed text `s` starts with, through its matching bracket. Strings are
+/// skipped, and a template literal's `${…}` is matched with the default brackets, as upstream
+/// `match_bracket` does. `None` when a bracket does not match or `s` ends first.
+pub(super) fn match_bracket(s: &str, open: u8, close: u8) -> Option<usize> {
+    /// What closes an open construct, and whether the default brackets apply inside it.
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Open {
+        Bracket { close: u8, default: bool },
+        Template,
+    }
+    let opener = |c: u8, default: bool| match c {
+        b'{' if default => Some(b'}'),
+        b'(' if default => Some(b')'),
+        b'[' if default => Some(b']'),
+        c if !default && c == open => Some(close),
+        _ => None,
+    };
+    let closes = |c: u8, default: bool| {
+        if default {
+            matches!(c, b'}' | b')' | b']')
+        } else {
+            c == close
+        }
+    };
+    let default_brackets = matches!((open, close), (b'{', b'}') | (b'(', b')') | (b'[', b']'));
     let b = s.as_bytes();
-    let mut depth = 0usize;
+    let mut stack: Vec<Open> = Vec::new();
     let mut i = 0;
     while i < b.len() {
         let c = b[i];
-        if c == open || (open != b'<' && matches!(c, b'{' | b'[' | b'(')) {
-            depth += 1;
-        } else if c == close || (open != b'<' && matches!(c, b'}' | b']' | b')')) {
-            depth -= 1;
-            if depth == 0 {
-                return Some(i + 1);
+        i += 1;
+        let default = match stack.last() {
+            Some(Open::Template) => {
+                match c {
+                    b'\\' => i += 1,
+                    b'`' => {
+                        stack.pop();
+                    }
+                    b'$' if b.get(i) == Some(&b'{') => {
+                        i += 1;
+                        stack.push(Open::Bracket {
+                            close: b'}',
+                            default: true,
+                        });
+                    }
+                    _ => {}
+                }
+                continue;
             }
-        } else if matches!(c, b'"' | b'\'' | b'`') {
-            i += 1;
-            while i < b.len() && b[i] != c {
-                if b[i] == b'\\' {
-                    i += 1;
+            Some(&Open::Bracket { default, .. }) => default,
+            None => default_brackets,
+        };
+        match c {
+            b'"' | b'\'' => {
+                while i < b.len() && b[i] != c {
+                    i += if b[i] == b'\\' { 2 } else { 1 };
                 }
                 i += 1;
             }
+            b'`' => stack.push(Open::Template),
+            c if let Some(close) = opener(c, default) => {
+                stack.push(Open::Bracket { close, default });
+            }
+            c if closes(c, default) => {
+                if stack.pop() != Some(Open::Bracket { close: c, default }) {
+                    return None;
+                }
+                if stack.is_empty() {
+                    return Some(i);
+                }
+            }
+            _ => {}
         }
-        i += 1;
     }
     None
 }
@@ -103,3 +151,6 @@ pub(super) fn is_reserved(word: &str) -> bool {
             | "yield"
     )
 }
+
+#[cfg(test)]
+mod tests;
