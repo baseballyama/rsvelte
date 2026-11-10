@@ -33,7 +33,7 @@ impl Task for Format {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_typescript_syntax::matches(document)
+        rsvelte_typescript_tree::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
@@ -49,7 +49,7 @@ impl Task for Format {
             .print()
         {
             Ok(printed) => out.file(
-                if rsvelte_typescript_syntax::is_typescript(context.document) {
+                if rsvelte_typescript_tree::is_typescript(context.document) {
                     "ts"
                 } else {
                     "js"

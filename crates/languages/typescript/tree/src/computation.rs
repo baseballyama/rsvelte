@@ -5,9 +5,34 @@ use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::plugins::Plugin;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::Span;
 
 use crate::{ProgramIdentifier, Tree};
+
+fn extension(document: &Document) -> Option<&str> {
+    Path::new(&document.path).extension()?.to_str()
+}
+
+/// A JavaScript or TypeScript module without JSX, which the shared tasks print and check.
+#[must_use]
+pub fn matches(document: &Document) -> bool {
+    matches!(
+        extension(document),
+        Some("js" | "mjs" | "cjs" | "ts" | "mts" | "cts")
+    )
+}
+
+#[must_use]
+pub fn is_typescript(document: &Document) -> bool {
+    matches!(extension(document), Some("ts" | "mts" | "cts"))
+}
+
+/// A `.jsx` or `.tsx` module. [`Parsed`] reads its JSX; the tasks [`matches`] selects do not.
+#[must_use]
+pub fn is_jsx(document: &Document) -> bool {
+    matches!(extension(document), Some("jsx" | "tsx"))
+}
 
 /// A JavaScript or TypeScript file parsed as one program.
 #[derive(Debug)]

@@ -211,7 +211,7 @@ impl Tree {
 }
 
 mod computation;
-pub use computation::{PLUGIN, Parsed, Script, register};
+pub use computation::{PLUGIN, Parsed, Script, is_jsx, is_typescript, matches, register};
 
 #[cfg(test)]
 mod tests;
