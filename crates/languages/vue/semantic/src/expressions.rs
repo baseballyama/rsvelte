@@ -1,5 +1,5 @@
 use oxc_ast::AstKind;
-use oxc_ast::ast::{Expression, StaticMemberExpression};
+use oxc_ast::ast::{BindingPattern, Expression, StaticMemberExpression};
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::ReferenceId;
 use rsvelte_kernel::source::positions::Span;
@@ -104,6 +104,15 @@ pub fn collect_identifiers<'a>(e: &'a Expression<'a>, out: &mut Vec<Identifier<'
         parents: Vec::new(),
     };
     walk.visit_expression(e);
+}
+
+/// [`collect_identifiers`] of a `v-for` alias: the names it declares and what its defaults read.
+pub fn collect_pattern_identifiers<'a>(p: &'a BindingPattern<'a>, out: &mut Vec<Identifier<'a>>) {
+    let mut walk = Walk {
+        out,
+        parents: Vec::new(),
+    };
+    walk.visit_binding_pattern(p);
 }
 
 struct Walk<'o, 'a> {
