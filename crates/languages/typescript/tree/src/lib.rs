@@ -4,6 +4,7 @@
 //! expression parse in place, so the trees and the embedding language share one position type.
 
 use std::num::NonZeroU32;
+use std::rc::Rc;
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
@@ -49,7 +50,11 @@ struct Trees<'a> {
 }
 
 /// The trees parsed from one document, and the arena that holds them.
-pub struct Tree(Cell);
+///
+/// Cloning shares them, so that a task such as scope analysis can keep them alive beside what it
+/// derives.
+#[derive(Clone)]
+pub struct Tree(Rc<Cell>);
 
 impl std::fmt::Debug for Tree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -122,7 +127,7 @@ impl Tree {
             output = Some(parse(&mut builder)?);
             Ok::<_, Diagnostic>(builder.finish())
         })?;
-        Ok((Self(cell), output.expect("`parse` returned")))
+        Ok((Self(Rc::new(cell)), output.expect("`parse` returned")))
     }
 
     /// A document that is one program, such as a `.ts` file.
