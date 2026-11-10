@@ -41,27 +41,27 @@ const BLOCK_ELEMENTS: &[&str] = &[
     "ul",
 ];
 
-impl<'a> Printer<'a, '_> {
+impl<'a> Printer<'a, '_, '_> {
     pub(super) const fn d(&mut self) -> &mut LayoutInstructions {
-        &mut *self.javascript.docs
+        &mut *self.docs
     }
 
     pub(super) fn lit(&mut self, s: &'static str) -> LayoutInstructionIdentifier {
-        self.javascript.docs.lit(s)
+        self.docs.lit(s)
     }
 
     pub(super) fn cat(
         &mut self,
         items: &[LayoutInstructionIdentifier],
     ) -> LayoutInstructionIdentifier {
-        self.javascript.docs.concat(items)
+        self.docs.concat(items)
     }
 
     pub(super) fn group(
         &mut self,
         items: &[LayoutInstructionIdentifier],
     ) -> LayoutInstructionIdentifier {
-        self.javascript.docs.group(items)
+        self.docs.group(items)
     }
 
     pub(super) fn is_text(&self, identifier: TemplateNodeIdentifier) -> bool {

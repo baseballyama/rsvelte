@@ -10,7 +10,7 @@ enum BlockWs {
     Line,
 }
 
-impl Printer<'_, '_> {
+impl Printer<'_, '_, '_> {
     pub(super) fn if_block(
         &mut self,
         identifier: TemplateNodeIdentifier,
@@ -51,6 +51,18 @@ impl Printer<'_, '_> {
         else {
             unreachable!("an each block")
         };
+        // Svelte reads `{#each a as b}` as a context even when TypeScript could read `a as b`;
+        // this parser does not yet when `a` ends in a bracket.
+        if context == rsvelte_typescript_syntax::NodeIdentifier::NONE
+            && self
+                .typescript
+                .ends_in_cast(self.javascript_span(expression))
+        {
+            return Err(Unsupported::at(
+                "an `{#each}` context the parser read as a TypeScript cast",
+                self.javascript_span(expression),
+            ));
+        }
         let open = self.lit("{#each ");
         let e = self.expression(expression, true, false)?;
         let mut def = vec![open, e];
@@ -197,9 +209,7 @@ impl Printer<'_, '_> {
             .start_offset;
         let parameters = c.javascript_list(parameters);
         let head_end = self.snippet_head_end(name, parameters, span)?;
-        let signature =
-            self.javascript
-                .signature(name, parameters, Span::new(name_start, head_end))?;
+        let signature = self.snippet_signature(Span::new(name_start, head_end))?;
         let open = self.lit("{#snippet ");
         let close = self.lit("}");
         let body = self.block_children(c.children(body))?;
@@ -222,7 +232,7 @@ impl Printer<'_, '_> {
             .expect("a parsed node has a source span")
             .end_offset;
         // A parameter's type annotation ends after the node itself.
-        if let Some(t) = self.javascript.annotation(after) {
+        if let Some(t) = self.typescript.annotation(after) {
             from = from.max(t.end_offset);
         }
         self.source_text[from as usize..span.end_offset as usize]

@@ -8,7 +8,7 @@ pass	printer/attachment.html
 pass	printer/attribute-bracket-new-line.html
 pass	printer/attribute-bracket-no-new-line.html
 pass	printer/attribute-bracket-same-line.html
-refused	printer/attribute-comment.html	comments
+refused	printer/attribute-comment.html	comments in the template's JavaScript
 pass	printer/attribute-dynamic.html
 pass	printer/attribute-multiple.html
 pass	printer/attribute-several-bracket-new-line.html
@@ -37,7 +37,7 @@ pass	printer/await-then-destruct-object-reassignment.html
 pass	printer/await-then-destruct-object.html
 pass	printer/await-then-destruct-rest.html
 refused	printer/bind-sequence-leading-comment.html	comments in the template's JavaScript
-refused	printer/binding-get-set.html	a layout that does not fit on one line
+pass	printer/binding-get-set.html
 pass	printer/binding-shorthand.html
 pass	printer/binding.html
 pass	printer/class-shorthand.html
@@ -116,7 +116,7 @@ pass	printer/indent-script-and-style.html
 pass	printer/inline-blocks-nested.html
 pass	printer/inline-element-single-text.html
 pass	printer/insert-pragma-present.html
-refused	printer/jsdoc-parens-in-script.html	comments
+pass	printer/jsdoc-parens-in-script.html
 pass	printer/key-block.html
 pass	printer/let-shorthand.html
 pass	printer/let.html
@@ -144,7 +144,7 @@ refused	printer/script-inside-element.html	<script> or <style> inside an element
 fail	printer/script-lang-typescript.html
 pass	printer/script-only.html
 refused	printer/script-style-inside-element-comment.html	<script> or <style> inside an element
-refused	printer/script-style-script-snipping.html	comments
+refused	printer/script-style-script-snipping.html	<script> or <style> inside an element
 pass	printer/script-tag-generics.html
 fail	printer/script-type-typescript.html
 pass	printer/script-with-html-comment-and-style.html
@@ -154,7 +154,7 @@ pass	printer/self-closing-tags.html
 pass	printer/single-attribute-per-line-bracket-no-new-line.html
 pass	printer/single-attribute-per-line.html
 refused	printer/single-quote.html	singleQuote
-refused	printer/snippet-ts.html	TypeScript type other than a plain reference, a union of them or a type literal
+pass	printer/snippet-ts.html
 pass	printer/snippet.html
 pass	printer/sort-order-markup-options-scripts-styles.html
 pass	printer/sort-order-markup-options-styles-scripts.html
@@ -187,10 +187,10 @@ pass	printer/style-inside-script.html
 refused	printer/style-lang-less.html	a style language other than CSS
 refused	printer/style-lang-scss.html	a style language other than CSS
 refused	printer/style-script-commented-out.html	comments attached to <script> or <style>
-refused	printer/style-scripts-snipping-spans.html	comments
+refused	printer/style-scripts-snipping-spans.html	a style language other than CSS
 refused	printer/style-type-less.html	a style language other than CSS
 refused	printer/style-type-scss.html	a style language other than CSS
-refused	printer/style-unclosed-inside-script.html	comments
+pass	printer/style-unclosed-inside-script.html
 pass	printer/style-with-attributes.html
 pass	printer/style.html
 pass	printer/svelte-body-element.html
@@ -220,9 +220,9 @@ pass	printer/transition-with-expression-local.html
 pass	printer/transition-with-expression.html
 pass	printer/transition.html
 fail	printer/typescript-call-generic-function.html
-refused	printer/typescript-template.html	TypeScript syntax
+pass	printer/typescript-template.html
 fail	printer/typescript-without-lang-attr.html
-refused	printer/typescript.html	TypeScript declaration
+pass	printer/typescript.html
 pass	printer/unicode-element.html
 pass	printer/unicode-mustache.html
 pass	printer/unicode-script.html
@@ -258,7 +258,7 @@ pass	formatting/collapse-intra-text-whitespace
 pass	formatting/collapse-let-shorthand
 pass	formatting/component-ignore-whitespace
 pass	formatting/component-treated-as-inline-element
-refused	formatting/const	a layout that does not fit on one line
+pass	formatting/const
 pass	formatting/declaration-tag
 pass	formatting/do-not-add-whitespace-between-inline-elements
 pass	formatting/each-await-block-destructuring
@@ -273,8 +273,8 @@ pass	formatting/inline-element-with-children-ws
 pass	formatting/inline-element-with-hardline
 pass	formatting/inlineblock-element-break-subblocks
 pass	formatting/insert-pragma
-refused	formatting/long-attribute-value	a layout that does not fit on one line
-refused	formatting/long-mustache-value	a layout that does not fit on one line
+pass	formatting/long-attribute-value
+pass	formatting/long-mustache-value
 pass	formatting/move-options-to-top
 pass	formatting/no-html-whitespace-inside-inline-element
 pass	formatting/no-html-whitespace-outside-inline-element

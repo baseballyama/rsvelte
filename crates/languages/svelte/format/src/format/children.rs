@@ -1,7 +1,7 @@
+use super::javascript::{Adjust, Part, trim_semicolon};
 use super::{
-    Cow, JavaScriptOptions, LayoutInstructionIdentifier, Printer, R, TemplateNode,
-    TemplateNodeIdentifier, Unsupported, ends_with_linebreak, is_collapse_ws, only_ws,
-    starts_with_linebreak,
+    Cow, LayoutInstructionIdentifier, Printer, R, Span, TemplateNode, TemplateNodeIdentifier,
+    Unsupported, ends_with_linebreak, is_collapse_ws, only_ws, starts_with_linebreak,
 };
 use crate::options::EmbeddedLanguageFormatting;
 
@@ -29,7 +29,7 @@ impl AsChild for Child {
     }
 }
 
-impl Printer<'_, '_> {
+impl Printer<'_, '_, '_> {
     /// `print` for the root `Fragment`; `None` for the plugin's empty result.
     pub(super) fn fragment(
         &mut self,
@@ -46,7 +46,7 @@ impl Printer<'_, '_> {
         self.d().trim(&mut output, |d, x| {
             d.is_line(x) || d.as_str(x).is_some_and(only_ws) || d.is_break_parent(x)
         });
-        if output.iter().all(|&x| self.javascript.docs.is_empty(x)) {
+        if output.iter().all(|&x| self.docs.is_empty(x)) {
             return Ok(None);
         }
         output.push(self.d().hardline());
@@ -244,14 +244,14 @@ impl Printer<'_, '_> {
             TemplateNode::Const { declaration, span } => {
                 self.refuse_unembedded(span)?;
                 let open = self.lit("{@const ");
-                let d = self.javascript.const_tag(declaration)?;
+                let d = self.const_tag(declaration)?;
                 let close = self.lit("}");
                 Ok(self.cat(&[open, d, close]))
             }
             TemplateNode::Declaration { declaration, span } => {
                 self.refuse_unembedded(span)?;
                 let open = self.lit("{");
-                let d = self.javascript.template_statement(declaration)?;
+                let d = self.template_statement(declaration)?;
                 let close = self.lit("}");
                 Ok(self.cat(&[open, d, close]))
             }
@@ -339,7 +339,7 @@ impl Printer<'_, '_> {
     }
 
     /// The plugin throws, or drops code, for this construct when `embed` does not run.
-    pub(super) fn refuse_unembedded(&self, span: rsvelte_kernel::source::positions::Span) -> R<()> {
+    pub(super) fn refuse_unembedded(&self, span: Span) -> R<()> {
         if self.options.embedded_language_formatting == EmbeddedLanguageFormatting::Off {
             return Err(Unsupported::at(
                 "this construct with `embeddedLanguageFormatting: off`",
@@ -359,52 +359,102 @@ impl Printer<'_, '_> {
         if self.options.embedded_language_formatting == EmbeddedLanguageFormatting::Off {
             return self.unformatted_expression(e);
         }
-        self.javascript.set_options(JavaScriptOptions {
+        let span = self.javascript_span(e);
+        let kind = self.c.javascript.kind(e);
+        let adjust = Adjust {
             single_quote,
-            ..JavaScriptOptions::default()
-        });
-        let d = self.javascript.format_expression(e);
-        self.javascript.set_options(JavaScriptOptions::default());
-        let mut d = d?;
-        let parenthesized = match self.c.javascript.kind(e) {
-            rsvelte_typescript_syntax::Kind::Assign(..) => true,
-            rsvelte_typescript_syntax::Kind::Sequence(_) => !bare_sequence,
-            _ => false,
+            single_line,
+            remove_parentheses: bare_sequence
+                && matches!(kind, rsvelte_typescript_syntax::Kind::Sequence(_)),
         };
-        if parenthesized {
-            let open = self.lit("(");
-            let close = self.lit(")");
-            d = self.cat(&[open, d, close]);
+        let d = self.embed(span, Part::Expression, adjust)?;
+        // The plugin parses `(a = b\n)`, and Prettier keeps those parentheses; oxc keeps them
+        // around a sequence only.
+        if !matches!(kind, rsvelte_typescript_syntax::Kind::Assign(..)) {
+            return Ok(d);
         }
-        Ok(if single_line {
-            // Without lines, a property's assignment layout keeps the indent it would have
-            // used when broken; that layout is not ported.
-            if self.d().will_break(d) && self.has_property_value(e) {
-                return Err(Unsupported::at(
-                    "a line break under an object property in a block's head",
-                    self.c.javascript.source_location(e),
-                ));
-            }
-            self.d().remove_lines(d)
-        } else {
-            d
-        })
+        let open = self.lit("(");
+        let close = self.lit(")");
+        Ok(self.cat(&[open, d, close]))
     }
 
-    /// Whether `e` holds an object property written with its value.
-    fn has_property_value(&self, e: rsvelte_typescript_syntax::NodeIdentifier) -> bool {
-        let tree = &self.c.javascript;
-        let mut stack = vec![e];
-        while let Some(n) = stack.pop() {
-            if let rsvelte_typescript_syntax::Kind::Property {
-                shorthand: false, ..
-            } = tree.kind(n)
-            {
-                return true;
+    /// The source of `e`, with the TypeScript the tree keeps beside it.
+    pub(super) fn javascript_span(&self, e: rsvelte_typescript_syntax::NodeIdentifier) -> Span {
+        let span = self
+            .c
+            .javascript
+            .source_location(e)
+            .span()
+            .expect("a parsed node has a source span");
+        self.typescript.extent(e, span)
+    }
+
+    /// `{@const a = b}`'s declarator, which the plugin formats as the expression `a = b`.
+    fn const_tag(
+        &mut self,
+        declaration: rsvelte_typescript_syntax::NodeIdentifier,
+    ) -> R<LayoutInstructionIdentifier> {
+        let javascript = &self.c.javascript;
+        let rsvelte_typescript_syntax::Kind::VariableDeclaration {
+            declarations: &[declarator],
+            ..
+        } = javascript.kind(declaration)
+        else {
+            return Err(Unsupported::at(
+                "a {@const} with other than one declarator",
+                self.javascript_span(declaration),
+            ));
+        };
+        let span = self.javascript_span(declarator);
+        // `(a: T = b)` is no expression: the plugin's parse fails and it prints the source.
+        if self.typescript.within(span) > 0 {
+            let source = span.text(self.source_text);
+            if source.contains(['\n', '\r']) {
+                return Err(Unsupported::at(
+                    "a typed {@const} on more than one line",
+                    span,
+                ));
             }
-            tree.for_each_child(n, |c| stack.push(c));
+            return Ok(self.d().text(source));
         }
-        false
+        self.embed(span, Part::Expression, Adjust::default())
+    }
+
+    /// A statement in the template (`{let a = 1}`), without the `;` it ends with, as the plugin
+    /// trims it. The trim misses a `;` that Prettier's doc cleanup has merged into the text before
+    /// it, which happens when the statement prints as plain text (`let a;`).
+    fn template_statement(
+        &mut self,
+        statement: rsvelte_typescript_syntax::NodeIdentifier,
+    ) -> R<LayoutInstructionIdentifier> {
+        let javascript = &self.c.javascript;
+        let plain = match javascript.kind(statement) {
+            rsvelte_typescript_syntax::Kind::VariableDeclaration {
+                declarations: &[only],
+                ..
+            } => matches!(
+                javascript.kind(only),
+                rsvelte_typescript_syntax::Kind::Declarator {
+                    initializer: None,
+                    ..
+                }
+            ),
+            _ => false,
+        };
+        let span = self.javascript_span(statement);
+        // Whether Prettier merges `let a: T;` into one text is not known.
+        if plain && self.typescript.within(span) > 0 {
+            return Err(Unsupported::at(
+                "a typed declaration without a value in the template",
+                span,
+            ));
+        }
+        let text = oxc_formatter_core::normalize_newlines(span.text(self.source_text), ['\r']);
+        let mut ir = self.format_javascript(&text, span, Part::Statement, false)?;
+        if !plain {
+            trim_semicolon(&mut ir);
+        }
+        Ok(self.keep(ir))
     }
 
     pub(super) fn text_node(

@@ -55,18 +55,7 @@ fn review_d_shapes_the_port_cannot_print_are_refused() {
         ),
         ("<p>{007}</p>\n", &Options::default()),
         ("<p>{a ?? b || c}</p>\n", &Options::default()),
-        ("<p>{a || (b || c)}</p>\n", &Options::default()),
         ("<p>👋🏽</p>\n", &Options::default()),
-        // Collapsing whitespace would reach inside the string.
-        (
-            "<style>\n  a {\n    content: \"a  b\";\n  }\n</style>\n",
-            &Options::default(),
-        ),
-        // Prettier breaks every argument; the hugged layout does not fit.
-        (
-            "{array.map((item) => {\n  return item + 1\n})}\n",
-            &options(r#"{"printWidth": 16}"#),
-        ),
     ]
     .iter()
     .map(|(source_text, options)| refusal_with(source_text, options).0)
@@ -79,11 +68,8 @@ fn review_d_shapes_the_port_cannot_print_are_refused() {
             "a script language other than JavaScript",
             "a script language other than JavaScript",
             "a legacy octal number",
-            "`??` mixed with `||` or `&&` without parentheses",
-            "a logical expression nested on the right of the same operator",
+            "code that oxc's formatter does not format",
             "an emoji sequence, which Prettier measures as one character",
-            "CSS that prettier rewrites",
-            "a layout that does not fit on one line",
         ]
     );
 }
@@ -134,51 +120,15 @@ fn review_e_shapes_the_port_cannot_print_are_refused() {
         "<p>{a?.b = 1}</p>\n",
         "<p>{-x ** 2}</p>\n",
         "<p>{await -1}</p>\n",
-        "<p>{a || `x\ny`}</p>\n",
-        "{#if z}{@const q = a = b}{q}{/if}\n",
-        "{#if f(someQuiteLongIdentifierNumberOne + someQuiteLongIdentifierNumberOne, [a, b])}y{/if}\n",
-        "<style>\n  @document url(http://a.b) {\n    a {\n      b: 1;\n    }\n  }\n</style>\n",
     ] {
         refusal_with(source_text, &Options::default());
     }
 }
 
-/// Hugging the last argument while another breaks puts every argument out, and in a block's head
-/// that opens with a space (prettier-plugin-svelte 4.1.1).
+/// oxc's parser reads `T < c` as the start of type arguments; Prettier's reads a comparison.
 #[test]
-fn every_argument_out_keeps_its_spaces_in_a_head() {
-    assert_eq!(
-        formatted_with(
-            "{#if f(`x\ny`, () => {})}y{/if}\n",
-            &options(r#"{"printWidth": 30}"#)
-        ),
-        "{#if f( `x\ny`, () => {} )}y{/if}\n"
-    );
-}
-
-/// Prettier prints these chains expanded, and these heads with a layout's indent; neither is built.
-#[test]
-fn expanded_chains_and_broken_properties_in_heads_are_refused() {
-    let narrow = options(r#"{"printWidth": 30}"#);
-    for source_text in [
-        "{#key items >> someLongIdentifierName.b(1).x.i(~anotherQuiteLongVariableName(`a ${b} c`, items))}k{/key}\n",
-        "{#await { k: obj.props((a) => { x; }) }}\n  w\n{/await}\n",
-        "<script>\n  promise.then((a) => {\n    x;\n  }).then(b).catch(c);\n</script>\n",
-    ] {
-        refusal_with(source_text, &narrow);
-    }
-}
-
-/// A comparison right after a cast ends the type instead of being read as its type arguments.
-#[test]
-fn a_comparison_after_a_cast_parses() {
-    for source_text in [
-        "<script lang=\"ts\">\n  a as T < c;\n</script>\n",
-        "<script lang=\"ts\">\n  a as T > c;\n</script>\n",
-        "<script lang=\"ts\">\n  let a = b satisfies { a: string } < c;\n</script>\n",
-    ] {
-        refusal_with(source_text, &Options::default());
-    }
+fn a_comparison_after_a_cast_is_refused() {
+    refusal("<script lang=\"ts\">\n  a as T < c;\n</script>\n");
 }
 
 /// Shapes a differential review found printed wrong; outputs from Prettier 3.9.10 with
@@ -235,16 +185,10 @@ fn review_f_shapes_print_as_prettier_does() {
     }
 }
 
-/// Layouts and inputs the formatter does not build, and JavaScript a module rejects.
+/// JavaScript a module rejects.
 #[test]
 fn review_f_shapes_are_refused() {
     for source_text in [
-        "<script lang=\"ts\">\n  [...(a as T)];\n</script>\n",
-        "<script lang=\"ts\">\n  (a as T)!;\n</script>\n",
-        "<script>\n  it(\"x\", function () { a(); }, 1000);\n</script>\n",
-        "<script lang=\"ts\">\n  function f(a: { k: T }) {}\n</script>\n",
-        "<script>\n  let s = `\n\t\tnext ${() => { x; }} post`;\n</script>\n",
-        "<script>\n  let x = this.a[() => { x; }];\n</script>\n",
         "<script>\n  let true = 1;\n</script>\n",
         "<script>\n  [a?.b] = c;\n</script>\n",
         "<script>\n  ({a}) = 1;\n</script>\n",
@@ -254,8 +198,6 @@ fn review_f_shapes_are_refused() {
         "<button onclick={() => { let a; let a; }}>b</button>\n",
         "<p>{(a, { a }) => 1}</p>\n",
         "{eval = 1}\n",
-        "<script lang=\"ts\">\n  f(user!.pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp);\n</script>\n",
-        "<script>\n  let x = Foo.API[0].bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;\n</script>\n",
     ] {
         refusal(source_text);
     }
@@ -281,15 +223,164 @@ fn corpus_shapes_print_as_the_plugin_prints_them() {
             "<script>\n  let a = [\n    { name: \"Online Stores\", help: \"Connect with third-party tools that you are already using.\" },\n\n    { name: \"Segmentation\" },\n  ];\n</script>\n",
             "<script>\n  let a = [\n    {\n      name: \"Online Stores\",\n      help: \"Connect with third-party tools that you are already using.\",\n    },\n\n    { name: \"Segmentation\" },\n  ];\n</script>\n",
         ),
+        // Three calls, counting the base `Array(100)`, expand the chain.
         (
-            "<script>\n  let a = [x,\n\n y];\n</script>\n",
-            "<script>\n  let a = [x, y];\n</script>\n",
+            "<script>\n  const xs = Array(100).fill(0).map((_, index) => \"Item \" + index);\n</script>\n",
+            "<script>\n  const xs = Array(100)\n    .fill(0)\n    .map((_, index) => \"Item \" + index);\n</script>\n",
         ),
     ] {
         assert_eq!(formatted(source_text), want, "{source_text}");
     }
-    // The plugin expands this chain: three calls, counting the base `Array(100)`.
-    refusal(
-        "<script>\n  const xs = Array(100).fill(0).map((_, index) => \"Item \" + index);\n</script>\n",
+}
+
+/// Inputs the earlier printer refused; expected outputs from Prettier 3.9.10 with
+/// prettier-plugin-svelte 4.1.1.
+#[test]
+fn shapes_once_refused_print_as_the_plugin_prints_them() {
+    for (print_width, source_text, want) in [
+        (
+            20,
+            "<title>x</title>{a + b}\n",
+            "<title>x</title>{a +\n  b}\n",
+        ),
+        (
+            80,
+            "<script>\n\tlet a = { 'b': 1 };\n</script>\n",
+            "<script>\n  let a = { b: 1 };\n</script>\n",
+        ),
+        (
+            80,
+            "<script lang=\"ts\">\n  a as T > c;\n</script>\n",
+            "<script lang=\"ts\">\n  (a as T) > c;\n</script>\n",
+        ),
+        (
+            80,
+            "<script lang=\"ts\">\n  let a = b satisfies { a: string } < c;\n</script>\n",
+            "<script lang=\"ts\">\n  let a = (b satisfies { a: string }) < c;\n</script>\n",
+        ),
+        (
+            30,
+            "<script>\n  promise.then((a) => {\n    x;\n  }).then(b).catch(c);\n</script>\n",
+            "<script>\n  promise\n    .then((a) => {\n      x;\n    })\n    .then(b)\n    .catch(c);\n</script>\n",
+        ),
+        (80, "<p>{a || (b || c)}</p>\n", "<p>{a || b || c}</p>\n"),
+        (
+            80,
+            "<style>\n  a {\n    content: \"a  b\";\n  }\n</style>\n",
+            "<style>\n  a {\n    content: \"a  b\";\n  }\n</style>\n",
+        ),
+        (
+            16,
+            "{array.map((item) => {\n  return item + 1\n})}\n",
+            "{array.map(\n  (item) => {\n    return (\n      item + 1\n    );\n  },\n)}\n",
+        ),
+        (
+            80,
+            "<p>{a || `x\ny`}</p>\n",
+            "<p>\n  {a ||\n    `x\ny`}\n</p>\n",
+        ),
+        (
+            80,
+            "{#if z}{@const q = a = b}{q}{/if}\n",
+            "{#if z}{@const q = a = b}{q}{/if}\n",
+        ),
+        (
+            80,
+            "<script lang=\"ts\">\n  [...(a as T)];\n</script>\n",
+            "<script lang=\"ts\">\n  [...(a as T)];\n</script>\n",
+        ),
+        (
+            80,
+            "<script lang=\"ts\">\n  (a as T)!;\n</script>\n",
+            "<script lang=\"ts\">\n  (a as T)!;\n</script>\n",
+        ),
+        (
+            80,
+            "<script>\n  it(\"x\", function () { a(); }, 1000);\n</script>\n",
+            "<script>\n  it(\"x\", function () {\n    a();\n  }, 1000);\n</script>\n",
+        ),
+        (
+            80,
+            "<script lang=\"ts\">\n  function f(a: { k: T }) {}\n</script>\n",
+            "<script lang=\"ts\">\n  function f(a: { k: T }) {}\n</script>\n",
+        ),
+        (
+            80,
+            "<script>\n  let s = `\n\t\tnext ${() => { x; }} post`;\n</script>\n",
+            "<script>\n  let s = `\n\t\tnext ${() => {\n      x;\n    }} post`;\n</script>\n",
+        ),
+        (
+            80,
+            "<script>\n  let x = this.a[() => { x; }];\n</script>\n",
+            "<script>\n  let x =\n    this.a[\n      () => {\n        x;\n      }\n    ];\n</script>\n",
+        ),
+        (
+            80,
+            "<script lang=\"ts\">\n  f(user!.pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp);\n</script>\n",
+            "<script lang=\"ts\">\n  f(\n    user!\n      .pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp,\n  );\n</script>\n",
+        ),
+        (
+            80,
+            "<script>\n  let x = Foo.API[0].bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;\n</script>\n",
+            "<script>\n  let x =\n    Foo.API[0]\n      .bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;\n</script>\n",
+        ),
+    ] {
+        let options = options(&format!(r#"{{"printWidth": {print_width}}}"#));
+        assert_eq!(
+            formatted_with(source_text, &options),
+            want,
+            "{source_text:?}"
+        );
+    }
+}
+
+/// Where the plugin's output comes from a Prettier quirk, the output is what the plugin means.
+#[test]
+fn upstream_quirks_are_not_reproduced() {
+    let narrow = options(r#"{"printWidth": 30}"#);
+    for (source_text, options, want) in [
+        // `removeLines` makes spaces of the lines around every argument put out: `f( a, b )`.
+        (
+            "{#if f(`x\ny`, () => {})}y{/if}\n",
+            &narrow,
+            "{#if f(`x\ny`, () => {})}y{/if}\n",
+        ),
+        (
+            "{#if f(someQuiteLongIdentifierNumberOne + someQuiteLongIdentifierNumberOne, [a, b])}y{/if}\n",
+            &Options::default(),
+            "{#if f(someQuiteLongIdentifierNumberOne + someQuiteLongIdentifierNumberOne, [a, b])}y{/if}\n",
+        ),
+        (
+            "{#await { k: obj.props((a) => { x; }) }}\n  w\n{/await}\n",
+            &narrow,
+            "{#await { k: obj.props((a) => {\n    x;\n  }) }}\n  w\n{/await}\n",
+        ),
+        // `removeLines` keeps a member chain's hard lines, so a head meant for one line breaks.
+        (
+            "{#key items >> someLongIdentifierName.b(1).x.i(~anotherQuiteLongVariableName(`a ${b} c`, items))}k{/key}\n",
+            &narrow,
+            "{#key items >> someLongIdentifierName.b(1).x.i(~anotherQuiteLongVariableName(`a ${b} c`, items))}k{/key}\n",
+        ),
+        // Prettier puts the `{` after a `url(…)` prelude on its own line.
+        (
+            "<style>\n  @document url(http://a.b) {\n    a {\n      b: 1;\n    }\n  }\n</style>\n",
+            &Options::default(),
+            "<style>\n  @document url(http://a.b) {\n    a {\n      b: 1;\n    }\n  }\n</style>\n",
+        ),
+    ] {
+        assert_eq!(
+            formatted_with(source_text, options),
+            want,
+            "{source_text:?}"
+        );
+    }
+}
+
+/// oxc keeps a blank line between array elements and breaks the array; Prettier joins it.
+#[test]
+fn a_blank_line_in_an_array_breaks_it_as_oxc_does() {
+    assert_eq!(
+        formatted("<script>\n  let a = [x,\n\n y];\n</script>\n"),
+        "<script>\n  let a = [\n    x,\n\n    y,\n  ];\n</script>\n"
     );
 }
