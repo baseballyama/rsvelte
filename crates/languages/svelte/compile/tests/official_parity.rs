@@ -646,3 +646,18 @@ fn a_reserved_or_legacy_name_raises_upstreams_error_on_both_targets() {
         }
     }
 }
+
+/// Official 5.57.3 output reads a number key as `String(value)`, except that it excludes the
+/// number itself from a rest object, whose string keys never match it; rsvelte excludes the name.
+#[test]
+fn a_number_props_key_reads_the_prop_its_string_names() {
+    let source = "<script>let { 0: a, 0x10: b, 1.5: c = 1, \"x-y\": d, \"e\": e, ...rest } = $props();</script>{a}{b}{c}{d}{e}{rest}";
+    let client = squashed(source, Target::Client);
+    for expected in [
+        "newSet(['$$slots','$$events','$$legacy','0','16','1.5','x-y','e'])",
+        "letc=$.prop($$props,1.5,3,1)",
+        "${$$props['0']??''}${$$props['16']??''}${c()??''}${$$props['x-y']??''}${$$props.e??''}",
+    ] {
+        assert!(client.contains(expected), "{expected} in {client}");
+    }
+}

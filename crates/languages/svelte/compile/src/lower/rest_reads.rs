@@ -1,5 +1,8 @@
+use std::borrow::Cow;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use super::javascript::prop_alias;
 use super::{BindingKind, CompileInput, Kind, NodeIdentifier, Resolution};
 
 pub(super) fn build(
@@ -22,9 +25,10 @@ pub(super) fn build(
         if info.kind != BindingKind::RestProperty {
             continue;
         }
-        let mut keys = FxHashSet::from_iter(["$$slots", "$$events", "$$legacy"]);
+        let mut keys: FxHashSet<Cow<'_, str>> =
+            FxHashSet::from_iter(["$$slots", "$$events", "$$legacy"].map(Cow::Borrowed));
         if custom_element {
-            keys.insert("$$host");
+            keys.insert(Cow::Borrowed("$$host"));
         }
         let parent = parents[res.sem.bindings[binding].node.index()];
         if parent != NodeIdentifier::NONE && matches!(tree.kind(parent), Kind::Rest(_)) {
@@ -32,10 +36,7 @@ pub(super) fn build(
             if let Kind::ObjectPattern(properties) = tree.kind(pattern) {
                 for &property in properties {
                     if let Kind::Property { key, .. } = tree.kind(property) {
-                        keys.insert(match tree.kind(key) {
-                            Kind::Identifier(_) => tree.name(key),
-                            _ => tree.str_value(key, input.component.source_text),
-                        });
+                        keys.insert(prop_alias(tree, input.component.source_text, key));
                     }
                 }
             }

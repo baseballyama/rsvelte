@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_typescript_syntax::operators::UnaryOperator;
 use rsvelte_typescript_syntax::syntax_tree::flag;
@@ -98,8 +100,21 @@ pub(crate) fn export_properties<'a>(
     })
 }
 
+/// Upstream's `prop_alias`: the name a `$props()` key reads, `String(key.value)` for a literal.
+pub(crate) fn prop_alias<'s>(
+    javascript: &'s SyntaxTree,
+    source_text: &'s str,
+    key: NodeIdentifier,
+) -> Cow<'s, str> {
+    match javascript.kind(key) {
+        Kind::Identifier(_) => Cow::Borrowed(javascript.name(key)),
+        Kind::Number(value) => Cow::Owned(rsvelte_typescript_semantic::number::number(value)),
+        _ => Cow::Borrowed(javascript.str_value(key, source_text)),
+    }
+}
+
 /// `b.key(name)`: an identifier key when `name` is one, a string key otherwise.
-fn property_key(out: &mut SyntaxTree, name: &str) -> NodeIdentifier {
+pub(crate) fn property_key(out: &mut SyntaxTree, name: &str) -> NodeIdentifier {
     if is_valid_identifier(name) {
         out.identifier(name)
     } else {

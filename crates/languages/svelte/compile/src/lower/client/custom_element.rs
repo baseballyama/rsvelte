@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use rsvelte_typescript_compile::copy::Verbatim;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -7,7 +9,7 @@ use super::{
 };
 use crate::lower::BindingKind;
 use crate::lower::custom_element::{Shadow, Tag, option_property};
-use crate::lower::javascript::accessor;
+use crate::lower::javascript::{accessor, prop_alias};
 
 impl ClientCompilationContext<'_> {
     pub(super) fn custom_element_stylesheet(
@@ -51,7 +53,11 @@ impl ClientCompilationContext<'_> {
             if name.starts_with("$$") {
                 continue;
             }
-            let key = self.property_key(binding.prop_key.expect("a property key"));
+            let key = prop_alias(
+                self.javascript,
+                self.source_text,
+                binding.prop_key.expect("a property key"),
+            );
             let target = self.out.identifier(name);
             let read = self.out.call0(target, &[]);
             let read = self.out.return_(Some(read), SourceLocation::SYNTHETIC);
@@ -77,14 +83,6 @@ impl ClientCompilationContext<'_> {
             ));
         }
         properties
-    }
-
-    fn property_key(&self, key: NodeIdentifier) -> String {
-        if self.javascript.is_identifier(key) {
-            self.javascript.name(key).to_owned()
-        } else {
-            self.javascript.str_value(key, self.source_text).to_owned()
-        }
     }
 
     pub(super) fn custom_element_registration(
@@ -199,7 +197,9 @@ impl ClientCompilationContext<'_> {
                 .map(|&id| self.res.bindings[id]);
             let key = info
                 .and_then(|info| info.prop_key)
-                .map_or_else(|| name.to_owned(), |key| self.property_key(key));
+                .map_or(Cow::Borrowed(name), |key| {
+                    prop_alias(self.javascript, self.source_text, key)
+                });
             let mut fields = Vec::with_capacity(3);
             if let Some(attribute) =
                 attribute.filter(|&e| !self.javascript.str_value(e, self.source_text).is_empty())
@@ -231,8 +231,12 @@ impl ClientCompilationContext<'_> {
             ) {
                 continue;
             }
-            let key = self.property_key(binding.prop_key.expect("a property key"));
-            if configured_names.contains(key.as_str()) {
+            let key = prop_alias(
+                self.javascript,
+                self.source_text,
+                binding.prop_key.expect("a property key"),
+            );
+            if configured_names.contains(&*key) {
                 continue;
             }
             let value = self.out.object(&[], SourceLocation::SYNTHETIC);

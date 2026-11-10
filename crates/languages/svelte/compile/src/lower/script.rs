@@ -9,7 +9,7 @@ use props::{lower_client_props, server_props_pattern};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution, rune_call};
-use rsvelte_typescript_compile::copy::{Rewrite, copy, copy_node};
+use rsvelte_typescript_compile::copy::{Rewrite, copy};
 use rsvelte_typescript_semantic::scope::BindingIdentifier;
 use rsvelte_typescript_syntax::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
@@ -56,7 +56,7 @@ impl Read {
 impl ScriptRewrite<'_> {
     /// Upstream `build_getter` / the `read` transforms, by binding kind and target.
     fn read(
-        &mut self,
+        &self,
         from: &SyntaxTree,
         to: &mut SyntaxTree,
         identifier: NodeIdentifier,
@@ -92,12 +92,15 @@ impl ScriptRewrite<'_> {
                 }
                 let key = info.prop_key?;
                 let props = to.identifier("$$props");
-                let computed = !from.is_identifier(key);
-                let k = if computed {
-                    copy_node(from, to, self, key)
-                } else {
+                let k = if from.is_identifier(key) {
                     to.ident(from.name(key), source_location)
+                } else {
+                    super::javascript::property_key(
+                        to,
+                        &super::javascript::prop_alias(from, self.source_text, key),
+                    )
                 };
+                let computed = !to.is_identifier(k);
                 Some(to.member(props, k, computed, false, SourceLocation::SYNTHETIC))
             }
             (

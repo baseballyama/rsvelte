@@ -16,6 +16,8 @@ mod expressions;
 mod fragments;
 mod special;
 
+use std::borrow::Cow;
+
 use events::{capture_event, push_captured_events};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::SourceLocation;
@@ -191,13 +193,9 @@ fn bind_props(
         {
             continue;
         }
-        let key = info.prop_key.map_or_else(
-            || name.to_owned(),
-            |k| match javascript.kind(k) {
-                Kind::Identifier(_) => javascript.name(k).to_owned(),
-                _ => javascript.str_value(k, source_text).to_owned(),
-            },
-        );
+        let key = info.prop_key.map_or(Cow::Borrowed(name), |k| {
+            super::javascript::prop_alias(javascript, source_text, k)
+        });
         let value = o.identifier(name);
         bound.push(init_property(o, &key, value));
     }
