@@ -55,7 +55,7 @@ pub(super) fn build(res: &Resolution, custom_element: bool) -> FxHashSet<Referen
     reads
 }
 
-fn is_typescript_wrapper(kind: AstKind<'_>) -> bool {
+const fn is_typescript_wrapper(kind: AstKind<'_>) -> bool {
     matches!(
         kind,
         AstKind::TSAsExpression(_)
