@@ -242,6 +242,10 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                     }
                 }
                 Node::BreakParent => {}
+                Node::Embedded { .. } => {
+                    self.refused = true;
+                    return;
+                }
                 Node::Concat { start, len } => {
                     let children = self.docs.children(start, len);
                     stack.extend(
@@ -473,6 +477,10 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per node kind, as in Prettier's `fits`"
+    )]
     fn fits_in(
         &self,
         work: &mut Vec<Command>,
@@ -524,7 +532,11 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                 continue;
             }
             match self.docs.nodes[identifier.0 as usize] {
-                Node::Static("") | Node::Text { len: 0, .. } | Node::BreakParent => {}
+                // This printer refuses an embedded layout when it gets there.
+                Node::Static("")
+                | Node::Text { len: 0, .. }
+                | Node::BreakParent
+                | Node::Embedded { .. } => {}
                 Node::Static(s) => {
                     Flat::string(s.len() as u32).charge(&mut remaining, &mut pending);
                 }

@@ -9,7 +9,12 @@ impl LayoutInstructions {
         match self.nodes[d.0 as usize] {
             Node::Line(LineKind::Normal) => self.lit(" "),
             Node::Line(LineKind::Soft) => self.nil(),
-            Node::Static(_) | Node::Text { .. } | Node::Line(_) | Node::BreakParent => d,
+            // The formatter that built an embedded layout removes its lines.
+            Node::Static(_)
+            | Node::Text { .. }
+            | Node::Line(_)
+            | Node::BreakParent
+            | Node::Embedded { .. } => d,
             Node::IfBreak { flat, .. } => self.remove_lines(flat),
             Node::Indent(x) => {
                 let x = self.remove_lines(x);

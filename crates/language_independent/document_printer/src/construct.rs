@@ -38,7 +38,10 @@ impl LayoutInstructions {
                 .fold(Measure::EMPTY, |m, &k| m.then(self.measure(k)))
         };
         match n {
-            Node::Line(LineKind::Hard | LineKind::Literal) | Node::BreakParent => Measure::BREAKING,
+            Node::Line(LineKind::Hard | LineKind::Literal)
+            | Node::BreakParent
+            | Node::Embedded { breaks: true, .. } => Measure::BREAKING,
+            Node::Embedded { .. } => Measure::WALKED,
             Node::Static("") | Node::Text { len: 0, .. } | Node::Line(LineKind::Soft) => {
                 Measure::EMPTY
             }
@@ -140,6 +143,12 @@ impl LayoutInstructions {
 
     pub fn break_parent(&mut self) -> LayoutInstructionIdentifier {
         self.push(Node::BreakParent)
+    }
+
+    /// The `index`th of the layouts [`LayoutInstructions::lower`] is given; `breaks` when it holds
+    /// a forced break.
+    pub fn embedded(&mut self, index: u32, breaks: bool) -> LayoutInstructionIdentifier {
+        self.push(Node::Embedded { index, breaks })
     }
 
     pub fn concat(&mut self, items: &[LayoutInstructionIdentifier]) -> LayoutInstructionIdentifier {
