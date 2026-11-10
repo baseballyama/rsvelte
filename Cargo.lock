@@ -987,6 +987,7 @@ dependencies = [
 name = "rsvelte_document_printer"
 version = "0.0.0"
 dependencies = [
+ "oxc_allocator",
  "oxc_formatter_core",
  "rsvelte_kernel",
 ]

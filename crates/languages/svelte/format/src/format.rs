@@ -16,11 +16,10 @@ use std::borrow::Cow;
 
 use oxc_allocator::Allocator;
 use oxc_formatter::{BracketSameLine, JsFormatOptions, QuoteStyle};
-use oxc_formatter_core::{
-    CoreFormatOptions, Document, FormatSession, FormatState, Formatter, IndentStyle, IndentWidth,
-    InputKind, LineEnding, LineWidth, PrintError, PrintWidth, PrinterOptions,
+use oxc_formatter_core::{CoreFormatOptions, IndentStyle, IndentWidth, LineEnding, LineWidth};
+use rsvelte_document_printer::{
+    Embedding, LayoutInstructionIdentifier, LayoutInstructions, Unprinted,
 };
-use rsvelte_document_printer::{LayoutInstructionIdentifier, LayoutInstructions, Unlowered};
 pub(crate) use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
@@ -91,10 +90,8 @@ pub(crate) fn format(
         source_text,
         docs: &mut docs,
         embedder: javascript::Embedder {
-            session: FormatSession::new(&allocator, InputKind::PhysicalFile),
-            layouts: Vec::new(),
+            embedding: Embedding::new(&allocator, core),
             typescript: is_typescript(c, source_text),
-            core,
             options: javascript_options(options, core),
         },
         text: vec![None; c.nodes.len()],
@@ -105,25 +102,14 @@ pub(crate) fn format(
         buffers: Vec::new(),
     };
     let root = f.top_level()?;
-    let javascript::Embedder {
-        session, layouts, ..
-    } = f.embedder;
-    let mut state = FormatState::new_with_session(javascript::Context { options: core }, session);
-    let mut formatter = Formatter::new(&mut state);
-    docs.lower(root, &layouts, &mut formatter)
-        .map_err(|Unlowered| Unsupported::nowhere("a layout only checked flat"))?;
-    let elements = formatter.into_vec();
-    let print = PrinterOptions::default()
-        .with_print_width(PrintWidth::new(options.print_width as u32))
-        .with_indent_style(core.indent_style)
-        .with_indent_width(core.indent_width)
-        .with_line_ending(LineEnding::Lf);
-    let printed = Document::new(elements, Vec::new())
-        .print(text.len(), print)
-        .map_err(|PrintError::InvalidDocument(_)| {
-            Unsupported::nowhere("a document oxc's printer rejects")
-        })?
-        .into_code();
+    let embedding = f.embedder.embedding;
+    let printed =
+        embedding
+            .print(&docs, root, text.len())
+            .map_err(|unprinted| match unprinted {
+                Unprinted::FlatOnly => Unsupported::nowhere("a layout only checked flat"),
+                Unprinted::Rejected => Unsupported::nowhere("a document oxc's printer rejects"),
+            })?;
     let eol = match options.end_of_line {
         EndOfLine::Lf => "\n",
         EndOfLine::Crlf => "\r\n",
