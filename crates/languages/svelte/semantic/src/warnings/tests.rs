@@ -3,7 +3,7 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::Document;
 
 use super::{CompileWarnings, Options};
-use crate::{Analyzed, Resolved};
+use crate::{Analyzed, Lowered, Resolved};
 use rsvelte_svelte_syntax::Parsed;
 
 /// What `svelte.compile` with `runes: true` warns about `code`, as each warning's code, source
@@ -14,6 +14,7 @@ fn compiled(code: &str) -> Vec<(String, String, String)> {
     let document = Document::new("Test.svelte".to_owned(), code.to_owned()).expect("small");
     let context = DocumentContext::new(&document, registry.artifacts());
     let component = context.get::<Parsed>().as_ref().expect("parses");
+    let lowered = context.get::<Lowered>().as_ref().expect("lowers");
     let resolution = context.get::<Resolved>().as_ref().expect("resolves");
     let options = Options {
         runes: Some(true),
@@ -22,6 +23,7 @@ fn compiled(code: &str) -> Vec<(String, String, String)> {
     let analysis = context.get::<Analyzed>().as_ref();
     super::warnings(
         component,
+        lowered,
         resolution,
         analysis,
         code,

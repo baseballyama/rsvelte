@@ -1,17 +1,23 @@
 //! The compiler's `svelte-ignore`: which nodes each comment's codes cover, the warnings about
 //! codes it does not know, and which warnings end up ignored.
 
+use oxc_ast::AstKind;
+use oxc_ast_visit::Visit;
+use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::TokenKind;
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
-use rsvelte_typescript_syntax::syntax_tree::Kind;
-use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_tree::{
+    DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier, Tree,
+};
 
 use super::found::{Found, Stage};
 use super::fuzzymatch::fuzzymatch;
-use super::{CompileWarnings, Section, warning};
+use super::{CompileWarnings, Section, span as document_span, warning};
+use crate::compiler_syntax_tree::CompilerSyntaxTree;
+use crate::resolve::{Roots, TemplateName, TemplateScope};
 
 /// Svelte 4's codes whose Svelte 5 code is not the same with `-` read as `_`.
 pub const LEGACY_REPLACEMENTS: &[(&str, &str)] = &[
@@ -130,6 +136,7 @@ fn words(text: &str) -> impl Iterator<Item = (usize, &str)> {
 /// walk meets them.
 pub(super) fn regions(
     component: &Component,
+    compiler_syntax_tree: &CompilerSyntaxTree,
     source: &str,
     runes: bool,
     found: &mut Found,
@@ -142,12 +149,21 @@ pub(super) fn regions(
     {
         if let Some(data) = preceding_comment(component, source, script.span.start_offset) {
             let codes = extract(data.start_offset, data.text(source), runes, |_| {});
-            if let Some(span) = component.javascript.source_location(script.program).span() {
-                out.push(Region { span, codes });
-            }
+            let program = component.javascript.get_program(script.program);
+            out.push(Region {
+                span: document_span(program.span),
+                codes,
+            });
         }
     }
-    script_regions(component, source, runes, found, &mut out);
+    script_regions(
+        component,
+        compiler_syntax_tree,
+        source,
+        runes,
+        found,
+        &mut out,
+    );
     fragment_regions(component, source, runes, component.root, found, &mut out);
     for node in &component.nodes {
         for range in child_ranges(node) {
@@ -251,23 +267,26 @@ fn fragment_regions(
 /// first node after it, unless it trails the node before it on the same line or ends a body.
 fn script_regions(
     component: &Component,
+    compiler_syntax_tree: &CompilerSyntaxTree,
     source: &str,
     runes: bool,
     found: &mut Found,
     out: &mut Vec<Region>,
 ) {
     let javascript = &component.javascript;
-    let ignores: Vec<Span> = javascript
-        .comments
+    let mut ignores: Vec<Span> = javascript
+        .comments()
         .iter()
-        .copied()
+        .map(|c| document_span(c.span))
         .filter(|c| value(*c, source).contains("svelte-ignore"))
         .collect();
     if ignores.is_empty() {
         return;
     }
+    ignores.sort_unstable_by_key(|c| c.start_offset);
     let mut attach = Attach {
-        javascript,
+        component,
+        tree: javascript,
         source,
         runes,
         comments: &ignores,
@@ -275,6 +294,7 @@ fn script_regions(
         found,
         out,
         section: Section::Module,
+        entered: Vec::new(),
     };
     let roots = [
         (Section::Module, component.module.as_ref()),
@@ -284,31 +304,11 @@ fn script_regions(
         let Some(script) = script else { continue };
         attach.section = section;
         attach.skip_before(script.content.start_offset);
-        attach.node(script.program, None);
+        attach.visit_program(javascript.get_program(script.program));
         attach.skip_before(script.content.end_offset);
     }
     attach.section = Section::Template;
-    for &expression in &component.template_expressions {
-        let Some(span) = javascript.source_location(expression).span() else {
-            continue;
-        };
-        // Only a comment inside the expression's own braces is the expression's.
-        while let Some(&comment) = attach.comments.get(attach.next) {
-            let between = component
-                .tokens
-                .from_offset(comment.end_offset)
-                .iter()
-                .take_while(|t| t.span.start_offset < span.start_offset);
-            if comment.start_offset >= span.start_offset
-                || between.into_iter().all(|t| t.kind.is_trivia())
-            {
-                break;
-            }
-            attach.next += 1;
-        }
-        attach.node(expression, None);
-        attach.skip_before(span.end_offset);
-    }
+    crate::resolve::walk(compiler_syntax_tree, compiler_syntax_tree.root, &mut attach);
 }
 
 /// A comment's text without its delimiters.
@@ -321,8 +321,15 @@ fn value(comment: Span, source: &str) -> &str {
         .unwrap_or(inner)
 }
 
+/// A node the walk entered: where it is, and where the last item of its body is.
+struct Entered {
+    span: Span,
+    last: Option<Span>,
+}
+
 struct Attach<'a, 'f> {
-    javascript: &'a SyntaxTree,
+    component: &'a Component,
+    tree: &'a Tree,
     source: &'a str,
     runes: bool,
     comments: &'a [Span],
@@ -330,6 +337,7 @@ struct Attach<'a, 'f> {
     found: &'f mut Found,
     out: &'f mut Vec<Region>,
     section: Section,
+    entered: Vec<Entered>,
 }
 
 impl Attach<'_, '_> {
@@ -344,11 +352,44 @@ impl Attach<'_, '_> {
         }
     }
 
-    /// `parent` is the parent's span and whether `node` is the last of its body.
-    fn node(&mut self, node: NodeIdentifier, parent: Option<(Span, bool)>) {
-        let Some(span) = self.javascript.source_location(node).span() else {
-            return;
-        };
+    /// Visits a template root: only a comment inside the expression's own braces is its own.
+    fn root(&mut self, at: oxc_span::Span, visit: impl FnOnce(&mut Self)) {
+        let span = document_span(at);
+        while let Some(&comment) = self.comments.get(self.next) {
+            let between = self
+                .component
+                .tokens
+                .from_offset(comment.end_offset)
+                .iter()
+                .take_while(|t| t.span.start_offset < span.start_offset);
+            if comment.start_offset >= span.start_offset
+                || between.into_iter().all(|t| t.kind.is_trivia())
+            {
+                break;
+            }
+            self.next += 1;
+        }
+        visit(self);
+        self.skip_before(span.end_offset);
+    }
+}
+
+/// The last item of a body, array or object, whose trailing comments run to the parent's end.
+fn last_item(kind: &AstKind<'_>) -> Option<Span> {
+    let last = match kind {
+        AstKind::Program(p) => p.body.last().map(GetSpan::span),
+        AstKind::BlockStatement(b) => b.body.last().map(GetSpan::span),
+        AstKind::FunctionBody(b) => b.statements.last().map(GetSpan::span),
+        AstKind::ArrayExpression(a) => a.elements.last().map(GetSpan::span),
+        AstKind::ObjectExpression(o) => o.properties.last().map(GetSpan::span),
+        _ => None,
+    };
+    last.map(document_span)
+}
+
+impl<'a> Visit<'a> for Attach<'_, '_> {
+    fn enter_node(&mut self, kind: AstKind<'a>) {
+        let span = document_span(kind.span());
         let mut codes = Vec::new();
         while let Some(&comment) = self.comments.get(self.next) {
             if comment.start_offset >= span.start_offset {
@@ -367,10 +408,15 @@ impl Attach<'_, '_> {
         if !codes.is_empty() {
             self.out.push(Region { span, codes });
         }
-        let last = last_child(self.javascript, node);
-        self.javascript.for_each_child(node, |child| {
-            self.node(child, Some((span, Some(child) == last)));
+        self.entered.push(Entered {
+            span,
+            last: last_item(&kind),
         });
+    }
+
+    fn leave_node(&mut self, _: AstKind<'a>) {
+        let Entered { span, .. } = self.entered.pop().expect("entered before");
+        let parent = self.entered.last().map(|p| (p.span, p.last == Some(span)));
         let Some(&comment) = self.comments.get(self.next) else {
             return;
         };
@@ -388,14 +434,36 @@ impl Attach<'_, '_> {
     }
 }
 
-/// The last child of a body, array or object, whose trailing comments run to the parent's end.
-fn last_child(javascript: &SyntaxTree, node: NodeIdentifier) -> Option<NodeIdentifier> {
-    match javascript.kind(node) {
-        Kind::Program(items) | Kind::Block(items) | Kind::Array(items) | Kind::Object(items) => {
-            items.last().copied()
-        }
-        _ => None,
+impl Roots for Attach<'_, '_> {
+    fn expression(&mut self, expression: ExpressionIdentifier) {
+        let e = self.tree.get_expression(expression);
+        self.root(e.span(), |a| a.visit_expression(e));
     }
+
+    fn bound(&mut self, expression: ExpressionIdentifier) {
+        self.expression(expression);
+    }
+
+    fn declaration(&mut self, declaration: DeclarationIdentifier) {
+        let d = self.tree.get_declaration(declaration);
+        self.root(d.span, |a| a.visit_variable_declaration(d));
+    }
+
+    fn pattern(&mut self, pattern: PatternIdentifier) {
+        let p = self.tree.get_pattern(pattern);
+        self.root(p.span, |a| a.visit_formal_parameter(p));
+    }
+
+    fn parameters(&mut self, parameters: ParametersIdentifier) {
+        let p = self.tree.get_parameters(parameters);
+        self.root(p.span, |a| a.visit_formal_parameters(p));
+    }
+
+    fn name(&mut self, _: TemplateName) {}
+
+    fn enter(&mut self, _: TemplateScope) {}
+
+    fn leave(&mut self) {}
 }
 
 /// Marks each warning a region covers with one of its codes; only the walks' warnings can be.

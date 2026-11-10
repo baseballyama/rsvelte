@@ -1,8 +1,8 @@
-use super::{Evaluator, NodeIdentifier, SyntaxTree};
+use oxc_ast::ast::TemplateElement;
 
-impl Evaluator<'_> {
-    pub(super) fn cooked(&self, syntax_tree: &SyntaxTree, quasi: NodeIdentifier) -> String {
-        let raw = syntax_tree.str_value(quasi, self.source_text);
-        rsvelte_typescript_syntax::lexer::cook_template(raw).into_owned()
-    }
+/// The cooked text of a template literal's quasi; `None` when it holds a lone surrogate, which is
+/// no Rust string.
+pub(super) fn cooked(quasi: &TemplateElement<'_>) -> Option<String> {
+    let cooked = quasi.value.cooked?;
+    cooked.as_str().map(str::to_owned)
 }

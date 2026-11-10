@@ -1,39 +1,38 @@
-use rsvelte_kernel::index::IndexVector;
-use rsvelte_typescript_semantic::scope::BindingIdentifier;
-use rsvelte_typescript_syntax::NodeIdentifier;
+use oxc_ast::ast::IdentifierReference;
+use oxc_semantic::SymbolId;
 
-use crate::evaluate::{Evaluator, Tree};
-use crate::input::ComponentInput;
+use crate::evaluate::Evaluator;
 use crate::resolve::Resolution;
 
-pub(super) struct BindingValues<'a> {
-    evaluator: Evaluator<'a>,
-    bindings: usize,
-    known: IndexVector<BindingIdentifier, Option<bool>>,
+/// Per symbol, whether its value is known: an identifier's evaluation depends on its symbol only.
+pub(super) struct BindingValues<'r> {
+    evaluator: Evaluator<'r>,
+    symbols: usize,
+    known: Vec<Option<bool>>,
 }
 
-impl<'a> BindingValues<'a> {
-    pub(super) const fn new(input: &ComponentInput<'a>, resolution: &'a Resolution) -> Self {
+impl<'r> BindingValues<'r> {
+    pub(super) fn new(resolution: &'r Resolution) -> Self {
         Self {
-            evaluator: Evaluator::new(input.javascript, input.source_text, resolution),
-            bindings: resolution.bindings.len(),
-            known: IndexVector::new(),
+            evaluator: Evaluator::new(resolution),
+            symbols: resolution.scoping().symbols_len(),
+            known: Vec::new(),
         }
     }
 
     pub(super) fn is_known(
         &mut self,
-        binding: BindingIdentifier,
-        expression: NodeIdentifier,
+        symbol: SymbolId,
+        identifier: &IdentifierReference<'_>,
     ) -> bool {
         if self.known.is_empty() {
-            self.known = IndexVector::from_element_n(None, self.bindings);
+            self.known = vec![None; self.symbols];
         }
-        if let Some(known) = self.known[binding] {
+        if let Some(known) = self.known[symbol.index()] {
             return known;
         }
-        let known = self.evaluator.is_known(Tree::Source, expression);
-        self.known[binding] = Some(known);
+        let known = self.evaluator.is_known_identifier(identifier);
+        self.known[symbol.index()] = Some(known);
         known
     }
 }

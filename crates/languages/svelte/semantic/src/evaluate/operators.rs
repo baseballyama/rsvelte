@@ -1,11 +1,15 @@
-use rsvelte_typescript_syntax::operators::{BinaryOperator, UnaryOperator};
+use oxc_syntax::operator::{BinaryOperator, UnaryOperator};
 
 use super::{Value, bigint, to_int32};
 
 pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> {
     use BinaryOperator::{
-        Add, BitAnd, BitOr, BitXor, Div, Eq, Exp, Gt, GtEq, In, InstanceOf, Lt, LtEq, Mul, NotEq,
-        Remainder, Shl, Shr, StrictEq, StrictNotEq, Sub, UShr,
+        Addition as Add, BitwiseAnd as BitAnd, BitwiseOR as BitOr, BitwiseXOR as BitXor,
+        Division as Div, Equality as Eq, Exponential as Exp, GreaterEqualThan as GtEq,
+        GreaterThan as Gt, In, Inequality as NotEq, Instanceof as InstanceOf,
+        LessEqualThan as LtEq, LessThan as Lt, Multiplication as Mul, Remainder, ShiftLeft as Shl,
+        ShiftRight as Shr, ShiftRightZeroFill as UShr, StrictEquality as StrictEq,
+        StrictInequality as StrictNotEq, Subtraction as Sub,
     };
     if matches!(a, Value::BigInt(_)) || matches!(b, Value::BigInt(_)) {
         return bigint::binary(op, a, b);
@@ -92,11 +96,11 @@ pub(super) fn unary(op: UnaryOperator, a: &Value) -> Value {
         return bigint::unary(op, value);
     }
     match op {
-        UnaryOperator::Not => Value::Boolean(!a.truthy()),
-        UnaryOperator::Neg => Value::Number(-a.to_number()),
-        UnaryOperator::Plus => Value::Number(a.to_number()),
-        UnaryOperator::BitNot => Value::Number(f64::from(!to_int32(a.to_number()))),
-        UnaryOperator::TypeOf => Value::String(
+        UnaryOperator::LogicalNot => Value::Boolean(!a.truthy()),
+        UnaryOperator::UnaryNegation => Value::Number(-a.to_number()),
+        UnaryOperator::UnaryPlus => Value::Number(a.to_number()),
+        UnaryOperator::BitwiseNot => Value::Number(f64::from(!to_int32(a.to_number()))),
+        UnaryOperator::Typeof => Value::String(
             match a {
                 Value::String(_) => "string",
                 Value::Number(_) => "number",

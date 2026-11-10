@@ -1,6 +1,8 @@
 //! The template's warnings and errors, in one walk in the compiler's order.
 
 use crate::resolve::Resolution;
+use oxc_ast::ast::BindingPattern;
+use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
@@ -8,7 +10,6 @@ use rsvelte_svelte_syntax::names::is_component_name;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, Range, TemplateNode, decode_attribute,
 };
-use rsvelte_typescript_syntax::NodeIdentifier;
 use rustc_hash::FxHashSet;
 
 use super::a11y;
@@ -44,7 +45,7 @@ pub(super) struct Template<'a> {
     /// Each `bind:this` expression, and whether a block encloses it.
     pub(super) bind_this: Vec<(Span, bool)>,
     /// The identifiers an `{#each}` context declares inside a rest element.
-    each_rest: FxHashSet<NodeIdentifier>,
+    each_rest: FxHashSet<SymbolId>,
     /// The nearest enclosing element with its own end tag, which closes the open ones inside.
     closer: Option<&'a str>,
     /// Upstream `parent_element`: the enclosing regular element, until a component or snippet.
@@ -298,8 +299,9 @@ impl<'a> Template<'a> {
                 has_fallback,
                 ..
             } => {
-                if !context.is_none() {
-                    self.each_rest_names(context, false);
+                if let Some(context) = context {
+                    let pattern = self.context.component.javascript.get_pattern(context);
+                    self.each_rest_names(&pattern.pattern, false);
                 }
                 self.blocks += 1;
                 self.branch(at, body, parent);
@@ -341,17 +343,32 @@ impl<'a> Template<'a> {
     }
 
     /// Records the identifiers of an `{#each}` context that a rest element declares.
-    fn each_rest_names(&mut self, pattern: NodeIdentifier, inside_rest: bool) {
-        use rsvelte_typescript_syntax::syntax_tree::Kind;
-        let javascript = &self.context.component.javascript;
-        match javascript.kind(pattern) {
-            Kind::Identifier(_) if inside_rest => {
-                self.each_rest.insert(pattern);
+    fn each_rest_names(&mut self, pattern: &BindingPattern<'_>, inside_rest: bool) {
+        match pattern {
+            BindingPattern::BindingIdentifier(identifier) => {
+                if inside_rest {
+                    self.each_rest.extend(identifier.symbol_id.get());
+                }
             }
-            Kind::Rest(argument) => self.each_rest_names(argument, true),
-            _ => javascript.for_each_child(pattern, |child| {
-                self.each_rest_names(child, inside_rest);
-            }),
+            BindingPattern::ObjectPattern(object) => {
+                for property in &object.properties {
+                    self.each_rest_names(&property.value, inside_rest);
+                }
+                if let Some(rest) = &object.rest {
+                    self.each_rest_names(&rest.argument, true);
+                }
+            }
+            BindingPattern::ArrayPattern(array) => {
+                for element in array.elements.iter().flatten() {
+                    self.each_rest_names(element, inside_rest);
+                }
+                if let Some(rest) = &array.rest {
+                    self.each_rest_names(&rest.argument, true);
+                }
+            }
+            BindingPattern::AssignmentPattern(assignment) => {
+                self.each_rest_names(&assignment.left, inside_rest);
+            }
         }
     }
 }

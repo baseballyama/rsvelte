@@ -1,7 +1,8 @@
 //! Expression metadata, template dynamics, and stylesheet usage.
 
+use oxc_ast_visit::Visit;
 use rsvelte_kernel::index::IndexVector;
-use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use crate::compiler_syntax_tree::CompilerNodeIdentifier;
@@ -31,8 +32,10 @@ pub struct ExpressionMetadata {
 
 #[derive(Debug)]
 pub struct Analysis {
-    /// Keyed by the expression root of every template expression.
-    pub expressions: FxHashMap<NodeIdentifier, ExpressionMetadata>,
+    /// Keyed by every template expression.
+    pub expressions: FxHashMap<ExpressionIdentifier, ExpressionMetadata>,
+    /// Keyed by every `{@const}` and `{let}` tag's declaration.
+    pub declarations: FxHashMap<DeclarationIdentifier, ExpressionMetadata>,
     pub needs_context: bool,
     /// Per HIR node: whether the style sheet selects it (elements only).
     pub scoped: IndexVector<CompilerNodeIdentifier, bool>,
@@ -47,13 +50,24 @@ pub struct Analysis {
 impl Analysis {
     /// # Panics
     ///
-    /// If `expression` is not the root of a template expression.
+    /// If `expression` is not a template expression.
     #[must_use]
-    pub fn meta(&self, expression: NodeIdentifier) -> ExpressionMetadata {
+    pub fn meta(&self, expression: ExpressionIdentifier) -> ExpressionMetadata {
         *self
             .expressions
             .get(&expression)
             .expect("every template expression is analysed")
+    }
+
+    /// # Panics
+    ///
+    /// If `declaration` is not a tag's declaration.
+    #[must_use]
+    pub fn declaration_meta(&self, declaration: DeclarationIdentifier) -> ExpressionMetadata {
+        *self
+            .declarations
+            .get(&declaration)
+            .expect("every tag's declaration is analysed")
     }
 }
 
@@ -62,6 +76,7 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
     let compiler_syntax_tree = input.compiler_syntax_tree;
     let mut analysis = Analysis {
         expressions: FxHashMap::default(),
+        declarations: FxHashMap::default(),
         needs_context: false,
         scoped: IndexVector::from_element_n(false, compiler_syntax_tree.nodes.len()),
         dynamic: IndexVector::from_element_n(false, compiler_syntax_tree.nodes.len()),
@@ -69,25 +84,33 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
         stylesheet_used: Vec::new(),
         stylesheet_scoped: Vec::new(),
     };
-    let mut values = BindingValues::new(input, res);
-    let mut walker = MetadataWalker::<false>::new(input, res, &mut values);
-    if let Some(module) = input.module {
-        walker.visit(module);
+    let tree = input.javascript;
+    let mut values = BindingValues::new(res);
+    let mut walker = MetadataWalker::<false>::new(res, &mut values);
+    for program in input.module.into_iter().chain(input.instance) {
+        walker.visit_program(tree.get_program(program));
     }
-    walker.visit(input.program);
     let mut needs_context = walker.needs_context();
-    let mut expressions =
-        FxHashMap::with_capacity_and_hasher(input.template_expressions.len(), FxBuildHasher);
     // Upstream reads a component's name from its tag, not as an expression that needs context.
-    let references: FxHashSet<NodeIdentifier> =
+    let references: FxHashSet<ExpressionIdentifier> =
         compiler_syntax_tree.component_references().collect();
-    for &expression in input.template_expressions {
-        let mut walker = MetadataWalker::<true>::new(input, res, &mut values);
-        walker.visit(expression);
-        needs_context |= walker.needs_context() && !references.contains(&expression);
-        expressions.insert(expression, walker.metadata());
+    let mut expressions =
+        FxHashMap::with_capacity_and_hasher(tree.expressions().len(), FxBuildHasher);
+    for (identifier, expression) in tree.expressions() {
+        let mut walker = MetadataWalker::<true>::new(res, &mut values);
+        walker.visit_expression(expression);
+        needs_context |= walker.needs_context() && !references.contains(&identifier);
+        expressions.insert(identifier, walker.metadata());
+    }
+    let mut declarations = FxHashMap::default();
+    for (identifier, declaration) in tree.declarations() {
+        let mut walker = MetadataWalker::<true>::new(res, &mut values);
+        walker.visit_variable_declaration(declaration);
+        needs_context |= walker.needs_context();
+        declarations.insert(identifier, walker.metadata());
     }
     analysis.expressions = expressions;
+    analysis.declarations = declarations;
     analysis.needs_context = needs_context;
     analysis.root_dynamic = dynamic::mark_dynamic(
         input,

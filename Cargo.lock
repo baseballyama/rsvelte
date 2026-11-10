@@ -1203,13 +1203,21 @@ version = "0.0.0"
 dependencies = [
  "num-bigint",
  "num-traits",
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_visit",
+ "oxc_parser",
+ "oxc_semantic",
+ "oxc_span",
+ "oxc_syntax",
  "rsvelte_kernel",
  "rsvelte_stylesheet_semantic",
  "rsvelte_stylesheet_syntax",
  "rsvelte_svelte_syntax",
  "rsvelte_typescript_semantic",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
  "rustc-hash",
+ "self_cell",
 ]
 
 [[package]]

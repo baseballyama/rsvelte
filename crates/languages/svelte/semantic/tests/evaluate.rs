@@ -1,25 +1,38 @@
-use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
-use rsvelte_svelte_semantic::evaluate::{Evaluation, Evaluator, Tree, Value};
-use rsvelte_svelte_semantic::resolve;
-use rsvelte_typescript_syntax::{Kind, SyntaxTree, parser};
+use oxc_allocator::Allocator;
+use oxc_ast::ast::Statement;
+use rsvelte_svelte_semantic::compiler_syntax_tree::lower;
+use rsvelte_svelte_semantic::evaluate::{Evaluation, Evaluator, Value};
+use rsvelte_svelte_semantic::resolve::{Resolution, resolve};
 
-fn evaluate(source: &str) -> Evaluation {
-    let mut tree = SyntaxTree::new();
-    let program =
-        parser::parse_program(&mut tree, source, Span::new(0, source.len() as u32), false)
-            .expect("valid JavaScript");
-    let Kind::Program(body) = tree.kind(program) else {
-        unreachable!("a program")
-    };
-    let Kind::ExpressionStatement(expression) = tree.kind(*body.last().expect("a statement"))
-    else {
+/// The resolution of a component whose instance script is `script`.
+fn resolution(script: &str) -> Resolution {
+    let source = format!("<script>{script}</script>");
+    let component = rsvelte_svelte_syntax::parse::parse(&source).expect("parses");
+    let lowered = lower(&component, &source);
+    resolve(
+        &component.javascript,
+        component.instance.as_ref().map(|s| s.program),
+        None,
+        &lowered,
+    )
+}
+
+/// The value of the last statement of `script`, an expression.
+fn evaluate(script: &str) -> Evaluation {
+    let resolution = resolution(script);
+    let program = resolution
+        .semantic()
+        .nodes()
+        .iter()
+        .find_map(|node| match node.kind() {
+            oxc_ast::AstKind::Program(program) => Some(program),
+            _ => None,
+        })
+        .expect("a program");
+    let Some(Statement::ExpressionStatement(statement)) = program.body.last() else {
         unreachable!("the last statement is an expression")
     };
-    let compiler_syntax_tree =
-        CompilerSyntaxTreeBuilder::new(source, 0, 0).finish(Children::default());
-    let resolution = resolve::resolve(&tree, source, program, &compiler_syntax_tree);
-    resolution.evaluate(&tree, source, expression)
+    Evaluator::new(&resolution).evaluate(&statement.expression)
 }
 
 #[test]
@@ -91,25 +104,15 @@ fn alternatives_keep_value_order_and_flags() {
 
 #[test]
 fn output_identifiers_use_the_source_scope() {
-    let source = "const value = 3;";
-    let mut tree = SyntaxTree::new();
-    let program =
-        parser::parse_program(&mut tree, source, Span::new(0, source.len() as u32), false)
-            .expect("a program");
-    let compiler_syntax_tree =
-        CompilerSyntaxTreeBuilder::new(source, 0, 0).finish(Children::default());
-    let resolution = resolve::resolve(&tree, source, program, &compiler_syntax_tree);
-    let mut output = SyntaxTree::new();
-    let expression = output.identifier("value");
-    let scope = resolution.sem.scope_of(program).expect("a program scope");
-    let mut evaluator = Evaluator::new(&tree, source, &resolution);
+    let resolution = resolution("const value = 3;");
+    let allocator = Allocator::default();
+    // Parsed apart from the component, so the analysis never resolved it.
+    let output = oxc_parser::Parser::new(&allocator, "value", oxc_span::SourceType::mjs())
+        .parse_expression()
+        .expect("an expression");
+    let mut evaluator = Evaluator::in_scope(&resolution, resolution.instance_scope());
     for _ in 0..2 {
-        assert_eq!(
-            evaluator
-                .evaluate(Tree::Output(&output, scope), expression)
-                .value,
-            Value::Number(3.0)
-        );
+        assert_eq!(evaluator.evaluate(&output).value, Value::Number(3.0));
     }
 }
 

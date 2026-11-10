@@ -1,102 +1,92 @@
-use rsvelte_kernel::index::IndexVector;
-use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind, Semantic};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use oxc_ast::AstKind;
+use oxc_ast::ast::{BindingPattern, Expression, VariableDeclarator};
+use oxc_semantic::{SymbolFlags, SymbolId};
+use rsvelte_typescript_semantic::semantic::Semantic;
 
-use super::{BindingInformation, BindingKind, runes};
-use crate::compiler_syntax_tree::{CompilerSyntaxTree, NodeKind};
+use super::{BindingInformation, BindingKind, Counts, TemplateNames, runes};
+use crate::compiler_syntax_tree::CompilerSyntaxTree;
 
 mod props;
 mod template;
 
-pub(super) fn classify(
-    syntax_tree: &SyntaxTree,
-    sem: &Semantic,
+pub(super) fn classify<'a>(
+    semantic: &'a Semantic,
     subscribed: &[&str],
-    program: NodeIdentifier,
-    module: Option<NodeIdentifier>,
+    counts: &Counts,
     compiler_syntax_tree: &CompilerSyntaxTree,
-) -> IndexVector<BindingIdentifier, BindingInformation> {
-    let mut out: IndexVector<BindingIdentifier, BindingInformation> = sem
-        .bindings
-        .iter()
-        .map(|b| BindingInformation {
+    names: &TemplateNames,
+) -> Vec<BindingInformation<'a>> {
+    let scoping = semantic.scoping();
+    let mut out: Vec<BindingInformation<'a>> = scoping
+        .symbol_ids()
+        .map(|symbol| BindingInformation {
             kind: BindingKind::Normal,
             // Upstream `Binding.is_function`: never updated, and initialised with a function.
-            is_function: b.writes == 0
-                && b.mutations == 0
-                && (b.kind == DeclarationKind::Function
-                    || b.initializer(syntax_tree).is_some_and(|i| {
+            is_function: counts.writes[symbol.index()] == 0
+                && counts.mutations[symbol.index()] == 0
+                && (scoping.symbol_flags(symbol).contains(SymbolFlags::Function)
+                    || initializer(semantic, symbol).is_some_and(|i| {
                         matches!(
-                            syntax_tree.kind(i),
-                            Kind::Function { .. } | Kind::Arrow { .. }
+                            i,
+                            Expression::FunctionExpression(_)
+                                | Expression::ArrowFunctionExpression(_)
                         )
                     })),
             initial: None,
             prop_key: None,
         })
         .collect();
-    let mut pending = vec![program];
-    pending.extend(module);
-    pending.extend(compiler_syntax_tree.nodes.iter().filter_map(|node| {
-        if let NodeKind::Declaration { declaration } = node.kind {
-            Some(declaration)
-        } else {
-            None
+    for node in semantic.nodes().iter() {
+        if let AstKind::VariableDeclarator(declarator) = node.kind() {
+            classify_declarator(semantic, subscribed, declarator, &mut out);
         }
-    }));
-    while let Some(node) = pending.pop() {
-        if matches!(syntax_tree.kind(node), Kind::VariableDeclaration { .. }) {
-            classify_declaration(syntax_tree, sem, subscribed, node, &mut out);
-        }
-        syntax_tree.for_each_child(node, |child| pending.push(child));
     }
-    template::classify_template(syntax_tree, sem, compiler_syntax_tree, &mut out);
+    template::classify_template(semantic, compiler_syntax_tree, names, &mut out);
     out
 }
 
-fn classify_declaration(
-    syntax_tree: &SyntaxTree,
-    sem: &Semantic,
+/// The initialiser of the declarator `symbol` came from (`initializer` in `let x = initializer`).
+pub(super) fn initializer(semantic: &Semantic, symbol: SymbolId) -> Option<&Expression<'_>> {
+    let declaration = semantic.scoping().symbol_declaration(symbol);
+    match semantic.nodes().kind(declaration) {
+        AstKind::VariableDeclarator(d) => d.init.as_ref(),
+        _ => None,
+    }
+}
+
+fn classify_declarator<'a>(
+    semantic: &Semantic,
     subscribed: &[&str],
-    statement: NodeIdentifier,
-    out: &mut IndexVector<BindingIdentifier, BindingInformation>,
+    declarator: &'a VariableDeclarator<'a>,
+    out: &mut [BindingInformation<'a>],
 ) {
-    let statement = match syntax_tree.kind(statement) {
-        Kind::ExportNamed(declaration) => declaration,
-        _ => statement,
-    };
-    let Kind::VariableDeclaration { declarations, .. } = syntax_tree.kind(statement) else {
+    let Some(initializer) = &declarator.init else {
         return;
     };
-    for &d in declarations {
-        let Kind::Declarator {
-            identifier,
-            initializer: Some(initializer),
-        } = syntax_tree.kind(d)
-        else {
-            continue;
-        };
-        let Some((rune, arg)) = runes::rune(syntax_tree, sem, subscribed, initializer) else {
-            continue;
-        };
-        match rune {
-            "$state" | "$state.raw" | "$derived" | "$derived.by" => {
-                let kind = match rune {
-                    "$state" => BindingKind::State,
-                    "$state.raw" => BindingKind::RawState,
-                    "$derived" => BindingKind::Derived,
-                    _ => BindingKind::DerivedBy,
-                };
-                super::for_each_pattern_target(syntax_tree, identifier, &mut |identifier| {
-                    if let Some(b) = sem.binding_of(identifier) {
-                        out[b].kind = kind;
-                        out[b].initial = arg;
-                        out[b].is_function = false;
-                    }
-                });
-            }
-            "$props" => props::classify_props(syntax_tree, sem, subscribed, identifier, out),
-            _ => {}
+    let Some((rune, argument)) = runes::rune(semantic, subscribed, initializer) else {
+        return;
+    };
+    let kind = match rune {
+        "$state" => BindingKind::State,
+        "$state.raw" => BindingKind::RawState,
+        "$derived" => BindingKind::Derived,
+        "$derived.by" => BindingKind::DerivedBy,
+        "$props" => return props::classify_props(semantic, subscribed, &declarator.id, out),
+        _ => return,
+    };
+    for_each_binding(&declarator.id, &mut |symbol| {
+        let info = &mut out[symbol.index()];
+        info.kind = kind;
+        info.initial = argument;
+        info.is_function = false;
+    });
+}
+
+/// The symbols a binding pattern declares.
+pub(super) fn for_each_binding(pattern: &BindingPattern<'_>, f: &mut impl FnMut(SymbolId)) {
+    for identifier in pattern.get_binding_identifiers() {
+        if let Some(symbol) = identifier.symbol_id.get() {
+            f(symbol);
         }
     }
 }

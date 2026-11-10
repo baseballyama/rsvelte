@@ -19,10 +19,9 @@ impl Artifact for Resolved {
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let c = context.get::<Parsed>().as_ref().ok()?;
         let compiler_syntax_tree = context.get::<Lowered>().as_ref()?;
-        Some(resolve::resolve_with_module(
+        Some(resolve::resolve(
             &c.javascript,
-            context.source_text(),
-            c.program,
+            c.instance.as_ref().map(|s| s.program),
             c.module.as_ref().map(|s| s.program),
             compiler_syntax_tree,
         ))
@@ -72,6 +71,7 @@ impl Artifact for Warned {
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let c = context.get::<Parsed>().as_ref().ok()?;
+        let compiler_syntax_tree = context.get::<Lowered>().as_ref()?;
         let res = context.get::<Resolved>().as_ref()?;
         // Only the style sheet's selectors need the analysis.
         let analysis = if c.style.is_some() {
@@ -81,6 +81,7 @@ impl Artifact for Warned {
         };
         Some(crate::warnings::warnings(
             c,
+            compiler_syntax_tree,
             res,
             analysis,
             context.source_text(),
@@ -114,11 +115,10 @@ pub fn svelte_input<'a>(
 ) -> input::ComponentInput<'a> {
     input::ComponentInput {
         javascript: &c.javascript,
-        program: c.program,
+        instance: c.instance.as_ref().map(|s| s.program),
         module: c.module.as_ref().map(|s| s.program),
         compiler_syntax_tree,
         style: c.style.as_ref().and_then(|s| s.sheet.as_ref().ok()),
-        template_expressions: &c.template_expressions,
         source_text,
         filename,
     }

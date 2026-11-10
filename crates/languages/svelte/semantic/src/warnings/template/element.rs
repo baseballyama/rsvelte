@@ -1,14 +1,15 @@
 //! An element's own warnings: its attributes, its tag, and the deprecated special elements.
 
+use oxc_ast::ast::Expression;
+use oxc_semantic::SymbolFlags;
+use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::names::{is_mathml, is_svg};
 use rsvelte_svelte_syntax::parse::is_void;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Part, Range, TemplateNode,
 };
-use rsvelte_typescript_semantic::scope::DeclarationKind;
-use rsvelte_typescript_syntax::NodeIdentifier;
-use rsvelte_typescript_syntax::syntax_tree::Kind;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::super::{a11y, warning};
 use super::placement::Ancestor;
@@ -247,10 +248,8 @@ impl<'a> Template<'a> {
         let component = self.context.component;
         let name = attribute.name.text(self.context.source);
         let global = expression(attribute, component).is_some_and(|e| {
-            let javascript = &component.javascript;
-            matches!(javascript.kind(e), Kind::Identifier(_))
-                && javascript.name(e) == name
-                && self.context.resolution.sem.binding_of(e).is_none()
+            matches!(component.javascript.get_expression(e), Expression::Identifier(identifier)
+                if identifier.name == name && self.context.resolution.symbol(identifier).is_none())
         });
         if global {
             let message = format!(
@@ -358,20 +357,13 @@ impl<'a> Template<'a> {
 
     /// `component_name_lowercase`: an element named like an import nothing references.
     fn lowercase_component(&mut self, at: u32, name: &str, span: Span) {
-        let javascript = &self.context.component.javascript;
-        let sem = &self.context.resolution.sem;
-        let Some(atom) = javascript.atoms.lookup(name) else {
+        let resolution = self.context.resolution;
+        let scoping = resolution.scoping();
+        let Some(symbol) = scoping.find_binding(resolution.instance_scope(), name.into()) else {
             return;
         };
-        let scope = sem
-            .scope_of(self.context.component.program)
-            .unwrap_or(rsvelte_typescript_semantic::scope::ScopeIdentifier::ROOT);
-        let Some(binding) = sem.lookup(scope, atom) else {
-            return;
-        };
-        let declared = &sem.bindings[binding];
-        if declared.kind == DeclarationKind::Import
-            && sem.references_to(binding).all(|r| r.node == declared.node)
+        if scoping.symbol_flags(symbol).contains(SymbolFlags::Import)
+            && scoping.get_resolved_reference_ids(symbol).is_empty()
         {
             let message = format!(
                 "`<{name}>` will be treated as an HTML element unless it begins with a capital letter"
@@ -407,10 +399,10 @@ impl<'a> Template<'a> {
                     let named = attribute
                         .directive_name(&component.modifiers)
                         .map(|n| n.text(source));
-                    if named == Some("this")
-                        && let Some(span) = component.javascript.source_location(value).span()
-                    {
-                        self.bind_this.push((span, self.blocks > 0));
+                    if named == Some("this") {
+                        let at = component.javascript.get_expression(value).span();
+                        self.bind_this
+                            .push((Span::new(at.start, at.end), self.blocks > 0));
                     }
                     self.each_rest_binding(at, value);
                 }
@@ -420,28 +412,35 @@ impl<'a> Template<'a> {
     }
 
     /// `bind_invalid_each_rest`: a binding to a name an `{#each}` rest element declares.
-    fn each_rest_binding(&mut self, at: u32, value: NodeIdentifier) {
-        let javascript = &self.context.component.javascript;
-        let mut object = value;
-        while let Kind::Member { object: inner, .. } = javascript.kind(object) {
-            object = inner;
+    fn each_rest_binding(&mut self, at: u32, value: ExpressionIdentifier) {
+        let mut object = self.context.component.javascript.get_expression(value);
+        while let Some(member) = object.as_member_expression() {
+            object = member.object();
         }
-        let sem = &self.context.resolution.sem;
-        let Some(binding) = sem.binding_of(object) else {
+        let Expression::Identifier(identifier) = object else {
             return;
         };
-        let declared = sem.bindings[binding].node;
-        if !self.each_rest.contains(&declared) {
-            return;
-        }
-        let Some(span) = javascript.source_location(declared).span() else {
+        let resolution = self.context.resolution;
+        let Some(symbol) = resolution.symbol(identifier) else {
             return;
         };
-        let name = javascript.name(declared);
+        if !self.each_rest.contains(&symbol) {
+            return;
+        }
+        let scoping = resolution.scoping();
+        let declared = scoping.symbol_span(symbol);
+        let name = scoping.symbol_name(symbol);
         let message = format!(
             "The rest operator (...) will create a new object and binding '{name}' with the original object will not work"
         );
-        self.warn(at, warning("bind_invalid_each_rest", &message, span));
+        self.warn(
+            at,
+            warning(
+                "bind_invalid_each_rest",
+                &message,
+                Span::new(declared.start, declared.end),
+            ),
+        );
     }
 
     /// `<svelte:element this="div">`: a string where an expression belongs, which the parser
@@ -472,7 +471,7 @@ impl<'a> Template<'a> {
 fn expression(
     attribute: &Attribute,
     component: &rsvelte_svelte_syntax::syntax_tree::Component,
-) -> Option<NodeIdentifier> {
+) -> Option<ExpressionIdentifier> {
     match attribute.value {
         AttributeValue::Parts(parts) => match component.parts(parts) {
             [Part::Expression { expression, .. }] => Some(*expression),

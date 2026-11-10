@@ -1,60 +1,58 @@
-use rsvelte_typescript_syntax::operators::{BinaryOperator, LogicalOperator, UnaryOperator};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
+use oxc_ast::ast::{Expression, LogicalExpression, UnaryExpression};
+use oxc_syntax::operator::{BinaryOperator, LogicalOperator, UnaryOperator};
 
 use super::globals::global_constant;
 use super::operators::{binary, unary};
-use super::{Evaluator, Tree, Value, Values, add, bigint};
+use super::template::cooked;
+use super::{Evaluator, Value, Values, add, bigint};
 
-impl<'a> Evaluator<'a> {
-    pub(super) fn eval_into(&mut self, tree: Tree<'a>, e: NodeIdentifier, values: &mut Values) {
-        let syntax_tree = self.syntax_tree(tree);
-        match syntax_tree.kind(e) {
-            Kind::String => add(
-                values,
-                Value::String(syntax_tree.str_value(e, self.source_text).to_owned()),
-            ),
-            Kind::Number(n) => add(values, Value::Number(n)),
-            Kind::BigInt => {
-                let [start_offset, end_offset] = syntax_tree.raw_data(e);
-                let raw = rsvelte_kernel::source::positions::Span::new(start_offset, end_offset)
-                    .text(self.source_text);
-                add(values, bigint::literal(raw));
+impl Evaluator<'_> {
+    pub(super) fn eval_into(&mut self, e: &Expression<'_>, values: &mut Values) {
+        match e {
+            // A value with a lone surrogate is no Rust string.
+            Expression::StringLiteral(s) => match s.value.as_str() {
+                Some(value) => add(values, Value::String(value.to_owned())),
+                None => add(values, Value::Unknown),
+            },
+            Expression::NumericLiteral(n) => add(values, Value::Number(n.value)),
+            Expression::BigIntLiteral(b) => {
+                add(values, bigint::literal(&format!("{}n", b.value)));
             }
-            Kind::Boolean(b) => add(values, Value::Boolean(b)),
-            Kind::Null => add(values, Value::Null),
-            Kind::Identifier(_) => self.identifier(tree, e, values),
-            Kind::Binary(op, l, r) => self.binary_expression(tree, op, l, r, values),
-            Kind::Conditional {
-                test,
-                consequent,
-                alternate,
-            } => {
-                let test_value = self.evaluate_inner(tree, test);
+            Expression::BooleanLiteral(b) => add(values, Value::Boolean(b.value)),
+            Expression::NullLiteral(_) => add(values, Value::Null),
+            Expression::Identifier(identifier) => self.identifier(identifier, values),
+            Expression::BinaryExpression(b) => {
+                self.binary_expression(b.operator, &b.left, &b.right, values);
+            }
+            Expression::ConditionalExpression(c) => {
+                let test_value = self.evaluate_inner(&c.test);
                 if test_value.is_known() {
                     let branch = if test_value.value().truthy() {
-                        consequent
+                        &c.consequent
                     } else {
-                        alternate
+                        &c.alternate
                     };
-                    self.eval_into(tree, branch, values);
+                    self.eval_into(branch, values);
                 } else {
-                    self.eval_into(tree, consequent, values);
-                    self.eval_into(tree, alternate, values);
+                    self.eval_into(&c.consequent, values);
+                    self.eval_into(&c.alternate, values);
                 }
             }
-            Kind::Logical(op, l, r) => self.logical_expression(tree, op, l, r, values),
-            Kind::Unary(op, arg) => self.unary_expression(tree, op, arg, values),
-            Kind::Call { arguments, .. } => self.call(tree, e, arguments, values),
-            Kind::Template {
-                quasis,
-                expressions,
-            } => {
-                let mut result = self.cooked(syntax_tree, quasis[0]);
-                for (i, &x) in expressions.iter().enumerate() {
-                    let ev = self.evaluate_inner(tree, x);
-                    if ev.is_known() {
+            Expression::LogicalExpression(l) => self.logical_expression(l, values),
+            Expression::UnaryExpression(u) => self.unary_expression(u, values),
+            Expression::CallExpression(call) => self.call(e, call, values),
+            Expression::TemplateLiteral(t) => {
+                let Some(mut result) = cooked(&t.quasis[0]) else {
+                    return add(values, Value::Unknown);
+                };
+                for (i, x) in t.expressions.iter().enumerate() {
+                    let ev = self.evaluate_inner(x);
+                    let next = cooked(&t.quasis[i + 1]);
+                    if ev.is_known()
+                        && let Some(next) = next
+                    {
                         result.push_str(&ev.value().to_javascript_string());
-                        result.push_str(&self.cooked(syntax_tree, quasis[i + 1]));
+                        result.push_str(&next);
                     } else {
                         // Upstream adds the partial string as well after giving up, and so do we.
                         add(values, Value::AnyString);
@@ -63,29 +61,35 @@ impl<'a> Evaluator<'a> {
                 }
                 add(values, Value::String(result));
             }
-            Kind::Member { .. } => match self.global_keypath(tree, e).and_then(global_constant) {
-                Some(v) => add(values, Value::Number(v)),
-                None => add(values, Value::Unknown),
-            },
-            Kind::Arrow { .. } | Kind::Function { .. } => add(values, Value::AnyFunction),
+            Expression::StaticMemberExpression(_) => {
+                match self.global_keypath(e).and_then(global_constant) {
+                    Some(v) => add(values, Value::Number(v)),
+                    None => add(values, Value::Unknown),
+                }
+            }
+            Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_) => {
+                add(values, Value::AnyFunction);
+            }
+            Expression::ParenthesizedExpression(p) => self.eval_into(&p.expression, values),
             _ => add(values, Value::Unknown),
         }
     }
 
     fn binary_expression(
         &mut self,
-        tree: Tree<'a>,
         op: BinaryOperator,
-        l: NodeIdentifier,
-        r: NodeIdentifier,
+        l: &Expression<'_>,
+        r: &Expression<'_>,
         values: &mut Values,
     ) {
         use BinaryOperator::{
-            Add, BitAnd, BitOr, BitXor, Div, Eq, Exp, Gt, GtEq, In, InstanceOf, Lt, LtEq, Mul,
-            NotEq, Remainder, Shl, Shr, StrictEq, StrictNotEq, Sub, UShr,
+            Addition, BitwiseAnd, BitwiseOR, BitwiseXOR, Division, Equality, Exponential,
+            GreaterEqualThan, GreaterThan, In, Inequality, Instanceof, LessEqualThan, LessThan,
+            Multiplication, Remainder, ShiftLeft, ShiftRight, ShiftRightZeroFill, StrictEquality,
+            StrictInequality, Subtraction,
         };
-        let left = self.evaluate_inner(tree, l);
-        let right = self.evaluate_inner(tree, r);
+        let left = self.evaluate_inner(l);
+        let right = self.evaluate_inner(r);
         if left.is_known() && right.is_known() {
             match binary(op, left.value(), right.value()) {
                 Some(v) => add(values, v),
@@ -94,14 +98,16 @@ impl<'a> Evaluator<'a> {
             return;
         }
         match op {
-            NotEq | StrictNotEq | Lt | LtEq | Gt | GtEq | Eq | StrictEq | In | InstanceOf => {
+            Inequality | StrictInequality | LessThan | LessEqualThan | GreaterThan
+            | GreaterEqualThan | Equality | StrictEquality | In | Instanceof => {
                 add(values, Value::Boolean(true));
                 add(values, Value::Boolean(false));
             }
-            Remainder | BitAnd | Mul | Exp | Sub | Div | Shl | Shr | UShr | BitXor | BitOr => {
+            Remainder | BitwiseAnd | Multiplication | Exponential | Subtraction | Division
+            | ShiftLeft | ShiftRight | ShiftRightZeroFill | BitwiseXOR | BitwiseOR => {
                 add(values, Value::AnyNumber);
             }
-            Add => {
+            Addition => {
                 if left.is_string() || right.is_string() {
                     add(values, Value::AnyString);
                 } else if left.is_number() && right.is_number() {
@@ -114,20 +120,15 @@ impl<'a> Evaluator<'a> {
         }
     }
 
-    fn logical_expression(
-        &mut self,
-        tree: Tree<'a>,
-        op: LogicalOperator,
-        l: NodeIdentifier,
-        r: NodeIdentifier,
-        values: &mut Values,
-    ) {
-        let left = self.evaluate_inner(tree, l);
+    fn logical_expression(&mut self, l: &LogicalExpression<'_>, values: &mut Values) {
+        let left = self.evaluate_inner(&l.left);
         if left.is_known() {
-            let short = match op {
+            let short = match l.operator {
                 LogicalOperator::And => !left.value().truthy(),
                 LogicalOperator::Or => left.value().truthy(),
-                LogicalOperator::Nullish => !matches!(left.value(), Value::Null | Value::Undefined),
+                LogicalOperator::Coalesce => {
+                    !matches!(left.value(), Value::Null | Value::Undefined)
+                }
             };
             if short {
                 add(values, left.into_value());
@@ -138,30 +139,24 @@ impl<'a> Evaluator<'a> {
                 add(values, value);
             }
         }
-        self.eval_into(tree, r, values);
+        self.eval_into(&l.right, values);
     }
 
-    fn unary_expression(
-        &mut self,
-        tree: Tree<'a>,
-        op: UnaryOperator,
-        arg: NodeIdentifier,
-        values: &mut Values,
-    ) {
-        let a = self.evaluate_inner(tree, arg);
+    fn unary_expression(&mut self, u: &UnaryExpression<'_>, values: &mut Values) {
+        let a = self.evaluate_inner(&u.argument);
         if a.is_known() {
-            add(values, unary(op, a.value()));
+            add(values, unary(u.operator, a.value()));
             return;
         }
-        match op {
-            UnaryOperator::Not | UnaryOperator::Delete => {
+        match u.operator {
+            UnaryOperator::LogicalNot | UnaryOperator::Delete => {
                 add(values, Value::Boolean(false));
                 add(values, Value::Boolean(true));
             }
-            UnaryOperator::Plus | UnaryOperator::Neg | UnaryOperator::BitNot => {
+            UnaryOperator::UnaryPlus | UnaryOperator::UnaryNegation | UnaryOperator::BitwiseNot => {
                 add(values, Value::AnyNumber);
             }
-            UnaryOperator::TypeOf => add(values, Value::AnyString),
+            UnaryOperator::Typeof => add(values, Value::AnyString),
             UnaryOperator::Void => add(values, Value::Undefined),
         }
     }

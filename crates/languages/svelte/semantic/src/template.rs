@@ -1,4 +1,4 @@
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use oxc_ast::ast::Expression;
 
 #[must_use]
 pub fn cannot_be_set_statically(name: &str) -> bool {
@@ -9,14 +9,14 @@ pub fn cannot_be_set_statically(name: &str) -> bool {
 }
 
 #[must_use]
-pub fn needs_clsx(javascript: &SyntaxTree, e: NodeIdentifier) -> bool {
+pub const fn needs_clsx(e: &Expression<'_>) -> bool {
     !matches!(
-        javascript.kind(e),
-        Kind::String
-            | Kind::Number(_)
-            | Kind::Boolean(_)
-            | Kind::Null
-            | Kind::Template { .. }
-            | Kind::Binary(..)
+        e,
+        Expression::StringLiteral(_)
+            | Expression::NumericLiteral(_)
+            | Expression::BooleanLiteral(_)
+            | Expression::NullLiteral(_)
+            | Expression::TemplateLiteral(_)
+            | Expression::BinaryExpression(_)
     )
 }

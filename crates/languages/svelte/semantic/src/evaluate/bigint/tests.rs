@@ -3,10 +3,10 @@ use super::*;
 #[test]
 fn arithmetic_preserves_integer_precision() {
     let value = literal("9_007_199_254_740_993n");
-    let result = binary(BinaryOperator::Add, &value, &literal("2n"));
+    let result = binary(BinaryOperator::Addition, &value, &literal("2n"));
     assert_eq!(result, Some(literal("9007199254740995n")));
     assert_eq!(
-        binary(BinaryOperator::Shr, &literal("-3n"), &literal("1n")),
+        binary(BinaryOperator::ShiftRight, &literal("-3n"), &literal("1n")),
         Some(literal("-2n"))
     );
 }
@@ -16,7 +16,7 @@ fn comparisons_follow_javascript_conversion_rules() {
     let value = literal("9007199254740993n");
     assert_eq!(
         binary(
-            BinaryOperator::Gt,
+            BinaryOperator::GreaterThan,
             &value,
             &Value::Number(9_007_199_254_740_992.0)
         ),
@@ -29,12 +29,16 @@ fn comparisons_follow_javascript_conversion_rules() {
         (Value::Null, false),
     ] {
         assert_eq!(
-            binary(BinaryOperator::Eq, &literal("16n"), &other),
+            binary(BinaryOperator::Equality, &literal("16n"), &other),
             Some(Value::Boolean(equal))
         );
     }
     assert_eq!(
-        binary(BinaryOperator::Lt, &literal("0n"), &Value::Number(0.5)),
+        binary(
+            BinaryOperator::LessThan,
+            &literal("0n"),
+            &Value::Number(0.5)
+        ),
         Some(Value::Boolean(true))
     );
 }
@@ -43,9 +47,15 @@ fn comparisons_follow_javascript_conversion_rules() {
 fn operations_that_throw_are_not_folded() {
     let value = literal("1n");
     assert_eq!(
-        binary(BinaryOperator::Add, &value, &Value::Number(1.0)),
+        binary(BinaryOperator::Addition, &value, &Value::Number(1.0)),
         None
     );
-    assert_eq!(binary(BinaryOperator::Div, &value, &literal("0n")), None);
-    assert_eq!(binary(BinaryOperator::UShr, &value, &value), None);
+    assert_eq!(
+        binary(BinaryOperator::Division, &value, &literal("0n")),
+        None
+    );
+    assert_eq!(
+        binary(BinaryOperator::ShiftRightZeroFill, &value, &value),
+        None
+    );
 }
