@@ -938,16 +938,6 @@ impl TsgoOverlay {
             return None;
         }
 
-        if entry.preprocess_status == PreprocessStatus::Identity
-            && let Some(source) = exact_generated_offset(&entry.exact_map, generated_offset)
-        {
-            return Some(
-                entry
-                    .source_index
-                    .position(&entry.source_text, source as usize),
-            );
-        }
-
         let generated_utf16 = entry
             .generated_index
             .position(&entry.document.text, generated_offset);
@@ -955,7 +945,28 @@ impl TsgoOverlay {
             (token.generated_line, token.generated_column)
                 <= (generated_utf16.line, generated_utf16.character)
         });
-        let previous = index.checked_sub(1).and_then(|i| entry.tokens.get(i))?;
+        let previous = index.checked_sub(1).and_then(|i| entry.tokens.get(i));
+
+        if entry.preprocess_status == PreprocessStatus::Identity {
+            // `originalPositionFor` reads the segment at this column first, so a
+            // verbatim chunk's end only stands in where the next byte has none.
+            let mapped_here = previous.is_some_and(|token| {
+                token.source.is_some()
+                    && (token.generated_line, token.generated_column)
+                        == (generated_utf16.line, generated_utf16.character)
+            });
+            if let Some(source) =
+                exact_generated_offset(&entry.exact_map, generated_offset, mapped_here)
+            {
+                return Some(
+                    entry
+                        .source_index
+                        .position(&entry.source_text, source as usize),
+                );
+            }
+        }
+
+        let previous = previous?;
         if previous.generated_line != generated_utf16.line
             || generated_is_unmapped_gap(&entry.tokens, index, generated_utf16)
         {
@@ -2147,10 +2158,13 @@ fn exact_source_offset(map: &ProjectionMap, offset: usize) -> Option<u32> {
         .map(|segment| segment.generated.end())
 }
 
-fn exact_generated_offset(map: &ProjectionMap, offset: usize) -> Option<u32> {
+fn exact_generated_offset(map: &ProjectionMap, offset: usize, mapped_here: bool) -> Option<u32> {
     let offset = u32::try_from(offset).ok()?;
     if let Some(source) = map.generated_to_source(offset) {
         return Some(source);
+    }
+    if mapped_here {
+        return None;
     }
     map.segments()
         .iter()
@@ -3200,6 +3214,49 @@ mod tests {
         assert_eq!(
             overlay.map_generated_position(&shadow_path, generated),
             Some(source_position)
+        );
+    }
+
+    /// The hoisted import line ends exactly where `function $$render` begins,
+    /// so the verbatim chunk's end must not claim that generated position.
+    /// Expected ranges are `originalPositionFor` over the official svelte2tsx map.
+    #[test]
+    fn generated_header_after_a_hoisted_import_maps_like_upstream() {
+        let workspace = TestWorkspace::new("hoisted-import-header");
+        let app = workspace.0.join("src/App.svelte");
+        let source = "<script lang=\"ts\">\n  import { page } from \"$app/state\";\n</script>\n\n<h1>{page.error?.message}</h1>\n";
+        write(&app, source);
+        let mut overlay = build_overlay(&workspace.0).unwrap();
+        let shadow = overlay.open_or_update(&app, source, 1).unwrap();
+        assert!(
+            shadow
+                .text
+                .contains(";\n  import { page } from \"$app/state\";\nfunction $$render() {\n"),
+            "{}",
+            shadow.text
+        );
+        let shadow_path = overlay.shadow_dir.join("src/App.svelte.tsx");
+        let index = LineIndex::new(&shadow.text);
+        let range_of = |needle: &str, len: usize| {
+            let start = shadow.text.find(needle).unwrap();
+            Range::new(
+                index.position(&shadow.text, start),
+                index.position(&shadow.text, start + len),
+            )
+        };
+        let at = |line, character| Position::new(line, character);
+
+        assert_eq!(
+            overlay.map_generated_range(&shadow_path, range_of("function $$render", 8)),
+            Some(Range::new(at(0, 1), at(0, 1)))
+        );
+        assert_eq!(
+            overlay.map_generated_range(&shadow_path, range_of("async () =>", 5)),
+            Some(Range::new(at(2, 0), at(2, 0)))
+        );
+        assert_eq!(
+            overlay.map_generated_range(&shadow_path, range_of("page }", 4)),
+            Some(Range::new(at(1, 11), at(1, 15)))
         );
     }
 
