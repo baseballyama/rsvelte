@@ -3,7 +3,7 @@
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
-use rsvelte_svelte_syntax::{Parsed, syntax_tree};
+use rsvelte_svelte_syntax::{Parsed, fully_parsed, syntax_tree};
 
 use crate::{analyze, compiler_syntax_tree, input, resolve};
 
@@ -21,6 +21,7 @@ impl Artifact for Resolved {
         let compiler_syntax_tree = context.get::<Lowered>().as_ref()?;
         Some(resolve::resolve_with_module(
             &c.javascript,
+            context.source_text(),
             c.program,
             c.module.as_ref().map(|s| s.program),
             compiler_syntax_tree,
@@ -47,7 +48,7 @@ impl Artifact for Lowered {
 pub struct Analyzed;
 
 impl Artifact for Analyzed {
-    /// `None` when the document did not parse; the parse error is on [`Parsed`].
+    /// `None` when the document did not fully parse; the error is from [`fully_parsed`].
     type Output = Option<analyze::Analysis>;
 
     const NAME: &'static str = "svelte.analyze";
@@ -59,11 +60,41 @@ impl Artifact for Analyzed {
     }
 }
 
+/// The compiler's warnings and analysis errors, without generating code.
+#[derive(Debug)]
+pub struct Warned;
+
+impl Artifact for Warned {
+    /// `None` when the document did not parse.
+    type Output = Option<crate::warnings::CompileWarnings>;
+
+    const NAME: &'static str = "svelte.warnings";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        let c = context.get::<Parsed>().as_ref().ok()?;
+        let res = context.get::<Resolved>().as_ref()?;
+        // Only the style sheet's selectors need the analysis.
+        let analysis = if c.style.is_some() {
+            context.get::<Analyzed>().as_ref()
+        } else {
+            None
+        };
+        Some(crate::warnings::warnings(
+            c,
+            res,
+            analysis,
+            context.source_text(),
+            &context.document.path,
+            crate::warnings::Options::linting(c, context.source_text()),
+        ))
+    }
+}
+
 /// What the compiler reads of a Svelte component: its script from [`Parsed`], its template from
-/// [`Lowered`]. `None` when the document did not parse.
+/// [`Lowered`]. `None` when the document did not fully parse, its style sheet included.
 #[must_use]
 pub fn component_input<'a>(context: &'a DocumentContext<'_>) -> Option<input::ComponentInput<'a>> {
-    let c = context.get::<Parsed>().as_ref().ok()?;
+    let c = fully_parsed(context).ok()?;
     let compiler_syntax_tree = context.get::<Lowered>().as_ref()?;
     Some(svelte_input(
         c,
@@ -86,7 +117,7 @@ pub fn svelte_input<'a>(
         program: c.program,
         module: c.module.as_ref().map(|s| s.program),
         compiler_syntax_tree,
-        style: c.style.as_ref().map(|s| &s.sheet),
+        style: c.style.as_ref().and_then(|s| s.sheet.as_ref().ok()),
         template_expressions: &c.template_expressions,
         source_text,
         filename,
@@ -107,5 +138,6 @@ pub fn register(reg: &mut Registry) {
     rsvelte_svelte_syntax::register(reg);
     reg.artifact::<Resolved>()
         .artifact::<Lowered>()
-        .artifact::<Analyzed>();
+        .artifact::<Analyzed>()
+        .artifact::<Warned>();
 }

@@ -32,6 +32,7 @@ export const acronyms = [
 export const lowercaseNames = [
 	'rsvelte',
 	'pnpm',
+	'oxc',
 	'oxfmt',
 	'oxlint',
 	'knip',

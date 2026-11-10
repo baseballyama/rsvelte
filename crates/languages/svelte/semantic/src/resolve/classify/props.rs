@@ -2,11 +2,12 @@ use rsvelte_kernel::index::IndexVector;
 use rsvelte_typescript_semantic::scope::{BindingIdentifier, Semantic};
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
-use super::super::{BindingInformation, BindingKind, rune_call};
+use super::super::{BindingInformation, BindingKind, runes};
 
 pub(super) fn classify_props(
     syntax_tree: &SyntaxTree,
     sem: &Semantic,
+    subscribed: &[&str],
     pattern: NodeIdentifier,
     out: &mut IndexVector<BindingIdentifier, BindingInformation>,
 ) {
@@ -24,9 +25,10 @@ pub(super) fn classify_props(
                             Kind::AssignPattern(l, r) => (l, Some(r)),
                             _ => (value, None),
                         };
-                        let bindable = default
-                            .and_then(|d| rune_call(syntax_tree, d))
-                            .is_some_and(|(r, _)| r == "$bindable");
+                        let bindable_rune = default
+                            .and_then(|d| runes::rune(syntax_tree, sem, subscribed, d))
+                            .filter(|(r, _)| *r == "$bindable");
+                        let bindable = bindable_rune.is_some();
                         if let Some(b) = sem.binding_of(local) {
                             let info = &mut out[b];
                             info.kind = if bindable {
@@ -35,9 +37,7 @@ pub(super) fn classify_props(
                                 BindingKind::Property
                             };
                             info.initial = if bindable {
-                                default
-                                    .and_then(|d| rune_call(syntax_tree, d))
-                                    .and_then(|(_, a)| a)
+                                bindable_rune.and_then(|(_, a)| a)
                             } else {
                                 default
                             };

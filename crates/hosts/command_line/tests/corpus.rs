@@ -13,6 +13,7 @@ use oxc_span::SourceType;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_typescript_projection::Printed;
@@ -106,7 +107,7 @@ fn lossless(
     component.tokens.iter().find_map(|t| {
         let text = t.span.text(source);
         let ok = match t.kind {
-            TokenType::Whitespace => text.bytes().all(|b| b.is_ascii_whitespace()),
+            TokenType::Whitespace => text.chars().all(is_ecmascript_whitespace),
             TokenType::JavaScriptComment => text.starts_with("//") || text.starts_with("/*"),
             TokenType::MarkupComment => text.starts_with("<!--") && text.ends_with("-->"),
             _ => true,
@@ -146,6 +147,11 @@ fn main() -> ExitCode {
     let result = rsvelte_corpus::Conformance::new("svelte", registry)
         .compare("svelte.compile/client")
         .compare("svelte.compile/server")
+        .compare_file(
+            "svelte.compile.warnings",
+            "svelte.compile/client",
+            "warnings.json",
+        )
         .not_implemented("svelte.compileModule/client")
         .not_implemented("svelte.compileModule/server")
         .compare("svelte.format/default")

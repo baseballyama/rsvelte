@@ -1,0 +1,24 @@
+- message: Require self-closing on HTML elements.
+  line: 1
+  column: 5
+  suggestions: null
+- message: Require self-closing on HTML elements.
+  line: 1
+  column: 20
+  suggestions: null
+- message: Require self-closing on HTML elements.
+  line: 1
+  column: 32
+  suggestions: null
+- message: Require self-closing on HTML elements.
+  line: 1
+  column: 44
+  suggestions: null
+- message: Require self-closing on HTML elements.
+  line: 1
+  column: 54
+  suggestions: null
+- message: Require self-closing on HTML elements.
+  line: 1
+  column: 71
+  suggestions: null

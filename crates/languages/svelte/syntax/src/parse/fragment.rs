@@ -5,7 +5,19 @@ use super::{End, ParseResult, Parser, element};
 use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
 
 impl Parser<'_> {
+    /// The children up to `end`. Elements and blocks nest through here, so the stack grows as the
+    /// markup nests and the depth is checked in one place.
     pub(super) fn fragment(&mut self, end: End<'_>) -> ParseResult<Range> {
+        if self.depth == super::MAX_NESTING {
+            return self.err("elements and blocks nest too deeply");
+        }
+        self.depth += 1;
+        let children = rsvelte_kernel::performance::stack::grow(|| self.children(end));
+        self.depth -= 1;
+        children
+    }
+
+    fn children(&mut self, end: End<'_>) -> ParseResult<Range> {
         let children_start = self.pending_children.len();
         loop {
             let rest = self.rest();
@@ -55,7 +67,7 @@ impl Parser<'_> {
         let Some(after) = self.rest().strip_prefix('{') else {
             return false;
         };
-        let after = super::whitespace::trim_start(after);
+        let after = super::whitespace::trim_whitespace_start(after);
         after.starts_with(':')
             || (after.starts_with('/') && !after.starts_with("/*") && !after.starts_with("//"))
     }
@@ -65,7 +77,7 @@ impl Parser<'_> {
         let rest = self.rest();
         let len = memchr::memchr2(b'<', b'{', rest.as_bytes()).unwrap_or(rest.len());
         self.position += len;
-        self.token(TokenType::Text, start_offset);
+        self.words(TokenType::Text, start_offset);
         self.push_node(TemplateNode::Text {
             span: Span::new(start_offset as u32, self.position as u32),
         })

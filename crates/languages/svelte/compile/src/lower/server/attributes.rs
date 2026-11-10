@@ -2,11 +2,11 @@ mod class;
 mod with_spread;
 mod without_spread;
 
-use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 use super::{
     Attribute, AttributeValue, NodeIdentifier, Part, ServerCompilationContext, SourceLocation,
-    decode_text, escape_markup, known_string, needs_clsx, sanitize_template_string,
+    decode_attribute, escape_markup, known_string, needs_clsx, sanitize_template_string,
 };
 
 impl ServerCompilationContext<'_> {
@@ -50,7 +50,7 @@ impl ServerCompilationContext<'_> {
         for p in parts {
             match p {
                 Part::Text(s) => {
-                    let data = decode_text(s.text(self.source_text));
+                    let data = decode_attribute(s.text(self.source_text));
                     let data = if trim {
                         collapse_ws(&data)
                     } else {
@@ -100,7 +100,7 @@ impl ServerCompilationContext<'_> {
 /// A class value with the stylesheet's hash, trimmed as upstream's `.trim()` does; the hash has
 /// no whitespace to trim.
 fn scoped_class(value: &str, hash: &str) -> String {
-    match value.trim_start_matches(is_javascript_whitespace) {
+    match value.trim_start_matches(is_ecmascript_whitespace) {
         "" => hash.to_owned(),
         value => format!("{value} {hash}"),
     }
@@ -109,7 +109,7 @@ fn scoped_class(value: &str, hash: &str) -> String {
 fn attribute_text(data: &str, trim: bool) -> String {
     if trim {
         collapse_ws(data)
-            .trim_matches(is_javascript_whitespace)
+            .trim_matches(is_ecmascript_whitespace)
             .to_owned()
     } else {
         data.to_owned()

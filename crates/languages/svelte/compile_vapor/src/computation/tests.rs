@@ -8,8 +8,12 @@ fn run(source_text: &str, server: bool) -> Result<String, String> {
     let c = rsvelte_svelte_syntax::parse::parse(source_text).map_err(|d| d.message)?;
     let compiler_syntax_tree =
         rsvelte_svelte_semantic::compiler_syntax_tree::lower(&c, source_text);
-    let resolution =
-        rsvelte_svelte_semantic::resolve::resolve(&c.javascript, c.program, &compiler_syntax_tree);
+    let resolution = rsvelte_svelte_semantic::resolve::resolve(
+        &c.javascript,
+        source_text,
+        c.program,
+        &compiler_syntax_tree,
+    );
     let analysis = rsvelte_svelte_semantic::analyze::analyze(
         &rsvelte_svelte_semantic::svelte_input(&c, &compiler_syntax_tree, source_text, "A.svelte"),
         &resolution,
@@ -331,6 +335,11 @@ fn refusals_where_svelte_reads_the_source_differently() {
         (
             "<script>\n\tvar t = 1;\n\tvar t = 2;\n</script>\n{t}",
             "a name declared twice",
+        ),
+        // A binding called `state` makes `$state` a store subscription.
+        (
+            "<script>\n\timport { state } from './s.js';\n\tlet a = $state(0);\n</script>\n{a}",
+            "the rune or store subscription `$state`",
         ),
     ];
     for (source_text, want) in cases {

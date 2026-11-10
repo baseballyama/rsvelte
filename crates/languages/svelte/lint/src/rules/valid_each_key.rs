@@ -1,22 +1,32 @@
-use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
-use rsvelte_svelte_semantic::{Lowered, Resolved};
-use rsvelte_svelte_syntax::Parsed;
 
-pub(super) fn check(context: &DocumentContext<'_>, reporter: &mut Reporter<'_>) {
-    let component = context
-        .get::<Parsed>()
-        .as_ref()
-        .expect("lint checks parsing first");
-    let tree = context
-        .get::<Lowered>()
-        .as_ref()
-        .expect("a parsed component lowers");
-    let resolution = context
-        .get::<Resolved>()
-        .as_ref()
-        .expect("a parsed component resolves");
+use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+
+pub(super) static RULE: RuleDefinition = RuleDefinition {
+    name: "svelte/valid-each-key",
+    files: Files::Components,
+    configure,
+};
+
+fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
+    options.none()?;
+    Ok(Box::new(ValidEachKey))
+}
+
+#[derive(Debug)]
+struct ValidEachKey;
+
+impl SvelteRule for ValidEachKey {
+    fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
+        check(file, reporter);
+    }
+}
+
+fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
+    let component = file.component().expect("a component rule");
+    let tree = file.normalized().expect("a component rule");
+    let resolution = file.resolution().expect("a component rule");
     let javascript = &component.javascript;
     let span = |node| {
         javascript

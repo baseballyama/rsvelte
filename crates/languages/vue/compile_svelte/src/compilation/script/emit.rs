@@ -25,9 +25,7 @@ pub(crate) fn emit(
     let mut rewriter = Rewriter::new(info, false, &aliases);
     for &statement in body {
         match from.kind(statement) {
-            Kind::Import { .. }
-            | Kind::TypeScriptDeclaration
-            | Kind::TypeScriptInterface { .. } => {}
+            Kind::Import { .. } | Kind::TypeScriptDeclaration => {}
             _ if info
                 .resolution
                 .define_props

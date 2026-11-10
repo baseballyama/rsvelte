@@ -1,0 +1,4 @@
+- message: Unexpected top-level browser global variable "document".
+  line: 1
+  column: 53
+  suggestions: null

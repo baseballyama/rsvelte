@@ -36,9 +36,12 @@ impl SurfaceBuilder<'_> {
         list: &[TemplateNodeIdentifier],
         parent: Option<CompilerNodeIdentifier>,
     ) -> Children {
-        let identifiers: Vec<CompilerNodeIdentifier> =
-            list.iter().map(|&t| self.node(t, parent)).collect();
-        self.b.children(&identifiers)
+        // Fragments nest through here, so the stack grows as deep as the markup does.
+        rsvelte_kernel::performance::stack::grow(|| {
+            let identifiers: Vec<CompilerNodeIdentifier> =
+                list.iter().map(|&t| self.node(t, parent)).collect();
+            self.b.children(&identifiers)
+        })
     }
 
     #[expect(clippy::too_many_lines, reason = "one arm per template node kind")]

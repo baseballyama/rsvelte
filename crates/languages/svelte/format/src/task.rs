@@ -5,7 +5,6 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;
-use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 
 use crate::Options;
@@ -48,7 +47,7 @@ impl Task for Format {
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        let c = match context.get::<Parsed>() {
+        let c = match rsvelte_svelte_syntax::fully_parsed(context) {
             Ok(c) => c,
             Err(e) => {
                 out.diagnostics.push(e.clone());

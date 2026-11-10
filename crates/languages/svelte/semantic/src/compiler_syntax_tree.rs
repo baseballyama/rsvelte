@@ -8,12 +8,12 @@ pub use builder::{spelled_text, text};
 pub use lower::lower;
 use rsvelte_kernel::index::{IndexRange, IndexVector};
 use rsvelte_kernel::newtype_index;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 pub(crate) use rsvelte_svelte_syntax::names::is_component_name;
 pub use rsvelte_svelte_syntax::syntax_tree::Part;
 use rsvelte_svelte_syntax::syntax_tree::{TemplateNodeIdentifier, decode_text};
 use rsvelte_typescript_syntax::NodeIdentifier;
-use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 newtype_index!(
     pub struct CompilerNodeIdentifier;
@@ -594,7 +594,7 @@ impl NodeKind {
     #[must_use]
     pub fn is_blank_text(&self, source_text: &str) -> bool {
         self.text(source_text)
-            .is_some_and(|text| text.chars().all(is_javascript_whitespace))
+            .is_some_and(|text| text.chars().all(is_ecmascript_whitespace))
     }
 }
 

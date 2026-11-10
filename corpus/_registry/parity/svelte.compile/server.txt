@@ -1,4 +1,4 @@
-# svelte.compile/server: 8564 match
+# svelte.compile/server: 8592 match
 svelte/animotion/src/lib/components/action.svelte	refused
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -1721,14 +1721,8 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/i
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/declaration-tag-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/html-text02-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/html-text02-output.svelte	missing
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-binary01-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-binary01-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-binary02-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-binary02-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-export02-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-export02-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-expr01-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-expr01-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-import01-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-import01-output.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/style-directive01-input.svelte	refused
@@ -1739,8 +1733,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/i
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test02-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/test01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/test01-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property03-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property03-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion03-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion03-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-input.svelte	refused
@@ -1749,30 +1741,14 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/i
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes03-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes04-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes04-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-instantiation-expression01-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-instantiation-expression01-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-conditional-type01-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-conditional-type01-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-function02-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-function02-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-type01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-type01-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-interface01-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-interface01-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-template-literal-type01-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-template-literal-type01-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation01-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation01-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation03-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation03-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export02-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export02-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export03-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export03-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types01-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types02-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types02-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/valid/inline-style-tag-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/valid/pug01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/max-attributes-per-line/invalid/max3/test01-input.svelte	refused
@@ -2071,7 +2047,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/r
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/svelte-component01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/svelte-component01-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/switch01-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/tagged01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/tagged01-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/test01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/test01-output.svelte	refused
@@ -2140,7 +2115,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/v
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/svelte-config-custom-warn/a11y-svelte4-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/global-style-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/svelte-options-custom-element-input.svelte	missing
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/ts/class01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/ts/ts-unused-in-script-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/ts/type-only-import01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/ts/type-only-import02-input.svelte	refused
@@ -3240,7 +3214,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/rename/rename4.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/rename/rename5.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/rename/rename6.svelte	refused
-svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/signature-help/signature-help.svelte	refused
 svelte/language-tools/packages/svelte-vscode/test/grammar/samples/action/input.svelte	refused
 svelte/language-tools/packages/svelte-vscode/test/grammar/samples/animation/input.svelte	refused
 svelte/language-tools/packages/svelte-vscode/test/grammar/samples/await-block/input.svelte	refused
@@ -5180,7 +5153,6 @@ svelte/shadcn-svelte-extras/src/lib/components/docs/examples/review-form.svelte	
 svelte/shadcn-svelte-extras/src/lib/components/docs/examples/signup-form.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/docs/examples/terminal.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/docs/jsrepo-command.svelte	refused
-svelte/shadcn-svelte-extras/src/lib/components/installation.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/mdsx/a.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/mdsx/blockquote.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/mdsx/blueprint.svelte	refused
@@ -9756,7 +9728,7 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/svg-namespace-if-block
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/svg-namespace-infer-a-tag/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/svg-namespace-infer-a-tag/svg.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/svg-namespace-infer/Wrapper.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/tagged-template-literal-reactive/main.svelte	refused
+svelte/svelte/packages/svelte/tests/runtime-runes/samples/tagged-template-literal-reactive/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/text-multiple-call-expression/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/tick-timing/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/toStore-subscribe/main.svelte	refused

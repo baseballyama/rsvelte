@@ -24,6 +24,15 @@ pub fn is_typescript(document: &Document) -> bool {
         .is_some_and(|extension| matches!(extension.to_str(), Some("ts" | "mts" | "cts")))
 }
 
+/// A `.jsx` or `.tsx` module. [`Parsed`] reads its JSX; the shared tasks that [`matches`] selects
+/// leave it alone, since they do not print or check JSX.
+#[must_use]
+pub fn is_jsx(document: &Document) -> bool {
+    Path::new(&document.path)
+        .extension()
+        .is_some_and(|extension| matches!(extension.to_str(), Some("jsx" | "tsx")))
+}
+
 #[derive(Debug)]
 pub struct Program {
     pub syntax_tree: SyntaxTree,
@@ -41,12 +50,16 @@ impl Artifact for Parsed {
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let source = context.source_text();
         let mut syntax_tree = SyntaxTree::new();
-        let root = parser::parse_program(
-            &mut syntax_tree,
-            source,
-            Span::new(0, source.len() as u32),
-            is_typescript(context.document),
-        )
+        let range = Span::new(0, source.len() as u32);
+        let document = context.document;
+        let root = if is_jsx(document) {
+            let typescript = Path::new(&document.path)
+                .extension()
+                .is_some_and(|extension| extension == "tsx");
+            parser::parse_jsx_program(&mut syntax_tree, source, range, typescript)
+        } else {
+            parser::parse_program(&mut syntax_tree, source, range, is_typescript(document))
+        }
         .map_err(|error| Diagnostic::error("parse_error", error.message, error.span))?;
         Ok(Program { syntax_tree, root })
     }

@@ -3,6 +3,9 @@
 //! A plugin registers its artifacts and tasks into a [`Registry`];
 //! [`run`](crate::computation::pipeline::run) then runs the selected tasks over documents.
 
+use std::any::{Any, TypeId};
+use std::collections::HashMap;
+
 use crate::computation::database::{Artifact, ArtifactRegistry, DocumentContext, Facet};
 use crate::computation::plugins::{Plugin, PluginError, Plugins};
 use crate::computation::task::{FinishTask, Task};
@@ -14,6 +17,13 @@ pub struct Registry {
     finish_tasks: Vec<Box<dyn FinishTask>>,
     artifacts: ArtifactRegistry,
     plugins: Plugins,
+    contributions: HashMap<TypeId, Box<dyn Any + Send + Sync>>,
+}
+
+/// A list one plugin owns and other plugins add to, such as a linter's rules. The owner reads it
+/// when it installs, so contributors install first.
+pub trait Contribution: 'static {
+    type Item: Send + Sync + 'static;
 }
 
 impl std::fmt::Debug for Registry {
@@ -21,6 +31,7 @@ impl std::fmt::Debug for Registry {
         f.debug_struct("Registry")
             .field("artifacts", &self.artifacts)
             .field("plugins", &self.plugins)
+            .field("contributions", &self.contributions.len())
             .finish_non_exhaustive()
     }
 }
@@ -90,6 +101,35 @@ impl Registry {
     ) -> &mut Self {
         self.artifacts.provide::<F>(identifier, applies, provider);
         self
+    }
+
+    /// # Panics
+    ///
+    /// Never: the list of `C` only ever holds `C::Item`.
+    pub fn contribute<C: Contribution>(&mut self, item: C::Item) -> &mut Self {
+        self.contributions
+            .entry(TypeId::of::<C>())
+            .or_insert_with(|| Box::new(Vec::<C::Item>::new()))
+            .downcast_mut::<Vec<C::Item>>()
+            .expect("a contribution list holds its own items")
+            .push(item);
+        self
+    }
+
+    /// Items added to `C`, in the order plugins added them.
+    ///
+    /// # Panics
+    ///
+    /// Never: the list of `C` only ever holds `C::Item`.
+    #[must_use]
+    pub fn contributions<C: Contribution>(&self) -> &[C::Item] {
+        self.contributions
+            .get(&TypeId::of::<C>())
+            .map_or(&[], |items| {
+                items
+                    .downcast_ref::<Vec<C::Item>>()
+                    .expect("a contribution list holds its own items")
+            })
     }
 
     #[must_use]
@@ -164,6 +204,9 @@ impl Registry {
         )
     }
 }
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct UnknownTask {

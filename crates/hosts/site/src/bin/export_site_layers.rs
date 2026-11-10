@@ -54,7 +54,7 @@ fn main() -> ExitCode {
         &document,
         registry.artifacts(),
     );
-    let c = match context.get::<rsvelte_svelte_syntax::Parsed>() {
+    let c = match rsvelte_svelte_syntax::fully_parsed(&context) {
         Ok(c) => c,
         Err(d) => {
             eprintln!("{path}: {}", d.message);
@@ -135,9 +135,11 @@ fn main() -> ExitCode {
     w.end_array();
 
     w.key("lint").begin_array();
-    for d in rsvelte_svelte_lint::lint(&context, &rsvelte_svelte_lint::Configuration::default())
-        .expect("the component parsed")
+    for finding in
+        rsvelte_svelte_lint::lint(&context, &rsvelte_svelte_lint::Configuration::default())
+            .expect("the component parsed")
     {
+        let d = &finding.diagnostic;
         w.begin_object()
             .key("rule")
             .write_string(&d.code)

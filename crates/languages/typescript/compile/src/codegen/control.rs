@@ -109,12 +109,21 @@ impl Gen<'_> {
                 self.statement(body);
             }
             Control::Debugger => self.e.push("debugger;"),
-            Control::ExportList { specifiers, source } => {
+            Control::ExportList {
+                specifiers,
+                source,
+                attributes,
+            } => {
                 self.e.push("export { ");
-                for (i, &n) in specifiers.iter().enumerate() {
-                    if i > 0 {
+                let mut first = true;
+                for &n in specifiers {
+                    if self.is_type_export(n) {
+                        continue;
+                    }
+                    if !first {
                         self.e.push(", ");
                     }
+                    first = false;
                     self.statement(n);
                 }
                 self.e.push(" }");
@@ -122,9 +131,12 @@ impl Gen<'_> {
                     self.e.push(" from ");
                     self.expression(s, prec::PRIMARY);
                 }
+                self.attributes(attributes);
                 self.e.push(";");
             }
-            Control::ExportSpecifier { local, exported } => {
+            Control::ExportSpecifier {
+                local, exported, ..
+            } => {
                 self.expression(local, prec::PRIMARY);
                 if self.syntax_tree.atom(local) != self.syntax_tree.atom(exported)
                     || self.syntax_tree.atom(local).is_none()
@@ -133,7 +145,11 @@ impl Gen<'_> {
                     self.expression(exported, prec::PRIMARY);
                 }
             }
-            Control::ExportAll { source, exported } => {
+            Control::ExportAll {
+                source,
+                exported,
+                attributes,
+            } => {
                 self.e.push("export *");
                 if let Some(n) = exported {
                     self.e.push(" as ");
@@ -141,6 +157,7 @@ impl Gen<'_> {
                 }
                 self.e.push(" from ");
                 self.expression(source, prec::PRIMARY);
+                self.attributes(attributes);
                 self.e.push(";");
             }
         }

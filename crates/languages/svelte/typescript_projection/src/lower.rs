@@ -1,7 +1,10 @@
 mod contract;
 
+use std::cell::OnceCell;
+
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::resolve::{self, Runes};
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, Range, TemplateNode,
 };
@@ -19,6 +22,7 @@ type Result<T> = std::result::Result<T, Unsupported>;
 pub fn lower(component: &Component, source: &str) -> Result<SyntaxTree> {
     let mut builder = Builder {
         component,
+        runes: OnceCell::new(),
         source,
         suffixes: Buffer::new(0),
         type_arguments: Buffer::new(0),
@@ -42,6 +46,8 @@ pub fn lower(component: &Component, source: &str) -> Result<SyntaxTree> {
 
 struct Builder<'a> {
     component: &'a Component,
+    /// Built on the first call that could be a rune; most components make none.
+    runes: OnceCell<Runes>,
     source: &'a str,
     suffixes: Buffer<Option<Span>>,
     type_arguments: Buffer<SourceNode>,

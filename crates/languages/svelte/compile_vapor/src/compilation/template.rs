@@ -194,10 +194,10 @@ impl Rewrite for TemplateRewrite<'_> {
     ) -> Option<NodeIdentifier> {
         match from.kind(identifier) {
             Kind::Call { arguments, .. } => {
-                if let Some(value) = crate::script::runes::inline(from, to, self, identifier) {
+                let (name, argument) = self.resolution.rune(from, identifier)?;
+                if let Some(value) = crate::script::runes::inline(from, to, self, name, argument) {
                     return Some(value);
                 }
-                let (name, _) = rsvelte_svelte_semantic::resolve::rune_call(from, identifier)?;
                 if self.server && name == "$effect.pending" {
                     return Some(to.write_number(0.0, SourceLocation::SYNTHETIC));
                 }

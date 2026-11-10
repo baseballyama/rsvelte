@@ -32,13 +32,16 @@ fn visit(
             .display()
             .to_string();
         counts[0] += 1;
-        match rsvelte_svelte_syntax::parse::parse(&source) {
+        let parsed = rsvelte_svelte_syntax::parse::parse(&source)
+            .and_then(|c| c.style_error().cloned().map_or(Ok(c), Err));
+        match parsed {
             Ok(component) => {
                 let tree = compiler_syntax_tree::lower(&component, &source);
                 let input =
                     rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, &filename);
                 let resolution = resolve::resolve_with_module(
                     &component.javascript,
+                    &source,
                     component.program,
                     component.module.as_ref().map(|s| s.program),
                     &tree,

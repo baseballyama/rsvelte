@@ -13,4 +13,4 @@ pub mod parser;
 pub mod syntax_tree;
 
 pub(crate) mod computation;
-pub use computation::{PLUGIN, Parsed, Program, is_typescript, matches, register};
+pub use computation::{PLUGIN, Parsed, Program, is_jsx, is_typescript, matches, register};

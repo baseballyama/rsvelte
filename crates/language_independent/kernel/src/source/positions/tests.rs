@@ -77,3 +77,50 @@ fn utf16_and_offset_agree_with_a_walk_of_the_text() {
         }
     }
 }
+
+#[test]
+fn byte_inverts_utf16_on_character_boundaries() {
+    let source_text = "aé😀b";
+    let lines = LineIndex::new(source_text);
+    for (byte, _) in source_text.char_indices().chain([(source_text.len(), ' ')]) {
+        let byte = byte as u32;
+        assert_eq!(lines.byte(lines.utf16(byte)), Some(byte));
+    }
+    // Between the surrogates of the emoji, and past the end.
+    assert_eq!(lines.byte(3), None);
+    assert_eq!(lines.byte(6), None);
+}
+
+#[test]
+fn ecmascript_lines_also_end_at_a_lone_cr_and_the_unicode_separators() {
+    let source_text = "a\rb\u{2028}c\u{2029}d\r\ne\nf";
+    let newline = LineIndex::new(source_text);
+    let ecmascript = LineIndex::with_breaks(source_text, LineBreaks::Ecmascript);
+    let f = source_text.find('f').unwrap() as u32;
+    assert_eq!((newline.line(f), newline.line_count()), (3, 3));
+    assert_eq!((ecmascript.line(f), ecmascript.line_count()), (6, 6));
+    for (ch, line) in [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5), ('f', 6)] {
+        let at = source_text.find(ch).unwrap() as u32;
+        let lc = ecmascript.line_column(at);
+        assert_eq!((lc.line, lc.column), (line, 0), "{ch}");
+        assert_eq!(ecmascript.line(at), line, "{ch}");
+        assert_eq!(ecmascript.offset(line, 0), Some(at), "{ch}");
+        // Each line is one character long: its terminator is not part of it.
+        assert_eq!(ecmascript.offset(line, 1), Some(at + 1), "{ch}");
+        assert_eq!(ecmascript.offset(line, 2), None, "{ch}");
+    }
+}
+
+#[test]
+fn a_line_span_leaves_out_the_terminator() {
+    let source_text = "ab\r\nc\u{2028}\nd";
+    let ecmascript = LineIndex::with_breaks(source_text, LineBreaks::Ecmascript);
+    let lines: Vec<&str> = (1..=ecmascript.line_count() as u32)
+        .map(|line| ecmascript.line_span(line).unwrap().text(source_text))
+        .collect();
+    assert_eq!(lines, ["ab", "c", "", "d"]);
+    assert_eq!(ecmascript.line_span(0), None);
+    assert_eq!(ecmascript.line_span(5), None);
+    let newline = LineIndex::new(source_text);
+    assert_eq!(newline.line_span(2).unwrap().text(source_text), "c\u{2028}");
+}

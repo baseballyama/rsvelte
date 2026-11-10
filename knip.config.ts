@@ -27,7 +27,7 @@ export default {
 		'tools/performance': {
 			entry: ['workloads/*/*.ts'],
 			// The svelte-lint workload's oracle requires the packages tools/oracle installs.
-			ignoreDependencies: ['eslint', 'eslint-plugin-svelte', '@typescript-eslint/parser'],
+			ignoreDependencies: ['eslint', 'eslint-plugin-svelte', 'svelte-eslint-parser', 'globals'],
 		},
 	},
 	// System programs the measurement tools run.

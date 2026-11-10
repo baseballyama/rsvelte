@@ -1,5 +1,5 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_typescript_semantic::number::number;
-use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -99,7 +99,7 @@ impl Value {
     reason = "a JavaScript number is an f64 and rounds the same way"
 )]
 fn string_to_number(s: &str) -> f64 {
-    let t = s.trim_matches(is_javascript_whitespace);
+    let t = s.trim_matches(is_ecmascript_whitespace);
     if t.is_empty() {
         return 0.0;
     }

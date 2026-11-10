@@ -13,6 +13,7 @@ mod extension;
 mod identity;
 mod markup;
 mod task;
+mod warnings;
 
 pub use compiler::{
     CompileOptions, CompileResult, JavaScript, ModuleCompileOptions, VERSION, compile,
@@ -28,3 +29,4 @@ pub use render_plan::RenderPlan;
 pub use task::{
     Compile, PLUGIN, compile_input, lower_document, register, register_with_configuration,
 };
+pub use warnings::Warn;

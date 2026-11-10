@@ -33,6 +33,18 @@ pub(super) fn mark_external(
                 if external_selector(selector) {
                     used[selector.id as usize] = true;
                 }
+                // `:global:is(…)` opens a global block, so the selectors in its arguments are used.
+                for part in &selector.parts {
+                    if part.simple.first().is_global_block(source) {
+                        for simple in part.simple.iter().skip(1) {
+                            if let Simple::PseudoClass { selectors, .. } = simple {
+                                for inner in selectors {
+                                    used[inner.id as usize] = true;
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
         mark_external(source, &rule.children, external, used);

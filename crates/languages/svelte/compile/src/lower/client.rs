@@ -22,7 +22,7 @@ mod title;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::interning::Atom;
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_markup_syntax::decode_text;
+use rsvelte_markup_syntax::decode_attribute;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,

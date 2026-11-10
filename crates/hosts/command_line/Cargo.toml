@@ -11,7 +11,6 @@ name = "rsvelte"
 path = "src/main.rs"
 
 [features]
-lint-typed = ["dep:rsvelte_svelte_lint_typed"]
 metrics = ["rsvelte_kernel/metrics"]
 
 [dependencies]
@@ -23,7 +22,6 @@ rsvelte_vue_format.workspace = true
 rsvelte_vue_compile.workspace = true
 rsvelte_vue_check.workspace = true
 rsvelte_svelte_lint.workspace = true
-rsvelte_svelte_lint_typed = { workspace = true, optional = true }
 rsvelte_svelte_format.workspace = true
 rsvelte_svelte_compile.workspace = true
 rsvelte_svelte_typescript_projection.workspace = true

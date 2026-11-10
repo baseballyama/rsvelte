@@ -1,42 +1,8 @@
-use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_typescript_syntax::operators::UnaryOperator;
 
 use super::super::derived::{Created, callback};
 
-use super::{
-    Kind, NodeIdentifier, ScriptRewrite, SyntaxTree, Target, copy, rune_call, should_proxy_read,
-    unsupported,
-};
-
-/// Upstream splits a destructured `$state` or `$derived` into one declaration per path on both
-/// targets; this port has no `extract_paths` yet.
-pub(in crate::lower) fn check_destructured_rune(
-    from: &SyntaxTree,
-    d: NodeIdentifier,
-) -> Result<(), Diagnostic> {
-    let Kind::Declarator {
-        identifier,
-        initializer: Some(initializer),
-    } = from.kind(d)
-    else {
-        return Ok(());
-    };
-    if from.is_identifier(identifier) {
-        return Ok(());
-    }
-    let Some((rune, _)) = rune_call(from, initializer) else {
-        return Ok(());
-    };
-    if matches!(rune, "$derived" | "$derived.by" | "$state" | "$state.raw") {
-        return unsupported(
-            &format!("a destructured `{rune}` declaration"),
-            from.source_location(d)
-                .span()
-                .expect("a parsed declarator has a source range"),
-        );
-    }
-    Ok(())
-}
+use super::{Kind, NodeIdentifier, ScriptRewrite, SyntaxTree, Target, copy, should_proxy_read};
 
 /// A `$state`, `$state.raw`, `$derived` or `$derived.by` declarator, at any depth.
 pub(super) fn lower_value_declarator(
@@ -52,7 +18,7 @@ pub(super) fn lower_value_declarator(
     else {
         return None;
     };
-    let (rune, arg) = rune_call(from, initializer)?;
+    let (rune, arg) = rw.res.rune(from, initializer)?;
     let source_location = from.source_location(d);
     let value = |to: &mut SyntaxTree, rw: &mut ScriptRewrite<'_>| {
         if let Some(a) = arg {

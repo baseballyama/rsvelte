@@ -17,6 +17,7 @@ use std::borrow::Cow;
 use rsvelte_document_printer::{
     LayoutInstructionIdentifier, LayoutInstructions, PrintOptions, Refused,
 };
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TagAttributes, TemplateNode,
@@ -24,7 +25,6 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 pub(crate) use rsvelte_typescript_format::Unsupported;
 use rsvelte_typescript_format::{Formatter, Options as JavaScriptOptions};
-use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 use crate::options::{EndOfLine, Options};
 
@@ -51,7 +51,7 @@ pub(crate) fn format(
     if options.require_pragma && !has_pragma(text) {
         return Ok(source_text.to_owned());
     }
-    if text.trim_matches(is_javascript_whitespace).is_empty() {
+    if text.trim_matches(is_ecmascript_whitespace).is_empty() {
         return Ok(bom.to_owned());
     }
     // Prettier reads a lone `\r` as a line break; this port reads line breaks as `\n` only.
@@ -133,13 +133,13 @@ pub(crate) fn format(
 /// The plugin's `hasPragma`: `/^\s*<!--\s*@(format|prettier)\W/`.
 fn has_pragma(text: &str) -> bool {
     let Some(rest) = text
-        .trim_start_matches(is_javascript_whitespace)
+        .trim_start_matches(is_ecmascript_whitespace)
         .strip_prefix("<!--")
     else {
         return false;
     };
     let Some(rest) = rest
-        .trim_start_matches(is_javascript_whitespace)
+        .trim_start_matches(is_ecmascript_whitespace)
         .strip_prefix('@')
     else {
         return false;

@@ -9,32 +9,39 @@ impl LayoutInstructions {
 
     /// prettier-plugin-svelte's `isEmptyDoc`.
     #[must_use]
-    pub fn is_empty(&self, d: LayoutInstructionIdentifier) -> bool {
-        match self.nodes[d.0 as usize] {
-            n @ (Node::Static(_) | Node::Text { .. }) => self.str_of(n).is_empty(),
-            Node::Line(_) => true,
-            Node::Concat { len, .. } | Node::Group { len, .. } => len == 0,
-            Node::Indent(x) | Node::Dedent(x) | Node::FlatOnly { content: x, .. } => {
-                self.is_empty(x)
+    pub fn is_empty(&self, mut d: LayoutInstructionIdentifier) -> bool {
+        // Wrappers nest as deep as the input, so they are followed by a loop.
+        loop {
+            match self.nodes[d.0 as usize] {
+                n @ (Node::Static(_) | Node::Text { .. }) => return self.str_of(n).is_empty(),
+                Node::Line(_) => return true,
+                Node::Concat { len, .. } | Node::Group { len, .. } => return len == 0,
+                Node::Indent(x) | Node::Dedent(x) | Node::FlatOnly { content: x, .. } => d = x,
+                Node::IndentIfBreak { document, .. } => d = document,
+                Node::Fill { start, len } => {
+                    return self.children(start, len).iter().all(|&k| self.is_empty(k));
+                }
+                Node::IfBreak { .. } | Node::BreakParent => return false,
             }
-            Node::IndentIfBreak { document, .. } => self.is_empty(document),
-            Node::Fill { start, len } => {
-                self.children(start, len).iter().all(|&k| self.is_empty(k))
-            }
-            Node::IfBreak { .. } | Node::BreakParent => false,
         }
     }
 
     /// prettier-plugin-svelte's `isLine`.
     #[must_use]
     pub fn is_line(&self, d: LayoutInstructionIdentifier) -> bool {
-        match self.nodes[d.0 as usize] {
-            Node::Line(_) => true,
-            Node::Concat { start, len } => {
-                self.children(start, len).iter().all(|&k| self.is_line(k))
+        // Concats nest as deep as the input, so they are opened from a stack, first child on top
+        // so that a doc that is not a line ends the walk as early as the recursion did.
+        let mut pending = vec![d];
+        while let Some(d) = pending.pop() {
+            match self.nodes[d.0 as usize] {
+                Node::Line(_) => {}
+                Node::Concat { start, len } => {
+                    pending.extend(self.children(start, len).iter().rev());
+                }
+                _ => return false,
             }
-            _ => false,
         }
+        true
     }
 
     /// Prettier's `willBreak`: the document holds a hard line, a break-parent or a broken group.

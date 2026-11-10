@@ -13,6 +13,7 @@ fn scope_rules(markup: &str, rules: &str) -> String {
     let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
     let resolution = resolve::resolve_with_module(
         &component.javascript,
+        &source,
         component.program,
         component.module.as_ref().map(|s| s.program),
         &tree,
@@ -479,7 +480,7 @@ fn class_candidates_scope_each_matching_element() {
         let tree = compiler_syntax_tree::lower(&component, &source);
         let input =
             rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
-        let resolution = resolve::resolve(&component.javascript, component.program, &tree);
+        let resolution = resolve::resolve(&component.javascript, &source, component.program, &tree);
         let analysis = analyze::analyze(&input, &resolution);
         let scoped: Vec<_> = tree.elements().map(|(id, _)| analysis.scoped[id]).collect();
         assert_eq!(scoped, expected, "{markup}");
@@ -508,7 +509,7 @@ fn compound_classes_preserve_all_matching_elements() {
         let tree = compiler_syntax_tree::lower(&component, &source);
         let input =
             rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
-        let resolution = resolve::resolve(&component.javascript, component.program, &tree);
+        let resolution = resolve::resolve(&component.javascript, &source, component.program, &tree);
         let analysis = analyze::analyze(&input, &resolution);
         assert_eq!(
             analysis.stylesheet_used[0],

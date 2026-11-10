@@ -7,4 +7,6 @@ pub use parser::{ParseError, parse};
 pub use syntax_tree::StyleSheet;
 
 pub(crate) mod parser;
+pub mod postcss;
+pub mod properties;
 pub mod syntax_tree;

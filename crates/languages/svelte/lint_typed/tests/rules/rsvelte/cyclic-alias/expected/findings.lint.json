@@ -1,6 +1,0 @@
-{
-	"rules": [
-		"svelte/@typescript-eslint/no-unnecessary-condition"
-	],
-	"findings": []
-}

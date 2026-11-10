@@ -1,5 +1,5 @@
 //! TypeScript the parser accepts: what compilation erases, what it must refuse, and which type
-//! names scope analysis sees. Printed and refused forms are the official compiler's (svelte 5.57.1
+//! names scope analysis sees. Printed and refused forms are the official compiler's (svelte 5.57.3
 //! on the same statements in `<script lang="ts">`); which names count as references is
 //! typescript-eslint's, checked through `no-unused-variables` in `rsvelte_svelte_lint`'s tests.
 

@@ -11,6 +11,7 @@ doctest = false
 rsvelte_kernel.workspace = true
 rsvelte_typescript_syntax.workspace = true
 rsvelte_stylesheet_syntax.workspace = true
+rsvelte_markup_syntax.workspace = true
 unicode-id-start.workspace = true
 memchr = "2.8.3"
 rustc-hash.workspace = true

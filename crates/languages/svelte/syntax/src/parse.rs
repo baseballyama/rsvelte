@@ -24,6 +24,7 @@ pub use element_rules::{AUTOCLOSING_CHILDREN, Autoclosing, is_void};
 use identifier::is_identifier_continue;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
 use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
@@ -33,13 +34,19 @@ use crate::syntax_tree::{Component, Range, TemplateNode, TemplateNodeIdentifier,
 
 type ParseResult<T> = Result<T, Diagnostic>;
 
+/// How deeply elements and blocks may nest. The official parser stops below 1,000 under Node's
+/// default stack.
+pub const MAX_NESTING: u32 = 1 << 16;
+
 const ESTIMATED_BYTES_PER_TOKEN: usize = 4;
 const INITIAL_TOKEN_CAPACITY_LIMIT: usize = 8192;
 
 /// # Errors
 ///
-/// A `parse_error` [`Diagnostic`] at the first syntax error in the markup, the scripts or the
-/// style sheet, or at syntax this parser does not support.
+/// A `parse_error` [`Diagnostic`] at the first syntax error in the markup or the scripts, or at
+/// syntax this parser does not support. A style sheet's error alone is kept on
+/// [`Style::sheet`](rsvelte_svelte_syntax::syntax_tree::Style::sheet); [`crate::fully_parsed`]
+/// reports it.
 pub fn parse(source_text: &str) -> ParseResult<Component> {
     let mut parser = Parser {
         source_text,
@@ -66,6 +73,7 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
         typescript: false,
         pending_children: buffer_pool::take_keyed::<Parser<'static>, _>(),
         unique_names: FxHashSet::default(),
+        depth: 0,
     };
     // Upstream removes a leading byte order mark before parsing, so no node covers it.
     if source_text.starts_with('\u{feff}') {
@@ -75,7 +83,9 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
     parser.typescript = script::script_is_typescript(source_text);
     let root = parser.fragment(End::Eof);
     buffer_pool::give_keyed::<Parser<'static>, _>(std::mem::take(&mut parser.pending_children));
-    parser.component.root = root?;
+    // The style sheet's error came first in the document, so it is the one upstream reports.
+    parser.component.root =
+        root.map_err(|e| parser.component.style_error().cloned().unwrap_or(e))?;
     parser.component.program = match &parser.component.instance {
         Some(s) => s.program,
         None => parser.component.javascript.program(&[], Span::new(0, 0)),
@@ -104,6 +114,8 @@ struct Parser<'a> {
     pending_children: Vec<TemplateNodeIdentifier>,
     /// Upstream's `unique_names` for the start tag being read.
     unique_names: FxHashSet<(attribute::Unique, &'a str)>,
+    /// How many fragments are open.
+    depth: u32,
 }
 
 impl<'a> Parser<'a> {
@@ -135,7 +147,7 @@ impl<'a> Parser<'a> {
     }
 
     fn require_ws(&mut self) -> ParseResult<()> {
-        if whitespace::whitespace_len(self.rest()) == 0 {
+        if !self.rest().starts_with(is_ecmascript_whitespace) {
             return self.err("expected whitespace");
         }
         self.skip_ws();

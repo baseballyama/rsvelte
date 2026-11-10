@@ -148,6 +148,14 @@ fn unsupported_semantics_are_reported_at_the_original_construct() {
 }
 
 #[test]
+fn props_beside_a_binding_called_props_subscribes_to_a_store() {
+    let rune = "<script>let { a } = $props();</script>{a}";
+    assert!(project(rune).1.out.contains("__rsvelte_props"));
+    let store = "<script>import { props } from './p.js'; let { a } = $props();</script>{a}";
+    assert!(!project(store).1.out.contains("__rsvelte_props"));
+}
+
+#[test]
 fn projection_trees_are_send_and_sync() {
     fn check<T: Send + Sync>() {}
     check::<SyntaxTree>();
@@ -203,4 +211,16 @@ fn template_nodes(tree: &SyntaxTree) -> &[NodeIdentifier] {
         }
     }
     panic!("the template has a deferred function");
+}
+
+#[test]
+fn a_style_sheet_error_does_not_stop_the_content_mapper() {
+    let mut output = rsvelte_kernel::output::structured_data::StructuredDataWriter::new(false);
+    rsvelte_svelte_typescript_projection::content_mapper::write_transform(
+        "<script>let a = 1;</script><style>a { b: c; </style>",
+        &mut output,
+    );
+    let output = output.finish();
+    assert!(!output.contains("\"diagnostics\""), "{output}");
+    assert!(output.contains("let a = 1;"), "{output}");
 }

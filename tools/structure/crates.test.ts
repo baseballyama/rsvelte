@@ -176,7 +176,7 @@ test('semantic rejects tools and hosts whatever their names end with', () => {
 		'rsvelte_stylesheet_compile',
 		'rsvelte_markup_lint',
 		'rsvelte_svelte_compile',
-		'rsvelte_svelte_lint_typed',
+		'rsvelte_svelte_lint',
 		'rsvelte_svelte_check',
 		'rsvelte_svelte_typescript_projection',
 		'rsvelte_vue_compile_svelte',

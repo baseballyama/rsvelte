@@ -18,34 +18,30 @@ fn plugin_declarations_cover_the_registered_languages_and_tasks() {
     let reg = installed();
     assert_eq!(reg.validate_plugins(), Ok(()));
     let plugins: Vec<_> = reg.plugins().map(|plugin| plugin.identifier).collect();
-    let mut expected = vec![
-        "svelte.semantic",
+    let expected = [
+        "svelte.check",
         "svelte.compile",
         "svelte.format",
         "svelte.lint",
+        "svelte.semantic",
         "svelte.syntax",
-        "svelte.check",
         "svelte.typescript_projection",
         "svue",
-        "typescript.semantic",
-        "typescript.syntax",
         "typescript.check",
         "typescript.compile",
         "typescript.format",
         "typescript.lint",
+        "typescript.semantic",
+        "typescript.syntax",
         "typescript.tree",
-        "vue.semantic",
-        "vue.syntax",
         "vue.check",
         "vue.compile",
         "vue.format",
         "vue.lint",
+        "vue.semantic",
+        "vue.syntax",
         "vuelte",
     ];
-    if cfg!(feature = "lint-typed") {
-        expected.push("svelte.lint.typed");
-    }
-    expected.sort_unstable();
     assert_eq!(plugins, expected);
 }
 
@@ -58,6 +54,7 @@ fn plugin_tasks_and_type_views_select_their_own_documents() {
             vec![
                 "svelte.compile/client",
                 "svelte.compile/server",
+                "svelte.compile.warnings",
                 "svelte.format/default",
                 "svelte.lint/default",
                 "svelte.typescript_projection/default",
@@ -117,11 +114,7 @@ fn plugin_tasks_and_type_views_select_their_own_documents() {
             .iter()
             .map(|(identifier, _)| *identifier)
             .collect();
-        let mut expected = task_identifiers;
-        if cfg!(feature = "lint-typed") && path.ends_with(".svelte") {
-            expected.insert(4, "svelte.lint.typed/default");
-        }
-        assert_eq!(identifiers, expected, "{path}");
+        assert_eq!(identifiers, task_identifiers, "{path}");
     }
 }
 

@@ -3,12 +3,11 @@
 mod declarators;
 mod props;
 
-pub(super) use declarators::check_destructured_rune;
 use declarators::lower_value_declarator;
 use props::{lower_client_props, server_props_pattern};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution, rune_call};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_compile::copy::{Rewrite, copy};
 use rsvelte_typescript_semantic::scope::BindingIdentifier;
 use rsvelte_typescript_syntax::operators::{
@@ -259,12 +258,12 @@ impl Rewrite for ScriptRewrite<'_> {
             Kind::Assign(op, target, value) => self.assign(from, to, identifier, op, target, value),
             Kind::Update { op, prefix, arg } => self.update(from, to, identifier, op, prefix, arg),
             Kind::ExpressionStatement(_)
-                if self.target == Target::Server && is_effect(from, identifier) =>
+                if self.target == Target::Server && is_effect(from, self.res, identifier) =>
             {
                 Some(to.empty(from.source_location(identifier)))
             }
             Kind::Call { arguments, .. } => {
-                let name = match (self.target, rune_call(from, identifier)?.0) {
+                let name = match (self.target, self.res.rune(from, identifier)?.0) {
                     (Target::Client, "$host") => {
                         let props = to.identifier("$$props");
                         return Some(to.dot(props, "$$host"));
@@ -361,9 +360,9 @@ pub(super) fn mutate_bindable_prop(
 }
 
 /// Upstream server `ExpressionStatement`: an effect statement renders nothing.
-fn is_effect(from: &SyntaxTree, statement: NodeIdentifier) -> bool {
+fn is_effect(from: &SyntaxTree, res: &Resolution, statement: NodeIdentifier) -> bool {
     matches!(from.kind(statement), Kind::ExpressionStatement(e)
-        if rune_call(from, e).is_some_and(|(r, _)| matches!(r, "$effect" | "$effect.pre")))
+        if res.rune(from, e).is_some_and(|(r, _)| matches!(r, "$effect" | "$effect.pre")))
 }
 
 const fn logical_of(op: AssignmentOperator) -> Option<LogicalOperator> {
@@ -384,7 +383,7 @@ fn binary_of(op: AssignmentOperator) -> BinaryOperator {
 /// Upstream `should_proxy`.
 #[must_use]
 pub(super) fn should_proxy(syntax_tree: &SyntaxTree, res: &Resolution, e: NodeIdentifier) -> bool {
-    proxyable(syntax_tree, Some(res), e)
+    res.should_proxy(syntax_tree, e)
 }
 
 /// Upstream `should_proxy` on a value it has already visited, where a prop's name has become a
@@ -401,47 +400,6 @@ pub(super) fn should_proxy_read(
             BindingKind::Property | BindingKind::BindableProperty
         )
     }) || should_proxy(syntax_tree, res, e)
-}
-
-/// `res` is `None` for a binding's initial value, which upstream checks without a scope.
-fn proxyable(syntax_tree: &SyntaxTree, res: Option<&Resolution>, e: NodeIdentifier) -> bool {
-    match syntax_tree.kind(e) {
-        Kind::String
-        | Kind::Regex { .. }
-        | Kind::BigInt
-        | Kind::Number(_)
-        | Kind::Boolean(_)
-        | Kind::Null
-        | Kind::Template { .. }
-        | Kind::Arrow { .. }
-        | Kind::Unary(..)
-        | Kind::Binary(..)
-        | Kind::Function {
-            declaration: false, ..
-        } => false,
-        Kind::Identifier(_) if syntax_tree.name(e) == "undefined" => false,
-        Kind::Identifier(_) => {
-            let Some(res) = res else {
-                return true;
-            };
-            let Some((b, info)) = res.binding(e) else {
-                return true;
-            };
-            let s = &res.sem.bindings[b];
-            if s.writes > 0 {
-                return true;
-            }
-            // Analysis rewires a prop's initial from `$props()` to its default.
-            let initial = match info.kind {
-                BindingKind::Property
-                | BindingKind::BindableProperty
-                | BindingKind::RestProperty => info.initial,
-                _ => s.initializer(syntax_tree),
-            };
-            initial.is_none_or(|initializer| proxyable(syntax_tree, None, initializer))
-        }
-        _ => true,
-    }
 }
 
 /// Which script is lowered; the instance's exports are collected while it is.
@@ -500,12 +458,8 @@ fn check_export(
 ///
 /// # Errors
 ///
-/// An `unsupported` [`Diagnostic`] if the script exports anything or destructures a rune that
-/// upstream splits per path.
-///
-/// # Panics
-///
-/// If a top-level statement of the parsed script has no source range.
+/// An `unsupported` [`Diagnostic`] for an export the instance script cannot lower, and
+/// upstream's errors for the exports it can.
 pub(super) fn lower_script(
     from: &SyntaxTree,
     to: &mut SyntaxTree,
@@ -542,19 +496,16 @@ pub(super) fn lower_script(
             ) if instance => {
                 return unsupported(
                     "an export from the instance script",
-                    from.source_location(statement)
-                        .span()
-                        .expect("a parsed statement has a source range"),
+                    super::span_of(from, statement),
                 );
             }
             Kind::VariableDeclaration { kind, declarations } => {
                 // Upstream's instance gives each declarator its own declaration.
-                let split = instance;
                 let location = from.source_location(statement);
                 let mut lowered = Vec::with_capacity(declarations.len());
                 for (i, &d) in declarations.iter().enumerate() {
                     lower_declarator(from, to, rw, d, &mut lowered, hoisted, names);
-                    if (split || i + 1 == declarations.len()) && !lowered.is_empty() {
+                    if (instance || i + 1 == declarations.len()) && !lowered.is_empty() {
                         out.push(to.var_declaration(kind, &lowered, location));
                         lowered.clear();
                     }
@@ -590,7 +541,7 @@ fn lower_declarator(
     let source_location = from.source_location(d);
     match (
         rw.target,
-        rune_call(from, initializer).map(|(rune, _)| rune),
+        rw.res.rune(from, initializer).map(|(rune, _)| rune),
     ) {
         (Target::Server, Some("$props")) => {
             let target = server_props_pattern(from, to, rw, identifier);

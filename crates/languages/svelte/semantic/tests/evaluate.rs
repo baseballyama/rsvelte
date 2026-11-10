@@ -18,7 +18,7 @@ fn evaluate(source: &str) -> Evaluation {
     };
     let compiler_syntax_tree =
         CompilerSyntaxTreeBuilder::new(source, 0, 0).finish(Children::default());
-    let resolution = resolve::resolve(&tree, program, &compiler_syntax_tree);
+    let resolution = resolve::resolve(&tree, source, program, &compiler_syntax_tree);
     resolution.evaluate(&tree, source, expression)
 }
 
@@ -98,7 +98,7 @@ fn output_identifiers_use_the_source_scope() {
             .expect("a program");
     let compiler_syntax_tree =
         CompilerSyntaxTreeBuilder::new(source, 0, 0).finish(Children::default());
-    let resolution = resolve::resolve(&tree, program, &compiler_syntax_tree);
+    let resolution = resolve::resolve(&tree, source, program, &compiler_syntax_tree);
     let mut output = SyntaxTree::new();
     let expression = output.identifier("value");
     let scope = resolution.sem.scope_of(program).expect("a program scope");

@@ -100,13 +100,13 @@ pub(crate) fn check(
     for &expression in expressions {
         walk(javascript, expression, &mut |identifier| {
             if let Kind::Call { callee, .. } = javascript.kind(identifier)
-                && rsvelte_svelte_semantic::resolve::rune_call(javascript, identifier).is_some_and(
-                    |(name, _)| {
+                && resolution
+                    .rune(javascript, identifier)
+                    .is_some_and(|(name, _)| {
                         crate::script::runes::local(name).is_some()
                             || crate::script::runes::eager(name)
                             || crate::script::runes::value(name)
-                    },
-                )
+                    })
             {
                 let root = match javascript.kind(callee) {
                     Kind::Member { object, .. } => object,
@@ -247,12 +247,12 @@ fn check_slot_attribute(source_text: &str, a: &Attribute) -> R<()> {
         ));
     }
     if a.name.text(source_text) == "name" {
-        match &a.value {
-            AttributeValue::Static(value) if value.as_ref() == "default" => {
-                return Err(unsupported("slot_element_invalid_name_default", a.span));
-            }
-            AttributeValue::Static(_) => {}
-            _ => return Err(unsupported("slot_element_invalid_name", a.span)),
+        let text = match &a.value {
+            AttributeValue::Static(value) => Some(value.as_ref()),
+            _ => None,
+        };
+        if let Some((code, _)) = rsvelte_svelte_semantic::warnings::slot_name_error(text) {
+            return Err(unsupported(code, a.span));
         }
     }
     Ok(())

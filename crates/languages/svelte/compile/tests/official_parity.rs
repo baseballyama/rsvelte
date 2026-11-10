@@ -13,6 +13,7 @@ fn compile(source: &str, target: Target) -> Result<String, String> {
     let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte");
     let resolution = resolve::resolve_with_module(
         &component.javascript,
+        source,
         component.program,
         component.module.as_ref().map(|s| s.program),
         &tree,
@@ -659,5 +660,14 @@ fn a_number_props_key_reads_the_prop_its_string_names() {
         "${$$props['0']??''}${$$props['16']??''}${c()??''}${$$props['x-y']??''}${$$props.e??''}",
     ] {
         assert!(client.contains(expected), "{expected} in {client}");
+    }
+}
+
+#[test]
+fn a_typescript_this_parameter_is_erased_from_a_component() {
+    let source = "<script lang=\"ts\">function f(this: Window, e: Event) { return e; } f;</script>";
+    for target in [Target::Client, Target::Server] {
+        let code = squashed(source, target);
+        assert!(code.contains("functionf(e){"), "{target:?}: {code}");
     }
 }

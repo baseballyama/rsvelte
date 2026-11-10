@@ -17,10 +17,7 @@ impl Artifact for Checked {
     const NAME: &'static str = "vuelte.check";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let c = context
-            .get::<rsvelte_svelte_syntax::Parsed>()
-            .as_ref()
-            .map_err(Clone::clone)?;
+        let c = rsvelte_svelte_syntax::fully_parsed(context).map_err(Clone::clone)?;
         let compiler_syntax_tree = context
             .get::<rsvelte_svelte_semantic::Lowered>()
             .as_ref()
@@ -63,10 +60,7 @@ pub struct Compile {
 impl Compile {
     fn module(&self, context: &DocumentContext<'_>) -> R<(String, Option<String>)> {
         let plan = context.get::<Checked>().as_ref().map_err(Clone::clone)?;
-        let c = context
-            .get::<rsvelte_svelte_syntax::Parsed>()
-            .as_ref()
-            .map_err(Clone::clone)?;
+        let c = rsvelte_svelte_syntax::fully_parsed(context).map_err(Clone::clone)?;
         let compiler_syntax_tree = context
             .get::<rsvelte_svelte_semantic::Lowered>()
             .as_ref()

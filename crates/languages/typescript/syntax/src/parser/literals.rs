@@ -1,4 +1,4 @@
-use super::{NodeIdentifier, Parser, R, Span, T, flag};
+use super::{AssignmentOperator, NodeIdentifier, Parser, R, Span, T, flag};
 
 impl Parser<'_, '_> {
     #[expect(clippy::too_many_lines, reason = "one arm per primary expression kind")]
@@ -30,7 +30,7 @@ impl Parser<'_, '_> {
                         self.function(false, start_offset, true)
                     }
                     "import" => self.import_primary(),
-                    "class" => self.class_definition(false),
+                    "class" => self.class_definition(false, start_offset),
                     "super" => {
                         self.bump()?;
                         Ok(self.syntax_tree.super_(t.span))
@@ -57,7 +57,7 @@ impl Parser<'_, '_> {
                     _ => {
                         Self::check_name(text, t.span, false)?;
                         self.bump()?;
-                        Ok(self.syntax_tree.ident(text, t.span))
+                        Ok(self.ident_node(t))
                     }
                 }
             }
@@ -115,15 +115,21 @@ impl Parser<'_, '_> {
                 self.bump()?;
                 Ok(self.syntax_tree.regex(literal.pattern, literal.flags))
             }
+            T::Op if self.starts_jsx() => self.jsx_expression(),
             T::Op if self.typescript && self.text(t) == "<" => {
                 let start = self.token.span.start_offset;
-                self.skip_type_parameters()?;
+                self.in_type += 1;
+                self.bump()?;
+                let ty = self.ty()?;
+                self.expect_greater()?;
+                self.in_type -= 1;
                 let end = self.prev_end;
                 let value = self.unary()?;
                 self.typescript(
                     value,
                     super::TypeScriptKind::Assertion,
                     Span::new(start, end),
+                    ty,
                 );
                 Ok(value)
             }
@@ -201,21 +207,21 @@ impl Parser<'_, '_> {
                 };
                 let (key, computed, key_token) = self.property_key()?;
                 if self.token.t == T::LParen {
-                    let (parameters, this) = self.parameters()?;
+                    let parameters = self.parameters()?;
                     if accessor != 0 {
                         if generator {
                             return self.fail("an accessor cannot be a generator");
                         }
                         self.accessor_parameters(parameters, accessor == flag::GETTER)?;
                     }
-                    let ret = self.maybe_return_type(false)?;
+                    let ret = self.maybe_return_type()?;
                     let body = self.with_async(is_async, Self::block)?;
                     let span = Span::new(key_token.start_offset, self.prev_end);
                     let f = self.close(parameters, |syntax_tree, parameters| {
                         syntax_tree.function(false, None, parameters, body, is_async, span)
                     });
                     self.syntax_tree.mark_generator(f, generator);
-                    self.signature_typescript(f, None, this, ret);
+                    self.signature_typescript(f, None, ret);
                     let flags = if accessor == 0 {
                         flag::METHOD
                     } else {
@@ -236,7 +242,19 @@ impl Parser<'_, '_> {
                     self.item(prop);
                 } else if let Some(name) = self.syntax_tree.atom(key).filter(|_| !computed) {
                     Self::check_name(self.syntax_tree.atoms.get(name), key_token, false)?;
-                    let value = self.syntax_tree.ident_atom(name, key_token);
+                    let mut value = self.syntax_tree.ident_atom(name, key_token);
+                    // `{ a = 1 }` is only valid once read as a pattern.
+                    if self.is_op("=") {
+                        self.bump()?;
+                        let default = self.assignment()?;
+                        value = self.syntax_tree.assign(
+                            AssignmentOperator::Assign,
+                            value,
+                            default,
+                            self.span_from(plo),
+                        );
+                        self.cover_initializers.insert(self.span_from(plo));
+                    }
                     let prop =
                         self.syntax_tree
                             .property(key, value, flag::SHORTHAND, self.span_from(plo));
@@ -259,7 +277,7 @@ impl Parser<'_, '_> {
         match t.t {
             T::Identifier | T::PrivateName => {
                 self.bump()?;
-                Ok((self.syntax_tree.ident(self.text(t), t.span), false, t.span))
+                Ok((self.ident_node(t), false, t.span))
             }
             T::String => {
                 self.bump()?;

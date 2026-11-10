@@ -231,7 +231,7 @@ fn type_check_view_keeps_all_source_and_maps_utf8_offsets() {
 #[test]
 fn type_check_view_does_not_depend_on_the_subset_parser() {
     let registry = registry();
-    let source = "abstract class Value { abstract get(): string; }";
+    let source = "declare function open(): Disposable;\nusing resource = open();";
     let document = registry.document("input.ts", source).expect("valid text");
     let context = DocumentContext::new(&document, registry.artifacts());
     let view = context

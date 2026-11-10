@@ -24,6 +24,7 @@
 use rsvelte_kernel::index::{IndexRange, IndexVector};
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_markup_syntax::character_references::{Place, Rules, decode};
 use rsvelte_typescript_syntax::NodeIdentifier;
 use rsvelte_vue_syntax::syntax_tree::{
     self, AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent, TemplateNode,
@@ -92,12 +93,12 @@ impl Text {
             .unwrap_or_else(|| self.raw.text(source_text))
     }
 
-    /// `raw` with its character references decoded.
+    /// `raw` with its character references decoded as `place` decodes them.
     #[must_use]
-    pub(crate) fn decoded(raw: Span, source_text: &str) -> Self {
+    pub(crate) fn decoded(raw: Span, source_text: &str, place: Place) -> Self {
         Self {
             raw,
-            cooked: match rsvelte_markup_syntax::decode_text(raw.text(source_text)) {
+            cooked: match decode(raw.text(source_text), place, Rules::Html) {
                 std::borrow::Cow::Borrowed(_) => None,
                 std::borrow::Cow::Owned(s) => Some(s.into_boxed_str()),
             },

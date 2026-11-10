@@ -1,7 +1,7 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_syntax::NodeIdentifier;
-use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 use rsvelte_typescript_syntax::parser::parse_parameters;
 
 use super::identifier::match_bracket;
@@ -60,7 +60,7 @@ impl Parser<'_> {
 
     fn type_annotation_len(&self, at: usize) -> usize {
         let rest = &self.source_text[at..];
-        let trimmed = super::whitespace::trim_start(rest);
+        let trimmed = super::whitespace::trim_whitespace_start(rest);
         if !trimmed.starts_with(':') {
             return 0;
         }
@@ -79,6 +79,6 @@ impl Parser<'_> {
             }
             i += 1;
         }
-        rest[..i].trim_end_matches(is_javascript_whitespace).len()
+        rest[..i].trim_end_matches(is_ecmascript_whitespace).len()
     }
 }

@@ -1,0 +1,241 @@
+//! What the `SvelteKit` navigation rules share: the uses of `$app/navigation` and `$app/paths`,
+//! the `href` of each `<a>`, and the URL shapes they accept.
+
+use rsvelte_svelte_syntax::syntax_tree::{
+    Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode,
+};
+use rsvelte_typescript_semantic::reference_tracker::import_references;
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, Semantic};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use serde::Deserialize;
+
+use crate::rule::File;
+
+/// The options both rules take.
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the options as `ESLint` takes them"
+)]
+pub(super) struct Options {
+    #[serde(default)]
+    pub(super) ignore_goto: bool,
+    #[serde(default)]
+    pub(super) ignore_links: bool,
+    #[serde(default)]
+    pub(super) ignore_push_state: bool,
+    #[serde(default)]
+    pub(super) ignore_replace_state: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum Navigation {
+    Goto,
+    PushState,
+    ReplaceState,
+}
+
+/// The document's JavaScript, its scopes and its text.
+pub(super) struct Script<'a> {
+    pub(super) tree: &'a SyntaxTree,
+    pub(super) sem: &'a Semantic,
+    pub(super) source: &'a str,
+    programs: Vec<NodeIdentifier>,
+    parents: &'a [NodeIdentifier],
+}
+
+impl<'a> Script<'a> {
+    pub(super) fn new(file: &File<'a>) -> Self {
+        let programs = match (file.component(), file.module()) {
+            (Some(component), _) => component
+                .module
+                .iter()
+                .map(|script| script.program)
+                .chain([component.program])
+                .collect(),
+            (None, Some(module)) => vec![module.root],
+            (None, None) => Vec::new(),
+        };
+        Self {
+            tree: file.javascript(),
+            sem: file.semantic(),
+            source: file.source(),
+            programs,
+            parents: file.parents(),
+        }
+    }
+
+    /// The calls of `goto`, `pushState` and `replaceState` of `$app/navigation`.
+    pub(super) fn navigation_calls(&self) -> Vec<(Navigation, NodeIdentifier)> {
+        self.imports("$app/navigation", &["goto", "pushState", "replaceState"])
+            .into_iter()
+            .filter_map(|reference| {
+                let call = reference.call?;
+                matches!(self.tree.kind(call), Kind::Call { .. }).then_some(())?;
+                let navigation = match reference.name {
+                    "goto" => Navigation::Goto,
+                    "pushState" => Navigation::PushState,
+                    _ => Navigation::ReplaceState,
+                };
+                Some((navigation, call))
+            })
+            .collect()
+    }
+
+    /// The call's first argument, if any.
+    pub(super) fn first_argument(&self, call: NodeIdentifier) -> Option<NodeIdentifier> {
+        match self.tree.kind(call) {
+            Kind::Call { arguments, .. } => arguments.first().copied(),
+            _ => None,
+        }
+    }
+
+    /// The expressions that read `exports` of `$app/paths`, sorted for [`Script::reads`]: the
+    /// tracker's, and the reads of a variable destructured from the module's namespace.
+    pub(super) fn path_reads(&self, exports: &[&str]) -> Vec<NodeIdentifier> {
+        let mut reads = Vec::new();
+        for reference in self.imports("$app/paths", exports) {
+            reads.push(reference.node);
+            // The tracker reports `base` in `const { base } = paths` but not what reads it.
+            let Kind::Property { value, .. } = self.tree.kind(reference.node) else {
+                continue;
+            };
+            let mut target = value;
+            while let Kind::AssignPattern(left, _) = self.tree.kind(target) {
+                target = left;
+            }
+            if let Some(binding) = self.sem.binding_of(target) {
+                reads.extend(
+                    self.sem
+                        .references_to(binding)
+                        .filter(|r| r.read)
+                        .map(|r| r.node),
+                );
+            }
+        }
+        reads.sort_unstable();
+        reads.dedup();
+        reads
+    }
+
+    fn imports<'e>(
+        &self,
+        specifier: &str,
+        exports: &[&'e str],
+    ) -> Vec<rsvelte_typescript_semantic::reference_tracker::TrackedReference<'e>> {
+        import_references(
+            self.tree,
+            self.sem,
+            self.parents,
+            self.source,
+            &self.programs,
+            specifier,
+            exports,
+        )
+    }
+
+    pub(super) fn span(&self, node: NodeIdentifier) -> rsvelte_kernel::source::positions::Span {
+        self.tree
+            .source_location(node)
+            .span()
+            .expect("a source node has a span")
+    }
+
+    /// `const name = initializer` for an identifier that reads such a constant (or variable):
+    /// its binding and the initializer. A destructured name has none.
+    pub(super) fn initializer(
+        &self,
+        identifier: NodeIdentifier,
+    ) -> Option<(BindingIdentifier, NodeIdentifier)> {
+        let binding = self.sem.binding_of(identifier)?;
+        let declared = &self.sem.bindings[binding];
+        match self.tree.kind(declared.declaration?) {
+            Kind::Declarator {
+                identifier: name,
+                initializer: Some(initializer),
+            } if name == declared.node => Some((binding, initializer)),
+            _ => None,
+        }
+    }
+
+    pub(super) fn string(&self, node: NodeIdentifier) -> Option<&'a str> {
+        matches!(self.tree.kind(node), Kind::String).then(|| self.tree.str_value(node, self.source))
+    }
+
+    /// A template literal's quasis (raw) and expressions.
+    pub(super) fn template(
+        &self,
+        node: NodeIdentifier,
+    ) -> Option<(Vec<&'a str>, &'a [NodeIdentifier])> {
+        let Kind::Template {
+            quasis,
+            expressions,
+        } = self.tree.kind(node)
+        else {
+            return None;
+        };
+        Some((
+            quasis
+                .iter()
+                .map(|&quasi| self.tree.str_value(quasi, self.source))
+                .collect(),
+            expressions,
+        ))
+    }
+
+    /// The first expression of a template literal that starts with one (`${x}…`); `None` when it
+    /// starts with text or has no expression.
+    pub(super) fn leading_expression(&self, node: NodeIdentifier) -> Option<NodeIdentifier> {
+        let (quasis, expressions) = self.template(node)?;
+        if quasis.first().is_some_and(|quasi| !quasi.is_empty()) {
+            return None;
+        }
+        expressions.first().copied()
+    }
+}
+
+/// The `href` of an `<a>`, with the element's attributes.
+pub(super) struct Link<'a> {
+    pub(super) href: &'a Attribute,
+    pub(super) attributes: &'a [Attribute],
+}
+
+/// Each `href` attribute of an `<a>` element, in document order.
+pub(super) fn links<'a>(
+    component: &'a Component,
+    source: &'a str,
+) -> impl Iterator<Item = Link<'a>> {
+    component.nodes.iter().flat_map(move |node| {
+        let attributes = match node {
+            TemplateNode::Element {
+                name, attributes, ..
+            } if name.text(source) == "a" => component.attributes(*attributes),
+            _ => &[],
+        };
+        attributes
+            .iter()
+            .filter(move |attribute| {
+                attribute.kind == AttributeKind::Attribute && attribute.name.text(source) == "href"
+            })
+            .map(move |href| Link { href, attributes })
+    })
+}
+
+/// The first chunk of an attribute's value, as `svelte-eslint-parser` gives `value[0]`: it gives
+/// no chunk for `href=""`.
+pub(super) fn first_part<'a>(component: &'a Component, attribute: &Attribute) -> Option<&'a Part> {
+    match attribute.value {
+        AttributeValue::Parts(parts) => component
+            .parts(parts)
+            .first()
+            .filter(|part| !matches!(part, Part::Text(span) if span.is_empty())),
+        AttributeValue::True => None,
+    }
+}
+
+/// `^[+a-z]*:`, case-insensitively: a URL with a scheme.
+pub(super) fn has_scheme(url: &str) -> bool {
+    let rest = url.trim_start_matches(|c: char| c == '+' || c.is_ascii_alphabetic());
+    rest.starts_with(':')
+}

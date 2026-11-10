@@ -9,6 +9,10 @@
 //! which documents it handles. `context.facet::<F>()` runs the matching provider once and caches
 //! the answer. A task written against a facet does not need to name a plugin's artifacts.
 //!
+//! Facts about files outside the document, such as its project's `package.json`, are not the
+//! document's: [`DocumentContext::files`] reads them from the registry's [`FileFacts`], which every
+//! document of a run shares.
+//!
 //! A `DocumentContext` belongs to one worker thread for the lifetime of one document (it is
 //! deliberately `!Sync`); parallelism is across documents. Asking for an artifact while it is being
 //! computed (a dependency cycle) panics.
@@ -20,9 +24,10 @@ use std::cell::RefCell;
 
 use rustc_hash::FxHashMap;
 
+use crate::computation::file_facts::FileFacts;
 use crate::performance::{buffer_pool, measurement};
 use crate::source::document::Document;
-use crate::source::positions::LineIndex;
+use crate::source::positions::{LineBreaks, LineIndex};
 
 pub trait Artifact: 'static {
     type Output: 'static;
@@ -63,6 +68,7 @@ pub struct ArtifactRegistry {
     index: FxHashMap<TypeIdentifier, usize>,
     names: Vec<&'static str>,
     facets: FxHashMap<TypeIdentifier, FacetEntry>,
+    files: FileFacts,
 }
 
 impl std::fmt::Debug for ArtifactRegistry {
@@ -142,6 +148,18 @@ impl ArtifactRegistry {
             .is_some_and(|e| e.providers.iter().any(|p| (p.applies)(document)))
     }
 
+    /// The facts about files that the registry's documents share. A long-running host invalidates
+    /// a path here when it changes.
+    #[must_use]
+    pub const fn files(&self) -> &FileFacts {
+        &self.files
+    }
+
+    #[must_use]
+    pub fn names(&self) -> &[&'static str] {
+        &self.names
+    }
+
     fn slot<A: Artifact>(&self) -> usize {
         *self
             .index
@@ -156,6 +174,7 @@ pub struct DocumentContext<'a> {
     registry: &'a ArtifactRegistry,
     slots: Vec<OnceCell<Box<dyn Any>>>,
     line_index: OnceCell<LineIndex>,
+    ecmascript_line_index: OnceCell<LineIndex>,
     #[cfg(feature = "trace-artifacts")]
     computed: RefCell<Vec<&'static str>>,
     #[cfg(feature = "trace-artifacts")]
@@ -174,6 +193,7 @@ impl<'a> DocumentContext<'a> {
             registry,
             slots,
             line_index: OnceCell::new(),
+            ecmascript_line_index: OnceCell::new(),
             #[cfg(feature = "trace-artifacts")]
             computed: RefCell::default(),
             #[cfg(feature = "trace-artifacts")]
@@ -247,9 +267,22 @@ impl<'a> DocumentContext<'a> {
             .expect("facet slot holds its own output type")
     }
 
+    /// The facts about files outside the document, shared with the run's other documents.
+    #[must_use]
+    pub const fn files(&self) -> &'a FileFacts {
+        &self.registry.files
+    }
+
+    /// Lines as the Svelte compiler counts them: they end at `\n`.
     pub fn line_index(&self) -> &LineIndex {
         self.line_index
             .get_or_init(|| LineIndex::new(self.source_text()))
+    }
+
+    /// Lines as `ESLint` counts them: they end at any ECMAScript line terminator.
+    pub fn ecmascript_line_index(&self) -> &LineIndex {
+        self.ecmascript_line_index
+            .get_or_init(|| LineIndex::with_breaks(self.source_text(), LineBreaks::Ecmascript))
     }
 
     /// Artifacts computed so far in this context, in order (for tests and tracing).

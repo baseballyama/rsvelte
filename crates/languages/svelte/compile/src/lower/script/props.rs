@@ -1,6 +1,6 @@
 use super::{
     BindingKind, Kind, Names, NodeIdentifier, Rewrite, ScriptRewrite, SyntaxTree, copy, flag,
-    rune_call, should_proxy_read,
+    should_proxy_read,
 };
 use crate::lower::javascript::{is_simple_expression, prop_alias};
 
@@ -57,7 +57,7 @@ impl Rewrite for UnwrapBindable<'_, '_> {
         identifier: NodeIdentifier,
     ) -> Option<NodeIdentifier> {
         if let Kind::AssignPattern(left, right) = from.kind(identifier)
-            && let Some(("$bindable", arg)) = rune_call(from, right)
+            && let Some(("$bindable", arg)) = self.0.res.rune(from, right)
         {
             let left = copy(from, to, self, left);
             let right = if let Some(a) = arg {

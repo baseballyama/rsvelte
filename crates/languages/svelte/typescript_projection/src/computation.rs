@@ -18,6 +18,8 @@ impl Artifact for Projected {
     const NAME: &'static str = "svelte.typescript_projection.ast";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        // The projection never reads the style sheet, so its error does not stop it, as in
+        // svelte2tsx.
         let component = context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
         crate::lower(component, context.source_text()).map_err(|unsupported| {
             Diagnostic::error(

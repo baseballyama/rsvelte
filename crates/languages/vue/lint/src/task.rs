@@ -61,11 +61,17 @@ impl Task for Lint {
                 parents: &parents,
             },
         };
-        let findings = crate::lint::lint(&rule_context);
+        let findings = match crate::lint::lint(&rule_context) {
+            Ok(findings) => findings,
+            Err(error) => {
+                out.diagnostics.push(error);
+                return;
+            }
+        };
         out.file(
             "lint.json",
             rsvelte_lint_runner::output::render_json(
-                context.line_index(),
+                context.ecmascript_line_index(),
                 crate::lint::rule_identifiers(),
                 &findings,
             ),

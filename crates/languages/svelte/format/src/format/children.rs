@@ -4,7 +4,7 @@ use super::{
     starts_with_linebreak,
 };
 use crate::options::EmbeddedLanguageFormatting;
-use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 /// A child of a fragment: a template node, or, at the root under `svelteSortOrder: "none"`, a
 /// `<script>` or `<style>` already printed, which the plugin prints like any other node.
@@ -221,7 +221,7 @@ impl Printer<'_, '_> {
             TemplateNode::Comment { data, span } => {
                 let data = data.text(self.source_text);
                 if data
-                    .trim_matches(is_javascript_whitespace)
+                    .trim_matches(is_ecmascript_whitespace)
                     .starts_with("prettier-ignore")
                 {
                     return Err(Unsupported::at("prettier-ignore comments", span));

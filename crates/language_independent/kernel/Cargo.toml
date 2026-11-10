@@ -19,6 +19,7 @@ trace-artifacts = []
 rayon.workspace = true
 semver.workspace = true
 rustc-hash.workspace = true
+stacker.workspace = true
 
 [lints]
 workspace = true

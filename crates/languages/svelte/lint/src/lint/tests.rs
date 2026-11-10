@@ -8,7 +8,9 @@ const SOURCE: &str = "<script>let unused = 1;</script>\n<button>x</button>\n";
 fn verify_finds_what_the_task_reports() {
     let found = verify(SOURCE, &Configuration::default(), "A.svelte").expect("parses");
     assert!(
-        found.iter().any(|d| d.code == "svelte/button-has-type"),
+        found
+            .iter()
+            .any(|f| f.diagnostic.code == "svelte/button-has-type"),
         "{found:?}"
     );
     let mut registry = Registry::new();
@@ -27,8 +29,11 @@ fn verify_finds_what_the_task_reports() {
     .remove(0);
     let (_, output) = result.outputs.into_iter().next().expect("the task ran");
     let json = &output.files[0].text;
-    for d in &found {
-        assert!(json.contains(&format!("\"{}\"", d.code)), "{json}");
+    for f in &found {
+        assert!(
+            json.contains(&format!("\"{}\"", f.diagnostic.code)),
+            "{json}"
+        );
     }
 }
 

@@ -221,8 +221,6 @@ fn element<'a>(
     Ok((owner, placement))
 }
 
-/// Upstream's parser: an attribute or binding, a `class:` or a `style:` directive named twice
-/// (a `this` is not recorded, so `<svelte:element bind:this this=…>` passes).
 /// Upstream's `bind_invalid_expression` test: a `{get, set}` pair, or a member chain that starts
 /// from a name, with no optional chain in it, which cannot be assigned to.
 fn binds_a_name(javascript: &SyntaxTree, target: NodeIdentifier) -> bool {

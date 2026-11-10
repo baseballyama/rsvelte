@@ -81,6 +81,8 @@ pub struct Formatter<'a> {
     paren_leftmost: Option<NodeIdentifier>,
     /// The parent and slot of the expression being printed.
     at: Option<(NodeIdentifier, Slot)>,
+    /// Members and calls waiting for their object or callee; one stack shared by nested chains.
+    chain_links: Vec<calls::ChainLink>,
     /// Whether the innermost function is `async`; `None` outside any function.
     in_async: Option<bool>,
 }
@@ -108,6 +110,7 @@ impl<'a> Formatter<'a> {
             typescript_printed: 0,
             paren_leftmost: None,
             at: None,
+            chain_links: Vec::new(),
             in_async: None,
         }
     }
@@ -353,6 +356,13 @@ impl<'a> Formatter<'a> {
         let Some(span) = span else {
             return Ok(self.docs.nil());
         };
+        let doc = self.type_text(span, sep)?;
+        self.typescript_printed += 1;
+        Ok(doc)
+    }
+
+    /// `sep` + the text of the type at `span`.
+    fn type_text(&mut self, span: Span, sep: &'static str) -> R<LayoutInstructionIdentifier> {
         let text = span.text(self.source_text);
         let Some(t) = self.type_doc(text) else {
             return Err(Unsupported::at(
@@ -360,7 +370,6 @@ impl<'a> Formatter<'a> {
                 span,
             ));
         };
-        self.typescript_printed += 1;
         let s = self.docs.lit(sep);
         Ok(self.docs.concat(&[s, t]))
     }

@@ -76,7 +76,7 @@ impl Parser<'_, '_> {
             "break" | "continue" => {
                 let label = if !self.token.newline_before && self.token.t == T::Identifier {
                     let t = self.bump()?;
-                    Some(self.syntax_tree.ident(self.text(t), t.span))
+                    Some(self.ident_node(t))
                 } else {
                     None
                 };
@@ -250,9 +250,14 @@ impl Parser<'_, '_> {
             self.bump()?;
             let token = self.expect(T::String, "module specifier")?;
             let source = self.string_node(token);
+            let attributes = self.maybe_attributes()?;
             self.semicolon()?;
             return Ok(self.syntax_tree.control(
-                Control::ExportAll { source, exported },
+                Control::ExportAll {
+                    source,
+                    exported,
+                    attributes,
+                },
                 self.span_from(start),
             ));
         }
@@ -260,6 +265,10 @@ impl Parser<'_, '_> {
         let specs = self.open();
         while self.token.t != T::RBrace {
             let start_offset = self.token.span.start_offset;
+            let type_only = self.typescript && self.is_kw("type") && self.starts_type_specifier();
+            if type_only {
+                self.bump()?;
+            }
             let local = self.export_name()?;
             let exported = if self.is_kw("as") {
                 self.bump()?;
@@ -268,7 +277,11 @@ impl Parser<'_, '_> {
                 local
             };
             let spec = self.syntax_tree.control(
-                Control::ExportSpecifier { local, exported },
+                Control::ExportSpecifier {
+                    local,
+                    exported,
+                    type_only,
+                },
                 self.span_from(start_offset),
             );
             self.item(spec);
@@ -277,26 +290,63 @@ impl Parser<'_, '_> {
             }
         }
         self.expect(T::RBrace, "}")?;
-        let source = if self.is_kw("from") {
+        let (source, attributes) = if self.is_kw("from") {
             self.bump()?;
             let token = self.expect(T::String, "module specifier")?;
-            Some(self.string_node(token))
+            (Some(self.string_node(token)), self.maybe_attributes()?)
         } else {
-            None
+            (None, None)
         };
         self.semicolon()?;
         let span = self.span_from(start);
         Ok(self.close(specs, |tree, specifiers| {
-            tree.control(Control::ExportList { specifiers, source }, span)
+            tree.control(
+                Control::ExportList {
+                    specifiers,
+                    source,
+                    attributes,
+                },
+                span,
+            )
         }))
+    }
+
+    /// Whether `type` starts a type-only specifier rather than being its name, as TypeScript's
+    /// `parseImportOrExportSpecifier` decides: `type as` and `type as as x` are, `type as x` is not.
+    fn starts_type_specifier(&self) -> bool {
+        let next = self.peek();
+        if !matches!(next.t, T::Identifier | T::String) {
+            return false;
+        }
+        if self.text(next) != "as" {
+            return true;
+        }
+        let after = self.peek_nth(2);
+        if after.t != T::Identifier {
+            return true;
+        }
+        self.text(after) == "as" && matches!(self.peek_nth(3).t, T::Identifier | T::String)
+    }
+
+    /// `with { … }` (or the older `assert { … }`) after a module source.
+    pub(super) fn maybe_attributes(&mut self) -> R<Option<NodeIdentifier>> {
+        if (self.is_kw("assert") || self.is_kw("with")) && !self.token.newline_before {
+            self.bump()?;
+            self.object().map(Some)
+        } else {
+            Ok(None)
+        }
     }
 
     fn export_name(&mut self) -> R<NodeIdentifier> {
         let token = self.bump()?;
         match token.t {
-            T::Identifier => Ok(self.syntax_tree.ident(self.text(token), token.span)),
+            T::Identifier => Ok(self.ident_node(token)),
             T::String => Ok(self.string_node(token)),
             _ => self.fail("expected export name"),
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

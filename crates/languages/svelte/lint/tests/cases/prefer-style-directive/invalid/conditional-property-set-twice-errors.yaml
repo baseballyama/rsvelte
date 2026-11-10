@@ -1,0 +1,8 @@
+- message: Can use style directives instead.
+  line: 1
+  column: 37
+  suggestions: null
+- message: Can use style directives instead.
+  line: 1
+  column: 61
+  suggestions: null

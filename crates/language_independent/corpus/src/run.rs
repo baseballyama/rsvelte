@@ -42,6 +42,8 @@ pub struct Conformance {
 struct Compared {
     task: &'static str,
     implemented: bool,
+    /// For a task that writes one file of another task's official output: that task and file.
+    official: Option<(&'static str, &'static str)>,
 }
 
 /// One source's verdicts: (unit key, index into `compared`, verdict).
@@ -64,6 +66,25 @@ impl Conformance {
         self.compared.push(Compared {
             task,
             implemented: true,
+            official: None,
+        });
+        self
+    }
+
+    /// Compares the `file` that rsvelte's `task` writes with that file of `official`'s output,
+    /// such as the compiler's `warnings.json`. A unit where the official tool reported an error is
+    /// the other task's to judge; one without the file expects none.
+    #[must_use]
+    pub fn compare_file(
+        mut self,
+        task: &'static str,
+        official: &'static str,
+        file: &'static str,
+    ) -> Self {
+        self.compared.push(Compared {
+            task,
+            implemented: true,
+            official: Some((official, file)),
         });
         self
     }
@@ -74,6 +95,7 @@ impl Conformance {
         self.compared.push(Compared {
             task,
             implemented: false,
+            official: None,
         });
         self
     }
@@ -211,7 +233,7 @@ impl Conformance {
         let expected: Vec<Pack> = self
             .compared
             .iter()
-            .map(|c| source.expected(c.task))
+            .map(|c| source.expected(c.official.map_or(c.task, |(task, _)| task)))
             .collect::<Result<_, _>>()?;
         let tasks: Vec<&str> = self
             .compared
@@ -295,19 +317,32 @@ impl Conformance {
                 continue;
             }
             let official: Vec<Entry<'_>> = expected[i].find(&document.path).collect();
+            let ours = result.outputs.iter().find(|(t, _)| *t == c.task);
+            if let Some((_, file)) = c.official {
+                if official.is_empty()
+                    || official.iter().any(|e| e.attributes.starts_with("error."))
+                {
+                    continue;
+                }
+                let verdict = if result.panic.is_some() {
+                    Verdict::Panicked
+                } else {
+                    let official = official.iter().find(|e| e.attributes == file);
+                    compare::file_verdict(official, ours.map(|(_, out)| out), file)
+                        .map_err(|e| format!("{key}: {e}"))?
+                };
+                out.push((key.clone(), i, verdict));
+                continue;
+            }
             let verdict = if result.panic.is_some() {
                 // A unit the task has no official output for is not the task's to judge.
                 (!official.is_empty() && c.implemented).then_some(Verdict::Panicked)
             } else {
-                let ours = result
-                    .outputs
-                    .iter()
-                    .find(|(t, _)| *t == c.task)
-                    .map(|(_, out)| Ours {
-                        output: out,
-                        diagnostics: (!out.diagnostics.is_empty())
-                            .then(|| task_files::diagnostics_json(&document.text, out)),
-                    });
+                let ours = ours.map(|(_, out)| Ours {
+                    output: out,
+                    diagnostics: (!out.diagnostics.is_empty())
+                        .then(|| task_files::diagnostics_json(&document.text, out)),
+                });
                 compare::verdict(&official, ours.as_ref(), registry.lint_rules(c.task))
                     .map_err(|e| format!("{}: {e}", source.key(&document.path)))?
             };

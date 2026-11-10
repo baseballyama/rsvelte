@@ -3,22 +3,57 @@ use super::{
     Unsupported, union_of_plain_types,
 };
 
+/// What a member or call printed before its object or callee.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum ChainHead {
+    /// Whether the member's parent is a member.
+    Member(bool),
+    Call(CallHead),
+}
+
+/// A member or call whose object or callee is being printed.
+#[derive(Debug)]
+pub(super) struct ChainLink {
+    pub(super) node: NodeIdentifier,
+    pub(super) parent: Option<NodeIdentifier>,
+    pub(super) slot: Slot,
+    /// [`Formatter::at`] outside the link, restored when it is finished.
+    pub(super) saved: Option<(NodeIdentifier, Slot)>,
+    pub(super) head: ChainHead,
+    /// Whether the link is the leftmost node that its statement parenthesizes.
+    pub(super) leftmost: bool,
+}
+
+/// A call's type arguments and `new`, printed before its callee.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct CallHead {
+    type_arguments: LayoutInstructionIdentifier,
+    new: LayoutInstructionIdentifier,
+}
+
 impl Formatter<'_> {
-    /// Prettier's `printMemberExpression`. The lookup is inlined in the cases Prettier always
-    /// inlines; otherwise its `group(indent([softline, lookup]))` may break under conditions not
-    /// ported, so the expression must fit.
-    pub(super) fn member(
+    pub(super) fn parent_is_member(&self) -> bool {
+        self.at
+            .is_some_and(|(p, _)| matches!(self.syntax_tree.kind(p), Kind::Member { .. }))
+    }
+
+    /// Prettier's `printMemberExpression`, after its object. The lookup is inlined in the cases
+    /// Prettier always inlines; otherwise its `group(indent([softline, lookup]))` may break under
+    /// conditions not ported, so the expression must fit.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the member's fields and what was printed before them"
+    )]
+    pub(super) fn member_tail(
         &mut self,
         identifier: NodeIdentifier,
         object: NodeIdentifier,
         property: NodeIdentifier,
         computed: bool,
         optional: bool,
+        parent_is_member: bool,
+        o: LayoutInstructionIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
-        let parent_is_member = self
-            .at
-            .is_some_and(|(p, _)| matches!(self.syntax_tree.kind(p), Kind::Member { .. }));
-        let o = self.expression(object, Some(identifier), Slot::Object)?;
         let q = if optional {
             self.lit("?.")
         } else {
@@ -59,8 +94,7 @@ impl Formatter<'_> {
         })
     }
 
-    /// Prettier's `printCallExpression`. A member callee makes a member chain, which is not
-    /// ported, so such a call must fit on its line.
+    /// Prettier's `printCallExpression` for `new`, whose callee is not a chain link.
     pub(super) fn call(
         &mut self,
         identifier: NodeIdentifier,
@@ -69,6 +103,18 @@ impl Formatter<'_> {
         optional: bool,
         is_new: bool,
     ) -> R<LayoutInstructionIdentifier> {
+        let head = self.call_head(identifier, callee, is_new)?;
+        let c = self.expression(callee, Some(identifier), Slot::Callee)?;
+        self.call_tail(identifier, callee, arguments, optional, is_new, head, c)
+    }
+
+    /// What Prettier's `printCallExpression` prints before the callee.
+    pub(super) fn call_head(
+        &mut self,
+        identifier: NodeIdentifier,
+        callee: NodeIdentifier,
+        is_new: bool,
+    ) -> R<CallHead> {
         let type_arguments = match self.typescript_of(callee, TypeScriptKind::TypeArgs) {
             Some(span) => {
                 let inner = &span.text(self.source_text)[1..span.len() as usize - 1];
@@ -94,7 +140,31 @@ impl Formatter<'_> {
         } else {
             self.docs.nil()
         };
-        let c = self.expression(callee, Some(identifier), Slot::Callee)?;
+        Ok(CallHead {
+            type_arguments,
+            new,
+        })
+    }
+
+    /// Prettier's `printCallExpression`, after the callee. A member callee makes a member chain,
+    /// which is not ported, so such a call must fit on its line.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the call's fields and what was printed before them"
+    )]
+    pub(super) fn call_tail(
+        &mut self,
+        identifier: NodeIdentifier,
+        callee: NodeIdentifier,
+        arguments: &[NodeIdentifier],
+        optional: bool,
+        is_new: bool,
+        CallHead {
+            type_arguments,
+            new,
+        }: CallHead,
+        c: LayoutInstructionIdentifier,
+    ) -> R<LayoutInstructionIdentifier> {
         let q = if optional {
             self.lit("?.")
         } else {

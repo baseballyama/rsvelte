@@ -6,7 +6,9 @@
 
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_typescript_syntax::operators::{BinaryOperator, LogicalOperator, UnaryOperator};
-use rsvelte_typescript_syntax::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, Tag, flag};
+use rsvelte_typescript_syntax::syntax_tree::{
+    Control, Kind, NodeIdentifier, SyntaxTree, Tag, flag,
+};
 
 #[must_use]
 pub fn print_program(
@@ -19,6 +21,7 @@ pub fn print_program(
         source_text,
         e: Emitter::new(),
         indent: 0,
+        chain_links: Vec::new(),
     };
     if let Kind::Program(body) = syntax_tree.kind(program) {
         let mut first = true;
@@ -45,6 +48,7 @@ pub fn print_expression(syntax_tree: &SyntaxTree, source_text: &str, e: NodeIden
         source_text,
         e: Emitter::new(),
         indent: 0,
+        chain_links: Vec::new(),
     };
     g.expression(e, 0);
     g.e.out
@@ -55,6 +59,9 @@ struct Gen<'a> {
     source_text: &'a str,
     e: Emitter,
     indent: u32,
+    /// Chain links whose tails are not printed yet, with whether each is parenthesized; one
+    /// buffer shared by nested chains.
+    chain_links: Vec<(NodeIdentifier, bool)>,
 }
 
 mod prec {
@@ -87,7 +94,7 @@ impl Gen<'_> {
     /// an empty statement in a block or program body, where esrap's `sequence` skips it.
     fn emits(&self, s: NodeIdentifier, sequence: bool) -> bool {
         match self.syntax_tree.kind(s) {
-            Kind::TypeScriptDeclaration | Kind::TypeScriptInterface { .. } => false,
+            Kind::TypeScriptDeclaration => false,
             Kind::Empty => !sequence,
             Kind::Import {
                 specifiers,
@@ -100,8 +107,29 @@ impl Gen<'_> {
                             .iter()
                             .any(|&sp| self.syntax_tree.flags(sp) & flag::TYPE_ONLY == 0))
             }
+            Kind::Control(Control::ExportList { specifiers, .. }) => {
+                specifiers.is_empty() || specifiers.iter().any(|&sp| !self.is_type_export(sp))
+            }
             Kind::ExportNamed(d) => self.emits(d, sequence),
             _ => true,
+        }
+    }
+
+    fn is_type_export(&self, specifier: NodeIdentifier) -> bool {
+        matches!(
+            self.syntax_tree.kind(specifier),
+            Kind::Control(Control::ExportSpecifier {
+                type_only: true,
+                ..
+            })
+        )
+    }
+
+    /// ` with { … }` after a module source.
+    fn attributes(&mut self, attributes: Option<NodeIdentifier>) {
+        if let Some(attributes) = attributes {
+            self.e.push(" with ");
+            self.expression(attributes, prec::PRIMARY);
         }
     }
 }

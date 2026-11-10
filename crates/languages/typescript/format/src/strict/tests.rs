@@ -65,3 +65,14 @@ fn what_strict_mode_accepts_is_kept() {
         assert!(!refused(source_text), "{source_text:?}");
     }
 }
+
+/// An overload and a declared function have no body to check.
+#[test]
+fn a_function_without_a_body_is_kept() {
+    let source_text =
+        "function f(a: string): void;\ndeclare function g(a, b): void;\nfunction f(a) {}";
+    let mut tree = SyntaxTree::default();
+    let range = Span::new(0, u32::try_from(source_text.len()).expect("short"));
+    parse_program(&mut tree, source_text, range, true).expect("parses");
+    refuse_strict_errors(&tree, source_text).expect("nothing to refuse");
+}

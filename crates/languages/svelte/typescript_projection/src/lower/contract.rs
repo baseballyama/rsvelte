@@ -1,6 +1,8 @@
 use rsvelte_typescript_syntax::syntax_tree::{Kind, TypeScriptKind, flag};
 
-use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, SourceNode, Span, Unsupported};
+use super::{
+    Buffer, Builder, Node, NodeIdentifier, Range, Result, SourceNode, Span, Unsupported, resolve,
+};
 
 struct Edit {
     span: Span,
@@ -119,7 +121,7 @@ impl Builder<'_> {
                     self.export_pattern(identifier, exports)?;
                 }
             }
-            Kind::TypeScriptDeclaration | Kind::TypeScriptInterface { .. } => {
+            Kind::TypeScriptDeclaration => {
                 return Ok(declaration);
             }
             _ => {
@@ -359,9 +361,20 @@ impl Builder<'_> {
     }
 
     fn is_rune(&self, node: SourceNode, name: &str) -> bool {
-        let tree = &self.component.javascript;
-        matches!(tree.kind(node), Kind::Call { callee, .. }
-            if matches!(tree.kind(callee), Kind::Identifier(_)) && tree.name(callee) == name)
+        let javascript = &self.component.javascript;
+        resolve::rune_call(javascript, node).is_some_and(|(rune, _)| rune == name)
+            && self
+                .runes
+                .get_or_init(|| {
+                    resolve::runes(
+                        javascript,
+                        self.source,
+                        self.component.program,
+                        self.component.module.as_ref().map(|module| module.program),
+                    )
+                })
+                .rune(javascript, node)
+                .is_some()
     }
 
     fn span(&self, node: SourceNode) -> Span {

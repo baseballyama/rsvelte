@@ -185,11 +185,11 @@ pass	printer/style-inside-comment.html
 refused	printer/style-inside-element.html	<script> or <style> inside an element
 pass	printer/style-inside-script.html
 refused	printer/style-lang-less.html	a style language other than CSS
-fail	printer/style-lang-scss.html
+refused	printer/style-lang-scss.html	a style language other than CSS
 refused	printer/style-script-commented-out.html	comments attached to <script> or <style>
 refused	printer/style-scripts-snipping-spans.html	comments
 refused	printer/style-type-less.html	a style language other than CSS
-fail	printer/style-type-scss.html
+refused	printer/style-type-scss.html	a style language other than CSS
 refused	printer/style-unclosed-inside-script.html	comments
 pass	printer/style-with-attributes.html
 pass	printer/style.html
@@ -222,7 +222,7 @@ pass	printer/transition.html
 fail	printer/typescript-call-generic-function.html
 refused	printer/typescript-template.html	TypeScript syntax
 fail	printer/typescript-without-lang-attr.html
-fail	printer/typescript.html
+refused	printer/typescript.html	TypeScript declaration
 pass	printer/unicode-element.html
 pass	printer/unicode-mustache.html
 pass	printer/unicode-script.html

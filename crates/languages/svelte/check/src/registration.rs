@@ -65,6 +65,7 @@ fn typescript_view(
     context: &DocumentContext<'_>,
     env: Option<&Arc<TypeScriptEnv>>,
 ) -> Result<TypeScriptDocument, Diagnostic> {
+    // svelte-check type-checks a component whose style sheet does not parse.
     let component = context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
     if !component
         .instance

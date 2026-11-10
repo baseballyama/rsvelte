@@ -1,14 +1,12 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
-use rsvelte_svelte_semantic::resolve::{
-    BindingKind, RUNES, for_each_pattern_target, rune, rune_call,
-};
+use rsvelte_svelte_semantic::resolve::{BindingKind, for_each_pattern_target};
+use rsvelte_svelte_syntax::names::{is_mathml, is_svg};
 use rsvelte_typescript_semantic::scope::{Binding, DeclarationKind, ScopeIdentifier, Semantic};
+use rsvelte_typescript_syntax::operators::AssignmentOperator;
 use rsvelte_typescript_syntax::syntax_tree::{
     Class, Control, TypeScriptFeature, TypeScriptRuntime, flag,
 };
 use rustc_hash::FxHashSet;
-
-use crate::render_plan::{is_mathml, is_svg};
 
 pub(super) mod markup;
 
@@ -216,12 +214,7 @@ fn unchecked_declarations(input: &CompileInput<'_>) -> FxHashSet<NodeIdentifier>
 /// # Errors
 ///
 /// An `unsupported` [`Diagnostic`] at the first such reference.
-pub(super) fn check_stores(
-    javascript: &SyntaxTree,
-    res: &Resolution,
-    source_text: &str,
-    program: NodeIdentifier,
-) -> Result<(), Diagnostic> {
+pub(super) fn check_stores(javascript: &SyntaxTree, res: &Resolution) -> Result<(), Diagnostic> {
     for r in &res.sem.references {
         if r.binding.is_some() {
             continue;
@@ -230,28 +223,7 @@ pub(super) fn check_stores(
         if name == "$$slots" {
             return unsupported("`$$slots`", span_of(javascript, r.node));
         }
-        let Some(store) = name.strip_prefix('$') else {
-            continue;
-        };
-        if store.is_empty() || store.starts_with('$') {
-            continue;
-        }
-        let declaration = || {
-            let atom = javascript.atoms.lookup(store)?;
-            Some(&res.sem.bindings[res.sem.root_binding(atom)?])
-        };
-        let store_sub = !RUNES.contains(&name)
-            || declaration().is_some_and(|b| {
-                let rune = b
-                    .initializer(javascript)
-                    .and_then(|initializer| rune(javascript, initializer, Some(&res.sem)));
-                (rune.is_none() || (store != "props" && rune == Some("$props")))
-                    && !(name == "$derived"
-                        && b.kind == DeclarationKind::Import
-                        && import_source(javascript, source_text, program, b.declaration)
-                            == Some("svelte/store"))
-            });
-        if store_sub {
+        if res.is_store_subscription(name) {
             return unsupported(
                 &format!("the store subscription `{name}`"),
                 span_of(javascript, r.node),
@@ -353,6 +325,8 @@ pub(super) fn check_runes(
         .into_iter()
         .chain([(input.component.program, false, true)])
         .chain(template);
+    // Pre-order from one stack: expressions nest thousands deep in real input.
+    let mut pending = Vec::new();
     for (root, module, rendering) in roots {
         let place = Place {
             parent: Parent::Other,
@@ -360,19 +334,29 @@ pub(super) fn check_runes(
             module,
             rendering,
         };
-        walk.walk(root, place)?;
+        pending.push((root, place));
+        while let Some((e, place)) = pending.pop() {
+            walk.visit(e, place, &mut pending)?;
+        }
     }
     walk.refused.map_or(Ok(()), Err)
 }
 
 impl RuneWalk<'_> {
-    fn walk(&mut self, e: NodeIdentifier, place: Place) -> Result<(), Diagnostic> {
+    /// Checks `e` and pushes its children, each with where it sits, so that they pop in order.
+    fn visit(
+        &mut self,
+        e: NodeIdentifier,
+        place: Place,
+        pending: &mut Vec<(NodeIdentifier, Place)>,
+    ) -> Result<(), Diagnostic> {
         let javascript = self.javascript;
+        let kind = javascript.kind(e);
         // A `for await` suspends rendering as an `await` does; upstream prints it into a
         // function that is not async.
         if place.rendering
             && matches!(
-                javascript.kind(e),
+                kind,
                 Kind::Await(_) | Kind::Control(Control::ForEach { is_await: true, .. })
             )
         {
@@ -382,48 +366,75 @@ impl RuneWalk<'_> {
                 span_of(javascript, e),
             );
         }
-        if let Some(rune) = rune(javascript, e, Some(&self.res.sem)) {
-            self.check_rune(e, rune, place)?;
-        }
-        if let Kind::Declarator {
-            identifier,
-            initializer,
-        } = javascript.kind(e)
-        {
-            if initializer.and_then(|i| rune(javascript, i, Some(&self.res.sem))) == Some("$props")
-            {
-                check_props_pattern(javascript, e, identifier)?;
+        let mut props = false;
+        match kind {
+            Kind::Call { arguments, .. } => {
+                if let Some(rune) = self.res.rune_named(javascript, e) {
+                    self.check_rune(e, arguments, rune, place)?;
+                }
             }
-            super::script::check_destructured_rune(javascript, e)?;
+            Kind::Declarator {
+                identifier,
+                initializer: Some(initializer),
+            } => {
+                let rune = self.res.rune_named(javascript, initializer);
+                props = rune == Some("$props");
+                if props {
+                    check_props_pattern(javascript, e, identifier)?;
+                }
+                // Upstream splits a destructured state or derived into one declaration per path;
+                // this port has no `extract_paths` yet.
+                if let Some(rune @ ("$state" | "$state.raw" | "$derived" | "$derived.by")) = rune
+                    && !javascript.is_identifier(identifier)
+                    && !javascript.is_chain(initializer)
+                {
+                    return unsupported(
+                        &format!("a destructured `{rune}` declaration"),
+                        span_of(javascript, e),
+                    );
+                }
+            }
+            Kind::Assign(..) | Kind::Control(Control::ForEach { .. }) => {
+                check_pattern_assignment(
+                    javascript,
+                    self.res,
+                    self.target,
+                    self.custom_element,
+                    e,
+                )?;
+            }
+            _ => {}
         }
-        check_pattern_assignment(javascript, self.res, self.target, self.custom_element, e)?;
-        let mut children = Vec::new();
-        javascript.for_each_child(e, |c| children.push(c));
         let inner = Place {
             parent: Parent::Other,
-            in_class: place.in_class
-                || matches!(javascript.kind(e), Kind::Class(Class::Definition { .. })),
+            in_class: place.in_class || matches!(kind, Kind::Class(Class::Definition { .. })),
             module: place.module,
-            // A class's heritage and computed keys run where the class is defined; the parser
-            // already refuses `await` in its field values and static blocks.
+            // A class's heritage and computed keys run where the class is defined.
             rendering: place.rendering
-                && !matches!(
-                    javascript.kind(e),
-                    Kind::Function { .. } | Kind::Arrow { .. }
-                ),
+                && !matches!(kind, Kind::Function { .. } | Kind::Arrow { .. }),
         };
-        for c in children {
-            let parent = self.parent_of(e, c, place);
-            self.walk(c, Place { parent, ..inner })?;
+        let base = pending.len();
+        javascript.for_each_child(e, |c| pending.push((c, inner)));
+        for (child, child_place) in &mut pending[base..] {
+            child_place.parent = self.parent_of(e, kind, props, *child, place);
         }
+        pending[base..].reverse();
         Ok(())
     }
 
     /// Where `child`, a child of `e`, sits, given where `e` sits.
-    fn parent_of(&self, e: NodeIdentifier, child: NodeIdentifier, place: Place) -> Parent {
+    /// `props` says that `e` is a `$props()` declarator.
+    fn parent_of(
+        &self,
+        e: NodeIdentifier,
+        kind: Kind<'_>,
+        props: bool,
+        child: NodeIdentifier,
+        place: Place,
+    ) -> Parent {
         let javascript = self.javascript;
         let parent = place.parent;
-        match (javascript.kind(e), parent) {
+        match (kind, parent) {
             (Kind::Program(_), _) if !place.module => Parent::InstanceBody,
             (Kind::VariableDeclaration { .. }, Parent::InstanceBody) => Parent::TopDeclarator,
             // Upstream asks for the instance scope, which an `export` does not leave.
@@ -438,15 +449,7 @@ impl RuneWalk<'_> {
                 top: parent == Parent::TopDeclarator,
                 named: javascript.is_identifier(identifier),
             },
-            (
-                Kind::Declarator {
-                    initializer: Some(initializer),
-                    ..
-                },
-                _,
-            ) if rune(javascript, initializer, Some(&self.res.sem)) == Some("$props") => {
-                Parent::Props
-            }
+            (Kind::Declarator { .. }, _) if props => Parent::Props,
             (Kind::ObjectPattern(_), Parent::Props) => Parent::PropsProperty,
             (Kind::Property { value, .. }, Parent::PropsProperty) if value == child => {
                 Parent::PropsValue
@@ -479,11 +482,7 @@ impl RuneWalk<'_> {
             }
             (Kind::ExpressionStatement(_), _) => Parent::Statement(None),
             (
-                Kind::Assign(
-                    rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
-                    target,
-                    value,
-                ),
+                Kind::Assign(AssignmentOperator::Assign, target, value),
                 Parent::Statement(Some((
                     Body {
                         constructor: true, ..
@@ -510,13 +509,11 @@ impl RuneWalk<'_> {
     fn check_rune(
         &mut self,
         e: NodeIdentifier,
+        arguments: &[NodeIdentifier],
         rune: &'static str,
         place: Place,
     ) -> Result<(), Diagnostic> {
         let javascript = self.javascript;
-        let Kind::Call { arguments, .. } = javascript.kind(e) else {
-            unreachable!("a rune is a call")
-        };
         let spread = (arguments.iter()).any(|&a| matches!(javascript.kind(a), Kind::Spread(_)));
         if rune != "$inspect" && spread {
             return super::special::invalid(
@@ -627,7 +624,7 @@ impl RuneWalk<'_> {
 
     /// Keeps the first rune call this port does not lower, refused when the walk ends.
     fn refuse_unlowered(&mut self, e: NodeIdentifier, rune: &'static str, place: Place) {
-        let lowered = rune_call(self.javascript, e).is_some();
+        let lowered = rsvelte_svelte_semantic::resolve::lowers(self.javascript, e);
         let supported = lowered
             && match rune {
                 "$state" | "$state.raw" | "$derived" | "$derived.by" => !place.in_class,
@@ -821,26 +818,6 @@ fn check_pattern_assignment(
     )
 }
 
-/// The module an import specifier of the instance script imports from.
-fn import_source<'a>(
-    javascript: &'a SyntaxTree,
-    source_text: &'a str,
-    program: NodeIdentifier,
-    spec: Option<NodeIdentifier>,
-) -> Option<&'a str> {
-    let spec = spec?;
-    let Kind::Program(body) = javascript.kind(program) else {
-        return None;
-    };
-    body.iter()
-        .find_map(|&statement| match javascript.kind(statement) {
-            Kind::Import {
-                specifiers, source, ..
-            } if specifiers.contains(&spec) => Some(javascript.str_value(source, source_text)),
-            _ => None,
-        })
-}
-
 pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
     if let Some(runtime) = input.component.javascript.typescript_runtime.first() {
         return Err(typescript_invalid_feature(runtime));
@@ -848,11 +825,25 @@ pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnosti
     Ok(())
 }
 
-/// Upstream `remove_typescript_nodes` erases types and refuses what has a runtime value.
+/// Upstream `remove_typescript_nodes` erases types and refuses what has a runtime value; what it
+/// keeps for esrap to print, this compiler does not lower.
 fn typescript_invalid_feature(t: &TypeScriptRuntime) -> Diagnostic {
     let feature = match t.feature {
         TypeScriptFeature::Enum => "enums",
         TypeScriptFeature::NamespaceWithValues => "namespaces with non-type nodes",
+        TypeScriptFeature::Decorator => "decorators (related TSC proposal is not stage 4 yet)",
+        TypeScriptFeature::Accessor => "accessor fields (related TSC proposal is not stage 4 yet)",
+        TypeScriptFeature::ParameterProperty => "accessibility modifiers on constructor parameters",
+        TypeScriptFeature::ImportEquals => {
+            return Diagnostic::error(
+                "unsupported",
+                "`import name = …` is not supported yet",
+                t.span,
+            );
+        }
+        TypeScriptFeature::ExportAssignment => {
+            return Diagnostic::error("unsupported", "`export = …` is not supported yet", t.span);
+        }
     };
     Diagnostic::error(
         "typescript_invalid_feature",

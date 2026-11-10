@@ -579,10 +579,11 @@
 	<Caution>この節は計画です。型の項の前半だけは、今ある試作の説明です。</Caution>
 	<ul>
 		<li>
-			型：型を使うコード検査の試作（<code>rsvelte_svelte_lint_typed</code
-			>）があります。今は構文と名前解決から型を推論し（<code>TypeFacts::infer</code
-			>）、ルールはそれを共通の呼び出し窓口から受け取ります。計画は、型を tsgo（Go で書かれた
-			TypeScript コンパイラ）から引くことです。引いた型は、<code>CompilerNodeIdentifier</code>
+			型：型を使うコード検査のルールは、ほかのルールと同じ <code>rsvelte_svelte_lint</code>
+			にあります。型は試作の提供元が構文と名前解決から推論し（<code>TypeFacts::infer</code
+			>）、ルールはそれを <code>File::condition_types</code>
+			から受け取ります。ホストは提供元を差し替えられます。計画は、型を tsgo（Go で書かれた TypeScript
+			コンパイラ）から引くことです。引いた型は、<code>CompilerNodeIdentifier</code>
 			と式の <code>NodeIdentifier</code> で引く表にします。型を持つ層は、コンパイル用に整理した構文木とは別の計算結果にします。
 		</li>
 		<li>

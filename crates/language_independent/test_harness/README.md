@@ -6,10 +6,10 @@ writes the output to the case's `actual/`, which Git does not track, so
 `diff -ru <case>/expected <case>/actual` shows the difference. The shared
 [corpus](../../../corpus/README.md) has its own test, [`rsvelte_corpus`](../corpus/).
 
-| Kind         | Where                                                                    | `expected/` holds                                          |
-| ------------ | ------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| hand-written | the crate's `tests/fixtures/` (`rsvelte/` and others in `compile`)       | rsvelte's own output, accepted with `UPDATE_EXPECT=1`      |
-| copied       | below a directory of `tests/fixtures/` with `source.json` (`lint_typed`) | the official tool's output, which the harness never writes |
+| Kind         | Where                                                              | `expected/` holds                                          |
+| ------------ | ------------------------------------------------------------------ | ---------------------------------------------------------- |
+| hand-written | the crate's `tests/fixtures/` (`rsvelte/` and others in `compile`) | rsvelte's own output, accepted with `UPDATE_EXPECT=1`      |
+| copied       | below a directory of `tests/fixtures/` with `source.json`          | the official tool's output, which the harness never writes |
 
 Snapshots show what changed, not what is correct; a copied case's official output shows that.
 `differs.txt` next to `source.json` lists each copied case that rsvelte does not match yet
@@ -109,7 +109,6 @@ FIXTURE_TYPE_CHECKER="tsrs --fast" cargo test -p rsvelte_svelte_check --test fix
 | `languages/svelte/compile`               | `svelte.compile/client`, `/server`          | `client`, `server` |
 | `languages/svelte/format`                | `svelte.format/default`                     | `formatted`        |
 | `languages/svelte/lint`                  | `svelte.lint/default`                       | `findings`         |
-| `languages/svelte/lint_typed`            | `svelte.lint.typed/default` (`tests/rules`) | `findings`         |
 | `languages/svelte/check`                 | `svelte.check/default`                      | `findings`         |
 | `languages/svelte/typescript_projection` | `svelte.typescript_projection/default`      | `projection`       |
 | `languages/svelte/compile_vapor`         | `vuelte.compile/client`, `/server`          | `client`, `server` |

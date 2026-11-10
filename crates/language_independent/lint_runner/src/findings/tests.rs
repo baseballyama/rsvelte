@@ -18,10 +18,10 @@ impl Rule<str> for Every {
     }
 }
 
-fn codes(findings: &[Diagnostic]) -> Vec<(&str, u32)> {
+fn codes(findings: &[Finding]) -> Vec<(&str, u32)> {
     findings
         .iter()
-        .map(|d| (&*d.code, d.span.start_offset))
+        .map(|f| (&*f.diagnostic.code, f.diagnostic.span.start_offset))
         .collect()
 }
 
@@ -31,7 +31,7 @@ fn findings_are_ordered_by_offset_and_ties_keep_rule_order() {
     let mut f = Findings::new();
     let rules: [&dyn Rule<str>; 2] = [&b, &a];
     f.run(rules, "x.x");
-    let got = f.finish();
+    let got = f.finish().expect("no rule fails");
     assert_eq!(codes(&got), [("b", 0), ("a", 0), ("b", 2), ("a", 2)]);
 }
 
@@ -56,7 +56,7 @@ fn layers_report_into_one_ordering() {
     let x = Every("x", 0);
     let mut f = Findings::new();
     f.run([&x], ".x").run([&Len], b"ab".as_slice());
-    let got = f.finish();
+    let got = f.finish().expect("no rule fails");
     assert_eq!(codes(&got), [("len", 0), ("x", 1)]);
 }
 
@@ -64,10 +64,35 @@ fn layers_report_into_one_ordering() {
 fn findings_carry_the_rule_identifier_and_severity() {
     let mut f = Findings::new();
     f.run([&Len], b"ab".as_slice()).run([&Every("x", 0)], "x");
-    let got = f.finish();
-    let stamped: Vec<_> = got.iter().map(|d| (&*d.code, d.severity)).collect();
+    let got = f.finish().expect("no rule fails");
+    let stamped: Vec<_> = got
+        .iter()
+        .map(|f| (&*f.diagnostic.code, f.diagnostic.severity))
+        .collect();
     assert_eq!(
         stamped,
         [("len", Severity::Warning), ("x", Severity::Error)]
     );
+}
+
+struct Fails;
+
+impl Rule<str> for Fails {
+    fn identifier(&self) -> &'static str {
+        "fails"
+    }
+
+    fn check(&self, _: &str, reporter: &mut Reporter<'_>) {
+        reporter.range("before", Span::new(0, 1));
+        reporter.fail("first");
+        reporter.fail("second");
+    }
+}
+
+#[test]
+fn a_failing_rule_fails_the_document_with_its_first_failure() {
+    let mut f = Findings::new();
+    f.run([&Every("x", 0)], "x").run([&Fails], "x");
+    let error = f.finish().expect_err("a rule failed");
+    assert_eq!(error.message, "rule `fails` failed: first");
 }

@@ -24,8 +24,13 @@ impl Gen<'_> {
         self.e.push("}");
     }
 
-    #[expect(clippy::too_many_lines, reason = "one arm per statement kind")]
+    /// Every nesting cycle through statements passes here; the parser bounds its depth.
     pub(super) fn statement(&mut self, identifier: NodeIdentifier) {
+        rsvelte_kernel::performance::stack::grow(|| self.statement_kind(identifier));
+    }
+
+    #[expect(clippy::too_many_lines, reason = "one arm per statement kind")]
+    fn statement_kind(&mut self, identifier: NodeIdentifier) {
         self.mark(identifier);
         match self.syntax_tree.kind(identifier) {
             Kind::Class(class) => self.class(class),
@@ -153,10 +158,7 @@ impl Gen<'_> {
                     self.e.push(" from ");
                 }
                 self.expression(source, prec::PRIMARY);
-                if let Some(attributes) = attributes {
-                    self.e.push(" with ");
-                    self.expression(attributes, prec::PRIMARY);
-                }
+                self.attributes(attributes);
                 self.e.push(";");
             }
             Kind::ExportNamed(d) => {
@@ -175,7 +177,7 @@ impl Gen<'_> {
                     self.e.push(";");
                 }
             }
-            Kind::TypeScriptDeclaration | Kind::TypeScriptInterface { .. } => {}
+            Kind::TypeScriptDeclaration => {}
             _ => {
                 self.expression(identifier, prec::SEQ);
                 self.e.push(";");
@@ -251,6 +253,7 @@ impl Gen<'_> {
     }
 
     pub(super) fn parameters(&mut self, parameters: &[NodeIdentifier]) {
+        let parameters = self.syntax_tree.runtime_parameters(parameters);
         self.e.push("(");
         self.list(parameters, ", ");
         self.e.push(")");

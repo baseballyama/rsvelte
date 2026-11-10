@@ -13,6 +13,22 @@ impl SyntaxTree {
         e
     }
 
+    /// Whether `e` is TypeScript's leading `this: T` parameter.
+    #[must_use]
+    pub fn is_this_parameter(&self, e: NodeIdentifier) -> bool {
+        self.tag(e) == Tag::Identifier && self.flags(e) & flag::THIS_PARAMETER != 0
+    }
+
+    /// A function's parameters without TypeScript's leading `this: T`, which declares the type of
+    /// `this` and is no parameter at run time.
+    #[must_use]
+    pub fn runtime_parameters<'p>(&self, parameters: &'p [NodeIdentifier]) -> &'p [NodeIdentifier] {
+        match parameters {
+            [this, rest @ ..] if self.is_this_parameter(*this) => rest,
+            _ => parameters,
+        }
+    }
+
     /// Whether `e` ends an optional chain: `a?.b` in `(a?.b).c`, and `a?.b.c` as a whole.
     #[inline]
     #[must_use]
@@ -150,14 +166,8 @@ impl SyntaxTree {
             Tag::ExportNamed => Kind::ExportNamed(Self::nid(a)),
             Tag::ExportDefault => Kind::ExportDefault(Self::nid(a)),
             Tag::TypeScriptDeclaration => Kind::TypeScriptDeclaration,
-            Tag::TypeScriptInterface => Kind::TypeScriptInterface {
-                name: Self::nid(a),
-                members: self.list_at(b),
-            },
-            Tag::TypeScriptPropertySignature => Kind::TypeScriptPropertySignature {
-                key: Self::nid(a),
-                optional: f & flag::OPTIONAL != 0,
-            },
+            Tag::Type => Kind::Type(self.type_kind(identifier)),
+            Tag::Jsx => Kind::Jsx(self.jsx_kind(identifier)),
             Tag::Identifier => Kind::Identifier(Atom(a)),
             Tag::Number => Kind::Number(f64::from_bits(u64::from(a) | (u64::from(b) << 32))),
             Tag::String => Kind::String,
@@ -180,6 +190,10 @@ impl SyntaxTree {
             },
             Tag::TemplateElement => Kind::TemplateElement {
                 tail: f & flag::TAIL != 0,
+            },
+            Tag::TaggedTemplate => Kind::TaggedTemplate {
+                tag: Self::nid(a),
+                quasi: Self::nid(b),
             },
             Tag::Array => Kind::Array(self.list_at(a)),
             Tag::Object => Kind::Object(self.list_at(a)),

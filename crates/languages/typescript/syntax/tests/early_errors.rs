@@ -175,3 +175,21 @@ fn nullish_coalescing_does_not_mix_with_logical_operators_without_parentheses() 
         assert!(parses(source_text, false), "{source_text}");
     }
 }
+
+#[test]
+fn only_a_function_takes_a_typescript_this_parameter() {
+    for source_text in [
+        "const f = (this: Window, a: number) => a;",
+        "const f = async (this) => 1;",
+    ] {
+        assert!(!parses(source_text, true), "{source_text}");
+    }
+    for source_text in [
+        "function f(this: Window, a: number) {}",
+        "const o = { m(this: Window) {} };",
+        "class K { m(this: K) {} }",
+        "type F = (this: Window) => void;",
+    ] {
+        assert!(parses(source_text, true), "{source_text}");
+    }
+}

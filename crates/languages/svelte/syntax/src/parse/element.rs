@@ -1,5 +1,5 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 use super::{End, ParseResult, Parser, is_void};
 use crate::names::{META_TAGS, is_component_name, is_valid_element_name};
@@ -8,7 +8,7 @@ use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType}
 /// Upstream `read_tag_name`: up to whitespace, `/` or `>`.
 pub(super) fn peek_tag_name(s: &str) -> &str {
     let end = s
-        .find(|c: char| is_javascript_whitespace(c) || matches!(c, '/' | '>'))
+        .find(|c| is_ecmascript_whitespace(c) || matches!(c, '/' | '>'))
         .unwrap_or(s.len());
     &s[..end]
 }
@@ -52,8 +52,8 @@ impl Parser<'_> {
         let (attributes, self_closing) = self.attributes()?;
         let start_tag = Span::new(start_offset as u32, self.position as u32);
         let regular = !name_text.starts_with("svelte:") && !component_name;
-        let children = if self_closing || is_void(name_text) {
-            self.empty_range()
+        let (children, end_tag) = if self_closing || is_void(name_text) {
+            (self.empty_range(), false)
         } else if name_text == "textarea" {
             self.textarea_children()?
         } else if matches!(name_text, "script" | "style") {
@@ -63,8 +63,7 @@ impl Parser<'_> {
                 name: name_text,
                 regular,
             })?;
-            self.end_tag(name_text, regular)?;
-            children
+            (children, self.end_tag(name_text, regular)?)
         };
         let span = Span::new(start_offset as u32, self.position as u32);
         Ok(Some(self.push_node(TemplateNode::Element {
@@ -74,6 +73,7 @@ impl Parser<'_> {
             children,
             start_tag,
             self_closing,
+            end_tag,
             span,
         })))
     }
@@ -118,16 +118,16 @@ impl Parser<'_> {
         Span::new(start_offset as u32, self.position as u32)
     }
 
-    fn end_tag(&mut self, name: &str, regular: bool) -> ParseResult<()> {
+    fn end_tag(&mut self, name: &str, regular: bool) -> ParseResult<bool> {
         let rest = self.rest();
         let Some(after) = rest.strip_prefix("</") else {
             // `closing_tag_omitted` stopped the children at a start tag.
-            return Ok(());
+            return Ok(false);
         };
         let closing = peek_tag_name(after);
         if closing != name {
             if regular {
-                return Ok(());
+                return Ok(false);
             }
             return self.err(format!(
                 "`</{closing}>` attempted to close an element that was not open"
@@ -140,10 +140,10 @@ impl Parser<'_> {
             return self.err("expected `>`");
         }
         self.eat_token(TokenType::TagEnd, 1);
-        Ok(())
+        Ok(true)
     }
 
-    fn textarea_children(&mut self) -> ParseResult<Range> {
+    fn textarea_children(&mut self) -> ParseResult<(Range, bool)> {
         let children_start = self.pending_children.len();
         loop {
             let rest = self.rest();
@@ -169,7 +169,7 @@ impl Parser<'_> {
                     }
                 }
                 self.position += end;
-                self.token(TokenType::Text, start_offset);
+                self.words(TokenType::Text, start_offset);
                 self.push_node(TemplateNode::Text {
                     span: Span::new(start_offset as u32, self.position as u32),
                 })
@@ -184,10 +184,10 @@ impl Parser<'_> {
             return self.err("expected `>`");
         }
         self.eat_token(TokenType::TagEnd, 1);
-        Ok(children)
+        Ok((children, true))
     }
 
-    fn raw_children(&mut self, name: &str) -> ParseResult<Range> {
+    fn raw_children(&mut self, name: &str) -> ParseResult<(Range, bool)> {
         let close = match name {
             "script" => "</script>",
             "style" => "</style>",
@@ -197,7 +197,7 @@ impl Parser<'_> {
         let len = memchr::memmem::find(self.rest().as_bytes(), close.as_bytes())
             .unwrap_or_else(|| self.rest().len());
         self.position += len;
-        self.token(TokenType::Text, start_offset);
+        self.words(TokenType::Text, start_offset);
         let text = (len > 0).then(|| {
             self.push_node(TemplateNode::Text {
                 span: Span::new(start_offset as u32, self.position as u32),
@@ -217,7 +217,7 @@ impl Parser<'_> {
         self.eat_token(TokenType::EndTagOpen, 2);
         self.tag_name();
         self.eat_token(TokenType::TagEnd, 1);
-        Ok(children)
+        Ok((children, true))
     }
 }
 
@@ -226,5 +226,5 @@ fn is_textarea_end(s: &str) -> bool {
     const END: &str = "</textarea";
     s.get(..END.len())
         .is_some_and(|h| h.eq_ignore_ascii_case(END))
-        && super::whitespace::trim_start(&s[END.len()..]).starts_with('>')
+        && super::whitespace::trim_whitespace_start(&s[END.len()..]).starts_with('>')
 }

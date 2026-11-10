@@ -3,6 +3,7 @@ use rsvelte_typescript_syntax::syntax_tree::Control;
 
 use super::{NodeIdentifier, Rewrite, SyntaxTree, copy, copy_all, copy_opt};
 
+#[expect(clippy::too_many_lines, reason = "one arm per control statement")]
 pub(super) fn copy_control<R: Rewrite + ?Sized>(
     from: &SyntaxTree,
     to: &mut SyntaxTree,
@@ -77,24 +78,40 @@ pub(super) fn copy_control<R: Rewrite + ?Sized>(
             body: copy(from, to, rw, body),
         },
         Control::Debugger => Control::Debugger,
-        Control::ExportList { specifiers, source } => {
+        Control::ExportList {
+            specifiers,
+            source,
+            attributes,
+        } => {
             let specs = copy_all(from, to, rw, specifiers);
             let source = copy_opt(from, to, rw, source);
+            let attributes = copy_opt(from, to, rw, attributes);
             return to.control(
                 Control::ExportList {
                     specifiers: &specs,
                     source,
+                    attributes,
                 },
                 span,
             );
         }
-        Control::ExportSpecifier { local, exported } => Control::ExportSpecifier {
+        Control::ExportSpecifier {
+            local,
+            exported,
+            type_only,
+        } => Control::ExportSpecifier {
             local: copy(from, to, rw, local),
             exported: copy(from, to, rw, exported),
+            type_only,
         },
-        Control::ExportAll { source, exported } => Control::ExportAll {
+        Control::ExportAll {
+            source,
+            exported,
+            attributes,
+        } => Control::ExportAll {
             source: copy(from, to, rw, source),
             exported: copy_opt(from, to, rw, exported),
+            attributes: copy_opt(from, to, rw, attributes),
         },
     };
     to.control(control, span)

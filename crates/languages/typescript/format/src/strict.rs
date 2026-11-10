@@ -385,6 +385,10 @@ fn parameters_error(
     let simple = parameters
         .iter()
         .all(|&p| matches!(tree.kind(p), Kind::Identifier(_)));
+    // An overload or a declared function has no body.
+    if body.is_none() {
+        return None;
+    }
     let Kind::Block(statements) = tree.kind(body) else {
         return None;
     };

@@ -2,10 +2,21 @@ use rsvelte_typescript_syntax::syntax_tree::Class;
 
 use super::emit::ScriptRewrite;
 use super::{
-    FxHashMap, Kind, NodeIdentifier, SourceLocation, SyntaxTree, Verbatim, copy, rune_call,
+    FxHashMap, Kind, NodeIdentifier, Resolution, SourceLocation, SyntaxTree, Verbatim, copy,
 };
 
 impl ScriptRewrite<'_> {
+    /// The `$state`, `$state.raw`, `$derived` or `$derived.by` call `value` makes.
+    fn value_rune(
+        &self,
+        from: &SyntaxTree,
+        value: NodeIdentifier,
+    ) -> Option<(&'static str, Option<NodeIdentifier>)> {
+        self.resolution
+            .rune(from, value)
+            .filter(|(name, _)| super::runes::value(name))
+    }
+
     #[expect(
         clippy::too_many_arguments,
         reason = "constructor fields share the class's storage and name allocation"
@@ -69,7 +80,10 @@ impl ScriptRewrite<'_> {
         let Kind::Assign(operator, target, initializer) = from.kind(identifier) else {
             unreachable!()
         };
-        let (rune, argument) = rune_call(from, initializer).expect("a checked constructor rune");
+        let (rune, argument) = self
+            .resolution
+            .rune(from, initializer)
+            .expect("a checked constructor rune");
         let plain = self.server && matches!(rune, "$state" | "$state.raw");
         let target = if plain {
             copy(from, to, &mut Verbatim, target)
@@ -109,7 +123,8 @@ impl ScriptRewrite<'_> {
         else {
             unreachable!()
         };
-        let (mut private_fields, mut occupied) = context(from, members, self.server);
+        let (mut private_fields, mut occupied) =
+            context(from, self.resolution, members, self.server);
         let mut output = Vec::new();
         let mut next = 0;
         let constructor_fields = self.prepare_constructor(
@@ -140,9 +155,7 @@ impl ScriptRewrite<'_> {
                 output.push(copy(from, to, self, member));
                 continue;
             };
-            let Some((rune, argument)) =
-                rune_call(from, value).filter(|(name, _)| super::runes::value(name))
-            else {
+            let Some((rune, argument)) = self.value_rune(from, value) else {
                 output.push(copy(from, to, self, member));
                 continue;
             };
@@ -203,6 +216,7 @@ impl ScriptRewrite<'_> {
 
 fn context(
     from: &SyntaxTree,
+    resolution: &Resolution,
     members: &[NodeIdentifier],
     server: bool,
 ) -> (FxHashMap<String, bool>, super::FxHashSet<String>) {
@@ -213,13 +227,12 @@ fn context(
             Kind::Class(Class::Field { key, value, .. }) => {
                 if matches!(from.kind(key), Kind::Identifier(_)) && from.name(key).starts_with('#')
                 {
-                    let reactive =
-                        value
-                            .and_then(|value| rune_call(from, value))
-                            .is_some_and(|(name, _)| {
-                                super::runes::value(name)
-                                    && !(server && matches!(name, "$state" | "$state.raw"))
-                            });
+                    let reactive = value
+                        .and_then(|value| resolution.rune(from, value))
+                        .is_some_and(|(name, _)| {
+                            super::runes::value(name)
+                                && !(server && matches!(name, "$state" | "$state.raw"))
+                        });
                     private_fields.insert(from.name(key).to_owned(), reactive);
                 }
                 key

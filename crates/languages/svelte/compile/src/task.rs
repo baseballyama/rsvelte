@@ -7,7 +7,6 @@ use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_svelte_semantic::{Analyzed, Resolved};
-use rsvelte_svelte_syntax::Parsed;
 
 use crate::computation::Validated;
 use crate::lower::{self, Target};
@@ -35,7 +34,8 @@ pub fn register(registry: &mut Registry) {
         })
         .task(Compile {
             target: Target::Server,
-        });
+        })
+        .task(crate::Warn);
 }
 
 pub fn register_with_configuration(registry: &mut Registry, configuration: crate::Configuration) {
@@ -125,7 +125,7 @@ pub fn lower_document<'a>(
     context: &'a DocumentContext<'_>,
     target: Target,
 ) -> Result<crate::LoweredModule<'a>, Diagnostic> {
-    if let Err(e) = context.get::<Parsed>() {
+    if let Err(e) = rsvelte_svelte_syntax::fully_parsed(context) {
         return Err(e.clone());
     }
     let input =

@@ -1,10 +1,11 @@
 use rsvelte_typescript_semantic::scope::DeclarationKind;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rustc_hash::{FxBuildHasher, FxHashMap};
 
 use super::ExpressionMetadata;
 use super::evaluation::BindingValues;
 use crate::input::ComponentInput;
-use crate::resolve::{BindingKind, Resolution, rune_call};
+use crate::resolve::{BindingKind, Resolution};
 
 /// Computes [`ExpressionMetadata`] the way upstream's analysis visitors do, and `needs_context`.
 pub(super) struct MetadataWalker<'a, 'walk, const COLLECT_METADATA: bool> {
@@ -16,6 +17,9 @@ pub(super) struct MetadataWalker<'a, 'walk, const COLLECT_METADATA: bool> {
     deps: u32,
     needs_context: bool,
     function_depth: u32,
+    /// Each walked call's `is_pure`, so a chain `f()()…` is judged once per link, not once per
+    /// link per enclosing call.
+    pure_calls: FxHashMap<NodeIdentifier, bool>,
 }
 
 impl<'a, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'a, 'walk, COLLECT_METADATA> {
@@ -37,6 +41,7 @@ impl<'a, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'a, 'walk, COLLECT_
             deps: 0,
             needs_context: false,
             function_depth: 0,
+            pure_calls: FxHashMap::with_hasher(FxBuildHasher),
         }
     }
 
@@ -49,68 +54,64 @@ impl<'a, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'a, 'walk, COLLECT_
     }
 }
 
-/// What a parent needs to know about a visited child.
-#[derive(Clone, Copy)]
-pub(super) struct Visited {
-    /// Upstream `is_pure`: no binding is read, only unbound globals and literals.
-    pure: bool,
-    /// The identifier a member chain starts from.
-    root: Option<NodeIdentifier>,
-}
-
-impl Visited {
-    const OPAQUE: Self = Self {
-        pure: false,
-        root: None,
-    };
+/// Work left for the walker. Expressions nest thousands deep in real input, so the walk keeps
+/// its own stack.
+enum Task {
+    Visit(NodeIdentifier),
+    /// A call's checks, which read what its callee and arguments referenced.
+    CallEnd {
+        call: NodeIdentifier,
+        callee: NodeIdentifier,
+        rune: Option<&'static str>,
+    },
+    /// Leaving a function: its expression state does not reach the enclosing expression.
+    FunctionEnd {
+        meta: ExpressionMetadata,
+        deps: u32,
+    },
 }
 
 impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
-    /// Children first, so that a chain is not walked again at every link.
-    pub(super) fn visit(&mut self, identifier: NodeIdentifier) -> Visited {
+    pub(super) fn visit(&mut self, root: NodeIdentifier) {
+        let mut pending = vec![Task::Visit(root)];
+        while let Some(task) = pending.pop() {
+            match task {
+                Task::Visit(identifier) => self.enter(identifier, &mut pending),
+                Task::CallEnd { call, callee, rune } => self.call_end(call, callee, rune),
+                Task::FunctionEnd { meta, deps } => {
+                    self.function_depth -= 1;
+                    self.meta = meta;
+                    self.deps = deps;
+                }
+            }
+        }
+    }
+
+    /// Judges `identifier` and pushes its children so that they pop in source order.
+    fn enter(&mut self, identifier: NodeIdentifier, pending: &mut Vec<Task>) {
         let kind = self.syntax_tree.kind(identifier);
         self.needs_context |= matches!(kind, Kind::New { .. });
+        let mut base = pending.len();
         match kind {
-            Kind::String
-            | Kind::Regex { .. }
-            | Kind::BigInt
-            | Kind::Number(_)
-            | Kind::Boolean(_)
-            | Kind::Null => Visited {
-                pure: true,
-                root: None,
-            },
             Kind::Identifier(_) => {
                 if COLLECT_METADATA {
                     self.reference(identifier);
                 }
-                Visited {
-                    pure: self.res.binding(identifier).is_none(),
-                    root: Some(identifier),
-                }
             }
-            Kind::Member {
-                object,
-                property,
-                computed,
-                ..
-            } => {
-                let visited = self.link(object);
-                if computed {
-                    self.visit(property);
-                }
-                self.meta.has_member = true;
-                if COLLECT_METADATA && !visited.pure {
-                    self.meta.has_state = true;
-                }
-                if !self.is_safe(visited.root) {
-                    self.needs_context = true;
-                }
-                visited
-            }
+            Kind::Member { .. } => self.member_chain(identifier, pending),
             Kind::Call {
                 callee, arguments, ..
-            } => self.call(identifier, callee, arguments),
+            } => {
+                let rune = self.res.rune(self.syntax_tree, identifier).map(|(r, _)| r);
+                pending.push(Task::CallEnd {
+                    call: identifier,
+                    callee,
+                    rune,
+                });
+                base += 1;
+                pending.push(Task::Visit(callee));
+                pending.extend(arguments.iter().map(|&a| Task::Visit(a)));
+            }
             Kind::Property {
                 key,
                 value,
@@ -118,10 +119,17 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
                 ..
             } => {
                 if computed {
-                    self.visit(key);
+                    pending.push(Task::Visit(key));
                 }
-                self.visit(value);
-                Visited::OPAQUE
+                pending.push(Task::Visit(value));
+            }
+            // Upstream `TaggedTemplateExpression`: a tag is a call.
+            Kind::TaggedTemplate { tag, quasi } => {
+                if COLLECT_METADATA && !self.is_pure(tag) {
+                    self.meta.has_call = true;
+                    self.meta.has_state = true;
+                }
+                pending.extend([Task::Visit(tag), Task::Visit(quasi)]);
             }
             // Upstream `SpreadElement`: `[...x]` reads like `[...x.values()]`. Its expression state
             // is cleared inside functions.
@@ -130,51 +138,45 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
                     self.meta.has_call = true;
                     self.meta.has_state = true;
                 }
-                Visited {
-                    pure: self.visit(arg).pure,
-                    root: None,
-                }
+                pending.push(Task::Visit(arg));
             }
             Kind::Function { .. } | Kind::Arrow { .. } => {
-                let saved_meta = self.meta;
-                let saved_deps = self.deps;
+                pending.push(Task::FunctionEnd {
+                    meta: self.meta,
+                    deps: self.deps,
+                });
+                base += 1;
                 self.function_depth += 1;
-                let tree = self.syntax_tree;
-                tree.for_each_child(identifier, |child| {
-                    self.visit(child);
-                });
-                self.function_depth -= 1;
-                self.meta = saved_meta;
-                self.deps = saved_deps;
-                Visited::OPAQUE
+                self.syntax_tree
+                    .for_each_child(identifier, |child| pending.push(Task::Visit(child)));
             }
-            _ => {
-                let tree = self.syntax_tree;
-                tree.for_each_child(identifier, |child| {
-                    self.visit(child);
-                });
-                Visited::OPAQUE
-            }
+            _ => self
+                .syntax_tree
+                .for_each_child(identifier, |child| pending.push(Task::Visit(child))),
+        }
+        if !matches!(kind, Kind::Member { .. }) {
+            pending[base..].reverse();
         }
     }
 
-    fn call(
+    fn call_end(
         &mut self,
-        identifier: NodeIdentifier,
+        call: NodeIdentifier,
         callee: NodeIdentifier,
-        arguments: &[NodeIdentifier],
-    ) -> Visited {
-        let rune = rune_call(self.syntax_tree, identifier).map(|(r, _)| r);
-        let callee = self.link(callee);
-        let mut pure = callee.pure;
-        for &a in arguments {
-            pure &= self.visit(a).pure;
+        rune: Option<&'static str>,
+    ) {
+        // Inner calls end first, so this reads their recorded purity instead of walking them.
+        if COLLECT_METADATA {
+            let pure = self.is_pure(call);
+            self.pure_calls.insert(call, pure);
         }
+        // A whole optional chain as the callee is upstream's `ChainExpression`.
+        let chain = self.syntax_tree.is_chain(callee);
         if rune.is_none() {
-            if !self.is_safe(callee.root) {
+            if chain || !self.is_safe(callee) {
                 self.needs_context = true;
             }
-            if COLLECT_METADATA && (!callee.pure || self.deps > 0) {
+            if COLLECT_METADATA && (chain || !self.is_pure(callee) || self.deps > 0) {
                 self.meta.has_call = true;
                 self.meta.has_state = true;
             }
@@ -187,20 +189,37 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
         } else if matches!(rune, Some("$effect" | "$effect.pre" | "$bindable")) {
             self.needs_context = true;
         }
-        Visited {
-            pure: pure && rune != Some("$effect.tracking"),
-            root: None,
-        }
     }
 
-    /// A member's object or a call's callee. A whole optional chain there is upstream's
-    /// `ChainExpression`, which `is_pure` and `is_safe_identifier` do not look through.
-    fn link(&mut self, identifier: NodeIdentifier) -> Visited {
-        let visited = self.visit(identifier);
-        if self.syntax_tree.is_chain(identifier) {
-            Visited::OPAQUE
-        } else {
-            visited
+    /// A chain `a.b.c…`, walked down by a loop. Every link shares the innermost one's root, so
+    /// only that one is judged.
+    fn member_chain(&mut self, identifier: NodeIdentifier, pending: &mut Vec<Task>) {
+        let (mut innermost, mut at) = (identifier, identifier);
+        // Pushed outermost first, so the root and then the innermost property pop first.
+        while let Kind::Member {
+            object,
+            property,
+            computed,
+            ..
+        } = self.syntax_tree.kind(at)
+        {
+            if computed {
+                pending.push(Task::Visit(property));
+            }
+            innermost = at;
+            at = object;
+            // A whole optional chain as the object is upstream's `ChainExpression`, judged apart.
+            if self.syntax_tree.is_chain(at) {
+                break;
+            }
+        }
+        pending.push(Task::Visit(at));
+        self.meta.has_member = true;
+        if COLLECT_METADATA && !self.is_pure(innermost) {
+            self.meta.has_state = true;
+        }
+        if !self.is_safe(innermost) {
+            self.needs_context = true;
         }
     }
 
@@ -225,9 +244,56 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
         }
     }
 
+    /// The identifier a member chain starts from; an optional chain as an object has none.
+    fn root_ident(&self, mut e: NodeIdentifier) -> Option<NodeIdentifier> {
+        while let Kind::Member { object, .. } = self.syntax_tree.kind(e) {
+            if self.syntax_tree.is_chain(object) {
+                return None;
+            }
+            e = object;
+        }
+        matches!(self.syntax_tree.kind(e), Kind::Identifier(_)).then_some(e)
+    }
+
+    /// Upstream `is_pure`. A chain `f().a()…` is followed by a loop: a member's object that is
+    /// not an identifier is pure when it is, and an optional chain there never is.
+    fn is_pure(&self, mut e: NodeIdentifier) -> bool {
+        loop {
+            match self.syntax_tree.kind(e) {
+                Kind::String
+                | Kind::Regex { .. }
+                | Kind::BigInt
+                | Kind::Number(_)
+                | Kind::Boolean(_)
+                | Kind::Null => return true,
+                Kind::Call {
+                    callee, arguments, ..
+                } => {
+                    if let Some(&pure) = self.pure_calls.get(&e) {
+                        return pure;
+                    }
+                    if !arguments.iter().all(|&a| self.is_pure(a))
+                        || self.syntax_tree.is_chain(callee)
+                    {
+                        return false;
+                    }
+                    e = callee;
+                }
+                Kind::Identifier(_) => return self.res.binding(e).is_none(),
+                Kind::Member { object, .. } => {
+                    if self.syntax_tree.is_chain(object) {
+                        return false;
+                    }
+                    e = object;
+                }
+                _ => return false,
+            }
+        }
+    }
+
     /// Upstream `is_safe_identifier`.
-    fn is_safe(&self, root: Option<NodeIdentifier>) -> bool {
-        let Some(root) = root else {
+    fn is_safe(&self, e: NodeIdentifier) -> bool {
+        let Some(root) = self.root_ident(e) else {
             return false;
         };
         let Some((b, info)) = self.res.binding(root) else {

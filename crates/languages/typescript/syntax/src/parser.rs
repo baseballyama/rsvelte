@@ -1,23 +1,26 @@
 //! A recursive-descent / precedence-climbing parser for the JavaScript subset the pipeline
 //! supports, writing into an [`SyntaxTree`] through its builder methods.
 //!
-//! TypeScript is accepted where Svelte components use it: type annotations on bindings, parameters
-//! and return types, `as` / `satisfies` / `!`, `import type`, and `type` / `interface` / `declare`
-//! statements. Types are not parsed into nodes; their spans are recorded
-//! ([`SyntaxTree::typescript`], [`crate::syntax_tree::Tag::TypeScriptDeclaration`]) so compilation
-//! drops them and source-preserving consumers (the type-check projection) copy them verbatim.
+//! TypeScript is read in full. Types are [`crate::syntax_tree::Type`] nodes that no value node has
+//! as a child: each is attached to the value node it belongs to through [`SyntaxTree::typescript`],
+//! with its span, or held by a [`crate::syntax_tree::Tag::TypeScriptDeclaration`] statement, so
+//! compilation drops them and source-preserving consumers (the type-check projection) copy them
+//! verbatim.
 //!
 //! Anything outside the subset is a [`ParseError`], never a panic.
 
 use rsvelte_kernel::source::positions::Span;
+use std::cell::RefCell;
+
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::lexer::{LexedToken, Lexer, LexicalError, T, decode_string};
 use crate::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
 };
 use crate::syntax_tree::{
-    Kind, NodeIdentifier, SyntaxTree, TypeRef, TypeScriptFeature, TypeScriptKind,
-    TypeScriptRuntime, TypeScriptSyntax, flag,
+    Kind, NodeIdentifier, SyntaxTree, TypeDeclaration, TypeDeclarationKind, TypeRef,
+    TypeScriptFeature, TypeScriptKind, TypeScriptRuntime, TypeScriptSyntax, flag,
 };
 
 #[derive(Debug, Clone)]
@@ -37,7 +40,15 @@ impl From<LexicalError> for ParseError {
 
 type R<T> = Result<T, ParseError>;
 
+/// How deeply a parse may nest. A level is one recursive grammar cycle, and a parenthesized
+/// expression takes two; acorn under Node's default stack stops below 7,000 of the shallowest.
+pub const MAX_NESTING: u32 = 1 << 16;
+
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "one flag per grammar context"
+)]
 pub(crate) struct Parser<'a, 'b> {
     source_text: &'a str,
     lex: Lexer<'a>,
@@ -48,14 +59,34 @@ pub(crate) struct Parser<'a, 'b> {
     /// Inside type syntax: identifiers the parser consumes are noted in
     /// [`SyntaxTree::type_references`].
     in_type: u32,
+    /// In the `extends` clause of a conditional type, where another conditional type needs
+    /// parentheses.
+    in_extends: bool,
+    /// Inside a `declare` statement, whose namespaces hold no runtime code.
+    declared: bool,
     syntax_tree: &'b mut SyntaxTree,
     typescript: bool,
+    /// A `<` in an expression starts JSX.
+    jsx: bool,
     allow_in: bool,
     /// `await` is an expression here: a module's top level or an async function's body.
     in_async: bool,
     end: u32,
+    /// `{ a = 1 }` shorthand properties not yet read as patterns; any left at the end is an error.
+    cover_initializers: FxHashSet<Span>,
     /// [`SyntaxTree::scratch`]'s length when this parse began.
     base: usize,
+    /// How many [`Parser::nested`] calls are open.
+    depth: u32,
+    /// Per lexer position just after an opening bracket: the position after its closing one, as
+    /// [`Parser::lookahead_group`] found it.
+    groups: RefCell<FxHashMap<u32, u32>>,
+    /// What [`Parser::type_arguments_before_call`] has read.
+    angles: RefCell<type_arguments::Angles>,
+    /// The links of the assignment chains being read, innermost last; each chain pops its own.
+    links: Vec<expressions::Link>,
+    /// The prefix operators of the unary expressions being read, likewise.
+    prefixes: Vec<(expressions::Prefix, u32)>,
 }
 
 /// A failed parse leaves its open lists on the scratch stack; they go with it.
@@ -65,9 +96,21 @@ impl Drop for Parser<'_, '_> {
     }
 }
 
+/// Where a parse stood, to read a stretch again another way ([`Parser::checkpoint`]).
+#[derive(Clone, Copy)]
+struct Checkpoint<'a> {
+    lex: Lexer<'a>,
+    token: LexedToken,
+    prev: LexedToken,
+    prev_end: u32,
+    in_type: u32,
+    mark: crate::syntax_tree::Mark,
+    scratch: usize,
+}
+
 /// A list being gathered on [`SyntaxTree::scratch`]. Lists nest, so the one opened last is on top,
 /// and gathering one allocates nothing: the items are copied into the tree when the node is built.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct List(usize);
 
 /// Parses `range` of `source_text` as a module body.
@@ -83,14 +126,36 @@ pub fn parse_program(
 ) -> R<NodeIdentifier> {
     // Svelte components average a token per 4.8 bytes (the lossless corpus test prints both).
     syntax_tree.tokens.reserve(range.len() as usize / 4);
+    program(
+        Parser::new(syntax_tree, source_text, range, typescript)?,
+        range,
+    )
+}
+
+/// [`parse_program`] for a `.jsx` or `.tsx` document, whose expressions may be JSX.
+///
+/// # Errors
+///
+/// [`ParseError`] at the first lexical or syntax error, or at syntax this parser does not support.
+pub fn parse_jsx_program(
+    syntax_tree: &mut SyntaxTree,
+    source_text: &str,
+    range: Span,
+    typescript: bool,
+) -> R<NodeIdentifier> {
     let mut p = Parser::new(syntax_tree, source_text, range, typescript)?;
+    p.jsx = true;
+    program(p, range)
+}
+
+fn program(mut p: Parser<'_, '_>, range: Span) -> R<NodeIdentifier> {
     let body = p.open();
     while p.token.t != T::Eof {
         let s = p.statement()?;
         p.item(s);
     }
     let program = p.close(body, |syntax_tree, body| syntax_tree.program(body, range));
-    p.done();
+    p.done()?;
     Ok(program)
 }
 
@@ -110,7 +175,7 @@ pub fn parse_expression(
     if p.token.t != T::Eof {
         return p.fail("unexpected token after expression");
     }
-    p.done();
+    p.done()?;
     Ok(e)
 }
 
@@ -138,7 +203,7 @@ pub fn parse_parameters(
     if p.token.t != T::Eof {
         return p.fail("unexpected token after parameters");
     }
-    p.done();
+    p.done()?;
     Ok(parameters)
 }
 
@@ -170,7 +235,7 @@ pub fn parse_expression_prefix(
     } else {
         p.token.span.start_offset
     };
-    p.done();
+    p.done()?;
     Ok((e, next))
 }
 
@@ -201,7 +266,7 @@ pub fn parse_declaration_prefix(
     } else {
         p.token.span.start_offset
     };
-    p.done();
+    p.done()?;
     Ok((d, next))
 }
 
@@ -297,13 +362,34 @@ impl<'a, 'b> Parser<'a, 'b> {
                 newline_before: false,
             },
             in_type: 0,
+            in_extends: false,
+            declared: false,
             base: syntax_tree.scratch.len(),
             syntax_tree,
             typescript,
+            jsx: false,
             allow_in: true,
             in_async: true,
             end: range.end_offset,
+            cover_initializers: FxHashSet::default(),
+            depth: 0,
+            groups: RefCell::default(),
+            angles: RefCell::default(),
+            links: Vec::new(),
+            prefixes: Vec::new(),
         })
+    }
+
+    /// Runs `f` one level deeper. Every recursive cycle of the grammar passes through here, so the
+    /// stack grows as the input nests and the depth is checked in one place.
+    fn nested<X>(&mut self, f: impl FnOnce(&mut Self) -> R<X>) -> R<X> {
+        if self.depth == MAX_NESTING {
+            return self.fail("statements, expressions and types nest too deeply");
+        }
+        self.depth += 1;
+        let result = rsvelte_kernel::performance::stack::grow(|| f(self));
+        self.depth -= 1;
+        result
     }
 
     fn fail<X>(&self, message: impl Into<String>) -> R<X> {
@@ -331,8 +417,9 @@ impl<'a, 'b> Parser<'a, 'b> {
 
     /// A binding identifier for the token `t`.
     fn binding_identifier(&mut self, t: LexedToken) -> R<NodeIdentifier> {
-        Self::check_name(self.text(t), t.span, true)?;
-        Ok(self.syntax_tree.ident(self.text(t), t.span))
+        let name = crate::lexer::identifier_name(self.text(t));
+        Self::check_name(&name, t.span, true)?;
+        Ok(self.syntax_tree.ident(&name, t.span))
     }
 
     #[inline]
@@ -340,13 +427,30 @@ impl<'a, 'b> Parser<'a, 'b> {
         t.span.text(self.source_text)
     }
 
+    /// The identifier node token `t` names.
+    fn ident_node(&mut self, t: LexedToken) -> NodeIdentifier {
+        let name = crate::lexer::identifier_name(self.text(t));
+        self.syntax_tree.ident(&name, t.span)
+    }
+
     /// Checks, where a parse succeeds, that it closed every list it opened.
-    fn done(&self) {
+    fn done(&self) -> R<()> {
+        if let Some(&span) = self
+            .cover_initializers
+            .iter()
+            .min_by_key(|s| s.start_offset)
+        {
+            return Err(ParseError {
+                message: "a shorthand property cannot have an initializer here".into(),
+                span,
+            });
+        }
         debug_assert_eq!(
             self.syntax_tree.scratch.len(),
             self.base,
             "a list was left open"
         );
+        Ok(())
     }
 
     const fn open(&self) -> List {
@@ -395,7 +499,8 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.prev_end = t.span.end_offset;
         self.token = self.lex.next(&mut self.syntax_tree.comments)?;
         if self.in_type > 0 && t.t == T::Identifier && self.names_a_binding(t) {
-            let name = self.syntax_tree.atoms.intern(self.text(t));
+            let name = crate::lexer::identifier_name(self.text(t));
+            let name = self.syntax_tree.atoms.intern(&name);
             self.syntax_tree
                 .type_references
                 .push(TypeRef { name, span: t.span });
@@ -473,6 +578,47 @@ impl<'a, 'b> Parser<'a, 'b> {
         Span::new(start_offset, self.prev_end)
     }
 
+    const fn checkpoint(&self) -> Checkpoint<'a> {
+        Checkpoint {
+            lex: self.lex,
+            token: self.token,
+            prev: self.prev,
+            prev_end: self.prev_end,
+            in_type: self.in_type,
+            mark: self.syntax_tree.mark(),
+            scratch: self.syntax_tree.scratch.len(),
+        }
+    }
+
+    /// Goes back to `checkpoint`; nodes built since stay in the tree, unreachable.
+    fn restore(&mut self, checkpoint: Checkpoint<'a>) {
+        self.lex = checkpoint.lex;
+        self.token = checkpoint.token;
+        self.prev = checkpoint.prev;
+        self.prev_end = checkpoint.prev_end;
+        self.in_type = checkpoint.in_type;
+        self.syntax_tree.rewind(checkpoint.mark);
+        self.syntax_tree.scratch.truncate(checkpoint.scratch);
+    }
+
+    /// The token `n` after the current one.
+    fn peek_nth(&self, n: usize) -> LexedToken {
+        let mut l = self.lex;
+        let mut scratch = Vec::new();
+        let mut token = Err(());
+        for _ in 0..n {
+            token = l.next(&mut scratch).map_err(drop);
+            if token.is_err() {
+                break;
+            }
+        }
+        token.unwrap_or_else(|()| LexedToken {
+            t: T::Eof,
+            span: Span::new(self.end, self.end),
+            newline_before: false,
+        })
+    }
+
     /// A peek at the token after the current one.
     fn peek(&self) -> LexedToken {
         let mut l = self.lex;
@@ -499,9 +645,15 @@ impl<'a, 'b> Parser<'a, 'b> {
 mod classes;
 mod control;
 mod expressions;
+mod jsx;
 mod literals;
 mod lookahead;
 mod members;
 mod patterns;
 mod statements;
+mod type_arguments;
+mod types;
 mod typescript;
+
+#[cfg(test)]
+mod tests;

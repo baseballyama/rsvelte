@@ -6,6 +6,9 @@
 //! scopes its own syntax opens, like Vue's `v-for`) is analyzed as if it were nested in the
 //! program's top-level scope, which is what makes script-and-template facts ("is this variable used
 //! anywhere?") one query instead of two analyses.
+//!
+//! Both passes walk with a stack of steps rather than by recursion, so nesting depth costs heap,
+//! and each lookup and `var` takes constant time, so the cost stays linear in the tree.
 
 use rsvelte_kernel::index::{IndexVector, TypedIndex};
 use rsvelte_kernel::newtype_index;
@@ -13,7 +16,8 @@ use rsvelte_kernel::source::interning::Atom;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_syntax::operators::AssignmentOperator;
 use rsvelte_typescript_syntax::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, flag};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::sync::OnceLock;
 
 newtype_index!(
     pub struct BindingIdentifier;
@@ -114,6 +118,18 @@ pub struct HostScope {
     pub body: Vec<HostRoot>,
 }
 
+/// Frees nested bodies in a loop, so dropping scopes as deep as the markup does not recurse.
+impl Drop for HostScope {
+    fn drop(&mut self) {
+        let mut pending = std::mem::take(&mut self.body);
+        while let Some(root) = pending.pop() {
+            if let HostRoot::Scope(mut scope) = root {
+                pending.append(&mut scope.body);
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Semantic {
     pub scopes: IndexVector<ScopeIdentifier, Scope>,
@@ -137,9 +153,21 @@ pub struct Semantic {
     /// typescript-eslint's scope analysis counts such a name as a read; the compiler's read
     /// counts do not.
     type_referenced: Vec<bool>,
+    /// The names that type declarations declare, by the scope they are declared in.
+    type_names: FxHashSet<(ScopeIdentifier, Atom)>,
+    /// Built at the first [`Semantic::lookup`].
+    visibility: OnceLock<visibility::Visibility>,
 }
 
 impl Semantic {
+    /// Whether a `type`, `interface`, `enum` or `namespace` of `b`'s scope has `b`'s name.
+    /// typescript-eslint then has one variable with two definitions.
+    #[must_use]
+    pub fn shares_name_with_type(&self, b: BindingIdentifier) -> bool {
+        let binding = &self.bindings[b];
+        self.type_names.contains(&(binding.scope, binding.name))
+    }
+
     #[must_use]
     pub fn binding_of(&self, ident: NodeIdentifier) -> Option<BindingIdentifier> {
         self.node_binding
@@ -169,13 +197,10 @@ impl Semantic {
 
     /// What `name` refers to in `scope`: its own binding or the nearest enclosing one.
     #[must_use]
-    pub fn lookup(&self, mut scope: ScopeIdentifier, name: Atom) -> Option<BindingIdentifier> {
-        loop {
-            if let Some(&b) = self.names.get(&(scope, name)) {
-                return Some(b);
-            }
-            scope = self.scopes[scope].parent?;
-        }
+    pub fn lookup(&self, scope: ScopeIdentifier, name: Atom) -> Option<BindingIdentifier> {
+        self.visibility
+            .get_or_init(|| visibility::Visibility::new(self))
+            .lookup(scope, name)
     }
 
     pub fn references_to(&self, b: BindingIdentifier) -> impl Iterator<Item = &Reference> {
@@ -231,10 +256,23 @@ struct Analyzer<'a> {
     syntax_tree: &'a SyntaxTree,
     s: Semantic,
     stack: Vec<ScopeIdentifier>,
+    /// Per scope: its nearest function scope, so a `var` finds it without walking the chain.
+    variable_scopes: Vec<ScopeIdentifier>,
     /// The declarator/specifier being declared in pass 1.
     current_declaration: Option<NodeIdentifier>,
     /// The next of [`Semantic::host_scopes`] pass 2 enters; it walks the roots in pass 1's order.
     next_host_scope: usize,
+    /// Pass 2: per name, the bindings of the current scope's chain that have it, innermost last,
+    /// so a lookup does not walk the chain.
+    visible: FxHashMap<Atom, Vec<BindingIdentifier>>,
+    /// Pass 2: the bindings grouped by scope (`scope_bindings[start[s]..start[s + 1]]`).
+    scope_bindings: Vec<BindingIdentifier>,
+    scope_bindings_start: Vec<u32>,
+    /// Pass 2: how each `Enter` step opened its scope, for the matching `Leave`.
+    opened: Vec<resolve::Opened>,
+    /// The step stacks, kept between the walks of the host roots.
+    declare_work: Vec<declare::Declare>,
+    resolve_work: Vec<resolve::Resolve>,
 }
 
 #[must_use]
@@ -266,10 +304,19 @@ pub fn analyze_enclosed(
             by_binding: Vec::new(),
             by_binding_start: Vec::new(),
             type_referenced: Vec::new(),
+            type_names: FxHashSet::default(),
+            visibility: OnceLock::new(),
         },
         stack: vec![ScopeIdentifier::ROOT],
+        variable_scopes: vec![ScopeIdentifier::ROOT],
         current_declaration: None,
         next_host_scope: 0,
+        visible: FxHashMap::default(),
+        scope_bindings: Vec::new(),
+        scope_bindings_start: Vec::new(),
+        opened: Vec::new(),
+        declare_work: Vec::new(),
+        resolve_work: Vec::new(),
     };
     a.s.node_scope.insert(program, ScopeIdentifier::ROOT);
     if let Some(module) = enclosing {
@@ -279,6 +326,7 @@ pub fn analyze_enclosed(
             node: module,
         });
         a.s.scopes[ScopeIdentifier::ROOT].parent = Some(scope);
+        a.variable_scopes.push(scope);
         a.s.node_scope.insert(module, scope);
         a.stack.push(scope);
         a.declare_children(module);
@@ -286,12 +334,14 @@ pub fn analyze_enclosed(
     }
     a.declare_children(program);
     a.declare_host(host);
+    a.index_scope_bindings();
     if let Some(module) = enclosing {
-        a.stack.push(a.s.node_scope[&module]);
-        a.resolve_children(module);
-        a.stack.pop();
+        a.open(a.s.node_scope[&module]);
+        a.resolve(resolve::Resolve::Children(module));
+        a.close();
     }
-    a.resolve_children(program);
+    a.rebuild_visible();
+    a.resolve(resolve::Resolve::Children(program));
     a.resolve_host(host);
     a.resolve_type_references();
     a.s.index_references();
@@ -300,3 +350,4 @@ pub fn analyze_enclosed(
 
 mod declare;
 mod resolve;
+mod visibility;

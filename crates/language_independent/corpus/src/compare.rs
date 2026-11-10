@@ -127,6 +127,32 @@ pub(crate) fn verdict(
     Ok(Some(worst))
 }
 
+/// One file of a unit: the official one against the one rsvelte's task wrote, JSON as values and
+/// the rest as bytes. Neither file matches, as both tools found nothing to write.
+///
+/// # Errors
+///
+/// The official file is not the JSON its name says.
+pub(crate) fn file_verdict(
+    official: Option<&Entry<'_>>,
+    ours: Option<&TaskOutput>,
+    name: &str,
+) -> Result<Verdict, String> {
+    let (official, actual) = match (official, ours.and_then(|o| file(o, name))) {
+        (None, None) => return Ok(Verdict::Match),
+        (None, Some(_)) => return Ok(Verdict::Unexpected),
+        (Some(_), None) => return Ok(Verdict::Missing),
+        (Some(e), Some(actual)) => (e, actual),
+    };
+    if !name.ends_with("json") {
+        return Ok(same(official.body == actual));
+    }
+    let parse = serde_json::from_str::<serde_json::Value>;
+    let expected = parse(official.body)
+        .map_err(|e| format!("official {name} of {}: not JSON: {e}", official.path))?;
+    Ok(same(parse(actual).is_ok_and(|actual| actual == expected)))
+}
+
 fn file<'a>(output: &'a TaskOutput, name: &str) -> Option<&'a str> {
     output
         .files

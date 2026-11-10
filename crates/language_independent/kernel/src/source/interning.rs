@@ -122,5 +122,25 @@ impl Interner {
     }
 }
 
+/// A `'static` copy of `name`, made once per distinct name in the process.
+///
+/// For names that configuration supplies at run time where code keeps `&'static str`, such as
+/// rule identifiers: loading the same configuration again allocates nothing.
+pub fn static_name(name: &str) -> &'static str {
+    static NAMES: std::sync::Mutex<Option<std::collections::HashSet<&'static str>>> =
+        std::sync::Mutex::new(None);
+    let mut guard = NAMES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let names = guard.get_or_insert_with(std::collections::HashSet::new);
+    if let Some(&known) = names.get(name) {
+        return known;
+    }
+    let owned: &'static str = Box::leak(name.to_owned().into_boxed_str());
+    names.insert(owned);
+    drop(guard);
+    owned
+}
+
 #[cfg(test)]
 mod tests;

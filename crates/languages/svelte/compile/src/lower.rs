@@ -133,12 +133,7 @@ pub(crate) fn validate(
     validation::markup::check(input)?;
     coverage::check(input, res)?;
     validation::check_typescript(input)?;
-    check_stores(
-        input.component.javascript,
-        res,
-        input.component.source_text,
-        input.component.program,
-    )?;
+    check_stores(input.component.javascript, res)?;
     let rest_reads = rest_reads::build(input, res, custom_element.is_some());
     Ok(ValidatedOptions {
         custom_element,
@@ -174,7 +169,6 @@ fn is_custom_element_node(tree: &CompilerSyntaxTree, source_text: &str, el: &Ele
                 .any(|a| !is_directive(&a.value) && a.name.text(source_text) == "is"))
 }
 
-/// The diagnostic for input this compiler does not lower yet. `what` is a singular subject.
 /// The span of a node an error names; a frontend writes nodes only where none is raised.
 fn span_of(javascript: &SyntaxTree, e: NodeIdentifier) -> Span {
     let Some(span) = javascript.source_location(e).span() else {
@@ -183,6 +177,7 @@ fn span_of(javascript: &SyntaxTree, e: NodeIdentifier) -> Span {
     span
 }
 
+/// The diagnostic for input this compiler does not lower yet. `what` is a singular subject.
 fn unsupported<T>(what: &str, span: Span) -> Result<T, Diagnostic> {
     Err(Diagnostic::error(
         "unsupported",

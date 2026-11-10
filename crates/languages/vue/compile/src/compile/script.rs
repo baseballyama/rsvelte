@@ -271,7 +271,7 @@ pub(super) fn partition_setup_statements(
             {
                 hoisted.push(s);
             }
-            Kind::TypeScriptDeclaration | Kind::TypeScriptInterface { .. } => hoisted.push(s),
+            Kind::TypeScriptDeclaration => hoisted.push(s),
             _ if Some(s) == props_statement
                 && resolution
                     .define_props

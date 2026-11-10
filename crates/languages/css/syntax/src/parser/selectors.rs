@@ -214,8 +214,9 @@ impl P<'_> {
         let arguments = if self.peek() == Some(b'(') {
             self.position += 1;
             let a = self.position;
-            if !element
-                && matches!(
+            // A pseudo-element's argument is a selector list, as Svelte reads it.
+            if element
+                || matches!(
                     name.text(self.source_text),
                     "is" | "where" | "has" | "not" | "global"
                 )
@@ -250,6 +251,7 @@ impl P<'_> {
             Simple::PseudoElement {
                 span: self.span(s),
                 name,
+                selectors: selectors.into_boxed_slice(),
             }
         } else {
             Simple::PseudoClass {

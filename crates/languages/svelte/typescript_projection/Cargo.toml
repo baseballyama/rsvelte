@@ -11,6 +11,7 @@ doctest = false
 
 [dependencies]
 rsvelte_plugin_interface.workspace = true
+rsvelte_svelte_semantic.workspace = true
 rsvelte_svelte_syntax.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript_syntax.workspace = true

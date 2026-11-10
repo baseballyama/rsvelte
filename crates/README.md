@@ -18,7 +18,6 @@ crates/
 │   ├── lint/                  lint tasks, or what linters share (html: button types)
 │   └── check/                 type check tasks (svelte, typescript, vue)
 ├── languages/svelte/
-│   ├── lint_typed/            type-aware lint rules
 │   ├── typescript_projection/ Svelte to TypeScript, for type checks
 │   └── compile_vapor/         Svelte compiled for the Vue Vapor runtime
 ├── languages/typescript/content_mapper/  the protocol to the native TypeScript checker

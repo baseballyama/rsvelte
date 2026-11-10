@@ -1,5 +1,5 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_typescript_syntax::NodeIdentifier;
-use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 use super::children::Child;
 use super::{
@@ -101,7 +101,7 @@ impl Printer<'_, '_> {
                     && (span.start_offset == 0 || span.end_offset == end)
                     && self
                         .raw(n)
-                        .trim_matches(is_javascript_whitespace)
+                        .trim_matches(is_ecmascript_whitespace)
                         .is_empty())
             })
             .map(|&n| (Child::Node(n), c.node(n).span()))
@@ -252,7 +252,7 @@ impl Printer<'_, '_> {
             };
             let data = data
                 .text(self.source_text)
-                .trim_matches(is_javascript_whitespace);
+                .trim_matches(is_ecmascript_whitespace);
             if data.starts_with("prettier-ignore") {
                 return Err(Unsupported::at("prettier-ignore comments", span));
             }
@@ -300,7 +300,7 @@ impl Printer<'_, '_> {
             .and_then(|&f| self.child_text(f))
             .filter(|&f| c.node(f).span().start_offset == 0)
         {
-            let t = self.raw(first).trim_start_matches(is_javascript_whitespace);
+            let t = self.raw(first).trim_start_matches(is_ecmascript_whitespace);
             self.set_raw(first, Cow::Owned(t.to_owned()));
         }
         let end = self.source_text.len();
@@ -309,7 +309,7 @@ impl Printer<'_, '_> {
             .and_then(|&l| self.child_text(l))
             .filter(|&l| c.node(l).span().end_offset as usize == end)
         {
-            let t = self.raw(last).trim_end_matches(is_javascript_whitespace);
+            let t = self.raw(last).trim_end_matches(is_ecmascript_whitespace);
             self.set_raw(last, Cow::Owned(t.to_owned()));
         }
         for &child in root {
@@ -401,7 +401,7 @@ impl Printer<'_, '_> {
         program: NodeIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
         let text = content.text(self.source_text);
-        if text.trim_matches(is_javascript_whitespace).is_empty() {
+        if text.trim_matches(is_ecmascript_whitespace).is_empty() {
             return Ok(if text.is_empty() {
                 self.d().nil()
             } else {
@@ -451,8 +451,15 @@ impl Printer<'_, '_> {
         }) {
             return Err(Unsupported::at("a style language other than CSS", *n));
         }
-        let text = style.sheet.content.text(self.source_text);
-        if text.trim_matches(is_javascript_whitespace).is_empty() {
+        // The task formats only a component whose style sheet parsed.
+        let Ok(sheet) = &style.sheet else {
+            return Err(Unsupported::at(
+                "a style sheet that does not parse",
+                style.content,
+            ));
+        };
+        let text = style.content.text(self.source_text);
+        if text.trim_matches(is_ecmascript_whitespace).is_empty() {
             return Ok(if text.is_empty() {
                 self.d().nil()
             } else {
@@ -470,8 +477,7 @@ impl Printer<'_, '_> {
         } else {
             0
         };
-        let stylesheet =
-            rsvelte_stylesheet_format::format(self.source_text, &style.sheet, "", &unit)?;
+        let stylesheet = rsvelte_stylesheet_format::format(self.source_text, sheet, "", &unit)?;
         // The CSS printer makes no width decisions; it is exact only while no line has to wrap.
         if stylesheet.lines().any(|l| {
             // The printer counts a tab of indentation as `tabWidth` columns.

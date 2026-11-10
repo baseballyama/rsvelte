@@ -5,12 +5,21 @@ use super::{
 
 impl Formatter<'_> {
     /// Prettier's `printStatementSequence`; a program or function body (`directives`) starts
-    /// with its directive prologue.
+    /// with its directive prologue. Blocks nest thousands deep in real input, so a block
+    /// statement opens a sequence on a stack instead of recursing.
     pub(super) fn statements(
         &mut self,
         body: &[NodeIdentifier],
         directives: bool,
     ) -> R<Vec<LayoutInstructionIdentifier>> {
+        struct Open {
+            block: Option<NodeIdentifier>,
+            body: Vec<NodeIdentifier>,
+            /// How many statements of `body` are the directive prologue.
+            prologue: usize,
+            next: usize,
+            out: Vec<LayoutInstructionIdentifier>,
+        }
         let prologue = if directives {
             body.iter()
                 .take_while(|&&s| self.directive(s).is_some())
@@ -18,26 +27,62 @@ impl Formatter<'_> {
         } else {
             0
         };
-        let body: Vec<NodeIdentifier> = body
-            .iter()
-            .copied()
-            .filter(|&s| !matches!(self.syntax_tree.kind(s), Kind::Empty))
-            .collect();
-        let mut out = Vec::new();
-        for (i, &s) in body.iter().enumerate() {
-            // The prologue holds no empty statement, so it keeps its indices here.
-            out.push(match self.directive(s) {
-                Some(raw) if i < prologue => self.print_directive(raw),
-                _ => self.statement(s)?,
-            });
-            if let Some(&next) = body.get(i + 1) {
-                out.push(self.docs.hardline());
+        let mut open = vec![Open {
+            block: None,
+            body: self.non_empty(body),
+            prologue,
+            next: 0,
+            out: Vec::new(),
+        }];
+        loop {
+            let innermost = open.last_mut().expect("the outermost sequence closes last");
+            let printed = if let Some(&s) = innermost.body.get(innermost.next) {
+                let i = innermost.next;
+                innermost.next += 1;
+                // The prologue holds no empty statement, so it keeps its indices here.
+                if i < innermost.prologue
+                    && let Some(raw) = self.directive(s)
+                {
+                    self.print_directive(raw)
+                } else if let Kind::Block(body) = self.syntax_tree.kind(s) {
+                    let body = self.non_empty(body);
+                    open.push(Open {
+                        block: Some(s),
+                        body,
+                        prologue: 0,
+                        next: 0,
+                        out: Vec::new(),
+                    });
+                    continue;
+                } else {
+                    self.statement(s)?
+                }
+            } else {
+                let closed = open.pop().expect("the outermost sequence closes last");
+                if closed.block.is_none() {
+                    return Ok(closed.out);
+                }
+                self.braced(closed.out, false)
+            };
+            let innermost = open
+                .last_mut()
+                .expect("a closed block has a parent sequence");
+            innermost.out.push(printed);
+            let s = innermost.body[innermost.next - 1];
+            if let Some(&next) = innermost.body.get(innermost.next) {
+                innermost.out.push(self.docs.hardline());
                 if self.blank_line_between(s, next) {
-                    out.push(self.docs.hardline());
+                    innermost.out.push(self.docs.hardline());
                 }
             }
         }
-        Ok(out)
+    }
+
+    fn non_empty(&self, body: &[NodeIdentifier]) -> Vec<NodeIdentifier> {
+        body.iter()
+            .copied()
+            .filter(|&s| !matches!(self.syntax_tree.kind(s), Kind::Empty))
+            .collect()
     }
 
     /// The raw text of a statement that reads as a directive: a string, not in parentheses.
@@ -65,10 +110,15 @@ impl Formatter<'_> {
         self.docs.text(&text)
     }
 
+    /// Every nesting cycle through statements passes here; the parser bounds its depth.
     pub(super) fn statement(
         &mut self,
         identifier: NodeIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
+        rsvelte_kernel::performance::stack::grow(|| self.statement_kind(identifier))
+    }
+
+    fn statement_kind(&mut self, identifier: NodeIdentifier) -> R<LayoutInstructionIdentifier> {
         match self.syntax_tree.kind(identifier) {
             Kind::VariableDeclaration { kind, declarations } => {
                 self.var_declaration(kind, declarations)
@@ -107,16 +157,12 @@ impl Formatter<'_> {
                     Ok(self.import(identifier, specifiers, source, type_only))
                 }
             }
-            Kind::TypeScriptInterface { name, members } => self.interface(name, members),
             Kind::ExportNamed(d) => {
                 let d = self.statement(d)?;
                 let e = self.lit("export ");
                 Ok(self.cat(&[e, d]))
             }
-            Kind::TypeScriptDeclaration => Err(Unsupported::at(
-                "TypeScript declaration",
-                self.syntax_tree.source_location(identifier),
-            )),
+            Kind::TypeScriptDeclaration => self.interface(identifier),
             _ => Err(Unsupported::at(
                 "statement kind",
                 self.syntax_tree.source_location(identifier),

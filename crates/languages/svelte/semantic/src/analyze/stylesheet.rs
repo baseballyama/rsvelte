@@ -9,6 +9,7 @@ use crate::compiler_syntax_tree::{self, CompilerNodeIdentifier, CompilerSyntaxTr
 
 mod attributes;
 mod candidates;
+mod duplicates;
 mod element;
 mod external;
 mod relations;
@@ -16,6 +17,7 @@ mod topology;
 mod worklist;
 use attributes::AttributeFacts;
 use candidates::Candidates;
+use duplicates::Duplicates;
 use topology::Topology;
 
 use super::Analysis;
@@ -46,29 +48,37 @@ pub(super) fn analyze(
     };
     let nesting = RefCell::new(FxHashMap::default());
     let candidates = Candidates::new(input.compiler_syntax_tree, input.source_text, sheet);
+    let mut duplicates = Duplicates::default();
+    let elements_scoped = &mut analysis.scoped;
     sheet.visit_selectors(|selector| {
-        for identifier in candidates.matching(selector, sheet, input.source_text) {
-            let element = El {
-                compiler_syntax_tree: input.compiler_syntax_tree,
-                source_text: input.source_text,
-                identifier,
-                facts: &facts,
-                nesting: &nesting,
-                sheet,
-            };
-            matcher::matches_with(
-                input.source_text,
-                selector,
-                element,
-                &mut |matched, relative| {
-                    analysis.scoped[matched.identifier] = true;
-                    analysis.stylesheet_scoped[relative.id as usize] = true;
-                },
-                &mut |id| {
-                    analysis.stylesheet_used[id as usize] = true;
-                },
-            );
-        }
+        duplicates.match_once(
+            selector,
+            input.source_text,
+            &mut analysis.stylesheet_used,
+            &mut analysis.stylesheet_scoped,
+            |used, scoped| {
+                for identifier in candidates.matching(selector, sheet, input.source_text) {
+                    let element = El {
+                        compiler_syntax_tree: input.compiler_syntax_tree,
+                        source_text: input.source_text,
+                        identifier,
+                        facts: &facts,
+                        nesting: &nesting,
+                        sheet,
+                    };
+                    matcher::matches_with(
+                        input.source_text,
+                        selector,
+                        element,
+                        &mut |matched, relative| {
+                            elements_scoped[matched.identifier] = true;
+                            scoped(relative.id);
+                        },
+                        used,
+                    );
+                }
+            },
+        );
     });
 }
 

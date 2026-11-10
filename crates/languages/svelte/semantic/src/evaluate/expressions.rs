@@ -49,19 +49,12 @@ impl<'a> Evaluator<'a> {
                 quasis,
                 expressions,
             } => {
-                let Some(mut result) = self.cooked(syntax_tree, quasis[0]) else {
-                    add(values, Value::Unknown);
-                    return;
-                };
+                let mut result = self.cooked(syntax_tree, quasis[0]);
                 for (i, &x) in expressions.iter().enumerate() {
                     let ev = self.evaluate_inner(tree, x);
                     if ev.is_known() {
                         result.push_str(&ev.value().to_javascript_string());
-                        let Some(next) = self.cooked(syntax_tree, quasis[i + 1]) else {
-                            add(values, Value::Unknown);
-                            return;
-                        };
-                        result.push_str(&next);
+                        result.push_str(&self.cooked(syntax_tree, quasis[i + 1]));
                     } else {
                         // Upstream adds the partial string as well after giving up, and so do we.
                         add(values, Value::AnyString);

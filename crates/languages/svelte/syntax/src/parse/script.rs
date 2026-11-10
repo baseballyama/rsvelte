@@ -1,6 +1,6 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 use rsvelte_typescript_syntax::parser::parse_program;
 
 use super::{ParseResult, Parser, javascript_error};
@@ -27,7 +27,7 @@ pub(super) fn script_is_typescript(source_text: &str) -> bool {
         let Some(after) = at.strip_prefix("<script") else {
             continue;
         };
-        if !after.starts_with(is_javascript_whitespace) {
+        if !after.starts_with(is_ecmascript_whitespace) {
             continue;
         }
         let tag = &after[..after.find('>').unwrap_or(after.len())];
@@ -92,20 +92,23 @@ impl Parser<'_> {
                                 return self.err("unterminated attribute value");
                             };
                             value = Some(Span::new(value_start as u32, (value_start + len) as u32));
-                            self.eat_token(TokenType::Quote, 1);
-                            self.eat_token(TokenType::AttributeText, len);
-                            self.eat_token(TokenType::Quote, 1);
+                            let quote = super::attribute::quote_token(quote);
+                            self.eat_token(quote, 1);
+                            self.position += len;
+                            self.words(TokenType::AttributeText, value_start);
+                            self.eat_token(quote, 1);
                         } else {
                             let value_start = self.position;
                             let len = self
                                 .rest()
-                                .find(|c: char| is_javascript_whitespace(c) || c == '>')
+                                .find(|c| is_ecmascript_whitespace(c) || c == '>')
                                 .unwrap_or_else(|| self.rest().len());
                             if len == 0 {
                                 return self.err("expected an attribute value");
                             }
                             value = Some(Span::new(value_start as u32, (value_start + len) as u32));
-                            self.eat_token(TokenType::AttributeText, len);
+                            self.position += len;
+                            self.words(TokenType::AttributeText, value_start);
                         }
                     }
                     let span = Span::new(name.start_offset, self.position as u32);
@@ -205,10 +208,11 @@ impl Parser<'_> {
         self.component.tokens.push(TokenType::Stylesheet, content);
         self.close_raw("style");
         let sheet = rsvelte_stylesheet_syntax::parse(self.source_text, content)
-            .map_err(|e| Diagnostic::error("css_parse_error", e.message, e.span))?;
+            .map_err(|e| Diagnostic::error("css_parse_error", e.message, e.span));
         self.component.style = Some(Style {
             span: Span::new(start_offset as u32, self.position as u32),
             attributes,
+            content,
             sheet,
         });
         Ok(())

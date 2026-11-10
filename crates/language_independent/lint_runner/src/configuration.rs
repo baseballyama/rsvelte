@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 use rsvelte_kernel::diagnostics::Severity;
 use serde::de::{
-    self, Deserialize, Deserializer, IntoDeserializer, SeqAccess, Unexpected, Visitor,
+    self, Deserialize, Deserializer, IntoDeserializer, MapAccess, SeqAccess, Unexpected, Visitor,
 };
 
 const LEVELS: &str = "off, warn, error, 0, 1 or 2";
@@ -116,6 +116,97 @@ impl<'de, O: Deserialize<'de>> Visitor<'de> for EntryVisitor<O> {
             return Err(de::Error::invalid_length(3, &self));
         }
         Ok(RuleEntry { level, options })
+    }
+}
+
+/// `ESLint`'s `RuleEntry` for a rule with any number of options: a level alone, or `[level,
+/// ...options]`.
+#[derive(Debug)]
+pub struct RuleEntryList<O> {
+    pub level: Level,
+    pub options: Vec<O>,
+}
+
+impl<'de, O: Deserialize<'de>> Deserialize<'de> for RuleEntryList<O> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_any(ListVisitor(PhantomData))
+    }
+}
+
+struct ListVisitor<O>(PhantomData<O>);
+
+impl<O> ListVisitor<O> {
+    const fn level(level: Level) -> RuleEntryList<O> {
+        RuleEntryList {
+            level,
+            options: Vec::new(),
+        }
+    }
+}
+
+impl<'de, O: Deserialize<'de>> Visitor<'de> for ListVisitor<O> {
+    type Value = RuleEntryList<O>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{LEVELS}, or an array of a level and options")
+    }
+
+    fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+        Level::deserialize(v.into_deserializer()).map(Self::level)
+    }
+
+    fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
+        Level::deserialize(v.into_deserializer()).map(Self::level)
+    }
+
+    fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
+        Level::deserialize(v.into_deserializer()).map(Self::level)
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+        let level = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let mut options = Vec::new();
+        while let Some(option) = seq.next_element()? {
+            options.push(option);
+        }
+        Ok(RuleEntryList { level, options })
+    }
+}
+
+/// A `rules` object in the order the configuration writes it, which is the order `ESLint` runs the
+/// rules in. A repeated key keeps its first place and its last value, as a JavaScript object does.
+#[derive(Debug)]
+pub struct Rules<V>(pub Vec<(String, V)>);
+
+impl<'de, V: Deserialize<'de>> Deserialize<'de> for Rules<V> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_map(RulesVisitor(PhantomData))
+    }
+}
+
+struct RulesVisitor<V>(PhantomData<V>);
+
+impl<'de, V: Deserialize<'de>> Visitor<'de> for RulesVisitor<V> {
+    type Value = Rules<V>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("an object of rules")
+    }
+
+    fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+        let mut rules: Vec<(String, V)> = Vec::new();
+        let mut places = std::collections::HashMap::new();
+        while let Some((name, value)) = map.next_entry::<String, V>()? {
+            if let Some(&place) = places.get(&name) {
+                rules[place] = (name, value);
+            } else {
+                places.insert(name.clone(), rules.len());
+                rules.push((name, value));
+            }
+        }
+        Ok(Rules(rules))
     }
 }
 

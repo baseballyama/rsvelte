@@ -204,6 +204,78 @@ fn trim_descends_into_the_last_part() {
     assert_eq!(print(&d, root, &PrintOptions::default()), "a");
 }
 
+#[test]
+fn deeply_nested_documents_trim_on_a_small_stack() {
+    const DEPTH: usize = 100_000;
+    for left in [false, true] {
+        let mut d = LayoutInstructions::new();
+        let (a, line) = (d.lit("a"), d.line());
+        // Each level is `a`, then the level inside it, then a line: mirrored when trimming left.
+        let level = |d: &mut LayoutInstructions, inner: Option<LayoutInstructionIdentifier>| {
+            let mut items: Vec<_> = std::iter::once(a).chain(inner).chain([line]).collect();
+            if left {
+                items.reverse();
+            }
+            d.concat(&items)
+        };
+        let mut inner = level(&mut d, None);
+        for _ in 1..DEPTH {
+            inner = level(&mut d, Some(inner));
+        }
+        let mut docs = if left {
+            vec![line, inner]
+        } else {
+            vec![inner, line]
+        };
+        let (d, root) = std::thread::scope(|scope| {
+            std::thread::Builder::new()
+                .stack_size(1 << 20)
+                .spawn_scoped(scope, move || {
+                    // Lines are empty docs, so no whitespace test is needed to trim them.
+                    if left {
+                        d.trim_left(&mut docs, |_, _| false);
+                    } else {
+                        d.trim_right(&mut docs, |_, _| false);
+                    }
+                    let root = d.concat(&docs);
+                    (d, root)
+                })
+                .expect("spawns")
+                .join()
+                .expect("trims within a 1 MiB stack")
+        });
+        assert_eq!(print(&d, root, &PrintOptions::default()), "a".repeat(DEPTH));
+    }
+}
+
+#[test]
+fn deeply_nested_lines_are_judged_on_a_small_stack() {
+    const DEPTH: usize = 100_000;
+    let mut d = LayoutInstructions::new();
+    let line = d.line();
+    let mut lines = d.concat(&[line]);
+    for _ in 1..DEPTH {
+        lines = d.concat(&[lines, line]);
+    }
+    let a = d.lit("a");
+    let not_lines = d.concat(&[lines, a]);
+    let mut wrapped = line;
+    for _ in 1..DEPTH {
+        wrapped = d.indent(wrapped);
+    }
+    let verdicts = std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .stack_size(1 << 20)
+            .spawn_scoped(scope, || {
+                (d.is_line(lines), d.is_line(not_lines), d.is_empty(wrapped))
+            })
+            .expect("spawns")
+            .join()
+            .expect("judges within a 1 MiB stack")
+    });
+    assert_eq!(verdicts, (true, false, true));
+}
+
 /// Prettier's `fits` charges a line's space only when a string follows it. A fill whose words sit
 /// in the separator slots (`[line, "aa", line, "bb", …]`) therefore lets one word run past the
 /// width, and two lines in a row cost one space. Expected outputs from Prettier 3.9.10's

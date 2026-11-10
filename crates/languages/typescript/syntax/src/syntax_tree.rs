@@ -72,14 +72,11 @@ pub enum Tag {
     ExportNamed,
     ExportDefault,
     /// A TypeScript-only statement (`type`, `interface`, `declare …`): erased by compilation, kept
-    /// verbatim by source-preserving consumers.
+    /// verbatim by source-preserving consumers. [`SyntaxTree::declaration`] is what it declares.
     TypeScriptDeclaration,
-    /// `interface Name { key?: T; … }` with property members only; any other interface is a
-    /// `TypeScriptDeclaration`.
-    TypeScriptInterface,
-    /// A property member of a [`Tag::TypeScriptInterface`]; its type is a
-    /// [`TypeScriptKind::Annotation`].
-    TypeScriptPropertySignature,
+    /// Type syntax; see [`Type`].
+    Type,
+    Jsx,
     Identifier,
     Number,
     String,
@@ -89,6 +86,8 @@ pub enum Tag {
     This,
     Template,
     TemplateElement,
+    /// ``tag`…` ``: a call of `tag` with the template's parts.
+    TaggedTemplate,
     Array,
     Object,
     Property,
@@ -124,6 +123,8 @@ pub mod flag {
     pub const GROUPED: u8 = 0x40;
     /// Member/Call: the outermost link of an optional chain, upstream's `ChainExpression`.
     pub(crate) const CHAIN: u8 = 0x20;
+    /// Identifier: TypeScript's leading `this: T` parameter, which declares the type of `this`.
+    pub(crate) const THIS_PARAMETER: u8 = 1;
     pub const VAR: u8 = 0;
     pub const LET: u8 = 1;
     pub const CONST: u8 = 2;
@@ -213,14 +214,8 @@ pub enum Kind<'a> {
     ExportNamed(NodeIdentifier),
     ExportDefault(NodeIdentifier),
     TypeScriptDeclaration,
-    TypeScriptInterface {
-        name: NodeIdentifier,
-        members: &'a [NodeIdentifier],
-    },
-    TypeScriptPropertySignature {
-        key: NodeIdentifier,
-        optional: bool,
-    },
+    Type(Type<'a>),
+    Jsx(Jsx<'a>),
     Identifier(Atom),
     Number(f64),
     String,
@@ -237,6 +232,11 @@ pub enum Kind<'a> {
     },
     TemplateElement {
         tail: bool,
+    },
+    TaggedTemplate {
+        tag: NodeIdentifier,
+        /// A [`Kind::Template`].
+        quasi: NodeIdentifier,
     },
     Array(&'a [NodeIdentifier]),
     Object(&'a [NodeIdentifier]),
@@ -323,6 +323,9 @@ pub struct SyntaxTree {
     /// Identifiers in type syntax that may name a binding (`A` in `x: A`, `Map<K, A>`, `typeof
     /// a`), in source order. The tree has no nodes for types, so scope analysis reads them here.
     pub type_references: Vec<TypeRef>,
+    /// The names that `type`, `interface`, `enum` and `namespace` statements declare, in source
+    /// order. Such a name and a variable of the same scope are one name to TypeScript.
+    pub type_declarations: Vec<TypeDeclaration>,
     /// The parser's stack of lists being gathered; empty between parses.
     pub(crate) scratch: Vec<NodeIdentifier>,
 }
@@ -335,6 +338,7 @@ pub struct Mark {
     typescript: usize,
     typescript_runtime: usize,
     type_references: usize,
+    type_declarations: usize,
 }
 
 impl Default for SyntaxTree {
@@ -349,6 +353,7 @@ impl Default for SyntaxTree {
 impl Drop for SyntaxTree {
     fn drop(&mut self) {
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.scratch));
+        buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.type_declarations));
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.type_references));
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.typescript_runtime));
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.typescript));
@@ -378,6 +383,7 @@ impl SyntaxTree {
             typescript: buffer_pool::take_keyed::<Self, _>(),
             typescript_runtime: buffer_pool::take_keyed::<Self, _>(),
             type_references: buffer_pool::take_keyed::<Self, _>(),
+            type_declarations: buffer_pool::take_keyed::<Self, _>(),
             scratch: buffer_pool::take_keyed::<Self, _>(),
         }
     }
@@ -413,6 +419,7 @@ impl SyntaxTree {
             typescript: self.typescript.len(),
             typescript_runtime: self.typescript_runtime.len(),
             type_references: self.type_references.len(),
+            type_declarations: self.type_declarations.len(),
         }
     }
 
@@ -424,6 +431,7 @@ impl SyntaxTree {
         self.typescript.truncate(mark.typescript);
         self.typescript_runtime.truncate(mark.typescript_runtime);
         self.type_references.truncate(mark.type_references);
+        self.type_declarations.truncate(mark.type_declarations);
     }
 
     /// What the parser recorded since `tokens_from` tokens and `comments_from` comments, merged in
@@ -450,16 +458,28 @@ impl SyntaxTree {
         })
     }
 
-    /// Per node, its parent (`NodeIdentifier::NONE` for roots). A side table built on demand: the
-    /// tree itself stores no back edges, so it stays immutable and compact for the tasks that
-    /// never ask.
+    /// Per node, its parent (`NodeIdentifier::NONE` for roots), type syntax included: the parent
+    /// of a type in [`SyntaxTree::typescript`] is the node it is attached to. A side table built on
+    /// demand: the tree itself stores no back edges, so it stays immutable and compact for the
+    /// tasks that never ask.
     #[must_use]
     pub fn parents(&self) -> Vec<NodeIdentifier> {
         let mut parents = vec![NodeIdentifier::NONE; self.len()];
         for i in 0..self.len() as u32 {
-            self.for_each_child(NodeIdentifier(i), |c| {
-                parents[c.index()] = NodeIdentifier(i);
-            });
+            let node = NodeIdentifier(i);
+            let mut parent = |c: NodeIdentifier| parents[c.index()] = node;
+            match self.tag(node) {
+                Tag::Type => self.for_each_type_child(node, &mut parent),
+                _ => self.for_each_child(node, &mut parent),
+            }
+            if let Some(declaration) = self.declaration(node) {
+                parent(declaration);
+            }
+        }
+        for t in &self.typescript {
+            if let Some(syntax) = t.syntax.opt() {
+                parents[syntax.index()] = t.node;
+            }
         }
         parents
     }
@@ -553,13 +573,18 @@ const _: () = assert!(size_of::<NodeIdentifier>() == 4, "NodeIdentifier is a u32
 mod classes;
 mod control;
 mod expressions;
+mod jsx;
+pub use jsx::Jsx;
 mod read;
 mod statements;
 pub use classes::Class;
 pub use control::Control;
 mod traverse;
+mod types;
+pub use types::{Signature, SignatureKind, Type};
 
 mod typescript;
 pub use typescript::{
-    TypeRef, TypeScriptFeature, TypeScriptKind, TypeScriptRuntime, TypeScriptSyntax,
+    TypeDeclaration, TypeDeclarationKind, TypeRef, TypeScriptFeature, TypeScriptKind,
+    TypeScriptRuntime, TypeScriptSyntax,
 };

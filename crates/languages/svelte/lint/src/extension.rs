@@ -1,13 +1,15 @@
 use std::collections::BTreeMap;
 
 use rsvelte_kernel::computation::registry::Registry;
-use rsvelte_lint_runner::configuration::RuleEntry;
-use rsvelte_markup_lint::button_type::Allowed;
-use rsvelte_plugin_interface::{CallError, Extension, Settings};
+use rsvelte_kernel::source::interning::static_name;
+use rsvelte_lint_runner::configuration::{RuleEntryList, Rules};
+use rsvelte_plugin_interface::{CallError, Extension, FunctionReference, Settings};
 use serde::Deserialize;
 use serde_json::value::RawValue;
 
-use crate::{Configuration, RuleConfiguration};
+use crate::external::{CONTRACT, ExternalRule};
+use crate::rule::{Files, LintPlugins};
+use crate::{Configuration, LintSettings};
 
 pub static EXTENSION: Extension = Extension {
     identifier: "svelte.lint",
@@ -17,78 +19,92 @@ pub static EXTENSION: Extension = Extension {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Options {
-    rules: Option<BTreeMap<String, Box<RawValue>>>,
+    rules: Option<Rules<Box<RawValue>>>,
+    #[serde(default)]
+    settings: LintSettings,
+    /// Host functions as rules, by plugin prefix and then rule name.
+    #[serde(default)]
+    plugins: BTreeMap<String, BTreeMap<String, FunctionReference>>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ButtonOptions {
-    #[serde(default = "enabled")]
-    button: bool,
-    #[serde(default = "enabled")]
-    submit: bool,
-    #[serde(default = "enabled")]
-    reset: bool,
-}
-
-const fn enabled() -> bool {
-    true
-}
-
+/// Configures `svelte.lint` from its options. Plugins that add rules ([`LintPlugins`]) install
+/// before it.
 fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallError> {
-    let Some(rules) = settings
-        .options::<Options>(EXTENSION.identifier)?
-        .and_then(|options| options.value.rules)
-    else {
+    // A host that installs extensions reads files, so rules read the project's files too.
+    crate::project::register_file_system(registry);
+    let Some(options) = settings.options::<Options>(EXTENSION.identifier)? else {
         crate::register(registry);
         return Ok(());
     };
-    let mut configuration = Vec::with_capacity(rules.len());
-    for (identifier, raw) in rules {
-        if let Some(rule) = rule(&identifier, &raw)? {
-            configuration.push(rule);
+    let Options {
+        rules,
+        settings: lint_settings,
+        plugins: functions,
+    } = options.value;
+    let Some(rules) = rules else {
+        if !functions.is_empty() {
+            return Err(CallError(
+                "svelte.lint: `plugins` needs `rules` that turn them on".to_owned(),
+            ));
+        }
+        crate::register_with_configuration(
+            registry,
+            Configuration::with_default_rules(lint_settings),
+        );
+        return Ok(());
+    };
+    let mut configuration = Configuration::new(lint_settings);
+    let plugins = registry.contributions::<LintPlugins>().to_vec();
+    crate::configuration::check_plugins(&plugins)
+        .map_err(|e| CallError(format!("svelte.lint: {e}")))?;
+    let mut external = BTreeMap::new();
+    for (prefix, rules) in functions {
+        if !crate::configuration::is_prefix(&prefix)
+            || prefix == "svelte"
+            || plugins.iter().any(|plugin| plugin.prefix == prefix)
+        {
+            return Err(CallError(format!(
+                "svelte.lint: `{prefix}` cannot prefix host rules: it is not a name, or another plugin has it"
+            )));
+        }
+        for (rule, reference) in rules {
+            external.insert(format!("{prefix}/{rule}"), reference);
         }
     }
-    let configuration = Configuration::new(configuration).map_err(|e| CallError(e.into()))?;
+    for (name, raw) in rules.0 {
+        let error = |e: String| CallError(format!("svelte.lint rule `{name}`: {e}"));
+        let entry: RuleEntryList<Box<RawValue>> =
+            serde_json::from_str(raw.get()).map_err(|e| error(e.to_string()))?;
+        let reference = external.remove(&name);
+        // As `ESLint`, an off rule is not validated, so it may name a rule that does not exist.
+        let Some(severity) = entry.level.severity() else {
+            continue;
+        };
+        if let Some(reference) = reference {
+            let function = settings.functions().resolve(&reference, &CONTRACT)?;
+            let options = format!(
+                "[{}]",
+                entry
+                    .options
+                    .iter()
+                    .map(|o| o.get())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            );
+            configuration
+                .push(
+                    static_name(&name),
+                    Files::All,
+                    severity,
+                    Box::new(ExternalRule { function, options }),
+                )
+                .map_err(error)?;
+            continue;
+        }
+        configuration
+            .rule(&name, severity, &entry.options, &plugins)
+            .map_err(|e| CallError(format!("svelte.lint: {e}")))?;
+    }
     crate::register_with_configuration(registry, configuration);
     Ok(())
-}
-
-/// Rule `identifier` as `raw` configures it; `None` when it is off.
-fn rule(identifier: &str, raw: &RawValue) -> Result<Option<RuleConfiguration>, CallError> {
-    let error = |e: String| CallError(format!("svelte.lint rule `{identifier}`: {e}"));
-    let RuleEntry {
-        level,
-        options: button,
-    } = serde_json::from_str::<RuleEntry<ButtonOptions>>(raw.get())
-        .map_err(|e| error(e.to_string()))?;
-    if !matches!(
-        identifier,
-        "no-unused-vars" | "svelte/button-has-type" | "svelte/valid-each-key"
-    ) {
-        return Err(CallError(format!(
-            "unknown Svelte lint rule `{identifier}`"
-        )));
-    }
-    if button.is_some() && identifier != "svelte/button-has-type" {
-        return Err(CallError(format!(
-            "rule `{identifier}` does not accept options"
-        )));
-    }
-    let Some(severity) = level.severity() else {
-        return Ok(None);
-    };
-    Ok(Some(match identifier {
-        "no-unused-vars" => RuleConfiguration::NoUnusedVariables(severity),
-        "svelte/valid-each-key" => RuleConfiguration::ValidEachKey(severity),
-        "svelte/button-has-type" => RuleConfiguration::ButtonHasType {
-            severity,
-            allowed: button.map_or_else(Allowed::default, |options| Allowed {
-                button: options.button,
-                submit: options.submit,
-                reset: options.reset,
-            }),
-        },
-        _ => unreachable!("rule names were checked"),
-    }))
 }

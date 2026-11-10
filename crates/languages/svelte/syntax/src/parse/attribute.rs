@@ -1,7 +1,7 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_syntax::NodeIdentifier;
 use rsvelte_typescript_syntax::lexer::T;
-use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 
@@ -261,13 +261,14 @@ impl Parser<'_> {
             match self.peek() {
                 Some(q @ (b'"' | b'\'')) => {
                     attribute.quoted = true;
-                    self.eat_token(TokenType::Quote, 1);
+                    let quote = quote_token(q);
+                    self.eat_token(quote, 1);
                     self.sequence(Some(q))?;
                     if self.component.parts.len() == start {
                         let at = self.position as u32;
                         self.component.parts.push(Part::Text(Span::new(at, at)));
                     }
-                    self.eat_token(TokenType::Quote, 1);
+                    self.eat_token(quote, 1);
                 }
                 Some(_) => {
                     self.sequence(None)?;
@@ -283,7 +284,17 @@ impl Parser<'_> {
     }
 }
 
+/// Upstream `regex_token_ending_character`, `/[\s=/>"']/`.
 pub(super) fn attribute_name_len(text: &str) -> usize {
-    text.find(|c: char| is_javascript_whitespace(c) || matches!(c, '=' | '>' | '/' | '"' | '\''))
+    text.find(|c| is_ecmascript_whitespace(c) || matches!(c, '=' | '>' | '/' | '"' | '\''))
         .unwrap_or(text.len())
+}
+
+/// The token of the quote `q`, `"` or `'`.
+pub(super) const fn quote_token(q: u8) -> TokenType {
+    if q == b'"' {
+        TokenType::DoubleQuote
+    } else {
+        TokenType::SingleQuote
+    }
 }

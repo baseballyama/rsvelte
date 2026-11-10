@@ -147,6 +147,21 @@ fn registry(plugins: &[&str]) -> Registry {
                 rsvelte_svelte_compile::register(&mut reg);
                 rsvelte_svelte_format::register(&mut reg);
                 rsvelte_svelte_lint::register(&mut reg);
+                // A page has no files, so no `svelte.config.js` and no `package.json` either.
+                reg.provide::<rsvelte_svelte_lint::computation::SvelteConfiguration>(
+                    "browser",
+                    |_| true,
+                    |_| Ok(rsvelte_svelte_lint::SvelteConfig::default()),
+                );
+                reg.provide::<rsvelte_svelte_lint::computation::SvelteKit>(
+                    "browser",
+                    |_| true,
+                    // Upstream takes a page to be a Kit 2 project.
+                    |_| rsvelte_svelte_lint::project::SvelteKitProject {
+                        version: Some("2".to_owned()),
+                        location: rsvelte_svelte_lint::project::Location::NameOnly,
+                    },
+                );
                 rsvelte_svelte_check::register(
                     &mut reg,
                     &rsvelte_svelte_check::Configuration::default(),

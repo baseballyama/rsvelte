@@ -1,5 +1,5 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 use super::{ParseResult, Parser};
 use crate::syntax_tree::{Part, TokenType};
@@ -19,7 +19,7 @@ impl Parser<'_> {
                     start_offset as u32,
                     self.position as u32,
                 )));
-                self.token(TokenType::AttributeText, start_offset);
+                self.words(TokenType::AttributeText, start_offset);
             }
             match self.peek() {
                 None => return self.err("unexpected end of input"),
@@ -30,7 +30,7 @@ impl Parser<'_> {
     }
 
     fn attribute_expression(&mut self) -> ParseResult<()> {
-        let after = super::whitespace::trim_start(&self.rest()[1..]);
+        let after = super::whitespace::trim_whitespace_start(&self.rest()[1..]);
         if after.starts_with('#') || after.starts_with('@') {
             return self.err("blocks and tags are not allowed in an attribute value");
         }
@@ -46,14 +46,13 @@ impl Parser<'_> {
     }
 }
 
-/// Upstream ends an unquoted value at `/>`, at JavaScript's whitespace or at one of ``"'=<>` ``,
-/// and at `{` where an expression starts.
+/// Up to upstream's `regex_invalid_unquoted_attribute_value`, ``/(\/>|[\s"'=<>`])/``, or a `{`.
 fn unquoted_text_len(text: &str) -> usize {
     text.char_indices()
         .find(|&(index, c)| {
-            matches!(c, '{' | '"' | '\'' | '=' | '<' | '>' | '`')
-                || is_javascript_whitespace(c)
-                || text[index..].starts_with("/>")
+            is_ecmascript_whitespace(c)
+                || matches!(c, '{' | '"' | '\'' | '=' | '<' | '>' | '`')
+                || (c == '/' && text[index + 1..].starts_with('>'))
         })
         .map_or(text.len(), |(index, _)| index)
 }

@@ -1,0 +1,8 @@
+- message: Selector should select by element type instead of class
+  line: 4
+  column: 15
+  suggestions: null
+- message: Selector should select by element type instead of ID
+  line: 7
+  column: 12
+  suggestions: null

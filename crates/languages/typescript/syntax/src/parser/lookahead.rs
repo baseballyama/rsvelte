@@ -1,9 +1,24 @@
 use super::{Lexer, Parser, R, Span, T};
 
 impl Parser<'_, '_> {
-    pub(super) fn lookahead_group(lex: &mut Lexer<'_>, comments: &mut Vec<Span>) -> R<()> {
+    /// With `lex` just after an opening bracket, moves it past the matching closing one.
+    ///
+    /// Where each group ends depends only on where it starts, so every group a scan closes is
+    /// remembered in [`Parser::groups`] and skipped by later scans: asking at each of `n` nested
+    /// `(` costs `O(n)` in total, not `O(n²)`.
+    pub(super) fn lookahead_group(&self, lex: &mut Lexer<'_>, comments: &mut Vec<Span>) -> R<()> {
+        let mut groups = self.groups.borrow_mut();
+        let start = lex.position as u32;
+        if let Some(&end) = groups.get(&start) {
+            lex.position = end as usize;
+            return Ok(());
+        }
         let mut depth = 1u32;
         let mut substitutions = Vec::new();
+        // The open brackets, with the lexer position after each and the depth it opened.
+        let mut brackets: Vec<(u32, u32)> = Vec::new();
+        // A closing token that matches no opening one breaks the nesting the cache relies on.
+        let mut nested = true;
         let mut operand = true;
         loop {
             let mut token = lex.next(comments)?;
@@ -16,10 +31,32 @@ impl Parser<'_, '_> {
                 token = lex.template_continue(token.span)?;
             }
             match token.t {
-                T::LParen | T::LBracket | T::LBrace => depth += 1,
+                T::LParen | T::LBracket | T::LBrace => {
+                    let after = lex.position as u32;
+                    if let Some(&end) = groups.get(&after) {
+                        lex.position = end as usize;
+                        operand = false;
+                        continue;
+                    }
+                    depth += 1;
+                    brackets.push((after, depth));
+                }
                 T::RParen | T::RBracket | T::RBrace => {
+                    match brackets.last() {
+                        Some(&(after, opened)) if opened == depth => {
+                            brackets.pop();
+                            if nested {
+                                groups.insert(after, lex.position as u32);
+                            }
+                        }
+                        None if depth == 1 => {}
+                        _ => nested = false,
+                    }
                     depth -= 1;
                     if depth == 0 {
+                        if nested {
+                            groups.insert(start, lex.position as u32);
+                        }
                         return Ok(());
                     }
                 }
@@ -61,6 +98,40 @@ impl Parser<'_, '_> {
                 T::Op if matches!(lex.text(token.span), "++" | "--") => operand,
                 _ => true,
             };
+        }
+    }
+
+    /// Whether the `<` at the current token has a matching `>` before the statement ends; without
+    /// one, the type before it has ended and `<` compares (`a as T < c`).
+    pub(super) fn angle_closes(&self) -> bool {
+        let mut lex = self.lex;
+        let mut comments = Vec::new();
+        let mut angles = 1i32;
+        loop {
+            let Ok(token) = lex.next(&mut comments) else {
+                return false;
+            };
+            match token.t {
+                T::Eof | T::Semi | T::RParen | T::RBracket | T::RBrace => return false,
+                T::LParen | T::LBracket | T::LBrace => {
+                    if self.lookahead_group(&mut lex, &mut comments).is_err() {
+                        return false;
+                    }
+                }
+                T::Op => {
+                    angles += match lex.text(token.span) {
+                        "<" => 1,
+                        ">" => -1,
+                        ">>" => -2,
+                        ">>>" => -3,
+                        _ => 0,
+                    };
+                    if angles <= 0 {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
         }
     }
 }

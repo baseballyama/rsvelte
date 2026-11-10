@@ -321,7 +321,7 @@ impl Renderer<'_> {
                 for (i, simple) in relative.simple.iter().enumerate().rev() {
                     match simple {
                         Simple::PseudoClass { span, name, .. }
-                        | Simple::PseudoElement { span, name } => {
+                        | Simple::PseudoElement { span, name, .. } => {
                             if i == 0 && !matches!(name.text(self.source), "root" | "host") {
                                 self.edits.insert(span.start_offset, modifier);
                                 bumped = true;

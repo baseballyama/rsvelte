@@ -1,6 +1,6 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_syntax::lexer::T;
-use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
@@ -14,7 +14,7 @@ impl Parser<'_> {
         let Some(after) = rest.strip_prefix('{') else {
             return false;
         };
-        let inner = super::whitespace::trim_start(after);
+        let inner = super::whitespace::trim_whitespace_start(after);
         let Some(after_word) = inner.strip_prefix(sigil).and_then(|s| s.strip_prefix(word)) else {
             return false;
         };
@@ -68,46 +68,61 @@ impl Parser<'_> {
         self.close_mustache()
     }
 
+    /// An `{#if}` block; a `{:else if}` chain is read in a loop and built innermost first.
     fn if_block(
         &mut self,
         start_offset: usize,
         elseif: bool,
     ) -> ParseResult<TemplateNodeIdentifier> {
+        let mut outer = Vec::new();
+        let mut head = self.if_head(start_offset, elseif)?;
+        let alternate = loop {
+            if !self.eat_marker(':', "else") {
+                break None;
+            }
+            self.skip_ws();
+            if !self.at_word("if") {
+                self.close_mustache()?;
+                break Some(self.fragment(End::Block)?);
+            }
+            let inner_start_offset = self.position;
+            self.eat_token(TokenType::BlockKeyword, 2);
+            self.require_ws()?;
+            outer.push(head);
+            head = self.if_head(inner_start_offset, true)?;
+        };
+        self.block_end("if")?;
+        let mut node = self.if_node(head, alternate);
+        while let Some(head) = outer.pop() {
+            let start = self.component.children.len() as u32;
+            self.component.children.push(node);
+            node = self.if_node(head, Some(Range { start, len: 1 }));
+        }
+        Ok(node)
+    }
+
+    /// `test}` and the consequent of an `{#if}` or `{:else if}` starting at `start_offset`.
+    fn if_head(&mut self, start_offset: usize, elseif: bool) -> ParseResult<IfHead> {
         let test = self.expression()?;
         self.close_mustache()?;
         let consequent = self.fragment(End::Block)?;
-        let alternate = if self.eat_marker(':', "else") {
-            self.skip_ws();
-            if self.at_word("if") {
-                let inner_start_offset = self.position;
-                self.eat_token(TokenType::BlockKeyword, 2);
-                self.require_ws()?;
-                let inner = self.if_block(inner_start_offset, true)?;
-                let start = self.component.children.len() as u32;
-                self.component.children.push(inner);
-                let span = Span::new(start_offset as u32, self.position as u32);
-                return Ok(self.push_node(TemplateNode::If {
-                    test,
-                    consequent,
-                    alternate: Some(Range { start, len: 1 }),
-                    elseif,
-                    span,
-                }));
-            }
-            self.close_mustache()?;
-            Some(self.fragment(End::Block)?)
-        } else {
-            None
-        };
-        self.block_end("if")?;
-        let span = Span::new(start_offset as u32, self.position as u32);
-        Ok(self.push_node(TemplateNode::If {
+        Ok(IfHead {
+            start_offset,
+            elseif,
             test,
             consequent,
+        })
+    }
+
+    fn if_node(&mut self, head: IfHead, alternate: Option<Range>) -> TemplateNodeIdentifier {
+        let span = Span::new(head.start_offset as u32, self.position as u32);
+        self.push_node(TemplateNode::If {
+            test: head.test,
+            consequent: head.consequent,
             alternate,
-            elseif,
+            elseif: head.elseif,
             span,
-        }))
+        })
     }
 
     fn each_block(&mut self, start_offset: usize) -> ParseResult<TemplateNodeIdentifier> {
@@ -329,10 +344,19 @@ impl Parser<'_> {
 fn last_as(s: &str) -> Option<usize> {
     s.rmatch_indices("as").map(|(i, _)| i).find(|&i| {
         i > 0
-            && s[..i].ends_with(is_javascript_whitespace)
+            && s[..i].ends_with(is_ecmascript_whitespace)
             && !s[i + 2..]
                 .chars()
                 .next()
                 .is_some_and(is_identifier_continue)
     })
+}
+
+/// An `{#if}` or `{:else if}` read up to its alternate.
+#[derive(Clone, Copy)]
+struct IfHead {
+    start_offset: usize,
+    elseif: bool,
+    test: NodeIdentifier,
+    consequent: Range,
 }

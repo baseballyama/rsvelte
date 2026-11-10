@@ -7,9 +7,11 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_markup_lint::button_type::{Allowed, Problem, check_static};
+use rsvelte_markup_syntax::character_references::{Place, Rules, decode};
 use rsvelte_typescript_lint::JavaScriptFacts;
 use rsvelte_typescript_semantic::scope::{DeclarationKind, HostRoot};
 use rsvelte_vue_semantic::resolve::Resolution;
@@ -37,8 +39,10 @@ static RULES: &[&VueRule] = &[
     &VueNoUnusedVariables,
 ];
 
-#[must_use]
-pub(crate) fn lint(context: &RuleContext<'_>) -> Vec<Diagnostic> {
+/// # Errors
+///
+/// A rule failed.
+pub(crate) fn lint(context: &RuleContext<'_>) -> Result<Vec<Finding>, Diagnostic> {
     let mut f = Findings::new();
     f.run(RULES.iter().copied(), context);
     f.finish()
@@ -187,7 +191,7 @@ impl<'a> Rule<RuleContext<'a>> for MarkupButtonHasType {
                     report(Problem::Empty, a.span);
                     continue;
                 };
-                let text = rsvelte_markup_syntax::decode_text(v.text(source_text));
+                let text = decode(v.text(source_text), Place::Attribute, Rules::Html);
                 if let Some(p) = check_static(&text, Allowed::default()) {
                     report(p, value_node(v, a.quoted));
                 }

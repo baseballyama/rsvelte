@@ -69,9 +69,7 @@ impl Artifact for Identified {
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let input = component_input(context).ok_or_else(|| {
-            context
-                .get::<rsvelte_svelte_syntax::Parsed>()
-                .as_ref()
+            rsvelte_svelte_syntax::fully_parsed(context)
                 .expect_err("missing input follows a parse error")
                 .clone()
         })?;

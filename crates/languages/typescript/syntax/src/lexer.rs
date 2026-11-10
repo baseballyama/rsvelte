@@ -4,23 +4,8 @@
 //! detection) is a struct copy, not a token buffer. Regex literals and template continuations are
 //! context-dependent and are lexed on the parser's request.
 
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
-
-/// What JavaScript's `String.prototype.trim` removes: `WhiteSpace` and `LineTerminator`.
-#[must_use]
-pub const fn is_javascript_whitespace(c: char) -> bool {
-    matches!(
-        c,
-        '\t' | '\n' | '\u{B}' | '\u{C}' | '\r' | ' ' | '\u{A0}' | '\u{1680}' | '\u{2000}'
-            ..='\u{200A}'
-                | '\u{2028}'
-                | '\u{2029}'
-                | '\u{202F}'
-                | '\u{205F}'
-                | '\u{3000}'
-                | '\u{FEFF}'
-    )
-}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum T {
@@ -53,6 +38,8 @@ pub enum T {
     At,
     /// Any operator; the text is the token's span.
     Op,
+    /// Text between JSX tags, which the parser asks for.
+    JsxText,
 }
 
 impl rsvelte_kernel::source::tokens::TokenKind for T {
@@ -140,15 +127,20 @@ impl<'a> Lexer<'a> {
             return None;
         }
         (self.source[self.position..self.end].chars().next())
-            .filter(|&c| is_javascript_whitespace(c))
+            .filter(|&c| is_ecmascript_whitespace(c))
     }
 
-    /// The length of the line terminator at `i`: LF, CR, LS or PS.
-    fn line_terminator_len(&self, i: usize) -> usize {
-        match self.source_text[i] {
+    /// The length of the ECMAScript line terminator at `at` (LF, CR, U+2028, U+2029), or 0.
+    #[inline]
+    const fn line_terminator(&self, at: usize) -> usize {
+        if at >= self.end {
+            return 0;
+        }
+        match self.source_text[at] {
             b'\n' | b'\r' => 1,
-            0xE2 if self.source_text.get(i + 1) == Some(&0x80)
-                && matches!(self.source_text.get(i + 2), Some(0xA8 | 0xA9)) =>
+            0xE2 if at + 2 < self.end
+                && self.source_text[at + 1] == 0x80
+                && matches!(self.source_text[at + 2], 0xA8 | 0xA9) =>
             {
                 3
             }
@@ -168,7 +160,7 @@ impl<'a> Lexer<'a> {
                 b' ' | b'\t' | 0x0B | 0x0C => self.position += 1,
                 b'/' if self.peek(1) == b'/' => {
                     let start_offset = self.position;
-                    while self.position < self.end && self.line_terminator_len(self.position) == 0 {
+                    while self.position < self.end && self.line_terminator(self.position) == 0 {
                         self.position += 1;
                     }
                     comments.push(Span::new(start_offset as u32, self.position as u32));
@@ -186,9 +178,10 @@ impl<'a> Lexer<'a> {
                             self.position += 2;
                             break;
                         }
-                        let len = self.line_terminator_len(self.position);
-                        newline |= len > 0;
-                        self.position += len.max(1);
+                        if self.line_terminator(self.position) > 0 {
+                            newline = true;
+                        }
+                        self.position += 1;
                     }
                     comments.push(Span::new(start_offset as u32, self.position as u32));
                 }
@@ -312,17 +305,14 @@ impl<'a> Lexer<'a> {
                 if is_identifier_continue(b) {
                     self.position += 1;
                 } else if b == b'\\' {
-                    return self.err(
-                        "unicode escapes in identifiers are not supported",
-                        self.position,
-                    );
+                    self.identifier_escape()?;
                 } else {
                     break;
                 }
             } else if self.non_ascii_whitespace().is_some() {
                 break;
             } else {
-                // Other non-ASCII chars are accepted as-is, byte by byte.
+                // Acorn's ID_Continue check is not ported, so a name takes any other char.
                 self.position += 1;
             }
         }
@@ -388,7 +378,7 @@ impl<'a> Lexer<'a> {
         while self.position < self.end {
             match self.source_text[self.position] {
                 b'\\' => self.position += 2,
-                b'\n' => return self.err("unterminated string", start_offset),
+                b'\n' | b'\r' => return self.err("unterminated string", start_offset),
                 c if c == q => {
                     self.position += 1;
                     return Ok(());
@@ -515,58 +505,11 @@ impl<'a> Lexer<'a> {
     }
 }
 
-/// Decodes a quoted JS string literal's escapes; `None` when the body contains no backslash
-/// (the value is then the source bytes between the quotes).
-pub fn decode_string(raw_body: &str) -> Option<String> {
-    if !raw_body.contains('\\') {
-        return None;
-    }
-    let mut out = String::with_capacity(raw_body.len());
-    let mut chars = raw_body.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c != '\\' {
-            out.push(c);
-            continue;
-        }
-        match chars.next() {
-            Some('n') => out.push('\n'),
-            Some('t') => out.push('\t'),
-            Some('r') => out.push('\r'),
-            Some('b') => out.push('\u{8}'),
-            Some('f') => out.push('\u{c}'),
-            Some('v') => out.push('\u{b}'),
-            Some('0') if !chars.peek().is_some_and(char::is_ascii_digit) => out.push('\0'),
-            Some('x') => {
-                let h: String = chars.by_ref().take(2).collect();
-                out.push(
-                    u32::from_str_radix(&h, 16)
-                        .ok()
-                        .and_then(char::from_u32)
-                        .unwrap_or('\u{fffd}'),
-                );
-            }
-            Some('u') => {
-                let code = if chars.peek() == Some(&'{') {
-                    chars.next();
-                    let h: String = chars.by_ref().take_while(|&c| c != '}').collect();
-                    u32::from_str_radix(&h, 16).ok()
-                } else {
-                    let h: String = chars.by_ref().take(4).collect();
-                    u32::from_str_radix(&h, 16).ok()
-                };
-                out.push(code.and_then(char::from_u32).unwrap_or('\u{fffd}'));
-            }
-            Some('\r') => {
-                if chars.peek() == Some(&'\n') {
-                    chars.next();
-                }
-            }
-            Some('\n' | '\u{2028}' | '\u{2029}') | None => {}
-            Some(other) => out.push(other),
-        }
-    }
-    Some(out)
-}
+mod identifiers;
+mod jsx;
+mod strings;
+pub use identifiers::identifier_name;
+pub use strings::{cook_template, decode_string};
 
 #[cfg(test)]
 mod tests;

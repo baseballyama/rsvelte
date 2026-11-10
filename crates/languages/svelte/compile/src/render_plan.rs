@@ -13,7 +13,6 @@ mod namespace;
 mod normalize;
 pub use namespace::Namespace;
 pub use namespace::Namespaces;
-pub(crate) use namespace::{is_mathml, is_svg};
 pub(crate) use normalize::is_template_whitespace;
 pub use normalize::{Cleaned, Item, Parent, clean_nodes};
 

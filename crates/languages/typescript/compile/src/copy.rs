@@ -40,8 +40,11 @@ pub fn copy<R: Rewrite + ?Sized>(
     r: &mut R,
     identifier: NodeIdentifier,
 ) -> NodeIdentifier {
-    r.rewrite(from, to, identifier)
-        .unwrap_or_else(|| copy_node(from, to, r, identifier))
+    // Every nesting cycle of a copy, rewriters included, passes here; the parser bounds its depth.
+    rsvelte_kernel::performance::stack::grow(|| {
+        r.rewrite(from, to, identifier)
+            .unwrap_or_else(|| copy_node(from, to, r, identifier))
+    })
 }
 
 pub(crate) fn copy_opt<R: Rewrite + ?Sized>(
@@ -154,10 +157,7 @@ pub fn copy_node<R: Rewrite + ?Sized>(
             let body = copy(f, to, rw, body);
             to.for_(initializer, test, update, body, span)
         }
-        Kind::Block(body) => {
-            let b = copy_all(f, to, rw, body);
-            to.block(&b, span)
-        }
+        Kind::Block(body) => copy_block(f, to, rw, identifier, body),
         Kind::Empty => to.empty(span),
         Kind::Import {
             specifiers,
@@ -191,19 +191,16 @@ pub fn copy_node<R: Rewrite + ?Sized>(
             let d = copy(f, to, rw, d);
             to.export_default(d, span)
         }
-        Kind::TypeScriptDeclaration => to.typescript_declaration(span),
-        Kind::TypeScriptInterface { name, members } => {
-            let n = copy_node(f, to, rw, name);
-            let m = members
-                .iter()
-                .map(|&m| copy_node(f, to, rw, m))
-                .collect::<Vec<_>>();
-            to.typescript_interface(n, &m, span)
-        }
-        Kind::TypeScriptPropertySignature { key, optional } => {
-            let k = copy_node(f, to, rw, key);
-            to.typescript_prop_sig(k, optional, span)
-        }
+        Kind::TypeScriptDeclaration => match f.exported_types(identifier) {
+            Some(export) => {
+                let export = copy(f, to, rw, export);
+                to.type_only_export(export, span)
+            }
+            // Compilation erases types, so the copy keeps the statement, not what it declares.
+            None => to.typescript_declaration(None, span),
+        },
+        Kind::Type(_) => unreachable!("no value node has type syntax as a child"),
+        Kind::Jsx(_) => unreachable!("compilation refuses JSX before it copies"),
         Kind::Identifier(a) => to.ident(f.atoms.get(a), span),
         Kind::Number(v) => to.write_number(v, span),
         Kind::String => {
@@ -218,6 +215,11 @@ pub fn copy_node<R: Rewrite + ?Sized>(
         Kind::Boolean(b) => to.write_boolean(b, span),
         Kind::Null => to.null(span),
         Kind::This => to.this(span),
+        Kind::TaggedTemplate { tag, quasi } => {
+            let t = copy(f, to, rw, tag);
+            let q = copy(f, to, rw, quasi);
+            to.tagged_template(t, q, span)
+        }
         Kind::Template {
             quasis,
             expressions,
@@ -247,33 +249,8 @@ pub fn copy_node<R: Rewrite + ?Sized>(
             let a = copy(f, to, rw, a);
             to.spread(a, span)
         }
-        Kind::Member {
-            object,
-            property,
-            computed,
-            optional,
-        } => {
-            let o = copy(f, to, rw, object);
-            let p = if computed {
-                copy(f, to, rw, property)
-            } else {
-                copy_node(f, to, rw, property)
-            };
-            to.member(o, p, computed, optional, span)
-        }
-        Kind::Call {
-            callee,
-            arguments,
-            optional,
-            pure,
-        } => {
-            let c = copy(f, to, rw, callee);
-            let a = copy_all(f, to, rw, arguments);
-            let call = to.call(c, &a, optional, span);
-            if pure {
-                to.mark_pure(call);
-            }
-            call
+        Kind::Member { .. } | Kind::Call { .. } | Kind::Binary(..) | Kind::Logical(..) => {
+            copy_chain(f, to, rw, identifier)
         }
         Kind::New { callee, arguments } => {
             let c = copy(f, to, rw, callee);
@@ -297,16 +274,6 @@ pub fn copy_node<R: Rewrite + ?Sized>(
         Kind::Update { op, prefix, arg } => {
             let a = copy(f, to, rw, arg);
             to.update(op, prefix, a, span)
-        }
-        Kind::Binary(op, l, r) => {
-            let l = copy(f, to, rw, l);
-            let r = copy(f, to, rw, r);
-            to.binary(op, l, r, span)
-        }
-        Kind::Logical(op, l, r) => {
-            let l = copy(f, to, rw, l);
-            let r = copy(f, to, rw, r);
-            to.logical(op, l, r, span)
         }
         Kind::Conditional {
             test,
@@ -353,10 +320,67 @@ pub fn copy_node<R: Rewrite + ?Sized>(
     if f.is_chain(identifier) {
         to.mark_chain(copied);
     }
+    if f.is_this_parameter(identifier) {
+        to.mark_this_parameter(copied);
+    }
     if fl & flag::GROUPED != 0 {
         to.grouped(copied)
     } else {
         copied
+    }
+}
+
+/// A block, with the blocks nested directly in it copied from a stack: `{{{…}}}` nests thousands
+/// deep in real input. Each nested block still goes to the rewriter first, as [`copy`] does.
+fn copy_block<R: Rewrite + ?Sized>(
+    f: &SyntaxTree,
+    to: &mut SyntaxTree,
+    rw: &mut R,
+    identifier: NodeIdentifier,
+    body: &[NodeIdentifier],
+) -> NodeIdentifier {
+    struct Open<'a> {
+        identifier: NodeIdentifier,
+        body: &'a [NodeIdentifier],
+        copied: Vec<NodeIdentifier>,
+    }
+    let mut open = vec![Open {
+        identifier,
+        body,
+        copied: Vec::with_capacity(body.len()),
+    }];
+    loop {
+        let innermost = open.last_mut().expect("the outermost block closes last");
+        if let Some((&child, rest)) = innermost.body.split_first() {
+            innermost.body = rest;
+            let Kind::Block(body) = f.kind(child) else {
+                let copied = copy(f, to, rw, child);
+                innermost.copied.push(copied);
+                continue;
+            };
+            match rw.rewrite(f, to, child) {
+                Some(rewritten) => innermost.copied.push(rewritten),
+                None => open.push(Open {
+                    identifier: child,
+                    body,
+                    copied: Vec::with_capacity(body.len()),
+                }),
+            }
+            continue;
+        }
+        let closed = open.pop().expect("the outermost block closes last");
+        let block = to.block(&closed.copied, f.source_location(closed.identifier));
+        let Some(parent) = open.last_mut() else {
+            // The outermost block's own flags are applied by `copy_node`.
+            return block;
+        };
+        parent
+            .copied
+            .push(if f.flags(closed.identifier) & flag::GROUPED != 0 {
+                to.grouped(block)
+            } else {
+                block
+            });
     }
 }
 
@@ -379,3 +403,9 @@ use control::copy_control;
 
 mod classes;
 use classes::copy_class;
+
+mod chains;
+use chains::copy_chain;
+
+#[cfg(test)]
+mod tests;
