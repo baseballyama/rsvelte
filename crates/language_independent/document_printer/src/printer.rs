@@ -532,7 +532,6 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                 continue;
             }
             match self.docs.nodes[identifier.0 as usize] {
-                // This printer refuses an embedded layout when it gets there.
                 Node::Static("")
                 | Node::Text { len: 0, .. }
                 | Node::BreakParent
