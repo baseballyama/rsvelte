@@ -18,15 +18,12 @@ fn text(span: oxc_span::Span) -> &'static str {
 #[test]
 fn a_script_and_a_template_expression_parse_in_place() {
     let script = Span::new(18, 44);
-    let mut parts = None;
-    let tree = Tree::build(&document(COMPONENT), |builder| {
+    let (tree, (program, expression, end)) = Tree::build(COMPONENT, |builder| {
         let program = builder.program(script, SourceType::ts())?;
         let (expression, end) = builder.expression_at(58, SourceType::ts())?;
-        parts = Some((program, expression, end));
-        Ok(())
+        Ok((program, expression, end))
     })
     .expect("parses");
-    let (program, expression, end) = parts.expect("built");
     let program = tree.get_program(program);
     assert_eq!((program.span.start, program.span.end), (18, 44));
     assert_eq!(text(program.body[0].span()), "let a: number = 1;");
@@ -39,7 +36,7 @@ fn a_script_and_a_template_expression_parse_in_place() {
 #[test]
 fn an_error_points_into_the_document() {
     let source = "<p>{a +}</p>";
-    let error = Tree::build(&document(source), |builder| {
+    let error = Tree::build(source, |builder| {
         builder.expression_at(4, SourceType::mjs()).map(drop)
     })
     .expect_err("a syntax error");
@@ -65,4 +62,72 @@ fn a_typescript_file_is_one_program_without_parentheses() {
         product.left,
         oxc_ast::ast::Expression::BinaryExpression(_)
     ));
+}
+
+#[test]
+fn a_pattern_parses_in_place_with_its_type() {
+    let source = "{#each items as { a, b }: Item /* c */}";
+    let range = Span::new(16, 38);
+    let (tree, pattern) =
+        Tree::build(source, |builder| builder.pattern(range, SourceType::ts())).expect("parses");
+    let pattern = tree.get_pattern(pattern);
+    let at = |span: oxc_span::Span| &source[span.start as usize..span.end as usize];
+    assert_eq!(at(pattern.pattern.span()), "{ a, b }");
+    assert_eq!(
+        at(pattern.type_annotation.as_ref().expect("typed").span()),
+        ": Item"
+    );
+    assert_eq!(at(tree.comments()[0].span), "/* c */");
+}
+
+#[test]
+fn a_pattern_records_its_own_tokens_only() {
+    let source = "{:then [x]}";
+    let (_, recorded) = Tree::build(source, |builder| {
+        builder.pattern(Span::new(7, 10), SourceType::mjs())?;
+        Ok(builder.recorded().to_vec())
+    })
+    .expect("parses");
+    let texts = recorded
+        .iter()
+        .map(|r| r.span.text(source))
+        .collect::<Vec<_>>();
+    assert_eq!(texts, ["[", "x", "]"]);
+}
+
+#[test]
+fn snippet_parameters_parse_in_place() {
+    let source = "{#snippet f(a, b = 1, ...rest)}";
+    let (tree, parameters) = Tree::build(source, |builder| {
+        builder.parameters(Span::new(12, 29), SourceType::mjs())
+    })
+    .expect("parses");
+    let parameters = tree.get_parameters(parameters);
+    let at = |span: oxc_span::Span| &source[span.start as usize..span.end as usize];
+    assert_eq!(parameters.items.len(), 2);
+    assert_eq!(at(parameters.items[1].span), "b = 1");
+    assert_eq!(at(parameters.rest.as_ref().expect("rest").span), "...rest");
+}
+
+#[test]
+fn two_patterns_are_not_one() {
+    let error = Tree::build("{#each x as a, b}", |builder| {
+        builder.pattern(Span::new(12, 16), SourceType::mjs())
+    })
+    .expect_err("two patterns");
+    assert_eq!(error.span, Span::new(12, 16));
+}
+
+#[test]
+fn a_declaration_tag_reads_one_statement() {
+    let source = "{let a = /}/.source, b = 2}";
+    let (_, (end, declarators)) = Tree::build(source, |builder| {
+        let (statement, end) = builder.read_statement_at(1, SourceType::mjs())?;
+        let oxc_ast::ast::Statement::VariableDeclaration(declaration) = statement else {
+            panic!("a declaration");
+        };
+        Ok((end, declaration.declarations.len()))
+    })
+    .expect("parses");
+    assert_eq!((end, declarators), (26, 2));
 }
