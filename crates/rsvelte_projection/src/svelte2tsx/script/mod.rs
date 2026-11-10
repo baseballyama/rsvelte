@@ -30,7 +30,7 @@ use oxc_span::GetSpan;
 use crate::ast::template::Script;
 
 use super::magic_string::MagicString;
-use super::nodes::scripts::{InstanceImportCollector, LiftedImport};
+use super::nodes::scripts::{ImportGroup, instance_import_groups};
 use super::svelte2tsx::slice_src;
 use super::utils::lexical::contains_word;
 
@@ -118,7 +118,7 @@ pub fn process_instance_script(
     is_dts_mode: bool,
     script_generic_names: &HashSet<String>,
     has_generics_attr: bool,
-) -> Vec<LiftedImport> {
+) -> Vec<ImportGroup> {
     let offset = script.content_offset;
     let mut instance_imports = Vec::new();
     with_parsed_script(parsed, |program, raw_content| {
@@ -127,13 +127,6 @@ pub fn process_instance_script(
         // `createEventDispatcher`, so its absence rules out every event fact.
         if contains_word(raw_content.as_bytes(), b"createEventDispatcher") {
             collect_event_dispatcher_facts(program, raw_content, _events, offset);
-        }
-        let mut import_collector = contains_word(raw_content.as_bytes(), b"import")
-            .then(|| InstanceImportCollector::new(raw_content, &program.comments));
-        if let Some(collector) = &mut import_collector {
-            for stmt in &program.body {
-                collector.push_statement(stmt);
-            }
         }
 
         // Pass 1: collect top-level declared names and possible exports
@@ -501,7 +494,7 @@ pub fn process_instance_script(
                                 || d.type_annotation.is_some();
                             if widen {
                                 let inject = format!(
-                                    "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/"
+                                    "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any();{name};/*\u{03A9}ignore_end\u{03A9}*/"
                                 );
                                 str.append_left(d.span.end + offset, &inject);
                             }
@@ -658,9 +651,7 @@ pub fn process_instance_script(
             rewrite_type_assertions(&script_facts.type_assertions, str);
         }
 
-        if let Some(collector) = import_collector {
-            instance_imports = collector.finish();
-        }
+        instance_imports = instance_import_groups(program);
     });
     instance_imports
 }
@@ -1247,7 +1238,8 @@ mod tests {
     }
 
     #[test]
-    fn namespace_type_only_import_is_hoisted() {
+    fn namespace_import_stays_in_its_namespace() {
+        // `moveAllInstanceImports` walks `tsAst.statements` only.
         let source = r#"<script lang="ts">
 namespace Shapes {
   import type { Point } from './geometry';
@@ -1256,23 +1248,9 @@ let k = 1;
 </script>
 {k}"#;
         let result = run_svelte2tsx_ts(source);
-        let import = "import type { Point } from './geometry';";
-        let import_position = result.code.find(import).expect("import is preserved");
-        let render_position = result
-            .code
-            .find("function $$render")
-            .expect("render function is emitted");
-        assert!(
-            import_position < render_position,
-            "namespace import must be hoisted above $$render:\n{}",
-            result.code
-        );
-        assert!(result.code.contains("\n;import type { Point }"));
-        let namespace = result
-            .code
-            .find("namespace Shapes")
-            .expect("namespace is preserved");
-        assert_eq!(result.code[namespace..].matches(import).count(), 0);
+        // Official svelte2tsx (language-tools f0eda319c400), up to `async`.
+        let expected = "///<reference types=\"svelte\" />\n;function $$render() {\n\nnamespace Shapes {\n  import type { Point } from './geometry';\n}\nlet k = 1;\n;\n";
+        assert_eq!(result.code.split("async").next(), Some(expected));
     }
 
     #[test]

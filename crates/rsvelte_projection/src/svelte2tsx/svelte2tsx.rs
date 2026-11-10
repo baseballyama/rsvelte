@@ -12,6 +12,7 @@ use super::helpers::rewrite_external_imports::{TextEdit, rewrite_external_specif
 use super::helpers::tsx_angle_brackets::{MovedType, disambiguate_for_tsx};
 use super::magic_string::{GenerateMapOptions, MagicString};
 use super::nodes::component_name::derive_component_name;
+use super::nodes::directive_comment::extract_ts_check_comment;
 use super::nodes::generics::{extract_generics_from_script_tag, split_generic_param_names};
 use super::nodes::runes_detection::detect_runes_mode;
 use super::nodes::scripts::find_script_close_tag_start;
@@ -924,7 +925,6 @@ pub fn svelte2tsx(
             .module
             .as_ref()
             .map(|script| script.program()),
-        source,
         &mut store_scan,
         &options,
         &mut str,
@@ -957,6 +957,20 @@ pub fn svelte2tsx(
     );
 
     str.append_str_owned(closing);
+
+    if !matches!(options.mode, Svelte2TsxMode::Dts)
+        && let Some(script) = ast.instance.as_ref().or(ast.module.as_ref())
+    {
+        let content_end = find_script_close_tag_start(source, script.end);
+        let directives = extract_ts_check_comment(slice_src(
+            source,
+            script.content_offset as usize,
+            content_end as usize,
+        ));
+        if !directives.is_empty() {
+            str.prepend_str(&(directives.join("\n") + "\n"));
+        }
+    }
 
     let generated = str.generate_bundle(GenerateMapOptions {
         file: None,

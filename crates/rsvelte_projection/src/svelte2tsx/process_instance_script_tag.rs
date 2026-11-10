@@ -10,7 +10,9 @@ use super::nodes::generics::{
     extract_generics_from_script_tag, split_generic_param_names, type_text_references_any,
     type_text_typeof_references_local_value,
 };
-use super::nodes::scripts::{LiftedImport, detect_top_level_await, find_script_close_tag_start};
+use super::nodes::scripts::{
+    ImportGroup, detect_top_level_await, find_script_close_tag_start, next_line_or_non_whitespace,
+};
 use super::script::ExportedNames;
 use super::svelte2tsx::slice_src;
 
@@ -36,7 +38,7 @@ pub fn process_instance_script_tag(
     has_module_script: bool,
     has_slot_elements: bool,
     hoistable_snippet_ranges: &[(u32, u32)],
-    imports: &[LiftedImport],
+    imports: &[ImportGroup],
 ) -> bool {
     let instance = ast.instance.as_ref().unwrap();
     let script_start = instance.start;
@@ -120,10 +122,6 @@ pub fn process_instance_script_tag(
     };
 
     let has_imports = !imports.is_empty();
-    // With imports the `\n` separating the type alias from what precedes it
-    // already comes from the last hoisted import; without them the alias has to
-    // carry it.
-    let type_decl_prefix = if has_imports { "" } else { "\n" };
 
     // Build $$ComponentProps type declaration for TS files
     //
@@ -175,7 +173,9 @@ pub fn process_instance_script_tag(
         && !force_inside_render
         && let Some(type_text) = exported_names.props_type_text.as_ref()
     {
-        format!("{type_decl_prefix};type $$ComponentProps =  {type_text};")
+        // `moveHoistableInterfaces` prepends `\n` to the alias whether or not
+        // imports were hoisted before it.
+        format!("\n;type $$ComponentProps =  {type_text};")
     } else {
         String::new()
     };
@@ -224,8 +224,7 @@ pub fn process_instance_script_tag(
     // the output (snippets are moved to `sp`, and `part_b` follows them) but
     // AFTER the hoisted imports — which are relocated chunks, so with imports
     // present the typedef has to ride along in the last one's outro instead of
-    // sitting in `part_a`. A `\n` separator matches the blank line the JS
-    // reference produces.
+    // sitting in `part_a`.
     let ts_component_props_in_part_a =
         !hoistable_snippet_ranges.is_empty() && !ts_component_props_before_render.is_empty();
     if ts_component_props_in_part_a && !has_imports {
@@ -237,25 +236,13 @@ pub fn process_instance_script_tag(
     } else {
         ""
     };
-    // A hoisted type declaration is moved after the imports, so the `\n` that
-    // `type_decl_prefix` leaves to the last import no longer sits next to the
-    // alias — put it back here.
-    let part_b_prefix = if has_imports
-        && !exported_names.hoistable_type_ranges.is_empty()
-        && !ts_component_props_before_render.is_empty()
-        && !ts_component_props_in_part_a
-    {
-        "\n"
-    } else {
-        ""
-    };
     let part_b_component_props = if ts_component_props_in_part_a {
         ""
     } else {
         &ts_component_props_before_render
     };
     let part_b = format!(
-        "{part_b_prefix}{part_b_component_props}{template_comment}{async_prefix}function $$render{render_generics}() {{{dollar_decls}{ts_component_props_inside_render}{trailing_newline}"
+        "{part_b_component_props}{template_comment}{async_prefix}function $$render{render_generics}() {{{dollar_decls}{ts_component_props_inside_render}{trailing_newline}"
     );
 
     // Split position: right after the `<` of `<script>`. This matches
@@ -277,12 +264,10 @@ pub fn process_instance_script_tag(
         // instance-script walk, before the type/interface hoists, and each
         // `move` lands before the chunk that still starts at `sp` — so the
         // relocation order is the output order.
-        lift_imports(imports, source, content_start, sp, has_module_script, str);
-        if ts_component_props_in_part_a && let Some(last) = imports.last() {
-            str.append_left_fmt(
-                content_start + last.end,
-                format_args!("\n{ts_component_props_before_render}"),
-            );
+        let last_moved_end =
+            move_all_instance_imports(imports, source, content_start, sp, has_module_script, str);
+        if ts_component_props_in_part_a && let Some(end) = last_moved_end {
+            str.append_left(end, &ts_component_props_before_render);
         }
         // Move hoistable type/interface declarations first so they
         // sit BEFORE the snippets in the chunk list, matching the JS
@@ -404,86 +389,33 @@ pub fn process_instance_script_tag(
     has_top_level_await
 }
 
-/// Hoist the instance script's top-level imports above `$$render()` by
-/// *relocating* their source ranges — mirrors `moveNode` +
-/// `handleFirstInstanceImport`. Moving (rather than copying the text and
-/// blanking the original) is what keeps a source-map segment on every hoisted
-/// character, so a diagnostic on an import resolves back to its real line.
-fn lift_imports(
-    imports: &[LiftedImport],
+/// `moveAllInstanceImports`: relocate each run of top-level imports, with the
+/// whole lines they sit on, to `hoist_target`. Returns the end of the last
+/// moved chunk.
+fn move_all_instance_imports(
+    groups: &[ImportGroup],
     source: &str,
     content_start: u32,
     hoist_target: u32,
     has_module_script: bool,
     str: &mut MagicString<'_>,
-) {
-    let (Some(first), Some(last)) = (imports.first(), imports.last()) else {
-        return;
-    };
-
-    for import in imports {
-        let start = content_start + import.start;
-        let end = content_start + import.end;
-
-        if import.new_group
-            && !import
-                .comments
-                .iter()
-                .any(|comment| comment.has_trailing_newline)
-        {
-            str.append_right(start, "\n");
-        }
-        for comment in &import.comments {
-            let comment_end = content_start + comment.end;
-            str.move_range(content_start + comment.start, comment_end, hoist_target);
-            if comment.has_trailing_newline {
-                append_newline_to_last_char(str, source, comment_end);
-            }
-        }
+) -> Option<u32> {
+    let mut prepend = if has_module_script { "\n\n" } else { "\n" };
+    let mut last_moved_end = None;
+    for group in groups {
+        // Starting at the first import's line rather than at the script start
+        // keeps what is inserted at the script start from moving with it.
+        let start = next_line_or_non_whitespace(source, content_start + group.pos);
+        str.append_right(start, prepend);
+        let end = next_line_or_non_whitespace(source, content_start + group.end);
         str.move_range(start, end, hoist_target);
-        append_newline_to_last_char(str, source, end);
+        last_moved_end = Some(end);
+        prepend = "\n";
     }
-
-    // Separate the hoisted block from the `;` that replaced `<`, and from a
-    // preceding module script.
-    let anchor = match first.comments.first() {
-        Some(comment) if comment.block => comment.start,
-        _ => first.start,
-    };
-    str.append_right(
-        content_start + anchor,
-        if has_module_script {
-            "\n\n"
-        } else if first.nested {
-            ""
-        } else {
-            "\n"
-        },
-    );
-
-    // Terminate the last import so auto-imports and completions don't attach to
-    // the generated code that follows it.
-    let last_end = content_start + last.end;
-    let (last_char_start, last_char) = last_char_of(source, last_end);
-    if last_char != ";" {
-        str.overwrite_fmt(last_char_start, last_end, format_args!("{last_char};\n"));
+    if let Some(end) = last_moved_end
+        && source.as_bytes()[end as usize - 1] != b'\n'
+    {
+        str.append_left(end, "\n");
     }
-}
-
-/// `moveNode`'s `overwrite(end - 1, end, original[end - 1] + '\n')`: the
-/// newline has to sit inside the moved chunk so it travels with it.
-fn append_newline_to_last_char(str: &mut MagicString<'_>, source: &str, end: u32) {
-    let (last_char_start, last_char) = last_char_of(source, end);
-    str.overwrite_fmt(last_char_start, end, format_args!("{last_char}\n"));
-}
-
-fn last_char_of(source: &str, end: u32) -> (u32, &str) {
-    let mut start = end as usize - 1;
-    while !source.is_char_boundary(start) {
-        start -= 1;
-    }
-    (
-        u32::try_from(start).expect("script offset fits in u32"),
-        &source[start..end as usize],
-    )
+    last_moved_end
 }

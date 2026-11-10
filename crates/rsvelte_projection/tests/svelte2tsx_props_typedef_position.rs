@@ -231,3 +231,75 @@ fn the_props_typedef_is_inserted_before_the_declarations_leading_comments() {
         failures.join("\n")
     );
 }
+
+fn head_through_render(src: &str) -> String {
+    let code = svelte2tsx(
+        src,
+        Svelte2TsxOptions {
+            filename: "C.svelte".to_string(),
+            is_ts_file: true,
+            ..Default::default()
+        },
+    )
+    .expect("svelte2tsx")
+    .code;
+    let end = code.find("function $$render").expect("render function") + "function $$render".len();
+    code[..end].to_string()
+}
+
+/// `moveHoistableInterfaces` prepends `\n` to the alias whether or not imports
+/// were hoisted in front of it, so after an import chunk (which ends at a line
+/// start) the alias follows a blank line. Expectations are official svelte2tsx
+/// (language-tools f0eda319c400), up to `function $$render`.
+const AFTER_IMPORTS: &[(&str, &str, &str)] = &[
+    (
+        "import then inline object",
+        "<script lang=\"ts\">\n  import type { X } from 'x';\n  let { a }: { a: X } = $props();\n</script>\n{a}",
+        "///<reference types=\"svelte\" />\n;\n  import type { X } from 'x';\n\n;type $$ComponentProps =  { a: X };function $$render",
+    ),
+    (
+        "two imports, statement between alias and props",
+        "<script lang=\"ts\">\n  import type { X } from 'x';\n  import y from 'y';\n  let z = y;\n  let { a }: { a: X } = $props();\n</script>\n{a}",
+        "///<reference types=\"svelte\" />\n;\n  import type { X } from 'x';\n  import y from 'y';\n\n;type $$ComponentProps =  { a: X };function $$render",
+    ),
+    (
+        "import then inline object, CRLF",
+        "<script lang=\"ts\">\r\n  import type { X } from 'x';\r\n  let { a }: { a: X } = $props();\r\n</script>\r\n{a}",
+        "///<reference types=\"svelte\" />\n;\n  import type { X } from 'x';\r\n\n;type $$ComponentProps =  { a: X };function $$render",
+    ),
+    (
+        "import, hoisted type alias, inline object",
+        "<script lang=\"ts\">\n  import type { X } from 'x';\n  type Item = { n: number };\n  let { a }: { a: X; i: Item } = $props();\n</script>\n{a}",
+        "///<reference types=\"svelte\" />\n;\n  import type { X } from 'x';\n;\n  type Item = { n: number };;\n;type $$ComponentProps =  { a: X; i: Item };function $$render",
+    ),
+    (
+        "import, hoistable snippet, inline object",
+        "<script lang=\"ts\">\n  import type { X } from 'x';\n  let { a }: { a: X } = $props();\n</script>\n{#snippet foo()}<p>hi</p>{/snippet}\n{@render foo()}{a}",
+        "///<reference types=\"svelte\" />\n;\n  import type { X } from 'x';\n\n;type $$ComponentProps =  { a: X };function $$render",
+    ),
+    (
+        "no import, inline object",
+        "<script lang=\"ts\">\n  let { a }: { a: number } = $props();\n</script>\n{a}",
+        "///<reference types=\"svelte\" />\n;\n;type $$ComponentProps =  { a: number };function $$render",
+    ),
+];
+
+#[test]
+fn the_props_typedef_follows_hoisted_imports_after_a_blank_line() {
+    let mut failures = Vec::new();
+    for (label, source, expected) in AFTER_IMPORTS {
+        let actual = head_through_render(source);
+        if actual != *expected {
+            failures.push(format!(
+                "{label}\n  expected {expected:?}\n  actual   {actual:?}"
+            ));
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "{} of {} cells diverge from official:\n{}",
+        failures.len(),
+        AFTER_IMPORTS.len(),
+        failures.join("\n")
+    );
+}

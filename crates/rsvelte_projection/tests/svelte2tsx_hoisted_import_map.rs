@@ -56,11 +56,10 @@ fn hoisted_import_maps_back_to_its_source_line() {
         "<script lang=\"ts\">\n  import { Missing } from './other';\n  let x = 1;\n</script>\n";
     let result = convert(source);
 
-    let hoisted = "import { Missing } from './other';";
+    // The whole source line moves, indent included (`moveAllInstanceImports`).
+    let hoisted = "  import { Missing } from './other';";
     let generated_line = generated_line_of(&result.code, hoisted);
-    // The `<script>` tag is line 0, so the import sits on original line 1 at
-    // column 2 (past the two-space indent, which stays behind).
-    assert_line_maps_verbatim(&result, generated_line, hoisted.len() as u32, 1, 2);
+    assert_line_maps_verbatim(&result, generated_line, hoisted.len() as u32, 1, 0);
 }
 
 #[test]
@@ -69,11 +68,11 @@ fn every_hoisted_import_of_a_group_maps_back() {
     let result = convert(source);
 
     for (offset, text) in [
-        (1, "import { a } from './a';"),
-        (2, "import { b } from './b';"),
+        (1, "  import { a } from './a';"),
+        (2, "  import { b } from './b';"),
     ] {
         let generated_line = generated_line_of(&result.code, text);
-        assert_line_maps_verbatim(&result, generated_line, text.len() as u32, offset, 2);
+        assert_line_maps_verbatim(&result, generated_line, text.len() as u32, offset, 0);
     }
 }
 
@@ -82,9 +81,12 @@ fn hoisted_import_with_a_leading_comment_maps_back() {
     let source = "<script lang=\"ts\">\n  // why we need it\n  import { a } from './a';\n  let x = a;\n</script>\n";
     let result = convert(source);
 
-    let hoisted = "import { a } from './a';";
+    let comment = "  // why we need it";
+    let generated_line = generated_line_of(&result.code, comment);
+    assert_line_maps_verbatim(&result, generated_line, comment.len() as u32, 1, 0);
+    let hoisted = "  import { a } from './a';";
     let generated_line = generated_line_of(&result.code, hoisted);
-    assert_line_maps_verbatim(&result, generated_line, hoisted.len() as u32, 2, 2);
+    assert_line_maps_verbatim(&result, generated_line, hoisted.len() as u32, 2, 0);
 }
 
 /// The hoisted import must not be the only thing that moves: the statement that

@@ -27,7 +27,7 @@ fn jsdoc_typed_renamed_prop_with_default_is_widened() {
     let code = convert(src);
     assert!(
         code.contains(
-            "let className = \"\"/*\u{03A9}ignore_start\u{03A9}*/;className = __sveltets_2_any(className);/*\u{03A9}ignore_end\u{03A9}*/"
+            "let className = \"\"/*\u{03A9}ignore_start\u{03A9}*/;className = __sveltets_2_any();className;/*\u{03A9}ignore_end\u{03A9}*/"
         ),
         "expected __sveltets_2_any widen with ignore markers, got:\n{code}"
     );
@@ -40,7 +40,7 @@ fn boolean_default_renamed_prop_is_widened() {
     let src = "<script>\n  let open = false;\n  export { open as isOpen };\n</script>\n";
     let code = convert(src);
     assert!(
-        code.contains("open = __sveltets_2_any(open)"),
+        code.contains("open = __sveltets_2_any();open;"),
         "expected boolean-init renamed prop to be widened, got:\n{code}"
     );
 }
@@ -52,7 +52,7 @@ fn plain_string_default_renamed_prop_is_not_widened() {
     let src = "<script>\n  let className = \"\";\n  export { className as class };\n</script>\n";
     let code = convert(src);
     assert!(
-        !code.contains("__sveltets_2_any(className)"),
+        !code.contains("className = __sveltets_2_any()"),
         "plain string default must not be widened, got:\n{code}"
     );
 }

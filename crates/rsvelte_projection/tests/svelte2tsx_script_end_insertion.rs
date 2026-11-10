@@ -4,7 +4,7 @@
 //! `preprendStr` (`utils/magic-string.ts:7-17`) does not append — it
 //! `overwrite`s the single character at the insertion point with
 //! `text + thatCharacter`. `propTypeAssertToUserDefined` inserts
-//! `;x = __sveltets_2_any(x);` at `declaration.end`, and when the declaration is
+//! `;x = __sveltets_2_any();x;` at `declaration.end`, and when the declaration is
 //! the last thing in the script that character is the `<` of `</script>`, which
 //! the script-tag removal overwrites afterwards — taking the insertion with it.
 //! One trailing byte of any kind (space, tab, comment, `;`, newline) moves the
@@ -20,7 +20,7 @@
 
 use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 
-/// For each name, `name` if `__sveltets_2_any(name)` is emitted and `!name` if
+/// For each name, `name` if `name = __sveltets_2_any();name;` is emitted and `!name` if
 /// not, plus `KIT` when a `./$types.js` annotation reached the output.
 fn injected(src: &str, filename: &str, is_ts_file: bool, names: &[&str]) -> String {
     let code = svelte2tsx(
@@ -36,7 +36,7 @@ fn injected(src: &str, filename: &str, is_ts_file: bool, names: &[&str]) -> Stri
     let mut parts: Vec<String> = names
         .iter()
         .map(|name| {
-            if code.contains(&format!("__sveltets_2_any({name})")) {
+            if code.contains(&format!("{name} = __sveltets_2_any();{name};")) {
                 (*name).to_string()
             } else {
                 format!("!{name}")

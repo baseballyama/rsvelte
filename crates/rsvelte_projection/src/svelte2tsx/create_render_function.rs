@@ -10,7 +10,7 @@ use crate::ast::template::Root;
 
 use super::interfaces::{Svelte2TsxMode, Svelte2TsxOptions};
 use super::magic_string::MagicString;
-use super::nodes::scripts::find_instance_imports;
+use super::nodes::scripts::last_top_level_import_end;
 use super::nodes::slot::escape_js_single_quoted;
 use super::script::StoreScanContext;
 
@@ -24,7 +24,6 @@ use super::script::StoreScanContext;
 pub fn create_render_function(
     ast: &Root,
     module_program: Option<&oxc_ast::ast::Program>,
-    source: &str,
     store_scan: &mut StoreScanContext<'_>,
     options: &Svelte2TsxOptions,
     str: &mut MagicString<'_>,
@@ -63,11 +62,9 @@ pub fn create_render_function(
         // ? lastImport.end + moduleAst.astOffset : moduleAst.astOffset` and the
         // accompanying `appendLeft(target, '\n')` for the no-imports case.
         if !hoistable_snippet_ranges.is_empty() {
-            let module_imports =
-                find_instance_imports(module, source, module_program.expect("module script"));
-            let module_hoist_target = module_imports
-                .last()
-                .map_or(mod_content_start, |last| mod_content_start + last.end);
+            let module_hoist_target =
+                last_top_level_import_end(module_program.expect("module script"))
+                    .map_or(mod_content_start, |end| mod_content_start + end);
             // JS reference: `str.appendLeft(snippetHoistTargetForModule, '\n')`
             // for both the imports-present and no-imports branches.
             str.append_left(module_hoist_target, "\n");
