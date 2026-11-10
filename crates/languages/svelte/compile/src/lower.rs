@@ -164,6 +164,10 @@ pub(crate) fn validate(
     input: &CompileInput<'_>,
     res: &Resolution,
 ) -> Result<ValidatedOptions, Diagnostic> {
+    // Acorn rejects at parse time what oxc's semantic checker finds after the parser.
+    if let Some(error) = res.syntax_error() {
+        return Err(error.clone());
+    }
     let custom_element = special::validate(input)?;
     validation::check_names(input, res)?;
     validation::markup::check(input)?;

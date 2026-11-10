@@ -308,3 +308,17 @@ fn a_reserved_or_legacy_name_raises_upstreams_error_on_both_targets() {
         }
     }
 }
+
+/// Acorn rejects these at parse time; oxc finds them in its semantic check.
+#[test]
+fn a_semantic_syntax_error_fails_the_compile_on_both_targets() {
+    for source in [
+        "<script>let a = 1; let a = 2;</script>",
+        "<script>function f(a = 1) { 'use strict'; }</script>",
+    ] {
+        for target in [Target::Client, Target::Server] {
+            let code = compile(source, target).err();
+            assert!(code.is_some(), "{source} on {target:?} compiled");
+        }
+    }
+}

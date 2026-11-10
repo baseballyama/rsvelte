@@ -40,6 +40,11 @@ impl Task for Warn {
         let Some(resolution) = context.get::<Resolved>().as_ref() else {
             return;
         };
+        // The compile fails at parse time, before any warning.
+        if let Some(error) = resolution.syntax_error() {
+            out.diagnostics.push(error.clone());
+            return;
+        }
         let Some(compiler_syntax_tree) = context.get::<Lowered>().as_ref() else {
             return;
         };
