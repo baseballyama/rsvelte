@@ -213,8 +213,14 @@ fn unchecked_declarations(input: &CompileInput<'_>) -> FxHashSet<NodeIdentifier>
 ///
 /// # Errors
 ///
-/// An `unsupported` [`Diagnostic`] at the first such reference.
-pub(super) fn check_stores(javascript: &SyntaxTree, res: &Resolution) -> Result<(), Diagnostic> {
+/// Upstream's `global_reference_invalid` for an undeclared store, or an `unsupported`
+/// [`Diagnostic`], at the first such reference.
+pub(super) fn check_stores(
+    javascript: &SyntaxTree,
+    res: &Resolution,
+    program: NodeIdentifier,
+) -> Result<(), Diagnostic> {
+    let instance = res.sem.scope_of(program).unwrap_or(ScopeIdentifier::ROOT);
     for r in &res.sem.references {
         if r.binding.is_some() {
             continue;
@@ -224,6 +230,19 @@ pub(super) fn check_stores(javascript: &SyntaxTree, res: &Resolution) -> Result<
             return unsupported("`$$slots`", span_of(javascript, r.node));
         }
         if res.is_store_subscription(name) {
+            // In runes mode upstream reads an undeclared lowercase store as a misspelt global.
+            let store = &name[1..];
+            let declared = (javascript.atoms.lookup(store))
+                .is_some_and(|atom| res.sem.lookup(instance, atom).is_some());
+            if !declared && store.starts_with(|c: char| c.is_ascii_lowercase()) {
+                return super::special::invalid(
+                    "global_reference_invalid",
+                    &format!(
+                        "`{name}` is an illegal variable name. To reference a global variable called `{name}`, use `globalThis.{name}`"
+                    ),
+                    span_of(javascript, r.node),
+                );
+            }
             return unsupported(
                 &format!("the store subscription `{name}`"),
                 span_of(javascript, r.node),
@@ -324,14 +343,17 @@ pub(super) fn check_runes(
     };
     // Upstream checks a binding's target where it visits the directive, before the expression.
     let tree = input.component.compiler_syntax_tree;
-    let binds: FxHashMap<NodeIdentifier, Span> = (tree.nodes.iter())
+    let binds: FxHashMap<NodeIdentifier, (Span, bool)> = (tree.nodes.iter())
         .filter_map(|n| match &n.kind {
             NodeKind::Element(el) => Some(tree.attributes(el.attributes)),
             _ => None,
         })
         .flatten()
         .filter_map(|a| match a.value {
-            AttributeValue::Bind(target) => Some((target, a.span)),
+            AttributeValue::Bind(target) => Some((
+                target,
+                (a.span, a.name.text(input.component.source_text) == "this"),
+            )),
             _ => None,
         })
         .collect();
@@ -350,8 +372,8 @@ pub(super) fn check_runes(
             module,
             rendering,
         };
-        if let Some(&span) = binds.get(&root) {
-            walk.check_binding(root, span)?;
+        if let Some(&(span, this)) = binds.get(&root) {
+            walk.check_binding(root, span, this)?;
         }
         pending.push((root, place));
         while let Some((e, place)) = pending.pop() {
@@ -362,9 +384,23 @@ pub(super) fn check_runes(
 }
 
 impl RuneWalk<'_> {
-    /// Upstream's `BindDirective` checks of the `bind:` target `e` at `span`.
-    fn check_binding(&self, e: NodeIdentifier, span: Span) -> Result<(), Diagnostic> {
-        check_assignment(self.javascript, self.res, e, true, || span)
+    /// Upstream's `BindDirective` checks of the `bind:` target `e` at `span`; `bind:this` also
+    /// takes a global.
+    fn check_binding(&self, e: NodeIdentifier, span: Span, this: bool) -> Result<(), Diagnostic> {
+        let javascript = self.javascript;
+        check_assignment(javascript, self.res, e, true, || span)?;
+        if !this
+            && javascript.is_identifier(e)
+            && self.res.binding(e).is_none()
+            && !self.res.is_store_subscription(javascript.name(e))
+        {
+            return super::special::invalid(
+                "bind_invalid_value",
+                "Can only bind to state or props",
+                span_of(javascript, e),
+            );
+        }
+        Ok(())
     }
 
     /// Checks `e` and pushes its children, each with where it sits, so that they pop in order.

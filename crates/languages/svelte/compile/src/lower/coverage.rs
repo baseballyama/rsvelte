@@ -91,6 +91,9 @@ fn check_element(
         {
             check_element_binding(input, res, tag, attributes, a, target)?;
         }
+        if component {
+            check_component_attribute(a)?;
+        }
         let what = match a.value {
             AttributeValue::On { .. } if !component && el.kind != ElementKind::Regular => continue,
             AttributeValue::On { .. } => "an `on:` directive",
@@ -108,7 +111,9 @@ fn check_element(
             }
             AttributeValue::Bind(_) if name == "this" => "`bind:this` on a component",
             AttributeValue::Bind(_) if name == "group" => "`bind:group` on a component",
-            AttributeValue::Bind(target) if !is_bindable(input, res, target, true) => {
+            AttributeValue::Bind(target)
+                if !is_bindable(input, res, target, true) && !unbound(input, res, target) =>
+            {
                 "a component binding to anything but a `let`, `$state`, a prop or a member"
             }
             AttributeValue::Attach(_) => "an attachment on a component",
@@ -166,6 +171,30 @@ fn is_bindable(
         })
 }
 
+/// Upstream's `component_invalid_directive`, which the refusals below would hide.
+fn check_component_attribute(a: &Attribute) -> Result<(), Diagnostic> {
+    match a.value {
+        AttributeValue::Use { .. }
+        | AttributeValue::Transition { .. }
+        | AttributeValue::Animate { .. }
+        | AttributeValue::Style { .. }
+        | AttributeValue::Class(_) => super::special::invalid(
+            "component_invalid_directive",
+            "This type of directive is not valid on components",
+            a.span,
+        ),
+        _ => Ok(()),
+    }
+}
+
+/// A binding to a name nothing declares, for which the rune walk raises `bind_invalid_value`.
+fn unbound(input: &CompileInput<'_>, res: &Resolution, target: NodeIdentifier) -> bool {
+    let javascript = input.component.javascript;
+    javascript.is_identifier(target)
+        && res.binding(target).is_none()
+        && !res.is_store_subscription(javascript.name(target))
+}
+
 /// A supported property on a supported element, as upstream's `binding_properties` names it,
 /// with no `value`, `checked` or `group` beside it.
 fn check_element_binding(
@@ -190,7 +219,7 @@ fn check_element_binding(
             a.span,
         );
     }
-    if !is_bindable(input, res, target, false) {
+    if !is_bindable(input, res, target, false) && !unbound(input, res, target) {
         return unsupported(
             "a binding to anything but `$state` or a member of `$state` or of an `{#each}` item",
             a.span,

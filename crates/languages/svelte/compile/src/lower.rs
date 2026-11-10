@@ -133,7 +133,7 @@ pub(crate) fn validate(
     validation::markup::check(input)?;
     coverage::check(input, res)?;
     validation::check_typescript(input)?;
-    check_stores(input.component.javascript, res)?;
+    check_stores(input.component.javascript, res, input.component.program)?;
     let rest_reads = rest_reads::build(input, res, custom_element.is_some());
     Ok(ValidatedOptions {
         custom_element,

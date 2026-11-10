@@ -376,17 +376,34 @@ fn a_grouped_optional_chain_is_neither_pure_nor_safe() {
 }
 
 #[test]
+fn a_directive_a_component_never_takes_raises_upstreams_error() {
+    for attribute in [
+        "class:x",
+        "use:f",
+        "transition:f",
+        "animate:f",
+        "style:color=\"red\"",
+    ] {
+        let source = format!(
+            "<script>import C from './C.svelte'; function f() {{}}</script><C {attribute} />"
+        );
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(
+                compile(&source, target),
+                Err("component_invalid_directive".to_owned()),
+                "{source} on {target:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn each_component_attribute_not_lowered_yet_is_refused_on_both_targets() {
     for attribute in [
         "bind:this={c}",
         "bind:group={c}",
         "{@attach f}",
-        "class:x",
         "on:click={f}",
-        "use:f",
-        "transition:f",
-        "animate:f",
-        "style:color=\"red\"",
         "let:x",
         "--color=\"red\"",
         "slot=\"x\"",
@@ -667,6 +684,16 @@ fn assignment_errors_come_in_document_order_after_the_binding_checks() {
             "constant_assignment",
         ),
         ("</script><div bind:foo={s}></div>", "unsupported"),
+        (
+            "</script><input bind:value={s} /><C bind:value={nope} />",
+            "constant_binding",
+        ),
+        ("</script><C bind:value={nope} />", "bind_invalid_value"),
+        ("</script><input bind:value={nope} />", "bind_invalid_value"),
+        (
+            "</script><input bind:value={n} /><p>{$nope}</p>",
+            "global_reference_invalid",
+        ),
     ] {
         let source = format!("{script}{body}");
         for target in [Target::Client, Target::Server] {
