@@ -399,10 +399,12 @@ impl RuneWalk<'_> {
             in_class: place.in_class
                 || matches!(javascript.kind(e), Kind::Class(Class::Definition { .. })),
             module: place.module,
+            // A class's heritage and computed keys run where the class is defined; the parser
+            // already refuses `await` in its field values and static blocks.
             rendering: place.rendering
                 && !matches!(
                     javascript.kind(e),
-                    Kind::Function { .. } | Kind::Arrow { .. } | Kind::Class(_)
+                    Kind::Function { .. } | Kind::Arrow { .. }
                 ),
         };
         for c in children {

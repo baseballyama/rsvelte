@@ -92,6 +92,8 @@ fn misplaced_runes_and_wrong_rune_arguments_raise_upstream_errors_on_both_target
         ("$inspect.trace(1, 2);", "rune_invalid_arguments_length"),
         ("let h = $host(1);", "rune_invalid_arguments"),
         ("let h = $host();", "host_invalid_placement"),
+        ("class K { [await 1] = 2; }", "experimental_async"),
+        ("class K extends (await x) {}", "experimental_async"),
     ] {
         let source = format!("<script>{script}</script>");
         let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid syntax");
