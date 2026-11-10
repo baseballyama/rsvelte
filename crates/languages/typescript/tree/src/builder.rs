@@ -379,10 +379,12 @@ const fn span(span: oxc_span::Span, shift: u32) -> Span {
     Span::new(span.start + shift, span.end + shift)
 }
 
-/// `ESTree` has no parentheses, and the formatter requires that they are not kept.
+/// `ESTree` has no parentheses, and the formatter requires that they are not kept. Regular
+/// expressions are validated, as acorn validates them.
 fn options() -> ParseOptions {
     ParseOptions {
         preserve_parens: false,
+        parse_regular_expression: true,
         ..ParseOptions::default()
     }
 }
