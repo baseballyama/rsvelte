@@ -1,9 +1,11 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Select_ts($$renderer) {
 	let size = 1;
-	let name = 'a';
-	$$renderer.select({ value: size, onchange: (e) => size = e.currentTarget.selectedIndex }, ($$renderer) => {
+	let name = "a";
+	$$renderer.select({
+		value: size,
+		onchange: (e) => size = e.currentTarget.selectedIndex
+	}, ($$renderer) => {
 		$$renderer.option({ value: 1 }, ($$renderer) => {
 			$$renderer.push(`small`);
 		});

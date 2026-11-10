@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Element_call($$renderer) {
 	function tag() {
 		return "p";

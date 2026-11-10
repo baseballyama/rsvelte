@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Loop($$renderer) {
 	const values = ["a", "b"];
 	function run() {
@@ -10,5 +9,5 @@ export default function Loop($$renderer) {
 		for (const value of values) console.log(value);
 		for (const key in values) console.log(key);
 	}
-	$$renderer.push(`<p${$.attr_class($.clsx(values[0]), 'svelte-1xg63bz')}></p>`);
+	$$renderer.push(`<p${$.attr_class($.clsx(values[0]), "svelte-1xg63bz")}></p>`);
 }

@@ -1,11 +1,7 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<p> </p>`);
-
 var root_1 = $.from_html(`<p>No results.</p>`);
-
 export default function Each_else($$anchor, $$props) {
 	var fragment = $.comment();
 	var node = $.first_child(fragment);

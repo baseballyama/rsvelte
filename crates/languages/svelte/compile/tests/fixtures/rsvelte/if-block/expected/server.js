@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function If_block($$renderer, $$props) {
 	let { ok } = $$props;
 	if (ok) {

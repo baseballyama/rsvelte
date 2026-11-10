@@ -1,9 +1,6 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<button> </button>`);
-
 export default function Lint_cases($$anchor, $$props) {
 	let unused = 1;
 	var button = root();

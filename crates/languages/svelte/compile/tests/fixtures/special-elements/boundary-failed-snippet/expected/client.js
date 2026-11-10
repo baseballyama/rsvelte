@@ -1,11 +1,7 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<p> </p><button>Retry</button>`, 1);
-
 var root_1 = $.from_html(`<p>Ready</p>`);
-
 export default function Boundary_failed_snippet($$anchor) {
 	var fragment = $.comment();
 	var node = $.first_child(fragment);
@@ -16,7 +12,7 @@ export default function Boundary_failed_snippet($$anchor) {
 			var text = $.only_child(p, true);
 			var button = $.sibling(p);
 			$.template_effect(() => $.set_text(text, error().message));
-			$.delegated('click', button, function (...$$args) {
+			$.delegated("click", button, function(...$$args) {
 				reset()?.apply(this, $$args);
 			});
 			$.append($$anchor, fragment_1);
@@ -28,5 +24,4 @@ export default function Boundary_failed_snippet($$anchor) {
 	}
 	$.append($$anchor, fragment);
 }
-
-$.delegate(['click']);
+$.delegate(["click"]);

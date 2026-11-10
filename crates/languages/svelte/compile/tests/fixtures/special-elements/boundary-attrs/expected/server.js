@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Boundary_attrs($$renderer) {
 	function onerror(error, reset) {
 		console.log(error);

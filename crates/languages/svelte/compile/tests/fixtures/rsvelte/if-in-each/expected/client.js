@@ -1,13 +1,15 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<s> </s>`);
-
 var root_1 = $.from_html(`<b> </b>`);
-
 export default function If_in_each($$anchor) {
-	let tasks = $.proxy([{ text: 'write', done: true }, { text: 'test', done: false }]);
+	let tasks = $.proxy([{
+		text: "write",
+		done: true
+	}, {
+		text: "test",
+		done: false
+	}]);
 	var fragment = $.comment();
 	var node = $.first_child(fragment);
 	$.each(node, 17, () => tasks, $.index, ($$anchor, task) => {
@@ -27,7 +29,8 @@ export default function If_in_each($$anchor) {
 				$.append($$anchor, b);
 			};
 			$.if(node_1, ($$render) => {
-				if ($.get(task).done) $$render(consequent); else $$render(alternate, -1);
+				if ($.get(task).done) $$render(consequent);
+				else $$render(alternate, -1);
 			});
 		}
 		$.append($$anchor, fragment_1);

@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Generator($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
 		function* values() {
@@ -7,6 +6,6 @@ export default function Generator($$renderer, $$props) {
 			yield* ["b"];
 		}
 		const value = values().next().value;
-		$$renderer.push(`<p${$.attr_class($.clsx(value), 'svelte-z4nc94')}></p>`);
+		$$renderer.push(`<p${$.attr_class($.clsx(value), "svelte-z4nc94")}></p>`);
 	});
 }

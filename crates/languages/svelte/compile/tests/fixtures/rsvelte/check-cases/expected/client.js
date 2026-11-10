@@ -1,14 +1,10 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<p> </p>`);
-
 var root_1 = $.from_html(`<button type="button"> </button> <!> <p> </p>`, 1);
-
 export default function Check_cases($$anchor, $$props) {
 	$.push($$props, true);
-	let n = 'x';
+	let n = "x";
 	let count = 0;
 	let maybe = void 0;
 	var fragment = root_1();
@@ -29,19 +25,19 @@ export default function Check_cases($$anchor, $$props) {
 			$.append($$anchor, p_1);
 		};
 		$.if(node, ($$render) => {
-			if (maybe) $$render(consequent); else $$render(alternate, -1);
+			if (maybe) $$render(consequent);
+			else $$render(alternate, -1);
 		});
 	}
 	var p_2 = $.sibling(node, 2);
 	var text_3 = $.only_child(p_2);
 	$.template_effect(() => {
 		$.set_text(text, $$props.label.foo);
-		$.set_attribute(p_2, 'title', `a${count.bar ?? ''}b`);
-		$.set_text(text_3, `😀 ${$$props.label.baz ?? ''}`);
+		$.set_attribute(p_2, "title", `a${count.bar ?? ""}b`);
+		$.set_text(text_3, `😀 ${$$props.label.baz ?? ""}`);
 	});
-	$.delegated('click', button, () => count.toUpperCase());
+	$.delegated("click", button, () => count.toUpperCase());
 	$.append($$anchor, fragment);
 	$.pop();
 }
-
-$.delegate(['click']);
+$.delegate(["click"]);

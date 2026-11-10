@@ -1,15 +1,16 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<li> </li>`);
-
 var root_1 = $.from_html(`<section><h2>first</h2></section>`);
-
 var root_2 = $.from_html(`<ul></ul> <!>`, 1);
-
 export default function Attach_each($$anchor) {
-	let items = $.proxy([{ id: 1, label: 'a' }, { id: 2, label: 'b' }]);
+	let items = $.proxy([{
+		id: 1,
+		label: "a"
+	}, {
+		id: 2,
+		label: "b"
+	}]);
 	function highlight(item) {
 		return (node) => {
 			node.dataset.label = item.label;

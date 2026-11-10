@@ -1,7 +1,5 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 export default function Globals_bind_this($$anchor) {
 	let win = $.state(void 0);
 	let doc = $.state(void 0);

@@ -1,7 +1,5 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 import C from "./C.svelte";
-
 export default function Component_beside_svg($$renderer) {
 	C($$renderer, {});
 	$$renderer.push(`<!----><svg>`);

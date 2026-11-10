@@ -1,9 +1,6 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<p></p>`);
-
 export default function Loop($$anchor) {
 	const values = ["a", "b"];
 	function run() {
@@ -15,6 +12,6 @@ export default function Loop($$anchor) {
 		for (const key in values) console.log(key);
 	}
 	var p = root();
-	$.template_effect(() => $.set_class(p, 1, $.clsx(values[0]), 'svelte-1xg63bz'));
+	$.template_effect(() => $.set_class(p, 1, $.clsx(values[0]), "svelte-1xg63bz"));
 	$.append($$anchor, p);
 }

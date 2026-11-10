@@ -1,11 +1,7 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<p> </p>`);
-
 var root_1 = $.from_html(`<p>Ready</p>`);
-
 export default function Boundary_failed_default_call($$anchor) {
 	function fallback() {
 		return "Unknown";

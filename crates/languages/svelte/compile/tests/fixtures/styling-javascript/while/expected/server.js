@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function While($$renderer) {
 	const value = "a";
 	function run(x) {
@@ -9,5 +8,5 @@ export default function While($$renderer) {
 		} while (x < 2);
 		return x;
 	}
-	$$renderer.push(`<p${$.attr_class($.clsx(value), 'svelte-1iiwl1o')}></p>`);
+	$$renderer.push(`<p${$.attr_class($.clsx(value), "svelte-1iiwl1o")}></p>`);
 }

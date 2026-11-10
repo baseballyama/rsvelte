@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Lint_edge($$renderer, $$props) {
 	let { label } = $$props;
 	function f(a, b) {
@@ -14,5 +13,5 @@ export default function Lint_edge($$renderer, $$props) {
 	}
 	f;
 	g;
-	$$renderer.push(`<button type="">a</button> <button type="">a</button> <button type="button">a</button> <button type="foo">a</button> <button${$.attr('type', label)}>a</button> <button${$.attr('type', `a${$.stringify(label)}`)}>a</button> <button${$.attr('type', type)}>a</button>`);
+	$$renderer.push(`<button type="">a</button> <button type="">a</button> <button type="button">a</button> <button type="foo">a</button> <button${$.attr("type", label)}>a</button> <button${$.attr("type", `a${$.stringify(label)}`)}>a</button> <button${$.attr("type", type)}>a</button>`);
 }

@@ -1,9 +1,6 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<button> </button>`);
-
 export default function Effect($$anchor, $$props) {
 	$.push($$props, true);
 	let n = $.state(0);
@@ -17,10 +14,9 @@ export default function Effect($$anchor, $$props) {
 	}
 	var button = root();
 	var text = $.only_child(button);
-	$.template_effect(($0) => $.set_text(text, `${$.get(n) ?? ''} ${$0 ?? ''}`), [() => f()]);
-	$.delegated('click', button, () => $.update(n));
+	$.template_effect(($0) => $.set_text(text, `${$.get(n) ?? ""} ${$0 ?? ""}`), [() => f()]);
+	$.delegated("click", button, () => $.update(n));
 	$.append($$anchor, button);
 	$.pop();
 }
-
-$.delegate(['click']);
+$.delegate(["click"]);

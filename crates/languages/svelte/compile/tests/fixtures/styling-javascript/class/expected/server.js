@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Class($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
 		class Value {
@@ -12,6 +11,6 @@ export default function Class($$renderer, $$props) {
 			}
 		}
 		const value = new Value();
-		$$renderer.push(`<p${$.attr_class($.clsx(value.value), 'svelte-eso81h')}></p>`);
+		$$renderer.push(`<p${$.attr_class($.clsx(value.value), "svelte-eso81h")}></p>`);
 	});
 }

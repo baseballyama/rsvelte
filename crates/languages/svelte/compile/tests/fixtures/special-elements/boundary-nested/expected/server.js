@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Boundary_nested($$renderer) {
 	$$renderer.push(`<p>Before</p>`);
 	$$renderer.push(`<!--[-->`);

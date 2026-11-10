@@ -1,9 +1,6 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<input type="number"/> <input type="range" min="0" max="10"/> <p> </p>`, 1);
-
 export default function Bind_number($$anchor) {
 	let a = $.state(1);
 	let b = $.state(2);
@@ -15,7 +12,7 @@ export default function Bind_number($$anchor) {
 	$.remove_input_defaults(input_1);
 	var p = $.sibling(input_1, 2);
 	var text = $.only_child(p);
-	$.template_effect(() => $.set_text(text, `${$.get(a) ?? ''} + ${$.get(b) ?? ''} = ${$.get(sum) ?? ''}`));
+	$.template_effect(() => $.set_text(text, `${$.get(a) ?? ""} + ${$.get(b) ?? ""} = ${$.get(sum) ?? ""}`));
 	$.bind_value(input, () => $.get(a), ($$value) => $.set(a, $$value));
 	$.bind_value(input_1, () => $.get(b), ($$value) => $.set(b, $$value));
 	$.append($$anchor, fragment);

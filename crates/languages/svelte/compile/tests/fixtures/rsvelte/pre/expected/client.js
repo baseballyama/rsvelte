@@ -1,13 +1,10 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<pre> </pre> <pre>
 
 two newlines</pre> <pre><code> </code></pre> <button type="button">more</button>`, 1);
-
 export default function Pre($$anchor) {
-	let text = $.state('hi');
+	let text = $.state("hi");
 	var fragment = root();
 	var pre = $.first_child(fragment);
 	var text_1 = $.only_child(pre);
@@ -19,12 +16,11 @@ export default function Pre($$anchor) {
 	$.template_effect(() => {
 		$.set_text(text_1, `
   a
-	${$.get(text) ?? ''}
+	${$.get(text) ?? ""}
 `);
-		$.set_text(text_2, `  ${$.get(text) ?? ''}  `);
+		$.set_text(text_2, `  ${$.get(text) ?? ""}  `);
 	});
-	$.delegated('click', button, () => $.set(text, $.get(text) + '!'));
+	$.delegated("click", button, () => $.set(text, $.get(text) + "!"));
 	$.append($$anchor, fragment);
 }
-
-$.delegate(['click']);
+$.delegate(["click"]);

@@ -1,8 +1,11 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Each_handlers($$renderer) {
-	let items = ['one', 'two', 'three'];
-	let picked = '';
+	let items = [
+		"one",
+		"two",
+		"three"
+	];
+	let picked = "";
 	function remove(item) {
 		items = items.filter((i) => i !== item);
 	}

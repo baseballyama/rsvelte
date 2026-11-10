@@ -1,11 +1,10 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Attach($$renderer) {
 	let count = 0;
 	function tooltip(node) {
-		node.title = 'hi';
+		node.title = "hi";
 		return () => {
-			node.title = '';
+			node.title = "";
 		};
 	}
 	function color(c) {

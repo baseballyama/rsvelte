@@ -1,7 +1,10 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Each_unkeyed($$renderer) {
-	let names = ['Ada', 'Grace', 'Barbara'];
+	let names = [
+		"Ada",
+		"Grace",
+		"Barbara"
+	];
 	$$renderer.push(`<ul><!--[-->`);
 	const each_array = $.ensure_array_like(names);
 	for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {

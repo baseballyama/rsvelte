@@ -1,9 +1,6 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<p>Ready</p>`);
-
 export default function Boundary_failed_attribute($$anchor, $$props) {
 	var fragment = $.comment();
 	var node = $.first_child(fragment);
