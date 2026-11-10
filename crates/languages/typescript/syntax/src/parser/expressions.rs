@@ -1,6 +1,6 @@
 use super::{
-    AssignmentOperator, BinaryOperator, Kind, Lexer, List, LogicalOperator, NodeIdentifier, Parser,
-    R, Span, T, TypeScriptKind, UnaryOperator, UpdateOperator,
+    AssignmentOperator, BinaryOperator, Kind, Lexer, List, LogicalOperator, NodeIdentifier,
+    ParseError, Parser, R, Span, T, TypeScriptKind, UnaryOperator, UpdateOperator,
 };
 
 /// A link of an assignment chain, waiting for the expression to its right.
@@ -24,6 +24,8 @@ pub(super) enum Link {
 pub(super) struct ArrowHead {
     start_offset: u32,
     is_async: bool,
+    /// Whether `await` was an expression where the arrow starts, restored once it ends.
+    outer_async: bool,
     type_parameters: Option<(Span, NodeIdentifier)>,
     ret: Option<(Span, NodeIdentifier)>,
     parameters: List,
@@ -62,9 +64,10 @@ impl Parser<'_, '_> {
             let start_offset = self.token.span.start_offset;
             if let Some(head) = self.arrow_head()? {
                 if self.token.t == T::LBrace {
-                    let body = self.block()?;
+                    let body = self.with_async(head.is_async, Self::block)?;
                     break self.arrow(head, body, false);
                 }
+                self.in_async = head.is_async;
                 self.links.push(Link::Arrow(head));
                 continue;
             }
@@ -130,13 +133,32 @@ impl Parser<'_, '_> {
         Ok(value)
     }
 
+    /// Strict mode code may not assign `eval` or `arguments`.
+    pub(super) fn check_assigned(&self, e: NodeIdentifier) -> R<()> {
+        if !self.syntax_tree.is_identifier(e) {
+            return Ok(());
+        }
+        let name = self.syntax_tree.name(e);
+        if !matches!(name, "eval" | "arguments") {
+            return Ok(());
+        }
+        let Some(span) = self.syntax_tree.source_location(e).span() else {
+            unreachable!("a parsed name has a span")
+        };
+        Err(ParseError {
+            message: format!("`{name}` cannot be assigned in strict mode code"),
+            span,
+        })
+    }
+
     pub(super) fn check_assign_target(
         &mut self,
         e: NodeIdentifier,
         op: AssignmentOperator,
     ) -> R<NodeIdentifier> {
         match self.syntax_tree.kind(e) {
-            Kind::Identifier(_) | Kind::Member { .. } => Ok(e),
+            Kind::Identifier(_) => self.check_assigned(e).map(|()| e),
+            Kind::Member { .. } => Ok(e),
             Kind::Object(_) | Kind::Array(_) if op == AssignmentOperator::Assign => {
                 self.assignment_pattern(e)
             }
@@ -183,10 +205,16 @@ impl Parser<'_, '_> {
         {
             let t = self.bump()?;
             let parameters = self.open();
-            let p = self.ident_node(t);
+            let p = self.binding_identifier(t)?;
             self.item(p);
             parameters
         } else if self.token.t == T::LParen && self.paren_arrow_ahead(self.lex, &mut Vec::new())? {
+            if self.typescript && self.text(self.peek()) == "this" {
+                return Err(ParseError {
+                    message: "an arrow function cannot have a `this` parameter".to_owned(),
+                    span: self.peek().span,
+                });
+            }
             let p = self.parameters()?;
             ret = self.maybe_return_type()?;
             p
@@ -200,6 +228,7 @@ impl Parser<'_, '_> {
         Ok(Some(ArrowHead {
             start_offset,
             is_async,
+            outer_async: self.in_async,
             type_parameters,
             ret,
             parameters,
@@ -212,6 +241,7 @@ impl Parser<'_, '_> {
         body: NodeIdentifier,
         expression_body: bool,
     ) -> NodeIdentifier {
+        self.in_async = head.outer_async;
         let span = self.span_from(head.start_offset);
         let is_async = head.is_async;
         let f = self.close(head.parameters, |syntax_tree, parameters| {
@@ -272,6 +302,8 @@ impl Parser<'_, '_> {
     pub(super) fn binary(&mut self, min: u8) -> R<NodeIdentifier> {
         let start_offset = self.token.span.start_offset;
         let mut left = self.unary()?;
+        // The logical operator of `left` when it is a logical expression without parentheses.
+        let mut bare_logical = None;
         loop {
             if self.typescript
                 && self.token.t == T::Identifier
@@ -297,8 +329,22 @@ impl Parser<'_, '_> {
             if prec < min {
                 break;
             }
+            let nullish = |op| op == Some(LogicalOperator::Nullish);
+            if bare_logical.is_some() && nullish(bare_logical) != nullish(op.err()) {
+                return self.fail(
+                    "Logical expressions and coalesce expressions cannot be mixed. Wrap either by \
+                     parentheses",
+                );
+            }
+            bare_logical = op.err();
             self.bump()?;
-            let right = self.nested(|p| p.binary(if right_assoc { prec } else { prec + 1 }))?;
+            // The right side of `??` stops before `||` and `&&`, so a mix meets the check above.
+            let right_min = match op {
+                Err(LogicalOperator::Nullish) => LogicalOperator::And.precedence() + 1,
+                _ if right_assoc => prec,
+                _ => prec + 1,
+            };
+            let right = self.nested(|p| p.binary(right_min))?;
             let span = self.span_from(start_offset);
             left = match op {
                 Ok(b) => self.syntax_tree.binary(b, left, right, span),
@@ -334,12 +380,10 @@ impl Parser<'_, '_> {
                 } else {
                     UpdateOperator::Dec
                 })
-            } else if self.is_kw("await")
-                && !matches!(
-                    self.peek().t,
-                    T::Arrow | T::Op | T::RParen | T::Comma | T::Semi | T::Eof
-                )
-            {
+            } else if self.is_kw("await") {
+                if !self.in_async {
+                    return self.fail("`await` is only valid in an async function");
+                }
                 Prefix::Await
             } else {
                 break;
@@ -355,7 +399,10 @@ impl Parser<'_, '_> {
             let span = self.span_from(start_offset);
             e = match prefix {
                 Prefix::Unary(op) => self.syntax_tree.unary(op, e, span),
-                Prefix::Update(op) => self.syntax_tree.update(op, true, e, span),
+                Prefix::Update(op) => {
+                    self.check_assigned(e)?;
+                    self.syntax_tree.update(op, true, e, span)
+                }
                 Prefix::Await => self.syntax_tree.await_(e, span),
             };
         }
@@ -370,6 +417,7 @@ impl Parser<'_, '_> {
             && !self.token.newline_before
             && matches!(self.text(self.token), "++" | "--")
         {
+            self.check_assigned(e)?;
             let op = if self.text(self.token) == "++" {
                 UpdateOperator::Inc
             } else {

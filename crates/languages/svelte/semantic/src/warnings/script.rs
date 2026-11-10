@@ -1,7 +1,7 @@
 //! The warnings the analysis walk emits at JavaScript nodes, in the scripts and in the
 //! template's expressions.
 
-use crate::resolve::{BindingKind, RUNES, Resolution, for_each_pattern_identifier};
+use crate::resolve::{BindingKind, RUNES, Resolution, for_each_pattern_target};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Component;
@@ -124,7 +124,7 @@ fn declaration_scope(
     let mut scope = None;
     for &declarator in declarations {
         if let Kind::Declarator { identifier, .. } = javascript.kind(declarator) {
-            for_each_pattern_identifier(javascript, identifier, &mut |name| {
+            for_each_pattern_target(javascript, identifier, &mut |name| {
                 if let Some(binding) = resolution.sem.binding_of(name) {
                     scope.get_or_insert(resolution.sem.bindings[binding].scope);
                 }

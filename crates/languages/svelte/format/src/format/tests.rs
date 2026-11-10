@@ -349,14 +349,6 @@ fn what_svelte_rejects_is_refused() {
         "a root-only `svelte:` tag twice"
     );
     assert_eq!(
-        refusal("<div a=\"1\" a=\"2\"></div>\n"),
-        ("an attribute named twice", Some("a=\"2\""))
-    );
-    assert_eq!(
-        refusal("<div bind:value={x} value={y}></div>\n").0,
-        "an attribute named twice"
-    );
-    assert_eq!(
         refusal("<svelte:options runes>\n</svelte:options>\n").0,
         "`<svelte:options>` with children"
     );

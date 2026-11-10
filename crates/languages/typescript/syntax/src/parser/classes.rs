@@ -54,7 +54,7 @@ impl Parser<'_, '_> {
         self.bump()?;
         let name = if self.token.t == T::Identifier && !self.is_kw("extends") {
             let t = self.bump()?;
-            Some(self.ident_node(t))
+            Some(self.binding_identifier(t)?)
         } else if declaration {
             return self.fail("expected class name");
         } else {
@@ -181,7 +181,7 @@ impl Parser<'_, '_> {
         }
         self.maybe_type_annotation(key)?;
         let value = if self.eat_op("=")? {
-            Some(self.assignment()?)
+            Some(self.with_async(false, Self::assignment)?)
         } else {
             None
         };
@@ -207,7 +207,7 @@ impl Parser<'_, '_> {
         if is_static {
             self.bump()?;
             if self.token.t == T::LBrace {
-                let body = self.block()?;
+                let body = self.with_async(false, Self::block)?;
                 return Ok(Member::Runtime(
                     self.syntax_tree
                         .class(Class::StaticBlock(body), self.span_from(start)),
@@ -262,7 +262,7 @@ impl Parser<'_, '_> {
                 self.semicolon()?;
                 NodeIdentifier::NONE
             } else {
-                self.block()?
+                self.with_async(is_async, Self::block)?
             };
             erased |= bodiless;
             let span = self.span_from(start);

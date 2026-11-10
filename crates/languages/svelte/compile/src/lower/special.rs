@@ -207,14 +207,8 @@ fn validate_options(
         }
         if name == "namespace"
             && let Some(value) = crate::input::static_string(input, &attribute.value)
-            && matches!(
-                value,
-                "html"
-                    | "svg"
-                    | "mathml"
-                    | "http://www.w3.org/2000/svg"
-                    | "http://www.w3.org/1998/Math/MathML"
-            )
+            && (matches!(value, "html" | "svg" | "mathml")
+                || crate::render_plan::Namespace::from_url(value).is_some())
         {
             continue;
         }

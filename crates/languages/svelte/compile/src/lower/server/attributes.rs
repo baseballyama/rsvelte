@@ -2,14 +2,17 @@ mod class;
 mod with_spread;
 mod without_spread;
 
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+
 use super::{
     Attribute, AttributeValue, NodeIdentifier, Part, ServerCompilationContext, SourceLocation,
     decode_attribute, escape_markup, known_string, needs_clsx, sanitize_template_string,
 };
 
 impl ServerCompilationContext<'_> {
-    /// Upstream `build_attribute_value` (server); a `class`
-    /// written as one unquoted expression goes through `$.clsx` when upstream's `needs_clsx`.
+    /// Upstream `build_attribute_value` (server), with text as written: an element's caller
+    /// escapes it, a component's does not. A `class` written as one unquoted expression goes
+    /// through `$.clsx` when upstream's `needs_clsx`.
     pub(super) fn attribute_value(
         &mut self,
         a: &Attribute,
@@ -37,11 +40,7 @@ impl ServerCompilationContext<'_> {
             AttributeValue::Boolean => {
                 return self.out.write_boolean(true, SourceLocation::SYNTHETIC);
             }
-            AttributeValue::Static(v) => {
-                return self
-                    .out
-                    .write_string(&escape_markup(&attribute_text(v, trim), true));
-            }
+            AttributeValue::Static(v) => return self.out.write_string(&attribute_text(v, trim)),
             _ => {
                 unreachable!("directives are handled by the caller")
             }
@@ -98,12 +97,28 @@ impl ServerCompilationContext<'_> {
     }
 }
 
+/// A class value with the stylesheet's hash, trimmed as upstream's `.trim()` does; the hash has
+/// no whitespace to trim.
+fn scoped_class(value: &str, hash: &str) -> String {
+    match value.trim_start_matches(is_ecmascript_whitespace) {
+        "" => hash.to_owned(),
+        value => format!("{value} {hash}"),
+    }
+}
+
 fn attribute_text(data: &str, trim: bool) -> String {
     if trim {
-        collapse_ws(data).trim().to_owned()
+        collapse_ws(data)
+            .trim_matches(is_ecmascript_whitespace)
+            .to_owned()
     } else {
         data.to_owned()
     }
+}
+
+/// An element's static attribute value, escaped for a quoted attribute.
+fn escaped_text(data: &str, trim: bool) -> String {
+    escape_markup(&attribute_text(data, trim), true).into_owned()
 }
 
 /// `regex_whitespaces_strict` → `' '`.

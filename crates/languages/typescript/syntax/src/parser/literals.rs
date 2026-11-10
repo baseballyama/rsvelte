@@ -1,4 +1,4 @@
-use super::{AssignmentOperator, Kind, NodeIdentifier, Parser, R, RESERVED, Span, T, flag};
+use super::{AssignmentOperator, NodeIdentifier, Parser, R, Span, T, flag};
 
 impl Parser<'_, '_> {
     #[expect(clippy::too_many_lines, reason = "one arm per primary expression kind")]
@@ -54,10 +54,8 @@ impl Parser<'_, '_> {
                             self.span_from(start_offset),
                         ))
                     }
-                    _ if RESERVED.contains(&text) => {
-                        self.fail(format!("unexpected keyword `{text}`"))
-                    }
                     _ => {
+                        Self::check_name(text, t.span, false)?;
                         self.bump()?;
                         Ok(self.ident_node(t))
                     }
@@ -86,14 +84,6 @@ impl Parser<'_, '_> {
                 let e = self.expression()?;
                 self.allow_in = previous;
                 self.expect(T::RParen, ")")?;
-                // `(a?.b).c` ends the chain at `)`; without the mark it reads as `a?.b.c`.
-                let continues = matches!(
-                    self.token.t,
-                    T::Dot | T::LBracket | T::LParen | T::Template { .. }
-                );
-                if continues && self.ends_optional_chain(e) {
-                    return Ok(self.syntax_tree.grouped(e));
-                }
                 Ok(e)
             }
             T::LBracket => {
@@ -225,7 +215,7 @@ impl Parser<'_, '_> {
                         self.accessor_parameters(parameters, accessor == flag::GETTER)?;
                     }
                     let ret = self.maybe_return_type()?;
-                    let body = self.block()?;
+                    let body = self.with_async(is_async, Self::block)?;
                     let span = Span::new(key_token.start_offset, self.prev_end);
                     let f = self.close(parameters, |syntax_tree, parameters| {
                         syntax_tree.function(false, None, parameters, body, is_async, span)
@@ -251,6 +241,7 @@ impl Parser<'_, '_> {
                         .property(key, v, flags, self.span_from(plo));
                     self.item(prop);
                 } else if let Some(name) = self.syntax_tree.atom(key).filter(|_| !computed) {
+                    Self::check_name(self.syntax_tree.atoms.get(name), key_token, false)?;
                     let mut value = self.syntax_tree.ident_atom(name, key_token);
                     // `{ a = 1 }` is only valid once read as a pattern.
                     if self.is_op("=") {
@@ -309,20 +300,6 @@ impl Parser<'_, '_> {
 }
 
 impl Parser<'_, '_> {
-    /// Whether `e` is a member or call chain with a `?.` in it.
-    fn ends_optional_chain(&self, mut e: NodeIdentifier) -> bool {
-        loop {
-            match self.syntax_tree.kind(e) {
-                Kind::Member { optional: true, .. } | Kind::Call { optional: true, .. } => {
-                    return true;
-                }
-                Kind::Member { object, .. } => e = object,
-                Kind::Call { callee, .. } => e = callee,
-                _ => return false,
-            }
-        }
-    }
-
     fn import_primary(&mut self) -> R<NodeIdentifier> {
         let token = self.bump()?;
         if self.eat(T::Dot)? {

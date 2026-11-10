@@ -77,6 +77,7 @@ impl ClientCompilationContext<'_> {
             ElementKind::Metadata(Some(MetadataTag::Element)) => {
                 return self.dynamic_element(identifier, node, frag, lists);
             }
+            ElementKind::Component => return self.component(identifier, node, false, frag, lists),
             ElementKind::Metadata(Some(MetadataTag::Options)) => {}
             _ => return unsupported("this special element", element.name),
         }

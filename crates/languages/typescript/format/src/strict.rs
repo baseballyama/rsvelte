@@ -114,39 +114,6 @@ fn regex_error(text: &str) -> Option<&'static str> {
         .map(|_| "a regular expression with several named groups")
 }
 
-/// A name strict mode reserves, or `eval` / `arguments` bound or assigned.
-fn identifier_error(
-    tree: &SyntaxTree,
-    parents: &[NodeIdentifier],
-    node: NodeIdentifier,
-) -> Option<&'static str> {
-    let name = tree.name(node);
-    let reserved = matches!(
-        name,
-        "implements"
-            | "interface"
-            | "let"
-            | "package"
-            | "private"
-            | "protected"
-            | "public"
-            | "static"
-            | "yield"
-            | "await"
-            // Keywords the tree reads as names where a name is bound.
-            | "true"
-            | "false"
-            | "null"
-            | "this"
-            | "super"
-    );
-    if matches!(name, "eval" | "arguments") && is_bound(tree, parents, node) {
-        return Some("`eval` or `arguments` bound or assigned");
-    }
-    (reserved && !is_property_name(tree, parents[node.index()], node))
-        .then_some("a name strict mode reserves")
-}
-
 fn node_error(
     tree: &SyntaxTree,
     source_text: &str,
@@ -154,7 +121,6 @@ fn node_error(
     node: NodeIdentifier,
 ) -> Option<&'static str> {
     match tree.kind(node) {
-        Kind::Identifier(_) => identifier_error(tree, parents, node),
         Kind::Assign(_, target, _) => pattern_has_optional_chain(tree, target)
             .then_some("an optional chain as a target")
             .or_else(|| {
@@ -198,9 +164,6 @@ fn node_error(
                 Some("an update of something that is not a name or a member")
             }
         }
-        Kind::New { callee, .. } => {
-            has_optional_chain(tree, callee).then_some("an optional chain after `new`")
-        }
         Kind::Unary(UnaryOperator::Delete, argument) => {
             matches!(tree.kind(argument), Kind::Identifier(_)).then_some("`delete` of a name")
         }
@@ -239,68 +202,16 @@ fn node_error(
     }
 }
 
-/// Whether `node` is a name a declaration, parameter or assignment binds.
-fn is_bound(tree: &SyntaxTree, parents: &[NodeIdentifier], node: NodeIdentifier) -> bool {
-    let parent = parents[node.index()];
-    if parent == NodeIdentifier::NONE {
-        return false;
-    }
-    match tree.kind(parent) {
-        Kind::Declarator { identifier, .. } => identifier == node,
-        Kind::Function {
-            name, parameters, ..
-        } => name == Some(node) || parameters.contains(&node),
-        Kind::Arrow { parameters, .. } => parameters.contains(&node),
-        Kind::AssignPattern(left, _) | Kind::Assign(_, left, _) => left == node,
-        Kind::Update { .. }
-        | Kind::ArrayPattern(_)
-        | Kind::Rest(_)
-        | Kind::ImportDefault(_)
-        | Kind::ImportNamespace(_) => true,
-        Kind::ImportNamed { local, .. } => local == node,
-        Kind::Property { value, .. } => {
-            value == node
-                && parents.get(parent.index()).is_some_and(|&g| {
-                    g != NodeIdentifier::NONE && matches!(tree.kind(g), Kind::ObjectPattern(_))
-                })
-        }
-        _ => false,
-    }
-}
-
-fn is_property_name(tree: &SyntaxTree, parent: NodeIdentifier, node: NodeIdentifier) -> bool {
-    if parent == NodeIdentifier::NONE {
-        return false;
-    }
-    match tree.kind(parent) {
-        Kind::Member {
-            property,
-            computed: false,
-            ..
-        } => property == node,
-        Kind::Property {
-            key,
-            computed: false,
-            shorthand: false,
-            ..
-        } => key == node,
-        Kind::ImportNamed { imported, local } => imported == node && imported != local,
-        Kind::MetaProperty { .. } => true,
-        _ => false,
-    }
-}
-
 fn has_optional_chain(tree: &SyntaxTree, mut node: NodeIdentifier) -> bool {
     loop {
-        // `(a?.b).c`: the chain ended at the parentheses.
-        if tree.flags(node) & flag::GROUPED != 0 {
-            return false;
-        }
         match tree.kind(node) {
             Kind::Member { optional: true, .. } | Kind::Call { optional: true, .. } => return true,
-            Kind::Member { object, .. } => node = object,
-            Kind::Call { callee, .. } => node = callee,
+            Kind::Member { object: next, .. } | Kind::Call { callee: next, .. } => node = next,
             _ => return false,
+        }
+        // `(a?.b).c`: the chain ended at the parentheses.
+        if tree.is_chain(node) {
+            return false;
         }
     }
 }

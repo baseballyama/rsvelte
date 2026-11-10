@@ -61,13 +61,7 @@ impl ServerCompilationContext<'_> {
         if let Some(s) = folded {
             body[0] = s;
         } else {
-            let r = self.out.identifier("$$renderer");
-            let callee = self.out.dot(r, "push");
-            let m = self.out.write_string(marker);
-            let call = self
-                .out
-                .call(callee, &[m], false, SourceLocation::SYNTHETIC);
-            body.insert(0, self.out.expression_statement(call));
+            body.insert(0, self.push_literal(marker));
         }
         self.out.block(&body, SourceLocation::SYNTHETIC)
     }

@@ -6,21 +6,7 @@ use super::{
     TemplateNodeIdentifier, Unsupported, only_ws,
 };
 use crate::options::Part as SortPart;
-
-/// What JavaScript's `String.prototype.trim` removes: `WhiteSpace` and `LineTerminator`.
-pub(super) const fn is_javascript_whitespace(c: char) -> bool {
-    matches!(
-        c,
-        '\t' | '\n' | '\u{B}' | '\u{C}' | '\r' | ' ' | '\u{A0}' | '\u{1680}' | '\u{2000}'
-            ..='\u{200A}'
-                | '\u{2028}'
-                | '\u{2029}'
-                | '\u{202F}'
-                | '\u{205F}'
-                | '\u{3000}'
-                | '\u{FEFF}'
-    )
-}
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 impl Printer<'_, '_, '_> {
     /// `printTopLevelParts`: options, scripts, markup and styles in `svelteSortOrder`, or in the
@@ -114,7 +100,7 @@ impl Printer<'_, '_, '_> {
                     && (span.start_offset == 0 || span.end_offset == end)
                     && self
                         .raw(n)
-                        .trim_matches(is_javascript_whitespace)
+                        .trim_matches(is_ecmascript_whitespace)
                         .is_empty())
             })
             .map(|&n| (Child::Node(n), c.node(n).span()))
@@ -263,7 +249,9 @@ impl Printer<'_, '_, '_> {
             let TemplateNode::Comment { span, data } = *self.c.node(identifier) else {
                 continue;
             };
-            let data = data.text(self.source_text).trim();
+            let data = data
+                .text(self.source_text)
+                .trim_matches(is_ecmascript_whitespace);
             if data.starts_with("prettier-ignore") {
                 return Err(Unsupported::at("prettier-ignore comments", span));
             }
@@ -311,7 +299,7 @@ impl Printer<'_, '_, '_> {
             .and_then(|&f| self.child_text(f))
             .filter(|&f| c.node(f).span().start_offset == 0)
         {
-            let t = self.raw(first).trim_start_matches(is_javascript_whitespace);
+            let t = self.raw(first).trim_start_matches(is_ecmascript_whitespace);
             self.set_raw(first, Cow::Owned(t.to_owned()));
         }
         let end = self.source_text.len();
@@ -320,7 +308,7 @@ impl Printer<'_, '_, '_> {
             .and_then(|&l| self.child_text(l))
             .filter(|&l| c.node(l).span().end_offset as usize == end)
         {
-            let t = self.raw(last).trim_end_matches(is_javascript_whitespace);
+            let t = self.raw(last).trim_end_matches(is_ecmascript_whitespace);
             self.set_raw(last, Cow::Owned(t.to_owned()));
         }
         for &child in root {
@@ -408,7 +396,7 @@ impl Printer<'_, '_, '_> {
     /// `formatBodyContent` around the script's program.
     pub(super) fn script_body(&mut self, content: Span) -> R<LayoutInstructionIdentifier> {
         let text = content.text(self.source_text);
-        if text.trim_matches(is_javascript_whitespace).is_empty() {
+        if text.trim_matches(is_ecmascript_whitespace).is_empty() {
             return Ok(if text.is_empty() {
                 self.d().nil()
             } else {
@@ -466,7 +454,7 @@ impl Printer<'_, '_, '_> {
             ));
         }
         let text = style.content.text(self.source_text);
-        if text.trim_matches(is_javascript_whitespace).is_empty() {
+        if text.trim_matches(is_ecmascript_whitespace).is_empty() {
             return Ok(if text.is_empty() {
                 self.d().nil()
             } else {

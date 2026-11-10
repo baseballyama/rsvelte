@@ -65,6 +65,7 @@ impl Parser<'_> {
 
     fn open_tag_attributes(&mut self) -> ParseResult<Vec<TagAttributes>> {
         let mut attributes = Vec::new();
+        self.unique_names.clear();
         loop {
             self.skip_ws();
             match self.peek() {
@@ -110,6 +111,8 @@ impl Parser<'_> {
                             self.words(TokenType::AttributeText, value_start);
                         }
                     }
+                    let span = Span::new(name.start_offset, self.position as u32);
+                    self.unique(super::attribute::Unique::Attribute, name, span)?;
                     attributes.push((name, value));
                 }
             }

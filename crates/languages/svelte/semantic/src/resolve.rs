@@ -10,7 +10,7 @@ mod classify;
 mod roots;
 mod runes;
 
-pub use runes::{RUNE_ROOTS, RUNES, rune_call};
+pub use runes::{RUNE_ROOTS, RUNES, lowers, rune_call};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BindingKind {
@@ -134,31 +134,31 @@ impl Runes {
     }
 }
 
-/// The identifiers a binding pattern declares.
-pub fn for_each_pattern_identifier(
+/// The targets a pattern writes: the identifiers it declares, and in an assignment its members.
+pub fn for_each_pattern_target(
     syntax_tree: &SyntaxTree,
     p: NodeIdentifier,
     f: &mut impl FnMut(NodeIdentifier),
 ) {
     match syntax_tree.kind(p) {
-        Kind::Identifier(_) => f(p),
+        Kind::Identifier(_) | Kind::Member { .. } => f(p),
         Kind::ObjectPattern(props) => {
             for &pr in props {
                 match syntax_tree.kind(pr) {
                     Kind::Property { value, .. } => {
-                        for_each_pattern_identifier(syntax_tree, value, f);
+                        for_each_pattern_target(syntax_tree, value, f);
                     }
-                    Kind::Rest(a) => for_each_pattern_identifier(syntax_tree, a, f),
+                    Kind::Rest(a) => for_each_pattern_target(syntax_tree, a, f),
                     _ => {}
                 }
             }
         }
         Kind::ArrayPattern(items) => {
             for &it in items {
-                for_each_pattern_identifier(syntax_tree, it, f);
+                for_each_pattern_target(syntax_tree, it, f);
             }
         }
-        Kind::AssignPattern(l, _) | Kind::Rest(l) => for_each_pattern_identifier(syntax_tree, l, f),
+        Kind::AssignPattern(l, _) | Kind::Rest(l) => for_each_pattern_target(syntax_tree, l, f),
         _ => {}
     }
 }
@@ -173,6 +173,13 @@ impl Resolution {
         e: NodeIdentifier,
     ) -> Option<(&'static str, Option<NodeIdentifier>)> {
         runes::rune(syntax_tree, &self.sem, &self.subscribed, e)
+    }
+
+    /// The rune the call `e` names by its callee's shape, inside an optional chain too: the
+    /// rune upstream's visitors of a call see.
+    #[must_use]
+    pub fn rune_named(&self, syntax_tree: &SyntaxTree, e: NodeIdentifier) -> Option<&'static str> {
+        runes::named_in_scope(syntax_tree, &self.sem, &self.subscribed, e)
     }
 
     /// Whether the unbound reference `name` subscribes to a store (upstream analysis's synthetic
@@ -191,6 +198,23 @@ impl Resolution {
     ) -> Option<(BindingIdentifier, &BindingInformation)> {
         let b = self.sem.binding_of(ident)?;
         Some((b, &self.bindings[b]))
+    }
+
+    /// Upstream `validate_no_const_assignment`: what an assignment to or a binding of the name
+    /// `identifier` would change that cannot change, `"import"` or `"constant"`, whatever rune
+    /// declared it. An `{#each}` item is declared `const` but may be reassigned.
+    #[must_use]
+    pub fn constant(&self, identifier: NodeIdentifier) -> Option<&'static str> {
+        let (b, information) = self.binding(identifier)?;
+        match (self.sem.bindings[b].kind, information.kind) {
+            (scope::DeclarationKind::Import, _) => Some("import"),
+            (_, BindingKind::Each) => None,
+            (scope::DeclarationKind::Const, _)
+            | (_, BindingKind::Template | BindingKind::StaticIndex | BindingKind::KeyedIndex) => {
+                Some("constant")
+            }
+            _ => None,
+        }
     }
 
     /// Upstream `is_state_source`: in runes mode a `$state` needs a signal only if it is

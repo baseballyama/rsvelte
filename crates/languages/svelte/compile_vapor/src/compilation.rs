@@ -67,7 +67,7 @@ pub(crate) fn check(
         return Err(unsupported("TypeScript with runtime semantics", t.span));
     }
     let input = rsvelte_svelte_semantic::svelte_input(c, compiler_syntax_tree, source_text, "");
-    let namespaces = rsvelte_svelte_compile::render_plan::NamespacePlan::build(&input.into());
+    let namespaces = rsvelte_svelte_compile::render_plan::Namespaces::build(&input.into());
     let options = template::check(
         compiler_syntax_tree,
         &c.javascript,

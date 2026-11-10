@@ -1,4 +1,4 @@
-# svelte.lint/default: 15835 match
+# svelte.lint/default: 15833 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/commandCenter/panels/buckets.svelte	mismatch
 svelte/appwrite-console/src/lib/commandCenter/panels/databases.svelte	mismatch

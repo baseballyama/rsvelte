@@ -1,4 +1,4 @@
-use super::{NodeIdentifier, ParseError, Parser, R, RESERVED, Span, T, flag};
+use super::{NodeIdentifier, Parser, R, Span, T, flag};
 
 impl Parser<'_, '_> {
     // ---- binding patterns
@@ -13,13 +13,7 @@ impl Parser<'_, '_> {
         match self.token.t {
             T::Identifier => {
                 let t = self.bump()?;
-                if RESERVED.contains(&self.text(t)) {
-                    return Err(ParseError {
-                        message: format!("unexpected keyword `{}`", self.text(t)),
-                        span: t.span,
-                    });
-                }
-                Ok(self.ident_node(t))
+                self.binding_identifier(t)
             }
             T::LBrace => {
                 self.bump()?;
@@ -41,6 +35,7 @@ impl Parser<'_, '_> {
                             else {
                                 return self.fail("expected `:`");
                             };
+                            Self::check_name(self.syntax_tree.atoms.get(name), key_span, true)?;
                             let mut value = self.syntax_tree.ident_atom(name, key_span);
                             if self.eat_op("=")? {
                                 let d = self.assignment()?;
@@ -133,7 +128,8 @@ impl Parser<'_, '_> {
     fn assignment_pattern_inner(&mut self, node: NodeIdentifier) -> R<NodeIdentifier> {
         let span = self.syntax_tree.source_location(node);
         match self.syntax_tree.kind(node) {
-            super::Kind::Identifier(_) | super::Kind::Member { .. } | super::Kind::Hole => Ok(node),
+            super::Kind::Identifier(_) => self.check_assigned(node).map(|()| node),
+            super::Kind::Member { .. } | super::Kind::Hole => Ok(node),
             super::Kind::Object(items) | super::Kind::Array(items) => {
                 let object = self.syntax_tree.tag(node) == crate::syntax_tree::Tag::Object;
                 let mut items = items.to_vec();

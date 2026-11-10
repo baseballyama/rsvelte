@@ -50,11 +50,18 @@ impl ClientCompilationContext<'_> {
             {
                 self.static_attribute(frag, identifier, raw_name, &attribute_name, value);
             } else if attribute_name == "class" {
-                self.set_class(identifier, node, Some(a), &class_directives, frag, l);
+                self.set_class(
+                    identifier,
+                    node,
+                    Some(a),
+                    &class_directives,
+                    &mut frag.memo,
+                    l,
+                );
             } else if attribute_name == "autofocus" || attribute_name == "style" {
                 return unsupported(&format!("a dynamic `{attribute_name}` attribute"), a.span);
             } else {
-                let (value, has_state) = self.attribute_value(a, frag);
+                let (value, has_state) = self.attribute_value(a, &mut frag.memo, false);
                 let update = self.attribute_update(node, &attribute_name, value);
                 let s = self.statement(update);
                 if has_state {
@@ -70,7 +77,7 @@ impl ClientCompilationContext<'_> {
                 && a.name.text(self.source_text).eq_ignore_ascii_case("class")
         });
         if !has_class && !class_directives.is_empty() {
-            self.set_class(identifier, node, None, &class_directives, frag, l);
+            self.set_class(identifier, node, None, &class_directives, &mut frag.memo, l);
         } else if !has_class && self.an.scoped[identifier] {
             self.static_attribute(frag, identifier, "class", "class", Some(String::new()));
         }

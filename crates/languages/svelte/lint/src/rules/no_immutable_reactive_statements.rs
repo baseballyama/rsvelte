@@ -242,7 +242,7 @@ impl<'a> Checker<'a> {
             }
             return self.each.get(&expression).is_some_and(|&context| {
                 let mut write = false;
-                rsvelte_svelte_semantic::resolve::for_each_pattern_identifier(
+                rsvelte_svelte_semantic::resolve::for_each_pattern_target(
                     javascript,
                     context,
                     &mut |identifier| {

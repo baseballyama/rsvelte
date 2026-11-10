@@ -1,5 +1,6 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_compile::codegen::print_program;
+use rsvelte_typescript_compile::copy::{Verbatim, copy};
 use rsvelte_typescript_syntax::parser::parse_program;
 use rsvelte_typescript_syntax::syntax_tree::SyntaxTree;
 
@@ -84,6 +85,21 @@ fn typescript_is_erased() {
 }
 
 #[test]
+fn a_this_parameter_is_erased_with_the_types() {
+    let out = stable(
+        "function f(this: HTMLElement, e: Event) {}\
+         \nconst g = function (this: Window) {};\
+         \nconst o = { m(this: Q, a) {} };\
+         \nclass C { m(this) {} }",
+        true,
+    );
+    assert_eq!(
+        out,
+        "function f(e) {}\n\nconst g = function () {};\n\nconst o = { m(a) {} };\n\nclass C {\n\tm() {}\n}\n"
+    );
+}
+
+#[test]
 fn templates_strings_and_members() {
     let out = stable(
         "const s = `a${b}c${`d${e}`}`; o?.p?.[q]?.(r); new Foo(1).bar; 'it\\'s';",
@@ -92,6 +108,34 @@ fn templates_strings_and_members() {
     assert!(out.contains("const s = `a${b}c${`d${e}`}`;"), "{out}");
     assert!(out.contains("o?.p?.[q]?.(r);"), "{out}");
     assert!(out.contains("new Foo(1).bar;"), "{out}");
+}
+
+#[test]
+fn a_grouped_optional_chain_keeps_its_parentheses() {
+    let out = stable(
+        "(a?.b).c; (a?.b)(); (a?.[k]).c; new (a?.b)(); a?.b.c; a?.b();",
+        false,
+    );
+    assert_eq!(
+        out,
+        "(a?.b).c;\n\n(a?.b)();\n\n(a?.[k]).c;\n\nnew (a?.b)();\n\na?.b.c;\n\na?.b();\n"
+    );
+}
+
+#[test]
+fn a_copied_chain_still_ends_where_the_source_did() {
+    let source_text = "(a?.b).c;";
+    let mut from = SyntaxTree::new();
+    let program = parse_program(
+        &mut from,
+        source_text,
+        Span::new(0, source_text.len() as u32),
+        false,
+    )
+    .expect("parses");
+    let mut to = SyntaxTree::new();
+    let copied = copy(&from, &mut to, &mut Verbatim, program);
+    assert_eq!(print_program(&to, source_text, copied).out, "(a?.b).c;\n");
 }
 
 #[test]

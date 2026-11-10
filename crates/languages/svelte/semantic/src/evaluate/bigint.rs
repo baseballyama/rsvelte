@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 
 use num_bigint::{BigInt, Sign};
 use num_traits::FromPrimitive;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_typescript_syntax::operators::{BinaryOperator, UnaryOperator};
 
 use super::Value;
@@ -14,7 +15,7 @@ pub(super) fn literal(raw: &str) -> Value {
 }
 
 fn parse(text: &str) -> Option<BigInt> {
-    let text = text.trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}');
+    let text = text.trim_matches(is_ecmascript_whitespace);
     if text.is_empty() {
         return Some(BigInt::from(0));
     }

@@ -3,12 +3,12 @@
 mod declarators;
 mod props;
 
-pub(super) use declarators::check_destructured_rune;
 use declarators::lower_value_declarator;
 use props::{lower_client_props, server_props_pattern};
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
-use rsvelte_typescript_compile::copy::{Rewrite, copy, copy_node};
+use rsvelte_typescript_compile::copy::{Rewrite, copy};
 use rsvelte_typescript_semantic::scope::BindingIdentifier;
 use rsvelte_typescript_syntax::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
@@ -53,18 +53,9 @@ impl Read {
 }
 
 impl ScriptRewrite<'_> {
-    pub(super) fn is_prop_source(&self, binding: BindingIdentifier) -> bool {
-        self.res.is_prop_source(binding)
-            || (self.accessors
-                && matches!(
-                    self.res.bindings[binding].kind,
-                    BindingKind::Property | BindingKind::BindableProperty
-                ))
-    }
-
     /// Upstream `build_getter` / the `read` transforms, by binding kind and target.
     fn read(
-        &mut self,
+        &self,
         from: &SyntaxTree,
         to: &mut SyntaxTree,
         identifier: NodeIdentifier,
@@ -95,24 +86,21 @@ impl ScriptRewrite<'_> {
             }
             (Target::Client, BindingKind::Property | BindingKind::BindableProperty) => {
                 let x = to.ident(name, source_location);
-                if self.is_prop_source(b) {
+                if is_prop_source(self.res, self.accessors, b) {
                     return Some(to.call0(x, &[]));
                 }
                 let key = info.prop_key?;
                 let props = to.identifier("$$props");
-                let computed = !from.is_identifier(key);
-                let k = if computed {
-                    copy_node(from, to, self, key)
-                } else {
+                let k = if from.is_identifier(key) {
                     to.ident(from.name(key), source_location)
+                } else {
+                    super::javascript::property_key(
+                        to,
+                        &super::javascript::prop_alias(from, self.source_text, key),
+                    )
                 };
-                Some(to.member(
-                    props,
-                    k,
-                    computed,
-                    false,
-                    rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                ))
+                let computed = !to.is_identifier(k);
+                Some(to.member(props, k, computed, false, SourceLocation::SYNTHETIC))
             }
             (
                 Target::Client,
@@ -133,13 +121,7 @@ impl ScriptRewrite<'_> {
                     Read::Member(object) => {
                         let o = to.identifier(object);
                         let get = to.runtime("$", "get", &[o]);
-                        Some(to.member(
-                            get,
-                            x,
-                            false,
-                            false,
-                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                        ))
+                        Some(to.member(get, x, false, false, SourceLocation::SYNTHETIC))
                     }
                 }
             }
@@ -160,13 +142,21 @@ impl ScriptRewrite<'_> {
         target: NodeIdentifier,
         value: NodeIdentifier,
     ) -> Option<NodeIdentifier> {
-        if self.target != Target::Client || !from.is_identifier(target) {
+        if self.target != Target::Client {
             return None;
+        }
+        if !from.is_identifier(target) {
+            let (res, accessors) = (self.res, self.accessors);
+            return mutate_bindable_prop(res, accessors, from, to, target, |to| {
+                let left = copy(from, to, self, target);
+                let right = copy(from, to, self, value);
+                to.assign(op, left, right, from.source_location(identifier))
+            });
         }
         let (b, info) = self.res.binding(target)?;
         let state = self.res.is_state_source(b)
             || matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
-        let prop = self.is_prop_source(b);
+        let prop = is_prop_source(self.res, self.accessors, b);
         if !state && !prop {
             return None;
         }
@@ -201,24 +191,29 @@ impl ScriptRewrite<'_> {
             && should_proxy(from, self.res, value);
         let mut arguments = vec![x, new_value];
         if proxy {
-            arguments.push(to.write_boolean(
-                true,
-                rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-            ));
+            arguments.push(to.write_boolean(true, SourceLocation::SYNTHETIC));
         }
         Some(to.runtime("$", "set", &arguments))
     }
 
     fn update(
-        &self,
+        &mut self,
         from: &SyntaxTree,
         to: &mut SyntaxTree,
+        identifier: NodeIdentifier,
         op: UpdateOperator,
         prefix: bool,
         arg: NodeIdentifier,
     ) -> Option<NodeIdentifier> {
         if !from.is_identifier(arg) {
-            return None;
+            if self.target != Target::Client {
+                return None;
+            }
+            let (res, accessors) = (self.res, self.accessors);
+            return mutate_bindable_prop(res, accessors, from, to, arg, |to| {
+                let argument = copy(from, to, self, arg);
+                to.update(op, prefix, argument, from.source_location(identifier))
+            });
         }
         let (b, info) = self.res.binding(arg)?;
         let derived = matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
@@ -228,10 +223,7 @@ impl ScriptRewrite<'_> {
         let x = to.ident(from.name(arg), from.source_location(arg));
         let mut arguments = vec![x];
         if op == UpdateOperator::Dec {
-            arguments.push(to.write_number(
-                -1.0,
-                rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-            ));
+            arguments.push(to.write_number(-1.0, SourceLocation::SYNTHETIC));
         }
         let name = if self.target == Target::Server {
             if prefix {
@@ -241,7 +233,7 @@ impl ScriptRewrite<'_> {
             }
         } else if self.res.is_state_source(b) || derived {
             if prefix { "update_pre" } else { "update" }
-        } else if self.is_prop_source(b) {
+        } else if is_prop_source(self.res, self.accessors, b) {
             if prefix {
                 "update_pre_prop"
             } else {
@@ -264,17 +256,11 @@ impl Rewrite for ScriptRewrite<'_> {
         match from.kind(identifier) {
             Kind::Identifier(_) => self.read(from, to, identifier),
             Kind::Assign(op, target, value) => self.assign(from, to, identifier, op, target, value),
-            Kind::Update { op, prefix, arg } => self.update(from, to, op, prefix, arg),
-            Kind::Block(body)
-                if self.target == Target::Server
-                    && body.iter().any(|&s| is_effect(from, self.res, s)) =>
+            Kind::Update { op, prefix, arg } => self.update(from, to, identifier, op, prefix, arg),
+            Kind::ExpressionStatement(_)
+                if self.target == Target::Server && is_effect(from, self.res, identifier) =>
             {
-                let kept: Vec<NodeIdentifier> = body
-                    .iter()
-                    .filter(|&&s| !is_effect(from, self.res, s))
-                    .map(|&s| copy(from, to, self, s))
-                    .collect();
-                Some(to.block(&kept, from.source_location(identifier)))
+                Some(to.empty(from.source_location(identifier)))
             }
             Kind::Call { arguments, .. } => {
                 let name = match (self.target, self.res.rune(from, identifier)?.0) {
@@ -283,14 +269,11 @@ impl Rewrite for ScriptRewrite<'_> {
                         return Some(to.dot(props, "$$host"));
                     }
                     (Target::Server, "$host") => {
-                        let zero = to.write_number(
-                            0.0,
-                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                        );
+                        let zero = to.write_number(0.0, SourceLocation::SYNTHETIC);
                         return Some(to.unary(
                             UnaryOperator::Void,
                             zero,
-                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
+                            SourceLocation::SYNTHETIC,
                         ));
                     }
                     (Target::Client, "$effect.pending") => {
@@ -299,19 +282,13 @@ impl Rewrite for ScriptRewrite<'_> {
                         return Some(to.runtime("$", "eager", &[pending]));
                     }
                     (Target::Server, "$effect.pending") => {
-                        return Some(to.write_number(
-                            0.0,
-                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                        ));
+                        return Some(to.write_number(0.0, SourceLocation::SYNTHETIC));
                     }
                     (Target::Client, "$effect.tracking") => {
                         return Some(to.runtime("$", "effect_tracking", &[]));
                     }
                     (Target::Server, "$effect.tracking") => {
-                        return Some(to.write_boolean(
-                            false,
-                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                        ));
+                        return Some(to.write_boolean(false, SourceLocation::SYNTHETIC));
                     }
                     (Target::Client, "$effect") => "user_effect",
                     (Target::Client, "$effect.pre") => "user_pre_effect",
@@ -337,6 +314,49 @@ impl Rewrite for ScriptRewrite<'_> {
             _ => None,
         }
     }
+}
+
+/// Upstream `is_prop_source`; a custom element's accessors read every prop through its signal.
+fn is_prop_source(res: &Resolution, accessors: bool, binding: BindingIdentifier) -> bool {
+    res.is_prop_source(binding)
+        || (accessors
+            && matches!(
+                res.bindings[binding].kind,
+                BindingKind::Property | BindingKind::BindableProperty
+            ))
+}
+
+/// The `$bindable` prop whose member `target` writes, when the prop has a signal: upstream's
+/// `mutate` transform then tells the parent, `prop((prop().x = value), true)`.
+pub(super) fn mutated_bindable_prop(
+    res: &Resolution,
+    accessors: bool,
+    from: &SyntaxTree,
+    target: NodeIdentifier,
+) -> Option<NodeIdentifier> {
+    let root = from.member_root(target);
+    let (b, info) = res.binding(root)?;
+    (root != target
+        && info.kind == BindingKind::BindableProperty
+        && is_prop_source(res, accessors, b))
+    .then_some(root)
+}
+
+/// Upstream's `mutate` transform: the write `mutation` builds through a member of a `$bindable`
+/// prop with a signal becomes `prop(mutation, true)`; `None` when `target` writes no such prop.
+pub(super) fn mutate_bindable_prop(
+    res: &Resolution,
+    accessors: bool,
+    from: &SyntaxTree,
+    to: &mut SyntaxTree,
+    target: NodeIdentifier,
+    mutation: impl FnOnce(&mut SyntaxTree) -> NodeIdentifier,
+) -> Option<NodeIdentifier> {
+    let prop = mutated_bindable_prop(res, accessors, from, target)?;
+    let mutation = mutation(to);
+    let callee = to.ident(from.name(prop), from.source_location(prop));
+    let mutated = to.write_boolean(true, SourceLocation::SYNTHETIC);
+    Some(to.call0(callee, &[mutation, mutated]))
 }
 
 /// Upstream server `ExpressionStatement`: an effect statement renders nothing.
@@ -366,22 +386,80 @@ pub(super) fn should_proxy(syntax_tree: &SyntaxTree, res: &Resolution, e: NodeId
     res.should_proxy(syntax_tree, e)
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum ScriptContext {
-    Instance,
+/// Upstream `should_proxy` on a value it has already visited, where a prop's name has become a
+/// call or a member read and so proxies whatever its default.
+#[must_use]
+pub(super) fn should_proxy_read(
+    syntax_tree: &SyntaxTree,
+    res: &Resolution,
+    e: NodeIdentifier,
+) -> bool {
+    res.binding(e).is_some_and(|(_, information)| {
+        matches!(
+            information.kind,
+            BindingKind::Property | BindingKind::BindableProperty
+        )
+    }) || should_proxy(syntax_tree, res, e)
+}
+
+/// Which script is lowered; the instance's exports are collected while it is.
+pub(super) enum ScriptContext<'e> {
+    Instance {
+        exports: &'e mut Vec<NodeIdentifier>,
+    },
     Module,
+}
+
+/// Pushes the names an instance export gives the component's exports, when it is one this port
+/// lowers: a `const` of plain names, or a named function. Upstream raises an error for an exported
+/// `let`, and reads an exported signal or class through accessors.
+fn check_export(
+    from: &SyntaxTree,
+    res: &Resolution,
+    statement: NodeIdentifier,
+    declaration: NodeIdentifier,
+    exports: &mut Vec<NodeIdentifier>,
+) -> Result<(), Diagnostic> {
+    let start = exports.len();
+    let named = match from.kind(declaration) {
+        Kind::VariableDeclaration { kind, declarations } if kind == flag::CONST => {
+            declarations.iter().all(|&d| match from.kind(d) {
+                Kind::Declarator { identifier, .. } if from.is_identifier(identifier) => {
+                    exports.push(identifier);
+                    true
+                }
+                _ => false,
+            })
+        }
+        Kind::Function {
+            name: Some(name), ..
+        } => {
+            exports.push(name);
+            true
+        }
+        _ => false,
+    };
+    let plain = named
+        && exports[start..].iter().all(|&name| {
+            res.binding(name).is_some_and(|(_, info)| {
+                matches!(info.kind, BindingKind::Normal | BindingKind::RestProperty)
+            })
+        });
+    if plain {
+        return Ok(());
+    }
+    unsupported(
+        "this export from the instance script",
+        super::span_of(from, statement),
+    )
 }
 
 /// Script statements share rune lowering; imports go to `hoisted`.
 ///
 /// # Errors
 ///
-/// An `unsupported` [`Diagnostic`] if the script exports anything or destructures a rune that
-/// upstream splits per path.
-///
-/// # Panics
-///
-/// If a top-level statement of the parsed script has no source range.
+/// An `unsupported` [`Diagnostic`] for an export the instance script cannot lower, and
+/// upstream's errors for the exports it can.
 pub(super) fn lower_script(
     from: &SyntaxTree,
     to: &mut SyntaxTree,
@@ -389,42 +467,48 @@ pub(super) fn lower_script(
     program: NodeIdentifier,
     hoisted: &mut Vec<NodeIdentifier>,
     names: &mut Names,
-    context: ScriptContext,
+    mut context: ScriptContext<'_>,
 ) -> Result<Vec<NodeIdentifier>, Diagnostic> {
+    let instance = matches!(context, ScriptContext::Instance { .. });
     let Kind::Program(body) = from.kind(program) else {
         unreachable!("scripts parse to programs")
     };
     let mut out = Vec::with_capacity(body.len());
     for &statement in body {
+        let statement = match from.kind(statement) {
+            Kind::ExportNamed(declaration)
+                if let ScriptContext::Instance { exports } = &mut context =>
+            {
+                check_export(from, rw.res, statement, declaration, exports)?;
+                declaration
+            }
+            _ => statement,
+        };
         match from.kind(statement) {
             Kind::TypeScriptDeclaration => {}
-            _ if rw.target == Target::Server && is_effect(from, rw.res, statement) => {}
             Kind::Import { .. } => hoisted.push(copy(from, to, rw, statement)),
             // Upstream turns these into the component's exports; copying them would put an
             // `export` inside the component function.
-            Kind::ExportNamed(_)
-            | Kind::ExportDefault(_)
+            Kind::ExportDefault(_)
             | Kind::Control(
                 rsvelte_typescript_syntax::syntax_tree::Control::ExportList { .. }
                 | rsvelte_typescript_syntax::syntax_tree::Control::ExportAll { .. },
-            ) if context == ScriptContext::Instance => {
+            ) if instance => {
                 return unsupported(
                     "an export from the instance script",
-                    from.source_location(statement)
-                        .span()
-                        .expect("a parsed statement has a source range"),
+                    super::span_of(from, statement),
                 );
             }
             Kind::VariableDeclaration { kind, declarations } => {
-                for &d in declarations {
-                    check_destructured_rune(from, rw.res, rw.target, d)?;
-                }
+                // Upstream's instance gives each declarator its own declaration.
+                let location = from.source_location(statement);
                 let mut lowered = Vec::with_capacity(declarations.len());
-                for &d in declarations {
+                for (i, &d) in declarations.iter().enumerate() {
                     lower_declarator(from, to, rw, d, &mut lowered, hoisted, names);
-                }
-                if !lowered.is_empty() {
-                    out.push(to.var_declaration(kind, &lowered, from.source_location(statement)));
+                    if (instance || i + 1 == declarations.len()) && !lowered.is_empty() {
+                        out.push(to.var_declaration(kind, &lowered, location));
+                        lowered.clear();
+                    }
                 }
             }
             _ => out.push(copy(from, to, rw, statement)),

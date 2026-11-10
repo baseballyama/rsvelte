@@ -32,7 +32,7 @@ pub struct Plan {
     pub(crate) preserve_whitespace: bool,
     pub(crate) stylesheet_mode: super::template::CssMode,
     pub(crate) custom_element: Option<super::template::CustomElement>,
-    pub(crate) namespaces: Option<rsvelte_svelte_compile::render_plan::NamespacePlan>,
+    pub(crate) namespaces: Option<rsvelte_svelte_compile::render_plan::Namespaces>,
     pub(super) props_id: Option<NodeIdentifier>,
     /// `...rest` in `$props()`: read through Vue's `useAttrs()`.
     pub rest: Option<NodeIdentifier>,

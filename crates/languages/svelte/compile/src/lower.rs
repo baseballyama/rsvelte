@@ -5,8 +5,10 @@
 //! the client, string pushing on the server) live in `client` and `server`.
 
 mod client;
+mod component;
 mod coverage;
 mod custom_element;
+mod derived;
 mod javascript;
 mod names;
 mod prepare;
@@ -23,7 +25,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
-    NodeKind,
+    ElementKind, NodeKind,
 };
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 pub(crate) use rsvelte_svelte_semantic::template::{cannot_be_set_statically, needs_clsx};
@@ -127,7 +129,9 @@ pub(crate) fn validate(
     res: &Resolution,
 ) -> Result<ValidatedOptions, Diagnostic> {
     let custom_element = special::validate(input)?;
-    coverage::check(input)?;
+    validation::check_names(input, res)?;
+    validation::markup::check(input, res)?;
+    coverage::check(input, res)?;
     validation::check_typescript(input)?;
     check_stores(input.component.javascript, res)?;
     let rest_reads = rest_reads::build(input, res, custom_element.is_some());
@@ -147,9 +151,30 @@ pub(crate) struct Prepared<'a> {
     module: Vec<NodeIdentifier>,
     hoisted: Vec<NodeIdentifier>,
     instance: Vec<NodeIdentifier>,
+    /// The names the instance script exports, in source order.
+    exports: Vec<NodeIdentifier>,
     custom_element: Option<&'a custom_element::CustomElement>,
     /// Upstream `analysis.name`: the component name, renamed if the source declares it.
     component_name: String,
+}
+
+/// Upstream `is_custom_element_node`: a regular element with a `-` in its name or an `is`
+/// attribute, whose attributes upstream sets as properties.
+fn is_custom_element_node(tree: &CompilerSyntaxTree, source_text: &str, el: &Element) -> bool {
+    el.kind == ElementKind::Regular
+        && (el.name.text(source_text).contains('-')
+            || tree
+                .attributes(el.attributes)
+                .iter()
+                .any(|a| !is_directive(&a.value) && a.name.text(source_text) == "is"))
+}
+
+/// The span of a node an error names; a frontend writes nodes only where none is raised.
+fn span_of(javascript: &SyntaxTree, e: NodeIdentifier) -> Span {
+    let Some(span) = javascript.source_location(e).span() else {
+        unreachable!("a node an error names is parsed from source")
+    };
+    span
 }
 
 /// The diagnostic for input this compiler does not lower yet. `what` is a singular subject.
@@ -166,8 +191,8 @@ pub use template::{
     DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select, sanitize_template_string,
 };
 use template::{
-    check_binding, event_attribute, has_dependency, is_directive, is_dom_property,
-    is_load_error_element, synthetic_value,
+    event_attribute, has_dependency, is_directive, is_dom_property, is_load_error_element,
+    synthetic_value,
 };
 pub(crate) use validation::check_foreign_element;
 use validation::{check_runes, check_stores};

@@ -68,6 +68,7 @@ impl ServerCompilationContext<'_> {
             ElementKind::Metadata(Some(MetadataTag::Element)) => {
                 return self.dynamic_element(identifier, template);
             }
+            ElementKind::Component => return self.component(identifier, false, template),
             _ => return unsupported("this special element", element.name),
         }
         Ok(())

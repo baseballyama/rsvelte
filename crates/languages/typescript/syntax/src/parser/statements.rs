@@ -1,4 +1,4 @@
-use super::{List, NodeIdentifier, Parser, R, RESERVED, T, TypeScriptKind, flag};
+use super::{List, NodeIdentifier, Parser, R, Span, T, TypeScriptKind, flag};
 
 impl Parser<'_, '_> {
     // ---- statements
@@ -22,6 +22,7 @@ impl Parser<'_, '_> {
         }
         let kw = self.text(self.token);
         if self.peek().t == T::Colon {
+            Self::check_name(kw, self.token.span, false)?;
             let t = self.bump()?;
             let label = self.ident_node(t);
             self.bump()?;
@@ -60,7 +61,6 @@ impl Parser<'_, '_> {
                     self.import()
                 }
             }
-            "yield" | "super" => self.expression_statement(),
             "export" => self.export(),
             "let" | "const" | "var" => {
                 let d = self.var_declaration()?;
@@ -87,7 +87,6 @@ impl Parser<'_, '_> {
             {
                 self.typescript_declaration(start_offset)
             }
-            _ if RESERVED.contains(&kw) => self.fail(format!("unsupported statement `{kw}`")),
             _ => self.expression_statement(),
         }
     }
@@ -214,6 +213,14 @@ impl Parser<'_, '_> {
         }))
     }
 
+    /// Parses with `await` an expression only when `is_async`, as a new function scope sets it.
+    pub(super) fn with_async<X>(&mut self, is_async: bool, parse: fn(&mut Self) -> R<X>) -> R<X> {
+        let outer = std::mem::replace(&mut self.in_async, is_async);
+        let parsed = parse(self);
+        self.in_async = outer;
+        parsed
+    }
+
     pub(super) fn function(
         &mut self,
         declaration: bool,
@@ -224,7 +231,7 @@ impl Parser<'_, '_> {
         let generator = self.eat_op("*")?;
         let name = if self.token.t == T::Identifier {
             let t = self.bump()?;
-            Some(self.ident_node(t))
+            Some(self.binding_identifier(t)?)
         } else if declaration {
             return self.fail("expected function name");
         } else {
@@ -239,7 +246,7 @@ impl Parser<'_, '_> {
             self.semicolon()?;
             NodeIdentifier::NONE
         } else {
-            self.block()?
+            self.with_async(is_async, Self::block)?
         };
         let span = self.span_from(start_offset);
         let f = self.close(parameters, |syntax_tree, parameters| {
@@ -254,8 +261,23 @@ impl Parser<'_, '_> {
     }
 
     pub(super) fn parameters(&mut self) -> R<List> {
+        self.with_async(false, Self::parameter_list)
+    }
+
+    fn parameter_list(&mut self) -> R<List> {
         self.expect(T::LParen, "(")?;
         let parameters = self.open();
+        // TypeScript's `this: T` declares the type of `this`; erasing types drops it.
+        if self.typescript && self.is_kw("this") {
+            let t = self.bump()?;
+            let p = self.ident_node(t);
+            self.syntax_tree.mark_this_parameter(p);
+            self.maybe_type_annotation(p)?;
+            self.item(p);
+            if self.token.t != T::RParen {
+                self.expect(T::Comma, ",")?;
+            }
+        }
         while self.token.t != T::RParen {
             let p = self.param()?;
             self.item(p);
@@ -282,7 +304,7 @@ impl Parser<'_, '_> {
             self.bump()?;
             modified = true;
         }
-        let modifiers = modified.then(|| super::Span::new(modifiers_start, self.prev_end));
+        let modifiers = modified.then(|| Span::new(modifiers_start, self.prev_end));
         let p = self.plain_param(start_offset)?;
         if let Some(span) = modifiers {
             self.typescript(
@@ -350,7 +372,7 @@ impl Parser<'_, '_> {
         if self.token.t != T::String {
             if self.token.t == T::Identifier {
                 let t = self.bump()?;
-                let local = self.ident_node(t);
+                let local = self.binding_identifier(t)?;
                 let spec = self.syntax_tree.import_default(local, t.span);
                 self.item(spec);
                 self.eat(T::Comma)?;
@@ -363,7 +385,7 @@ impl Parser<'_, '_> {
                 }
                 self.bump()?;
                 let t = self.expect(T::Identifier, "identifier")?;
-                let local = self.ident_node(t);
+                let local = self.binding_identifier(t)?;
                 let spec = self
                     .syntax_tree
                     .import_namespace(local, self.span_from(slo));
@@ -410,9 +432,9 @@ impl Parser<'_, '_> {
             let local = if self.is_kw("as") {
                 self.bump()?;
                 let l = self.expect(T::Identifier, "identifier")?;
-                self.ident_node(l)
+                self.binding_identifier(l)?
             } else if t.t == T::Identifier {
-                self.ident_node(t)
+                self.binding_identifier(t)?
             } else {
                 return self.fail("string import names need `as`");
             };

@@ -87,7 +87,7 @@ fn classify_declaration(
                     "$derived" => BindingKind::Derived,
                     _ => BindingKind::DerivedBy,
                 };
-                super::for_each_pattern_identifier(syntax_tree, identifier, &mut |identifier| {
+                super::for_each_pattern_target(syntax_tree, identifier, &mut |identifier| {
                     if let Some(b) = sem.binding_of(identifier) {
                         out[b].kind = kind;
                         out[b].initial = arg;

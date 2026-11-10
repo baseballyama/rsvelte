@@ -1,5 +1,8 @@
-use super::{AssignmentOperator, ClientCompilationContext, Kind, NodeIdentifier, SourceLocation};
+use super::{
+    AssignmentOperator, ClientCompilationContext, Kind, NodeIdentifier, SourceLocation, unthunk,
+};
 use crate::lower::BindingKind;
+use crate::lower::script::mutate_bindable_prop;
 
 impl ClientCompilationContext<'_> {
     pub(super) fn binding_accessors(
@@ -24,8 +27,26 @@ impl ClientCompilationContext<'_> {
         if let Kind::Sequence([_, set]) = self.javascript.kind(expression) {
             return self.expression(*set);
         }
+        let assignment = self.binding_assignment(expression, primitive);
+        let parameter = self.out.identifier("$$value");
+        let set = self.out.arrow(
+            &[parameter],
+            assignment,
+            true,
+            false,
+            SourceLocation::SYNTHETIC,
+        );
+        unthunk(&self.out, set)
+    }
+
+    /// `expression = $$value`, as the script rewrites an assignment to it.
+    pub(super) fn binding_assignment(
+        &mut self,
+        expression: NodeIdentifier,
+        primitive: bool,
+    ) -> NodeIdentifier {
         let value = self.out.identifier("$$value");
-        let assignment = if let Kind::Identifier(_) = self.javascript.kind(expression) {
+        if let Kind::Identifier(_) = self.javascript.kind(expression) {
             let target = self.out.identifier(self.javascript.name(expression));
             match self.res.binding(expression) {
                 Some((binding, info)) if self.res.is_state_source(binding) => {
@@ -47,21 +68,21 @@ impl ClientCompilationContext<'_> {
             }
         } else {
             let target = self.expression_with_rest_reads(expression, false);
-            self.out.assign(
+            let mutation = self.out.assign(
                 AssignmentOperator::Assign,
                 target,
                 value,
                 SourceLocation::SYNTHETIC,
+            );
+            mutate_bindable_prop(
+                self.res,
+                self.custom_element.is_some(),
+                self.javascript,
+                &mut self.out,
+                expression,
+                |_| mutation,
             )
-        };
-        let parameter = self.out.identifier("$$value");
-        let set = self.out.arrow(
-            &[parameter],
-            assignment,
-            true,
-            false,
-            SourceLocation::SYNTHETIC,
-        );
-        self.unthunk(set)
+            .unwrap_or(mutation)
+        }
     }
 }

@@ -4,7 +4,7 @@ use super::{
 };
 
 impl SyntaxTree {
-    pub(crate) fn ident_atom(
+    pub fn ident_atom(
         &mut self,
         atom: Atom,
         source_location: impl Into<SourceLocation>,
@@ -238,6 +238,15 @@ impl SyntaxTree {
 
     pub fn mark_pure(&mut self, call: NodeIdentifier) {
         self.flags[call.index()] |= flag::PURE;
+    }
+
+    /// Ends an optional chain at `link`, a member or a call.
+    pub fn mark_chain(&mut self, link: NodeIdentifier) {
+        self.flags[link.index()] |= flag::CHAIN;
+    }
+
+    pub fn mark_this_parameter(&mut self, parameter: NodeIdentifier) {
+        self.flags[parameter.index()] |= flag::THIS_PARAMETER;
     }
 
     pub fn new_(

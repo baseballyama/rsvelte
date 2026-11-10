@@ -20,7 +20,7 @@ mod tag;
 mod token;
 mod whitespace;
 
-pub use element_rules::is_void;
+pub use element_rules::{AUTOCLOSING_CHILDREN, Autoclosing, is_void};
 use identifier::is_identifier_continue;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
@@ -28,6 +28,7 @@ use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
 use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
+use rustc_hash::FxHashSet;
 
 use crate::syntax_tree::{Component, Range, TemplateNode, TemplateNodeIdentifier, TokenType};
 
@@ -71,8 +72,13 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
         },
         typescript: false,
         pending_children: buffer_pool::take_keyed::<Parser<'static>, _>(),
+        unique_names: FxHashSet::default(),
         depth: 0,
     };
+    // Upstream removes a leading byte order mark before parsing, so no node covers it.
+    if source_text.starts_with('\u{feff}') {
+        parser.eat_token(TokenType::ByteOrderMark, '\u{feff}'.len_utf8());
+    }
     // The script's language decides how template expressions parse, so read it first.
     parser.typescript = script::script_is_typescript(source_text);
     let root = parser.fragment(End::Eof);
@@ -106,6 +112,8 @@ struct Parser<'a> {
     component: Component,
     typescript: bool,
     pending_children: Vec<TemplateNodeIdentifier>,
+    /// Upstream's `unique_names` for the start tag being read.
+    unique_names: FxHashSet<(attribute::Unique, &'a str)>,
     /// How many fragments are open.
     depth: u32,
 }

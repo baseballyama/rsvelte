@@ -1,8 +1,8 @@
 use super::{
     BindingKind, Kind, Names, NodeIdentifier, Rewrite, ScriptRewrite, SyntaxTree, copy, flag,
-    should_proxy,
+    should_proxy_read,
 };
-use crate::lower::javascript::is_simple_expression;
+use crate::lower::javascript::{is_simple_expression, prop_alias};
 
 pub(super) fn server_props_pattern(
     from: &SyntaxTree,
@@ -139,11 +139,9 @@ pub(super) fn lower_client_props(
             }
             _ => continue,
         };
-        let key_name = match from.kind(key) {
-            Kind::Identifier(_) => from.name(key).to_owned(),
-            _ => from.str_value(key, rw.source_text).to_owned(),
-        };
-        seen.push(key_name.clone());
+        let key_name = prop_alias(from, rw.source_text, key);
+        // Upstream excludes a number key as a number, which a rest object's string keys never match.
+        seen.push(key_name.clone().into_owned());
         let local = match from.kind(value) {
             Kind::AssignPattern(l, _) => l,
             _ => value,
@@ -151,7 +149,7 @@ pub(super) fn lower_client_props(
         let Some((b, info)) = rw.res.binding(local) else {
             continue;
         };
-        if !rw.is_prop_source(b) {
+        if !super::is_prop_source(rw.res, rw.accessors, b) {
             continue;
         }
         let s = &rw.res.sem.bindings[b];
@@ -162,10 +160,18 @@ pub(super) fn lower_client_props(
         if rw.accessors || s.writes > 0 || s.mutations > 0 {
             flags |= 4; // PROPS_IS_UPDATED
         }
-        let mut arguments = vec![to.identifier("$$props"), to.write_string(&key_name)];
+        // Upstream passes the key's own value, which reads the same prop.
+        let key_argument = match from.kind(key) {
+            Kind::Number(value) => to.write_number(
+                value,
+                rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
+            ),
+            _ => to.write_string(&key_name),
+        };
+        let mut arguments = vec![to.identifier("$$props"), key_argument];
         let initial = info.initial.map(|i| {
             let initializer = copy(from, to, rw, i);
-            if info.kind == BindingKind::BindableProperty && should_proxy(from, rw.res, i) {
+            if info.kind == BindingKind::BindableProperty && should_proxy_read(from, rw.res, i) {
                 to.runtime("$", "proxy", &[initializer])
             } else {
                 initializer

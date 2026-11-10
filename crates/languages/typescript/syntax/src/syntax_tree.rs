@@ -121,6 +121,10 @@ pub enum Tag {
 
 pub mod flag {
     pub const GROUPED: u8 = 0x40;
+    /// Member/Call: the outermost link of an optional chain, upstream's `ChainExpression`.
+    pub(crate) const CHAIN: u8 = 0x20;
+    /// Identifier: TypeScript's leading `this: T` parameter, which declares the type of `this`.
+    pub(crate) const THIS_PARAMETER: u8 = 1;
     pub const VAR: u8 = 0;
     pub const LET: u8 = 1;
     pub const CONST: u8 = 2;

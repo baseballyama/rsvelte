@@ -32,7 +32,7 @@ impl ServerCompilationContext<'_> {
             tag,
             compiler_syntax_tree.attributes(el.attributes),
             true,
-        )?;
+        );
         arguments.insert(1, Some(body));
         let arguments = call_arguments(&mut self.out, arguments);
         let r = self.out.identifier("$$renderer");

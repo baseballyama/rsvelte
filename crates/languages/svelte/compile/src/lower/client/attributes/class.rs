@@ -1,6 +1,6 @@
 use crate::lower::client::{
     AssignmentOperator, Attribute, AttributeValue, ClientCompilationContext,
-    CompilerNodeIdentifier, Frag, Kind, Lists, NodeIdentifier, SourceLocation, escape_markup, flag,
+    CompilerNodeIdentifier, Kind, Lists, Memo, NodeIdentifier, SourceLocation, escape_markup, flag,
     init_property, needs_clsx,
 };
 
@@ -10,14 +10,14 @@ impl ClientCompilationContext<'_> {
         &mut self,
         expression: NodeIdentifier,
         unquoted: bool,
-        frag: &mut Frag,
+        memo: &mut Memo,
     ) -> (NodeIdentifier, bool) {
         let meta = self.an.meta(expression);
         let mut built = self.expression(expression);
         if unquoted && needs_clsx(self.javascript, expression) {
             built = self.call("clsx", vec![Some(built)]);
         }
-        (self.memoize(frag, built, meta), meta.has_state)
+        (self.memoize(memo, expression, built, false), meta.has_state)
     }
 
     /// Upstream `build_set_class`; `attribute` is `None` for the empty `class` upstream's analysis
@@ -28,18 +28,18 @@ impl ClientCompilationContext<'_> {
         node: &str,
         attribute: Option<&Attribute>,
         directives: &[&Attribute],
-        frag: &mut Frag,
+        memo: &mut Memo,
         l: &mut Lists,
     ) {
         let (mut value, mut has_state) = match attribute.map(|a| &a.value) {
             None => (self.out.write_string(""), false),
             Some(&AttributeValue::Expression { expression, quoted }) => {
-                self.class_expression(expression, !quoted, frag)
+                self.class_expression(expression, !quoted, memo)
             }
             Some(&AttributeValue::Shorthand(expression)) => {
-                self.class_expression(expression, true, frag)
+                self.class_expression(expression, true, memo)
             }
-            Some(_) => self.attribute_value(attribute.expect("matched above"), frag),
+            Some(_) => self.attribute_value(attribute.expect("matched above"), memo, false),
         };
         let mut prev = None;
         let mut next = None;
@@ -52,7 +52,7 @@ impl ClientCompilationContext<'_> {
                 };
                 let meta = self.an.meta(e);
                 let built = self.expression(e);
-                let v = self.memoize(frag, built, meta);
+                let v = self.memoize(memo, e, built, false);
                 has_state |= meta.has_state;
                 props.push(init_property(
                     &mut self.out,

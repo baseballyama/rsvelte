@@ -170,15 +170,21 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
             let pure = self.is_pure(call);
             self.pure_calls.insert(call, pure);
         }
+        // A whole optional chain as the callee is upstream's `ChainExpression`.
+        let chain = self.syntax_tree.is_chain(callee);
         if rune.is_none() {
-            if !self.is_safe(callee) {
+            if chain || !self.is_safe(callee) {
                 self.needs_context = true;
             }
-            if COLLECT_METADATA && (!self.is_pure(callee) || self.deps > 0) {
+            if COLLECT_METADATA && (chain || !self.is_pure(callee) || self.deps > 0) {
                 self.meta.has_call = true;
                 self.meta.has_state = true;
             }
         } else if rune == Some("$effect.pending") {
+            self.meta.has_state = true;
+        } else if COLLECT_METADATA && rune == Some("$effect.tracking") {
+            // Upstream's `is_pure` calls it impure, so it is read inside an effect.
+            self.meta.has_call = true;
             self.meta.has_state = true;
         } else if matches!(rune, Some("$effect" | "$effect.pre" | "$bindable")) {
             self.needs_context = true;
@@ -202,6 +208,10 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
             }
             innermost = at;
             at = object;
+            // A whole optional chain as the object is upstream's `ChainExpression`, judged apart.
+            if self.syntax_tree.is_chain(at) {
+                break;
+            }
         }
         pending.push(Task::Visit(at));
         self.meta.has_member = true;
@@ -234,14 +244,19 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
         }
     }
 
+    /// The identifier a member chain starts from; an optional chain as an object has none.
     fn root_ident(&self, mut e: NodeIdentifier) -> Option<NodeIdentifier> {
         while let Kind::Member { object, .. } = self.syntax_tree.kind(e) {
+            if self.syntax_tree.is_chain(object) {
+                return None;
+            }
             e = object;
         }
         matches!(self.syntax_tree.kind(e), Kind::Identifier(_)).then_some(e)
     }
 
-    /// Upstream `is_pure`. A call chain `f()()…` is followed by a loop.
+    /// Upstream `is_pure`. A chain `f().a()…` is followed by a loop: a member's object that is
+    /// not an identifier is pure when it is, and an optional chain there never is.
     fn is_pure(&self, mut e: NodeIdentifier) -> bool {
         loop {
             match self.syntax_tree.kind(e) {
@@ -257,15 +272,19 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
                     if let Some(&pure) = self.pure_calls.get(&e) {
                         return pure;
                     }
-                    if !arguments.iter().all(|&a| self.is_pure(a)) {
+                    if !arguments.iter().all(|&a| self.is_pure(a))
+                        || self.syntax_tree.is_chain(callee)
+                    {
                         return false;
                     }
                     e = callee;
                 }
-                Kind::Identifier(_) | Kind::Member { .. } => {
-                    return self
-                        .root_ident(e)
-                        .is_some_and(|root| self.res.binding(root).is_none());
+                Kind::Identifier(_) => return self.res.binding(e).is_none(),
+                Kind::Member { object, .. } => {
+                    if self.syntax_tree.is_chain(object) {
+                        return false;
+                    }
+                    e = object;
                 }
                 _ => return false,
             }

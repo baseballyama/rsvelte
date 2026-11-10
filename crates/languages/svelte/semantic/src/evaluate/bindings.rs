@@ -101,7 +101,9 @@ impl<'a> Evaluator<'a> {
         let Kind::Call { callee, .. } = syntax_tree.kind(e) else {
             unreachable!("called on calls")
         };
-        if let Some(path) = self.global_keypath(tree, callee)
+        // Upstream's `ChainExpression` is no call or member, so a chain is unknown.
+        if !syntax_tree.is_chain(e)
+            && let Some(path) = self.global_keypath(tree, callee)
             && let Some((kind, fold)) = global_function(path)
         {
             let mut inline = [Value::Undefined, Value::Undefined];
@@ -145,7 +147,9 @@ impl<'a> Evaluator<'a> {
                 property,
                 computed: false,
                 ..
-            } if matches!(syntax_tree.kind(object), Kind::Identifier(_)) => {
+            } if !syntax_tree.is_chain(e)
+                && matches!(syntax_tree.kind(object), Kind::Identifier(_)) =>
+            {
                 (object, Some(syntax_tree.name(property)))
             }
             _ => return None,

@@ -115,7 +115,7 @@ impl ClientCompilationContext<'_> {
             return;
         }
         frag.tpl.push_text(" ".into());
-        let (value, has_state) = self.template_chunk(seq, frag);
+        let (value, has_state) = self.template_chunk(seq, &mut frag.memo, false);
         let identifier = self.flush_node(st, seq.len() == 1, "text", l);
         let x = self.out.identifier(&identifier);
         if has_state {

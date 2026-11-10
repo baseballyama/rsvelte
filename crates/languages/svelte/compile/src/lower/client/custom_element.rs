@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use rsvelte_typescript_compile::copy::Verbatim;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -7,6 +9,7 @@ use super::{
 };
 use crate::lower::BindingKind;
 use crate::lower::custom_element::{Shadow, Tag, option_property};
+use crate::lower::javascript::{accessor, prop_alias};
 
 impl ClientCompilationContext<'_> {
     pub(super) fn custom_element_stylesheet(
@@ -50,11 +53,15 @@ impl ClientCompilationContext<'_> {
             if name.starts_with("$$") {
                 continue;
             }
-            let key = self.property_key(binding.prop_key.expect("a property key"));
+            let key = prop_alias(
+                self.javascript,
+                self.source_text,
+                binding.prop_key.expect("a property key"),
+            );
             let target = self.out.identifier(name);
             let read = self.out.call0(target, &[]);
             let read = self.out.return_(Some(read), SourceLocation::SYNTHETIC);
-            properties.push(self.accessor(&key, &[], &[read], flag::GETTER));
+            properties.push(accessor(&mut self.out, &key, &[], &[read], flag::GETTER));
             let value = self.out.identifier("$$value");
             let parameter = if let Some(initial) = binding.initial {
                 let initial = copy(self.javascript, &mut self.out, &mut Verbatim, initial);
@@ -67,59 +74,29 @@ impl ClientCompilationContext<'_> {
             let call = self.out.expression_statement(call);
             let flush = self.out.runtime("$", "flush", &[]);
             let flush = self.out.expression_statement(flush);
-            properties.push(self.accessor(&key, &[parameter], &[call, flush], flag::SETTER));
+            properties.push(accessor(
+                &mut self.out,
+                &key,
+                &[parameter],
+                &[call, flush],
+                flag::SETTER,
+            ));
         }
         properties
     }
 
-    fn accessor(
+    pub(super) fn custom_element_registration(
         &mut self,
-        key: &str,
-        parameters: &[NodeIdentifier],
-        body: &[NodeIdentifier],
-        flags: u8,
-    ) -> NodeIdentifier {
-        let body = self.out.block(body, SourceLocation::SYNTHETIC);
-        let function = self.out.function(
-            false,
-            None,
-            parameters,
-            body,
-            false,
-            SourceLocation::SYNTHETIC,
-        );
-        let property = init_property(&mut self.out, key, function);
-        let Kind::Property {
-            key,
-            value,
-            computed,
-            ..
-        } = self.out.kind(property)
-        else {
-            unreachable!("a property")
-        };
-        self.out.property(
-            key,
-            value,
-            flags | if computed { flag::COMPUTED } else { 0 },
-            SourceLocation::SYNTHETIC,
-        )
-    }
-
-    fn property_key(&self, key: NodeIdentifier) -> String {
-        if self.javascript.is_identifier(key) {
-            self.javascript.name(key).to_owned()
-        } else {
-            self.javascript.str_value(key, self.source_text).to_owned()
-        }
-    }
-
-    pub(super) fn custom_element_registration(&mut self) -> Option<NodeIdentifier> {
+        exports: &[NodeIdentifier],
+    ) -> Option<NodeIdentifier> {
         let ce = self.custom_element.take()?;
         let props = self.custom_element_properties(ce.props);
         let props = self.out.object(&props, SourceLocation::SYNTHETIC);
         let slots = self.out.array(&[], SourceLocation::SYNTHETIC);
-        let accessors = self.out.array(&[], SourceLocation::SYNTHETIC);
+        let exports: Vec<NodeIdentifier> = (exports.iter())
+            .map(|&name| self.out.write_string(self.javascript.name(name)))
+            .collect();
+        let accessors = self.out.array(&exports, SourceLocation::SYNTHETIC);
         let shadow = match &ce.shadow {
             Shadow::Open => {
                 let mode = self.out.write_string("open");
@@ -220,7 +197,9 @@ impl ClientCompilationContext<'_> {
                 .map(|&id| self.res.bindings[id]);
             let key = info
                 .and_then(|info| info.prop_key)
-                .map_or_else(|| name.to_owned(), |key| self.property_key(key));
+                .map_or(Cow::Borrowed(name), |key| {
+                    prop_alias(self.javascript, self.source_text, key)
+                });
             let mut fields = Vec::with_capacity(3);
             if let Some(attribute) =
                 attribute.filter(|&e| !self.javascript.str_value(e, self.source_text).is_empty())
@@ -252,8 +231,12 @@ impl ClientCompilationContext<'_> {
             ) {
                 continue;
             }
-            let key = self.property_key(binding.prop_key.expect("a property key"));
-            if configured_names.contains(key.as_str()) {
+            let key = prop_alias(
+                self.javascript,
+                self.source_text,
+                binding.prop_key.expect("a property key"),
+            );
+            if configured_names.contains(&*key) {
                 continue;
             }
             let value = self.out.object(&[], SourceLocation::SYNTHETIC);

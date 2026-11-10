@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, ElementKind, MetadataTag, NodeKind,
 };
@@ -29,6 +30,8 @@ pub enum Parent<'a> {
     /// The body or the fallback of an `{#each}`.
     Each,
     Snippet,
+    /// A component's children.
+    Component,
 }
 
 #[derive(Debug)]
@@ -39,12 +42,16 @@ pub struct Cleaned<'a> {
     pub text_first: bool,
 }
 
-const fn is_ws(c: char) -> bool {
+/// Upstream's template whitespace, the set `regex_not_whitespace` excludes.
+pub(crate) const fn is_template_whitespace(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\r' | '\n')
 }
 
 /// Upstream `clean_nodes` (3-transform/utils.js) for the node types this port has, with
 /// `preserveComments: false`.
+///
+/// `drops_foreign_whitespace` is upstream's svg half of `can_remove_entirely`, which needs the
+/// fragment's inferred namespace.
 #[expect(
     clippy::too_many_lines,
     reason = "ports upstream's `clean_nodes` in one piece"
@@ -55,11 +62,10 @@ pub fn clean_nodes<'a>(
     parent: Parent<'_>,
     list: &[CompilerNodeIdentifier],
     preserve_ws: bool,
+    drops_foreign_whitespace: bool,
 ) -> Cleaned<'a> {
     // Upstream's parser reads `template.trimEnd()`; only `preserveWhitespace` can observe it.
-    let end = source_text
-        .trim_end_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
-        .len();
+    let end = source_text.trim_end_matches(is_ecmascript_whitespace).len();
     let mut regular: Vec<Item<'a>> = Vec::with_capacity(list.len());
     let mut hoisted = Vec::new();
     for &identifier in list {
@@ -128,7 +134,7 @@ pub fn clean_nodes<'a>(
     let mut trimmed: Vec<Item<'a>> = if preserve_ws {
         regular
     } else {
-        let all_ws = |i: &Item<'_>| matches!(i, Item::Text { data, .. } if data.chars().all(is_ws));
+        let all_ws = |i: &Item<'_>| matches!(i, Item::Text { data, .. } if data.chars().all(is_template_whitespace));
         let leading = regular.iter().take_while(|item| all_ws(item)).count();
         regular.drain(..leading);
         if let Some(Item::Text { data, raw }) = regular.first_mut() {
@@ -142,17 +148,25 @@ pub fn clean_nodes<'a>(
             *data = trim_end_owned(data);
             *raw = trim_end_owned(raw);
         }
-        let can_remove_entirely = matches!(
-            parent,
-            Parent::Element(
-                "select" | "tr" | "table" | "tbody" | "thead" | "tfoot" | "colgroup" | "datalist"
-            )
-        );
+        let can_remove_entirely = drops_foreign_whitespace
+            || matches!(
+                parent,
+                Parent::Element(
+                    "select"
+                        | "tr"
+                        | "table"
+                        | "tbody"
+                        | "thead"
+                        | "tfoot"
+                        | "colgroup"
+                        | "datalist"
+                )
+            );
         let mut out = Vec::with_capacity(regular.len());
         for i in 0..regular.len() {
             let prev_is_expression = i > 0 && is_expression(regular.get(i - 1));
             let prev_text_ends_ws = i > 0
-                && matches!(&regular[i - 1], Item::Text { data, .. } if data.ends_with(is_ws));
+                && matches!(&regular[i - 1], Item::Text { data, .. } if data.ends_with(is_template_whitespace));
             let next_is_expression = is_expression(regular.get(i + 1));
             let item = &mut regular[i];
             if let Item::Text { data, raw } = item {
@@ -184,7 +198,11 @@ pub fn clean_nodes<'a>(
 
     let text_first = matches!(
         parent,
-        Parent::Root | Parent::Each | Parent::Snippet | Parent::Element("svelte:boundary")
+        Parent::Root
+            | Parent::Each
+            | Parent::Snippet
+            | Parent::Component
+            | Parent::Element("svelte:boundary")
     ) && matches!(
         trimmed.first(),
         Some(Item::Text { .. } | Item::Expression(_))
@@ -197,7 +215,7 @@ pub fn clean_nodes<'a>(
 }
 
 fn trim_start_owned<'a>(s: &Cow<'a, str>) -> Cow<'a, str> {
-    let t = s.trim_start_matches(is_ws);
+    let t = s.trim_start_matches(is_template_whitespace);
     if t.len() == s.len() {
         s.clone()
     } else {
@@ -206,7 +224,7 @@ fn trim_start_owned<'a>(s: &Cow<'a, str>) -> Cow<'a, str> {
 }
 
 fn trim_end_owned<'a>(s: &Cow<'a, str>) -> Cow<'a, str> {
-    let t = s.trim_end_matches(is_ws);
+    let t = s.trim_end_matches(is_template_whitespace);
     if t.len() == s.len() {
         s.clone()
     } else {
@@ -215,7 +233,7 @@ fn trim_end_owned<'a>(s: &Cow<'a, str>) -> Cow<'a, str> {
 }
 
 fn replace_leading_ws<'a>(s: &Cow<'a, str>, with: &str) -> Cow<'a, str> {
-    let t = s.trim_start_matches(is_ws);
+    let t = s.trim_start_matches(is_template_whitespace);
     if t.len() == s.len() {
         s.clone()
     } else {
@@ -224,7 +242,7 @@ fn replace_leading_ws<'a>(s: &Cow<'a, str>, with: &str) -> Cow<'a, str> {
 }
 
 fn replace_trailing_ws<'a>(s: &Cow<'a, str>, with: &str) -> Cow<'a, str> {
-    let t = s.trim_end_matches(is_ws);
+    let t = s.trim_end_matches(is_template_whitespace);
     if t.len() == s.len() {
         s.clone()
     } else {

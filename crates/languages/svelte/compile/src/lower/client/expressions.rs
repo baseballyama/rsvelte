@@ -1,6 +1,6 @@
 use super::{
-    ClientCompilationContext, ExpressionMetadata, Frag, Kind, NodeIdentifier, ScriptRewrite,
-    SourceLocation, Target, copy, flag, runtime_call,
+    ClientCompilationContext, Memo, Memoized, NodeIdentifier, ScriptRewrite, SourceLocation,
+    Target, copy, flag, runtime_call, unthunk,
 };
 
 impl ClientCompilationContext<'_> {
@@ -29,38 +29,7 @@ impl ClientCompilationContext<'_> {
         let arrow = self
             .out
             .arrow(&[], e, true, false, SourceLocation::SYNTHETIC);
-        self.unthunk(arrow)
-    }
-
-    /// `b.unthunk`: `(a, b) => f(a, b)` is `f`.
-    pub(super) fn unthunk(&self, arrow: NodeIdentifier) -> NodeIdentifier {
-        let o = &self.out;
-        let Kind::Arrow {
-            parameters,
-            body,
-            expression_body: true,
-            is_async: false,
-            ..
-        } = o.kind(arrow)
-        else {
-            return arrow;
-        };
-        let Kind::Call {
-            callee,
-            arguments,
-            optional: false,
-            ..
-        } = o.kind(body)
-        else {
-            return arrow;
-        };
-        let same = o.is_identifier(callee)
-            && parameters.len() == arguments.len()
-            && parameters
-                .iter()
-                .zip(arguments)
-                .all(|(&p, &a)| o.is_identifier(p) && o.is_identifier(a) && o.name(p) == o.name(a));
-        if same { callee } else { arrow }
+        unthunk(&self.out, arrow)
     }
 
     /// `b.call` drops trailing missing arguments and turns inner ones into `void 0`.
@@ -90,17 +59,30 @@ impl ClientCompilationContext<'_> {
         self.out.write_boolean(true, SourceLocation::SYNTHETIC)
     }
 
+    /// Upstream `Memoizer.add`: `value` stays inline unless `source` calls a function, or holds
+    /// state when `if_state`.
     pub(super) fn memoize(
         &mut self,
-        frag: &mut Frag,
+        memo: &mut Memo,
+        source: NodeIdentifier,
         value: NodeIdentifier,
-        meta: ExpressionMetadata,
+        if_state: bool,
     ) -> NodeIdentifier {
-        if !meta.has_call {
+        let meta = self.an.meta(source);
+        if !(meta.has_call || if_state && meta.has_state) {
             return value;
         }
-        let identifier = self.out.identifier(&format!("${}", frag.memo.len()));
-        frag.memo.push(value);
-        identifier
+        let name = self.out.atoms.intern(&format!("${}", memo.entries.len()));
+        memo.entries.push(Memoized {
+            value,
+            source,
+            name,
+        });
+        let read = self.out.ident_atom(name, SourceLocation::SYNTHETIC);
+        if memo.derived {
+            self.out.runtime("$", "get", &[read])
+        } else {
+            read
+        }
     }
 }

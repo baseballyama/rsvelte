@@ -9,7 +9,7 @@ use rsvelte_typescript_syntax::syntax_tree::Control;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
-use super::resolve::for_each_pattern_identifier;
+use super::resolve::for_each_pattern_target;
 
 /// A top-level variable: one a script declares, or one a `$:` assignment declares.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -73,7 +73,7 @@ impl Legacy {
             let Kind::Assign(_, left, _) = syntax_tree.kind(assignment) else {
                 continue;
             };
-            for_each_pattern_identifier(syntax_tree, left, &mut |identifier| {
+            for_each_pattern_target(syntax_tree, left, &mut |identifier| {
                 if sem.binding_of(identifier).is_some() {
                     return;
                 }

@@ -26,7 +26,7 @@ impl ClientCompilationContext<'_> {
         let get_tag = self.thunk(tag);
         let name = self.names.generate("$$element");
         let mut inner = Lists::default();
-        let directives = self.element_directives(attributes, "svelte:element", &name)?;
+        let directives = self.element_directives(attributes, "svelte:element", &name);
         inner.initializer.extend(directives.initializer);
         let classes: Vec<_> = attributes
             .iter()
@@ -56,7 +56,7 @@ impl ClientCompilationContext<'_> {
                     &name,
                     Some(attribute),
                     &classes,
-                    &mut element_frag,
+                    &mut element_frag.memo,
                     &mut inner,
                 );
             } else {
@@ -76,7 +76,7 @@ impl ClientCompilationContext<'_> {
                 &name,
                 None,
                 &classes,
-                &mut element_frag,
+                &mut element_frag.memo,
                 &mut inner,
             );
         }

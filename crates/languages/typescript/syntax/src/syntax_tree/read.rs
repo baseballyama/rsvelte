@@ -4,6 +4,38 @@ use super::{
 };
 
 impl SyntaxTree {
+    /// The object a member chain starts from (`a` in `a.b[c].d`), or `e` when it is no member.
+    #[must_use]
+    pub fn member_root(&self, mut e: NodeIdentifier) -> NodeIdentifier {
+        while let Kind::Member { object, .. } = self.kind(e) {
+            e = object;
+        }
+        e
+    }
+
+    /// Whether `e` is TypeScript's leading `this: T` parameter.
+    #[must_use]
+    pub fn is_this_parameter(&self, e: NodeIdentifier) -> bool {
+        self.tag(e) == Tag::Identifier && self.flags(e) & flag::THIS_PARAMETER != 0
+    }
+
+    /// A function's parameters without TypeScript's leading `this: T`, which declares the type of
+    /// `this` and is no parameter at run time.
+    #[must_use]
+    pub fn runtime_parameters<'p>(&self, parameters: &'p [NodeIdentifier]) -> &'p [NodeIdentifier] {
+        match parameters {
+            [this, rest @ ..] if self.is_this_parameter(*this) => rest,
+            _ => parameters,
+        }
+    }
+
+    /// Whether `e` ends an optional chain: `a?.b` in `(a?.b).c`, and `a?.b.c` as a whole.
+    #[inline]
+    #[must_use]
+    pub fn is_chain(&self, e: NodeIdentifier) -> bool {
+        matches!(self.tag(e), Tag::Member | Tag::Call) && self.flags(e) & flag::CHAIN != 0
+    }
+
     #[inline]
     #[must_use]
     pub fn is_identifier(&self, identifier: NodeIdentifier) -> bool {

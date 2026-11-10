@@ -2,7 +2,7 @@ use rsvelte_kernel::index::IndexVector;
 use rsvelte_typescript_semantic::scope::{BindingIdentifier, Semantic};
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
-use super::super::{BindingInformation, BindingKind, for_each_pattern_identifier};
+use super::super::{BindingInformation, BindingKind, for_each_pattern_target};
 use crate::compiler_syntax_tree::{AttributeValue, CompilerSyntaxTree, NodeKind};
 
 /// The kinds upstream's `create_scopes` gives the names the template declares.
@@ -13,7 +13,7 @@ pub(super) fn classify_template(
     out: &mut IndexVector<BindingIdentifier, BindingInformation>,
 ) {
     let mut set = |pattern: NodeIdentifier, kind: BindingKind, keep_function: bool| {
-        for_each_pattern_identifier(syntax_tree, pattern, &mut |identifier| {
+        for_each_pattern_target(syntax_tree, pattern, &mut |identifier| {
             if let Some(b) = sem.binding_of(identifier) {
                 out[b].kind = kind;
                 out[b].is_function &= keep_function;

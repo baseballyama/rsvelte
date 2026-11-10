@@ -3,6 +3,8 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_syntax::NodeIdentifier;
 use rsvelte_typescript_syntax::lexer::T;
 
+use rsvelte_kernel::diagnostics::Diagnostic;
+
 use super::{ParseResult, Parser};
 use crate::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range, TokenType};
 
@@ -32,9 +34,53 @@ fn directive_kind(prefix: &str) -> Option<AttributeKind> {
     })
 }
 
+/// Upstream's `unique_names` namespaces: `bind:x` names `x` as an attribute does, while `class:x`
+/// and `style:x` each have their own.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) enum Unique {
+    Attribute,
+    Class,
+    Style,
+}
+
 impl Parser<'_> {
+    /// Upstream raises `attribute_duplicate` as it reads a start tag; `this` may repeat.
+    pub(super) fn unique(&mut self, namespace: Unique, name: Span, span: Span) -> ParseResult<()> {
+        let name = name.text(self.source_text);
+        if self.unique_names.contains(&(namespace, name)) {
+            return Err(Diagnostic::error(
+                "attribute_duplicate",
+                "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+                span,
+            ));
+        }
+        if name != "this" {
+            self.unique_names.insert((namespace, name));
+        }
+        Ok(())
+    }
+
+    fn unique_attribute(&mut self, a: &Attribute) -> ParseResult<()> {
+        let (namespace, name) = match a.kind {
+            AttributeKind::Attribute => (Unique::Attribute, a.name),
+            AttributeKind::Bind => (Unique::Attribute, self.directive_name(a)),
+            AttributeKind::Class => (Unique::Class, self.directive_name(a)),
+            AttributeKind::Style => (Unique::Style, self.directive_name(a)),
+            _ => return Ok(()),
+        };
+        self.unique(namespace, name, a.span)
+    }
+
+    fn directive_name(&self, a: &Attribute) -> Span {
+        let Some(name) = a.directive_name(&self.component.modifiers) else {
+            unreachable!("a directive has a name")
+        };
+        name
+    }
+
     pub(super) fn attributes(&mut self) -> ParseResult<(Range, bool)> {
         let start = self.component.attributes.len();
+        self.unique_names.clear();
         loop {
             self.skip_ws();
             match self.peek() {
@@ -52,10 +98,12 @@ impl Parser<'_> {
                 }
                 Some(b'{') => {
                     let a = self.brace_attribute()?;
+                    self.unique_attribute(&a)?;
                     self.component.attributes.push(a);
                 }
                 Some(_) => {
                     let a = self.attribute()?;
+                    self.unique_attribute(&a)?;
                     self.component.attributes.push(a);
                 }
             }

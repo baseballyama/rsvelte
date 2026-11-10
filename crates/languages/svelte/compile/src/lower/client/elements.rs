@@ -15,10 +15,10 @@ impl ClientCompilationContext<'_> {
         if el.kind != super::ElementKind::Regular || self.an.dynamic[identifier] {
             return false;
         }
-        let tag = el.name.text(self.source_text);
-        if tag.contains('-') {
+        if super::is_custom_element_node(self.compiler_syntax_tree, self.source_text, el) {
             return false;
         }
+        let tag = el.name.text(self.source_text);
         for a in self.compiler_syntax_tree.attributes(el.attributes) {
             let n = a.name.text(self.source_text);
             if event_attribute(self.source_text, a).is_some()

@@ -12,7 +12,7 @@ use rustc_hash::FxHashMap;
 use crate::number::number;
 use crate::scope::{BindingIdentifier, DeclarationKind, Semantic};
 use rsvelte_typescript_syntax::operators::{LogicalOperator, UnaryOperator};
-use rsvelte_typescript_syntax::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, flag};
+use rsvelte_typescript_syntax::syntax_tree::{Kind, NodeIdentifier, SyntaxTree};
 
 mod conversions;
 mod members;
@@ -228,7 +228,7 @@ impl<'a> StaticValues<'a> {
 
     /// `undefined` for a short-circuited optional chain; a parenthesized chain ends there.
     fn short_circuit(&self, node: NodeIdentifier) -> Option<Evaluated> {
-        let ends = self.syntax_tree.flags(node) & flag::GROUPED != 0;
+        let ends = self.syntax_tree.is_chain(node);
         plain(Value::Undefined).map(|e| Evaluated {
             optional: !ends,
             ..e

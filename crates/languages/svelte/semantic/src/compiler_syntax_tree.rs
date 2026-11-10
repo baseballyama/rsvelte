@@ -8,6 +8,7 @@ pub use builder::{spelled_text, text};
 pub use lower::lower;
 use rsvelte_kernel::index::{IndexRange, IndexVector};
 use rsvelte_kernel::newtype_index;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 pub(crate) use rsvelte_svelte_syntax::names::is_component_name;
 pub use rsvelte_svelte_syntax::syntax_tree::Part;
@@ -289,6 +290,17 @@ pub enum ElementKind {
     Metadata(Option<MetadataTag>),
 }
 
+impl ElementKind {
+    /// Upstream's `Component`, `SvelteComponent` and `SvelteSelf`: a tag that renders a component.
+    #[must_use]
+    pub const fn renders_component(self) -> bool {
+        matches!(
+            self,
+            Self::Component | Self::Metadata(Some(MetadataTag::Component | MetadataTag::SelfRef))
+        )
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MetadataTag {
     Head,
@@ -489,6 +501,13 @@ impl CompilerSyntaxTree {
         Some(self.component_references[index].1)
     }
 
+    /// The expression each component element names its component by.
+    pub fn component_references(&self) -> impl Iterator<Item = NodeIdentifier> + '_ {
+        self.component_references
+            .iter()
+            .map(|&(_, reference)| reference)
+    }
+
     #[must_use]
     pub fn node(&self, identifier: CompilerNodeIdentifier) -> &Node {
         &self.nodes[identifier]
@@ -569,6 +588,13 @@ impl NodeKind {
             }
             _ => None,
         }
+    }
+
+    /// A `Text` node that upstream's `data.trim() === ''` calls empty.
+    #[must_use]
+    pub fn is_blank_text(&self, source_text: &str) -> bool {
+        self.text(source_text)
+            .is_some_and(|text| text.chars().all(is_ecmascript_whitespace))
     }
 }
 

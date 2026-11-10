@@ -5,6 +5,7 @@ mod binding_accessors;
 mod blocks;
 mod boundary;
 mod children;
+mod component;
 mod custom_element;
 mod directives;
 mod dynamic_element;
@@ -19,9 +20,10 @@ mod template_chunk;
 mod title;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::interning::Atom;
 use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_markup_syntax::decode_attribute;
-use rsvelte_svelte_semantic::analyze::{Analysis, ExpressionMetadata};
+use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
     NodeKind, Part,
@@ -35,13 +37,13 @@ use rsvelte_typescript_syntax::syntax_tree::flag;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
-use super::javascript::{init_property, runtime_call};
+use super::javascript::{export_properties, init_property, runtime_call, unthunk};
 use super::names::Names;
 use super::script::{Read, ScriptRewrite};
 use super::{
-    Item, Prepared, Target, check_binding, check_foreign_element, escape_markup, event_attribute,
-    has_dependency, is_customizable_select, is_directive, is_load_error_element, needs_clsx,
-    sanitize_template_string, synthetic_value, unsupported,
+    Item, Prepared, Target, check_foreign_element, escape_markup, event_attribute, has_dependency,
+    is_custom_element_node, is_customizable_select, is_directive, is_load_error_element,
+    needs_clsx, sanitize_template_string, synthetic_value, unsupported,
 };
 use crate::render_plan::RenderPlan;
 
@@ -77,7 +79,58 @@ use template::Template;
 #[derive(Default)]
 struct Frag {
     tpl: Template,
-    memo: Vec<NodeIdentifier>,
+    memo: Memo,
+}
+
+/// Upstream's `Memoizer`: the memoized expressions of one render effect or one component's props.
+#[derive(Default)]
+struct Memo {
+    entries: Vec<Memoized>,
+    /// A component reads each value from a derived (`$.get($0)`), a render effect as a parameter.
+    derived: bool,
+}
+
+struct Memoized {
+    value: NodeIdentifier,
+    /// The expression `value` was built from, which a derived's callback reads.
+    source: NodeIdentifier,
+    name: Atom,
+}
+
+impl Memo {
+    const fn derived() -> Self {
+        Self {
+            entries: Vec::new(),
+            derived: true,
+        }
+    }
+
+    /// Upstream `Memoizer.apply` for an effect: the callback over `body` that takes the values as
+    /// its parameters, and the array of thunks that compute them, which is absent when none is.
+    fn into_effect(
+        self,
+        out: &mut SyntaxTree,
+        body: NodeIdentifier,
+        expression_body: bool,
+    ) -> (NodeIdentifier, Option<NodeIdentifier>) {
+        let parameters: Vec<NodeIdentifier> = (self.entries.iter())
+            .map(|m| out.ident_atom(m.name, SourceLocation::SYNTHETIC))
+            .collect();
+        let callback = out.arrow(
+            &parameters,
+            body,
+            expression_body,
+            false,
+            SourceLocation::SYNTHETIC,
+        );
+        let thunks = (!self.entries.is_empty()).then(|| {
+            let thunks: Vec<NodeIdentifier> = (self.entries.iter())
+                .map(|m| out.arrow(&[], m.value, true, false, SourceLocation::SYNTHETIC))
+                .collect();
+            out.array(&thunks, SourceLocation::SYNTHETIC)
+        });
+        (callback, thunks)
+    }
 }
 
 #[derive(Default)]
@@ -138,6 +191,7 @@ pub(super) fn lower_prepared(
         module,
         hoisted,
         instance,
+        exports,
         custom_element,
         component_name,
     } = prepared;
@@ -168,9 +222,11 @@ pub(super) fn lower_prepared(
     let template = context.fragment(input.component.compiler_syntax_tree.root)?;
 
     let stylesheet = context.custom_element_stylesheet(facts.stylesheet);
-    let exports = context.custom_element_exports();
-    let func = context.component_function(instance, template, &exports, stylesheet.is_some());
-    let registration = context.custom_element_registration();
+    let mut returned: Vec<NodeIdentifier> =
+        export_properties(&mut context.out, javascript, &exports).collect();
+    returned.extend(context.custom_element_exports());
+    let func = context.component_function(instance, template, &returned, stylesheet.is_some());
+    let registration = context.custom_element_registration(&exports);
     let o = &mut context.out;
 
     let mut program = Vec::new();

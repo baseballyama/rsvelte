@@ -3,7 +3,7 @@
 use rsvelte_kernel::index::IndexVector;
 use rsvelte_kernel::newtype_index;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    AttributeValue, Children, ElementKind, MetadataTag, NodeKind,
+    AttributeValue, Children, CompilerNodeIdentifier, ElementKind, MetadataTag, NodeKind,
 };
 use rustc_hash::FxHashMap;
 
@@ -12,6 +12,8 @@ use crate::input::CompileInput;
 mod namespace;
 mod normalize;
 pub use namespace::Namespace;
+pub use namespace::Namespaces;
+pub(crate) use normalize::is_template_whitespace;
 pub use normalize::{Cleaned, Item, Parent, clean_nodes};
 
 newtype_index!(
@@ -20,64 +22,16 @@ newtype_index!(
 
 #[derive(Debug)]
 pub struct Region {
-    pub hoisted: Box<[rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier]>,
+    pub hoisted: Box<[CompilerNodeIdentifier]>,
     pub items: Box<[Item<'static>]>,
     pub text_first: bool,
-}
-
-#[derive(Debug)]
-pub struct NamespacePlan(namespace::Namespaces);
-
-impl NamespacePlan {
-    #[must_use]
-    pub fn build(input: &CompileInput<'_>) -> Self {
-        Self(namespace::build(input))
-    }
-
-    #[must_use]
-    pub fn get(
-        &self,
-        node: rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier,
-    ) -> Namespace {
-        self.0.get(node)
-    }
-
-    pub fn clean_foreign_whitespace(
-        &self,
-        cleaned: &mut Cleaned<'_>,
-        tree: &rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree,
-        preserve: bool,
-    ) {
-        if matches!(self.0, namespace::Namespaces::AllDefault) {
-            return;
-        }
-        let mut namespaces = cleaned
-            .items
-            .iter()
-            .filter_map(|item| {
-                if let Item::Node(node) = item
-                    && matches!(tree.node(*node).kind, NodeKind::Element(_))
-                {
-                    Some(self.get(*node))
-                } else {
-                    None
-                }
-            })
-            .peekable();
-        let foreign =
-            namespaces.peek().is_some() && namespaces.all(|namespace| namespace != Namespace::Html);
-        if foreign && !preserve {
-            cleaned.items.retain(|item| match item {
-                Item::Text { data, .. } => !data.chars().all(char::is_whitespace),
-                _ => true,
-            });
-        }
-    }
+    /// Upstream's inferred fragment namespace, which picks the template function.
+    pub namespace: Namespace,
 }
 
 #[derive(Debug)]
 pub struct RenderPlan {
-    namespaces: NamespacePlan,
+    namespaces: Namespaces,
     regions: IndexVector<RegionIdentifier, Region>,
     source_regions: FxHashMap<Children, RegionIdentifier>,
 }
@@ -86,7 +40,7 @@ impl RenderPlan {
     #[must_use]
     pub fn build(input: &CompileInput<'_>) -> Self {
         let mut plan = Self {
-            namespaces: NamespacePlan::build(input),
+            namespaces: Namespaces::build(input),
             regions: IndexVector::new(),
             source_regions: FxHashMap::default(),
         };
@@ -125,10 +79,7 @@ impl RenderPlan {
     }
 
     #[must_use]
-    pub(crate) fn namespace(
-        &self,
-        node: rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier,
-    ) -> Namespace {
+    pub(crate) fn namespace(&self, node: CompilerNodeIdentifier) -> Namespace {
         self.namespaces.get(node)
     }
 
@@ -155,15 +106,18 @@ impl RenderPlan {
             return;
         }
         let tree = input.component.compiler_syntax_tree;
-        let mut cleaned = clean_nodes(
+        let nodes = tree.children(children);
+        let (namespace, drops_whitespace) =
+            self.namespaces
+                .fragment(tree, input.component.source_text, nodes);
+        let cleaned = clean_nodes(
             tree,
             input.component.source_text,
             parent,
-            tree.children(children),
+            nodes,
             preserve,
+            drops_whitespace,
         );
-        self.namespaces
-            .clean_foreign_whitespace(&mut cleaned, tree, preserve);
         let region = Region {
             hoisted: cleaned.hoisted,
             items: cleaned
@@ -179,11 +133,15 @@ impl RenderPlan {
                 })
                 .collect(),
             text_first: cleaned.text_first,
+            namespace,
         };
         let identifier = self.regions.push(region);
         self.source_regions.insert(children, identifier);
         for &node in tree.children(children) {
             match &tree.node(node).kind {
+                NodeKind::Element(element) if element.kind == ElementKind::Component => {
+                    self.region(input, element.children, Parent::Component, preserve);
+                }
                 NodeKind::Element(element) => {
                     let tag = element.name.text(input.component.source_text);
                     let tag = if tag.bytes().any(|byte| byte.is_ascii_uppercase()) {

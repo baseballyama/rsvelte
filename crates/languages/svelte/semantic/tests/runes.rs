@@ -3,10 +3,21 @@ use rsvelte_svelte_semantic::resolve::{RUNE_ROOTS, RUNES, rune_call};
 use rsvelte_typescript_syntax::SyntaxTree;
 
 #[test]
-fn every_public_rune_is_recognized_in_both_supported_shapes() {
+fn every_public_rune_is_recognized_by_its_shape() {
     let mut tree = SyntaxTree::new();
     for &rune in RUNES {
-        let callee = tree.identifier(rune);
+        let callee = match rune.split_once('.') {
+            None => tree.identifier(rune),
+            Some(("$inspect()", member)) => {
+                let inspect = tree.identifier("$inspect");
+                let inspected = tree.call0(inspect, &[]);
+                tree.dot(inspected, member)
+            }
+            Some((root, member)) => {
+                let root = tree.identifier(root);
+                tree.dot(root, member)
+            }
+        };
         let argument = tree.identifier("argument");
         let call = tree.call0(callee, &[argument]);
         assert_eq!(
@@ -14,15 +25,6 @@ fn every_public_rune_is_recognized_in_both_supported_shapes() {
             Some((rune, Some(argument))),
             "{rune}"
         );
-        // `$inspect().with` calls a member of a call; `inspect_with_is_a_rune` builds it.
-        if let Some((root, member)) = rune.split_once('.')
-            && !root.ends_with("()")
-        {
-            let root = tree.identifier(root);
-            let callee = tree.dot(root, member);
-            let call = tree.call0(callee, &[]);
-            assert_eq!(rune_call(&tree, call), Some((rune, None)), "{rune}");
-        }
     }
 }
 

@@ -1,8 +1,7 @@
 use super::calls::{ChainHead, ChainLink};
 use super::{
     Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, Op, PatternContext, R, Slot,
-    SyntaxTree, TypeScriptKind, TypeScriptSyntax, Unsupported, flag, mixes_nullish, op_of,
-    should_flatten,
+    SyntaxTree, TypeScriptKind, TypeScriptSyntax, Unsupported, op_of, should_flatten,
 };
 
 /// Prettier's `printNumber`.
@@ -231,7 +230,7 @@ impl Formatter<'_> {
         document: LayoutInstructionIdentifier,
     ) -> LayoutInstructionIdentifier {
         if leftmost
-            || self.syntax_tree.flags(identifier) & flag::GROUPED != 0
+            || matches!(slot, Slot::Object | Slot::Callee) && self.syntax_tree.is_chain(identifier)
             || parent.is_some_and(|p| self.needs_parens(identifier, p, slot))
         {
             let lp = self.lit("(");
@@ -458,19 +457,6 @@ impl Formatter<'_> {
         loop {
             let (_, l, r) = operands(self.syntax_tree, at);
             let parent = op_of(self.syntax_tree, at);
-            for child in [l, r] {
-                let Some(c) = op_of(self.syntax_tree, child) else {
-                    continue;
-                };
-                let grouped = self.syntax_tree.flags(child) & flag::GROUPED != 0;
-                // JavaScript rejects `a ?? b || c`; Svelte's parser does too.
-                if parent.is_some_and(|p| mixes_nullish(p, c)) && !grouped {
-                    return Err(Unsupported::at(
-                        "`??` mixed with `||` or `&&` without parentheses",
-                        self.syntax_tree.source_location(at),
-                    ));
-                }
-            }
             // Prettier rebalances `a || (b || c)` into `a || b || c`.
             if let (Some(Op::Log(p)), Some(Op::Log(c))) = (parent, op_of(self.syntax_tree, r))
                 && p == c

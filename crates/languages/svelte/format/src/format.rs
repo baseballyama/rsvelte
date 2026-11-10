@@ -22,6 +22,7 @@ use oxc_formatter_core::{
 };
 use rsvelte_document_printer::{LayoutInstructionIdentifier, LayoutInstructions, Unlowered};
 pub(crate) use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TagAttributes, TemplateNode,
@@ -47,10 +48,7 @@ pub(crate) fn format(c: &Component, source_text: &str, options: &Options) -> R<S
     if options.require_pragma && !has_pragma(text) {
         return Ok(source_text.to_owned());
     }
-    if text
-        .trim_matches(embed::is_javascript_whitespace)
-        .is_empty()
-    {
+    if text.trim_matches(is_ecmascript_whitespace).is_empty() {
         return Ok(bom.to_owned());
     }
     // Prettier reads a lone `\r` as a line break; this port reads line breaks as `\n` only.
@@ -190,13 +188,13 @@ fn is_typescript(c: &Component, source_text: &str) -> bool {
 /// The plugin's `hasPragma`: `/^\s*<!--\s*@(format|prettier)\W/`.
 fn has_pragma(text: &str) -> bool {
     let Some(rest) = text
-        .trim_start_matches(embed::is_javascript_whitespace)
+        .trim_start_matches(is_ecmascript_whitespace)
         .strip_prefix("<!--")
     else {
         return false;
     };
     let Some(rest) = rest
-        .trim_start_matches(embed::is_javascript_whitespace)
+        .trim_start_matches(is_ecmascript_whitespace)
         .strip_prefix('@')
     else {
         return false;
@@ -237,19 +235,11 @@ fn refuse_template_comments(c: &Component) -> R<()> {
         })
 }
 
-/// What Svelte's parser rejects and this parser does not yet: a root-only `svelte:` tag twice,
-/// and an attribute named twice on one element.
+/// What Svelte's parser rejects and this parser does not yet: a root-only `svelte:` tag twice.
 fn refuse_rejected_tags(c: &Component, source_text: &str) -> R<()> {
     let mut seen: Vec<&str> = Vec::new();
-    let mut names: Vec<(AttributeKind, &str)> = Vec::new();
     for node in &c.nodes {
-        let TemplateNode::Element {
-            name,
-            attributes,
-            span,
-            ..
-        } = *node
-        else {
+        let TemplateNode::Element { name, span, .. } = *node else {
             continue;
         };
         let name = name.text(source_text);
@@ -261,41 +251,6 @@ fn refuse_rejected_tags(c: &Component, source_text: &str) -> R<()> {
                 return Err(Unsupported::at("a root-only `svelte:` tag twice", span));
             }
             seen.push(name);
-        }
-        names.clear();
-        for a in attributes.get(&c.attributes) {
-            // Svelte's `unique_names`: a binding and an attribute share names; `this` repeats.
-            let kind = match a.kind {
-                AttributeKind::Attribute | AttributeKind::Bind => AttributeKind::Attribute,
-                k @ (AttributeKind::Style | AttributeKind::Class) => k,
-                _ => continue,
-            };
-            let mut written = a.name.text(source_text);
-            if a.kind != AttributeKind::Attribute {
-                written = written.split_once(':').map_or(written, |(_, n)| n);
-                written = written.split_once('|').map_or(written, |(n, _)| n);
-            }
-            if written == "this" {
-                continue;
-            }
-            if names.contains(&(kind, written)) {
-                return Err(Unsupported::at("an attribute named twice", a.span));
-            }
-            names.push((kind, written));
-        }
-    }
-    // A root `<script>` or `<style>` reads every attribute as a plain one, named as written.
-    let roots = c.module.iter().chain(&c.instance).map(|s| &s.attributes);
-    for attributes in roots.chain(c.style.iter().map(|s| &s.attributes)) {
-        for (i, &(name, _)) in attributes.iter().enumerate() {
-            let written = name.text(source_text);
-            if written != "this"
-                && attributes[..i]
-                    .iter()
-                    .any(|(n, _)| n.text(source_text) == written)
-            {
-                return Err(Unsupported::at("an attribute named twice", name));
-            }
         }
     }
     Ok(())

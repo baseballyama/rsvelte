@@ -1,6 +1,6 @@
 //! `export_let_unused`: legacy mode's exports that nothing reads or writes.
 
-use crate::resolve::{Resolution, for_each_pattern_identifier};
+use crate::resolve::{Resolution, for_each_pattern_target};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Component, TemplateNode};
 use rsvelte_typescript_semantic::scope::BindingIdentifier;
@@ -74,7 +74,7 @@ pub(super) fn unused_exports(
                 }
                 for &declarator in declarations {
                     if let Kind::Declarator { identifier, .. } = javascript.kind(declarator) {
-                        for_each_pattern_identifier(javascript, identifier, &mut |name| {
+                        for_each_pattern_target(javascript, identifier, &mut |name| {
                             props.extend(sem.binding_of(name));
                         });
                     }

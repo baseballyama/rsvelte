@@ -2,7 +2,7 @@
 
 use rsvelte_kernel::index::IndexVector;
 use rsvelte_typescript_syntax::NodeIdentifier;
-use rustc_hash::{FxBuildHasher, FxHashMap};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use crate::compiler_syntax_tree::CompilerNodeIdentifier;
 use crate::input::ComponentInput;
@@ -78,10 +78,13 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
     let mut needs_context = walker.needs_context();
     let mut expressions =
         FxHashMap::with_capacity_and_hasher(input.template_expressions.len(), FxBuildHasher);
+    // Upstream reads a component's name from its tag, not as an expression that needs context.
+    let references: FxHashSet<NodeIdentifier> =
+        compiler_syntax_tree.component_references().collect();
     for &expression in input.template_expressions {
         let mut walker = MetadataWalker::<true>::new(input, res, &mut values);
         walker.visit(expression);
-        needs_context |= walker.needs_context();
+        needs_context |= walker.needs_context() && !references.contains(&expression);
         expressions.insert(expression, walker.metadata());
     }
     analysis.expressions = expressions;

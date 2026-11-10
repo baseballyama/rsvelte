@@ -1,5 +1,5 @@
 use super::{NodeIdentifier, Rewrite, SyntaxTree, copy, copy_all, copy_node};
-use rsvelte_typescript_syntax::syntax_tree::{Kind, flag};
+use rsvelte_typescript_syntax::syntax_tree::Kind;
 
 /// The object, callee or left operand a chain link is built on, for the kinds that nest
 /// thousands deep in real input (`a.b.c…`, `f()()…`, `a + b + …`).
@@ -38,8 +38,8 @@ pub(super) fn copy_chain<R: Rewrite + ?Sized>(
     };
     while let Some(link) = links.pop() {
         copied = link_tail(f, to, rw, link, copied);
-        if f.flags(link) & flag::GROUPED != 0 {
-            copied = to.grouped(copied);
+        if f.is_chain(link) {
+            to.mark_chain(copied);
         }
     }
     link_tail(f, to, rw, first, copied)

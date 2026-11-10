@@ -1190,6 +1190,7 @@ dependencies = [
  "rsvelte_markup_syntax",
  "rsvelte_stylesheet_syntax",
  "rsvelte_typescript_syntax",
+ "rustc-hash",
  "unicode-id-start",
 ]
 

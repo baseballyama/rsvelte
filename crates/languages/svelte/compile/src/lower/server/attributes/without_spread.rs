@@ -1,4 +1,4 @@
-use super::attribute_text;
+use super::{escaped_text, scoped_class};
 use crate::lower::server::{
     Attribute, AttributeValue, CompilerNodeIdentifier, Kind, Piece, R, ServerCompilationContext,
     SourceLocation, capture_event, escape_markup, event_attribute, is_boolean_attribute,
@@ -23,7 +23,8 @@ impl<'a> ServerCompilationContext<'a> {
                     && matches!(a.name.text(source_text), "defaultValue" | "defaultChecked"))
         });
         if has_spread {
-            return self.spread_attributes(identifier, tag, list, template);
+            self.spread_attributes(identifier, tag, list, template);
+            return Ok(());
         }
         let hash = if self.an.scoped[identifier] {
             self.identity.stylesheet_hash.clone()
@@ -42,7 +43,7 @@ impl<'a> ServerCompilationContext<'a> {
                     continue;
                 }
                 AttributeValue::Bind(_) => {
-                    let call = self.binding(a, tag, list)?;
+                    let call = self.binding(a);
                     template.push(Piece::Expression(call));
                     continue;
                 }
@@ -66,9 +67,7 @@ impl<'a> ServerCompilationContext<'a> {
             let can_use_literal = name != "class" || class_directives.is_empty();
             let literal = match &a.value {
                 AttributeValue::Boolean => Some(None),
-                AttributeValue::Static(v) => Some(Some(
-                    escape_markup(&attribute_text(v, trim), true).into_owned(),
-                )),
+                AttributeValue::Static(v) => Some(Some(escaped_text(v, trim))),
                 _ => None,
             };
             if can_use_literal && let Some(v) = literal {
@@ -78,13 +77,16 @@ impl<'a> ServerCompilationContext<'a> {
             if name == "style" {
                 return unsupported("a dynamic `style` attribute", a.span);
             }
-            let value = self.attribute_value(a, trim, raw_name == "class");
+            let value = match literal {
+                Some(Some(v)) => self.out.write_string(&v),
+                _ => self.attribute_value(a, trim, raw_name == "class"),
+            };
             if can_use_literal && matches!(self.out.kind(value), Kind::String) {
                 let mut v = self.out.str_value(value, self.source_text).to_owned();
                 if name == "class"
                     && let Some(h) = &hash
                 {
-                    format!("{v} {h}").trim().clone_into(&mut v);
+                    v = scoped_class(&v, h);
                 }
                 let v = escape_markup(&v, true);
                 template.push(Piece::Text(format!(" {name}=\"{v}\"")));
@@ -129,7 +131,7 @@ impl<'a> ServerCompilationContext<'a> {
             let base = value
                 .as_deref()
                 .map_or_else(|| "true".to_owned(), str::to_owned);
-            value = Some(format!("{base} {h}").trim().to_owned());
+            value = Some(scoped_class(&base, h));
         }
         if name != "class" || value.as_deref() != Some("") {
             template.push(Piece::Text(format!(

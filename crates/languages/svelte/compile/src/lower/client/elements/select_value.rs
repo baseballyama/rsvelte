@@ -26,10 +26,10 @@ impl ClientCompilationContext<'_> {
         if let Some(e) = synthetic_value(self.compiler_syntax_tree, source_text, tag, el) {
             let meta = self.an.meta(e);
             let built = self.expression(e);
-            let value = self.memoize(frag, built, meta);
+            let value = self.memoize(&mut frag.memo, e, built, false);
             self.special_value(tag, node, (value, meta.has_state), false, true, l);
         } else if let Some(a) = value_attribute {
-            let built = self.attribute_value(a, frag);
+            let built = self.attribute_value(a, &mut frag.memo, false);
             let dynamic = !matches!(a.value, AttributeValue::Boolean | AttributeValue::Static(_));
             self.special_value(tag, node, built, tag == "select" && dynamic, false, l);
         }
@@ -41,7 +41,7 @@ impl ClientCompilationContext<'_> {
                 && normalize_attribute(a.name.text(source_text)) == "defaultValue"
         });
         if let Some(a) = default_value {
-            let (value, has_state) = self.attribute_value(a, frag);
+            let (value, has_state) = self.attribute_value(a, &mut frag.memo, false);
             let x = self.out.identifier(node);
             let call = self.call("set_default_select_value", vec![Some(x), Some(value)]);
             let s = self.statement(call);

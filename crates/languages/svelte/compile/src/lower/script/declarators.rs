@@ -1,47 +1,8 @@
-use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_syntax::operators::UnaryOperator;
 
-use super::{
-    Kind, NodeIdentifier, ScriptRewrite, SyntaxTree, Target, copy, should_proxy, unsupported,
-};
+use super::super::derived::{Created, callback};
 
-/// Upstream splits a destructured `$derived` (both targets) and a destructured `$state` (client)
-/// into one declaration per path; this port has no `extract_paths` yet.
-pub(in crate::lower) fn check_destructured_rune(
-    from: &SyntaxTree,
-    res: &Resolution,
-    target: Target,
-    d: NodeIdentifier,
-) -> Result<(), Diagnostic> {
-    let Kind::Declarator {
-        identifier,
-        initializer: Some(initializer),
-    } = from.kind(d)
-    else {
-        return Ok(());
-    };
-    if from.is_identifier(identifier) {
-        return Ok(());
-    }
-    let Some((rune, _)) = res.rune(from, initializer) else {
-        return Ok(());
-    };
-    let split = match rune {
-        "$derived" | "$derived.by" => true,
-        "$state" | "$state.raw" => target == Target::Client,
-        _ => false,
-    };
-    if split {
-        return unsupported(
-            &format!("a destructured `{rune}` declaration"),
-            from.source_location(d)
-                .span()
-                .expect("a parsed declarator has a source range"),
-        );
-    }
-    Ok(())
-}
+use super::{Kind, NodeIdentifier, ScriptRewrite, SyntaxTree, Target, copy, should_proxy_read};
 
 /// A `$state`, `$state.raw`, `$derived` or `$derived.by` declarator, at any depth.
 pub(super) fn lower_value_declarator(
@@ -79,7 +40,7 @@ pub(super) fn lower_value_declarator(
             let mut v = value(to, rw);
             if rw.target == Target::Client {
                 let b = rw.res.sem.binding_of(identifier);
-                if rune == "$state" && arg.is_some_and(|a| should_proxy(from, rw.res, a)) {
+                if rune == "$state" && arg.is_some_and(|a| should_proxy_read(from, rw.res, a)) {
                     v = to.runtime("$", "proxy", &[v]);
                 }
                 if b.is_some_and(|b| rw.res.is_state_source(b)) {
@@ -92,13 +53,10 @@ pub(super) fn lower_value_declarator(
         "$derived" | "$derived.by" => {
             let v = value(to, rw);
             let f = if rune == "$derived" {
-                to.arrow(
-                    &[],
-                    v,
-                    true,
-                    false,
-                    rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                )
+                let Some(at) = from.source_location(d).span() else {
+                    unreachable!("a declarator is parsed from source")
+                };
+                callback(from, rw.res, to, arg, v, Created::Script(at))
             } else {
                 v
             };

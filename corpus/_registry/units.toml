@@ -15,3 +15,30 @@
 
 ["svelte/svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte".skip]
 "svelte.compile/client" = "svelte 5.57.3 emits invalid JS here (duplicate declaration of `foo`); the sample expects a compile error"
+
+["svelte/svelte-bits/src/lib/components/library/Animations/StickerPeel/StickerPeel.svelte".skip]
+"svelte.lint" = "upstream bug: the core no-unused-vars rule reports a TypeScript `this` parameter, which declares the type of `this` and is no parameter at run time, as an unused variable"
+
+["svelte/syntaxfm-website/src/params/ThemeMaker.svelte".skip]
+"svelte.lint" = "upstream bug: the core no-unused-vars rule reports a TypeScript `this` parameter, which declares the type of `this` and is no parameter at run time, as an unused variable"
+
+["svelte/bits-ui/docs/src/lib/components/homepage/card-timer.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/runed/sites/docs/src/lib/components/demos/finite-state-machine.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/svelte-bits/src/lib/components/landing/Features/VariantTabs.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/svelte-commerce/src/lib/core/components/plugins/whatsapp-chat-button.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/gitlight/src/routes/+page.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte".skip]
+"svelte.compile" = "upstream bug: an `<svg>` beside a component makes the component's children svg, which drops the HTML whitespace between their components"
+
+["svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/avatar/svelte/filter.svelte".skip]
+"svelte.compile" = "upstream bug: an `<svg>` beside a component makes the component's children svg, which drops the HTML whitespace between their components"

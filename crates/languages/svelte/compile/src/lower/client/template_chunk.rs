@@ -1,5 +1,5 @@
 use super::{
-    ClientCompilationContext, Frag, Item, Kind, LogicalOperator, NodeIdentifier, Part,
+    ClientCompilationContext, Item, Kind, LogicalOperator, Memo, NodeIdentifier, Part,
     SourceLocation, decode_attribute, sanitize_template_string,
 };
 
@@ -8,7 +8,8 @@ impl<'a> ClientCompilationContext<'a> {
     pub(super) fn template_chunk(
         &mut self,
         values: &[Item<'_>],
-        frag: &mut Frag,
+        memo: &mut Memo,
+        if_state: bool,
     ) -> (NodeIdentifier, bool) {
         let mut quasis: Vec<String> = vec![String::new()];
         let mut expressions: Vec<NodeIdentifier> = Vec::new();
@@ -45,7 +46,7 @@ impl<'a> ClientCompilationContext<'a> {
             }
             let meta = self.an.meta(expression);
             let built = self.expression(expression);
-            let mut value = self.memoize(frag, built, meta);
+            let mut value = self.memoize(memo, expression, built, if_state);
             let evaluated = self.res.evaluate_output(
                 javascript,
                 self.source_text,

@@ -18,8 +18,7 @@ impl ServerCompilationContext<'_> {
             return self.special_element(identifier, template);
         }
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
-        if matches!(tag.as_str(), "script" | "style" | "textarea" | "template") || tag.contains('-')
-        {
+        if matches!(tag.as_str(), "script" | "style" | "textarea" | "template") {
             return unsupported(&format!("`<{tag}>`"), el.name);
         }
         if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {

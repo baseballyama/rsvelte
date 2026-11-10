@@ -222,10 +222,7 @@ impl T<'_, '_> {
     /// unresolved name.
     pub(super) fn check_model_target(&self, e: NodeIdentifier) -> R<()> {
         let from = self.info.from;
-        let mut root = e;
-        while let Kind::Member { object, .. } = from.kind(root) {
-            root = object;
-        }
+        let root = from.member_root(e);
         if root == e {
             let ok = self.info.resolution.sem.binding_of(e).is_some_and(|b| {
                 let binding = &self.info.resolution.sem.bindings[b];

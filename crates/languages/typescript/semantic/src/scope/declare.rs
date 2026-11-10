@@ -223,8 +223,7 @@ impl Analyzer<'_> {
                     self.add_binding(n, DeclarationKind::Function, s);
                 }
                 work.extend(
-                    parameters
-                        .iter()
+                    (self.syntax_tree.runtime_parameters(parameters).iter())
                         .map(|&p| Declare::Pattern(p, DeclarationKind::Param)),
                 );
                 work.push(Declare::Body(body));

@@ -1,4 +1,4 @@
-# svelte.format/default: 17884 match
+# svelte.format/default: 17895 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	refused
@@ -427,7 +427,6 @@ svelte/flare/src/lib/components/SnippetForm.svelte	refused
 svelte/flare/src/lib/components/extensions/ExtensionDetailView.svelte	refused
 svelte/flare/src/lib/components/nodes/ListItem.svelte	refused
 svelte/flowbite-svelte/src/lib/darkmode/DarkMode.svelte	refused
-svelte/flowbite-svelte/src/lib/forms/dropzone/Dropzone.svelte	refused
 svelte/flowbite-svelte/src/lib/forms/tags/Tags.svelte	mismatch
 svelte/flowbite-svelte/src/lib/utils/Arrow.svelte	refused
 svelte/flowbite-svelte/src/lib/utils/responsive.svelte	mismatch
@@ -455,7 +454,6 @@ svelte/flowbite-svelte/src/routes/docs-examples/components/kbd/Text.svelte	misma
 svelte/flowbite-svelte/src/routes/docs-examples/components/modal/Crypto.svelte	mismatch
 svelte/flowbite-svelte/src/routes/docs-examples/components/popover/Description.svelte	mismatch
 svelte/flowbite-svelte/src/routes/docs-examples/components/popover/Image.svelte	mismatch
-svelte/flowbite-svelte/src/routes/docs-examples/components/popover/Password.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/components/popover/Progress.svelte	mismatch
 svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/ActiveClass.svelte	mismatch
 svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/BindSelected.svelte	mismatch
@@ -490,7 +488,6 @@ svelte/flowbite-svelte/src/routes/docs/plugins/examples/wysiwyg/Emoji.svelte	ref
 svelte/flowbite-svelte/src/routes/landing/CTA.svelte	mismatch
 svelte/flowbite-svelte/src/routes/landing/Contributors.svelte	refused
 svelte/flowbite-svelte/src/routes/utils/FathomAnalytics.svelte	refused
-svelte/flowbite-svelte/src/routes/utils/Newsletter.svelte	refused
 svelte/gitlight/src/lib/components/common/DragRegion.svelte	refused
 svelte/gitlight/src/lib/components/dashboard/Banner.svelte	refused
 svelte/gitlight/src/lib/components/dashboard/LoadingScreen.svelte	refused
@@ -662,7 +659,6 @@ svelte/layerchart/docs/src/examples/components/Sankey/hierarchy.svelte	refused
 svelte/layerchart/docs/src/examples/components/TransformContext/pan-zoom-axes.svelte	refused
 svelte/layerchart/docs/src/examples/components/Tree/playground.svelte	refused
 svelte/layerchart/docs/src/examples/components/Treemap/stacked-zoom.svelte	mismatch
-svelte/layerchart/docs/src/lib/components/Example.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/TransformContextControls.svelte	refused
 svelte/layerchart/docs/src/routes/+layout.svelte	refused
 svelte/layerchart/docs/src/routes/+page.svelte	mismatch
@@ -684,7 +680,6 @@ svelte/layerchart/packages/layerchart/src/lib/components/Legend.svelte	refused
 svelte/layerchart/packages/layerchart/src/lib/components/TransformContext.svelte	refused
 svelte/layerchart/packages/layerchart/src/lib/components/Waffle/Waffle.svelte	refused
 svelte/layerchart/packages/layerchart/src/lib/components/charts/BarChart/BarChart.base.svelte	refused
-svelte/layerchart/packages/layerchart/src/lib/components/force/ForceSimulation.svelte	refused
 svelte/layerchart/packages/layerchart/src/lib/components/layers/Canvas.svelte	refused
 svelte/layerchart/packages/layerchart/src/lib/components/layers/Layer.svelte	mismatch
 svelte/layerchart/packages/layerchart/src/lib/components/tests/BrushContextAccessHarness.svelte	refused
@@ -951,8 +946,6 @@ svelte/shadcn-svelte-extras/src/lib/components/ui/number-field/number-field-decr
 svelte/shadcn-svelte-extras/src/lib/components/ui/number-field/number-field-increment.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/ui/password/password-input.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/ui/range-calendar/range-calendar-day.svelte	refused
-svelte/shadcn-svelte-extras/src/lib/components/ui/rename/rename.svelte	refused
-svelte/shadcn-svelte-extras/src/lib/components/ui/resizable/resizable-pane-group.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/ui/separator/separator.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/ui/sidebar/sidebar.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/demos/file-drop-zone-form.svelte	refused
@@ -979,7 +972,6 @@ svelte/shadcn-svelte/docs/src/lib/registry/ui/chart/chart-container.svelte	refus
 svelte/shadcn-svelte/docs/src/lib/registry/ui/chart/chart-tooltip.svelte	mismatch
 svelte/shadcn-svelte/docs/src/lib/registry/ui/field/field-error.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/registry/ui/range-calendar/range-calendar-day.svelte	refused
-svelte/shadcn-svelte/docs/src/lib/registry/ui/resizable/resizable-pane-group.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/registry/ui/separator/separator.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/registry/ui/sidebar/sidebar.svelte	refused
 svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/chart-color-picker.svelte	mismatch
@@ -1194,7 +1186,6 @@ svelte/svelte-commerce/src/lib/components/page-blocks/blocks/featured-products.s
 svelte/svelte-commerce/src/lib/components/product-catalogue/featured-products-grid.svelte	refused
 svelte/svelte-commerce/src/lib/components/product-catalogue/pincode-check.svelte	mismatch
 svelte/svelte-commerce/src/lib/components/ui/range-calendar/range-calendar-day.svelte	refused
-svelte/svelte-commerce/src/lib/components/ui/resizable/resizable-pane-group.svelte	refused
 svelte/svelte-commerce/src/lib/components/ui/sidebar/sidebar.svelte	refused
 svelte/svelte-commerce/src/lib/core/components/common/loading-dots.svelte	refused
 svelte/svelte-commerce/src/lib/theme/lime/LimeFooter.svelte	refused
@@ -1343,7 +1334,6 @@ svelte/svelte-maplibre/src/routes/examples/overlapping_layer_events/+page.svelte
 svelte/svelte-material-ui/packages/circular-progress/src/CircularProgress.svelte	refused
 svelte/svelte-material-ui/packages/drawer/src/Drawer.svelte	mismatch
 svelte/svelte-material-ui/packages/icon-button/src/IconButton.svelte	mismatch
-svelte/svelte-material-ui/packages/menu-surface/src/MenuSurface.svelte	refused
 svelte/svelte-material-ui/packages/site/src/routes/+layout.svelte	refused
 svelte/svelte-material-ui/packages/site/src/routes/+page.svelte	mismatch
 svelte/svelte-material-ui/packages/site/src/routes/demo/card/_Complex.svelte	mismatch
@@ -1447,7 +1437,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/nested-script-tag/main
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-ignored/Child.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/state-reuse/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript/main.svelte	refused
 svelte/svelte/packages/svelte/tests/sourcemaps/samples/external/input.svelte	refused
 svelte/svelte/packages/svelte/tests/sourcemaps/samples/script-after-comment/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/attribute-quoted/input.svelte	refused

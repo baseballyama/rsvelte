@@ -1,9 +1,9 @@
-use super::embed::is_javascript_whitespace;
 use super::{
     Attribute, AttributeKind, AttributeValue, ElementKind, LayoutInstructionIdentifier, Part,
     Printer, R, TemplateNode, TemplateNodeIdentifier, Unsupported, is_collapse_ws,
 };
 use crate::options::WhitespaceSensitivity;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 /// prettier-plugin-svelte `selfClosingTags`.
 const SELF_CLOSING: &[&str] = &[
@@ -419,7 +419,7 @@ impl Printer<'_, '_, '_> {
         }
         // `hugsStartOfNextNode`, on the trimmed source the plugin sees.
         let end = self.c.node(identifier).span().end_offset as usize;
-        let rest = self.source_text[end..].trim_end_matches(is_javascript_whitespace);
+        let rest = self.source_text[end..].trim_end_matches(is_ecmascript_whitespace);
         let hugs_next = !rest.is_empty() && !rest.starts_with(is_collapse_ws);
         !hugs_next || self.last_in_block == Some(identifier)
     }

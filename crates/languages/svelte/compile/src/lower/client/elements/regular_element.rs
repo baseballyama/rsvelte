@@ -1,7 +1,7 @@
 use crate::lower::client::{
     AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
-    NodeKind, R, check_foreign_element, is_customizable_select, is_directive,
-    is_load_error_element, unsupported,
+    NodeKind, R, check_foreign_element, is_custom_element_node, is_customizable_select,
+    is_directive, is_load_error_element, unsupported,
 };
 
 impl ClientCompilationContext<'_> {
@@ -21,8 +21,13 @@ impl ClientCompilationContext<'_> {
             return self.special_element(identifier, node, frag, l);
         }
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
-        if matches!(tag.as_str(), "script" | "textarea" | "template") || tag.contains('-') {
+        if matches!(tag.as_str(), "script" | "textarea" | "template") {
             return unsupported(&format!("`<{tag}>`"), el.name);
+        }
+        let custom_element = is_custom_element_node(compiler_syntax_tree, self.source_text, el);
+        // Upstream sets a custom element's scoping class as a property, which is not lowered.
+        if self.an.scoped[identifier] && custom_element {
+            return unsupported("a scoped custom element", el.name);
         }
         if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
             return unsupported(&format!("rich content in `<{tag}>`"), el.name);
@@ -42,12 +47,9 @@ impl ClientCompilationContext<'_> {
             return Ok(());
         }
         let attribute_list = compiler_syntax_tree.attributes(el.attributes);
-        frag.tpl.needs_import_node |= tag == "video"
-            || attribute_list.iter().any(|attribute| {
-                !is_directive(&attribute.value) && attribute.name.text(self.source_text) == "is"
-            });
+        frag.tpl.needs_import_node |= tag == "video" || custom_element;
         // Upstream visits directives into their own lists, which follow the children's.
-        let mut directives = self.element_directives(attribute_list, &tag, node)?;
+        let mut directives = self.element_directives(attribute_list, &tag, node);
         let has_spread = attribute_list
             .iter()
             .any(|a| matches!(a.value, AttributeValue::Spread(_)));

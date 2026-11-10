@@ -1,6 +1,6 @@
 use super::{
-    Attribute, AttributeValue, BindingKind, Children, CompilerNodeIdentifier, CompilerSyntaxTree,
-    Cow, Diagnostic, Element, Kind, NodeIdentifier, NodeKind, Resolution, SyntaxTree, unsupported,
+    Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Cow, Element,
+    Kind, NodeIdentifier, NodeKind, Resolution, SyntaxTree,
 };
 
 /// Upstream `sanitize_template_string`: cooked text → raw template literal text.
@@ -96,98 +96,6 @@ pub(super) fn has_dependency(javascript: &SyntaxTree, res: &Resolution, e: NodeI
     }
 }
 
-/// The checks this port makes before lowering a `bind:` directive.
-///
-/// A supported property on a supported element, and a target that is `$state` or a member of
-/// `$state` or of an `{#each}` item. Upstream validates more and accepts more.
-///
-/// # Errors
-///
-/// An `unsupported` [`Diagnostic`] for anything else.
-pub(super) fn check_binding(
-    javascript: &SyntaxTree,
-    res: &Resolution,
-    source_text: &str,
-    tag: &str,
-    attributes: &[Attribute],
-    a: &Attribute,
-) -> Result<NodeIdentifier, Diagnostic> {
-    let AttributeValue::Bind(e) = a.value else {
-        unreachable!("called on bindings")
-    };
-    let property = a.name.text(source_text);
-    if !supported_binding(source_text, tag, attributes, property) {
-        return unsupported(&format!("`bind:{property}` on this `<{tag}>`"), a.span);
-    }
-    let beside = attributes.iter().any(|o| {
-        !std::ptr::eq(o, a) && matches!(o.name.text(source_text), "value" | "checked" | "group")
-    });
-    if beside {
-        return unsupported(
-            "a binding beside a `value`, `checked` or `group` attribute",
-            a.span,
-        );
-    }
-    let mut root = e;
-    while let Kind::Member { object, .. } = javascript.kind(root) {
-        root = object;
-    }
-    let kind = javascript
-        .is_identifier(root)
-        .then(|| res.binding(root).map(|(_, info)| info.kind))
-        .flatten();
-    let member = root != e;
-    let ok = match kind {
-        Some(BindingKind::State | BindingKind::RawState) => true,
-        Some(BindingKind::Each) => member,
-        _ => false,
-    };
-    if !ok {
-        return unsupported(
-            "a binding to anything but `$state` or a member of `$state` or of an `{#each}` item",
-            a.span,
-        );
-    }
-    Ok(e)
-}
-
-/// Upstream `binding_properties` that this port lowers, by element.
-///
-/// `bind:value` on `<input>` (not a checkbox, radio or file input) and `bind:checked` on a
-/// checkbox, with the `type` written as static text; `bind:value` on a `<select>` whose
-/// `multiple` is static.
-#[must_use]
-pub(super) fn supported_binding(
-    source_text: &str,
-    tag: &str,
-    attributes: &[Attribute],
-    property: &str,
-) -> bool {
-    if tag != "input" && tag != "select" {
-        return false;
-    }
-    // Upstream rejects a `multiple` that is not static on a bound `<select>`.
-    let static_multiple = attributes.iter().all(|a| {
-        a.name.text(source_text) != "multiple"
-            || matches!(a.value, AttributeValue::Boolean | AttributeValue::Static(_))
-    });
-    let mut ty = Some("text");
-    for a in attributes {
-        if a.name.text(source_text) == "type" && !matches!(a.value, AttributeValue::Bind(_)) {
-            ty = match &a.value {
-                AttributeValue::Static(v) => Some(&**v),
-                _ => None,
-            };
-        }
-    }
-    match (property, ty) {
-        ("value", Some(t)) if tag == "input" => !matches!(t, "checkbox" | "radio" | "file"),
-        ("value", _) => tag == "select" && static_multiple,
-        ("checked", Some(t)) => tag == "input" && t == "checkbox",
-        _ => false,
-    }
-}
-
 /// Upstream `is_event_attribute` for this port's attribute shapes.
 #[must_use]
 pub(super) fn event_attribute(source_text: &str, a: &Attribute) -> Option<NodeIdentifier> {
@@ -260,9 +168,8 @@ pub fn is_customizable_select(
                 | NodeKind::Debug { .. }
                 | NodeKind::Const { .. }
                 | NodeKind::Declaration { .. } => {}
-                NodeKind::Text { raw, decoded, .. } => {
-                    let data = decoded.as_deref().unwrap_or_else(|| raw.text(source_text));
-                    if !data.trim().is_empty() {
+                kind @ NodeKind::Text { .. } => {
+                    if !kind.is_blank_text(source_text) {
                         out.push(identifier);
                     }
                 }

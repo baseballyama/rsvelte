@@ -65,6 +65,18 @@ impl Gen<'_> {
         }
     }
 
+    /// The object of a member or the callee of a call: a chain that ends there keeps its
+    /// parentheses, since `(a?.b).c` throws where `a?.b.c` does not.
+    fn link_base(&mut self, base: NodeIdentifier) {
+        if self.syntax_tree.is_chain(base) {
+            self.e.push("(");
+            self.expression(base, 0);
+            self.e.push(")");
+        } else {
+            self.expression(base, prec::CALL);
+        }
+    }
+
     pub(super) fn expression_no_in(&mut self, node: NodeIdentifier, min: u8) {
         let wrap = self.contains_in(node);
         if wrap {
@@ -126,9 +138,14 @@ impl Gen<'_> {
             let Some((child, min, mixes)) = self.chain_head(at) else {
                 break;
             };
+            // A chain that ends at the object or callee keeps its parentheses: `(a?.b).c`.
             wrap = mixes
                 || self.prec_of(child) < min
-                || self.syntax_tree.flags(child) & flag::GROUPED != 0;
+                || self.syntax_tree.flags(child) & flag::GROUPED != 0
+                || matches!(
+                    self.syntax_tree.kind(at),
+                    Kind::Member { .. } | Kind::Call { .. }
+                ) && self.syntax_tree.is_chain(child);
             if wrap {
                 self.e.push("(");
             }
@@ -417,7 +434,7 @@ impl Gen<'_> {
             }
             Kind::New { callee, arguments } => {
                 self.e.push("new ");
-                self.expression(callee, prec::CALL);
+                self.link_base(callee);
                 self.e.push("(");
                 self.list(arguments, ", ");
                 self.e.push(")");

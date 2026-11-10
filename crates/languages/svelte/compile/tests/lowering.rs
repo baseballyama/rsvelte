@@ -37,6 +37,21 @@ fn direct_lowering_and_compilation_refuse_runtime_typescript() {
 }
 
 #[test]
+fn a_scoped_class_is_trimmed_as_javascript_trims() {
+    let options = rsvelte_svelte_compile::CompileOptions {
+        filename: "App.svelte".to_owned(),
+        generate: Target::Server,
+        ..rsvelte_svelte_compile::CompileOptions::default()
+    };
+    let source = "<div class=\"\u{85}\"></div><style>div { color: red }</style>";
+    let code = rsvelte_svelte_compile::compile(source, &options)
+        .expect("compiles")
+        .js
+        .code;
+    assert!(code.contains("class=\"\u{85} svelte-"), "{code}");
+}
+
+#[test]
 fn an_interpolated_attribute_decodes_references_as_an_attribute_value() {
     // In an attribute `&#10;` stays a newline and `&copy=` stays as written; text reads both
     // differently. The expected lines are the official compiler's.

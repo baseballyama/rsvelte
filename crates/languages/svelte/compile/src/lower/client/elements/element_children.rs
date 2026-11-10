@@ -25,7 +25,7 @@ impl ClientCompilationContext<'_> {
             Item::Node(_) => false,
         }) && items.iter().any(|i| matches!(i, Item::Expression(_)));
         if use_text_content {
-            let (value, _) = self.template_chunk(items, frag);
+            let (value, _) = self.template_chunk(items, &mut frag.memo, false);
             let empty = matches!(self.out.kind(value), Kind::String)
                 && self.out.str_value(value, self.source_text).is_empty();
             if !empty {

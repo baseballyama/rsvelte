@@ -17,7 +17,7 @@ pub(super) fn collect(
                 let Kind::Declarator { identifier, .. } = tree.kind(declaration) else {
                     unreachable!("a declarator")
                 };
-                rsvelte_svelte_semantic::resolve::for_each_pattern_identifier(
+                rsvelte_svelte_semantic::resolve::for_each_pattern_target(
                     tree,
                     identifier,
                     &mut |name| names.push(name),

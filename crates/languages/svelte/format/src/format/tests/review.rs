@@ -54,7 +54,6 @@ fn review_d_shapes_the_port_cannot_print_are_refused() {
             &Options::default(),
         ),
         ("<p>{007}</p>\n", &Options::default()),
-        ("<p>{a ?? b || c}</p>\n", &Options::default()),
         ("<p>👋🏽</p>\n", &Options::default()),
     ]
     .iter()
@@ -68,7 +67,6 @@ fn review_d_shapes_the_port_cannot_print_are_refused() {
             "a script language other than JavaScript",
             "a script language other than JavaScript",
             "a legacy octal number",
-            "code that oxc's formatter does not format",
             "an emoji sequence, which Prettier measures as one character",
         ]
     );
@@ -114,12 +112,9 @@ fn review_e_shapes_print_as_the_plugin_prints_them() {
 #[test]
 fn review_e_shapes_the_port_cannot_print_are_refused() {
     for source_text in [
-        "<script lang=\"ts\" lang=\"ts\">\n  let a;\n</script>\n",
         "<p>{\"\\8\"}</p>\n",
-        "<p>{static}</p>\n",
         "<p>{a?.b = 1}</p>\n",
         "<p>{-x ** 2}</p>\n",
-        "<p>{await -1}</p>\n",
     ] {
         refusal_with(source_text, &Options::default());
     }
@@ -172,6 +167,27 @@ fn review_f_shapes_print_as_prettier_does() {
             "<script>\n  (a?.b).c;\n</script>\n",
             "<script>\n  (a?.b).c;\n</script>\n",
         ),
+        ("<p>{(a ?? b) || c}</p>\n", "<p>{(a ?? b) || c}</p>\n"),
+        ("<p>{a ?? (b && c)}</p>\n", "<p>{a ?? (b && c)}</p>\n"),
+        (
+            "<script>\n  let x = (a || b) ?? c;\n</script>\n",
+            "<script>\n  let x = (a || b) ?? c;\n</script>\n",
+        ),
+        // In a module `await` is a keyword, so this awaits `-1`.
+        ("<p>{await -1}</p>\n", "<p>{await -1}</p>\n"),
+        // JavaScript's trim keeps U+0085, so this is no prettier-ignore comment.
+        (
+            "<!--\u{85}prettier-ignore -->\n<p>a</p>\n",
+            "<!--\u{85}prettier-ignore -->\n<p>a</p>\n",
+        ),
+        (
+            "<script>\n  new (a?.b)();\n</script>\n",
+            "<script>\n  new (a?.b)();\n</script>\n",
+        ),
+        (
+            "<script>\n  (a?.b)();\n</script>\n",
+            "<script>\n  (a?.b)();\n</script>\n",
+        ),
         (
             "<script>\n  f(\"a\\\nb\");\n</script>\n",
             "<script>\n  f(\n    \"a\\\nb\",\n  );\n</script>\n",
@@ -189,7 +205,6 @@ fn review_f_shapes_print_as_prettier_does() {
 #[test]
 fn review_f_shapes_are_refused() {
     for source_text in [
-        "<script>\n  let true = 1;\n</script>\n",
         "<script>\n  [a?.b] = c;\n</script>\n",
         "<script>\n  ({a}) = 1;\n</script>\n",
         "<script>\n  if (a) let x = 1;\n</script>\n",
@@ -197,7 +212,6 @@ fn review_f_shapes_are_refused() {
         "<script>\n  let x = (a, ...b, c) => 1;\n</script>\n",
         "<button onclick={() => { let a; let a; }}>b</button>\n",
         "<p>{(a, { a }) => 1}</p>\n",
-        "{eval = 1}\n",
     ] {
         refusal(source_text);
     }

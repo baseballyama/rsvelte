@@ -1,9 +1,9 @@
 use super::{Gen, Kind, NodeIdentifier, Tag, flag, prec};
 
 impl Gen<'_> {
-    pub(super) fn statements(&mut self, body: &[NodeIdentifier]) {
+    pub(super) fn statements(&mut self, body: &[NodeIdentifier], sequence: bool) {
         for &s in body {
-            if self.emits(s) {
+            if self.emits(s, sequence) {
                 self.newline();
                 self.statement(s);
             }
@@ -16,9 +16,9 @@ impl Gen<'_> {
         };
         self.e.push("{");
         self.indent += 1;
-        self.statements(body);
+        self.statements(body, true);
         self.indent -= 1;
-        if body.iter().any(|&s| self.emits(s)) {
+        if body.iter().any(|&s| self.emits(s, true)) {
             self.newline();
         }
         self.e.push("}");
@@ -253,6 +253,7 @@ impl Gen<'_> {
     }
 
     pub(super) fn parameters(&mut self, parameters: &[NodeIdentifier]) {
+        let parameters = self.syntax_tree.runtime_parameters(parameters);
         self.e.push("(");
         self.list(parameters, ", ");
         self.e.push(")");

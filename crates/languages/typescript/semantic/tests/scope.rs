@@ -89,6 +89,32 @@ fn shadowing_and_destructuring() {
     assert_eq!(sem.bindings.raw()[1].reads, 1);
 }
 
+#[test]
+fn a_typescript_this_parameter_declares_no_binding() {
+    let source_text = "function f(this: Window, e: Event) { return e; }";
+    let mut syntax_tree = SyntaxTree::new();
+    let program = parse_program(
+        &mut syntax_tree,
+        source_text,
+        Span::new(0, source_text.len() as u32),
+        true,
+    )
+    .unwrap();
+    let sem = analyze(&syntax_tree, program, &[]);
+    let names: Vec<_> = sem
+        .bindings
+        .iter()
+        .map(|b| syntax_tree.atoms.get(b.name).to_owned())
+        .collect();
+    assert_eq!(names, ["f", "e"]);
+    assert!(
+        sem.references
+            .iter()
+            .all(|r| syntax_tree.name(r.node) != "this"),
+        "`this` is no reference either"
+    );
+}
+
 /// `<li v-for="(item, i) in list" :key="i">{{ item }}</li>` over a script that also declares
 /// `item`: the list is read in the program scope, the alias shadows the script's `item` inside the
 /// scope.

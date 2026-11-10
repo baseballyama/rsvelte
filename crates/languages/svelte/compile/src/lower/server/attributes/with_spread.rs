@@ -1,7 +1,8 @@
+use super::escaped_text;
 use crate::lower::server::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, NodeIdentifier, Piece, R,
-    ServerCompilationContext, SourceLocation, capture_event, check_binding, event_attribute,
-    init_property, is_directive, is_load_error_element, push_captured_events, runtime_call,
+    Attribute, AttributeValue, CompilerNodeIdentifier, NodeIdentifier, Piece,
+    ServerCompilationContext, SourceLocation, capture_event, event_attribute, init_property,
+    is_directive, is_load_error_element, push_captured_events, runtime_call,
 };
 
 const ELEMENT_IS_INPUT: u32 = 1 << 2;
@@ -18,12 +19,11 @@ impl<'a> ServerCompilationContext<'a> {
         tag: &str,
         list: &'a [Attribute],
         template: &mut Vec<Piece>,
-    ) -> R<()> {
-        let (arguments, events) = self.spread_args(identifier, tag, list, false)?;
+    ) {
+        let (arguments, events) = self.spread_args(identifier, tag, list, false);
         let call = runtime_call(&mut self.out, "attributes", arguments);
         template.push(Piece::Expression(call));
         push_captured_events(template, &events);
-        Ok(())
     }
 
     /// Upstream `prepare_element_spread`'s arguments. `all` is `prepare_element_spread_object`,
@@ -35,7 +35,7 @@ impl<'a> ServerCompilationContext<'a> {
         tag: &str,
         list: &'a [Attribute],
         all: bool,
-    ) -> R<(Vec<Option<NodeIdentifier>>, Vec<&'a str>)> {
+    ) -> (Vec<Option<NodeIdentifier>>, Vec<&'a str>) {
         let mut events = Vec::new();
         let mut props = Vec::with_capacity(list.len());
         let mut class_directives = Vec::new();
@@ -45,9 +45,7 @@ impl<'a> ServerCompilationContext<'a> {
                 AttributeValue::Bind(_) if tag == "svelte:element" && raw_name == "this" => {
                     continue;
                 }
-                AttributeValue::Bind(_) => {
-                    let e =
-                        check_binding(self.javascript, self.res, self.source_text, tag, list, a)?;
+                AttributeValue::Bind(e) => {
                     let value = self.expression(e);
                     let name = raw_name.to_ascii_lowercase();
                     props.push(init_property(&mut self.out, &name, value));
@@ -88,7 +86,10 @@ impl<'a> ServerCompilationContext<'a> {
                 "defaultValue".clone_into(&mut name);
             }
             let trim = matches!(name.as_str(), "class" | "style");
-            let value = self.attribute_value(a, trim, raw_name == "class");
+            let value = match &a.value {
+                AttributeValue::Static(v) => self.out.write_string(&escaped_text(v, trim)),
+                _ => self.attribute_value(a, trim, raw_name == "class"),
+            };
             props.push(init_property(&mut self.out, &name, value));
         }
         // Upstream's analysis appends `class=""` to such an element.
@@ -131,6 +132,6 @@ impl<'a> ServerCompilationContext<'a> {
             self.out
                 .write_number(f64::from(flags), SourceLocation::SYNTHETIC)
         });
-        Ok((vec![Some(object), hash, classes, None, flags], events))
+        (vec![Some(object), hash, classes, None, flags], events)
     }
 }
