@@ -58,6 +58,7 @@ rsvelte_vue_compile = { path = "crates/languages/vue/compile" }
 oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "548bdcd796055ae287d3243635e3df7b964a028d" }
 oxc_ast = { git = "https://github.com/baseballyama/oxc", rev = "548bdcd796055ae287d3243635e3df7b964a028d" }
 oxc_ast_visit = { git = "https://github.com/baseballyama/oxc", rev = "548bdcd796055ae287d3243635e3df7b964a028d" }
+oxc_codegen = { git = "https://github.com/baseballyama/oxc", rev = "548bdcd796055ae287d3243635e3df7b964a028d" }
 oxc_diagnostics = { git = "https://github.com/baseballyama/oxc", rev = "548bdcd796055ae287d3243635e3df7b964a028d" }
 oxc_formatter = { git = "https://github.com/baseballyama/oxc", rev = "548bdcd796055ae287d3243635e3df7b964a028d" }
 oxc_formatter_core = { git = "https://github.com/baseballyama/oxc", rev = "548bdcd796055ae287d3243635e3df7b964a028d" }
