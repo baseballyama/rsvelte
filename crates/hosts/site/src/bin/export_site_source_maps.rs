@@ -65,7 +65,7 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let e = rsvelte_typescript_compile::print::print_mapped(&program);
+    let e = rsvelte_typescript_compile::print::print_mapped(&program, context.line_index());
     let mut w = StructuredDataWriter::new(true);
     w.begin_object()
         .key("source")

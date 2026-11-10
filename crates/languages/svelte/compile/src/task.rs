@@ -101,7 +101,7 @@ pub(crate) fn compiled<'a>(
     let javascript = {
         let _p = measurement::phase("js.print");
         if mapped {
-            print::print_mapped(&module)
+            print::print_mapped(&module, context.line_index())
         } else {
             Emitter {
                 out: print::print(&module),
