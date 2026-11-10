@@ -1242,6 +1242,7 @@ name = "rsvelte_svelte_typescript_projection"
 version = "0.0.0"
 dependencies = [
  "oxc_allocator",
+ "oxc_ast",
  "oxc_parser",
  "oxc_span",
  "rsvelte_kernel",
@@ -1250,7 +1251,7 @@ dependencies = [
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
  "rsvelte_typescript_content_mapper",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
 ]
 
 [[package]]

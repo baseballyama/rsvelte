@@ -28,28 +28,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .key("detail")
                     .write_string(&error.message);
             }
-            Ok(component) => match rsvelte_svelte_typescript_projection::lower(&component, &source)
-            {
-                Err(error) => {
-                    record
-                        .key("status")
-                        .write_string("unsupported")
-                        .key("detail")
-                        .write_string(error.what);
+            Ok(component) => {
+                match rsvelte_svelte_typescript_projection::lower_alone(&component, &source) {
+                    Err(error) => {
+                        record
+                            .key("status")
+                            .write_string("unsupported")
+                            .key("detail")
+                            .write_string(error.what);
+                    }
+                    Ok(tree) => {
+                        let projection = rsvelte_svelte_typescript_projection::emit(&tree, &source);
+                        rsvelte_svelte_typescript_projection::content_mapper::write_mappings(
+                            &projection.mappings,
+                            &mut record,
+                        );
+                        record
+                            .key("status")
+                            .write_string("projected")
+                            .key("code")
+                            .write_string(&projection.out);
+                    }
                 }
-                Ok(tree) => {
-                    let projection = rsvelte_svelte_typescript_projection::emit(&tree, &source);
-                    rsvelte_svelte_typescript_projection::content_mapper::write_mappings(
-                        &projection.mappings,
-                        &mut record,
-                    );
-                    record
-                        .key("status")
-                        .write_string("projected")
-                        .key("code")
-                        .write_string(&projection.out);
-                }
-            },
+            }
         }
         record.end_object();
         writeln!(output, "{}", record.finish())?;
