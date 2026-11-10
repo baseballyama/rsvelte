@@ -7,7 +7,7 @@ impl Parser<'_, '_> {
         self.bump()?;
         let name = if self.token.t == T::Identifier && !self.is_kw("extends") {
             let t = self.bump()?;
-            Some(self.syntax_tree.ident(self.text(t), t.span))
+            Some(self.binding_identifier(t)?)
         } else if declaration {
             return self.fail("expected class name");
         } else {

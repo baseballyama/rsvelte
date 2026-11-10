@@ -231,11 +231,47 @@ const TYPE_KEYWORDS: &[&str] = &[
     "void",
 ];
 
-const RESERVED: &[&str] = &[
-    "break", "case", "catch", "class", "continue", "debugger", "default", "do", "else", "enum",
-    "export", "extends", "finally", "for", "if", "import", "return", "super", "switch", "throw",
-    "try", "while", "with", "yield",
-];
+/// How strict-mode code restricts a name; upstream `is_reserved` is any of the three.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Reserved {
+    /// A keyword, never a name.
+    Keyword,
+    /// A word strict-mode code reserves for the language.
+    Strict,
+    /// `eval` and `arguments`, which a reference may name but a binding may not.
+    Restricted,
+}
+
+/// The restriction on `name`, dispatched on its first byte so that a name costs a few length
+/// comparisons.
+#[must_use]
+pub fn reserved(name: &str) -> Option<Reserved> {
+    use Reserved::{Keyword, Restricted, Strict};
+    let &first = name.as_bytes().first()?;
+    Some(match (first, name) {
+        (b'a', "arguments") | (b'e', "eval") => Restricted,
+        (b'a', "await")
+        | (b'e', "enum")
+        | (b'i', "implements" | "interface")
+        | (b'l', "let")
+        | (b'p', "package" | "private" | "protected" | "public")
+        | (b's', "static")
+        | (b'y', "yield") => Strict,
+        (b'b', "break")
+        | (b'c', "case" | "catch" | "class" | "const" | "continue")
+        | (b'd', "debugger" | "default" | "delete" | "do")
+        | (b'e', "else" | "export" | "extends")
+        | (b'f', "false" | "finally" | "for" | "function")
+        | (b'i', "if" | "import" | "in" | "instanceof")
+        | (b'n', "new" | "null")
+        | (b'r', "return")
+        | (b's', "super" | "switch")
+        | (b't', "this" | "throw" | "true" | "try" | "typeof")
+        | (b'v', "var" | "void")
+        | (b'w', "while" | "with") => Keyword,
+        _ => return None,
+    })
+}
 
 impl<'a, 'b> Parser<'a, 'b> {
     fn new(
@@ -275,6 +311,28 @@ impl<'a, 'b> Parser<'a, 'b> {
             message: message.into(),
             span: self.token.span,
         })
+    }
+
+    /// A name a binding or a reference may not take: every reserved word for a binding, and all
+    /// but `eval` and `arguments` for a reference, whose assignment is checked as a target.
+    fn check_name(name: &str, span: Span, binding: bool) -> R<()> {
+        let message = match reserved(name) {
+            None => return Ok(()),
+            Some(Reserved::Restricted) if !binding => return Ok(()),
+            Some(Reserved::Keyword) => format!("Unexpected keyword '{name}'"),
+            Some(Reserved::Strict) if name == "await" => {
+                "Cannot use keyword 'await' outside an async function".to_owned()
+            }
+            Some(Reserved::Strict) => format!("The keyword '{name}' is reserved"),
+            Some(Reserved::Restricted) => format!("Binding {name} in strict mode"),
+        };
+        Err(ParseError { message, span })
+    }
+
+    /// A binding identifier for the token `t`.
+    fn binding_identifier(&mut self, t: LexedToken) -> R<NodeIdentifier> {
+        Self::check_name(self.text(t), t.span, true)?;
+        Ok(self.syntax_tree.ident(self.text(t), t.span))
     }
 
     #[inline]

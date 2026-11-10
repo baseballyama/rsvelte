@@ -24,8 +24,6 @@ fn what_strict_mode_rejects_is_refused() {
         "1_;",
         "0x_1;",
         "07;",
-        "static;",
-        "let x = implements;",
         "a?.b = 1;",
         "++a?.b;",
         "++\"s\";",

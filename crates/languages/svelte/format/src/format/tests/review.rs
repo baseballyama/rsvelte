@@ -130,7 +130,6 @@ fn review_e_shapes_the_port_cannot_print_are_refused() {
     for source_text in [
         "<script lang=\"ts\" lang=\"ts\">\n  let a;\n</script>\n",
         "<p>{\"\\8\"}</p>\n",
-        "<p>{static}</p>\n",
         "<p>{a?.b = 1}</p>\n",
         "<p>{-x ** 2}</p>\n",
         "<p>{a || `x\ny`}</p>\n",
@@ -266,7 +265,6 @@ fn review_f_shapes_are_refused() {
         "<script>\n  let x = (a, ...b, c) => 1;\n</script>\n",
         "<button onclick={() => { let a; let a; }}>b</button>\n",
         "<p>{(a, { a }) => 1}</p>\n",
-        "{eval = 1}\n",
         "<script lang=\"ts\">\n  f(user!.pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp);\n</script>\n",
         "<script>\n  let x = Foo.API[0].bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;\n</script>\n",
     ] {

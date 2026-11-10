@@ -1,6 +1,6 @@
 use super::{
-    AssignmentOperator, BinaryOperator, Kind, Lexer, LogicalOperator, NodeIdentifier, Parser, R,
-    Span, T, TypeScriptKind, UnaryOperator, UpdateOperator,
+    AssignmentOperator, BinaryOperator, Kind, Lexer, LogicalOperator, NodeIdentifier, ParseError,
+    Parser, R, Span, T, TypeScriptKind, UnaryOperator, UpdateOperator,
 };
 
 impl Parser<'_, '_> {
@@ -42,13 +42,32 @@ impl Parser<'_, '_> {
         Ok(left)
     }
 
+    /// Strict mode code may not assign `eval` or `arguments`.
+    pub(super) fn check_assigned(&self, e: NodeIdentifier) -> R<()> {
+        if !self.syntax_tree.is_identifier(e) {
+            return Ok(());
+        }
+        let name = self.syntax_tree.name(e);
+        if !matches!(name, "eval" | "arguments") {
+            return Ok(());
+        }
+        let Some(span) = self.syntax_tree.source_location(e).span() else {
+            unreachable!("a parsed name has a span")
+        };
+        Err(ParseError {
+            message: format!("`{name}` cannot be assigned in strict mode code"),
+            span,
+        })
+    }
+
     pub(super) fn check_assign_target(
         &mut self,
         e: NodeIdentifier,
         op: AssignmentOperator,
     ) -> R<NodeIdentifier> {
         match self.syntax_tree.kind(e) {
-            Kind::Identifier(_) | Kind::Member { .. } => Ok(e),
+            Kind::Identifier(_) => self.check_assigned(e).map(|()| e),
+            Kind::Member { .. } => Ok(e),
             Kind::Object(_) | Kind::Array(_) if op == AssignmentOperator::Assign => {
                 self.assignment_pattern(e)
             }
@@ -91,7 +110,7 @@ impl Parser<'_, '_> {
         {
             let t = self.bump()?;
             let parameters = self.open();
-            let p = self.syntax_tree.ident(self.text(t), t.span);
+            let p = self.binding_identifier(t)?;
             self.item(p);
             parameters
         } else if self.token.t == T::LParen && Self::paren_arrow_ahead(self.lex, &mut Vec::new())? {
@@ -243,6 +262,7 @@ impl Parser<'_, '_> {
         if self.token.t == T::Op && matches!(text, "++" | "--") {
             self.bump()?;
             let arg = self.unary()?;
+            self.check_assigned(arg)?;
             let op = if text == "++" {
                 UpdateOperator::Inc
             } else {
@@ -265,6 +285,7 @@ impl Parser<'_, '_> {
             && !self.token.newline_before
             && matches!(self.text(self.token), "++" | "--")
         {
+            self.check_assigned(e)?;
             let op = if self.text(self.token) == "++" {
                 UpdateOperator::Inc
             } else {

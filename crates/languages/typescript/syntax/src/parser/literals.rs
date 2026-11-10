@@ -1,4 +1,4 @@
-use super::{NodeIdentifier, Parser, R, RESERVED, Span, T, flag};
+use super::{NodeIdentifier, Parser, R, Span, T, flag};
 
 impl Parser<'_, '_> {
     #[expect(clippy::too_many_lines, reason = "one arm per primary expression kind")]
@@ -54,10 +54,8 @@ impl Parser<'_, '_> {
                             self.span_from(start_offset),
                         ))
                     }
-                    _ if RESERVED.contains(&text) => {
-                        self.fail(format!("unexpected keyword `{text}`"))
-                    }
                     _ => {
+                        Self::check_name(text, t.span, false)?;
                         self.bump()?;
                         Ok(self.syntax_tree.ident(text, t.span))
                     }
@@ -237,6 +235,7 @@ impl Parser<'_, '_> {
                         .property(key, v, flags, self.span_from(plo));
                     self.item(prop);
                 } else if let Some(name) = self.syntax_tree.atom(key).filter(|_| !computed) {
+                    Self::check_name(self.syntax_tree.atoms.get(name), key_token, false)?;
                     let value = self.syntax_tree.ident_atom(name, key_token);
                     let prop =
                         self.syntax_tree
