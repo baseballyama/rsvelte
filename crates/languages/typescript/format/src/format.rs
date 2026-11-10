@@ -528,13 +528,6 @@ fn op_of(syntax_tree: &SyntaxTree, identifier: NodeIdentifier) -> Option<Op> {
     }
 }
 
-/// `??` beside `||` or `&&`, which JavaScript requires parentheses around.
-fn mixes_nullish(a: Op, b: Op) -> bool {
-    let nullish = |o: Op| o == Op::Log(LogicalOperator::Nullish);
-    let and_or = |o: Op| matches!(o, Op::Log(LogicalOperator::And | LogicalOperator::Or));
-    (nullish(a) && and_or(b)) || (and_or(a) && nullish(b))
-}
-
 /// Prettier's `shouldFlatten`.
 fn should_flatten(parent: Op, child: Op) -> bool {
     use BinaryOperator::{
