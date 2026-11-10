@@ -15,7 +15,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
 
 mod builder;
-pub use builder::{Builder, Recorded};
+pub use builder::{Builder, Recorded, syntax_error};
 
 mod cell {
     #![allow(
