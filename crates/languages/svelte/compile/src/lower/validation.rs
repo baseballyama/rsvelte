@@ -13,7 +13,7 @@ use crate::render_plan::{is_mathml, is_svg};
 pub(super) mod markup;
 
 use super::{
-    CompileInput, Diagnostic, Kind, NodeIdentifier, Resolution, Span, SyntaxTree, Target,
+    CompileInput, Diagnostic, Kind, NodeIdentifier, Resolution, Span, SyntaxTree, Target, span_of,
     unsupported,
 };
 
@@ -93,18 +93,13 @@ fn check_legacy_props(javascript: &SyntaxTree, res: &Resolution) -> Result<(), D
             ),
             _ => continue,
         };
-        let Some(span) = javascript.source_location(r.node).span() else {
-            unreachable!("a reference is parsed from source")
-        };
-        return super::special::invalid(code, message, span);
+        return super::special::invalid(code, message, span_of(javascript, r.node));
     }
     Ok(())
 }
 
 fn reserved_name<T>(javascript: &SyntaxTree, b: &Binding) -> Result<T, Diagnostic> {
-    let Some(span) = javascript.source_location(b.node).span() else {
-        unreachable!("a declared name is parsed from source")
-    };
+    let span = span_of(javascript, b.node);
     if javascript.atoms.get(b.name) == "$" {
         super::special::invalid(
             "dollar_binding_invalid",
@@ -233,10 +228,7 @@ pub(super) fn check_stores(
         }
         let name = javascript.name(r.node);
         if name == "$$slots" {
-            let Some(span) = javascript.source_location(r.node).span() else {
-                unreachable!("a reference is parsed from source")
-            };
-            return unsupported("`$$slots`", span);
+            return unsupported("`$$slots`", span_of(javascript, r.node));
         }
         let Some(store) = name.strip_prefix('$') else {
             continue;
@@ -260,10 +252,10 @@ pub(super) fn check_stores(
                             == Some("svelte/store"))
             });
         if store_sub {
-            let Some(span) = javascript.source_location(r.node).span() else {
-                unreachable!("a reference is parsed from source")
-            };
-            return unsupported(&format!("the store subscription `{name}`"), span);
+            return unsupported(
+                &format!("the store subscription `{name}`"),
+                span_of(javascript, r.node),
+            );
         }
     }
     Ok(())
@@ -605,12 +597,7 @@ impl RuneWalk<'_> {
                     Parent::Initializer { .. } | Parent::ClassField | Parent::ConstructorAssignment
                 ) =>
             {
-                (
-                    "state_invalid_placement",
-                    format!(
-                        "`{rune}(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor."
-                    ),
-                )
+                return state_invalid_placement(rune, span_of(self.javascript, e));
             }
             "$effect" | "$effect.pre" if !matches!(parent, Parent::Statement(_)) => (
                 "effect_invalid_placement",
@@ -699,6 +686,19 @@ fn check_rune_arguments(
     )
 }
 
+/// Upstream `state_invalid_placement`, which the rune walk and the markup walk both raise.
+fn state_invalid_placement<T>(rune: &str, span: Span) -> Result<T, Diagnostic> {
+    super::special::invalid(
+        "state_invalid_placement",
+        &format!(
+            "`{rune}(...)` can only be used as a variable declaration initializer, a class field \
+             declaration, or the first assignment to a class field at the top level of the \
+             constructor."
+        ),
+        span,
+    )
+}
+
 /// acorn's `kind === 'constructor'`: a plain method keyed `constructor` by a name or a string.
 fn is_constructor_key(javascript: &SyntaxTree, source_text: &str, key: NodeIdentifier) -> bool {
     match javascript.kind(key) {
@@ -769,14 +769,6 @@ fn check_props_pattern(
     Ok(())
 }
 
-/// The span of a node an error names; a frontend writes rune calls only where none is raised.
-fn span_of(javascript: &SyntaxTree, e: NodeIdentifier) -> Span {
-    let Some(span) = javascript.source_location(e).span() else {
-        unreachable!("a node an error names is parsed from source")
-    };
-    span
-}
-
 /// Refuses a pattern assigned to a name the target reads through a signal or a call, or to a
 /// member of a `$bindable` prop: a destructuring assignment needs upstream's per-path assignment,
 /// and upstream prints a `for … in` or `for … of` head as invalid JavaScript.
@@ -822,9 +814,7 @@ fn check_pattern_assignment(
     if !transformed {
         return Ok(());
     }
-    let Some(span) = javascript.source_location(e).span() else {
-        unreachable!("an assignment is parsed from source")
-    };
+    let span = span_of(javascript, e);
     unsupported(
         "an assignment to state, a prop or a derived in a pattern",
         span,

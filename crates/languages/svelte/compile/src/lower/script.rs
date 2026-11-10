@@ -486,10 +486,10 @@ fn check_export(
     if plain {
         return Ok(());
     }
-    let Some(span) = from.source_location(statement).span() else {
-        unreachable!("a parsed statement has a source range")
-    };
-    unsupported("this export from the instance script", span)
+    unsupported(
+        "this export from the instance script",
+        super::span_of(from, statement),
+    )
 }
 
 /// The names the instance script exports, in source order.

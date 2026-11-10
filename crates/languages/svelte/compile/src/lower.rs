@@ -175,6 +175,14 @@ fn is_custom_element_node(tree: &CompilerSyntaxTree, source_text: &str, el: &Ele
 }
 
 /// The diagnostic for input this compiler does not lower yet. `what` is a singular subject.
+/// The span of a node an error names; a frontend writes nodes only where none is raised.
+fn span_of(javascript: &SyntaxTree, e: NodeIdentifier) -> Span {
+    let Some(span) = javascript.source_location(e).span() else {
+        unreachable!("a node an error names is parsed from source")
+    };
+    span
+}
+
 fn unsupported<T>(what: &str, span: Span) -> Result<T, Diagnostic> {
     Err(Diagnostic::error(
         "unsupported",
