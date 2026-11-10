@@ -5,8 +5,13 @@ fn refusal(source_text: &str) -> (&'static str, Option<&str>) {
 }
 
 fn refusal_with<'s>(source_text: &'s str, options: &Options) -> (&'static str, Option<&'s str>) {
-    let c = rsvelte_svelte_syntax::parse::parse(source_text).expect("parses");
-    let u = format(&c, source_text, options).expect_err("refused");
+    // The plugin throws on what the parsers reject too.
+    let c = match rsvelte_svelte_syntax::parse::parse(source_text) {
+        Ok(c) => c,
+        Err(d) => return ("a syntax error", Some(d.span.text(source_text))),
+    };
+    let u =
+        format(&c, source_text, options, rejected(&c, source_text).as_ref()).expect_err("refused");
     (
         u.what,
         u.source_location.span().map(|s| s.text(source_text)),
@@ -66,7 +71,7 @@ fn every_option_value_not_printed_yet_is_refused() {
 fn print_width_and_tab_width_reach_the_output() {
     let source_text = "<div>\n<p>aaaa bbbb cccc dddd</p>\n</div>\n";
     let c = rsvelte_svelte_syntax::parse::parse(source_text).expect("parses");
-    let print = |json: &str| format(&c, source_text, &options(json)).expect("prints");
+    let print = |json: &str| format(&c, source_text, &options(json), None).expect("prints");
     assert_eq!(print("{}"), "<div>\n  <p>aaaa bbbb cccc dddd</p>\n</div>\n");
     assert_eq!(
         print(r#"{"tabWidth": 3}"#),
@@ -84,7 +89,7 @@ fn formatted(source_text: &str) -> String {
 
 fn formatted_with(source_text: &str, options: &Options) -> String {
     let c = rsvelte_svelte_syntax::parse::parse(source_text).expect("parses");
-    format(&c, source_text, options).expect("prints")
+    format(&c, source_text, options, rejected(&c, source_text).as_ref()).expect("prints")
 }
 
 #[test]
@@ -267,7 +272,7 @@ fn typescript_in_blocks_matches_the_plugin() {
     );
     assert_eq!(
         refusal("{#each xs as {...{a}}}x{/each}\n").0,
-        "a pattern after `...` in an object pattern"
+        "a syntax error"
     );
 }
 

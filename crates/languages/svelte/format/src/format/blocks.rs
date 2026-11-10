@@ -1,3 +1,5 @@
+use oxc_ast::ast::{BindingPattern, Expression};
+
 use super::{
     LayoutInstructionIdentifier, Printer, R, Span, TemplateNode, TemplateNodeIdentifier,
     Unsupported, ends_with_linebreak, only_ws, starts_with_linebreak,
@@ -53,10 +55,11 @@ impl Printer<'_, '_, '_> {
         };
         // Svelte reads `{#each a as b}` as a context even when TypeScript could read `a as b`;
         // this parser does not yet when `a` ends in a bracket.
-        if context == rsvelte_typescript_syntax::NodeIdentifier::NONE
-            && self
-                .typescript
-                .ends_in_cast(self.javascript_span(expression))
+        if context.is_none()
+            && matches!(
+                self.c.javascript.get_expression(expression),
+                Expression::TSAsExpression(_)
+            )
         {
             return Err(Unsupported::at(
                 "an `{#each}` context the parser read as a TypeScript cast",
@@ -67,15 +70,20 @@ impl Printer<'_, '_, '_> {
         let e = self.expression(expression, true, false)?;
         let mut def = vec![open, e];
         // `{#each items}` and `{#each items, i}` have no context.
-        if context != rsvelte_typescript_syntax::NodeIdentifier::NONE {
+        if context.is_some() {
             let context = format!(" as{}", self.expand(context)?);
             def.push(self.d().text(&context));
         }
-        if index != rsvelte_typescript_syntax::NodeIdentifier::NONE {
-            let index = format!(", {}", self.c.javascript.name(index));
+        if let Some(index) = index {
+            let BindingPattern::BindingIdentifier(index) =
+                &self.c.javascript.get_pattern(index).pattern
+            else {
+                unreachable!("an index is a name")
+            };
+            let index = format!(", {}", index.name);
             def.push(self.d().text(&index));
         }
-        if key != rsvelte_typescript_syntax::NodeIdentifier::NONE {
+        if let Some(key) = key {
             def.push(self.lit(" ("));
             def.push(self.expression(key, true, false)?);
             def.push(self.lit(")"));
@@ -201,44 +209,18 @@ impl Printer<'_, '_, '_> {
         self.refuse_unembedded(span)?;
         let c = self.c;
         // From the name to the `)`, the text the plugin formats as `function name(…) {}`.
-        let name_start = c
-            .javascript
-            .source_location(name)
-            .span()
-            .expect("a parsed name has a source span")
-            .start_offset;
-        let parameters = c.javascript_list(parameters);
-        let head_end = self.snippet_head_end(name, parameters, span)?;
+        let name_start = self.javascript_span(name).start_offset;
+        // The parameters' span holds their parentheses.
+        let Some(parameters) = parameters else {
+            return Err(Unsupported::at("a snippet without parameters' `)`", span));
+        };
+        let head_end = c.javascript.get_parameters(parameters).span.end;
         let signature = self.snippet_signature(Span::new(name_start, head_end))?;
         let open = self.lit("{#snippet ");
         let close = self.lit("}");
         let body = self.block_children(c.children(body))?;
         let end = self.lit("{/snippet}");
         Ok(self.cat(&[open, signature, close, body, end]))
-    }
-
-    /// Just past the `)` that closes a snippet's parameters.
-    fn snippet_head_end(
-        &self,
-        name: rsvelte_typescript_syntax::NodeIdentifier,
-        parameters: &[rsvelte_typescript_syntax::NodeIdentifier],
-        span: Span,
-    ) -> R<u32> {
-        let javascript = &self.c.javascript;
-        let after = parameters.last().copied().unwrap_or(name);
-        let mut from = javascript
-            .source_location(after)
-            .span()
-            .expect("a parsed node has a source span")
-            .end_offset;
-        // A parameter's type annotation ends after the node itself.
-        if let Some(t) = self.typescript.annotation(after) {
-            from = from.max(t.end_offset);
-        }
-        self.source_text[from as usize..span.end_offset as usize]
-            .find(')')
-            .map(|i| from + i as u32 + 1)
-            .ok_or_else(|| Unsupported::at("a snippet without parameters' `)`", span))
     }
 
     /// `printIfBlockAlternate`.

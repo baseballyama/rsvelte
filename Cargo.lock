@@ -1158,6 +1158,8 @@ name = "rsvelte_svelte_format"
 version = "0.0.0"
 dependencies = [
  "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_visit",
  "oxc_formatter",
  "oxc_formatter_core",
  "oxc_formatter_css",
@@ -1165,10 +1167,10 @@ dependencies = [
  "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
+ "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
- "rsvelte_typescript_format",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
  "serde",
  "serde_json",
 ]

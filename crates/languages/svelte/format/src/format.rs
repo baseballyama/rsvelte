@@ -21,7 +21,8 @@ use oxc_formatter_core::{
     InputKind, LineEnding, LineWidth, PrintError, PrintWidth, PrinterOptions,
 };
 use rsvelte_document_printer::{LayoutInstructionIdentifier, LayoutInstructions, Unlowered};
-pub(crate) use rsvelte_kernel::diagnostics::Unsupported;
+pub(crate) use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
@@ -37,7 +38,14 @@ type R<T> = Result<T, Unsupported>;
 ///
 /// [`Unsupported`] if the component holds a construct this formatter does not print, or a
 /// flat-only layout that does not fit.
-pub(crate) fn format(c: &Component, source_text: &str, options: &Options) -> R<String> {
+/// `rejected` is the first error a module rejects that the parsers do not report, which the
+/// plugin's parse fails on.
+pub(crate) fn format(
+    c: &Component,
+    source_text: &str,
+    options: &Options,
+    rejected: Option<&Diagnostic>,
+) -> R<String> {
     if let Some(name) = unported(options) {
         return Err(Unsupported::nowhere(name));
     }
@@ -70,7 +78,9 @@ pub(crate) fn format(c: &Component, source_text: &str, options: &Options) -> R<S
     }
     refuse_template_comments(c)?;
     refuse_rejected_tags(c, source_text)?;
-    rsvelte_typescript_format::refuse_strict_errors(&c.javascript, source_text)?;
+    if let Some(rejected) = rejected {
+        return Err(Unsupported::at("code a module rejects", rejected.span));
+    }
 
     let core = core_options(options)?;
     let allocator = Allocator::default();
@@ -87,7 +97,6 @@ pub(crate) fn format(c: &Component, source_text: &str, options: &Options) -> R<S
             core,
             options: javascript_options(options, core),
         },
-        typescript: patterns::TypeScript::new(&c.javascript),
         text: vec![None; c.nodes.len()],
         in_pre: false,
         in_head: false,
@@ -323,7 +332,6 @@ struct Printer<'a, 'd, 'x> {
     source_text: &'a str,
     docs: &'d mut LayoutInstructions,
     embedder: javascript::Embedder<'x>,
-    typescript: patterns::TypeScript,
     /// The plugin's mutable `raw` of each text node, once it differs from the source.
     text: Vec<Option<Cow<'a, str>>>,
     /// The plugin's `isPreTagContent(path)`.
@@ -391,3 +399,16 @@ mod tree;
 
 #[cfg(test)]
 mod tests;
+
+/// The first error a module rejects in `c`, outside the artifact database.
+pub(crate) fn rejected(c: &Component, source_text: &str) -> Option<Diagnostic> {
+    let lowered = rsvelte_svelte_semantic::compiler_syntax_tree::lower(c, source_text);
+    rsvelte_svelte_semantic::resolve::resolve(
+        &c.javascript,
+        c.instance.as_ref().map(|s| s.program),
+        c.module.as_ref().map(|s| s.program),
+        &lowered,
+    )
+    .syntax_error()
+    .cloned()
+}

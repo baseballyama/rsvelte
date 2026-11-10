@@ -382,8 +382,8 @@ impl Printer<'_, '_, '_> {
             [Part::Expression { expression, span }] => {
                 let literal = element
                     && matches!(
-                        c.javascript.kind(expression),
-                        rsvelte_typescript_syntax::Kind::String
+                        c.javascript.get_expression(expression),
+                        oxc_ast::ast::Expression::StringLiteral(_)
                     );
                 if !literal {
                     let open = self.lit("this={");
@@ -391,11 +391,7 @@ impl Printer<'_, '_, '_> {
                     let close = self.lit("}");
                     return Ok(self.cat(&[open, e, close]));
                 }
-                let raw = c
-                    .javascript
-                    .source_location(expression)
-                    .span()
-                    .expect("a parsed expression has a source span");
+                let raw = self.javascript_span(expression);
                 let value = quoted(&raw.text(source_text)[1..raw.len() as usize - 1])?;
                 // `originalText[tag.start - 1] === '{'`.
                 if raw.start_offset == span.start_offset + 1 {

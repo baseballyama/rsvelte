@@ -11,10 +11,16 @@ use crate::Options;
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.format",
     version: env!("CARGO_PKG_VERSION"),
-    dependencies: &[Dependency {
-        identifier: "svelte.syntax",
-        requirement: concat!("=", env!("CARGO_PKG_VERSION")),
-    }],
+    dependencies: &[
+        Dependency {
+            identifier: "svelte.syntax",
+            requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+        },
+        Dependency {
+            identifier: "svelte.semantic",
+            requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+        },
+    ],
 };
 
 pub fn register(registry: &mut Registry) {
@@ -23,7 +29,7 @@ pub fn register(registry: &mut Registry) {
 
 pub fn register_with_options(registry: &mut Registry, options: Options) {
     registry.plugin(&PLUGIN);
-    rsvelte_svelte_syntax::register(registry);
+    rsvelte_svelte_semantic::register(registry);
     registry.task(Format { options });
 }
 
@@ -53,7 +59,11 @@ impl Task for Format {
                 return;
             }
         };
-        match formatted(c, context.source_text(), &self.options) {
+        let rejected = context
+            .get::<rsvelte_svelte_semantic::Resolved>()
+            .as_ref()
+            .and_then(|resolution| resolution.syntax_error());
+        match formatted(c, context.source_text(), &self.options, rejected) {
             Ok(text) => out.file("svelte", text),
             Err(diagnostic) => out.diagnostics.push(diagnostic),
         }
@@ -67,15 +77,17 @@ impl Task for Format {
 /// The parse error, or the first construct the formatter does not handle yet.
 pub fn format(source_text: &str, options: &Options) -> Result<String, Diagnostic> {
     let component = rsvelte_svelte_syntax::parse::parse(source_text)?;
-    formatted(&component, source_text, options)
+    let rejected = crate::format::rejected(&component, source_text);
+    formatted(&component, source_text, options, rejected.as_ref())
 }
 
 fn formatted(
     component: &Component,
     source_text: &str,
     options: &Options,
+    rejected: Option<&Diagnostic>,
 ) -> Result<String, Diagnostic> {
-    crate::format::format(component, source_text, options).map_err(|u| {
+    crate::format::format(component, source_text, options, rejected).map_err(|u| {
         Diagnostic::error(
             "format_unsupported",
             format!("not supported by the formatter yet: {}", u.what),
