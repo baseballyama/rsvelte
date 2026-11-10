@@ -3,7 +3,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_syntax::NodeIdentifier;
 use rsvelte_typescript_syntax::parser::parse_parameters;
 
-use super::identifier::{identifier_len, match_bracket};
+use super::identifier::match_bracket;
 use super::{ParseResult, Parser, javascript_error};
 
 impl Parser<'_> {
@@ -29,7 +29,7 @@ impl Parser<'_> {
                     )
                 })?
             }
-            _ => identifier_len(self.rest()),
+            _ => self.binding_name_len()?,
         };
         if len == 0 {
             return self.err("expected an identifier or a destructuring pattern");

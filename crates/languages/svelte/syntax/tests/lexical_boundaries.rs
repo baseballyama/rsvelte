@@ -158,3 +158,29 @@ fn a_declaration_tag_takes_one_semicolon_and_a_snippet_keeps_its_type_parameters
         Some("<T, U>")
     );
 }
+
+/// Each start offset is the official compiler's.
+#[test]
+fn a_template_name_is_no_reserved_word() {
+    for (source, word, start_offset) in [
+        ("{#each [1] as static}{/each}", "static", 14),
+        ("{#each [1] as x, let}{/each}", "let", 17),
+        ("{#snippet package()}{/snippet}", "package", 10),
+        ("<div {this}></div>", "this", 6),
+        ("{#if true}{@const eval = 1}{eval}{/if}", "eval", 18),
+        ("{#await p then arguments}{/await}", "arguments", 15),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(error.code, "unexpected_reserved_word", "{source}");
+        assert!(
+            error
+                .message
+                .starts_with(&format!("'{word}' is a reserved word")),
+            "{source}"
+        );
+        assert_eq!(error.span.start_offset, start_offset, "{source}");
+    }
+    for source in ["{#each [1] as statics}{/each}", "<div {lets}></div>"] {
+        parse(source).expect(source);
+    }
+}

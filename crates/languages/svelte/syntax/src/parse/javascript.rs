@@ -1,6 +1,7 @@
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_syntax::NodeIdentifier;
-use rsvelte_typescript_syntax::parser::{parse_expression, parse_expression_prefix};
+use rsvelte_typescript_syntax::parser::{parse_expression, parse_expression_prefix, reserved};
 
 use super::identifier::identifier_len;
 use super::{ParseResult, Parser, javascript_error};
@@ -43,12 +44,29 @@ impl Parser<'_> {
 
     pub(super) fn identifier(&mut self) -> ParseResult<NodeIdentifier> {
         let start_offset = self.position;
-        let len = identifier_len(self.rest());
+        let len = self.binding_name_len()?;
         if len == 0 {
             return self.err("expected an identifier");
         }
         let span = Span::new(start_offset as u32, (start_offset + len) as u32);
         self.javascript_at(span)
+    }
+
+    /// The length of the name here, which upstream `read_identifier` refuses to be a reserved word.
+    pub(super) fn binding_name_len(&self) -> ParseResult<usize> {
+        let len = identifier_len(self.rest());
+        let word = &self.rest()[..len];
+        if reserved(word).is_some() {
+            return Err(Diagnostic::error(
+                "unexpected_reserved_word",
+                format!(
+                    "'{word}' is a reserved word in JavaScript and cannot be used here\n\
+                     https://svelte.dev/e/unexpected_reserved_word"
+                ),
+                Span::new(self.position as u32, self.position as u32),
+            ));
+        }
+        Ok(len)
     }
 
     pub(super) fn javascript_at(&mut self, span: Span) -> ParseResult<NodeIdentifier> {
