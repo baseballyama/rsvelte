@@ -15,7 +15,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
 
 mod builder;
-pub use builder::{Builder, Recorded};
+pub use builder::{Builder, Recorded, syntax_error};
 
 mod cell {
     #![allow(
@@ -211,7 +211,7 @@ impl Tree {
 }
 
 mod computation;
-pub use computation::{PLUGIN, Parsed, Script, register};
+pub use computation::{PLUGIN, Parsed, Script, is_jsx, is_typescript, matches, register};
 
 #[cfg(test)]
 mod tests;

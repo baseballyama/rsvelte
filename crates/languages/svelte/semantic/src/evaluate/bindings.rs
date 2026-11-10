@@ -69,10 +69,8 @@ impl Evaluator<'_> {
         call: &CallExpression<'_>,
         values: &mut Values,
     ) {
-        // A tree a task built has no references, and so no runes.
-        if self.scope.is_none()
-            && let Some((rune, argument)) = self.res.rune(e)
-        {
+        // In scope too: an identifier of a built tree leads to its binding's initializer, an input node.
+        if let Some((rune, argument)) = self.res.rune(e) {
             match rune {
                 "$state" | "$state.raw" | "$derived" => match argument {
                     Some(a) => self.eval_into(a, values),

@@ -66,7 +66,7 @@ fn review_d_shapes_the_port_cannot_print_are_refused() {
             "comments attached to <script> or <style>",
             "a script language other than JavaScript",
             "a script language other than JavaScript",
-            "a legacy octal number",
+            "code a module rejects",
             "an emoji sequence, which Prettier measures as one character",
         ]
     );

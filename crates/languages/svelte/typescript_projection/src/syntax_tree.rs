@@ -1,7 +1,6 @@
 use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
-use rsvelte_typescript_syntax::NodeIdentifier as SourceNode;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NodeIdentifier(pub u32);
@@ -10,15 +9,12 @@ pub struct NodeIdentifier(pub u32);
 pub enum Node {
     Source(SourceExpression),
     Program {
-        identifier: SourceNode,
         span: Span,
     },
     ProgramParts {
-        identifier: SourceNode,
         parts: Range,
     },
     SourceCopy {
-        identifier: SourceNode,
         span: Span,
     },
     GeneratedIdentifier {
@@ -106,7 +102,6 @@ pub enum Node {
 
 #[derive(Clone, Copy, Debug)]
 pub struct SourceExpression {
-    pub identifier: SourceNode,
     pub span: Span,
     pub end: u32,
 }

@@ -1,19 +1,17 @@
 use super::{
-    Embed, Kind2, LayoutInstructionIdentifier, LayoutInstructions, PRINT_WIDTH, Printer, R, ROOT,
-    Unsupported,
+    Embed, Kind2, LayoutInstructionIdentifier, PRINT_WIDTH, Printer, R, ROOT, Unsupported,
 };
 
-impl Printer<'_, '_> {
+impl Printer<'_, '_, '_> {
     // ---- printer-html.js, print/element.js -------------------------------------------
 
     pub(super) fn print(&mut self, i: usize) -> R<LayoutInstructionIdentifier> {
         match &self.n(i).kind {
             Kind2::Element { .. } => self.element(i),
             Kind2::Text(_) => self.text(i),
-            Kind2::Interpolation(e) => {
-                let e = *e;
+            &Kind2::Interpolation(span) => {
                 let start = self.opening_tag_start(i);
-                let expression = self.expression(e, false)?;
+                let expression = self.interpolation(span)?;
                 let l = self.d().line();
                 let inner = self.cat(&[l, expression]);
                 let indentation = self.d().indent(inner);
@@ -66,12 +64,7 @@ impl Printer<'_, '_> {
     /// A script or style body, as `textToDoc` returns it (no trailing line).
     pub(super) fn embedded(&mut self, embed: Embed) -> R<LayoutInstructionIdentifier> {
         match embed {
-            Embed::Script(program) => {
-                let document = self.javascript.program(program)?;
-                let mut v = vec![document];
-                self.d().trim_right(&mut v, LayoutInstructions::is_line);
-                Ok(self.cat(&v))
-            }
+            Embed::Script(content) => self.script(content),
             Embed::Style(index) => {
                 let style = &self.c.styles[index];
                 let stylesheet =

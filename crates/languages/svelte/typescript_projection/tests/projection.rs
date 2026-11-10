@@ -8,7 +8,7 @@ use rsvelte_svelte_typescript_projection::syntax_tree::{Node, NodeIdentifier, Sy
 fn project(source: &str) -> (SyntaxTree, rsvelte_kernel::output::emitter::Emitter) {
     let component = parse(source).expect("valid Svelte source");
     let before = format!("{component:?}");
-    let tree = rsvelte_svelte_typescript_projection::lower(&component, source)
+    let tree = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
         .expect("supported template");
     assert_eq!(
         format!("{component:?}"),
@@ -142,7 +142,7 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
 fn unsupported_semantics_are_reported_at_the_original_construct() {
     let source = "<input bind:value={value}>";
     let component = parse(source).expect("valid Svelte source");
-    let error = rsvelte_svelte_typescript_projection::lower(&component, source)
+    let error = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
         .expect_err("bindings need their own type semantics");
     assert_eq!(error.span().text(source), "bind:value={value}");
 }

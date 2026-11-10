@@ -6,42 +6,19 @@ use oxc_formatter::{
     ExpressionLayout, ExpressionRoot, JsEmbeddedIn, JsFormatOptions, JsRoot, ProgramLayout,
     ProgramSemicolons, QuoteStyle,
 };
-use oxc_formatter_core::{
-    CoreFormatOptions, FormatContext, FormatElement, FormatElements, FormatSession, FormatState,
-    Formatter, normalize_newlines,
-};
+use oxc_formatter_core::{FormatElement, normalize_newlines};
 use oxc_span::SourceType;
-use rsvelte_document_printer::LayoutInstructionIdentifier;
+use rsvelte_document_printer::{Embedding, LayoutInstructionIdentifier};
 use rsvelte_kernel::source::positions::Span;
 
 use super::{Printer, R, Unsupported};
 
-/// What every embedded part shares: the session that owns their arena and group identifiers, and
-/// the layouts built so far, which the document refers to by index.
+/// The embedded parts and how this component's JavaScript formats.
 pub(super) struct Embedder<'x> {
-    pub(super) session: FormatSession<'x>,
-    pub(super) layouts: Vec<&'x [FormatElement<'x>]>,
+    pub(super) embedding: Embedding<'x>,
     /// The plugin parses with TypeScript when any `<script>` says `lang="ts"`.
     pub(super) typescript: bool,
-    pub(super) core: CoreFormatOptions,
     pub(super) options: JsFormatOptions,
-}
-
-/// oxc's context for the parts this crate writes itself: only the options.
-pub(super) struct Context {
-    pub(super) options: CoreFormatOptions,
-}
-
-impl FormatContext for Context {
-    type Options = CoreFormatOptions;
-
-    fn options(&self) -> &CoreFormatOptions {
-        &self.options
-    }
-
-    fn source_code(&self) -> &'static str {
-        ""
-    }
 }
 
 /// The plugin's adjustments to a part: `forceSingleQuote` inside a quoted attribute,
@@ -76,13 +53,7 @@ impl<'x> Printer<'_, '_, 'x> {
         let ir = self.format_javascript(&text, span, part, adjust.single_quote)?;
         // oxc's `remove_soft_lines` is Prettier's `removeLines`.
         let mut ir = if adjust.single_line {
-            let context = Context {
-                options: self.embedder.core,
-            };
-            let mut state = FormatState::new_with_session(context, self.embedder.session.clone());
-            let mut f = Formatter::new(&mut state);
-            f.remove_soft_lines(|f| f.write_elements(ir));
-            f.into_vec()
+            self.embedder.embedding.remove_soft_lines(ir)
         } else {
             ir
         };
@@ -97,10 +68,7 @@ impl<'x> Printer<'_, '_, 'x> {
         &mut self,
         ir: ArenaVec<'x, FormatElement<'x>>,
     ) -> LayoutInstructionIdentifier {
-        let breaks = ir.iter().any(FormatElements::will_break);
-        let index = self.embedder.layouts.len() as u32;
-        self.embedder.layouts.push(ir.into_arena_slice());
-        self.d().embedded(index, breaks)
+        self.embedder.embedding.keep(self.docs, ir)
     }
 
     /// `text`, the code at `span`, formatted as `part`.
@@ -142,7 +110,7 @@ impl<'x> Printer<'_, '_, 'x> {
             reason = "oxc's diagnostic points into the text it wraps, not the component"
         )]
         let ir = oxc_formatter::format_to_ir(
-            &embedder.session,
+            embedder.embedding.session(),
             text,
             source_type,
             options,

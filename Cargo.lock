@@ -1052,6 +1052,7 @@ dependencies = [
 name = "rsvelte_document_printer"
 version = "0.0.0"
 dependencies = [
+ "oxc_allocator",
  "oxc_formatter_core",
  "rsvelte_kernel",
 ]
@@ -1233,6 +1234,8 @@ name = "rsvelte_svelte_format"
 version = "0.0.0"
 dependencies = [
  "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_visit",
  "oxc_formatter",
  "oxc_formatter_core",
  "oxc_formatter_css",
@@ -1240,10 +1243,10 @@ dependencies = [
  "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
+ "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
- "rsvelte_typescript_format",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
  "serde",
  "serde_json",
 ]
@@ -1317,6 +1320,7 @@ name = "rsvelte_svelte_typescript_projection"
 version = "0.0.0"
 dependencies = [
  "oxc_allocator",
+ "oxc_ast",
  "oxc_parser",
  "oxc_span",
  "rsvelte_kernel",
@@ -1325,7 +1329,7 @@ dependencies = [
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
  "rsvelte_typescript_content_mapper",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
 ]
 
 [[package]]
@@ -1343,7 +1347,7 @@ dependencies = [
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
  "rsvelte_typescript_content_mapper",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
  "serde",
  "serde_json",
 ]
@@ -1379,10 +1383,8 @@ version = "0.0.0"
 dependencies = [
  "oxc_formatter",
  "oxc_formatter_core",
- "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
- "rsvelte_typescript_syntax",
  "rsvelte_typescript_tree",
 ]
 
@@ -1438,15 +1440,16 @@ dependencies = [
 name = "rsvelte_vue_check"
 version = "0.0.0"
 dependencies = [
+ "oxc_ast",
+ "oxc_semantic",
+ "oxc_span",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
  "rsvelte_test_harness",
  "rsvelte_typescript_check",
- "rsvelte_typescript_semantic",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
  "rsvelte_vue_semantic",
  "rsvelte_vue_syntax",
- "rustc-hash",
  "serde",
 ]
 
@@ -1488,13 +1491,16 @@ dependencies = [
 name = "rsvelte_vue_format"
 version = "0.0.0"
 dependencies = [
+ "oxc_allocator",
+ "oxc_formatter",
+ "oxc_formatter_core",
+ "oxc_span",
  "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
  "rsvelte_stylesheet_format",
  "rsvelte_test_harness",
- "rsvelte_typescript_format",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
  "rsvelte_vue_syntax",
 ]
 
@@ -1519,10 +1525,14 @@ dependencies = [
 name = "rsvelte_vue_semantic"
 version = "0.0.0"
 dependencies = [
+ "oxc_ast",
+ "oxc_ast_visit",
+ "oxc_semantic",
+ "oxc_span",
  "rsvelte_kernel",
  "rsvelte_markup_syntax",
  "rsvelte_typescript_semantic",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
  "rsvelte_vue_syntax",
  "rustc-hash",
 ]
@@ -1531,9 +1541,11 @@ dependencies = [
 name = "rsvelte_vue_syntax"
 version = "0.0.0"
 dependencies = [
+ "oxc_parser",
+ "oxc_span",
  "rsvelte_kernel",
  "rsvelte_stylesheet_syntax",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
 ]
 
 [[package]]

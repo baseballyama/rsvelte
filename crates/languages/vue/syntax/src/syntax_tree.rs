@@ -1,13 +1,15 @@
 //! The Vue single-file component as written.
 //!
 //! The template's nodes live in flat vectors and refer to each other by index; every JavaScript
-//! expression (the `<script setup>` program and every template expression) lives in the one
-//! [`SyntaxTree`] of the component, so a single scope analysis sees both.
+//! part (the `<script setup>` program and every template expression) lives in the one oxc
+//! [`Tree`] of the component, so a single scope analysis sees both.
 
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{TokenKind, Tokens};
 use rsvelte_stylesheet_syntax::StyleSheet;
-use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_tree::{
+    ExpressionIdentifier, ParametersIdentifier, ProgramIdentifier, Tree,
+};
 
 pub type TemplateNodeIdentifier = u32;
 
@@ -35,7 +37,7 @@ pub enum TemplateNode {
     },
     /// `{{ expression }}`.
     Interpolation {
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
         span: Span,
     },
     Element {
@@ -106,16 +108,16 @@ pub enum DirectiveName {
 #[derive(Debug)]
 pub enum DirectiveExpression {
     None,
-    Expression(NodeIdentifier),
+    Expression(ExpressionIdentifier),
     For(LoopExpression),
 }
 
 /// `(item, index) in source`.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct LoopExpression {
-    /// The aliases in order (value, key, index); each a binding pattern.
-    pub parameters: Vec<NodeIdentifier>,
-    pub source: NodeIdentifier,
+    /// The aliases in order (value, key, index), read as a parameter list.
+    pub parameters: ParametersIdentifier,
+    pub source: ExpressionIdentifier,
 }
 
 /// An attribute of a block's start tag: name and unquoted value.
@@ -136,7 +138,7 @@ pub struct Script {
     pub span: Span,
     pub attributes: Vec<TagAttributes>,
     pub content: Span,
-    pub program: NodeIdentifier,
+    pub program: ProgramIdentifier,
 }
 
 #[derive(Debug)]
@@ -150,14 +152,14 @@ pub struct Style {
 
 #[derive(Debug)]
 pub struct SingleFileComponent {
-    pub javascript: SyntaxTree,
+    pub javascript: Tree,
     pub nodes: Vec<TemplateNode>,
     pub children: Vec<TemplateNodeIdentifier>,
     pub attributes: Vec<Attribute>,
     pub template: Option<Template>,
     pub script: Option<Script>,
     /// The script's program, or an empty one: scope analysis always has a root.
-    pub program: NodeIdentifier,
+    pub program: ProgramIdentifier,
     pub styles: Vec<Style>,
     /// `<script setup lang="ts">`: the script and every template expression are TypeScript.
     pub typescript: bool,
@@ -194,7 +196,7 @@ pub enum TokenType {
     ForParen,
     /// `in` or `of` in a `v-for` value.
     ForKeyword,
-    JavaScript(rsvelte_typescript_syntax::lexer::T),
+    JavaScript(oxc_parser::Kind),
     JavaScriptComment,
     Whitespace,
     /// A style sheet's content, until the CSS parser records its own tokens.
@@ -253,4 +255,4 @@ const _: () = assert!(
     "`TemplateNode` is 44 bytes"
 );
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(size_of::<Attribute>() == 96, "`Attribute` is 96 bytes");
+const _: () = assert!(size_of::<Attribute>() == 80, "`Attribute` is 80 bytes");

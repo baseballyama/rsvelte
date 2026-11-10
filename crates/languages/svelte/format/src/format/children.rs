@@ -1,4 +1,10 @@
+use oxc_ast::ast::Expression;
+use oxc_ast_visit::Visit;
+use oxc_span::GetSpan;
+use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
+
 use super::javascript::{Adjust, Part, trim_semicolon};
+use super::patterns::{has_typescript, span};
 use super::{
     Cow, LayoutInstructionIdentifier, Printer, R, Span, TemplateNode, TemplateNodeIdentifier,
     Unsupported, ends_with_linebreak, is_collapse_ws, only_ws, starts_with_linebreak,
@@ -263,9 +269,12 @@ impl Printer<'_, '_, '_> {
                 let javascript = &self.c.javascript;
                 let names: Vec<&str> = self
                     .c
-                    .javascript_list(identifiers)
+                    .debug_identifiers(identifiers)
                     .iter()
-                    .map(|&n| javascript.name(n))
+                    .filter_map(|&n| match javascript.get_expression(n) {
+                        Expression::Identifier(identifier) => Some(identifier.name.as_str()),
+                        _ => None,
+                    })
                     .collect();
                 let text = if names.is_empty() {
                     "{@debug}".to_owned()
@@ -281,7 +290,7 @@ impl Printer<'_, '_, '_> {
     fn tag(
         &mut self,
         open: &'static str,
-        expression: rsvelte_typescript_syntax::NodeIdentifier,
+        expression: ExpressionIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
         let open = self.lit(open);
         let e = self.expression(expression, false, false)?;
@@ -292,7 +301,7 @@ impl Printer<'_, '_, '_> {
     /// An embedded expression (`printJS`), optionally forced onto one line or into single quotes.
     pub(super) fn expression(
         &mut self,
-        e: rsvelte_typescript_syntax::NodeIdentifier,
+        e: ExpressionIdentifier,
         single_line: bool,
         single_quote: bool,
     ) -> R<LayoutInstructionIdentifier> {
@@ -306,19 +315,16 @@ impl Printer<'_, '_, '_> {
     /// its printer knows only a name and a literal (`JSON.stringify(value)`); anything else throws.
     fn unformatted_expression(
         &mut self,
-        e: rsvelte_typescript_syntax::NodeIdentifier,
+        e: ExpressionIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
-        let javascript = &self.c.javascript;
-        let span = javascript
-            .source_location(e)
-            .span()
-            .expect("a parsed expression has a source span");
+        let e = self.c.javascript.get_expression(e);
+        let span = span(e.span());
         let raw = span.text(self.source_text);
-        let text = match javascript.kind(e) {
-            rsvelte_typescript_syntax::Kind::Identifier(_) => javascript.name(e).to_owned(),
-            rsvelte_typescript_syntax::Kind::Boolean(_) | rsvelte_typescript_syntax::Kind::Null => raw.to_owned(),
+        let text = match e {
+            Expression::Identifier(identifier) => identifier.name.as_str().to_owned(),
+            Expression::BooleanLiteral(_) | Expression::NullLiteral(_) => raw.to_owned(),
             // Written the way `JSON.stringify` writes the value.
-            rsvelte_typescript_syntax::Kind::Number(_)
+            Expression::NumericLiteral(_)
                 // `JSON.stringify` of a double prints up to 15 digits as written.
                 if raw == "0"
                     || (!raw.starts_with('0')
@@ -327,7 +333,7 @@ impl Printer<'_, '_, '_> {
             {
                 raw.to_owned()
             }
-            rsvelte_typescript_syntax::Kind::String
+            Expression::StringLiteral(_)
                 if !raw[1..raw.len() - 1].contains(|c: char| c == '\\' || c == '"' || c < ' ') =>
             {
                 format!("\"{}\"", &raw[1..raw.len() - 1])
@@ -355,7 +361,7 @@ impl Printer<'_, '_, '_> {
 
     pub(super) fn expression_with(
         &mut self,
-        e: rsvelte_typescript_syntax::NodeIdentifier,
+        e: ExpressionIdentifier,
         single_line: bool,
         single_quote: bool,
         bare_sequence: bool,
@@ -363,18 +369,18 @@ impl Printer<'_, '_, '_> {
         if self.options.embedded_language_formatting == EmbeddedLanguageFormatting::Off {
             return self.unformatted_expression(e);
         }
-        let span = self.javascript_span(e);
-        let kind = self.c.javascript.kind(e);
+        let expression = self.c.javascript.get_expression(e);
+        let span = span(expression.span());
         let adjust = Adjust {
             single_quote,
             single_line,
             remove_parentheses: bare_sequence
-                && matches!(kind, rsvelte_typescript_syntax::Kind::Sequence(_)),
+                && matches!(expression, Expression::SequenceExpression(_)),
         };
         let d = self.embed(span, Part::Expression, adjust)?;
         // The plugin parses `(a = b\n)`, and Prettier keeps those parentheses; oxc keeps them
         // around a sequence only.
-        if !matches!(kind, rsvelte_typescript_syntax::Kind::Assign(..)) {
+        if !matches!(expression, Expression::AssignmentExpression(_)) {
             return Ok(d);
         }
         let open = self.lit("(");
@@ -382,36 +388,23 @@ impl Printer<'_, '_, '_> {
         Ok(self.cat(&[open, d, close]))
     }
 
-    /// The source of `e`, with the TypeScript the tree keeps beside it.
-    pub(super) fn javascript_span(&self, e: rsvelte_typescript_syntax::NodeIdentifier) -> Span {
-        let span = self
-            .c
-            .javascript
-            .source_location(e)
-            .span()
-            .expect("a parsed node has a source span");
-        self.typescript.extent(e, span)
+    /// The source of `e`.
+    pub(super) fn javascript_span(&self, e: ExpressionIdentifier) -> Span {
+        span(self.c.javascript.get_expression(e).span())
     }
 
     /// `{@const a = b}`'s declarator, which the plugin formats as the expression `a = b`.
-    fn const_tag(
-        &mut self,
-        declaration: rsvelte_typescript_syntax::NodeIdentifier,
-    ) -> R<LayoutInstructionIdentifier> {
-        let javascript = &self.c.javascript;
-        let rsvelte_typescript_syntax::Kind::VariableDeclaration {
-            declarations: &[declarator],
-            ..
-        } = javascript.kind(declaration)
-        else {
+    fn const_tag(&mut self, declaration: DeclarationIdentifier) -> R<LayoutInstructionIdentifier> {
+        let declaration = self.c.javascript.get_declaration(declaration);
+        let [declarator] = declaration.declarations.as_slice() else {
             return Err(Unsupported::at(
                 "a {@const} with other than one declarator",
-                self.javascript_span(declaration),
+                span(declaration.span),
             ));
         };
-        let span = self.javascript_span(declarator);
+        let span = span(declarator.span);
         // `(a: T = b)` is no expression: the plugin's parse fails and it prints the source.
-        if self.typescript.within(span) > 0 {
+        if has_typescript(|f| f.visit_variable_declarator(declarator)) {
             let source = span.text(self.source_text);
             if source.contains(['\n', '\r']) {
                 return Err(Unsupported::at(
@@ -429,25 +422,13 @@ impl Printer<'_, '_, '_> {
     /// it, which happens when the statement prints as plain text (`let a;`).
     fn template_statement(
         &mut self,
-        statement: rsvelte_typescript_syntax::NodeIdentifier,
+        statement: DeclarationIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
-        let javascript = &self.c.javascript;
-        let plain = match javascript.kind(statement) {
-            rsvelte_typescript_syntax::Kind::VariableDeclaration {
-                declarations: &[only],
-                ..
-            } => matches!(
-                javascript.kind(only),
-                rsvelte_typescript_syntax::Kind::Declarator {
-                    initializer: None,
-                    ..
-                }
-            ),
-            _ => false,
-        };
-        let span = self.javascript_span(statement);
+        let statement = self.c.javascript.get_declaration(statement);
+        let plain = matches!(statement.declarations.as_slice(), [only] if only.init.is_none());
+        let span = span(statement.span);
         // Whether Prettier merges `let a: T;` into one text is not known.
-        if plain && self.typescript.within(span) > 0 {
+        if plain && has_typescript(|f| f.visit_variable_declaration(statement)) {
             return Err(Unsupported::at(
                 "a typed declaration without a value in the template",
                 span,

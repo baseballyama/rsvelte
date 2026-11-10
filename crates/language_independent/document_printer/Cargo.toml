@@ -10,6 +10,7 @@ publish.workspace = true
 doctest = false
 
 [dependencies]
+oxc_allocator.workspace = true
 oxc_formatter_core.workspace = true
 rsvelte_kernel.workspace = true
 

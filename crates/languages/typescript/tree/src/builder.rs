@@ -120,11 +120,14 @@ impl<'a> Builder<'a> {
             .with_start(start)
             .parse();
         if !parsed.diagnostics.is_empty() {
-            return Err(diagnostic(parsed.diagnostics, start, 0));
+            return Err(syntax_error(parsed.diagnostics, start, 0));
         }
         self.record(&parsed.tokens, &parsed.program.comments, 0);
+        let mut program = parsed.program;
+        // Its spans are the document's, so a task that reads text at a span reads the document.
+        program.source_text = self.source_text;
         let identifier = ProgramIdentifier::at(self.programs.len());
-        self.programs.push(parsed.program);
+        self.programs.push(program);
         Ok(identifier)
     }
 
@@ -171,7 +174,7 @@ impl<'a> Builder<'a> {
             .with_options(options())
             .with_config(TokensParserConfig)
             .parse_expression_at(start)
-            .map_err(|errors| diagnostic(errors, start, 0))?;
+            .map_err(|errors| syntax_error(errors, start, 0))?;
         self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
         Ok((parsed.expression, parsed.end))
@@ -203,7 +206,7 @@ impl<'a> Builder<'a> {
             .with_options(options())
             .with_config(TokensParserConfig)
             .parse_statement_at(start)
-            .map_err(|errors| diagnostic(errors, start, 0))?;
+            .map_err(|errors| syntax_error(errors, start, 0))?;
         self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
         Ok((parsed.statement, parsed.end))
@@ -288,7 +291,7 @@ impl<'a> Builder<'a> {
             .with_options(options())
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
-            .map_err(|errors| diagnostic(errors, 0, shift))?;
+            .map_err(|errors| syntax_error(errors, 0, shift))?;
         let Expression::ArrowFunctionExpression(arrow) = parsed.expression else {
             return Err(Diagnostic::error(
                 "parse_error",
@@ -316,6 +319,12 @@ impl<'a> Builder<'a> {
             comment
         }));
         Ok(parameters)
+    }
+
+    /// A parameter list read so far, for a host that checks its shape before the tree is done.
+    #[must_use]
+    pub fn get_parameters(&self, identifier: ParametersIdentifier) -> &FormalParameters<'a> {
+        &self.parameters[identifier.index()]
     }
 
     pub fn keep_expression(&mut self, expression: Expression<'a>) -> ExpressionIdentifier {
@@ -376,17 +385,19 @@ const fn span(span: oxc_span::Span, shift: u32) -> Span {
     Span::new(span.start + shift, span.end + shift)
 }
 
-/// `ESTree` has no parentheses, and the formatter requires that they are not kept.
+/// `ESTree` has no parentheses, and the formatter requires that they are not kept. Regular
+/// expressions are validated, as acorn validates them.
 fn options() -> ParseOptions {
     ParseOptions {
         preserve_parens: false,
+        parse_regular_expression: true,
         ..ParseOptions::default()
     }
 }
 
 /// The first error, at the place oxc labels `shift` bytes later, or at `fallback` when it labels
 /// none.
-fn diagnostic(
+pub fn syntax_error(
     errors: impl IntoIterator<Item = OxcDiagnostic>,
     fallback: u32,
     shift: u32,

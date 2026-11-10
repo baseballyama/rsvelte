@@ -475,10 +475,13 @@ impl Printer<'_, '_, '_> {
             clippy::map_err_ignore,
             reason = "oxc's diagnostic points into the sheet, not the component"
         )]
-        let ir = oxc_formatter_css::format_to_ir(&self.embedder.session, &text, options, None)
-            .map_err(|_| {
-                Unsupported::at("CSS that oxc's formatter does not format", style.content)
-            })?;
+        let ir = oxc_formatter_css::format_to_ir(
+            self.embedder.embedding.session(),
+            &text,
+            options,
+            None,
+        )
+        .map_err(|_| Unsupported::at("CSS that oxc's formatter does not format", style.content))?;
         let body = self.keep(ir.ir);
         Ok(self.indented_body(body))
     }

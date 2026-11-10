@@ -16,12 +16,12 @@ use std::borrow::Cow;
 
 use oxc_allocator::Allocator;
 use oxc_formatter::{BracketSameLine, JsFormatOptions, QuoteStyle};
-use oxc_formatter_core::{
-    CoreFormatOptions, Document, FormatSession, FormatState, Formatter, IndentStyle, IndentWidth,
-    InputKind, LineEnding, LineWidth, PrintError, PrintWidth, PrinterOptions,
+use oxc_formatter_core::{CoreFormatOptions, IndentStyle, IndentWidth, LineEnding, LineWidth};
+use rsvelte_document_printer::{
+    Embedding, LayoutInstructionIdentifier, LayoutInstructions, Unprinted,
 };
-use rsvelte_document_printer::{LayoutInstructionIdentifier, LayoutInstructions, Unlowered};
-pub(crate) use rsvelte_kernel::diagnostics::Unsupported;
+pub(crate) use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
@@ -37,7 +37,14 @@ type R<T> = Result<T, Unsupported>;
 ///
 /// [`Unsupported`] if the component holds a construct this formatter does not print, or a
 /// flat-only layout that does not fit.
-pub(crate) fn format(c: &Component, source_text: &str, options: &Options) -> R<String> {
+/// `rejected` is the first error a module rejects that the parsers do not report, which the
+/// plugin's parse fails on.
+pub(crate) fn format(
+    c: &Component,
+    source_text: &str,
+    options: &Options,
+    rejected: Option<&Diagnostic>,
+) -> R<String> {
     if let Some(name) = unported(options) {
         return Err(Unsupported::nowhere(name));
     }
@@ -70,7 +77,9 @@ pub(crate) fn format(c: &Component, source_text: &str, options: &Options) -> R<S
     }
     refuse_template_comments(c)?;
     refuse_rejected_tags(c, source_text)?;
-    rsvelte_typescript_format::refuse_strict_errors(&c.javascript, source_text)?;
+    if let Some(rejected) = rejected {
+        return Err(Unsupported::at("code a module rejects", rejected.span));
+    }
 
     let core = core_options(options)?;
     let allocator = Allocator::default();
@@ -81,13 +90,10 @@ pub(crate) fn format(c: &Component, source_text: &str, options: &Options) -> R<S
         source_text,
         docs: &mut docs,
         embedder: javascript::Embedder {
-            session: FormatSession::new(&allocator, InputKind::PhysicalFile),
-            layouts: Vec::new(),
+            embedding: Embedding::new(&allocator, core),
             typescript: is_typescript(c, source_text),
-            core,
             options: javascript_options(options, core),
         },
-        typescript: patterns::TypeScript::new(&c.javascript),
         text: vec![None; c.nodes.len()],
         in_pre: false,
         in_head: false,
@@ -96,25 +102,14 @@ pub(crate) fn format(c: &Component, source_text: &str, options: &Options) -> R<S
         buffers: Vec::new(),
     };
     let root = f.top_level()?;
-    let javascript::Embedder {
-        session, layouts, ..
-    } = f.embedder;
-    let mut state = FormatState::new_with_session(javascript::Context { options: core }, session);
-    let mut formatter = Formatter::new(&mut state);
-    docs.lower(root, &layouts, &mut formatter)
-        .map_err(|Unlowered| Unsupported::nowhere("a layout only checked flat"))?;
-    let elements = formatter.into_vec();
-    let print = PrinterOptions::default()
-        .with_print_width(PrintWidth::new(options.print_width as u32))
-        .with_indent_style(core.indent_style)
-        .with_indent_width(core.indent_width)
-        .with_line_ending(LineEnding::Lf);
-    let printed = Document::new(elements, Vec::new())
-        .print(text.len(), print)
-        .map_err(|PrintError::InvalidDocument(_)| {
-            Unsupported::nowhere("a document oxc's printer rejects")
-        })?
-        .into_code();
+    let embedding = f.embedder.embedding;
+    let printed =
+        embedding
+            .print(&docs, root, text.len())
+            .map_err(|unprinted| match unprinted {
+                Unprinted::FlatOnly => Unsupported::nowhere("a layout only checked flat"),
+                Unprinted::Rejected => Unsupported::nowhere("a document oxc's printer rejects"),
+            })?;
     let eol = match options.end_of_line {
         EndOfLine::Lf => "\n",
         EndOfLine::Crlf => "\r\n",
@@ -323,7 +318,6 @@ struct Printer<'a, 'd, 'x> {
     source_text: &'a str,
     docs: &'d mut LayoutInstructions,
     embedder: javascript::Embedder<'x>,
-    typescript: patterns::TypeScript,
     /// The plugin's mutable `raw` of each text node, once it differs from the source.
     text: Vec<Option<Cow<'a, str>>>,
     /// The plugin's `isPreTagContent(path)`.
@@ -391,3 +385,16 @@ mod tree;
 
 #[cfg(test)]
 mod tests;
+
+/// The first error a module rejects in `c`, outside the artifact database.
+pub(crate) fn rejected(c: &Component, source_text: &str) -> Option<Diagnostic> {
+    let lowered = rsvelte_svelte_semantic::compiler_syntax_tree::lower(c, source_text);
+    rsvelte_svelte_semantic::resolve::resolve(
+        &c.javascript,
+        c.instance.as_ref().map(|s| s.program),
+        c.module.as_ref().map(|s| s.program),
+        &lowered,
+    )
+    .syntax_error()
+    .cloned()
+}

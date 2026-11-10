@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let start = Instant::now();
         let (allocations_before, bytes_before) = thread_allocations();
         for _ in 0..rounds {
-            match rsvelte_svelte_typescript_projection::lower(
+            match rsvelte_svelte_typescript_projection::lower_alone(
                 black_box(&component),
                 black_box(&source),
             ) {

@@ -9,22 +9,24 @@
 //! extraction, CSS display, space sensitivity, simple-element merging) over a tree of its own,
 //! since the preprocessing rewrites text and removes nodes. `Printer` is `printChildren`,
 //! `printElement` and the tag helpers of `print/tag.js`, one function per upstream function.
-//! Script bodies and template expressions go through `rsvelte_typescript_format`'s formatter, style
-//! bodies through `rsvelte_stylesheet_format`'s; anything neither covers is an [`Unsupported`]
-//! error, never an approximation.
+//! Script bodies and template expressions go through `oxc_formatter`, each in the root oxc's own
+//! Vue formatter gives it, and oxc's printer prints the document; style bodies go through
+//! `rsvelte_stylesheet_format`. Anything neither covers is an [`Unsupported`] error, never an
+//! approximation.
 
 use std::borrow::Cow;
 
+use oxc_allocator::Allocator;
+use oxc_formatter::JsFormatOptions;
+use oxc_formatter_core::{CoreFormatOptions, IndentStyle, IndentWidth, LineEnding, LineWidth};
 use rsvelte_document_printer::{
-    GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions, PrintOptions, Refused,
+    Embedding, GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions, Unprinted,
 };
+pub(crate) use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-pub(crate) use rsvelte_typescript_format::Unsupported;
-use rsvelte_typescript_format::{Formatter, Options as JavaScriptOptions};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rsvelte_vue_syntax::syntax_tree::{
-    Attribute, AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent,
-    TagAttributes, TemplateNode, TemplateNodeIdentifier,
+    Attribute, AttributeKind, DirectiveExpression, SingleFileComponent, TagAttributes,
+    TemplateNode, TemplateNodeIdentifier,
 };
 
 type R<T> = Result<T, Unsupported>;
@@ -50,30 +52,40 @@ pub(crate) fn format(c: &SingleFileComponent, source_text: &str, lines: &LineInd
     }
     let tree = Tree::build(c, source_text, lines)?;
     let mut docs = LayoutInstructions::new();
-    let javascript = Formatter::new(
-        &c.javascript,
-        source_text,
-        lines,
-        &mut docs,
-        JavaScriptOptions::default(),
-    );
+    let allocator = Allocator::default();
+    let core = core_options();
     let mut p = Printer {
         c,
         source_text,
         t: &tree,
-        javascript,
+        docs: &mut docs,
+        embedding: Embedding::new(&allocator, core),
+        options: JsFormatOptions {
+            line_width: core.line_width,
+            ..JsFormatOptions::default()
+        },
     };
     let children = p.children(ROOT)?;
-    let body = p.javascript.docs.group(&children);
-    let h = p.javascript.docs.hardline();
-    let root = p.javascript.docs.concat(&[body, h]);
-    let options = PrintOptions {
-        width: PRINT_WIDTH,
-        indent_spaces: Some(TAB_WIDTH),
-        tab_width: TAB_WIDTH,
-    };
-    docs.print(root, &options)
-        .map_err(|Refused| Unsupported::nowhere("a layout that does not fit on one line"))
+    let body = p.d().group(&children);
+    let h = p.d().hardline();
+    let root = p.d().concat(&[body, h]);
+    let embedding = p.embedding;
+    embedding
+        .print(&docs, root, source_text.len())
+        .map_err(|unprinted| match unprinted {
+            Unprinted::FlatOnly => Unsupported::nowhere("a layout that does not fit on one line"),
+            Unprinted::Rejected => Unsupported::nowhere("a document oxc's printer rejects"),
+        })
+}
+
+/// Prettier's defaults, which are the only options this port prints.
+fn core_options() -> CoreFormatOptions {
+    CoreFormatOptions {
+        indent_style: IndentStyle::Space,
+        indent_width: IndentWidth::try_from(TAB_WIDTH as u8).expect("2 is an indent width"),
+        line_width: LineWidth::try_from(PRINT_WIDTH as u16).expect("80 is a line width"),
+        line_ending: LineEnding::Lf,
+    }
 }
 
 const ROOT: usize = 0;
@@ -87,7 +99,8 @@ enum Kind2<'a> {
         embed: Embed,
     },
     Text(Cow<'a, str>),
-    Interpolation(NodeIdentifier),
+    /// `{{ … }}`, at its whole span.
+    Interpolation(Span),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -99,7 +112,8 @@ enum Attributes<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Embed {
     None,
-    Script(NodeIdentifier),
+    /// The script's content.
+    Script(Span),
     Style(usize),
 }
 
@@ -175,18 +189,22 @@ fn only_ws(s: &str) -> bool {
     s.bytes().all(is_markup_ws)
 }
 
-struct Printer<'a, 'd> {
+struct Printer<'a, 'd, 'x> {
     c: &'a SingleFileComponent,
     source_text: &'a str,
     t: &'a Tree<'a>,
-    javascript: Formatter<'d>,
+    docs: &'d mut LayoutInstructions,
+    embedding: Embedding<'x>,
+    options: JsFormatOptions,
 }
 
-impl Printer<'_, '_> {
+impl Printer<'_, '_, '_> {
     const fn d(&mut self) -> &mut LayoutInstructions {
-        self.javascript.docs
+        self.docs
     }
 }
+
+mod javascript;
 
 mod tree;
 mod whitespace;

@@ -15,6 +15,7 @@
 use std::num::NonZeroU32;
 
 mod construct;
+mod embedding;
 mod inspect;
 mod lower;
 mod printer;
@@ -22,6 +23,7 @@ mod rewrite;
 mod trace;
 mod width;
 
+pub use embedding::{Embedding, Unprinted};
 pub use lower::Unlowered;
 use rsvelte_kernel::performance::buffer_pool;
 pub use trace::{GroupDecision, TraceEvent, TraceMode};
