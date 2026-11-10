@@ -86,24 +86,25 @@ impl<'a> Parser<'a, '_> {
             return None;
         }
         let ast = self.builder.ast();
-        let mut offset = name.start_offset;
-        let mut reference = None;
-        for part in text.split('.') {
+        let span_of = |offset: u32, part: &str| {
             let end = offset + u32::try_from(part.len()).expect("source positions use u32 bytes");
-            let span = oxc_span::Span::new(offset, end);
-            reference = Some(match reference {
-                None => Expression::new_identifier(span, part, &ast),
-                Some(object) => Expression::new_static_member_expression(
-                    oxc_span::Span::new(name.start_offset, end),
-                    object,
-                    IdentifierName::new(span, part, &ast),
-                    false,
-                    &ast,
-                ),
-            });
-            offset = end + 1;
+            oxc_span::Span::new(offset, end)
+        };
+        let mut parts = text.split('.');
+        let first = parts.next()?;
+        let mut span = span_of(name.start_offset, first);
+        let mut reference = Expression::new_identifier(span, first, &ast);
+        for part in parts {
+            span = span_of(span.end + 1, part);
+            reference = Expression::new_static_member_expression(
+                oxc_span::Span::new(name.start_offset, span.end),
+                reference,
+                IdentifierName::new(span, part, &ast),
+                false,
+                &ast,
+            );
         }
-        reference.map(|reference| self.builder.keep_expression(reference))
+        Some(self.builder.keep_expression(reference))
     }
 
     pub(super) fn tag_name(&mut self) -> Span {

@@ -171,7 +171,7 @@ struct Parser<'a, 'b> {
 
 impl<'a> Parser<'a, '_> {
     /// How the component's JavaScript parses.
-    fn source_type(&self) -> SourceType {
+    const fn source_type(&self) -> SourceType {
         if self.typescript {
             SourceType::ts()
         } else {

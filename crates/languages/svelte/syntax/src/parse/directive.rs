@@ -38,7 +38,7 @@ impl<'a> Parser<'a, '_> {
             attribute.kind,
             AttributeKind::Use | AttributeKind::Transition { .. } | AttributeKind::Animate
         ) {
-            attribute.target = self.directive_target(directive);
+            attribute.target = Some(self.directive_target(directive));
         }
         Ok(())
     }
@@ -70,7 +70,7 @@ impl<'a> Parser<'a, '_> {
                 attribute.shorthand = true;
             }
             AttributeKind::Use | AttributeKind::Transition { .. } | AttributeKind::Animate => {
-                attribute.target = self.directive_target(directive);
+                attribute.target = Some(self.directive_target(directive));
             }
             _ => {}
         }
@@ -91,32 +91,28 @@ impl<'a> Parser<'a, '_> {
     }
 
     /// What a directive's name (`fade`, `actions.tooltip`) refers to, as upstream builds it.
-    fn directive_target(&mut self, directive: Span) -> Option<ExpressionIdentifier> {
+    fn directive_target(&mut self, directive: Span) -> ExpressionIdentifier {
         let text: &'a str = directive.text(self.source_text);
         let ast = self.builder.ast();
-        let mut at = directive.start_offset;
-        let mut target = None;
-        for part in text.split('.') {
-            let span = oxc_span::Span::new(at, at + part.len() as u32);
-            at = span.end + 1;
-            target = Some(match target {
-                None => Expression::new_identifier(span, part, &ast),
-                Some(object) => {
-                    let whole = oxc_span::Span::new(directive.start_offset, span.end);
-                    if is_valid_identifier(part) {
-                        let property = IdentifierName::new(span, part, &ast);
-                        Expression::new_static_member_expression(
-                            whole, object, property, false, &ast,
-                        )
-                    } else {
-                        let property = Expression::new_string_literal(span, part, None, &ast);
-                        Expression::new_computed_member_expression(
-                            whole, object, property, false, &ast,
-                        )
-                    }
-                }
-            });
+        let span_of = |offset: u32, part: &str| {
+            let end = offset + u32::try_from(part.len()).expect("source positions use u32 bytes");
+            oxc_span::Span::new(offset, end)
+        };
+        let mut parts = text.split('.');
+        let first = parts.next().unwrap_or(text);
+        let mut span = span_of(directive.start_offset, first);
+        let mut target = Expression::new_identifier(span, first, &ast);
+        for part in parts {
+            span = span_of(span.end + 1, part);
+            let whole = oxc_span::Span::new(directive.start_offset, span.end);
+            target = if is_valid_identifier(part) {
+                let property = IdentifierName::new(span, part, &ast);
+                Expression::new_static_member_expression(whole, target, property, false, &ast)
+            } else {
+                let property = Expression::new_string_literal(span, part, None, &ast);
+                Expression::new_computed_member_expression(whole, target, property, false, &ast)
+            };
         }
-        target.map(|target| self.builder.keep_expression(target))
+        self.builder.keep_expression(target)
     }
 }
