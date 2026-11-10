@@ -21,7 +21,7 @@ impl LayoutInstructions {
                 Node::Fill { start, len } => {
                     return self.children(start, len).iter().all(|&k| self.is_empty(k));
                 }
-                Node::IfBreak { .. } | Node::BreakParent => return false,
+                Node::IfBreak { .. } | Node::BreakParent | Node::Embedded { .. } => return false,
             }
         }
     }

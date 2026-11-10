@@ -11,7 +11,7 @@ const SELF_CLOSING: &[&str] = &[
     "track", "wbr",
 ];
 
-impl Printer<'_, '_> {
+impl Printer<'_, '_, '_> {
     #[expect(
         clippy::too_many_lines,
         reason = "ports the plugin's element branch of `print` in one piece"
@@ -355,7 +355,7 @@ impl Printer<'_, '_> {
     }
 }
 
-impl Printer<'_, '_> {
+impl Printer<'_, '_, '_> {
     /// `this=` of `<svelte:component>` or `<svelte:element>`. Svelte reads a string `this` of
     /// `<svelte:element>` into a literal, which the plugin prints in double quotes, in braces if
     /// it was written in braces.
@@ -410,7 +410,7 @@ impl Printer<'_, '_> {
     }
 }
 
-impl Printer<'_, '_> {
+impl Printer<'_, '_, '_> {
     /// `canOmitSoftlineBeforeClosingTag`: under `bracketSameLine`, when the element does not hug
     /// what follows it, or is the last child of a block element.
     fn can_omit_softline_before_closing_tag(&self, identifier: TemplateNodeIdentifier) -> bool {

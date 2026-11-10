@@ -1,15 +1,14 @@
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
-use rsvelte_typescript_syntax::NodeIdentifier;
-
 use super::children::Child;
+use super::javascript::{Adjust, Part as JavaScriptPart};
 use super::{
     Attribute, AttributeKind, AttributeValue, Cow, ElementKind, LayoutInstructionIdentifier,
     LayoutInstructions, Part, Printer, R, Span, TagAttributes, TemplateNode,
     TemplateNodeIdentifier, Unsupported, only_ws,
 };
 use crate::options::Part as SortPart;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
-impl Printer<'_, '_> {
+impl Printer<'_, '_, '_> {
     /// `printTopLevelParts`: options, scripts, markup and styles in `svelteSortOrder`, or in the
     /// source's order without one.
     pub(super) fn top_level(&mut self) -> R<LayoutInstructionIdentifier> {
@@ -27,7 +26,7 @@ impl Printer<'_, '_> {
         let mut hoisted = Vec::new();
         for script in c.module.iter().chain(&c.instance) {
             self.refuse_script_language(&script.attributes)?;
-            let body = self.script_body(script.content, script.program)?;
+            let body = self.script_body(script.content)?;
             let tag = self.embed_tag("script", &script.attributes, body);
             hoisted.push((SortPart::Scripts, script.span, tag));
         }
@@ -395,11 +394,7 @@ impl Printer<'_, '_> {
     }
 
     /// `formatBodyContent` around the script's program.
-    pub(super) fn script_body(
-        &mut self,
-        content: Span,
-        program: NodeIdentifier,
-    ) -> R<LayoutInstructionIdentifier> {
+    pub(super) fn script_body(&mut self, content: Span) -> R<LayoutInstructionIdentifier> {
         let text = content.text(self.source_text);
         if text.trim_matches(is_ecmascript_whitespace).is_empty() {
             return Ok(if text.is_empty() {
@@ -408,7 +403,7 @@ impl Printer<'_, '_> {
                 self.d().hardline()
             });
         }
-        let body = self.javascript.program(program)?;
+        let body = self.embed(content, JavaScriptPart::Script, Adjust::default())?;
         Ok(self.indented_body(body))
     }
 
@@ -452,12 +447,12 @@ impl Printer<'_, '_> {
             return Err(Unsupported::at("a style language other than CSS", *n));
         }
         // The task formats only a component whose style sheet parsed.
-        let Ok(sheet) = &style.sheet else {
+        if style.sheet.is_err() {
             return Err(Unsupported::at(
                 "a style sheet that does not parse",
                 style.content,
             ));
-        };
+        }
         let text = style.content.text(self.source_text);
         if text.trim_matches(is_ecmascript_whitespace).is_empty() {
             return Ok(if text.is_empty() {
@@ -466,38 +461,25 @@ impl Printer<'_, '_> {
                 self.d().hardline()
             });
         }
-        let (width, tab) = (self.options.print_width, self.options.tab_width);
-        let unit = if self.options.use_tabs {
-            "\t".to_owned()
-        } else {
-            " ".repeat(tab)
+        let text = oxc_formatter_core::normalize_newlines(text, ['\r']);
+        let core = &self.embedder.options;
+        let options = oxc_formatter_css::CssFormatOptions {
+            indent_style: core.indent_style,
+            indent_width: core.indent_width,
+            line_width: core.line_width,
+            line_ending: core.line_ending,
+            single_quote: self.options.single_quote.into(),
+            ..oxc_formatter_css::CssFormatOptions::default()
         };
-        let indentation = if self.options.svelte_indent_script_and_style {
-            tab
-        } else {
-            0
-        };
-        let stylesheet = rsvelte_stylesheet_format::format(self.source_text, sheet, "", &unit)?;
-        // The CSS printer makes no width decisions; it is exact only while no line has to wrap.
-        if stylesheet.lines().any(|l| {
-            // The printer counts a tab of indentation as `tabWidth` columns.
-            let body = l.trim_start_matches('\t');
-            let tabs = l.len() - body.len();
-            indentation + tabs * tab + rsvelte_document_printer::string_width(body) > width
-        }) {
-            return Err(Unsupported::at(
-                "a CSS line longer than the print width",
-                style.span,
-            ));
-        }
-        let mut parts = Vec::new();
-        for (i, line) in stylesheet.trim_end_matches('\n').split('\n').enumerate() {
-            if i > 0 {
-                parts.push(self.d().hardline());
-            }
-            parts.push(self.d().text(line));
-        }
-        let body = self.cat(&parts);
+        #[expect(
+            clippy::map_err_ignore,
+            reason = "oxc's diagnostic points into the sheet, not the component"
+        )]
+        let ir = oxc_formatter_css::format_to_ir(&self.embedder.session, &text, options, None)
+            .map_err(|_| {
+                Unsupported::at("CSS that oxc's formatter does not format", style.content)
+            })?;
+        let body = self.keep(ir.ir);
         Ok(self.indented_body(body))
     }
 }

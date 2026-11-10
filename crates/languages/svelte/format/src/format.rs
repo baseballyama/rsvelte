@@ -8,23 +8,26 @@
 //! the plugin mutates the text of its tree as it goes, and this port keeps that state in a side
 //! table (`text`) instead of mutating the shared, immutable component.
 //!
-//! Script and expression bodies go through `rsvelte_typescript_format`'s formatter, style bodies
-//! through `rsvelte_stylesheet_format`'s. Anything neither port covers is an [`Unsupported`] error,
-//! never an approximation.
+//! Script and expression bodies go through `oxc_formatter`, style bodies through
+//! `oxc_formatter_css`, and oxc's printer prints the whole document. Anything this port does not
+//! cover is an [`Unsupported`] error, never an approximation.
 
 use std::borrow::Cow;
 
-use rsvelte_document_printer::{
-    LayoutInstructionIdentifier, LayoutInstructions, PrintOptions, Refused,
+use oxc_allocator::Allocator;
+use oxc_formatter::{BracketSameLine, JsFormatOptions, QuoteStyle};
+use oxc_formatter_core::{
+    CoreFormatOptions, Document, FormatSession, FormatState, Formatter, IndentStyle, IndentWidth,
+    InputKind, LineEnding, LineWidth, PrintError, PrintWidth, PrinterOptions,
 };
+use rsvelte_document_printer::{LayoutInstructionIdentifier, LayoutInstructions, Unlowered};
+pub(crate) use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
-use rsvelte_kernel::source::positions::{LineIndex, Span};
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TagAttributes, TemplateNode,
-    TemplateNodeIdentifier,
+    TemplateNodeIdentifier, TokenType,
 };
-pub(crate) use rsvelte_typescript_format::Unsupported;
-use rsvelte_typescript_format::{Formatter, Options as JavaScriptOptions};
 
 use crate::options::{EndOfLine, Options};
 
@@ -34,13 +37,7 @@ type R<T> = Result<T, Unsupported>;
 ///
 /// [`Unsupported`] if the component holds a construct this formatter does not print, or a
 /// flat-only layout that does not fit.
-/// `lines` is `source_text`'s, which the pipeline builds once per document.
-pub(crate) fn format(
-    c: &Component,
-    source_text: &str,
-    lines: &LineIndex,
-    options: &Options,
-) -> R<String> {
+pub(crate) fn format(c: &Component, source_text: &str, options: &Options) -> R<String> {
     if let Some(name) = unported(options) {
         return Err(Unsupported::nowhere(name));
     }
@@ -75,19 +72,22 @@ pub(crate) fn format(
     refuse_rejected_tags(c, source_text)?;
     rsvelte_typescript_format::refuse_strict_errors(&c.javascript, source_text)?;
 
+    let core = core_options(options)?;
+    let allocator = Allocator::default();
     let mut docs = LayoutInstructions::new();
-    let javascript = Formatter::new(
-        &c.javascript,
-        source_text,
-        lines,
-        &mut docs,
-        JavaScriptOptions::default(),
-    );
     let mut f = Printer {
         c,
         options,
         source_text,
-        javascript,
+        docs: &mut docs,
+        embedder: javascript::Embedder {
+            session: FormatSession::new(&allocator, InputKind::PhysicalFile),
+            layouts: Vec::new(),
+            typescript: is_typescript(c, source_text),
+            core,
+            options: javascript_options(options, core),
+        },
+        typescript: patterns::TypeScript::new(&c.javascript),
         text: vec![None; c.nodes.len()],
         in_pre: false,
         in_head: false,
@@ -96,14 +96,25 @@ pub(crate) fn format(
         buffers: Vec::new(),
     };
     let root = f.top_level()?;
-    let print = PrintOptions {
-        width: options.print_width,
-        indent_spaces: (!options.use_tabs).then_some(options.tab_width),
-        tab_width: options.tab_width,
-    };
-    let printed = docs
-        .print(root, &print)
-        .map_err(|Refused| Unsupported::nowhere("a layout that does not fit on one line"))?;
+    let javascript::Embedder {
+        session, layouts, ..
+    } = f.embedder;
+    let mut state = FormatState::new_with_session(javascript::Context { options: core }, session);
+    let mut formatter = Formatter::new(&mut state);
+    docs.lower(root, &layouts, &mut formatter)
+        .map_err(|Unlowered| Unsupported::nowhere("a layout only checked flat"))?;
+    let elements = formatter.into_vec();
+    let print = PrinterOptions::default()
+        .with_print_width(PrintWidth::new(options.print_width as u32))
+        .with_indent_style(core.indent_style)
+        .with_indent_width(core.indent_width)
+        .with_line_ending(LineEnding::Lf);
+    let printed = Document::new(elements, Vec::new())
+        .print(text.len(), print)
+        .map_err(|PrintError::InvalidDocument(_)| {
+            Unsupported::nowhere("a document oxc's printer rejects")
+        })?
+        .into_code();
     let eol = match options.end_of_line {
         EndOfLine::Lf => "\n",
         EndOfLine::Crlf => "\r\n",
@@ -115,19 +126,63 @@ pub(crate) fn format(
             None => "\n",
         },
     };
-    // Prettier reads `\r\n` as `\n` before parsing; here a `\r` reaches the output only in text
-    // copied from the source. Its printer then writes every `\n` as the chosen line ending.
-    let printed = if printed.contains('\r') {
-        printed.replace("\r\n", "\n")
-    } else {
-        printed
-    };
+    // Prettier's printer writes every `\n` as the chosen line ending.
     let printed = if eol == "\n" {
         printed
     } else {
         printed.replace('\n', eol)
     };
     Ok(format!("{bom}{printed}"))
+}
+
+/// The options oxc's printer and formatters share.
+fn core_options(options: &Options) -> R<CoreFormatOptions> {
+    let tab_width = u8::try_from(options.tab_width)
+        .ok()
+        .and_then(|w| IndentWidth::try_from(w).ok())
+        .ok_or_else(|| Unsupported::nowhere("a `tabWidth` oxc's formatter does not take"))?;
+    let line_width = u16::try_from(options.print_width)
+        .ok()
+        .and_then(|w| LineWidth::try_from(w).ok())
+        .ok_or_else(|| Unsupported::nowhere("a `printWidth` oxc's formatter does not take"))?;
+    Ok(CoreFormatOptions {
+        indent_style: if options.use_tabs {
+            IndentStyle::Tab
+        } else {
+            IndentStyle::Space
+        },
+        indent_width: tab_width,
+        line_width,
+        line_ending: LineEnding::Lf,
+    })
+}
+
+/// Prettier's options for the JavaScript in the component; [`unported`] has refused the others.
+fn javascript_options(options: &Options, core: CoreFormatOptions) -> JsFormatOptions {
+    JsFormatOptions {
+        indent_style: core.indent_style,
+        indent_width: core.indent_width,
+        line_width: core.line_width,
+        line_ending: core.line_ending,
+        jsx_quote_style: if options.jsx_single_quote {
+            QuoteStyle::Single
+        } else {
+            QuoteStyle::Double
+        },
+        bracket_same_line: BracketSameLine::from(options.bracket_same_line),
+        ..JsFormatOptions::default()
+    }
+}
+
+/// The plugin's `langTsRegex` (`/\slang=["']?ts["']?/`) on a `<script>` tag: its value starts
+/// with `ts`.
+fn is_typescript(c: &Component, source_text: &str) -> bool {
+    c.module.iter().chain(&c.instance).any(|s| {
+        s.attributes.iter().any(|&(name, value)| {
+            name.text(source_text) == "lang"
+                && value.is_some_and(|v| v.text(source_text).starts_with("ts"))
+        })
+    })
 }
 
 /// The plugin's `hasPragma`: `/^\s*<!--\s*@(format|prettier)\W/`.
@@ -151,9 +206,9 @@ fn has_pragma(text: &str) -> bool {
     })
 }
 
-/// Any JavaScript comment outside the scripts: the template printer does not place them yet, and
-/// the expression printer only checks the comments inside its own expression, so one in a tag or
-/// directive outside it (`bind:value={/* a */ b}`) would be lost.
+/// Any JavaScript comment outside the scripts: the template printer does not place them yet, so
+/// one in an expression, a directive (`bind:value={/* a */ b}`) or between a tag's attributes
+/// (`<A // b={1}>`, only a token) would be lost.
 fn refuse_template_comments(c: &Component) -> R<()> {
     let scripts: Vec<Span> = c
         .module
@@ -161,17 +216,23 @@ fn refuse_template_comments(c: &Component) -> R<()> {
         .chain(&c.instance)
         .map(|s| s.content)
         .collect();
-    match c.javascript.comments.iter().find(|comment| {
-        !scripts
-            .iter()
-            .any(|s| s.start_offset <= comment.start_offset && comment.end_offset <= s.end_offset)
-    }) {
-        Some(&comment) => Err(Unsupported::at(
-            "comments in the template's JavaScript",
-            comment,
-        )),
-        None => Ok(()),
-    }
+    let mut comments = c
+        .tokens
+        .iter()
+        .filter(|t| t.kind == TokenType::JavaScriptComment)
+        .map(|t| t.span);
+    comments
+        .find(|comment| {
+            !scripts.iter().any(|s| {
+                s.start_offset <= comment.start_offset && comment.end_offset <= s.end_offset
+            })
+        })
+        .map_or(Ok(()), |comment| {
+            Err(Unsupported::at(
+                "comments in the template's JavaScript",
+                comment,
+            ))
+        })
 }
 
 /// What Svelte's parser rejects and this parser does not yet: a root-only `svelte:` tag twice.
@@ -256,11 +317,13 @@ pub(crate) fn unported(o: &Options) -> Option<&'static str> {
     .find_map(|(name, differs)| differs.then_some(name))
 }
 
-struct Printer<'a, 'd> {
+struct Printer<'a, 'd, 'x> {
     c: &'a Component,
     options: &'a Options,
     source_text: &'a str,
-    javascript: Formatter<'d>,
+    docs: &'d mut LayoutInstructions,
+    embedder: javascript::Embedder<'x>,
+    typescript: patterns::TypeScript,
     /// The plugin's mutable `raw` of each text node, once it differs from the source.
     text: Vec<Option<Cow<'a, str>>>,
     /// The plugin's `isPreTagContent(path)`.
@@ -322,6 +385,7 @@ mod blocks;
 mod children;
 mod elements;
 mod embed;
+mod javascript;
 mod patterns;
 mod tree;
 

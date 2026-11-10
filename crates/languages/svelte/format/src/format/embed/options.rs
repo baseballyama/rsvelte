@@ -5,7 +5,7 @@ use rsvelte_typescript_syntax::syntax_tree::Kind;
 
 use super::{Attribute, AttributeKind, AttributeValue, Part, Printer};
 
-impl Printer<'_, '_> {
+impl Printer<'_, '_, '_> {
     /// Whether Svelte's `read_options` surely accepts `a`; the rest of what it accepts is refused.
     pub(super) fn is_valid_option(&self, a: &Attribute) -> bool {
         let (c, source_text) = (self.c, self.source_text);

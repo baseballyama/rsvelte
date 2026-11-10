@@ -4,7 +4,6 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_kernel::source::positions::LineIndex;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 
 use crate::Options;
@@ -54,12 +53,7 @@ impl Task for Format {
                 return;
             }
         };
-        match formatted(
-            c,
-            context.source_text(),
-            context.line_index(),
-            &self.options,
-        ) {
+        match formatted(c, context.source_text(), &self.options) {
             Ok(text) => out.file("svelte", text),
             Err(diagnostic) => out.diagnostics.push(diagnostic),
         }
@@ -73,21 +67,15 @@ impl Task for Format {
 /// The parse error, or the first construct the formatter does not handle yet.
 pub fn format(source_text: &str, options: &Options) -> Result<String, Diagnostic> {
     let component = rsvelte_svelte_syntax::parse::parse(source_text)?;
-    formatted(
-        &component,
-        source_text,
-        &LineIndex::new(source_text),
-        options,
-    )
+    formatted(&component, source_text, options)
 }
 
 fn formatted(
     component: &Component,
     source_text: &str,
-    lines: &LineIndex,
     options: &Options,
 ) -> Result<String, Diagnostic> {
-    crate::format::format(component, source_text, lines, options).map_err(|u| {
+    crate::format::format(component, source_text, options).map_err(|u| {
         Diagnostic::error(
             "format_unsupported",
             format!("not supported by the formatter yet: {}", u.what),

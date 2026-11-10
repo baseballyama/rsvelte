@@ -6,7 +6,7 @@ fn refusal(source_text: &str) -> (&'static str, Option<&str>) {
 
 fn refusal_with<'s>(source_text: &'s str, options: &Options) -> (&'static str, Option<&'s str>) {
     let c = rsvelte_svelte_syntax::parse::parse(source_text).expect("parses");
-    let u = format(&c, source_text, &LineIndex::new(source_text), options).expect_err("refused");
+    let u = format(&c, source_text, options).expect_err("refused");
     (
         u.what,
         u.source_location.span().map(|s| s.text(source_text)),
@@ -21,10 +21,6 @@ fn a_refusal_points_at_the_construct() {
             "<script> or <style> inside an element",
             Some("<script>a</script>")
         )
-    );
-    assert_eq!(
-        refusal("<script>\n\tlet a = { 'b': 1 };\n</script>\n"),
-        ("quoted or numeric property key", Some("'b'"))
     );
     assert_eq!(
         refusal("{#each xs as {a: b = 1}}{b}{/each}\n"),
@@ -70,8 +66,7 @@ fn every_option_value_not_printed_yet_is_refused() {
 fn print_width_and_tab_width_reach_the_output() {
     let source_text = "<div>\n<p>aaaa bbbb cccc dddd</p>\n</div>\n";
     let c = rsvelte_svelte_syntax::parse::parse(source_text).expect("parses");
-    let lines = LineIndex::new(source_text);
-    let print = |json: &str| format(&c, source_text, &lines, &options(json)).expect("prints");
+    let print = |json: &str| format(&c, source_text, &options(json)).expect("prints");
     assert_eq!(print("{}"), "<div>\n  <p>aaaa bbbb cccc dddd</p>\n</div>\n");
     assert_eq!(
         print(r#"{"tabWidth": 3}"#),
@@ -89,7 +84,7 @@ fn formatted(source_text: &str) -> String {
 
 fn formatted_with(source_text: &str, options: &Options) -> String {
     let c = rsvelte_svelte_syntax::parse::parse(source_text).expect("parses");
-    format(&c, source_text, &LineIndex::new(source_text), options).expect("prints")
+    format(&c, source_text, options).expect("prints")
 }
 
 #[test]
@@ -393,13 +388,4 @@ fn what_svelte_rejects_is_refused() {
 
 /// The `<title>` group fits only because the binary expression after it would break, a layout
 /// the expression printer does not build: Prettier prints `<title>x</title>{a +\n  b}`.
-#[test]
-fn a_fit_that_needs_an_unbuilt_broken_layout_is_refused() {
-    let options = options(r#"{"printWidth": 20}"#);
-    assert_eq!(
-        refusal_with("<title>x</title>{a + b}\n", &options).0,
-        "a layout that does not fit on one line"
-    );
-}
-
 mod review;

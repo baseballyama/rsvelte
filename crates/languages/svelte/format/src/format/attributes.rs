@@ -61,7 +61,7 @@ fn refuse_modifiers(a: &Attribute) -> R<()> {
     Ok(())
 }
 
-impl Printer<'_, '_> {
+impl Printer<'_, '_, '_> {
     /// The plugin's `print` for an attribute, a spread, an attachment or a directive.
     pub(super) fn attribute(
         &mut self,
@@ -83,14 +83,16 @@ impl Printer<'_, '_> {
         let directive = a
             .directive_name(&comp.modifiers)
             .map(|n| n.text(source_text));
-        // `value={value}`: an identifier named like the attribute or directive.
+        // `value={value}`: an identifier named like the attribute or directive, without a type.
+        let typed = lone.is_some_and(|e| self.typescript.wraps(e));
         let named_like = |n: &str| {
-            lone.is_some_and(|e| {
-                matches!(
-                    comp.javascript.kind(e),
-                    rsvelte_typescript_syntax::Kind::Identifier(_)
-                ) && comp.javascript.name(e) == n
-            })
+            !typed
+                && lone.is_some_and(|e| {
+                    matches!(
+                        comp.javascript.kind(e),
+                        rsvelte_typescript_syntax::Kind::Identifier(_)
+                    ) && comp.javascript.name(e) == n
+                })
         };
         match a.kind {
             AttributeKind::Attach | AttributeKind::Spread => {

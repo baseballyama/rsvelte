@@ -16,11 +16,13 @@ use std::num::NonZeroU32;
 
 mod construct;
 mod inspect;
+mod lower;
 mod printer;
 mod rewrite;
 mod trace;
 mod width;
 
+pub use lower::Unlowered;
 use rsvelte_kernel::performance::buffer_pool;
 pub use trace::{GroupDecision, TraceEvent, TraceMode};
 pub use width::{has_emoji_sequence, string_width};
@@ -89,6 +91,12 @@ enum Node {
         group: GroupIdentifier,
     },
     BreakParent,
+    /// Layout another formatter built, which only [`LayoutInstructions::lower`] prints: the
+    /// index into the list it is given, and whether it holds a forced break.
+    Embedded {
+        index: u32,
+        breaks: bool,
+    },
     /// Printed flat; with `every_line`, each line it prints flat after a forced break must fit
     /// too, where Prettier would decide that line's groups afresh.
     FlatOnly {

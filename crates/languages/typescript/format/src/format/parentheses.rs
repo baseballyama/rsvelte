@@ -1,6 +1,6 @@
 use super::{
     BinaryOperator, Formatter, Kind, LogicalOperator, NodeIdentifier, Op, Slot, UnaryOperator,
-    mixes_nullish, op_of, should_flatten,
+    op_of, should_flatten,
 };
 
 impl Formatter<'_> {
@@ -172,4 +172,11 @@ impl Formatter<'_> {
             _ => callee_or_object,
         }
     }
+}
+
+/// `??` beside `||` or `&&`, which JavaScript requires parentheses around.
+fn mixes_nullish(a: Op, b: Op) -> bool {
+    let nullish = |o: Op| o == Op::Log(LogicalOperator::Nullish);
+    let and_or = |o: Op| matches!(o, Op::Log(LogicalOperator::And | LogicalOperator::Or));
+    (nullish(a) && and_or(b)) || (and_or(a) && nullish(b))
 }

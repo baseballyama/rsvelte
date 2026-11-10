@@ -6,8 +6,8 @@
 <section class="list" data-count={total}>
   <h2>{title}</h2>
   {#if items.length > 0}<p>
-      {total} items, the first one is {items[0]} and there is a long tail of text
-      here
+      {total} items, the first one is {items[0]} and there is a long tail of
+      text here
     </p>{:else}<p>none</p>{/if}
 </section>
 
