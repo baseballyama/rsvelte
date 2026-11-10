@@ -122,10 +122,6 @@ pub fn process_instance_script_tag(
     };
 
     let has_imports = !imports.is_empty();
-    // With imports the `\n` separating the type alias from what precedes it
-    // already comes from the last hoisted import; without them the alias has to
-    // carry it.
-    let type_decl_prefix = if has_imports { "" } else { "\n" };
 
     // Build $$ComponentProps type declaration for TS files
     //
@@ -177,7 +173,9 @@ pub fn process_instance_script_tag(
         && !force_inside_render
         && let Some(type_text) = exported_names.props_type_text.as_ref()
     {
-        format!("{type_decl_prefix};type $$ComponentProps =  {type_text};")
+        // `moveHoistableInterfaces` prepends `\n` to the alias whether or not
+        // imports were hoisted before it.
+        format!("\n;type $$ComponentProps =  {type_text};")
     } else {
         String::new()
     };
@@ -226,8 +224,7 @@ pub fn process_instance_script_tag(
     // the output (snippets are moved to `sp`, and `part_b` follows them) but
     // AFTER the hoisted imports — which are relocated chunks, so with imports
     // present the typedef has to ride along in the last one's outro instead of
-    // sitting in `part_a`. A `\n` separator matches the blank line the JS
-    // reference produces.
+    // sitting in `part_a`.
     let ts_component_props_in_part_a =
         !hoistable_snippet_ranges.is_empty() && !ts_component_props_before_render.is_empty();
     if ts_component_props_in_part_a && !has_imports {
@@ -239,25 +236,13 @@ pub fn process_instance_script_tag(
     } else {
         ""
     };
-    // A hoisted type declaration is moved after the imports, so the `\n` that
-    // `type_decl_prefix` leaves to the last import no longer sits next to the
-    // alias — put it back here.
-    let part_b_prefix = if has_imports
-        && !exported_names.hoistable_type_ranges.is_empty()
-        && !ts_component_props_before_render.is_empty()
-        && !ts_component_props_in_part_a
-    {
-        "\n"
-    } else {
-        ""
-    };
     let part_b_component_props = if ts_component_props_in_part_a {
         ""
     } else {
         &ts_component_props_before_render
     };
     let part_b = format!(
-        "{part_b_prefix}{part_b_component_props}{template_comment}{async_prefix}function $$render{render_generics}() {{{dollar_decls}{ts_component_props_inside_render}{trailing_newline}"
+        "{part_b_component_props}{template_comment}{async_prefix}function $$render{render_generics}() {{{dollar_decls}{ts_component_props_inside_render}{trailing_newline}"
     );
 
     // Split position: right after the `<` of `<script>`. This matches
@@ -282,7 +267,7 @@ pub fn process_instance_script_tag(
         let last_moved_end =
             move_all_instance_imports(imports, source, content_start, sp, has_module_script, str);
         if ts_component_props_in_part_a && let Some(end) = last_moved_end {
-            str.append_left_fmt(end, format_args!("\n{ts_component_props_before_render}"));
+            str.append_left(end, &ts_component_props_before_render);
         }
         // Move hoistable type/interface declarations first so they
         // sit BEFORE the snippets in the chunk list, matching the JS
