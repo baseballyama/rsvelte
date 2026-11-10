@@ -26,8 +26,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             unreachable!("a component element")
         };
         let reference = reference(tree, identifier);
-        let intermediate = is_dynamic(self.res, self.javascript.get_expression(reference))
-            .then(|| self.names.generate(element.name.text(self.source_text)));
+        let intermediate = is_dynamic(
+            self.res,
+            self.javascript
+                .get_expression(reference)
+                .get_inner_expression(),
+        )
+        .then(|| self.names.generate(element.name.text(self.source_text)));
         let mut memo = Memo::derived();
         let mut parts = Vec::new();
         for prop in props(tree.attributes(element.attributes)) {
@@ -38,7 +43,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let props = props_expression(b, parts, Target::Client);
         let mut statements: Vec<Statement<'o>> = (memo.entries.into_iter())
             .map(|m| {
-                let source = self.javascript.get_expression(m.source);
+                let source = self
+                    .javascript
+                    .get_expression(m.source)
+                    .get_inner_expression();
                 let thunk = callback(b, self.res, Some(source), m.value, Created::Template);
                 b.let_(&m.name, Some(b.runtime("derived", [thunk])))
             })
@@ -99,7 +107,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     fn wraps_in_derived(&self, value: &AttributeValue) -> bool {
         let simple = |e| {
             matches!(
-                self.javascript.get_expression(e),
+                self.javascript.get_expression(e).get_inner_expression(),
                 Expression::Identifier(_)
                     | Expression::StaticMemberExpression(_)
                     | Expression::ComputedMemberExpression(_)

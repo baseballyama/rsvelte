@@ -69,7 +69,9 @@ pub(super) fn standalone_component(
     (matches!(&compiler_syntax_tree.node(identifier).kind, NodeKind::Element(element) if element.kind == ElementKind::Component)
         && !is_dynamic(
             res,
-            javascript.get_expression(reference(compiler_syntax_tree, identifier)),
+            javascript
+                .get_expression(reference(compiler_syntax_tree, identifier))
+                .get_inner_expression(),
         ))
     .then_some(identifier)
 }

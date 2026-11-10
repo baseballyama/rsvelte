@@ -47,7 +47,7 @@ struct UnwrapBindable<'w, 'r, 'o>(&'w mut ScriptRewrite<'r, 'o>);
 
 impl<'o> VisitMut<'o> for UnwrapBindable<'_, '_, 'o> {
     fn visit_assignment_pattern(&mut self, it: &mut AssignmentPattern<'o>) {
-        if let Some(("$bindable", argument)) = self.0.res.rune(&it.right) {
+        if let Some(("$bindable", argument)) = self.0.res.rune(it.right.get_inner_expression()) {
             let argument = argument.map(|a| a.clone_in_with_semantic_ids(self.0.b.allocator()));
             it.right = argument.unwrap_or_else(|| self.0.b.void0());
         }

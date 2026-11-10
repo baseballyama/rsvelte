@@ -30,7 +30,13 @@ pub(super) fn build(res: &Resolution, custom_element: bool) -> FxHashSet<Referen
         }
         for &reference in scoping.get_resolved_reference_ids(symbol) {
             let node = scoping.get_reference(reference).node_id();
-            let member = nodes.parent_id(node);
+            // Upstream erases types first: `(rest as T).name` reads `rest.name`.
+            let Some(member) = nodes
+                .ancestor_ids(node)
+                .find(|&a| !is_typescript_wrapper(nodes.kind(a)))
+            else {
+                continue;
+            };
             let AstKind::StaticMemberExpression(read) = nodes.kind(member) else {
                 continue;
             };
@@ -47,4 +53,15 @@ pub(super) fn build(res: &Resolution, custom_element: bool) -> FxHashSet<Referen
         }
     }
     reads
+}
+
+fn is_typescript_wrapper(kind: AstKind<'_>) -> bool {
+    matches!(
+        kind,
+        AstKind::TSAsExpression(_)
+            | AstKind::TSSatisfiesExpression(_)
+            | AstKind::TSNonNullExpression(_)
+            | AstKind::TSTypeAssertion(_)
+            | AstKind::TSInstantiationExpression(_)
+    )
 }

@@ -31,7 +31,9 @@ pub(super) enum Shadow {
 impl CustomElement {
     /// The value of the option `name`, its first occurrence as `parse` read it.
     pub(super) fn option<'t>(&self, tree: &'t Tree, name: &str) -> Option<&'t Expression<'t>> {
-        let Expression::ObjectExpression(object) = tree.get_expression(self.options?) else {
+        let Expression::ObjectExpression(object) =
+            tree.get_expression(self.options?).get_inner_expression()
+        else {
             return None;
         };
         object
@@ -60,7 +62,7 @@ pub(super) fn parse(
     let Some(expression) = single_expression(&attribute.value) else {
         return invalid("svelte_options_invalid_customelement", attribute.span);
     };
-    let properties = match tree.get_expression(expression) {
+    let properties = match tree.get_expression(expression).get_inner_expression() {
         Expression::NullLiteral(_) => return Ok(None),
         Expression::ObjectExpression(object) => &object.properties,
         _ => return invalid("svelte_options_invalid_customelement", attribute.span),

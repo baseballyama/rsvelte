@@ -35,7 +35,7 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
                 let parent_is_boundary = tree.node(identifier).parent.is_some_and(|parent| matches!(&tree.node(parent).kind, NodeKind::Element(element) if element.kind == ElementKind::Metadata(Some(MetadataTag::Boundary))));
                 if parent_is_boundary
                     && matches!(
-                        input.component.javascript.get_expression(snippet.name),
+                        input.component.javascript.get_expression(snippet.name).get_inner_expression(),
                         Expression::Identifier(name) if matches!(name.name.as_str(), "failed" | "pending")
                     )
                 {
@@ -154,6 +154,7 @@ fn is_bindable(
         .component
         .javascript
         .get_expression(target)
+        .get_inner_expression()
         .get_inner_expression();
     let Some(root) = member_root(target) else {
         return false;
@@ -198,6 +199,7 @@ fn unbound(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIdentif
         .component
         .javascript
         .get_expression(target)
+        .get_inner_expression()
         .get_inner_expression()
     {
         Expression::Identifier(name) => {

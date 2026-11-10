@@ -100,7 +100,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let b = self.b;
         let meta = self.an.meta(handler);
         let built = self.expression(handler);
-        let not_import = match self.javascript.get_expression(handler) {
+        let not_import = match self
+            .javascript
+            .get_expression(handler)
+            .get_inner_expression()
+        {
             Expression::Identifier(i) => self
                 .res
                 .symbol(i)

@@ -14,7 +14,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         e: ExpressionIdentifier,
         rest_reads: bool,
     ) -> Expression<'o> {
-        self.rewrite(self.javascript.get_expression(e), rest_reads)
+        self.rewrite(
+            self.javascript.get_expression(e).get_inner_expression(),
+            rest_reads,
+        )
     }
 
     /// `e`, a node of the component's tree, rewritten for the client.

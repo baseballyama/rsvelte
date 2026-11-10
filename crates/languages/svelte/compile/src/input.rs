@@ -29,7 +29,12 @@ pub(crate) fn static_string<'a>(
     match value {
         AttributeValue::Static(value) => Some(value),
         AttributeValue::Expression { expression, .. } | AttributeValue::Shorthand(expression) => {
-            match input.component.javascript.get_expression(*expression) {
+            match input
+                .component
+                .javascript
+                .get_expression(*expression)
+                .get_inner_expression()
+            {
                 oxc_ast::ast::Expression::StringLiteral(literal) => literal.value.as_str(),
                 _ => None,
             }

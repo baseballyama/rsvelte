@@ -1,4 +1,7 @@
+use oxc_ast::AstKind;
+use oxc_semantic::SymbolId;
 use oxc_syntax::symbol::SymbolFlags;
+use rsvelte_svelte_semantic::resolve::Resolution;
 
 use super::{
     Builder, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Diagnostic, FxHashMap, NodeKind,
@@ -21,7 +24,7 @@ pub(super) fn prepare<'c, 'o>(
         .symbol_ids()
         .filter(|&s| {
             let flags = scoping.symbol_flags(s);
-            flags.intersects(SymbolFlags::Value | SymbolFlags::Import)
+            flags.intersects(SymbolFlags::Value | SymbolFlags::Import) && !declared_in_type(res, s)
         })
         .map(|s| scoping.symbol_name(s));
     let referenced = scoping
@@ -116,4 +119,21 @@ fn each_index_names(
         &mut out,
     );
     out
+}
+
+/// A name a type declares, such as a function type's parameter, which erasing types removes.
+fn declared_in_type(res: &Resolution, symbol: SymbolId) -> bool {
+    let scoping = res.scoping();
+    let scope = scoping.get_node_id(scoping.symbol_scope_id(symbol));
+    match res.semantic().nodes().kind(scope) {
+        AstKind::TSFunctionType(_)
+        | AstKind::TSConstructorType(_)
+        | AstKind::TSMethodSignature(_)
+        | AstKind::TSCallSignatureDeclaration(_)
+        | AstKind::TSConstructSignatureDeclaration(_)
+        | AstKind::TSMappedType(_)
+        | AstKind::TSConditionalType(_) => true,
+        AstKind::Function(f) => f.body.is_none(),
+        _ => false,
+    }
 }

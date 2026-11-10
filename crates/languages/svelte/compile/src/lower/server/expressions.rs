@@ -20,12 +20,13 @@ impl<'o> ServerCompilationContext<'_, 'o> {
 
     /// A template expression, lowered into the output.
     pub(super) fn expression(&self, e: ExpressionIdentifier) -> Expression<'o> {
-        self.rewrite().expression(self.javascript.get_expression(e))
+        self.rewrite()
+            .expression(self.javascript.get_expression(e).get_inner_expression())
     }
 
     /// Upstream's `scope.evaluate` of a template expression.
     pub(super) fn evaluate(&self, e: ExpressionIdentifier) -> Evaluation {
-        Evaluator::new(self.res).evaluate(self.javascript.get_expression(e))
+        Evaluator::new(self.res).evaluate(self.javascript.get_expression(e).get_inner_expression())
     }
 
     /// A snippet's parameters, lowered into the output.

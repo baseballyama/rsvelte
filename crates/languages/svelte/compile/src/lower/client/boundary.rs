@@ -55,7 +55,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     fn snippet_name(&self, snippet: &Snippet) -> &'o str {
-        match self.javascript.get_expression(snippet.name) {
+        match self
+            .javascript
+            .get_expression(snippet.name)
+            .get_inner_expression()
+        {
             oxc_ast::ast::Expression::Identifier(name) => name.name.as_str(),
             _ => unreachable!("a snippet is named by an identifier"),
         }

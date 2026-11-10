@@ -210,7 +210,12 @@ fn validate_options(
         let value = match attribute.value {
             AttributeValue::Boolean => Some(true),
             _ => single_expression(&attribute.value).and_then(|e| {
-                match input.component.javascript.get_expression(e) {
+                match input
+                    .component
+                    .javascript
+                    .get_expression(e)
+                    .get_inner_expression()
+                {
                     oxc_ast::ast::Expression::BooleanLiteral(literal) => Some(literal.value),
                     _ => None,
                 }

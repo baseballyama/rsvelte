@@ -3,6 +3,7 @@ use oxc_ast::ast::{Expression, VariableDeclarator};
 use oxc_ast_visit::{VisitMut, walk_mut};
 
 use super::super::derived::{Created, keeps_callee};
+use super::super::javascript::without_typescript;
 use super::{ScriptRewrite, Target, should_proxy_read};
 
 /// Lowers a `$state`, `$state.raw`, `$derived` or `$derived.by` declarator at any depth in
@@ -14,7 +15,8 @@ pub(super) fn lower_value_declarator<'o>(
     let Some(init) = &d.init else {
         return false;
     };
-    let Some((rune, argument)) = rw.res.rune(init) else {
+    // Upstream erases types before it reads a rune: `$derived(x) as T` is `$derived(x)`.
+    let Some((rune, argument)) = rw.res.rune(init.get_inner_expression()) else {
         return false;
     };
     if !matches!(rune, "$state" | "$state.raw" | "$derived" | "$derived.by") {
@@ -22,10 +24,11 @@ pub(super) fn lower_value_declarator<'o>(
     }
     let b = rw.b;
     // What the value is decided on is the argument as written, before the rewrite reads it.
+    let argument = argument.map(Expression::get_inner_expression);
     let proxy = rune == "$state" && argument.is_some_and(|a| should_proxy_read(rw.res, a));
     let keeps = rune == "$derived"
         && keeps_callee(rw.res, argument, Created::Script(super::super::span_of(d)));
-    let Some(Expression::CallExpression(mut call)) = d.init.take() else {
+    let Some(Expression::CallExpression(mut call)) = d.init.take().map(without_typescript) else {
         unreachable!("a rune is a call")
     };
     let mut value = call.arguments.first_mut().map_or_else(

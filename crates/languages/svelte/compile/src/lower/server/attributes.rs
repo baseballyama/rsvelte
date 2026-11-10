@@ -19,8 +19,13 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let parts = match &a.value {
             &AttributeValue::Expression { expression, quoted } => {
                 let v = self.expression(expression);
-                return if class && !quoted && needs_clsx(self.javascript.get_expression(expression))
-                {
+                return if class
+                    && !quoted
+                    && needs_clsx(
+                        self.javascript
+                            .get_expression(expression)
+                            .get_inner_expression(),
+                    ) {
                     b.runtime("clsx", [v])
                 } else {
                     v
@@ -28,7 +33,12 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             }
             &AttributeValue::Shorthand(expression) => {
                 let v = self.expression(expression);
-                return if class && needs_clsx(self.javascript.get_expression(expression)) {
+                return if class
+                    && needs_clsx(
+                        self.javascript
+                            .get_expression(expression)
+                            .get_inner_expression(),
+                    ) {
                     b.runtime("clsx", [v])
                 } else {
                     v

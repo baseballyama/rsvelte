@@ -17,7 +17,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     ) -> (Expression<'o>, bool) {
         let meta = self.an.meta(expression);
         let mut built = self.expression(expression);
-        if unquoted && needs_clsx(self.javascript.get_expression(expression)) {
+        if unquoted
+            && needs_clsx(
+                self.javascript
+                    .get_expression(expression)
+                    .get_inner_expression(),
+            )
+        {
             built = self.b.runtime("clsx", [built]);
         }
         (self.memoize(memo, expression, built, false), meta.has_state)

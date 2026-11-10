@@ -53,7 +53,12 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let reference = reference(tree, identifier);
         let callee = self.expression(reference);
         let statement = b.stmt(b.call(callee, [b.id("$$renderer"), props]));
-        if is_dynamic(self.res, self.javascript.get_expression(reference)) {
+        if is_dynamic(
+            self.res,
+            self.javascript
+                .get_expression(reference)
+                .get_inner_expression(),
+        ) {
             let test = self.expression(reference);
             let consequent = b.block([
                 self.push_literal(BLOCK_OPEN),

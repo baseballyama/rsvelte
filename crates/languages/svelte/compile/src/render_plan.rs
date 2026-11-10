@@ -67,7 +67,7 @@ impl RenderPlan {
                                             AttributeValue::Boolean => true,
                                             AttributeValue::Expression { expression, .. }
                                             | AttributeValue::Shorthand(expression) => matches!(
-                                                input.component.javascript.get_expression(expression),
+                                                input.component.javascript.get_expression(expression).get_inner_expression(),
                                                 oxc_ast::ast::Expression::BooleanLiteral(literal)
                                                     if literal.value
                                             ),

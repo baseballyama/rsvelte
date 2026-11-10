@@ -133,10 +133,17 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             flags |= EACH_INDEX_REACTIVE;
         }
         let key_is_item = each.key.is_some_and(|k| {
-            let key = javascript.get_expression(k);
+            let key = javascript.get_expression(k).get_inner_expression();
             matches!(key, Expression::Identifier(k) if k.name == context.name)
         });
-        if !key_is_item && has_dependency(self.res, javascript.get_expression(each.collection)) {
+        if !key_is_item
+            && has_dependency(
+                self.res,
+                javascript
+                    .get_expression(each.collection)
+                    .get_inner_expression(),
+            )
+        {
             flags |= EACH_ITEM_REACTIVE;
         }
         flags |= EACH_ITEM_IMMUTABLE;
@@ -162,7 +169,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     fn index_use(&self, each: &Each, bindings: EachBindings) -> IndexUse {
-        let key_span = each.key.map(|k| self.javascript.get_expression(k).span());
+        let key_span = each.key.map(|k| {
+            self.javascript
+                .get_expression(k)
+                .get_inner_expression()
+                .span()
+        });
         let mut index_use = IndexUse {
             body: false,
             key: false,

@@ -24,7 +24,10 @@ impl<'a, 'o> ClientCompilationContext<'a, 'o> {
                 Item::Expression(e) => *e,
                 Item::Node(_) => unreachable!("sequences hold text and expression tags"),
             };
-            let source = self.javascript.get_expression(expression);
+            let source = self
+                .javascript
+                .get_expression(expression)
+                .get_inner_expression();
             match source {
                 Expression::StringLiteral(_)
                 | Expression::NumericLiteral(_)

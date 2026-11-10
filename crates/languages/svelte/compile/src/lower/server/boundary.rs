@@ -9,7 +9,11 @@ use super::{
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// The name `{#snippet name()}` declares.
     fn snippet_name(&self, snippet: &Snippet) -> &'o str {
-        match self.javascript.get_expression(snippet.name) {
+        match self
+            .javascript
+            .get_expression(snippet.name)
+            .get_inner_expression()
+        {
             Expression::Identifier(name) => name.name.as_str(),
             _ => unreachable!("a snippet's name is an identifier"),
         }

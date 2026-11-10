@@ -11,7 +11,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         expression: ExpressionIdentifier,
         primitive: bool,
     ) -> (Expression<'o>, Expression<'o>) {
-        if let Expression::SequenceExpression(s) = self.javascript.get_expression(expression)
+        if let Expression::SequenceExpression(s) = self
+            .javascript
+            .get_expression(expression)
+            .get_inner_expression()
             && let [get, set] = s.expressions.as_slice()
         {
             return (self.rewrite(get, true), self.rewrite(set, true));
@@ -26,7 +29,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         expression: ExpressionIdentifier,
         primitive: bool,
     ) -> Expression<'o> {
-        if let Expression::SequenceExpression(s) = self.javascript.get_expression(expression)
+        if let Expression::SequenceExpression(s) = self
+            .javascript
+            .get_expression(expression)
+            .get_inner_expression()
             && let [_, set] = s.expressions.as_slice()
         {
             return self.rewrite(set, true);
@@ -44,7 +50,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     ) -> Expression<'o> {
         let b = self.b;
         let value = b.id("$$value");
-        let source = self.javascript.get_expression(expression);
+        let source = self
+            .javascript
+            .get_expression(expression)
+            .get_inner_expression();
         if let Expression::Identifier(identifier) = source {
             let target = b.id(&identifier.name);
             match self.res.symbol(identifier) {
