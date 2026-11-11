@@ -46,7 +46,6 @@ rsvelte_svelte_check = { path = "crates/languages/svelte/check" }
 rsvelte_vue_format = { path = "crates/languages/vue/format" }
 rsvelte_vue_lint = { path = "crates/languages/vue/lint" }
 rsvelte_vue_check = { path = "crates/languages/vue/check" }
-rsvelte_stylesheet_format = { path = "crates/languages/css/format" }
 rsvelte_typescript_compile = { path = "crates/languages/typescript/compile" }
 rsvelte_svelte_compile = { path = "crates/languages/svelte/compile" }
 rsvelte_vue_compile = { path = "crates/languages/vue/compile" }

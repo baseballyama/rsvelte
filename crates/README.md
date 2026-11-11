@@ -14,7 +14,7 @@ crates/
 │   ├── syntax/                trees and their parser; depends only on other syntax crates
 │   ├── semantic/              analysis of those trees; depends only on syntax and semantic crates
 │   ├── compile/               compile tasks, or what compilers share (css: scoping)
-│   ├── format/                format tasks, or what formatters share (css)
+│   ├── format/                format tasks
 │   ├── lint/                  lint tasks, or what linters share (html: button types)
 │   └── check/                 type check tasks (svelte, typescript, vue)
 ├── languages/svelte/
