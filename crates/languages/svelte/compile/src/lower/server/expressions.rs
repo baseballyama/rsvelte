@@ -27,7 +27,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
 
     /// Upstream's `scope.evaluate` of a template expression.
     pub(super) fn evaluate(&self, e: ExpressionIdentifier) -> Evaluation {
-        Evaluator::new(self.res).evaluate(self.javascript.get_expression(e).get_inner_expression())
+        Evaluator::new(self.res).evaluate(self.javascript.get_expression(e))
     }
 
     /// A snippet's parameters, lowered into the output.
