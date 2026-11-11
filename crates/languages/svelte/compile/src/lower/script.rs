@@ -432,13 +432,16 @@ pub(super) fn props_id(program: &Program<'_>, res: &Resolution) -> Option<String
 /// upstream's errors for the exports it can.
 /// Makes the string statements that open the component's function, or the server's context
 /// callback in it, its prologue: upstream prints them bare, where they are directives.
-pub(super) fn hoist_prologue<'o>(b: &Builder<'o>, function: &mut Statement<'o>) {
-    let Statement::FunctionDeclaration(function) = function else {
-        return;
-    };
-    let Some(body) = &mut function.body else {
-        return;
-    };
+pub(super) fn with_prologue<'o>(b: &Builder<'o>, mut function: Statement<'o>) -> Statement<'o> {
+    if let Statement::FunctionDeclaration(f) = &mut function
+        && let Some(body) = &mut f.body
+    {
+        hoist_body(b, body);
+    }
+    function
+}
+
+fn hoist_body<'o>(b: &Builder<'o>, body: &mut oxc_ast::ast::FunctionBody<'o>) {
     hoist_into(b, body);
     if let [Statement::ExpressionStatement(statement)] = body.statements.as_mut_slice()
         && let Expression::CallExpression(call) = &mut statement.expression

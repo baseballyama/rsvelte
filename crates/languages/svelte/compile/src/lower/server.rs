@@ -216,10 +216,8 @@ pub(super) fn lower_prepared<'c, 'o>(
     if takes_props(an, res, !exports.is_empty(), input) {
         parameters.push("$$props");
     }
-    let mut function =
-        b.function_declaration(&component_name, b.parameters(parameters), body, false);
-    super::script::hoist_prologue(b, &mut function);
-    let Statement::FunctionDeclaration(function) = function else {
+    let function = b.function_declaration(&component_name, b.parameters(parameters), body, false);
+    let Statement::FunctionDeclaration(function) = super::script::with_prologue(b, function) else {
         unreachable!("a function declaration")
     };
 
