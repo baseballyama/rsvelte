@@ -97,6 +97,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             ElementKind::Component => return self.component(identifier, node, false, frag, lists),
             ElementKind::Metadata(Some(MetadataTag::Options)) => {}
+            ElementKind::Slot => return self.slot_element(identifier, node, frag, lists),
             _ => return unsupported("this special element", element.name),
         }
         Ok(())

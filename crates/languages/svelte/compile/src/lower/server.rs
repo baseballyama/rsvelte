@@ -15,6 +15,7 @@ mod elements {
 mod events;
 mod expressions;
 mod fragments;
+mod slot_element;
 mod snippets;
 mod special;
 
@@ -41,6 +42,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::names::Names;
 use super::script::ScriptRewrite;
+use super::slot_element::has_slot_element;
 use super::{
     Builder, Item, Prepared, Target, check_foreign_element, escape_markup, event_attribute,
     is_behaviour, is_boolean_attribute, is_customizable_select, is_directive,
@@ -95,6 +97,19 @@ struct ServerCompilationContext<'c, 'o> {
     hoistable: &'c FxHashSet<SymbolId>,
     /// The component has an instance script, whose names its function declares.
     instance_script: bool,
+}
+
+/// Upstream's condition for the `$$props` parameter.
+fn takes_props(
+    an: &Analysis,
+    res: &Resolution,
+    exports: bool,
+    input: &super::CompileInput<'_>,
+) -> bool {
+    an.needs_context
+        || res.uses_props()
+        || exports
+        || has_slot_element(input.component.compiler_syntax_tree)
 }
 
 pub(super) fn lower_prepared<'c, 'o>(
@@ -169,7 +184,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         body = vec![b.stmt(call)];
     }
     let mut parameters = vec!["$$renderer"];
-    if an.needs_context || res.uses_props() || !exports.is_empty() {
+    if takes_props(an, res, !exports.is_empty(), input) {
         parameters.push("$$props");
     }
     let Statement::FunctionDeclaration(function) =

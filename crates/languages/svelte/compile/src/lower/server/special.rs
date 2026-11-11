@@ -71,6 +71,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 return self.dynamic_element(identifier, template);
             }
             ElementKind::Component => return self.component(identifier, false, template),
+            ElementKind::Slot => return self.slot_element(identifier, template),
             _ => return unsupported("this special element", element.name),
         }
         Ok(())

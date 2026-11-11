@@ -20,6 +20,10 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
     let ignores_html_changes = tree.nodes.iter().any(|node| {
         matches!(node.kind, NodeKind::Comment { data } if data.text(source).contains("hydration_html_changed"))
     });
+    let renders = tree
+        .nodes
+        .iter()
+        .any(|node| matches!(node.kind, NodeKind::Render { .. }));
     for (identifier, node) in tree.nodes.iter_enumerated() {
         let what = match &node.kind {
             NodeKind::Text { .. }
@@ -35,6 +39,10 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
                 .context
                 .is_none()
                 .then_some("an `{#each}` block without `as`"),
+            // Upstream's `slot_snippet_conflict`.
+            NodeKind::Element(el) if el.kind == ElementKind::Slot && renders => {
+                Some("a `<slot>` beside a `{@render}` tag")
+            }
             NodeKind::Element(el) => {
                 check_element(input, res, identifier, el)?;
                 // Upstream moves a boundary's `{@const}` into its `failed` snippet, and rejects one
@@ -78,6 +86,15 @@ fn check_element(
             .find(|a| super::is_directive(&a.value) || a.name.text(source) != "is")
     {
         return unsupported("an attribute on a custom element", a.span);
+    }
+    // Upstream's `slot_element_invalid_attribute`.
+    if el.kind == ElementKind::Slot
+        && let Some(a) = tree.attributes(el.attributes).iter().find(|a| {
+            super::is_directive(&a.value)
+                && !matches!(a.value, AttributeValue::Spread(_) | AttributeValue::Let(_))
+        })
+    {
+        return unsupported("a directive on `<slot>`", a.span);
     }
     let component = el.kind == ElementKind::Component;
     let in_component = tree.node(identifier).parent.is_some_and(|parent| {
