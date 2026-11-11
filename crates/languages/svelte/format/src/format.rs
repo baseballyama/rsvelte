@@ -136,8 +136,9 @@ fn print(
     let root = f.top_level()?;
     refuse_lost_comments(c, &f.embedder.kept)?;
     let embedding = f.embedder.embedding;
+    // Room for output a quarter longer than its source, so the buffer seldom grows.
     embedding
-        .print(&docs, root, text.len())
+        .print(&docs, root, text.len() + text.len() / 4)
         .map_err(|unprinted| match unprinted {
             Unprinted::FlatOnly => Unsupported::nowhere("a layout only checked flat"),
             Unprinted::Rejected => Unsupported::nowhere("a document oxc's printer rejects"),
