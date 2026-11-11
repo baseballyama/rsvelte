@@ -1,7 +1,7 @@
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
-    NodeKind, R, check_foreign_element, is_custom_element_node, is_customizable_select,
+    Memo, NodeKind, R, check_foreign_element, is_custom_element_node, is_customizable_select,
     is_directive, is_load_error_element, unsupported,
 };
 
@@ -50,7 +50,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let attribute_list = compiler_syntax_tree.attributes(el.attributes);
         frag.tpl.needs_import_node |= tag == "video" || custom_element;
         // Upstream visits directives into their own lists, which follow the children's.
-        let mut directives = self.element_directives(attribute_list, &tag, node);
+        let directives = self.element_directives(attribute_list, &tag, node);
         let has_spread = attribute_list
             .iter()
             .any(|a| matches!(a.value, AttributeValue::Spread(_)));
@@ -77,6 +77,51 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 .push(b.stmt(b.runtime("replay_events", [b.id(node)])));
         }
 
+        self.element_body(identifier, node, directives, frag, l)?;
+        if attribute_list.iter().any(|a| {
+            !is_directive(&a.value)
+                && !matches!(a.value, AttributeValue::Spread(_))
+                && a.name.text(self.source_text) == "dir"
+        }) {
+            // Chromium keeps an `auto` direction after the text changes unless it is set again.
+            let b = self.b;
+            let dir = || b.member(b.id(node), "dir");
+            l.update.push(b.stmt(b.assign_member(dir(), dir())));
+        }
+        if !has_spread {
+            self.select_value(el, &tag, attribute_list, node, frag, l);
+        }
+        frag.tpl.pop_element();
+        Ok(())
+    }
+
+    /// The children and directives, in a block of their own when the element holds a snippet.
+    fn element_body(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        node: &str,
+        mut directives: Lists<'o>,
+        frag: &mut Frag<'o>,
+        l: &mut Lists<'o>,
+    ) -> R<()> {
+        let tree = self.compiler_syntax_tree;
+        let NodeKind::Element(el) = &tree.node(identifier).kind else {
+            unreachable!("a regular element")
+        };
+        // The children's block has an effect of its own, so its values must not join the
+        // parent's: upstream shares one memoizer and leaks them into both effects.
+        let holds_snippet = (tree.children(el.children).iter())
+            .any(|&c| matches!(tree.node(c).kind, NodeKind::Snippet(_)));
+        let parent_memo = holds_snippet.then(|| {
+            let derived = frag.memo.derived;
+            std::mem::replace(
+                &mut frag.memo,
+                Memo {
+                    entries: Vec::new(),
+                    derived,
+                },
+            )
+        });
         let (snippets, child) =
             self.collecting_snippets(|context| context.element_children(identifier, node, frag));
         let mut child = child?;
@@ -100,20 +145,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             block.append(&mut directives.after);
             l.initializer.push(self.b.block(block));
         }
-        if attribute_list.iter().any(|a| {
-            !is_directive(&a.value)
-                && !matches!(a.value, AttributeValue::Spread(_))
-                && a.name.text(self.source_text) == "dir"
-        }) {
-            // Chromium keeps an `auto` direction after the text changes unless it is set again.
-            let b = self.b;
-            let dir = || b.member(b.id(node), "dir");
-            l.update.push(b.stmt(b.assign_member(dir(), dir())));
+        if let Some(memo) = parent_memo {
+            frag.memo = memo;
         }
-        if !has_spread {
-            self.select_value(el, &tag, attribute_list, node, frag, l);
-        }
-        frag.tpl.pop_element();
         Ok(())
     }
 }
