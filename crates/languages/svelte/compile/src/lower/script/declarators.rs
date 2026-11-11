@@ -59,40 +59,100 @@ pub(super) fn lower_value_declarator<'o>(
     true
 }
 
-/// A declaration in a script's function that destructures a `$derived`, split as at the top
-/// level; `false` when it destructures none.
+/// A declaration in a script's function that destructures a `$state` or `$derived`, split as at
+/// the top level; `false` when it destructures none.
 pub(super) fn lower_destructured_declaration<'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
     it: &mut VariableDeclaration<'o>,
 ) -> bool {
     let destructured = |d: &VariableDeclarator<'_>| {
-        !d.id.is_binding_identifier()
-            && d.init.as_ref().is_some_and(|init| {
-                matches!(
-                    rw.res.rune(init.get_inner_expression()),
-                    Some(("$derived" | "$derived.by", _))
-                )
-            })
+        if d.id.is_binding_identifier() {
+            return None;
+        }
+        let init = d.init.as_ref()?;
+        match rw.res.rune(init.get_inner_expression())? {
+            ("$derived" | "$derived.by", _) => Some(false),
+            ("$state" | "$state.raw", _) => Some(true),
+            _ => None,
+        }
     };
     let Some(names) = rw.names else {
         return false;
     };
-    if !it.declarations.iter().any(destructured) {
+    if !it.declarations.iter().any(|d| destructured(d).is_some()) {
         return false;
     }
     let b = rw.b;
     let declarations = it.declarations.take_in(b);
     let mut out = Vec::with_capacity(declarations.len());
     for mut d in declarations {
-        if destructured(&d) {
-            lower_destructured_derived(rw, &d, &mut out, names);
-        } else {
-            rw.visit_variable_declarator(&mut d);
-            out.push(d);
+        match destructured(&d) {
+            Some(true) => lower_destructured_state(rw, &d, &mut out, names),
+            Some(false) => lower_destructured_derived(rw, &d, &mut out, names),
+            None => {
+                rw.visit_variable_declarator(&mut d);
+                out.push(d);
+            }
         }
     }
     it.declarations = oxc_allocator::Vec::from_iter_in(out, b);
     true
+}
+
+/// Upstream's destructured `$state` or `$state.raw`: the value in a `tmp`, each array the
+/// pattern holds in a derived on the client, then each name, a state where it is reassigned.
+pub(super) fn lower_destructured_state<'o>(
+    rw: &mut ScriptRewrite<'_, 'o>,
+    d: &VariableDeclarator<'_>,
+    out: &mut Vec<VariableDeclarator<'o>>,
+    names: &Names,
+) {
+    let b = rw.b;
+    let init = d.init.as_ref().expect("a rune initialises the declarator");
+    let Some((rune, argument)) = rw.res.rune(init.get_inner_expression()) else {
+        unreachable!("the caller found the rune")
+    };
+    let tmp = names.generate("tmp");
+    let value = argument.map_or_else(
+        || b.void0(),
+        |argument| rw.expression(argument.get_inner_expression()),
+    );
+    out.push(b.declarator(b.binding(&tmp), Some(value)));
+    let client = rw.target == Target::Client;
+    let mut paths = Vec::new();
+    {
+        let hooks = Hooks {
+            rw: &mut *rw,
+            names,
+            array: "$$array",
+            out: &mut *out,
+            rest: None,
+            derived: client,
+        };
+        let mut walker = Paths {
+            b,
+            res: hooks.rw.res,
+            hooks,
+        };
+        walker.extract(&d.id, b.id(&tmp), false, &mut paths);
+    }
+    for path in paths {
+        let binding = path.binding.clone_in_with_semantic_ids(b.allocator());
+        let signal = (binding.symbol_id.get()).is_some_and(|symbol| rw.res.is_state_source(symbol));
+        // Upstream proxies each path, as none is a value `should_proxy` keeps.
+        let lowering = Lowering {
+            proxy: rune == "$state",
+            signal,
+            keeps: false,
+        };
+        let value = if client {
+            rune_value(rw, rune, Some(path.value), lowering)
+        } else {
+            path.value
+        };
+        let pattern = BindingPattern::BindingIdentifier(oxc_allocator::Box::new_in(binding, b));
+        out.push(b.declarator(pattern, Some(value)));
+    }
 }
 
 /// The rune call's argument, taken from `d`, or `undefined`; upstream erases its types too, so
@@ -203,6 +263,7 @@ pub(super) fn lower_destructured_derived<'o>(
             array,
             out,
             rest,
+            derived: true,
         },
     };
     walker.extract(&d.id, value, false, &mut paths);
@@ -221,6 +282,8 @@ struct Hooks<'w, 'r, 'o> {
     out: &'w mut Vec<VariableDeclarator<'o>>,
     /// The name `$derived` reads when it is the value destructured.
     rest: Option<SymbolId>,
+    /// Each array is a derived; the server's destructured state keeps plain values.
+    derived: bool,
 }
 
 impl<'a, 'o> Destructure<'a, 'o> for Hooks<'_, '_, 'o> {
@@ -241,6 +304,10 @@ impl<'a, 'o> Destructure<'a, 'o> for Hooks<'_, '_, 'o> {
     fn array(&mut self, value: Expression<'o>) -> Expression<'o> {
         let b = self.rw.b;
         let name = self.names.generate(self.array);
+        if !self.derived {
+            self.out.push(b.declarator(b.binding(&name), Some(value)));
+            return b.id(&name);
+        }
         let derived = b.runtime("derived", [b.arrow(b.params([]), value)]);
         self.out.push(b.declarator(b.binding(&name), Some(derived)));
         read_derived(self.rw, &name)

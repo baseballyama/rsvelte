@@ -201,7 +201,7 @@ fn assignment_errors_come_in_document_order_after_the_binding_checks() {
 }
 
 #[test]
-fn a_destructured_rune_is_refused_only_when_upstream_raises_nothing() {
+fn a_destructured_rune_raises_upstreams_error_on_both_targets() {
     for (source, expected) in [
         (
             "<script>let { a } = $derived();</script>",
@@ -210,10 +210,6 @@ fn a_destructured_rune_is_refused_only_when_upstream_raises_nothing() {
         (
             "<script>let { a } = $state({ a: 1 }); const c = 1; c = 2;</script>",
             "constant_assignment",
-        ),
-        (
-            "<script>let { a } = $state({ a: 1 });</script>{a}",
-            "unsupported",
         ),
     ] {
         for target in [Target::Client, Target::Server] {
