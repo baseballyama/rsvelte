@@ -1320,6 +1320,7 @@ dependencies = [
  "memchr",
  "oxc_allocator",
  "oxc_ast",
+ "oxc_ast_visit",
  "oxc_parser",
  "oxc_span",
  "rsvelte_kernel",
