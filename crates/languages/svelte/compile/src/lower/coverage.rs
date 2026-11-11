@@ -310,7 +310,7 @@ fn check_element_binding(
                 "value" if !super::is_directive(&o.value) => {
                     !keeps_value || matches!(o.value, AttributeValue::Interpolated(_))
                 }
-                "checked" => !super::is_directive(&o.value),
+                "checked" => property != "group" && !super::is_directive(&o.value),
                 "group" => true,
                 _ => false,
             }
