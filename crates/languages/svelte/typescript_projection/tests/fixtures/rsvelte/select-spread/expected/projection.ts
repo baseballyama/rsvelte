@@ -6,7 +6,7 @@
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({}, {
-  options: __rsvelte_empty_array([]),
+  options: __rsvelte_array_prop(),
 }, true);
 () => {
   {

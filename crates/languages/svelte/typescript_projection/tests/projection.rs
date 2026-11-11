@@ -140,11 +140,11 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
 
 #[test]
 fn unsupported_semantics_are_reported_at_the_original_construct() {
-    let source = "<p>{@html value}</p>";
+    let source = "<p on:click={handler}></p>";
     let component = parse(source).expect("valid Svelte source");
     let error = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
-        .expect_err("special tags need their own type semantics");
-    assert_eq!(error.span().text(source), "{@html value}");
+        .expect_err("event directives need their own type semantics");
+    assert_eq!(error.span().text(source), "on:click={handler}");
 }
 
 #[test]

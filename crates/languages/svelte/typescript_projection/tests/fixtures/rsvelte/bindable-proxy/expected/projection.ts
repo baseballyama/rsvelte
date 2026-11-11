@@ -5,8 +5,8 @@
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({}, {
-  items: __rsvelte_empty_array([]),
-  config: { open: false },
+  items: __rsvelte_array_prop(),
+  config: __rsvelte_record_prop(),
 }, false);
 () => {
   {
