@@ -346,7 +346,8 @@ impl<'a> Builder<'a> {
         identifier
     }
 
-    /// Keeps a parameter list built in [`Builder::nodes`]'s arena, such as aliases a compiler writes.
+    /// Keeps a parameter list built in [`Builder::nodes`]'s arena, such as aliases a compiler
+    /// writes.
     pub fn keep_parameters(&mut self, parameters: FormalParameters<'a>) -> ParametersIdentifier {
         let identifier = ParametersIdentifier::at(self.parameters.len());
         self.parameters.push(parameters);
