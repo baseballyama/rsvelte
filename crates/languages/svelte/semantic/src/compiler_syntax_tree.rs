@@ -356,6 +356,24 @@ impl CompilerSyntaxTree {
         self.attributes.slice(r)
     }
 
+    /// Upstream `is_custom_element_node`: a regular element with a `-` in its name or an `is`
+    /// attribute.
+    #[must_use]
+    pub fn is_custom_element(&self, el: &Element, source_text: &str) -> bool {
+        el.kind == ElementKind::Regular
+            && (el.name.text(source_text).contains('-')
+                || self.attributes(el.attributes).iter().any(|a| {
+                    matches!(
+                        a.value,
+                        AttributeValue::Boolean
+                            | AttributeValue::Static(_)
+                            | AttributeValue::Expression { .. }
+                            | AttributeValue::Shorthand(_)
+                            | AttributeValue::Interpolated(_)
+                    ) && a.name.text(source_text) == "is"
+                }))
+    }
+
     /// The child lists of a node, in document order: an `{#each}`'s body before its fallback.
     pub fn child_lists(
         &self,
