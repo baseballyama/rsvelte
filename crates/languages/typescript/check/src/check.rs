@@ -221,6 +221,9 @@ pub struct Check {
     /// What an import of a matching document that is not checked reads, as the upstream
     /// checker still resolves it. `None`: such a document is absent from the run.
     pub stand_in: Option<&'static str>,
+    /// Documents the run passes to the checker as they are, unchecked, so imports of them
+    /// resolve as on the disk.
+    pub imported: Option<fn(&Document) -> bool>,
 }
 
 /// A document the run does not check but other documents may import.
@@ -263,13 +266,24 @@ impl FinishTask for Check {
     }
 
     fn applies(&self, document: &Document, artifacts: &ArtifactRegistry) -> bool {
-        match self.documents {
+        let checked = match self.documents {
             Documents::Matching(matches) => matches(document),
             Documents::WithTypeScriptView => artifacts.provides::<TypeScriptView>(document),
-        }
+        };
+        checked || self.imported.is_some_and(|imported| imported(document))
     }
 
     fn prepare(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) -> Option<Part> {
+        if self.tsc.is_some()
+            && self
+                .imported
+                .is_some_and(|imported| imported(context.document))
+        {
+            return Some(Box::new(StandIn {
+                path: context.document.path.clone(),
+                text: context.source_text().to_owned(),
+            }));
+        }
         match context.facet::<TypeScriptView>()? {
             Err(d) => {
                 out.diagnostics.push(d.clone());
