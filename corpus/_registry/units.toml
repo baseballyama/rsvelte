@@ -180,6 +180,21 @@
 ["svelte/layerchart/docs/src/routes/+page.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
+["svelte/syntaxfm-website/src/lib/Icon.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/threlte/apps/docs/src/components/ContactForm/ContactForm.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/recursive-loop01-input.svelte".skip]
+"svelte.compile/client" = "upstream bug: two `const`s initialised with each other evaluate as a known `undefined`, so an attribute that reads one is set once instead of in an effect"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/recursive-loop01-input.svelte".skip]
+"svelte.compile/client" = "upstream bug: two `const`s initialised with each other evaluate as a known `undefined`, so an attribute that reads one is set once instead of in an effect"
+
+["svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/Switch/+page.svelte".skip]
+"svelte.compile" = "upstream bug: a `svelte-ignore` comment with a legacy name among a component's children warns `legacy_code` twice when more than one node follows it"
+
 ["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte".skip]
 "svelte.compile" = "upstream bug: an `<svg>` beside a component makes the component's children svg, which drops the HTML whitespace between their components"
 
