@@ -289,8 +289,15 @@ impl<'a> Builder<'a> {
     ) -> Result<TypeParametersIdentifier, Diagnostic> {
         // An arrow's `<T extends …>` would read as a type assertion, so a function expression.
         // The wrapper's own tokens: `function` and `<` first, and `>`, `(`, `)`, `{` and `}` last.
-        let (expression, shift) =
-            self.read_wrapped(range, source_type, ("function<", 2), (">(){}", 5))?;
+        let (expression, shift) = self.read_wrapped(
+            range,
+            source_type,
+            ("function<", 2),
+            (">(){}", 5),
+            ("expected type parameters", |e| {
+                matches!(e, Expression::FunctionExpression(_))
+            }),
+        )?;
         let parameters = match expression {
             Expression::FunctionExpression(function) => function.unbox().type_parameters,
             _ => None,
@@ -315,7 +322,15 @@ impl<'a> Builder<'a> {
         source_type: SourceType,
     ) -> Result<FormalParameters<'a>, Diagnostic> {
         // The wrapper's own tokens: `(` first, and `)`, `=>` and `0` last.
-        let (expression, shift) = self.read_wrapped(range, source_type, ("(", 1), (")=>0", 3))?;
+        let (expression, shift) = self.read_wrapped(
+            range,
+            source_type,
+            ("(", 1),
+            (")=>0", 3),
+            ("expected a pattern", |e| {
+                matches!(e, Expression::ArrowFunctionExpression(_))
+            }),
+        )?;
         let Expression::ArrowFunctionExpression(arrow) = expression else {
             return Err(Diagnostic::error(
                 "parse_error",
@@ -330,13 +345,15 @@ impl<'a> Builder<'a> {
 
     /// Parses `range` between `open` and `close` as one expression, keeping the tokens and
     /// comments of `range` only, and returns it with how far its spans are from the document's.
-    /// Each of `open` and `close` comes with the number of tokens it is.
+    /// Each of `open` and `close` comes with the number of tokens it is. An expression that is not
+    /// the wrapper's own kind is not one part, whatever its end.
     fn read_wrapped(
         &mut self,
         range: Span,
         source_type: SourceType,
         (open, opening_tokens): (&str, usize),
         (close, closing_tokens): (&str, usize),
+        (expected, wrapper): (&str, fn(&Expression<'a>) -> bool),
     ) -> Result<(Expression<'a>, u32), Diagnostic> {
         // The wrapped text's opening stands where the bytes before the range are.
         let Some(shift) = range.start_offset.checked_sub(open.len() as u32) else {
@@ -356,6 +373,9 @@ impl<'a> Builder<'a> {
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
             .map_err(|errors| syntax_error(errors, 0, shift))?;
+        if !wrapper(&parsed.expression) {
+            return Err(Diagnostic::error("parse_error", expected, range));
+        }
         if parsed.end as usize != text.len() {
             return Err(Diagnostic::error(
                 "parse_error",
