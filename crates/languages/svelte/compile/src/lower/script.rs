@@ -177,6 +177,12 @@ impl<'o> ScriptRewrite<'_, 'o> {
             (Target::Server, "$effect.pending") => return Some(b.number(0.0)),
             (Target::Client, "$effect.tracking") => return Some(b.runtime("effect_tracking", [])),
             (Target::Server, "$effect.tracking") => return Some(b.boolean(false)),
+            // Upstream's server keeps no effect, so the root's cleanup does nothing.
+            (Target::Server, "$effect.root") => {
+                return Some(b.arrow_block(b.params(std::iter::empty()), [], false));
+            }
+            (Target::Client, "$effect.root") => "effect_root",
+            (_, "$state.snapshot") => "snapshot",
             (Target::Client, "$effect") => "user_effect",
             (Target::Client, "$effect.pre") => "user_pre_effect",
             _ => return None,
@@ -356,7 +362,7 @@ pub(super) fn bindable_root<'e>(
 /// Upstream server `ExpressionStatement`: an effect statement renders nothing.
 fn is_effect(res: &Resolution, statement: &Statement<'_>) -> bool {
     matches!(statement, Statement::ExpressionStatement(s)
-        if res.rune(&s.expression).is_some_and(|(r, _)| matches!(r, "$effect" | "$effect.pre")))
+        if res.rune(&s.expression).is_some_and(|(r, _)| matches!(r, "$effect" | "$effect.pre" | "$effect.root")))
 }
 
 /// Upstream `should_proxy` on a value it has already visited, where a prop's name has become a

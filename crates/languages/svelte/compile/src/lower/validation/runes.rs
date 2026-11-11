@@ -105,6 +105,34 @@ struct RuneWalk<'a> {
     refused: Option<Diagnostic>,
     /// The state fields of the classes the walk is inside, innermost last.
     classes: Vec<ClassFields>,
+    /// Whether this port lowers a `$state.snapshot` where the walk is.
+    snapshot: Snapshot,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Snapshot {
+    Lowered,
+    /// Upstream passes a `svelte-ignore state_snapshot_uncloneable` on to `$.snapshot`, and the
+    /// analysis does not yet count a template's call as one the client memoizes in an effect.
+    Refused,
+}
+
+/// Whether a comment anywhere in the component, script or markup, names the warning `code`.
+fn ignores(input: &CompileInput<'_>, code: &str) -> bool {
+    let component = &input.component;
+    let source = component.source_text;
+    let names = |text: &str| text.contains("svelte-ignore") && text.contains(code);
+    let scripts = (component.module.into_iter())
+        .chain(component.instance)
+        .flat_map(|p| component.javascript.get_program(p).comments.iter());
+    scripts
+        .chain(component.javascript.comments())
+        .any(|c| names(c.span.source_text(source)))
+        || component
+            .compiler_syntax_tree
+            .nodes
+            .iter()
+            .any(|node| matches!(node.kind, NodeKind::Comment { data } if names(data.text(source))))
 }
 
 /// A template root: an expression, or a `{@const}` declaration.
@@ -145,6 +173,11 @@ pub(in crate::lower) fn check_runes(
         error: None,
         refused: None,
         classes: Vec::new(),
+        snapshot: if ignores(input, "state_snapshot_uncloneable") {
+            Snapshot::Refused
+        } else {
+            Snapshot::Lowered
+        },
     };
     if let Some(module) = input.component.module {
         walk.root = place(true, false);
@@ -177,6 +210,9 @@ pub(in crate::lower) fn check_runes(
     // The tree keeps them in the order the parser met them, which is not the document's.
     template.sort_by_key(|&(start, _)| start);
     walk.root = place(false, true);
+    if target == Target::Client {
+        walk.snapshot = Snapshot::Refused;
+    }
     for (_, root) in template {
         if walk.error.is_some() {
             break;
