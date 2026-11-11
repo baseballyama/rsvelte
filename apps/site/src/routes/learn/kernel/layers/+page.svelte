@@ -390,7 +390,7 @@
 		の検証用のソースファイル集の compile・format・lint の出力 70,608 ファイルです。
 	</p>
 	<p>
-		svue（crate <code>rsvelte_vue_compile_svelte</code>）は、この仕組みで <code>.vue</code>
+		svue（crate <code>rsvelte_vue_to_svelte</code>）は、この仕組みで <code>.vue</code>
 		のコンポーネントをコンパイルします。<strong>Vue の意味のまま</strong>、Svelte
 		のランタイムで動く形にします。新しい言語は足さず、<code>.vue</code> の文書に
 		<code>svue.compile/client</code>
@@ -408,7 +408,7 @@
 <div class="prose-learn">
 	<H2 id="vuelte" />
 	<p>
-		vuelte（crate <code>rsvelte_svelte_compile_vapor</code>）は、svue の逆向きです。Svelte
+		vuelte（crate <code>rsvelte_svelte_to_vue_vapor</code>）は、svue の逆向きです。Svelte
 		のコンポーネントを Vue Vapor
 		向けにコンパイルします。構文解析、名前解決、コンパイル用に整理した構文木への変換、解析は、<code
 			>svelte.compile</code
@@ -471,7 +471,7 @@
 	<p>
 		再現できない構文は、それらしく変換せず、出力を作る前に拒否します。たとえばアタッチメント、action、トランジション、アニメーションの式の中の
 		<code>await</code> です。対応の範囲は
-		<code>crates/languages/svelte/compile_vapor/COVERAGE.md</code> にまとめています。
+		<code>crates/bridges/svelte_to_vue_vapor/COVERAGE.md</code> にまとめています。
 	</p>
 	<p>
 		vuelte を入れた変更（コミット <code>24c6e6a123</code>）では、手書きの 12 検証例のうち 11

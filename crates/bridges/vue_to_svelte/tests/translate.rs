@@ -9,7 +9,7 @@ const SERVER: &str = "svue.compile/server";
 fn compile(source_text: &str, task: &str) -> (Option<String>, Vec<String>) {
     let mut reg = Registry::new();
     rsvelte_vue_semantic::register(&mut reg);
-    rsvelte_vue_compile_svelte::register(&mut reg);
+    rsvelte_vue_to_svelte::register(&mut reg);
     let documents =
         [Document::new("Component.vue".into(), source_text.into()).expect("a document")];
     let options = RunOptions {

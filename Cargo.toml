@@ -1,6 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["crates/language_independent/*", "crates/hosts/*", "crates/languages/*/*", "examples/*"]
+members = [
+  "crates/language_independent/*",
+  "crates/hosts/*",
+  "crates/languages/*/*",
+  "crates/bridges/*",
+  "examples/*",
+]
 
 [workspace.package]
 edition = "2024"
@@ -32,8 +38,8 @@ rsvelte_markup_syntax = { path = "crates/languages/html/syntax" }
 rsvelte_markup_lint = { path = "crates/languages/html/lint" }
 rsvelte_vue_syntax = { path = "crates/languages/vue/syntax" }
 rsvelte_vue_semantic = { path = "crates/languages/vue/semantic" }
-rsvelte_vue_compile_svelte = { path = "crates/languages/vue/compile_svelte" }
-rsvelte_svelte_compile_vapor = { path = "crates/languages/svelte/compile_vapor" }
+rsvelte_vue_to_svelte = { path = "crates/bridges/vue_to_svelte" }
+rsvelte_svelte_to_vue_vapor = { path = "crates/bridges/svelte_to_vue_vapor" }
 rsvelte_typescript_format = { path = "crates/languages/typescript/format" }
 rsvelte_typescript_lint = { path = "crates/languages/typescript/lint" }
 rsvelte_typescript_content_mapper = { path = "crates/languages/typescript/content_mapper" }

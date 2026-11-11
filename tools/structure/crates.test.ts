@@ -25,6 +25,7 @@ type Role =
 	| 'host_library'
 	| 'host'
 	| 'capability'
+	| 'bridge'
 	| 'example';
 
 function role(manifestPath: string): Role | undefined {
@@ -43,6 +44,7 @@ function role(manifestPath: string): Role | undefined {
 	if (/^languages\/[^/]+\/(syntax|tree)$/.test(path)) return 'syntax';
 	if (/^languages\/[^/]+\/semantic$/.test(path)) return 'semantic';
 	if (/^languages\/[^/]+\/[^/]+$/.test(path)) return 'capability';
+	if (/^bridges\/[^/]+$/.test(path)) return 'bridge';
 	return undefined;
 }
 
@@ -56,18 +58,32 @@ const allowed: Record<Role, readonly Role[]> = {
 	support: ['kernel'],
 	host_library: ['kernel', 'support'],
 	capability: ['kernel', 'syntax', 'semantic', 'support', 'capability'],
-	host: ['kernel', 'syntax', 'semantic', 'support', 'host_library', 'capability'],
+	bridge: ['kernel', 'syntax', 'semantic', 'support', 'capability'],
+	host: ['kernel', 'syntax', 'semantic', 'support', 'host_library', 'capability', 'bridge'],
 	example: ['kernel', 'syntax', 'semantic', 'support', 'capability'],
 };
+
+// A language uses another only to read what it embeds; two frameworks meet only in a bridge.
+const embedded = new Set(['css', 'html', 'typescript']);
+function languageOf(manifestPath: string): string | undefined {
+	return /\/crates\/languages\/([^/]+)\//.exec(manifestPath)?.[1];
+}
+const languages = new Map(
+	metadata.packages.map((pkg) => [pkg.name, languageOf(pkg.manifest_path)]),
+);
 
 function forbiddenDependencies(packages: Package[]): string[] {
 	const failures: string[] = [];
 	for (const pkg of packages) {
 		const own = role(pkg.manifest_path);
 		const accepts = own === undefined ? [] : allowed[own];
+		const from = languageOf(pkg.manifest_path);
 		for (const dependency of pkg.dependencies) {
 			const target = roles.get(dependency.name);
-			if (target !== undefined && !accepts.includes(target)) {
+			const to = languages.get(dependency.name);
+			const crossesFrameworks =
+				from !== undefined && to !== undefined && from !== to && !embedded.has(to);
+			if ((target !== undefined && !accepts.includes(target)) || crossesFrameworks) {
 				failures.push(`${pkg.name} depends on ${dependency.name}`);
 			}
 		}
@@ -93,6 +109,8 @@ function inject(from: string, to: string): string[] {
 // (apps/site/scripts/code-names.ts); only the language directories keep the short names.
 const spelled: Record<string, string> = { css: 'stylesheet', html: 'markup' };
 function expectedName(manifestPath: string): string | undefined {
+	const bridge = /\/crates\/bridges\/([^/]+)\/Cargo\.toml$/.exec(manifestPath)?.[1];
+	if (bridge !== undefined) return `rsvelte_${bridge}`;
 	const [, language, directory] =
 		/\/crates\/languages\/([^/]+)\/([^/]+)\/Cargo\.toml$/.exec(manifestPath) ?? [];
 	if (language === undefined || directory === undefined) return undefined;
@@ -133,6 +151,7 @@ test('every workspace crate has a role from its path', () => {
 		'rsvelte_site',
 	]);
 	assert.ok(named('capability').length > 0);
+	assert.deepEqual(named('bridge'), ['rsvelte_svelte_to_vue_vapor', 'rsvelte_vue_to_svelte']);
 	assert.deepEqual(named('example'), ['rsvelte_example_plugin']);
 });
 
@@ -141,10 +160,8 @@ test('every language crate is named for its path', () => {
 		.map((pkg) => [pkg.name, expectedName(pkg.manifest_path)] as const)
 		.filter(([name, expected]) => expected !== undefined && name !== expected);
 	assert.deepEqual(misnamed, []);
-	assert.equal(
-		expectedName('/r/crates/languages/vue/compile_svelte/Cargo.toml'),
-		'rsvelte_vue_compile_svelte',
-	);
+	assert.equal(expectedName('/r/crates/languages/vue/compile/Cargo.toml'), 'rsvelte_vue_compile');
+	assert.equal(expectedName('/r/crates/bridges/vue_to_svelte/Cargo.toml'), 'rsvelte_vue_to_svelte');
 	assert.equal(
 		expectedName('/r/crates/languages/css/syntax/Cargo.toml'),
 		'rsvelte_stylesheet_syntax',
@@ -180,7 +197,7 @@ test('semantic rejects tools and hosts whatever their names end with', () => {
 		'rsvelte_svelte_lint',
 		'rsvelte_svelte_check',
 		'rsvelte_svelte_typescript_projection',
-		'rsvelte_vue_compile_svelte',
+		'rsvelte_vue_to_svelte',
 		'rsvelte_lint_runner',
 		'rsvelte_command_line',
 	]) {
@@ -188,7 +205,27 @@ test('semantic rejects tools and hosts whatever their names end with', () => {
 			`rsvelte_svelte_semantic depends on ${to}`,
 		]);
 	}
-	assert.deepEqual(inject('rsvelte_vue_semantic', 'rsvelte_svelte_semantic'), []);
+	assert.deepEqual(inject('rsvelte_vue_semantic', 'rsvelte_typescript_semantic'), []);
+});
+
+test('a framework uses another framework only in a bridge', () => {
+	for (const [from, to] of [
+		['rsvelte_vue_semantic', 'rsvelte_svelte_semantic'],
+		['rsvelte_svelte_compile', 'rsvelte_vue_syntax'],
+		['rsvelte_vue_compile', 'rsvelte_svelte_compile'],
+		['rsvelte_typescript_lint', 'rsvelte_svelte_syntax'],
+		['rsvelte_svelte_compile', 'rsvelte_vue_to_svelte'],
+	] as const) {
+		assert.deepEqual(inject(from, to), [`${from} depends on ${to}`]);
+	}
+	for (const [from, to] of [
+		['rsvelte_svelte_lint', 'rsvelte_typescript_lint'],
+		['rsvelte_vue_syntax', 'rsvelte_stylesheet_syntax'],
+		['rsvelte_svelte_to_vue_vapor', 'rsvelte_vue_semantic'],
+		['rsvelte_vue_to_svelte', 'rsvelte_svelte_compile'],
+	] as const) {
+		assert.deepEqual(inject(from, to), []);
+	}
 });
 
 test('the kernel rejects language data and shared task contracts', () => {
@@ -208,6 +245,8 @@ test('new crates get a role from where they are placed', () => {
 		['/r/crates/languages/rust/lint/Cargo.toml', 'capability'],
 		['/r/crates/languages/rust/core/Cargo.toml', 'capability'],
 		['/r/crates/hosts/editor/Cargo.toml', 'host'],
+		['/r/crates/bridges/svelte_to_react/Cargo.toml', 'bridge'],
+		['/r/crates/bridges/svelte_to_react/nested/Cargo.toml', undefined],
 		['/r/crates/language_independent/document_printer/Cargo.toml', 'support'],
 		['/r/examples/plugin/Cargo.toml', 'example'],
 		['/r/crates/misc/thing/Cargo.toml', undefined],
@@ -228,7 +267,7 @@ test('support, plugin and host boundaries reject injected dependencies', () => {
 		['rsvelte_plugin_interface', 'rsvelte_configuration_loading'],
 		['rsvelte_typescript_content_mapper', 'rsvelte_typescript_tree'],
 		['rsvelte_svelte_lint', 'rsvelte_command_line'],
-		['rsvelte_vue_compile_svelte', 'rsvelte_kernel_browser'],
+		['rsvelte_vue_to_svelte', 'rsvelte_kernel_browser'],
 		['rsvelte_command_line', 'rsvelte_kernel_browser'],
 	] as const) {
 		assert.deepEqual(inject(from, to), [`${from} depends on ${to}`]);

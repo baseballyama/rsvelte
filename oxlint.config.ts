@@ -15,7 +15,7 @@ export default defineConfig({
 		'**/vendor/**',
 		'**/generated/**',
 		// Text that a compiler embeds in its output byte for byte (include_str!).
-		'crates/languages/svelte/compile_vapor/src/compilation/**/*.js',
+		'crates/bridges/svelte_to_vue_vapor/src/compilation/**/*.js',
 		'crates/languages/svelte/typescript_projection/projection.d.ts',
 	],
 });

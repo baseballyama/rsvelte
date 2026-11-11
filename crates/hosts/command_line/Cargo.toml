@@ -32,8 +32,8 @@ rsvelte_typescript_compile.workspace = true
 rsvelte_typescript_check.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_corpus.workspace = true
-rsvelte_vue_compile_svelte.workspace = true
-rsvelte_svelte_compile_vapor.workspace = true
+rsvelte_vue_to_svelte.workspace = true
+rsvelte_svelte_to_vue_vapor.workspace = true
 rayon.workspace = true
 libc.workspace = true
 

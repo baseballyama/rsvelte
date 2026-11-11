@@ -51,7 +51,7 @@ references work in client and server rendering.
 Run the snapshots and the runtime comparisons:
 
 ```sh
-cargo test -p rsvelte_svelte_compile_vapor
+cargo test -p rsvelte_svelte_to_vue_vapor
 mise exec -- node --test tools/oracle/behaviour/*.test.ts
 ```
 
