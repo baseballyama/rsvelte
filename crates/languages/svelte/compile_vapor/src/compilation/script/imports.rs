@@ -40,7 +40,10 @@ pub(super) fn collect(
                 ));
             }
         };
-        target.push((name, s.local.symbol_id.get().expect("an import has a symbol")));
+        target.push((
+            name,
+            s.local.symbol_id.get().expect("an import has a symbol"),
+        ));
     }
     Ok(())
 }

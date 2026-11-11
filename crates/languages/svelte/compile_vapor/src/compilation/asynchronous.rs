@@ -9,13 +9,6 @@ pub(crate) fn has_await(e: &Expression<'_>) -> bool {
     v.0
 }
 
-/// Runs `visit` on a visitor that finds an `await` outside nested functions.
-pub(crate) fn has_await_in(visit: impl FnOnce(&mut dyn FnMut(&Expression<'_>))) -> bool {
-    let mut found = false;
-    visit(&mut |e| found |= has_await(e));
-    found
-}
-
 struct Await(bool);
 
 impl<'a> Visit<'a> for Await {

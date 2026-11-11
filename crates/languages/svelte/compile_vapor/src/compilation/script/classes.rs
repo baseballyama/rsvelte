@@ -21,14 +21,20 @@ impl<'t> ScriptRewrite<'_, 't> {
     }
 
     /// The value of `this.x = $state(v)` in a constructor, assigned to the field's cell.
-    pub(super) fn constructor_assignment(&mut self, a: &mut AssignmentExpression<'t>) -> Expression<'t> {
+    pub(super) fn constructor_assignment(
+        &mut self,
+        a: &mut AssignmentExpression<'t>,
+    ) -> Expression<'t> {
         let b = self.b;
         let (rune, _) = self.res.rune(&a.right).expect("a checked constructor rune");
         let plain = self.plain(rune);
         let Expression::CallExpression(call) = &mut a.right else {
             unreachable!("a rune is a call")
         };
-        let mut argument = call.arguments.pop().map(oxc_ast::ast::Argument::into_expression);
+        let mut argument = call
+            .arguments
+            .pop()
+            .map(oxc_ast::ast::Argument::into_expression);
         if let Some(argument) = &mut argument {
             self.visit_expression(argument);
         }
@@ -42,9 +48,9 @@ impl<'t> ScriptRewrite<'_, 't> {
         } else {
             let storage = &self.constructor_storage[&a.node_id.get()];
             let member = this_member(b, storage);
-            oxc_ast::ast::AssignmentTarget::from(
-                oxc_ast::ast::SimpleAssignmentTarget::from(member.into_member_expression()),
-            )
+            oxc_ast::ast::AssignmentTarget::from(oxc_ast::ast::SimpleAssignmentTarget::from(
+                member.into_member_expression(),
+            ))
         };
         b.assign(a.operator, target, value)
     }
@@ -55,8 +61,13 @@ impl<'t> ScriptRewrite<'_, 't> {
         let (mut private_fields, mut occupied) = self.context(class);
         let mut output = Vec::new();
         let mut next = 0;
-        let constructor_fields =
-            self.prepare_constructor(class, &mut occupied, &mut next, &mut output, &mut private_fields);
+        let constructor_fields = self.prepare_constructor(
+            class,
+            &mut occupied,
+            &mut next,
+            &mut output,
+            &mut private_fields,
+        );
         self.private_fields.push(private_fields);
         if let Some(heritage) = &mut class.heritage {
             self.visit_expression(&mut heritage.expression);
@@ -165,7 +176,8 @@ impl<'t> ScriptRewrite<'_, 't> {
             } else if !plain {
                 names.insert(f.property.clone());
                 let hidden = fresh(occupied, next);
-                self.constructor_storage.insert(f.assignment, hidden.clone());
+                self.constructor_storage
+                    .insert(f.assignment, hidden.clone());
                 output.push(field(b, &hidden, None, false));
                 accessors(b, b.key(&f.property), &hidden, false, output);
             }
@@ -204,7 +216,10 @@ fn accessors<'t>(
         [b.stmt(b.assign_member(value(), b.id("$$value")))],
         false,
     );
-    for (function, kind) in [(getter, MethodDefinitionKind::Get), (setter, MethodDefinitionKind::Set)] {
+    for (function, kind) in [
+        (getter, MethodDefinitionKind::Get),
+        (setter, MethodDefinitionKind::Set),
+    ] {
         let Expression::FunctionExpression(function) = function else {
             unreachable!("a function")
         };
@@ -226,7 +241,12 @@ fn accessors<'t>(
 }
 
 /// `#hidden = value;`.
-fn field<'t>(b: &Builder<'t>, hidden: &str, value: Option<Expression<'t>>, is_static: bool) -> ClassElement<'t> {
+fn field<'t>(
+    b: &Builder<'t>,
+    hidden: &str,
+    value: Option<Expression<'t>>,
+    is_static: bool,
+) -> ClassElement<'t> {
     let name = hidden.strip_prefix('#').expect("a hidden field is private");
     let key = PropertyKey::new_private_identifier(SPAN, b.str(name), b);
     ClassElement::new_property_definition(

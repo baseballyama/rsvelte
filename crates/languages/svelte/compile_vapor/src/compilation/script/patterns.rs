@@ -1,11 +1,13 @@
 //! `let { a, b: [c] } = $state(v)`: a cell per name, each reading its part of one base cell.
 
-use oxc_ast::ast::{BindingPattern, BinaryOperator, Expression, PropertyKey, VariableDeclarator};
+use oxc_ast::ast::{BinaryOperator, BindingPattern, Expression, PropertyKey, VariableDeclarator};
 use oxc_ast_visit::VisitMut;
 use oxc_span::GetSpan;
 use rsvelte_typescript_compile::build::Builder;
 
-use super::emit::{ScriptRewrite, tracked};
+use oxc_allocator::{CloneIn, GetAllocator};
+
+use super::emit::tracked;
 
 #[derive(Clone, Copy)]
 enum Mode {
@@ -15,14 +17,14 @@ enum Mode {
 }
 
 /// The declarators of `pattern = source`, `source` being the rune's cell.
-pub(super) fn declarators<'t>(
-    rw: &mut ScriptRewrite<'_, 't>,
+pub(crate) fn declarators<'t>(
+    b: &Builder<'t>,
+    rw: &mut impl VisitMut<'t>,
     pattern: BindingPattern<'t>,
     source: Expression<'t>,
     rune: &str,
     tracking: bool,
 ) -> Vec<VariableDeclarator<'t>> {
-    let b = rw.b;
     let base = format!("$$pattern_base_{}", pattern.span().start);
     let mut out = vec![b.declarator(b.binding(&base), Some(source))];
     let mode = match rune {
@@ -32,19 +34,26 @@ pub(super) fn declarators<'t>(
         _ => unreachable!("a checked rune value"),
     };
     let value = b.member(b.id(&base), "value");
-    Lower { rw, mode, out: &mut out }.pattern(pattern, value);
+    Lower {
+        b,
+        rw,
+        mode,
+        out: &mut out,
+    }
+    .pattern(pattern, value);
     out
 }
 
-struct Lower<'l, 'r, 't> {
-    rw: &'l mut ScriptRewrite<'r, 't>,
+struct Lower<'l, 't, V> {
+    b: &'l Builder<'t>,
+    rw: &'l mut V,
     mode: Mode,
     out: &'l mut Vec<VariableDeclarator<'t>>,
 }
 
-impl<'t> Lower<'_, '_, 't> {
+impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
     fn pattern(&mut self, pattern: BindingPattern<'t>, value: Expression<'t>) {
-        let b = self.rw.b;
+        let b = self.b;
         let at = pattern.span().start;
         match pattern {
             BindingPattern::AssignmentPattern(a) => {
@@ -80,8 +89,10 @@ impl<'t> Lower<'_, '_, 't> {
                     self.pattern(property.value, read);
                 }
                 if let Some(rest) = object.rest {
-                    let value =
-                        b.call(b.id("$$destructure_rest"), [parent_read(b, &parent), b.array(excluded)]);
+                    let value = b.call(
+                        b.id("$$destructure_rest"),
+                        [parent_read(b, &parent), b.array(excluded)],
+                    );
                     self.pattern(rest.unbox().argument, value);
                 }
             }
@@ -110,7 +121,7 @@ impl<'t> Lower<'_, '_, 't> {
 
     /// A property's key and the key `$$destructure_rest` leaves out.
     fn key(&mut self, key: PropertyKey<'t>, computed: bool) -> (Expression<'t>, Expression<'t>) {
-        let b = self.rw.b;
+        let b = self.b;
         if !computed && let PropertyKey::StaticIdentifier(id) = &key {
             return (b.string(&id.name), b.string(&id.name));
         }
@@ -118,7 +129,7 @@ impl<'t> Lower<'_, '_, 't> {
         let mut value = key.into_expression();
         self.rw.visit_expression(&mut value);
         if !computed {
-            let copy = self.rw.copy(&value);
+            let copy = value.clone_in_with_semantic_ids(b.allocator());
             return (value, copy);
         }
         let name = format!("$$pattern_key_{at}");
@@ -132,13 +143,13 @@ impl<'t> Lower<'_, '_, 't> {
     fn intermediate(&mut self, at: u32, value: Expression<'t>) -> Expression<'t> {
         let name = format!("$$pattern_{at}");
         let cell = self.cell(value);
-        let b = self.rw.b;
+        let b = self.b;
         self.out.push(b.declarator(b.binding(&name), Some(cell)));
         b.member(b.id(&name), "value")
     }
 
     fn cell(&self, value: Expression<'t>) -> Expression<'t> {
-        let b = self.rw.b;
+        let b = self.b;
         match self.mode {
             Mode::Derived { tracking } => {
                 let value = tracked(b, value, tracking);

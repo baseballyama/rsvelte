@@ -220,10 +220,7 @@ fn variables(
             {
                 let symbol = id.symbol_id.get().expect("a declaration has a symbol");
                 if res.writes(symbol) > 0 {
-                    return Err(unsupported(
-                        "assigning a `$props.id()`",
-                        span_of(id.span),
-                    ));
+                    return Err(unsupported("assigning a `$props.id()`", span_of(id.span)));
                 }
                 plan.props_id = Some(symbol);
                 true
@@ -477,6 +474,6 @@ pub(super) use emit::module;
 mod exports;
 mod imports;
 mod module;
-mod patterns;
+pub(crate) mod patterns;
 pub(crate) mod runes;
 pub(crate) use emit::{ScriptRewrite, emit, prop_member, rune_value};

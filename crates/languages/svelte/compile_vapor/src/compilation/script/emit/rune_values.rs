@@ -59,7 +59,11 @@ pub(crate) fn async_arrow<'t>(b: &Builder<'t>, value: Expression<'t>) -> Express
 }
 
 /// `$$tracked(() => value)` when the component reads `$effect.tracking()`.
-pub(crate) fn tracked<'t>(b: &Builder<'t>, value: Expression<'t>, tracking: bool) -> Expression<'t> {
+pub(crate) fn tracked<'t>(
+    b: &Builder<'t>,
+    value: Expression<'t>,
+    tracking: bool,
+) -> Expression<'t> {
     if !tracking {
         return value;
     }

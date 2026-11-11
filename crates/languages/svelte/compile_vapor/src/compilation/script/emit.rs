@@ -10,9 +10,7 @@ pub(crate) use props::prop_member;
 pub(crate) use rewrite::ScriptRewrite;
 pub(crate) use rune_values::{rune_value, tracked};
 
-use oxc_ast::ast::{
-    Declaration, Program, Statement,
-};
+use oxc_ast::ast::{Declaration, Program, Statement};
 use oxc_span::SPAN;
 use rsvelte_typescript_compile::build::Builder;
 
@@ -71,7 +69,11 @@ fn imports<'t>(
             "$$createState",
         ),
         (uses.raw || uses.prop_cells, "shallowRef", "$$shallowRef"),
-        (uses.derived || uses.prop_cells, "computed", "$$createDerived"),
+        (
+            uses.derived || uses.prop_cells,
+            "computed",
+            "$$createDerived",
+        ),
         (
             plan.auxiliary.contains_key("$host") && !server && plan.custom_element.is_none(),
             "useHost",
@@ -128,7 +130,9 @@ fn imports<'t>(
     (!specs.is_empty()).then(|| {
         import(
             b,
-            specs.iter().map(|(imported, local)| (*imported, local.as_str())),
+            specs
+                .iter()
+                .map(|(imported, local)| (*imported, local.as_str())),
             "vue",
         )
     })
@@ -309,7 +313,10 @@ fn top_level<'t>(
 
 /// The module script's program: an exported `$state` is stored under a name of its own, and
 /// exported as a snapshot of that name's value.
-pub(crate) fn module<'t>(rw: &mut ScriptRewrite<'_, 't>, program: &Program<'_>) -> Vec<Statement<'t>> {
+pub(crate) fn module<'t>(
+    rw: &mut ScriptRewrite<'_, 't>,
+    program: &Program<'_>,
+) -> Vec<Statement<'t>> {
     let b = rw.b;
     let mut output = Vec::new();
     for statement in &program.body {
@@ -337,10 +344,8 @@ pub(crate) fn module<'t>(rw: &mut ScriptRewrite<'_, 't>, program: &Program<'_>) 
                     .as_str();
                 output.push(lowered);
                 let value = b.member(b.id(storage), "value");
-                let declaration = b.declaration(
-                    d.kind,
-                    [b.declarator(b.binding(name), Some(value))],
-                );
+                let declaration =
+                    b.declaration(d.kind, [b.declarator(b.binding(name), Some(value))]);
                 output.push(export(b, declaration));
             } else {
                 output.push(export(b, lowered));

@@ -44,7 +44,10 @@ pub(super) fn expose<'t>(
         let mut value = b.id_at(name, span);
         if matches!(
             res.binding(symbol).kind,
-            BindingKind::State | BindingKind::RawState | BindingKind::Derived | BindingKind::DerivedBy
+            BindingKind::State
+                | BindingKind::RawState
+                | BindingKind::Derived
+                | BindingKind::DerivedBy
         ) {
             value = b.member(value, "value");
         }

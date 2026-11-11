@@ -1,8 +1,8 @@
+use oxc_allocator::GetAllocator;
 use oxc_ast::ast::{
     BindingPattern, Expression, Statement, VariableDeclaration, VariableDeclarationKind,
     VariableDeclarator,
 };
-use oxc_allocator::GetAllocator;
 use oxc_ast_visit::VisitMut;
 
 use super::emit::{ScriptRewrite, rune_value};
@@ -75,7 +75,12 @@ fn lower<'t>(
     let value = rune_value(b, rune, argument, rw.tracking)?;
     if !d.id.is_binding_identifier() {
         return Some(super::patterns::declarators(
-            rw, d.id, value, rune, rw.tracking,
+            b,
+            rw,
+            d.id,
+            value,
+            rune,
+            rw.tracking,
         ));
     }
     let BindingPattern::BindingIdentifier(id) = &d.id else {

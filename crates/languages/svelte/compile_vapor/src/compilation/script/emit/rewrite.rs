@@ -29,7 +29,12 @@ pub(crate) struct ScriptRewrite<'r, 't> {
 }
 
 impl<'r, 't> ScriptRewrite<'r, 't> {
-    pub(crate) fn new(b: &'r Builder<'t>, res: &'r Resolution, plan: &'r Plan, server: bool) -> Self {
+    pub(crate) fn new(
+        b: &'r Builder<'t>,
+        res: &'r Resolution,
+        plan: &'r Plan,
+        server: bool,
+    ) -> Self {
         Self {
             b,
             res,
@@ -144,14 +149,13 @@ impl<'r, 't> ScriptRewrite<'r, 't> {
         let Expression::CallExpression(call) = it else {
             return None;
         };
-        let mut arguments: Vec<Expression<'t>> =
-            std::mem::replace(&mut call.arguments, b.vec([]))
-                .into_iter()
-                .map(|a| match a {
-                    Argument::SpreadElement(_) => unreachable!("a rune takes no spread"),
-                    a => a.into_expression(),
-                })
-                .collect();
+        let mut arguments: Vec<Expression<'t>> = std::mem::replace(&mut call.arguments, b.vec([]))
+            .into_iter()
+            .map(|a| match a {
+                Argument::SpreadElement(_) => unreachable!("a rune takes no spread"),
+                a => a.into_expression(),
+            })
+            .collect();
         if runes::eager(name) {
             let mut argument = arguments.pop().expect("a checked eager argument");
             self.visit_expression(&mut argument);
@@ -264,7 +268,10 @@ impl<'t> VisitMut<'t> for ScriptRewrite<'_, 't> {
                 else {
                     unreachable!()
                 };
-                simple_target(self.b.member(Expression::PrivateFieldExpression(p), "value"))
+                simple_target(
+                    self.b
+                        .member(Expression::PrivateFieldExpression(p), "value"),
+                )
             }
             _ => return walk_mut::walk_simple_assignment_target(self, it),
         };

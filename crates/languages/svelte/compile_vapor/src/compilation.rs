@@ -185,26 +185,24 @@ pub(crate) fn translate(input: Input<'_>) -> R<Translation> {
         &identity,
     );
     let hash = identity.stylesheet_hash.as_deref();
-    let (javascript, (script, module_script, template)) =
-        Tree::build(input.source_text, |tree| {
-            let b = Builder::new(tree.allocator());
-            let mut built = template::build(input, hash, tree, &b)?;
-            let mut rw =
-                script::ScriptRewrite::new(&b, input.resolution, input.plan, input.server);
-            let instance = c
-                .instance
-                .as_ref()
-                .map(|s| c.javascript.get_program(s.program));
-            let mut body = script::emit(&mut rw, instance, input.plan, &built.helpers);
-            body.append(&mut built.declarations);
-            let source_text = tree.source_text();
-            let script = tree.keep_program(program(&b, source_text, body));
-            let module_script = c.module.as_ref().map(|module| {
-                let body = script::module(&mut rw, c.javascript.get_program(module.program));
-                tree.keep_program(program(&b, source_text, body))
-            });
-            Ok((script, module_script, built.finish()))
-        })?;
+    let (javascript, (script, module_script, template)) = Tree::build(input.source_text, |tree| {
+        let b = Builder::new(tree.allocator());
+        let (built, mut declarations) = template::build(input, hash, tree, &b)?;
+        let mut rw = script::ScriptRewrite::new(&b, input.resolution, input.plan, input.server);
+        let instance = c
+            .instance
+            .as_ref()
+            .map(|s| c.javascript.get_program(s.program));
+        let mut body = script::emit(&mut rw, instance, input.plan, &built.helpers);
+        body.append(&mut declarations);
+        let source_text = tree.source_text();
+        let script = tree.keep_program(program(&b, source_text, body));
+        let module_script = c.module.as_ref().map(|module| {
+            let body = script::module(&mut rw, c.javascript.get_program(module.program));
+            tree.keep_program(program(&b, source_text, body))
+        });
+        Ok((script, module_script, built))
+    })?;
     let plan = input.plan;
     Ok(Translation {
         javascript,

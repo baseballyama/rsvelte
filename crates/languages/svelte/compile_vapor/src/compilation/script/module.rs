@@ -43,10 +43,7 @@ pub(super) fn check(
                         ));
                     }
                     let BindingPattern::BindingIdentifier(id) = &d.id else {
-                        return Err(unsupported(
-                            "this exported state pattern",
-                            span_of(d.span),
-                        ));
+                        return Err(unsupported("this exported state pattern", span_of(d.span)));
                     };
                     let symbol = id.symbol_id.get().expect("a declaration has a symbol");
                     if res.writes(symbol) > 0 {
