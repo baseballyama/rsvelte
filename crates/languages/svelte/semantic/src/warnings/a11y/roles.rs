@@ -143,7 +143,8 @@ impl Element<'_, '_> {
             let props: Vec<String> = required.iter().map(|p| format!("\"{p}\"")).collect();
             let props: Vec<&str> = props.iter().map(String::as_str).collect();
             let message = format!(
-                "Elements with the ARIA role \"{role}\" must have the following attributes defined: {}",
+                "Elements with the ARIA role \"{role}\" must have the following attributes \
+                    defined: {}",
                 values::list(&props, "and")
             );
             self.warn("a11y_role_has_required_aria_props", &message, span);

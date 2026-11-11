@@ -27,7 +27,8 @@ impl Element<'_, '_> {
                 {
                     self.warn(
                         "a11y_consider_explicit_label",
-                        "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute",
+                        "Buttons and links should either contain text or have an `aria-label`, \
+                            `aria-labelledby` or `title` attribute",
                         span,
                     );
                 }
@@ -54,7 +55,8 @@ impl Element<'_, '_> {
                         };
                         let kind = a.text("type").unwrap_or(Cow::Borrowed("..."));
                         let message = format!(
-                            "'{shown}' is an invalid value for 'autocomplete' on `<input type=\"{kind}\">`"
+                            "'{shown}' is an invalid value for 'autocomplete' on `<input \
+                                type=\"{kind}\">`"
                         );
                         self.warn("a11y_autocomplete_valid", &message, autocomplete.span);
                     }
@@ -138,7 +140,8 @@ impl Element<'_, '_> {
                 a.kind == AttributeKind::Spread
                     || (a.kind == AttributeKind::Attribute
                         && a.name.text(source) == "kind"
-                        && matches!(static_value(component, source, a), Static::Text(t) if t == "captions"))
+                        && matches!(static_value(component, source, a), Static::Text(t) if t == "c\
+                            aptions"))
             })
         });
         if !captioned {

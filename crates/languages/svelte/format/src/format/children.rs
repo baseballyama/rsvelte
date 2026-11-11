@@ -387,9 +387,9 @@ impl Printer<'_, '_, '_> {
         let text = match e {
             Expression::Identifier(identifier) => identifier.name.as_str().to_owned(),
             Expression::BooleanLiteral(_) | Expression::NullLiteral(_) => raw.to_owned(),
-            // Written the way `JSON.stringify` writes the value.
+            // Written the way `JSON.stringify` writes the value, which prints a double of up to 15
+            // digits as written.
             Expression::NumericLiteral(_)
-                // `JSON.stringify` of a double prints up to 15 digits as written.
                 if raw == "0"
                     || (!raw.starts_with('0')
                         && raw.len() <= 15

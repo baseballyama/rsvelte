@@ -35,7 +35,8 @@ fn fixed(source_text: &str) -> String {
 #[test]
 fn type_syntax_is_checked() {
     // Line 4 is a type, one indent from its parameter as the value in JavaScript is.
-    let typescript = "<script lang=\"ts\">\n  function f(\n    b:\n        number\n  ) {}\nlet c = 1;\n</script>\n";
+    let typescript = "<script lang=\"ts\">\n  function f(\n    b:\n        number\n  ) {}\nlet c = \
+        1;\n</script>\n";
     assert_eq!(reported_lines(typescript), [4, 6]);
     let javascript = typescript.replace(" lang=\"ts\"", "").replace("b:", "b =");
     assert_eq!(reported_lines(&javascript), [4, 6]);
@@ -50,13 +51,15 @@ fn an_overload_semicolon_is_not_placed() {
 
 #[test]
 fn a_field_value_is_indented_from_its_key_not_its_type() {
-    let source = "<script lang=\"ts\">\n  class A {\n    b:\n      number\n      =\n      1;\n  }\n</script>\n";
+    let source = "<script lang=\"ts\">\n  class A {\n    b:\n      number\n      =\n      1;\n  \
+        }\n</script>\n";
     assert_eq!(reported_lines(source), [0u32; 0]);
 }
 
 #[test]
 fn new_with_type_arguments_indents_its_parentheses_from_the_callee() {
-    let source = "<script lang=\"ts\">\n  new\n    Foo\n      <\n        T\n      >\n      (\n        a\n      );\n</script>\n";
+    let source = "<script lang=\"ts\">\n  new\n    Foo\n      <\n        T\n      >\n      \
+        (\n        a\n      );\n</script>\n";
     assert_eq!(reported_lines(source), [0u32; 0]);
 }
 
@@ -109,7 +112,8 @@ fn an_implicitly_closed_element_does_not_take_a_child_end_tag() {
 #[test]
 fn a_snippet_without_parameters_takes_its_own_parentheses() {
     // Upstream takes `baz(` for the parameter list and reports line 5; see upstream_issues.md.
-    let source = "<div>\n  {#snippet foo()}\n    <p>\n      {@render baz()\n          }\n    </p>\n  {/snippet}\n</div>\n";
+    let source = "<div>\n  {#snippet foo()}\n    <p>\n      {@render baz()\n          }\n    \
+        </p>\n  {/snippet}\n</div>\n";
     assert_eq!(reported_lines(source), [0u32; 0]);
     // With a parameter, upstream finds the right parentheses and reports nothing either.
     assert_eq!(
@@ -142,7 +146,8 @@ fn indentation_is_ecmascript_whitespace() {
 
 #[test]
 fn raw_text_and_script_attribute_values_are_words() {
-    let head = "<svelte:head>\n  <script type=\"application/ld+json\">\n{\n\"a\": 1\n}\n    </script>\n</svelte:head>\n";
+    let head = "<svelte:head>\n  <script type=\"application/ld+json\">\n{\n\"a\": 1\n}\n    \
+        </script>\n</svelte:head>\n";
     assert_eq!(reported_lines(head), [3, 4, 5, 6]);
     let attribute =
         "<script\n  data-x=\"a\nb\"\n>\n  let a;\n</script>\n<div\n  data-x=\"a\nb\"\n></div>\n";
@@ -155,7 +160,8 @@ fn only_lines_that_start_inside_a_type_are_not_checked() {
     let array =
         "<script lang=\"ts\">\n  let v: Array<{\n    k: string;\n  }> = [\n  1,\n  ];\n</script>\n";
     assert_eq!(reported_lines(array), [5]);
-    let class = "<script lang=\"ts\">\n  class K<T extends {\n    a: 1;\n  }> {\n    x = 1;\n  }\n</script>\n";
+    let class = "<script lang=\"ts\">\n  class K<T extends {\n    a: 1;\n  }> {\n    x = 1;\n  \
+        }\n</script>\n";
     assert_eq!(reported_lines(class), [0u32; 0]);
 }
 

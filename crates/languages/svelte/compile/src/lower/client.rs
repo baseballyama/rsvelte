@@ -163,7 +163,7 @@ struct ClientCompilationContext<'c, 'o> {
     source_text: &'o str,
     res: &'c Resolution,
     an: &'c Analysis,
-    names: Names,
+    names: Names<'c>,
     hoisted: Vec<Statement<'o>>,
     templates: FxHashMap<String, String>,
     events: Vec<String>,

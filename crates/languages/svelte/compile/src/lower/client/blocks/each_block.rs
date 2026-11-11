@@ -183,12 +183,16 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     fn animated(&self, each: &Each) -> bool {
         let tree = self.compiler_syntax_tree;
         tree.children(each.body).iter().any(|&child| {
-            matches!(&tree.node(child).kind, NodeKind::Element(el)
-                if matches!(el.kind, ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element)))
-                    && tree
-                        .attributes(el.attributes)
-                        .iter()
-                        .any(|a| matches!(a.value, AttributeValue::Animate { .. })))
+            let NodeKind::Element(el) = &tree.node(child).kind else {
+                return false;
+            };
+            matches!(
+                el.kind,
+                ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element))
+            ) && tree
+                .attributes(el.attributes)
+                .iter()
+                .any(|a| matches!(a.value, AttributeValue::Animate { .. }))
         })
     }
 

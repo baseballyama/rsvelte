@@ -291,8 +291,10 @@ impl Foreign {
     ) -> Namespace {
         let mut shared = None;
         for &node in nodes {
-            if !matches!(&tree.node(node).kind, NodeKind::Element(element) if element.kind == ElementKind::Regular)
-            {
+            let NodeKind::Element(element) = &tree.node(node).kind else {
+                continue;
+            };
+            if element.kind != ElementKind::Regular {
                 continue;
             }
             match self.named[node] {

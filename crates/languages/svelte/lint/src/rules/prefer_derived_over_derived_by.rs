@@ -40,7 +40,8 @@ impl SvelteRule for PreferDerivedOverDerivedBy {
             let replacement = format!("$derived({})", text(expression, source));
             reporter.report(
                 Report::range(
-                    "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions.",
+                    "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple \
+                        expressions.",
                     span(call),
                 )
                 .message_id("unnecessary")

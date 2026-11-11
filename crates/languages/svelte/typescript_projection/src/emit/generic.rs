@@ -26,9 +26,11 @@ impl Printer<'_> {
             arguments,
             ">>>[1] { return null as any; } exports(): ReturnType<ReturnType<typeof $$render<",
             arguments,
-            ">>> { return null as any; } }\n// @ts-ignore\ninterface __rsvelte_generic_component { <",
+            ">>> { return null as any; } }\n// @ts-ignore\ninterface __rsvelte_generic_component { \
+                <",
             plain,
-            ">(internals: Parameters<import('svelte').Component>[0], props: ReturnType<__rsvelte_Render<",
+            ">(internals: Parameters<import('svelte').Component>[0], props: \
+                ReturnType<__rsvelte_Render<",
             arguments,
             ">['props']>): ReturnType<__rsvelte_Render<",
             arguments,

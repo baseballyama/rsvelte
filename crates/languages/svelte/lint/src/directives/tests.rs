@@ -183,7 +183,8 @@ fn disable_specific_rules() {
 #[test]
 fn enable_all_rules() {
     let found = lint(
-        "\n      <!-- eslint-disable -->\n      {@html a+b}\n      <!-- eslint-enable -->\n      {@html a+b}\n       ",
+        "\n      <!-- eslint-disable -->\n      {@html a+b}\n      <!-- eslint-enable -->\n      \
+            {@html a+b}\n       ",
     );
     assert_eq!(
         at(&found),
@@ -194,7 +195,8 @@ fn enable_all_rules() {
 #[test]
 fn enable_specific_rules() {
     let found = lint(
-        "\n      <!-- eslint-disable svelte/no-at-html-tags, space-infix-ops -->\n      {@html a+b}\n      <!-- eslint-enable space-infix-ops -->\n      {@html a+b}\n      ",
+        "\n      <!-- eslint-disable svelte/no-at-html-tags, space-infix-ops -->\n      {@html \
+            a+b}\n      <!-- eslint-enable space-infix-ops -->\n      {@html a+b}\n      ",
     );
     assert_eq!(
         at(&found),
@@ -205,7 +207,8 @@ fn enable_specific_rules() {
 #[test]
 fn does_not_affect_the_code_in_script() {
     let found = lint(
-        "\n      <!-- eslint-disable -->\n      {@html a+b}\n      <script>\n        a;\n      </script>\n      ",
+        "\n      <!-- eslint-disable -->\n      {@html a+b}\n      <script>\n        a;\n      \
+            </script>\n      ",
     );
     assert_eq!(rules(&found), [UNDEF]);
 }
@@ -213,7 +216,8 @@ fn does_not_affect_the_code_in_script() {
 #[test]
 fn disable_specific_rules_with_empty_entries() {
     let found = lint(
-        "\n      <!-- eslint-disable space-infix-ops ,, , svelte/no-at-html-tags -->\n      {@html a+b}\n      ",
+        "\n      <!-- eslint-disable space-infix-ops ,, , svelte/no-at-html-tags -->\n      {@html \
+            a+b}\n      ",
     );
     assert_eq!(rules(&found), [UNDEF, UNDEF]);
 }
@@ -235,7 +239,8 @@ fn disable_line_specific_rules() {
 #[test]
 fn disable_line_on_another_line() {
     let found = lint(
-        "\n      <!-- eslint-disable-line -->\n      {@html a+b}\n      <!-- eslint-disable-line -->\n      ",
+        "\n      <!-- eslint-disable-line -->\n      {@html a+b}\n      <!-- eslint-disable-line \
+            -->\n      ",
     );
     assert_eq!(rules(&found), [AT_MARKUP, UNDEF, INFIX, UNDEF]);
 }
@@ -259,7 +264,8 @@ fn disable_next_line_specific_rules() {
 #[test]
 fn disable_next_line_on_another_line() {
     let found = lint(
-        "\n      <!-- eslint-disable-next-line -->\n\n      {@html a+b} <!-- eslint-disable-next-line -->\n      <!-- eslint-disable-next-line -->\n      ",
+        "\n      <!-- eslint-disable-next-line -->\n\n      {@html a+b} <!-- \
+            eslint-disable-next-line -->\n      <!-- eslint-disable-next-line -->\n      ",
     );
     assert_eq!(
         at(&found),
@@ -270,7 +276,8 @@ fn disable_next_line_on_another_line() {
 #[test]
 fn disable_next_line_affects_only_the_next_line() {
     let found = lint(
-        "\n      <!-- eslint-disable-next-line svelte/no-at-html-tags, space-infix-ops -->\n      {@html a+b}\n      {@html a+b}\n      ",
+        "\n      <!-- eslint-disable-next-line svelte/no-at-html-tags, space-infix-ops -->\n      \
+            {@html a+b}\n      {@html a+b}\n      ",
     );
     assert_eq!(
         at(&found),
@@ -296,7 +303,8 @@ fn description_disable_all() {
 #[test]
 fn description_enable_all() {
     let found = lint(
-        "\n      <!-- eslint-disable -- description -->\n      {@html a+b}\n      <!-- eslint-enable -- description -->\n      {@html a+b}\n      ",
+        "\n      <!-- eslint-disable -- description -->\n      {@html a+b}\n      <!-- \
+            eslint-enable -- description -->\n      {@html a+b}\n      ",
     );
     assert_eq!(
         at(&found),
@@ -307,7 +315,9 @@ fn description_enable_all() {
 #[test]
 fn description_enable_specific_rules() {
     let found = lint(
-        "\n      <!-- eslint-disable svelte/no-at-html-tags, space-infix-ops -- description -->\n      {@html a+b}\n      <!-- eslint-enable space-infix-ops -- description -->\n      {@html a+b}\n      ",
+        "\n      <!-- eslint-disable svelte/no-at-html-tags, space-infix-ops -- description \
+            -->\n      {@html a+b}\n      <!-- eslint-enable space-infix-ops -- description \
+            -->\n      {@html a+b}\n      ",
     );
     assert_eq!(
         at(&found),
@@ -342,7 +352,8 @@ fn description_disable_next_line_all() {
 #[test]
 fn description_disable_next_line_specific_rules() {
     let found = lint(
-        "\n      <!-- eslint-disable-next-line space-infix-ops -- description -->\n      {@html a+b}\n      ",
+        "\n      <!-- eslint-disable-next-line space-infix-ops -- description -->\n      {@html \
+            a+b}\n      ",
     );
     assert_eq!(rules(&found), [AT_MARKUP, UNDEF, UNDEF]);
 }
@@ -379,7 +390,9 @@ fn do_not_report_a_used_disable() {
 #[test]
 fn disable_and_report_an_unused_disable() {
     let found = unused(
-        "\n        <!-- eslint-disable -->\n        <div>{@html foo}{@debug foo}</div>\n        <!-- eslint-enable -->\n        <!-- eslint-disable -->\n        <div>Hello</div>\n      ",
+        "\n        <!-- eslint-disable -->\n        <div>{@html foo}{@debug foo}</div>\n        \
+            <!-- eslint-enable -->\n        <!-- eslint-disable -->\n        \
+            <div>Hello</div>\n      ",
     );
     assert_eq!(
         message(&found),
@@ -395,7 +408,8 @@ fn disable_and_report_an_unused_disable() {
 #[test]
 fn report_unused_disable_of_rules() {
     let found = unused(
-        "\n        <!-- eslint-disable svelte/no-at-debug-tags, svelte/no-at-html-tags -->\n        <div>Hello</div>\n      ",
+        "\n        <!-- eslint-disable svelte/no-at-debug-tags, svelte/no-at-html-tags \
+            -->\n        <div>Hello</div>\n      ",
     );
     assert_eq!(
         message(&found),
@@ -404,13 +418,15 @@ fn report_unused_disable_of_rules() {
                 DIRECTIVE,
                 2,
                 29,
-                "Unused eslint-disable directive (no problems were reported from 'svelte/no-at-debug-tags')."
+                "Unused eslint-disable directive (no problems were reported from \
+                    'svelte/no-at-debug-tags')."
             ),
             (
                 DIRECTIVE,
                 2,
                 54,
-                "Unused eslint-disable directive (no problems were reported from 'svelte/no-at-html-tags')."
+                "Unused eslint-disable directive (no problems were reported from \
+                    'svelte/no-at-html-tags')."
             )
         ]
     );
@@ -419,7 +435,8 @@ fn report_unused_disable_of_rules() {
 #[test]
 fn report_unused_disable_next_line_of_rules() {
     let found = unused(
-        "\n        <!-- eslint-disable-next-line svelte/no-at-debug-tags, svelte/no-at-html-tags -->\n        <div>Hello</div>\n        <div>{@html foo}{@debug foo}</div>\n      ",
+        "\n        <!-- eslint-disable-next-line svelte/no-at-debug-tags, svelte/no-at-html-tags \
+            -->\n        <div>Hello</div>\n        <div>{@html foo}{@debug foo}</div>\n      ",
     );
     let found = message(&found);
     assert_eq!(
@@ -429,13 +446,15 @@ fn report_unused_disable_next_line_of_rules() {
                 DIRECTIVE,
                 2,
                 39,
-                "Unused eslint-disable-next-line directive (no problems were reported from 'svelte/no-at-debug-tags')."
+                "Unused eslint-disable-next-line directive (no problems were reported from \
+                    'svelte/no-at-debug-tags')."
             ),
             (
                 DIRECTIVE,
                 2,
                 64,
-                "Unused eslint-disable-next-line directive (no problems were reported from 'svelte/no-at-html-tags')."
+                "Unused eslint-disable-next-line directive (no problems were reported from \
+                    'svelte/no-at-html-tags')."
             )
         ]
     );
@@ -446,7 +465,8 @@ fn report_unused_disable_next_line_of_rules() {
 #[test]
 fn do_not_report_a_used_disable_next_line() {
     let found = unused(
-        "\n        <!-- eslint-disable-next-line svelte/no-at-debug-tags, svelte/no-at-html-tags -->\n        <div>{@html foo}{@debug foo}</div>\n      ",
+        "\n        <!-- eslint-disable-next-line svelte/no-at-debug-tags, svelte/no-at-html-tags \
+            -->\n        <div>{@html foo}{@debug foo}</div>\n      ",
     );
     assert_eq!(found, []);
 }
@@ -454,7 +474,10 @@ fn do_not_report_a_used_disable_next_line() {
 #[test]
 fn do_not_report_used_with_a_duplicate_disable() {
     let found = unused(
-        "\n        <!-- eslint-disable -->\n        <!-- eslint-disable-next-line svelte/no-at-debug-tags, svelte/no-at-html-tags -->\n        <div>{@html foo}</div><!-- eslint-disable-line svelte/no-at-debug-tags, svelte/no-at-html-tags -->\n      ",
+        "\n        <!-- eslint-disable -->\n        <!-- eslint-disable-next-line \
+            svelte/no-at-debug-tags, svelte/no-at-html-tags -->\n        <div>{@html \
+            foo}</div><!-- eslint-disable-line svelte/no-at-debug-tags, svelte/no-at-html-tags \
+            -->\n      ",
     );
     assert_eq!(found, []);
 }
@@ -476,7 +499,8 @@ fn report_unused_enable() {
 #[test]
 fn report_unused_enable_of_a_rule() {
     let found = unused(
-        "\n        <!-- eslint-disable svelte/no-at-html-tags -->\n        <div>{@html foo}</div>\n        <!-- eslint-enable svelte/no-at-debug-tags -->\n      ",
+        "\n        <!-- eslint-disable svelte/no-at-html-tags -->\n        <div>{@html \
+            foo}</div>\n        <!-- eslint-enable svelte/no-at-debug-tags -->\n      ",
     );
     assert_eq!(
         message(&found),
@@ -484,7 +508,8 @@ fn report_unused_enable_of_a_rule() {
             DIRECTIVE,
             4,
             28,
-            "Unused eslint-enable directive (reporting from 'svelte/no-at-debug-tags' is not suppressed)."
+            "Unused eslint-enable directive (reporting from 'svelte/no-at-debug-tags' is not \
+                suppressed)."
         )]
     );
 }
@@ -494,7 +519,8 @@ fn javascript_block_directives_reach_the_template() {
     let found = lint("<script>\n/* eslint-disable no-undef */\n</script>\n{@html a+b}\n");
     assert_eq!(rules(&found), [AT_MARKUP, INFIX]);
     let found = lint(
-        "<script>\n/* eslint-disable */\n/* eslint-enable 'space-infix-ops' */\n</script>\n{@html a+b}\n",
+        "<script>\n/* eslint-disable */\n/* eslint-enable 'space-infix-ops' */\n</script>\n{@html \
+            a+b}\n",
     );
     assert_eq!(rules(&found), [INFIX]);
 }

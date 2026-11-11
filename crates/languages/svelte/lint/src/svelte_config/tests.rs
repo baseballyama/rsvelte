@@ -17,7 +17,8 @@ fn static_routes_are_read() {
     );
     assert_eq!(
         routes(
-            "const config = { kit: { files: { routes: 'a', 'routes': 'b' } } }; export default config;"
+            "const config = { kit: { files: { routes: 'a', 'routes': 'b' } } }; export default \
+                config;"
         ),
         "b"
     );

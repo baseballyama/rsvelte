@@ -75,7 +75,7 @@ pub(super) fn lower_client_props<'o>(
     pattern: &BindingPattern<'_>,
     out: &mut Vec<VariableDeclarator<'o>>,
     hoisted: &mut Vec<Statement<'o>>,
-    names: &Names,
+    names: &Names<'_>,
 ) {
     let (b, res) = (rw.b, rw.res);
     let mut seen: Vec<String> = ["$$slots", "$$events", "$$legacy"]

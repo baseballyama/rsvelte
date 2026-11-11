@@ -43,7 +43,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/plugins',
 		source: {
 			path: 'crates/languages/svelte/compile/src/task.rs',
-			line: 33,
+			line: 36,
 			text: '.task(Compile {',
 		},
 		box: { x: 32, y: 162, w: 188, h: height },
@@ -57,7 +57,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/layers',
 		source: {
 			path: 'crates/languages/svelte/semantic/src/computation.rs',
-			line: 108,
+			line: 139,
 			text: 'reg.artifact::<Resolved>()',
 		},
 		box: { x: 32, y: 262, w: 188, h: height },
@@ -85,7 +85,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#registry',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/registry.rs',
-			line: 12,
+			line: 15,
 			text: 'pub struct Registry {',
 		},
 		box: { x: left, y: 60, w: width, h: height },
@@ -99,7 +99,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel#modules',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/registry.rs',
-			line: 46,
+			line: 57,
 			text: 'pub fn validate_plugins(&self) -> Result<(), PluginError> {',
 		},
 		box: { x: right, y: 60, w: width, h: height },
@@ -127,7 +127,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#run',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
-			line: 265,
+			line: 267,
 			text: 'pub fn run(',
 		},
 		box: { x: right, y: 162, w: width, h: height },
@@ -141,7 +141,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/database',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/database.rs',
-			line: 192,
+			line: 212,
 			text: 'pub fn get<A: Artifact>(&self) -> &A::Output {',
 		},
 		box: { x: left, y: 262, w: width, h: height },
@@ -155,7 +155,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/database#facet',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/database.rs',
-			line: 34,
+			line: 39,
 			text: "pub trait Facet: 'static {",
 		},
 		box: { x: right, y: 262, w: width, h: height },
@@ -169,7 +169,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#project',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
-			line: 140,
+			line: 142,
 			text: 'fn run_finish_tasks(',
 		},
 		box: { x: left, y: 362, w: width, h: height },
@@ -197,7 +197,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel#life',
 		source: {
 			path: 'crates/hosts/browser/src/computation.rs',
-			line: 261,
+			line: 276,
 			text: 'pipeline::run(&reg',
 		},
 		box: { x: 790, y: 162, w: 176, h: height },
@@ -224,6 +224,12 @@ export const sharedParts: SharedPart[] = [
 		href: '/learn/kernel/interning',
 	},
 	{ id: 'index', label: '識別番号', module: 'kernel/index', href: '/learn/kernel/layers' },
+	{
+		id: 'characters',
+		label: '文字の種類',
+		module: 'kernel/source/characters',
+		href: '/learn/kernel#modules',
+	},
 	{
 		id: 'tokens',
 		label: '字句の記録',
@@ -261,6 +267,12 @@ export const sharedParts: SharedPart[] = [
 		href: '/learn/kernel/structured-data',
 	},
 	{
+		id: 'file_facts',
+		label: '文書外のファイル',
+		module: 'kernel/computation/file_facts',
+		href: '/learn/kernel#modules',
+	},
+	{
 		id: 'task_files',
 		label: 'タスクの出力ファイル',
 		module: 'kernel/task_files',
@@ -277,6 +289,12 @@ export const sharedParts: SharedPart[] = [
 		label: '計測',
 		module: 'kernel/performance/measurement',
 		href: '/learn/kernel/measurement',
+	},
+	{
+		id: 'stack',
+		label: '深い再帰',
+		module: 'kernel/performance/stack',
+		href: '/learn/kernel#modules',
 	},
 	{
 		id: 'buffer_pool',
@@ -299,7 +317,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [134, 82],
 		source: {
 			path: 'crates/languages/svelte/semantic/src/computation.rs',
-			line: 105,
+			line: 136,
 			text: 'pub fn register(reg: &mut Registry) {',
 		},
 	},
@@ -325,7 +343,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [480, 52],
 		source: {
 			path: pipeline,
-			line: 185,
+			line: 187,
 			text: 'reg.validate_plugins().map_err(RunError::Plugins)?;',
 		},
 	},
@@ -345,7 +363,7 @@ export const overviewEdges: OverviewEdge[] = [
 		sentence: '文書ごとに、別々のワーカーで一つの文書の処理を呼びます。',
 		path: 'M534 192 H486',
 		at: [498, 184],
-		source: { path: pipeline, line: 202, text: 'docs.par_iter().enumerate().map(visit).collect()' },
+		source: { path: pipeline, line: 204, text: 'docs.par_iter().enumerate().map(visit).collect()' },
 	},
 	{
 		from: 'run-document',
@@ -356,7 +374,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [230, 178],
 		source: {
 			path: pipeline,
-			line: 83,
+			line: 84,
 			text: 'for task in tasks.iter().filter(|t| t.applies(document)) {',
 		},
 	},
@@ -368,9 +386,9 @@ export const overviewEdges: OverviewEdge[] = [
 		path: 'M220 210 H262 V280 H306',
 		at: [226, 246],
 		source: {
-			path: 'crates/languages/svelte/lint/src/rules/valid_each_key.rs',
-			line: 13,
-			text: '.get::<Lowered>()',
+			path: 'crates/languages/svelte/lint/src/rule.rs',
+			line: 190,
+			text: 'self.context.get::<Lowered>()',
 		},
 	},
 	{
@@ -382,7 +400,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [228, 318],
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/database.rs',
-			line: 27,
+			line: 32,
 			text: "pub trait Artifact: 'static {",
 		},
 	},
@@ -395,7 +413,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [496, 318],
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/database.rs',
-			line: 214,
+			line: 234,
 			text: 'pub fn facet<F: Facet>(&self) -> Option<&F::Output> {',
 		},
 	},
@@ -428,7 +446,7 @@ export const overviewEdges: OverviewEdge[] = [
 		sentence: '全文書の処理が終わってから、型検査のようなまとめる処理を一度だけ呼びます。',
 		path: 'M306 392 H220',
 		at: [232, 384],
-		source: { path: pipeline, line: 277, text: 'run_finish_tasks(&finish_tasks, &mut results);' },
+		source: { path: pipeline, line: 279, text: 'run_finish_tasks(&finish_tasks, &mut results);' },
 	},
 	{
 		from: 'output',

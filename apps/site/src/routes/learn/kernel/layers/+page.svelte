@@ -17,7 +17,7 @@
 		{
 			name: 'svelte.parse',
 			layer: '元の構文木',
-			what: '書かれたとおりの木。整形はこれだけを読む。',
+			what: '書かれたとおりの木。整形はこの木から出力を作る。',
 			readers: 'すべて',
 		},
 		{
@@ -29,8 +29,8 @@
 		{
 			name: 'svelte.resolve',
 			layer: '名前解決',
-			what: 'スコープ、名前から束縛への対応、rune の種類。コンパイル用に整理した構文木を読む。',
-			readers: 'compile, lint',
+			what: 'スコープ、名前から束縛への対応、rune の種類。コンパイル用に整理した構文木を読む。整形も、パーサが報告しない構文エラーを見つけるために読む。',
+			readers: 'compile, lint, format',
 		},
 		{
 			name: 'svelte.analyze',
@@ -490,12 +490,15 @@
 
 	<H2 id="lint" />
 	<p>
-		コード検査のルールは、読む層を文書の <code>DocumentContext</code
-		>（文書ごとの計算結果の入れ物）から求めます。読む層はルールごとに違います。
+		コード検査のルールは、読む層を <code>File</code> から求めます。<code>File</code>
+		は、文書の
+		<code>DocumentContext</code
+		>（文書ごとの計算結果の入れ物）から層を引きます。読む層はルールごとに違います。
 	</p>
 	<ul>
 		<li>
-			<code>no-unused-vars</code> は、元の構文木と名前解決を読みます。ESLint のルールの移植で、親の要素の種類や宣言の書き方を見て判断するので、書かれたとおりの木が要ります。
+			<code>no-unused-vars</code> は、元の構文木と名前解決を読みます。ESLint のルールの移植で、親の要素の種類や宣言の書き方を見て判断するので、書かれたとおりの木が要ります。snippet
+			の本体のスコープを知るために、コンパイル用に整理した構文木も読みます。
 		</li>
 		<li>
 			<code>svelte/button-has-type</code> は、元の構文木だけを読みます。名前解決は要りません。属性の値の部品がすべて文字列なら静的な値として判定し、式を含む値は判定しません。判定そのものは、次の節の共通の関数に任せます。
@@ -505,21 +508,17 @@
 		</li>
 	</ul>
 	<p>
-		Svelte プラグインでは、設定の中の各ルール（<code>RuleConfiguration</code>）が <code>Rule</code>
-		を実装し、必要な層をその場で求めます。<code>rsvelte_lint_runner</code> の <code>Findings</code> は、ルールを設定の順に走らせ、指摘を一つの並びにまとめます。並びは開始位置の順で、同じ位置の指摘はルールの順に残ります。
+		Svelte プラグインでは、設定の中の各ルール（<code>ConfiguredRule</code>）が <code>Rule</code>
+		を実装します。<code>ConfiguredRule</code> は、オプションを読んで作ったルール（<code
+			>dyn SvelteRule</code
+		>）を呼びます。そのルールが、必要な層をその場で求めます。<code>rsvelte_lint_runner</code> の
+		<code>Findings</code> は、ルールを設定の順に走らせ、指摘を一つの並びにまとめます。並びは開始位置の順で、同じ位置の指摘はルールの順に残ります。
 	</p>
 </div>
 
 <Code item={data.code.findings} />
 <Code item={data.code.lint} />
-<Code
-	item={data.code.ruleImpl}
-	mark={[
-		'.get::<Parsed>()',
-		'no_unused_variables::check(context, reporter)',
-		'valid_each_key::check(context, reporter)',
-	]}
-/>
+<Code item={data.code.ruleImpl} mark={['self.rule.check(context, reporter);']} />
 <Code
 	item={data.code.button}
 	mark={[

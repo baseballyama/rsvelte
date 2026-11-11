@@ -331,7 +331,8 @@ fn style_rules_share_inline_styles_and_the_style_verdict_without_scopes() {
     rsvelte_svelte_lint::register(&mut registry);
     let document = Document::new(
         "test.svelte".to_owned(),
-        "<div class=\"a {b ? 'c' : ''}\" style=\"color: red; color: blue\" style:colour=\"x\"></div>\
+        "<div class=\"a {b ? 'c' : ''}\" style=\"color: red; color: blue\" \
+            style:colour=\"x\"></div>\
          <style>.a { margin: 0 } div {}</style>"
             .to_owned(),
     )
