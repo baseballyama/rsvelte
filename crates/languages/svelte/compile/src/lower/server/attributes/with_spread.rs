@@ -101,7 +101,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             let trim = matches!(name.as_str(), "class" | "style");
             let value = match &a.value {
                 AttributeValue::Static(v) => b.string(&escaped_text(v, trim)),
-                _ => self.attribute_value(a, trim, raw_name == "class"),
+                // `prepare_element_spread_object` writes a class as it is, without `clsx`.
+                _ => self.attribute_value(a, trim, raw_name == "class" && !all),
             };
             props.push(b.init(&name, value));
         }

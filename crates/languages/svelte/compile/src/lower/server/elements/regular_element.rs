@@ -3,7 +3,7 @@ use oxc_ast::ast::Expression;
 
 use crate::lower::server::{
     AttributeValue, CompilerNodeIdentifier, Element, ElementKind, NodeKind, Piece, R,
-    ServerCompilationContext, is_customizable_select, is_void, unsupported,
+    ServerCompilationContext, is_customizable_select, is_void,
 };
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -21,9 +21,6 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             return self.special_element(identifier, template);
         }
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
-        if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
-            return unsupported(&format!("rich content in `<{tag}>`"), el.name);
-        }
         let namespace = self.plan.namespace(identifier);
         let tag = if namespace == crate::render_plan::Namespace::Html {
             tag
@@ -133,6 +130,12 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         } else {
             self.hoisted_elements(&cleaned.hoisted, |_| false, template)?;
             self.process_children(&cleaned.items, template)?;
+            // The hydration marker of rich content, which upstream puts after it.
+            if matches!(tag, "optgroup" | "select")
+                && is_customizable_select(compiler_syntax_tree, self.source_text, tag, el)
+            {
+                template.push(Piece::Text("<!>".to_owned()));
+            }
         }
         if !void {
             template.push(Piece::Text(format!("</{tag}>")));

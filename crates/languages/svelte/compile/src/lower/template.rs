@@ -1,11 +1,12 @@
 use oxc_ast::ast::{ArrowFunctionExpression, Expression, Function, IdentifierReference};
 use oxc_ast_visit::{Visit, walk};
 use oxc_syntax::scope::ScopeFlags;
+use rsvelte_svelte_semantic::compiler_syntax_tree::MetadataTag;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{
     Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
-    NodeKind, Resolution,
+    ElementKind, NodeKind, Resolution,
 };
 
 pub const DOM_BOOLEAN_ATTRIBUTES: &[&str] = &[
@@ -194,6 +195,11 @@ pub fn is_customizable_select(
                     for c in compiler_syntax_tree.child_lists(identifier) {
                         descendants(compiler_syntax_tree, source_text, c, out);
                     }
+                }
+                NodeKind::Element(el)
+                    if el.kind == ElementKind::Metadata(Some(MetadataTag::Boundary)) =>
+                {
+                    descendants(compiler_syntax_tree, source_text, el.children, out);
                 }
                 NodeKind::Element(_) | NodeKind::Render { .. } | NodeKind::Html { .. } => {
                     out.push(identifier);

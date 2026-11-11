@@ -3,6 +3,7 @@ use oxc_ast::ast::{Argument, Expression, Statement};
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     ClientCompilationContext, CompilerNodeIdentifier, Frag, Item, Lists, NodeKind, Prev, R,
+    is_customizable_select,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -27,6 +28,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             Item::Expression(e) => !self.an.meta(*e).has_state,
             Item::Node(_) | Item::Comment => false,
         }) && items.iter().any(|i| matches!(i, Item::Expression(_)));
+        let tag = el.name.text(self.source_text).to_ascii_lowercase();
         if use_text_content {
             let (value, _) = self.template_chunk(items, &mut frag.memo, false);
             let empty = matches!(&value, Expression::StringLiteral(s) if s.value.is_empty());
@@ -36,6 +38,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     .initializer
                     .push(b.stmt(b.assign_member(target, value)));
             }
+        } else if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
+            let namespace = self.plan.namespace(identifier);
+            let content = self.customizable_select(items, node, &tag, namespace, frag)?;
+            child.initializer.push(content);
         } else {
             // Upstream points the hydration cursor into a `<template>`'s content.
             let content = el.name.text(self.source_text) == "template";
