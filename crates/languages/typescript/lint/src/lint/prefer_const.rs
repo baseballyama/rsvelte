@@ -476,8 +476,10 @@ fn is_init_of_for(f: &Facts<'_>, declaration: NodeId) -> bool {
     f.parent(declaration).is_some_and(|p| {
         matches!(
             f.kind(p),
-            AstKind::ForStatement(s)
-                if matches!(&s.init, Some(ForStatementInit::VariableDeclaration(d)) if d.span == span)
+            AstKind::ForStatement(s) if matches!(
+                &s.init,
+                Some(ForStatementInit::VariableDeclaration(d)) if d.span == span
+            )
         )
     })
 }
