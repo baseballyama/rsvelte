@@ -83,11 +83,9 @@
 	<p>
 		そこで、持ち主の型も鍵に含める <code>take_keyed::&lt;K, T&gt;</code> と <code>give_keyed</code>
 		を足しました。<code>K</code>
-		は構造体そのもの（<Term name="LayoutInstructions" />、<code
-			>Component</code
-		>、<code>Interner</code>）です。同じ持ち主の同じ型の列だけが、保存先を共有します。<code
-			>String</code
-		>
+		は構造体そのもの（<Term name="LayoutInstructions" />、<code>Component</code>、<code
+			>Interner</code
+		>）です。同じ持ち主の同じ型の列だけが、保存先を共有します。<code>String</code>
 		のバッファは、<code>take_string</code> と <code>give_string</code> で <code>u8</code>
 		の保存先を通ります。
 	</p>
@@ -100,7 +98,8 @@
 <div class="prose-learn">
 	<p>
 		一つの持ち主が、同じ型の列を複数持つこともあります。<code>Interner</code>
-		では、大きさの違う二つの列、名前の終わりの位置 <code>ends</code> とハッシュ表 <code>table</code> が、どちらも
+		では、大きさの違う二つの列、名前の終わりの位置 <code>ends</code> とハッシュ表 <code>table</code>
+		が、どちらも
 		<code>Vec&lt;u32&gt;</code>
 		です。保存先は後入れ先出しなので、借りた順の逆に返せば、次の文書でもそれぞれが自分の大きさのバッファを受け取ります。
 	</p>
