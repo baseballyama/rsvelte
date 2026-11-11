@@ -14,6 +14,10 @@
 
 use std::process::ExitCode;
 
+use oxc_ast::AstKind;
+use oxc_ast::ast::VariableDeclarationKind;
+use oxc_semantic::{ReferenceId, SymbolId};
+use oxc_span::GetSpan;
 use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
@@ -39,8 +43,9 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let document = match rsvelte_kernel::source::document::Document::new(path.clone(), source_text)
-    {
+    // The site keeps its sample as `.svelte.txt` only to hide it from its own svelte-check.
+    let name = path.strip_suffix(".txt").unwrap_or(path).to_owned();
+    let document = match rsvelte_kernel::source::document::Document::new(name, source_text) {
         Ok(document) => document,
         Err(error) => {
             eprintln!("{path}: {error:?}");
@@ -84,50 +89,40 @@ fn main() -> ExitCode {
     lowered(&mut w, c, h, &at, h.root, 0);
     w.end_array();
 
+    let scoping = res.scoping();
     w.key("bindings").begin_array();
-    for (identifier, b) in res.sem.bindings.iter_enumerated() {
-        let info = &res.bindings[identifier];
-        let span = c
-            .javascript
-            .source_location(b.node)
-            .span()
-            .expect("declared in source");
+    for symbol in scoping.symbol_ids() {
+        let span = scoping.symbol_span(symbol);
         w.begin_object()
             .key("id")
-            .write_number(identifier.index())
+            .write_number(symbol.index())
             .key("name")
-            .write_string(c.javascript.atoms.get(b.name))
+            .write_string(scoping.symbol_name(symbol))
             .key("declaration")
-            .write_string(&format!("{:?}", b.kind))
+            .write_string(declaration(res, symbol))
             .key("rune")
-            .write_string(&format!("{:?}", info.kind))
+            .write_string(&format!("{:?}", res.binding(symbol).kind))
             .key("reads")
-            .write_number(b.reads)
+            .write_number(res.counts().reads[symbol.index()])
             .key("writes")
-            .write_number(b.writes);
-        at.span_key(&mut w, "span", span);
+            .write_number(res.writes(symbol));
+        at.span_key(&mut w, "span", Span::new(span.start, span.end));
         w.end_object();
     }
     w.end_array();
 
     let script = c.instance.as_ref().map(|s| s.span);
     w.key("refs").begin_array();
-    for r in &res.sem.references {
-        let span = c
-            .javascript
-            .source_location(r.node)
-            .span()
-            .expect("parsed from source");
-        if script
-            .is_some_and(|s| s.start_offset <= span.start_offset && span.end_offset <= s.end_offset)
-        {
+    for reference in (0..scoping.references_len()).map(ReferenceId::from_usize) {
+        let span = res.reference_span(reference);
+        if script.is_some_and(|s| s.start_offset <= span.start && span.end <= s.end_offset) {
             continue;
         }
         w.begin_object();
-        at.span_key(&mut w, "span", span);
+        at.span_key(&mut w, "span", Span::new(span.start, span.end));
         w.key("binding");
-        match r.binding {
-            Some(b) => w.write_number(b.index()),
+        match scoping.get_reference(reference).symbol_id() {
+            Some(symbol) => w.write_number(symbol.index()),
             None => w.null(),
         };
         w.end_object();
@@ -152,6 +147,27 @@ fn main() -> ExitCode {
     w.end_object();
     print!("{}", w.finish());
     ExitCode::SUCCESS
+}
+
+/// What declares `symbol`, as the site's binding table names it.
+fn declaration(
+    res: &rsvelte_svelte_semantic::resolve::Resolution,
+    symbol: SymbolId,
+) -> &'static str {
+    match res.declaration(symbol) {
+        AstKind::VariableDeclarator(_) => match res.variable_kind(symbol) {
+            Some(VariableDeclarationKind::Const) => "Const",
+            Some(VariableDeclarationKind::Let) => "Let",
+            _ => "Variable",
+        },
+        AstKind::Function(_) => "Function",
+        AstKind::Class(_) => "Class",
+        AstKind::ImportSpecifier(_)
+        | AstKind::ImportDefaultSpecifier(_)
+        | AstKind::ImportNamespaceSpecifier(_) => "Import",
+        AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_) => "Parameter",
+        _ => "Template",
+    }
 }
 
 /// The source and its line index, which turns byte spans into the site's UTF-16 offsets.
@@ -331,11 +347,8 @@ fn lowered(
                 otherwise,
             } => {
                 for branch in h.branches(*branches) {
-                    let test = c
-                        .javascript
-                        .source_location(branch.test)
-                        .span()
-                        .expect("parsed from source");
+                    let test = c.javascript.get_expression(branch.test).span();
+                    let test = Span::new(test.start, test.end);
                     let origin = c.node(branch.origin).span();
                     at.row(
                         w,
