@@ -1,7 +1,7 @@
 //! Binding resolution and classification as side tables over the component's oxc trees.
 //!
 //! One `oxc_semantic` analysis covers the module script, the instance script and the template
-//! ([`host::ComponentHost`]), so "is this name used anywhere" is one query.
+//! (`host::ComponentHost`), so "is this name used anywhere" is one query.
 
 use std::cell::RefCell;
 
@@ -241,16 +241,16 @@ fn allow_snippet_exports(
 
 /// The program a component without scripts resolves its template in.
 fn empty_program(tree: &Tree) -> &Program<'_> {
-    let ast = oxc_ast::builder::AstBuilder::new(tree.allocator());
+    let nodes = oxc_ast::builder::AstBuilder::new(tree.allocator());
     let program = Program::new(
         Span::empty(0),
         oxc_span::SourceType::mjs(),
         tree.source_text(),
-        oxc_allocator::ArenaVec::new_in(&ast),
+        oxc_allocator::ArenaVec::new_in(&nodes),
         None,
-        oxc_allocator::ArenaVec::new_in(&ast),
-        oxc_allocator::ArenaVec::new_in(&ast),
-        &ast,
+        oxc_allocator::ArenaVec::new_in(&nodes),
+        oxc_allocator::ArenaVec::new_in(&nodes),
+        &nodes,
     );
     tree.allocator().alloc(program)
 }
