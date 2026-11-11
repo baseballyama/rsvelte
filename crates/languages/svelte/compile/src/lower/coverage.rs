@@ -2,7 +2,6 @@
 //! target meets it.
 
 use oxc_ast::ast::{Expression, VariableDeclarationKind};
-use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, ElementKind, MetadataTag, Part, StyleValue,
 };
@@ -80,41 +79,6 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
         .filter(|_| super::uses_slots(res))
     {
         return unsupported("`$$slots` beside a `{@render}` tag", render.span);
-    }
-    Ok(())
-}
-
-/// A custom element with attributes in a subtree the analysis left static: upstream marks its
-/// ancestors dynamic, which the analysis does not yet.
-pub(super) fn check_static_custom_elements(
-    input: &CompileInput<'_>,
-    an: &Analysis,
-) -> Result<(), Diagnostic> {
-    let tree = input.component.compiler_syntax_tree;
-    let source = input.component.source_text;
-    for node in &tree.nodes {
-        let NodeKind::Element(el) = &node.kind else {
-            continue;
-        };
-        if el.kind != ElementKind::Regular
-            || tree.attributes(el.attributes).is_empty()
-            || !super::is_custom_element_node(tree, source, el)
-        {
-            continue;
-        }
-        let mut parent = node.parent;
-        while let Some(ancestor) = parent {
-            let ancestor_node = tree.node(ancestor);
-            if matches!(&ancestor_node.kind, NodeKind::Element(a) if a.kind == ElementKind::Regular)
-                && !an.dynamic[ancestor]
-            {
-                return unsupported(
-                    "a custom element with attributes in a static subtree",
-                    el.name,
-                );
-            }
-            parent = ancestor_node.parent;
-        }
     }
     Ok(())
 }
