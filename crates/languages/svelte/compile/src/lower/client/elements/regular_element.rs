@@ -22,7 +22,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             return self.special_element(identifier, node, frag, l);
         }
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
-        if matches!(tag.as_str(), "script" | "textarea" | "template") {
+        if matches!(tag.as_str(), "script" | "template") {
             return unsupported(&format!("`<{tag}>`"), el.name);
         }
         let custom_element = is_custom_element_node(compiler_syntax_tree, self.source_text, el);
@@ -57,6 +57,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         // Upstream compares the name as written.
         let remove_defaults = el.name.text(self.source_text) == "input"
             && self.remove_input_defaults(attribute_list, has_spread, node, l);
+        if tag == "textarea" {
+            self.remove_textarea_child(attribute_list, has_spread, node, l);
+        }
         if has_spread {
             self.attribute_effect(identifier, &tag, attribute_list, node, remove_defaults, l)?;
         } else {

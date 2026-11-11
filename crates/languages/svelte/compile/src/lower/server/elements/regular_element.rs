@@ -21,7 +21,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             return self.special_element(identifier, template);
         }
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
-        if matches!(tag.as_str(), "script" | "style" | "textarea" | "template") {
+        if matches!(tag.as_str(), "script" | "style" | "template") {
             return unsupported(&format!("`<{tag}>`"), el.name);
         }
         if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
@@ -61,7 +61,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let void = is_void(&tag);
         template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
         let cleaned = self.plan.fragment(el.children);
-        let body = self.element_body(compiler_syntax_tree.attributes(el.attributes));
+        let body = self.element_body(&tag, compiler_syntax_tree.attributes(el.attributes));
         if let Some(body) = body {
             // Upstream renders the children only when the bound content is empty.
             let b = self.b;

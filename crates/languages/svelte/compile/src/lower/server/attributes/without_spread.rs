@@ -66,6 +66,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                     continue;
                 }
                 _ if matches!(raw_name, "defaultValue" | "defaultChecked") => continue,
+                // Upstream renders a `<textarea>`'s value as its content.
+                _ if raw_name == "value" && tag == "textarea" => continue,
                 _ => {}
             }
             let name = if self.plan.namespace(identifier) == crate::render_plan::Namespace::Html {
