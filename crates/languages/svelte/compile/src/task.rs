@@ -33,6 +33,7 @@ pub fn register(registry: &mut Registry) {
         .artifact::<Planned>()
         .artifact::<ScopedStylesheet>()
         .artifact::<Validated>()
+        .artifact::<crate::warnings::Warned>()
         .task(Compile {
             target: Target::Client,
         })
@@ -71,12 +72,16 @@ impl Task for Compile {
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
         match compiled(context, self.target, false) {
-            Ok(compiled) => {
-                out.file("js", compiled.javascript.out);
-                if let Some(stylesheet) = compiled.stylesheet {
-                    out.file("css", stylesheet.to_owned());
+            Ok(compiled) => match context.get::<crate::warnings::Warned>() {
+                Ok(shown) => {
+                    out.file("js", compiled.javascript.out);
+                    if let Some(stylesheet) = compiled.stylesheet {
+                        out.file("css", stylesheet.to_owned());
+                    }
+                    out.diagnostics.extend(shown.iter().cloned());
                 }
-            }
+                Err(error) => out.diagnostics.push(error.clone()),
+            },
             Err(diagnostic) => out.diagnostics.push(diagnostic),
         }
     }
