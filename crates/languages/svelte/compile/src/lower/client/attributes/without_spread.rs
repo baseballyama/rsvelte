@@ -87,7 +87,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             } else if attribute_name == "autofocus" {
                 l.initializer.push(self.autofocus(node, a)?);
             } else if attribute_name == "style" {
-                self.set_style(node, Some(a), &style_directives, &mut frag.memo, l)?;
+                self.set_style(node, Some(a), &style_directives, &mut frag.memo, l);
             } else if custom_element {
                 l.initializer
                     .push(self.custom_element_data(node, raw_name, a));
@@ -121,7 +121,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("style")
         });
         if !has_style && !style_directives.is_empty() {
-            self.set_style(node, None, &style_directives, &mut frag.memo, l)?;
+            self.set_style(node, None, &style_directives, &mut frag.memo, l);
         }
         Ok(())
     }

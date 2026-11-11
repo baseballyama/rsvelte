@@ -228,11 +228,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn memo_deriveds(&self, memo: Memo<'o>) -> impl Iterator<Item = Statement<'o>> {
         let b = self.b;
         memo.entries.into_iter().map(move |m| {
-            let source = self
-                .javascript
-                .get_expression(m.source)
-                .get_inner_expression();
-            let thunk = callback(b, self.res, Some(source), m.value, Created::Template);
+            let source =
+                (m.source).map(|s| self.javascript.get_expression(s).get_inner_expression());
+            let thunk = callback(b, self.res, source, m.value, Created::Template);
             b.let_(&m.name, Some(b.runtime("derived", [thunk])))
         })
     }

@@ -2,7 +2,7 @@ use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKey};
 
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
-    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo, R,
+    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo,
     event_attribute, is_behaviour, is_directive, normalize_attribute,
 };
 
@@ -17,7 +17,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         node: &str,
         remove_defaults: bool,
         l: &mut Lists<'o>,
-    ) -> R<()> {
+    ) {
         let b = self.b;
         let mut memo = Memo::default();
         let mut values = Vec::with_capacity(attributes.len());
@@ -91,7 +91,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             values.push(b.property(key, b.object(props), true));
         }
         if !style_directives.is_empty() {
-            let (object, _) = self.style_directives(&style_directives, &mut memo)?;
+            let (object, _) = self.style_directives(&style_directives, &mut memo);
             let key = PropertyKey::from(b.member(b.id("$"), "STYLE"));
             values.push(b.property(key, object, true));
         }
@@ -116,7 +116,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             ],
         );
         l.initializer.push(b.stmt(call));
-        Ok(())
     }
 
     /// Upstream's analysis gives an element without a spread an empty `class` when it is scoped
