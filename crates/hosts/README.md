@@ -42,8 +42,8 @@ reads, and a task that would run without what it needs. Without `--task`, `corpu
 every task, the checks included.
 
 The check tasks share the type checker that `typescript.check` names: TypeScript 7.1's `tsc` or
-any product with its command line, such as `tsrs`. rsvelte adds
-`-p <dir> --pretty true --runExternalCode` and reads its report. The CLI looks for a bare name
+any product with its API, such as `tsrs`. rsvelte starts it with
+`--api --cwd <dir> --runExternalCode` and asks it for diagnostics. The CLI looks for a bare name
 such as `tsrs` in the project's `node_modules/.bin`, then in `PATH`. Before it reads any file,
 the CLI runs `<checker> --version`; `benchmark` and `performance` record each program and its
 version in `tools`. `svelte.check` also needs the svelte package and the content mapper, and
@@ -52,7 +52,7 @@ version in `tools`. `svelte.check` also needs the svelte package and the content
 ```sh
 cargo install --path crates/languages/typescript/content_mapper
 cargo run -p rsvelte_command_line -- run App.svelte --task svelte.check/default \
-  --options typescript.check '{"command": ["tsrs", "--fast"], "tsconfig": "tsconfig.json"}' \
+  --options typescript.check '{"command": ["tsrs"], "tsconfig": "tsconfig.json"}' \
   --options svelte.check '{"svelte": "node_modules/svelte"}'
 ```
 

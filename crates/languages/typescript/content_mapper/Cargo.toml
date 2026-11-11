@@ -11,8 +11,8 @@ doctest = false
 
 [dependencies]
 rsvelte_kernel.workspace = true
-serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.154"
+serde.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true
