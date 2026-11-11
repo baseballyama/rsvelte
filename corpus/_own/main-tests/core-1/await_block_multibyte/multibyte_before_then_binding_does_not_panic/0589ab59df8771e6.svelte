@@ -1,0 +1,1 @@
+<script>let c = $state(0)</script>{#await éaaa then v}{v}{/await}

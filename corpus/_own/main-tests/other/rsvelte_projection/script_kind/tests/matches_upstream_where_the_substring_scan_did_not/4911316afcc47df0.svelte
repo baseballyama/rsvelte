@@ -1,0 +1,1 @@
+<script>const s = 'lang=ts'</script>

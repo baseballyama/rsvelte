@@ -1,0 +1,1 @@
+<div><span>hi</span></div><style>div{color:red}span{color:blue}</style>

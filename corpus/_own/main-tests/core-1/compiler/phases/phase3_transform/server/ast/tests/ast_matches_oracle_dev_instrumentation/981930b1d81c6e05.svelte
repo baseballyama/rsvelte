@@ -1,0 +1,1 @@
+<script>let tag = 'div'</script><svelte:element this={tag.toUpperCase()}>x</svelte:element>

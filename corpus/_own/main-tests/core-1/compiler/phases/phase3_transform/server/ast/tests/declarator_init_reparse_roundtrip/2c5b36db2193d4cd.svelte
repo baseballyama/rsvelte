@@ -1,0 +1,1 @@
+<script>let r = $state(0); let o = { a: 1 };</script><p>x</p>

@@ -1,0 +1,1 @@
+<script>let c = $state(0)</script>{#await éaa catch e}{e}{/await}

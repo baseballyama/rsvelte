@@ -1,0 +1,1 @@
+<script>let p = $effect.pending(); $effect(() => { p; });</script>

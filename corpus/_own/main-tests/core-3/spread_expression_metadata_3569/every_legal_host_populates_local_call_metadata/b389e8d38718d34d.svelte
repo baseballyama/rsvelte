@@ -1,0 +1,1 @@
+<script>function make() {}</script><slot {...make()} />

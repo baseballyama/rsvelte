@@ -1,0 +1,1 @@
+<svelte:self on:click />

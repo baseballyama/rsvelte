@@ -1,0 +1,1 @@
+<script lang="ts">type A = -1 | -1n;</script>

@@ -1,0 +1,1 @@
+<Foo let:x let:y />

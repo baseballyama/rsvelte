@@ -1,0 +1,1 @@
+<script lang="ts">import { foo } from '../shared.svelte';</script>

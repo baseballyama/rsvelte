@@ -1,0 +1,1 @@
+<script>$effect(() => { console.log("x"); });</script>

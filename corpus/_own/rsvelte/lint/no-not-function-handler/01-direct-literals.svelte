@@ -1,0 +1,9 @@
+<button onclick={{ a: 1 }}>o</button>
+<button onclick={[1, 2]}>a</button>
+<button onclick={'str'}>s</button>
+<button onclick={123}>n</button>
+<button onclick={true}>b</button>
+<button onclick={`tpl`}>t</button>
+<button onclick={/re/}>r</button>
+<button onclick={123n}>g</button>
+<button onclick={class {}}>c</button>

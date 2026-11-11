@@ -1,0 +1,1 @@
+<style>:global(.external) {}</style>

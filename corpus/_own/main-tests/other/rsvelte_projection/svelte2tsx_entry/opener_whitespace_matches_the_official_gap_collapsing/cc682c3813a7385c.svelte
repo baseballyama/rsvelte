@@ -1,0 +1,3 @@
+<button
+  {...attributes}
+>x</button>

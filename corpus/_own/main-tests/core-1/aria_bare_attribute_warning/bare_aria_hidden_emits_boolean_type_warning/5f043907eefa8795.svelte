@@ -1,0 +1,1 @@
+<div aria-hidden>x</div>

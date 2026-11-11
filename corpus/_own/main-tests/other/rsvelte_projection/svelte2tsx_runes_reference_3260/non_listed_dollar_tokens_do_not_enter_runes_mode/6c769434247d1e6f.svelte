@@ -1,0 +1,1 @@
+<script>void $bindable;</script><div></div>

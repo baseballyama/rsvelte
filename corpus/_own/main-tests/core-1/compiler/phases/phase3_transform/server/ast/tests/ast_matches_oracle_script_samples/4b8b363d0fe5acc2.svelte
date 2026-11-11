@@ -1,0 +1,1 @@
+<script>let d = $derived(2 + 3);</script><p>{d}</p>

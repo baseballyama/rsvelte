@@ -1,0 +1,1 @@
+<script lang="ts"></script><div>{a as string}</div>

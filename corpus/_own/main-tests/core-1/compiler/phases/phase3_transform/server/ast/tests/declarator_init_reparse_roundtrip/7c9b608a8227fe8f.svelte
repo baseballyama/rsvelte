@@ -1,0 +1,1 @@
+<script>let r = $state(0); let arr = [1, 2];</script><p>x</p>

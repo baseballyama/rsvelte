@@ -1,0 +1,3 @@
+<script>
+	implements + ;
+</script>

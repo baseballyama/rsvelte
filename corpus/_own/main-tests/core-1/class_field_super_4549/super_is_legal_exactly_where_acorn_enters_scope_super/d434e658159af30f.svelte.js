@@ -1,0 +1,1 @@
+const o = { m(){ super.toString(); } };

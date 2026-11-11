@@ -1,0 +1,1 @@
+{#each [1, 2, 3] as n}<li>{n}</li>{:else}<p>empty</p>{/each}

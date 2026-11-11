@@ -1,0 +1,3 @@
+describe('x', () => {
+	class A {}
+});

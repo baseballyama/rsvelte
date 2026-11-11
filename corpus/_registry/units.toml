@@ -241,6 +241,989 @@
 ["svelte/svelte/packages/svelte/tests/runtime-runes/samples/component-let-directive/main.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
 
+["svelte/rsvelte-tests/rsvelte_language_server/completions/tests/a_modifier_already_present_is_not_offered_again/28fe594d339df17b.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser never returns on a directive that ends in an empty modifier, such as `on:click|`"
+
+["svelte/rsvelte-tests/rsvelte_language_server/completions/tests/a_modifier_completion_carries_its_documentation/037c86f438fd330a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser never returns on a directive that ends in an empty modifier, such as `on:click|`"
+
+["svelte/rsvelte-tests/rsvelte_language_server/completions/tests/a_component_gets_no_modifiers/c01c188197bba876.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser never returns on a directive that ends in an empty modifier, such as `on:click|`"
+
+["svelte/rsvelte-tests/rsvelte_language_server/completions/tests/modifiers_that_conflict_with_one_in_use_are_dropped/685007a2a89b534c.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser never returns on a directive that ends in an empty modifier, such as `on:click|`"
+
+["svelte/rsvelte-tests-core-1/await_catch_transform_conformance_4111/a_write_past_a_catch_block_keeps_the_outer_setter/d1af8001057a8bf0.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (25:2)"
+
+["svelte/rsvelte-tests-core-1/bind_host_axis_3264/legal_bindings_still_compile_on_every_host/e2b7a8af8920172b.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (15:38)"
+
+["svelte/rsvelte-tests-core-1/abstract_property_erasure_3082/an_abstract_member_is_erased_on_every_target/2433da24234ea06f.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (10:11)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:12)"
+
+["svelte/rsvelte/lint/no-inspect/03-template.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (16:36)"
+
+["svelte/rsvelte/lint/no-inspect/04-template-literal-interp.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (8:21)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (5:21)"
+
+["svelte/rsvelte-tests-core-2/early_errors_3243/typescript_declaration_merging_still_compiles/af3f36b95d8ac098.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (8:16)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (5:16)"
+
+["svelte/rsvelte-tests-core-2/inspect_operand_slot_3441/a_plain_inspect_initializer_on_client_dev/aa97fc3659968c06.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (8:11)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (5:11)"
+
+["svelte/rsvelte-tests-core-2/inspect_operand_slot_3441/an_inspect_as_an_array_element_on_client_prod/45a2bd7db74e7d85.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (10:12)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:13)"
+
+["svelte/rsvelte-tests-core-2/inspect_value_position_3213/an_instance_script_argument_slot_keeps_an_operand/6e19587c57d0bf02.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (7:12)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (4:12)"
+
+["svelte/rsvelte-tests-core-2/inspect_value_position_3213/an_instance_script_declarator_keeps_its_initializer/d5272b9e0cb2e154.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (7:9)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (4:9)"
+
+["svelte/rsvelte-tests-core-2/parse_abstract_class_member/an_abstract_property_is_still_dropped/331e2a10f431a57e.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (8:11)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:12)"
+
+["svelte/rsvelte/lint/runes-mode/07-template-only-rune-rule-in-runes.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (11:56)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:32)"
+
+["svelte/rsvelte-tests-core-2/module_inspect_slot_3611/a_component_script_module_never_sees_the_placeholder/8a919f1d8f265066.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (8:10)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (7:10)"
+
+["svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_top_level_snippet_may_shadow_a_module_script_const/8f79cd7fce7f75de.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Identifier 'row' has already been declared (10:13)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Identifier 'row' has already been declared (7:13)"
+
+["svelte/rsvelte-tests-core-3/ts_class_modifiers_3100_3203/abstract_and_override_are_legal_where_acorn_typescript_allows_them/69496c69510a0f6c.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (8:11)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (5:11)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/an_exported_import_equals_adds_no_props_parameter/5d0ce2b793c1ccd6.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (5:1)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (4:1)"
+
+["svelte/rsvelte-tests-core-3/ts_only_nodes_in_parse_ast_4195/a_namespace_export_declaration_reaches_the_program_body/9125c12e26a89289.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (7:1)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (6:1)"
+
+["svelte/rsvelte-tests-core-3/ts_only_nodes_in_parse_ast_4195/an_export_assignment_reaches_the_program_body/a160f5217fd6c8bf.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (7:1)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (6:1)"
+
+["svelte/rsvelte-tests-core-3/ts_only_nodes_in_parse_ast_4195/an_external_module_reference_carries_its_literal/766434abf47b9e47.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (7:1)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (6:1)"
+
+["svelte/rsvelte-tests-core-3/ts_only_statements_4196/a_typescript_only_statement_compiles_on_both_targets/41c07e7c21de09d3.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (7:1)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (6:1)"
+
+["svelte/rsvelte-tests-core-3/ts_only_statements_4196/a_typescript_only_statement_compiles_on_both_targets/6106b9e4c198dc24.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (7:1)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (6:1)"
+
+["svelte/rsvelte-tests-core-3/ts_only_statements_4196/a_typescript_only_statement_compiles_on_both_targets/d62b10769928e1c3.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (7:1)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (6:1)"
+
+["svelte/rsvelte-tests-core-3/ts_overload_signature_3421/a_bodiless_class_member_is_erased_on_every_target/21e4b23cf8260a77.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (10:16)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:17)"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_declaration_outside_the_allow_list_keeps_its_export/a7c2da5fe5fdef8f.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (4:10)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (3:10)"
+
+["svelte/rsvelte-tests-core-3/upstream_unparseable_3306/a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter/23ad7418aa0f36cd.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (31:2)"
+
+["svelte/rsvelte-tests-core-3/upstream_unparseable_3306/a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter/6e483153331698b2.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (30:2)"
+
+["svelte/rsvelte-tests-core-3/upstream_unparseable_3306/a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter/a39cef6c28fe2987.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (30:2)"
+
+["svelte/rsvelte-tests-core-3/upstream_unparseable_3306/a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter/c32a03c10d0346fb.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (31:2)"
+
+["svelte/rsvelte-tests-core-3/render_tag_block_local_snippet_2031/alternate_scope_survives_a_zero_gap_sibling/44dcbd5771d4ec41.svelte".skip]
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Identifier 'row' has already been declared (7:10)"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/60997a38b3c5b08f.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (7:5)"
+"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (4:5)"
+
+["svelte/rsvelte-tests-core-2/inspect_value_position_3213/a_module_declarator_keeps_its_initializer_on_both_targets/244862b5c315026b.svelte.js".skip]
+"svelte.compileModule/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (4:17)"
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (4:17)"
+
+["svelte/rsvelte-tests-core-2/module_inspect_slot_3611/a_declarator_initializer_keeps_its_slot_and_the_next_statement/8ec6933a34b9a8ef.svelte.js".skip]
+"svelte.compileModule/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:10)"
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:10)"
+
+["svelte/rsvelte-tests-core-2/module_inspect_slot_3611/an_inspect_with_declarator_keeps_its_binding_and_value/5ec595030be1bb54.svelte.js".skip]
+"svelte.compileModule/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (7:7)"
+
+["svelte/rsvelte-tests-core-2/module_inspect_slot_3611/the_other_server_rune_lowerings_are_unchanged/dc1e292e8acf5fe8.svelte.js".skip]
+"svelte.compileModule/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (8:7)"
+
+["svelte/rsvelte-tests-core-2/module_inspect_slot_3611/the_server_lowers_a_module_inspect_in_dev/0faaa1e66aed13bb.svelte.js".skip]
+"svelte.compileModule/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:11)"
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:11)"
+
+["svelte/rsvelte-tests-core-2/module_inspect_slot_3611/the_slot_survives_wherever_the_call_stood/8cd844f2321caaf2.svelte.js".skip]
+"svelte.compileModule/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:14)"
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:14)"
+
+["svelte/rsvelte-tests-core-2/module_inspect_slot_3611/the_slot_survives_wherever_the_call_stood/a92cd96b79263890.svelte.js".skip]
+"svelte.compileModule/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:15)"
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:15)"
+
+["svelte/rsvelte-tests-core-2/module_inspect_slot_3611/the_slot_survives_wherever_the_call_stood/e325601ddaa29f19.svelte.js".skip]
+"svelte.compileModule/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:14)"
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:14)"
+
+["svelte/rsvelte-tests-core-2/module_inspect_statement_3440/a_value_position_inspect_still_keeps_its_operand/ec0351d598ba8e1e.svelte.js".skip]
+"svelte.compileModule/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (4:18)"
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (4:18)"
+
+["svelte/rsvelte-tests-core-2/nonthis_private_state_receiver_2467/logical_and_shift_compounds_are_rewritten_not_left_as_assignment_targets/bad348b4df04e3f2.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (16:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/a_derived_field_written_at_a_constructor_root_matches_official/17f4a70e1be9dbca.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (9:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/a_derived_field_written_at_a_constructor_root_matches_official/bd419735ef96863a.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (9:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/04641f829cd281b3.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/09cc9f861f20279c.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/0ae43f48137017df.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/0e3cf91dfd823843.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/0e9b28d07934f43a.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/0fe9d887c8d20e2e.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/2e44f741d9ff88cd.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/2e7f76f622dcf2af.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/39c9a1318b37ef5d.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/3b04b3d8fb305389.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/3cd0ec38220492cb.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/43a99a2bd9c0b178.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/44674f311c0658a3.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/449f50e1ff7ee5a7.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/4862bc2d8aa0ad86.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/4b017f1349068aa8.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/4edf8396a0b10e45.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/5326cf05638b17ef.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/549325c93bac65fd.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/549379c3ae8a27c1.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/557f8505c014ff21.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/58df42e369fe395f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/65d37d8498379739.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/66b3b650c7c494bb.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/66e12c5e2834e6af.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/6a106cd362b80d65.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/76bad677b4d6dbde.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/781d50985d02dd15.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/829ecfb8c665db08.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/8388da4aa8c9693b.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/9343b84e88dd403f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/93a3210fcaf0b873.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/944a952d1bb725e3.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/950816c9b6d462df.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/982aa2b5cfa6593a.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/9bd50a84fd207526.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/9c32ffc96409ca56.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/a01f895cbc0b98e7.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/a457d97464b6fcb7.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/a58d6ab272aa97a0.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/a95057ce340dca87.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/a9ee18984906f061.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/ae9a8364f3db9748.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/b152e68c9eac75bf.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/b4a2ea1f32e76c07.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/bef348900121930b.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/bf476b0af1e193dd.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/c0c16c9d2cb344ff.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/c81c5c71e1f31e00.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/d03d350bfd2456d4.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/d124c5a1a37ac54d.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/d261a3de50bced2e.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/d6c0664e9e22fd8c.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/dbd09405a565026f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/dfed79908d2f2ba4.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/e0cdc3431446acf8.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/e8dc265d99ea4241.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/e8fb652bddb3bd9a.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/eebf33811f2d073f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/f1ae55a7cfc98852.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/f26809968946f132.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/fb209491398283b9.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/fb3dc2e3e8126c0b.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/an_update_through_a_non_this_receiver_uses_the_helper/fcd579653dc73cac.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/0079ecb80e27f51b.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/03be472d09560e88.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/04de392aa2ffacc4.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/090ce3a8426aa29e.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/0b595f53df034ff2.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/0c97fea6224a0f09.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/0fc7c2908550c71c.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/10161fa16d0f8b09.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/106e0df7498bbb85.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/113d977313d29ece.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/1313140a1d7581ec.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/13aec8a0a936589d.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/14b23d9c7ad5c510.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/1736eab4554f5c72.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/1c6b2c9994c9a0b9.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/1d280313914bcd53.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/1d3fac31d8a55b07.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/1e8838147615c722.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/20ce9a4c86e874f3.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/2333fcdde86f6988.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/2418061a52ec7c59.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ac7dc5d088b5b5af.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ad996f5713d96072.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ae3654e6abea9c0f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ae9863116251d12e.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/af1e791b7b0a869f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/b23994df08319f0d.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/b33e99157df3534f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/b34c1de678c87764.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/b5b9addd0453fdb8.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/b62240bbe4d02658.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/b6892bfda4244dc1.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/b8b76114ae468120.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ba3b2d65e0366258.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/bb8913cf666dbd0f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/bbfe988724c2b4f6.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/bc0559ab0632122c.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/bc43f0b03c9c6ca0.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/c022b8fce453d19f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/c18ca90a64b1a55e.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/c1f428c57ca2580e.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/c57f57b9dc65d4dd.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/c5bcb0aaf6bd1afb.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/c9b616c2adee3f05.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ccf6dde5d33f2ecb.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/cda30e4560803899.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ce45ab7b4a72f568.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ceab5acb2040b3b3.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/cf39b51ae1df5ef3.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/cf7b90098fb199b9.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/d04b85a1a6ca23f1.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/d4af9f5f14242a28.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/d525c50688e6db12.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/d78e011c094584f9.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/d85052997e076c51.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/d89c84e8bd577d22.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/d9d5c4a3dc72be95.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/dc6730a812d316b2.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/dcc49bd562bb2b8b.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/dcfef6c8fc7be8a9.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/dd485203773d8094.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/dea246584c8f887a.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/df83a64a79516b45.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/e009114d9700bb8d.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/e10a48764689f14d.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/e131ed24c96a1fab.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/e204419a1dd0ebf4.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/e514380296dc4c0d.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/e904cfd84a952ae7.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/eaf5e6a1715fad88.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/eb8182a6802090e8.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ec1e7ba0a2a6d437.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ecb518e4435d81ab.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ed84ce3fcbd103eb.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ee0727e2919e7bc3.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ef7083e9ee617d8f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/f182ad0c2c7fb99d.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/f1f35b986718f11d.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/f2f94d2f239d2502.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/f40d9a6c1596c4c5.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/f43ae5d20f009383.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/f48a33c9d3958ce7.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/f48ae9ca86ce07a8.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/f6b6fd10f05cbdb7.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/f83b68e6b3a8ddb7.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/f934b66f49279425.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/f9ae084dd96cb1aa.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/faf69fc0a1ec885f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/fb02061c772f7b39.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/fb53ef52b553dfd9.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/fe49a52409103db7.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/ff7f915f77508df1.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/243a19aefa3ecf3d.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/28419b48d0496ecc.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/29145070d59f5872.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/2963b08750712faf.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/29a31ad1e12bc285.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/2ae18cb1b085e7ea.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/2cd5adcb21322794.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/2d5019eb95463d26.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/2d7b4ce4715a24f2.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/2d94cc1de1c96eae.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/2dee23ab94a51ac8.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/2e8d32363e35bd66.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/2f22e6849cc07ee3.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/2f6589261c9d2773.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/304d901480913472.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/305a338593e26716.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/31521d8256c24b4f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/33e3b0e946140f4d.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/34d7cb19b202a144.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/3640111dd0d7baff.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/36e8298565e17b03.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/37ca282e0747d8d5.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/386f910f64f80bb2.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/39becc7fa135e6a1.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/3afadd657a9497f9.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/3dca668dadbe262e.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/3f387303a6da423f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/405f4f5bf2387a80.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/415921f8b5272f8c.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/41741129fcc1e1a4.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/44d2cec1123ee663.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/4589ae137a78f39c.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/47cb59ab2207511e.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/48679fdbf538ed12.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/49b58060b5cb6340.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/4a88863f01f126a6.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/4b3c0b8b9d03b83e.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/4f45ecfe93e8012a.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/4fde96d6514b87b3.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/50974a74d57f20d7.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/538a81fa05c8bb32.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/55e02ad196185742.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/59147933db9f12b8.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/5968b5be32450f11.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/59bcae802ca7a82c.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/5c2e94093bae5ec7.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/5d65ded076298a69.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/5f5ecfda1a3c09da.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:5)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/6031b265f8fd94d9.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/6172603dfd9662da.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/61dd2896c1623133.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/636cbc84e3798fb2.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/65a4175dd85b86b0.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/67d617ad0b683f79.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/681e2da22963b6f9.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/6b7c63ff9d56496f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/6bdcb4ff863d7897.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/6f0a4afbbe20219c.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/6ff9e9f4cb3d55fb.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/706654e3370ba518.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/721606fc247f008e.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/72318539cbd47e88.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/72c7f625ddccd7e2.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/73973aa82303a5f3.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/76328c7ad95c51d6.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/763d8d57f65e9dcb.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/76573247aa6dc43d.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/77108bc50bf961ae.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/7798a68b9d9a13fc.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/7860be564df53f27.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/78c16a9be689ba34.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/7b89e1310376bff7.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/7c7272b814fdea88.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/7e2f7b3e152ba53a.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/807e060266451d03.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/8080058cf2b07227.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/80edd72d23a56bc4.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/82212fc22850d253.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/82b9938bd265c434.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/82e79b622fa27175.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/83549b122f8f80d5.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/8441c0e1b60d187f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/84f693fdd300cb84.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/850db010b4983eec.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/85f7ebedcd4e37d0.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/86ac43b8ee079947.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/8a704de76e16307a.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/8d0f75144bd4d01c.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/8d27ca1076cb6512.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/8dc3dbcff707a2fe.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/9152a7185c61fdc4.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/91f0b2c600d8ecf2.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/9254dc1d531cac08.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/93c266ff67b2b208.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/93e464b407ec24c8.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/9501fc778231a471.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/95489300da1b0877.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/96940e53f5ff7db9.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/97fcf46bc59b331b.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/988a8fa4449c6100.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/99094a2b83eaed41.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/9b09a7d43b43d289.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/9effe8965c40e478.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/9fdb2c1a3b2b7a10.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/a0b360f22744a4fb.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/a17abef59c661a8d.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/a21b1006fe678fcc.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/a37491779f6c175b.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/a44124ffa1151198.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/a47cb58d746075e5.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/a6523a17cf64affc.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/a6da238dd4efcffc.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/a842b8ff73f715c3.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:4)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/a9a0c56c58d703fc.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/a9a7cb88c72e77ce.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (11:2)"
+
+["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/aaebb1b3df69360f.svelte.js".skip]
+"svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
 ["svelte/svelte-material-ui/packages/autocomplete/src/Autocomplete.svelte".skip]
 "svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
 

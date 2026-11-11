@@ -1,0 +1,1 @@
+{#await p then [a, b, ...rest]}<p>{a}{b}{JSON.stringify(rest)}</p>{/await}

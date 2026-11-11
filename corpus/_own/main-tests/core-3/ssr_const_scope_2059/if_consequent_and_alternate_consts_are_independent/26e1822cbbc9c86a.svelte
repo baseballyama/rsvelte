@@ -1,0 +1,1 @@
+{#if a}{@const x = 'yes'}<p>{x}</p>{:else}{@const x = 'no'}<p>{x}</p>{/if}

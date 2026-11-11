@@ -1,0 +1,1 @@
+<script>let obj = $derived(x);</script><p>{obj.k}</p>

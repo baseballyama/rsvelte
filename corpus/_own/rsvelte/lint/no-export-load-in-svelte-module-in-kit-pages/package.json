@@ -1,0 +1,5 @@
+{
+	"name": "adv-kit-no-export-load",
+	"private": true,
+	"dependencies": { "@sveltejs/kit": "^2.0.0", "svelte": "^5.0.0" }
+}

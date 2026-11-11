@@ -1,0 +1,1 @@
+{#snippet s()}<p>a</p>{/snippet}

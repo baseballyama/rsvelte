@@ -1,10 +1,12 @@
 # corpus
 
 Real files from permissively licensed projects, and the official tools' output for them. One
-input file is one **unit**. Commands: [tools/oracle](../tools/oracle/README.md).
+input file is one **unit**. Commands: [tools/oracle](../tools/oracle/README.md). The sources
+whose names start with `rsvelte` hold this project's own cases, kept in [`_own/`](_own/README.md).
 
 ```
 corpus/
+├── _own/                     the files of the `rsvelte` sources, written for this project
 ├── _registry/
 │   ├── sources.json          source repositories: URL, commit, license (written by hand)
 │   ├── units.toml            the hand-written part of units: skips, behaviour (cross units)

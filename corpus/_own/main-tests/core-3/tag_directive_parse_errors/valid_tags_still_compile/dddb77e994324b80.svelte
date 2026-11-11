@@ -1,0 +1,1 @@
+{#each [1] as v}{@const c = v}<b>{c}</b>{/each}

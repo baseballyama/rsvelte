@@ -1,0 +1,1 @@
+export const x = 1; export function inc(){ return x + 1; }

@@ -1,0 +1,1 @@
+<script>let x = $state('');</script><input type="text" bind:value={x}>

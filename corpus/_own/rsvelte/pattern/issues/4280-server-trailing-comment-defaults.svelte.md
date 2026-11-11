@@ -1,0 +1,5 @@
+# `4280-server-trailing-comment-defaults.svelte`
+
+**Issue:** [#4280](https://github.com/baseballyama/rsvelte/issues/4280)
+
+A trailing comment on a legacy prop's default, on the **server**. `build_legacy_fallback` granted a statement's comment-carry only for a *leading* comment, so a trailing one was collapsed onto the region's single address and landed ahead of the declaration instead of after the default. The carry is granted optimistically and poisoned back from inside the lowering, because whether the declarator keeps a located node inside the call it lowers to is decided there — `a = 1` keeps one, a prop with no initializer or a thunked default does not, and a carry granted to those sends the comment to the next statement. `b` is the control that the `;` is not an axis, and `d` is the second host (`let d = 3; export { d }`), which reaches the same lowering through a different declaration. The 8 corpus regressions the first version caused were invisible to the grid because every grid cell was the only statement in its file.

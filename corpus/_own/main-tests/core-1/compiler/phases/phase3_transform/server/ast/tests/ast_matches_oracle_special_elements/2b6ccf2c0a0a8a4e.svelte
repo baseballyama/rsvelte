@@ -1,0 +1,1 @@
+<svelte:document on:visibilitychange={f}/>text

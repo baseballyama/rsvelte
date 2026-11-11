@@ -1,0 +1,1 @@
+<script>void $$slots;</script><div>plain text</div>

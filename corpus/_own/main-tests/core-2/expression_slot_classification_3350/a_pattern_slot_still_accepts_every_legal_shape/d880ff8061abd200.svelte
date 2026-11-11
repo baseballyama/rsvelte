@@ -1,0 +1,1 @@
+{#await p}a{:catch [e]}x{/await}

@@ -1,0 +1,1 @@
+<div class="a{ foo +1 }b"></div>

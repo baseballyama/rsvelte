@@ -1,0 +1,1 @@
+{#if visible}<section><slot name="nested" /></section>{/if}

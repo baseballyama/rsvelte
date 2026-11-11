@@ -1,0 +1,1 @@
+<script>import { setLocale } from '$lib/x';import { m } from '$lib/y';</script><h1>{m.hi()}</h1>

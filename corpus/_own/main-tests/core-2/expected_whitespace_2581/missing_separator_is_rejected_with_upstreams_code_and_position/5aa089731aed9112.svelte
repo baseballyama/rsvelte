@@ -1,0 +1,1 @@
+{#snippet(x)}a{/snippet}

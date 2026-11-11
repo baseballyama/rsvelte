@@ -1,0 +1,1 @@
+<script>class K { ["a‮b"]() {} }</script>

@@ -1,0 +1,1 @@
+{#if x}text<span>y</span>{/if}

@@ -1,0 +1,1 @@
+<script lang="ts"></script><p>{(<T,>(x: T) => x)(1)}</p>

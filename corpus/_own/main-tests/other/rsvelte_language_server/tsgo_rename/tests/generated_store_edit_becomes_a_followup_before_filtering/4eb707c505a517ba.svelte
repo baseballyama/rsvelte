@@ -1,0 +1,1 @@
+<script>let store; $store;</script>

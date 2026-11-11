@@ -1,0 +1,1 @@
+<script lang="ts">let a: any;</script><button onclick={<string>() => a}>x</button>

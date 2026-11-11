@@ -1,0 +1,1 @@
+<script>	function a() {}</script><div use:ause:a>t</div>

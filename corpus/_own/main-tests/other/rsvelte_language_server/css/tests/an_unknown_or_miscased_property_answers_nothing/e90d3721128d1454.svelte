@@ -1,0 +1,1 @@
+<style>a { OPACITY: 0.5 }</style>

@@ -1,0 +1,1 @@
+<Component {...await p} />

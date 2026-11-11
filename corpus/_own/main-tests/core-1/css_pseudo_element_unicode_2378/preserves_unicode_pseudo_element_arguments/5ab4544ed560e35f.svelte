@@ -1,0 +1,1 @@
+<style>::view-transition-group(あ) { color: red }</style>

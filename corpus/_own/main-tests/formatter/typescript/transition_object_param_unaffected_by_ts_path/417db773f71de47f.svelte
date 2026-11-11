@@ -1,0 +1,1 @@
+<script lang="ts"></script><div in:fade out:slide={ {duration: 200} }></div>

@@ -1,0 +1,1 @@
+<script>let count; function inc() { count = 1; }</script><button onclick={inc}>{count}</button>

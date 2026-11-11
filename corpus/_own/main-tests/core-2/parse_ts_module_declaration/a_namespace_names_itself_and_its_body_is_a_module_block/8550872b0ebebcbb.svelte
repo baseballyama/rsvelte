@@ -1,0 +1,1 @@
+<script lang="ts">module N { const a = 1; }</script>

@@ -1,0 +1,1 @@
+<slot name="static"></slot>

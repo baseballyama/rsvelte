@@ -1,0 +1,1 @@
+<script>let x = $state(1);</script><div id={x}>x</div>

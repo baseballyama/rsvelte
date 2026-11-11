@@ -1,0 +1,1 @@
+export const K = class Named { x = $state(0); };

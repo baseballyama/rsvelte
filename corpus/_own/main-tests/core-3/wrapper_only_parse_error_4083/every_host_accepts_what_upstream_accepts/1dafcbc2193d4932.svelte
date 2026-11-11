@@ -1,0 +1,1 @@
+<script lang="ts">let accessor: any; let declare: any;</script>{#snippet s(q)}{q}{/snippet}{@render s(declare satisfies string)}

@@ -1,0 +1,7 @@
+{
+	"description": "The companion split of `ts-companion-named-import` under node10/bundler resolution, reached by a RELATIVE specifier from a plain `.ts` file — the one shape neither a `paths` override nor a shadow-side specifier rewrite can reach, since TypeScript probes the importer's own directory first and lands on the real `widget.svelte.ts`. The overlay answers it by re-resolving the import from a blanked mirror probe, which is where official's `resolveModuleNames` hook gets its TS2614 (#2061).",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		2061
+	]
+}

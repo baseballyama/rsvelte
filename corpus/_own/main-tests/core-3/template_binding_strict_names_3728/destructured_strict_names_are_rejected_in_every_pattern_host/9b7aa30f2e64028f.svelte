@@ -1,0 +1,1 @@
+{#each values as { key: arguments }}x{/each}

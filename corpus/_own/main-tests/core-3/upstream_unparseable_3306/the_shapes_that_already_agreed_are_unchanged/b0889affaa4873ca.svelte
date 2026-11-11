@@ -1,0 +1,1 @@
+<script>let v = "OUTER";</script>{#await Promise.resolve("A") then v}{String(v)}{/await}<button onclick={() => { v = "W"; }}>b</button>

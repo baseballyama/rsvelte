@@ -1,0 +1,1 @@
+<script lang="ts">type M5 = { [K in "a"] };</script>

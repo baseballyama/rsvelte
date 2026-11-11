@@ -1,0 +1,1 @@
+<script>class C { count = $state(0); }</script><p>x</p>

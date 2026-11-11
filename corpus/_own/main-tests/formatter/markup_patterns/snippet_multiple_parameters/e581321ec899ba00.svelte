@@ -1,0 +1,1 @@
+{#snippet row({name},{ value })}<li>{name}</li>{/snippet}

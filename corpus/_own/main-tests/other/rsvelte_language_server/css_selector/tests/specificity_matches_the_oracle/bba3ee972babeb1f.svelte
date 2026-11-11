@@ -1,0 +1,1 @@
+<style>:global(.x) { color: red }</style>

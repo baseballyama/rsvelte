@@ -1,0 +1,1 @@
+<Foo><svelte:fragment let:x>{x}</svelte:fragment></Foo>

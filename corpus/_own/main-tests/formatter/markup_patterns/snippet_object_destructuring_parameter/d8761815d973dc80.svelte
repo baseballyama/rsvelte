@@ -1,0 +1,1 @@
+{#snippet item({name,age})}<li>{name}</li>{/snippet}

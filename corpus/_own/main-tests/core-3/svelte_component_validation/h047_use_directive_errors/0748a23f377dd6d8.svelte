@@ -1,0 +1,1 @@
+<script>let X; function f(){return v=>{}}</script><svelte:component this={X} use:f/>

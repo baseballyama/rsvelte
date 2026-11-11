@@ -1,0 +1,1 @@
+{#if ready}<div>{#each items as item}{item}{/if}

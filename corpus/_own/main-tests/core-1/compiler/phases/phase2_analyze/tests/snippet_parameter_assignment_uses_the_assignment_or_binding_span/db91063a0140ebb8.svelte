@@ -1,0 +1,1 @@
+{#snippet s(value)}<input bind:value={value}>{/snippet}

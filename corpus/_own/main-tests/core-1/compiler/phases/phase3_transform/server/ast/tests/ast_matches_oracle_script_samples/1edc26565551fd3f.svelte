@@ -1,0 +1,1 @@
+<script>let r = $state.raw(7);</script><p>x</p>

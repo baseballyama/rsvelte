@@ -1,0 +1,1 @@
+<script>Comp.</script><div x /><Comp value={foo} />

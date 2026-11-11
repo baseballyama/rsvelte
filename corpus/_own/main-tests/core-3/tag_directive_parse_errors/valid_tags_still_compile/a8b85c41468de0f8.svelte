@@ -1,0 +1,1 @@
+{#if true}{@const { a, b = 2 } = o}<b>{a}{b}</b>{/if}

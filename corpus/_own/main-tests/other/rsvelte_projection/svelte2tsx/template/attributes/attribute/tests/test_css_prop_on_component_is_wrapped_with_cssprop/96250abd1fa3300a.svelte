@@ -1,0 +1,1 @@
+<script>import Comp from "./Comp.svelte"; let x = 5;</script><Comp --my-var={x} />

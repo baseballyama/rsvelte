@@ -1,0 +1,7 @@
+{
+	"description": "The ESM-mode arm of `js-rune-module-without-allow-js`. `moduleResolution: nodenext` substitutes no extension, so `./lib/counter.svelte` cannot reach `counter.svelte.js` at all — and the overlay deliberately withholds the module's bridge, since a bridge forwards no names and would turn official's TS7016 into a wrong TS2614. Having withheld it, the overlay replays what official's `resolveModuleNames` hook reports for it (#2061).",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		2061
+	]
+}

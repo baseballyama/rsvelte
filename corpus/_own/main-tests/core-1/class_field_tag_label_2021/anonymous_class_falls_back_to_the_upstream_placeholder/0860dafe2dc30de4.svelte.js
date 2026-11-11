@@ -1,0 +1,1 @@
+export default class { count = $state(0); }

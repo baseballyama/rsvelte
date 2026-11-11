@@ -1,0 +1,5 @@
+# `binding-shadowed-by-destructuring-catch-and-for-of.svelte`
+
+**Issue:** shadow probe
+
+Three shadow shapes the expression converter's shadow set did not hold. Its registrar documented the gap — "destructuring patterns are ignored (they rarely shadow a prop name and the code is cleaner without the extra complexity)" — so `const { a: prop } = …` left the prop's getter on `prop.n = 7`; a `catch` clause bound nothing at all, so `catch (derived)` produced `$.mutate(derived, $.get(derived).n = 8)`; and a `for…of` head collected only a bare identifier, so `for (const { b: derived } of …)` did the same. A parameter, a `catch` clause and a `for…of` head all bind for their body only and must hide **both** the read transform and `shadowed_prop_names` — removing only the transform leaves `$$props.v` on a local. The instance-script copies of the same three shapes were already correct, which is why the repro puts them in a template handler; `unshadowed()` writes both bindings from an unshadowed position as the positive control. 0 occurrences in 34,728 corpus entries.

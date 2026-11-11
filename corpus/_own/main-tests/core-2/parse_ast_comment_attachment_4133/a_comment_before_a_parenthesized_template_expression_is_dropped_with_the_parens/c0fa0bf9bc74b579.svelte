@@ -1,0 +1,1 @@
+<div onclick={() => { const x = /** @type {T} */ (y); }}></div>

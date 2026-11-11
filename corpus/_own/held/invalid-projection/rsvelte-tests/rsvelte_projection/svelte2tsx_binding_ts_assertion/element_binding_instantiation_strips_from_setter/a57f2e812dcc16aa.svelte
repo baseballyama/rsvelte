@@ -1,0 +1,1 @@
+<script lang="ts">let f: any;</script><input bind:value={f<number>} />

@@ -1,0 +1,1 @@
+<button onclick="before {handler}">click</button>
