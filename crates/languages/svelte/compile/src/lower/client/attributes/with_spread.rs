@@ -1,9 +1,9 @@
-use oxc_ast::ast::{Expression, PropertyKey};
+use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKey};
 
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo, R,
-    event_attribute, is_behaviour, normalize_attribute,
+    event_attribute, is_behaviour, is_directive, normalize_attribute,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -68,6 +68,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 values.push(b.init(name, value));
             }
         }
+        self.synthetic_attributes(
+            identifier,
+            attributes,
+            &class_directives,
+            &style_directives,
+            &mut values,
+        );
         if !class_directives.is_empty() {
             let props: Vec<_> = class_directives
                 .iter()
@@ -110,5 +117,35 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         );
         l.initializer.push(b.stmt(call));
         Ok(())
+    }
+
+    /// Upstream's analysis gives an element without a spread an empty `class` when it is scoped
+    /// or has class directives, and an empty `style` when it has style directives.
+    fn synthetic_attributes(
+        &self,
+        identifier: CompilerNodeIdentifier,
+        attributes: &[Attribute],
+        class_directives: &[&Attribute],
+        style_directives: &[&Attribute],
+        values: &mut Vec<ObjectPropertyKind<'o>>,
+    ) {
+        let b = self.b;
+        if attributes
+            .iter()
+            .any(|a| matches!(a.value, AttributeValue::Spread(_)))
+        {
+            return;
+        }
+        let has = |name: &str| {
+            attributes.iter().any(|a| {
+                !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case(name)
+            })
+        };
+        if !has("class") && (self.an.scoped[identifier] || !class_directives.is_empty()) {
+            values.push(b.init("class", b.string("")));
+        }
+        if !has("style") && !style_directives.is_empty() {
+            values.push(b.init("style", b.string("")));
+        }
     }
 }

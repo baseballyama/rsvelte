@@ -133,11 +133,6 @@ fn check_element(
             AttributeValue::Style { .. } if matches!(&a.value, AttributeValue::Style { value, .. } if matches!(**value, StyleValue::Empty)) => {
                 "a `style:` directive without a value"
             }
-            // Upstream adds an empty `style` beside its own empty `class`, which this port does
-            // not.
-            AttributeValue::Style { .. } if tag == Some("svelte:element") => {
-                "a `style:` directive on `<svelte:element>`"
-            }
             // Upstream's `<slot>` and `<svelte:element>` pass theirs on, which is not lowered.
             AttributeValue::Let(_)
                 if !component
