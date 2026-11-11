@@ -100,9 +100,10 @@ pub(crate) fn build<'t>(
         stylesheet_hash,
         tree,
         b,
+        // Translation adds about one prop per node to the attributes: a directive, a key or a value.
         vb: CompilerSyntaxTreeBuilder::new(
             compiler_syntax_tree.nodes.len(),
-            compiler_syntax_tree.attributes.len(),
+            compiler_syntax_tree.attributes.len() + compiler_syntax_tree.nodes.len(),
         ),
         helpers: FxHashSet::default(),
         snippet_names,
