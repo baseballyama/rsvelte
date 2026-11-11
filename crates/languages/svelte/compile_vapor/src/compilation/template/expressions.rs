@@ -52,7 +52,7 @@ impl Template<'_, '_, '_> {
                     el.name,
                 ));
             };
-            let extra = if self.i.server {
+            let extra = self.i.server.then(|| {
                 let x = self.binding_read(target);
                 let test = if multiple {
                     self.helpers.insert(Helper::Select);
@@ -60,10 +60,8 @@ impl Template<'_, '_, '_> {
                 } else {
                     b.binary(x, BinaryOperator::StrictEquality, b.string(value))
                 };
-                Some(self.bound("selected", el.name, test, el.name))
-            } else {
-                None
-            };
+                self.bound("selected", el.name, test, el.name)
+            });
             out.push(self.element(identifier, Some(select), false, Vec::new(), extra)?);
         }
         Ok(self.vb.children(&out))

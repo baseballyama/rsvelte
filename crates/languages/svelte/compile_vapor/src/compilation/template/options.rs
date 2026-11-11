@@ -142,17 +142,17 @@ fn custom_element(tree: &Tree, attribute: &Attribute) -> R<CustomElement> {
                     ("shadow", Expression::StringLiteral(_)) if string(value) == Some("none") => {
                         options.shadow_root = false;
                     }
-                    ("shadow", Expression::StringLiteral(_)) if string(value) == Some("open") => {}
-                    ("shadow", Expression::ObjectExpression(_)) => {}
                     ("props", Expression::ObjectExpression(props)) => {
                         check_properties(props, attribute)?;
                     }
-                    (
+                    ("shadow", Expression::ObjectExpression(_))
+                    | (
                         "extend",
                         Expression::ArrowFunctionExpression(_)
                         | Expression::FunctionExpression(_)
                         | Expression::Identifier(_),
                     ) => {}
+                    ("shadow", Expression::StringLiteral(_)) if string(value) == Some("open") => {}
                     _ => return refuse(),
                 }
             }

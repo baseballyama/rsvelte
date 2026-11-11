@@ -224,7 +224,7 @@ impl<'i, 't> Template<'i, '_, 't> {
         value
     }
 
-    fn rewriter(&self) -> TemplateRewrite<'_, 't> {
+    const fn rewriter(&self) -> TemplateRewrite<'_, 't> {
         TemplateRewrite {
             b: self.b,
             res: self.i.resolution,
@@ -293,10 +293,9 @@ impl<'i, 't> Template<'i, '_, 't> {
         value: Option<Expression<'t>>,
         span: Span,
     ) -> vue::Property {
-        let exp = match value {
-            Some(value) => DirectiveExpression::Expression(self.keep(value)),
-            None => DirectiveExpression::None,
-        };
+        let exp = value.map_or(DirectiveExpression::None, |value| {
+            DirectiveExpression::Expression(self.keep(value))
+        });
         directive(name, None, exp, span)
     }
 
@@ -375,6 +374,11 @@ impl<'t> TemplateRewrite<'_, 't> {
         let (name, _) = self.res.rune(it)?;
         let b = self.b;
         let span = it.span();
+        let local = crate::script::runes::local(name);
+        let eager = crate::script::runes::eager(name);
+        if local.is_none() && !eager {
+            return None;
+        }
         let Expression::CallExpression(call) = it else {
             return None;
         };
@@ -385,13 +389,14 @@ impl<'t> TemplateRewrite<'_, 't> {
         for a in &mut arguments {
             self.visit_expression(a);
         }
-        if crate::script::runes::eager(name) {
+        if eager {
             return arguments.pop();
         }
-        let mut value = match name {
-            "$effect.pending" if self.server => b.number(0.0),
-            "$effect.tracking" if self.server => b.boolean(false),
-            _ => b.call(b.id(crate::script::runes::local(name)?), arguments),
+        let mut value = match (name, local) {
+            ("$effect.pending", _) if self.server => b.number(0.0),
+            ("$effect.tracking", _) if self.server => b.boolean(false),
+            (_, Some(local)) => b.call(b.id(local), arguments),
+            (_, None) => unreachable!("checked above"),
         };
         *value.span_mut() = span;
         Some(value)
@@ -449,6 +454,11 @@ fn captured_event(event: &str, span: Span) -> vue::Property {
         span,
         origin: 0,
     }
+}
+
+/// The Svelte node a Vue node came from, as the Vue tree records it.
+fn origin(identifier: CompilerNodeIdentifier) -> u32 {
+    u32::try_from(identifier.index()).expect("fewer than u32::MAX nodes")
 }
 
 fn spelled(text: &str, span: Span) -> Name {

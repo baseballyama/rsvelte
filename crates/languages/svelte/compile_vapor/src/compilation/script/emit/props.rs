@@ -43,10 +43,9 @@ pub(super) fn prop_declarations<'t>(rw: &mut ScriptRewrite<'_, 't>, body: &mut V
             continue;
         }
         let info = res.binding(symbol);
-        let fallback = match info.initial {
-            Some(argument) => rw.expression(argument),
-            None => b.id("undefined"),
-        };
+        let fallback = info
+            .initial
+            .map_or_else(|| b.id("undefined"), |argument| rw.expression(argument));
         let Some(PropertyKey::StaticIdentifier(key)) = info.prop_key else {
             unreachable!("a prop has a key")
         };

@@ -1,7 +1,8 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{
-    Argument, AssignmentTargetMaybeDefault, AssignmentTargetProperty, Declaration, Expression,
-    IdentifierReference, ObjectProperty, PropertyKey, SimpleAssignmentTarget, Statement,
+    Argument, AssignmentTargetMaybeDefault, AssignmentTargetProperty,
+    AssignmentTargetPropertyIdentifier, Declaration, Expression, IdentifierReference,
+    ObjectProperty, PropertyKey, SimpleAssignmentTarget, Statement,
 };
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::{NodeId, SymbolId};
@@ -122,10 +123,9 @@ impl<'r, 't> ScriptRewrite<'r, 't> {
             | BindingKind::Derived
             | BindingKind::DerivedBy
             | BindingKind::BindableProperty => {
-                let cell = match self.storage_name(symbol) {
-                    Some(storage) => b.id(storage),
-                    None => b.id_at(name, span),
-                };
+                let cell = self
+                    .storage_name(symbol)
+                    .map_or_else(|| b.id_at(name, span), |storage| b.id(storage));
                 b.member(cell, "value")
             }
             BindingKind::Property if prop_cell(self.res, symbol) => {
@@ -157,7 +157,8 @@ impl<'r, 't> ScriptRewrite<'r, 't> {
             })
             .collect();
         if runes::eager(name) {
-            let mut argument = arguments.pop().expect("a checked eager argument");
+            // The plan checked that an eager rune has its argument.
+            let mut argument = arguments.pop()?;
             self.visit_expression(&mut argument);
             return Some(argument);
         }
@@ -205,6 +206,26 @@ impl<'r, 't> ScriptRewrite<'r, 't> {
 }
 
 /// An assignment target for a read the translation rewrote.
+/// `{ name: target = init }` for the shorthand `{ name = init }` of an assignment pattern.
+pub(crate) fn property_target<'t>(
+    b: &Builder<'t>,
+    p: &AssignmentTargetPropertyIdentifier<'t>,
+    target: SimpleAssignmentTarget<'t>,
+    init: Option<Expression<'t>>,
+) -> AssignmentTargetProperty<'t> {
+    let target = oxc_ast::ast::AssignmentTarget::from(target);
+    let binding = match init {
+        Some(init) => {
+            AssignmentTargetMaybeDefault::new_assignment_target_with_default(SPAN, target, init, b)
+        }
+        None => AssignmentTargetMaybeDefault::from(target),
+    };
+    let key = PropertyKey::new_static_identifier(p.span, p.binding.name, b);
+    AssignmentTargetProperty::new_assignment_target_property_property(
+        p.span, key, binding, false, b,
+    )
+}
+
 fn simple_target(e: Expression<'_>) -> SimpleAssignmentTarget<'_> {
     match e {
         Expression::StaticMemberExpression(m) => SimpleAssignmentTarget::StaticMemberExpression(m),
@@ -283,23 +304,11 @@ impl<'t> VisitMut<'t> for ScriptRewrite<'_, 't> {
         if let AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(p) = it
             && let Some(read) = self.read(&p.binding)
         {
-            let b = self.b;
-            let name = p.binding.name;
-            let target = oxc_ast::ast::AssignmentTarget::from(simple_target(read));
             let mut init = p.init.take();
             if let Some(init) = &mut init {
                 self.visit_expression(init);
             }
-            let binding = match init {
-                Some(init) => AssignmentTargetMaybeDefault::new_assignment_target_with_default(
-                    SPAN, target, init, b,
-                ),
-                None => AssignmentTargetMaybeDefault::from(target),
-            };
-            let key = PropertyKey::new_static_identifier(p.span, name, b);
-            *it = AssignmentTargetProperty::new_assignment_target_property_property(
-                p.span, key, binding, false, b,
-            );
+            *it = property_target(self.b, p, simple_target(read), init);
             return;
         }
         walk_mut::walk_assignment_target_property(self, it);

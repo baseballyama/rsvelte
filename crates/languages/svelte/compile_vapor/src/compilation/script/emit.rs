@@ -7,8 +7,8 @@ mod rewrite;
 mod rune_values;
 use props::prop_declarations;
 pub(crate) use props::prop_member;
-pub(crate) use rewrite::ScriptRewrite;
-pub(crate) use rune_values::{rune_value, tracked};
+pub(crate) use rewrite::{ScriptRewrite, property_target};
+pub(crate) use rune_values::{async_arrow, rune_value, tracked};
 
 use oxc_ast::ast::{Declaration, Program, Statement};
 use oxc_span::SPAN;
@@ -19,6 +19,10 @@ use crate::compilation::{import, statements};
 use crate::helpers::{self, Helper};
 
 /// What decides the imports and helpers of the program.
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent facts, each read on its own"
+)]
 struct Uses {
     state: bool,
     raw: bool,

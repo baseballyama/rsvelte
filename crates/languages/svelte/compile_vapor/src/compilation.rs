@@ -9,6 +9,7 @@ use oxc_ast::ast::{
     BindingIdentifier, ImportDeclarationSpecifier, ImportOrExportKind, ModuleExportName, Program,
     PropertyKey, Statement, StringLiteral,
 };
+use oxc_ast_visit::VisitMut;
 use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
@@ -81,14 +82,22 @@ pub(crate) fn import<'t, 'n>(
     )
 }
 
-/// The statements of a helper's JavaScript source, parsed into `b`'s arena.
+/// The statements of a helper's JavaScript source, parsed into `b`'s arena, with no position: a
+/// span into the helper's source would name text of the document.
 ///
 /// # Panics
 ///
 /// If the source does not parse, which the unit tests rule out.
 pub(crate) fn statements<'t>(b: &Builder<'t>, source: &'static str) -> Vec<Statement<'t>> {
-    let parsed = oxc_parser::Parser::new(b.allocator(), source, SourceType::mjs()).parse();
+    struct Unplaced;
+    impl VisitMut<'_> for Unplaced {
+        fn visit_span(&mut self, it: &mut oxc_span::Span) {
+            *it = SPAN;
+        }
+    }
+    let mut parsed = oxc_parser::Parser::new(b.allocator(), source, SourceType::mjs()).parse();
     assert!(parsed.diagnostics.is_empty(), "helper sources parse");
+    Unplaced.visit_program(&mut parsed.program);
     parsed.program.body.into_iter().collect()
 }
 

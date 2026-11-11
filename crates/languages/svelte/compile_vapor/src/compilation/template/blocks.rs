@@ -1,5 +1,4 @@
 use oxc_ast::ast::{Argument, Expression, LogicalOperator};
-use oxc_span::GetSpan;
 use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
 
 use super::{
@@ -97,7 +96,7 @@ impl<'t> Template<'_, '_, 't> {
             while i < items.len() && !matches!(items[i], Item::Node(_)) {
                 i += 1;
             }
-            self.sequence(&items[start..i], parent, vue_parent, at, &mut out)?;
+            self.sequence(&items[start..i], parent, vue_parent, at, &mut out);
         }
         let mut children = self.vb.children(&out);
         for scope in scopes.into_iter().rev() {
@@ -114,7 +113,6 @@ impl<'t> Template<'_, '_, 't> {
         mut vue_parent: Option<vue::CompilerNodeIdentifier>,
         at: Span,
     ) -> Vec<vue::CompilerNodeIdentifier> {
-        let memoize = !self.i.server && self.i.analysis.declaration_meta(declaration).has_call;
         let declaration = self.i.component.javascript.get_declaration(declaration);
         let mut scopes = Vec::with_capacity(declaration.declarations.len());
         for declarator in &declaration.declarations {
@@ -126,9 +124,6 @@ impl<'t> Template<'_, '_, 't> {
                 self.helpers.insert(Helper::Async);
             }
             let value = self.rewrite(init);
-            if memoize {
-                self.memoized.insert(value.span());
-            }
             let pattern = self.pattern(&declarator.id);
             let source = self.b.array([value]);
             let property = self.loop_directive([self.b.parameter(pattern)], source, at);
@@ -188,7 +183,7 @@ impl<'t> Template<'_, '_, 't> {
                 )?);
             }
             &NodeKind::Html { expression } => {
-                out.push(self.raw_markup(identifier, expression, vue_parent, at)?);
+                out.push(self.raw_markup(identifier, expression, vue_parent, at));
             }
             NodeKind::Await(await_) => {
                 out.push(self.await_block(await_, vue_parent, preserve_whitespace, node.span)?);
@@ -237,7 +232,7 @@ impl<'t> Template<'_, '_, 't> {
         vue_parent: Option<vue::CompilerNodeIdentifier>,
         at: Span,
         out: &mut Vec<vue::CompilerNodeIdentifier>,
-    ) -> R<()> {
+    ) {
         let lone = items.len() == 1;
         let mut text = String::new();
         let mut quasis = Vec::new();
@@ -263,7 +258,7 @@ impl<'t> Template<'_, '_, 't> {
             if !text.is_empty() {
                 out.push(self.static_text(text, items, parent, vue_parent, at));
             }
-            return Ok(());
+            return;
         }
         if !self.i.server && matches!(parent, Parent::Element("textarea")) {
             self.helpers.insert(Helper::Value);
@@ -282,7 +277,6 @@ impl<'t> Template<'_, '_, 't> {
             vue_parent,
             0,
         ));
-        Ok(())
     }
 
     /// The string an `{expression}` contributes: Svelte's `build_template_chunk` with `set_text`

@@ -1,6 +1,6 @@
 use oxc_ast::ast::{
     AssignmentExpression, AssignmentPattern, BindingPattern, CallExpression, Expression,
-    PropertyDefinition, VariableDeclarator,
+    PropertyDefinition, PropertyKey, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::NodeId;
@@ -34,8 +34,14 @@ struct Collect<'r> {
 }
 
 impl Collect<'_> {
-    /// A value rune initialising `pattern` (`None` for a class field).
-    fn value(&mut self, pattern: Option<&BindingPattern<'_>>, init: &Expression<'_>) -> R<()> {
+    /// A value rune initialising `pattern` (`None` for a class field, `named` when its key is a
+    /// name).
+    fn value(
+        &mut self,
+        pattern: Option<&BindingPattern<'_>>,
+        named: bool,
+        init: &Expression<'_>,
+    ) -> R<()> {
         let Some((name, argument)) = self.res.rune(init).filter(|(name, _)| value(name)) else {
             return Ok(());
         };
@@ -53,14 +59,15 @@ impl Collect<'_> {
         } else {
             call.arguments.len() == 1
         };
-        let pattern_supported = pattern.is_none_or(|p| {
-            matches!(
-                p,
-                BindingPattern::BindingIdentifier(_)
-                    | BindingPattern::ObjectPattern(_)
-                    | BindingPattern::ArrayPattern(_)
-            )
-        });
+        let pattern_supported = named
+            && pattern.is_none_or(|p| {
+                matches!(
+                    p,
+                    BindingPattern::BindingIdentifier(_)
+                        | BindingPattern::ObjectPattern(_)
+                        | BindingPattern::ArrayPattern(_)
+                )
+            });
         if !pattern_supported || !arity {
             return Err(unsupported(
                 format_args!("this use of `{name}`"),
@@ -117,7 +124,7 @@ impl<'a> Visit<'a> for Collect<'_> {
 
     fn visit_variable_declarator(&mut self, it: &VariableDeclarator<'a>) {
         if let Some(init) = &it.init {
-            let result = self.value(Some(&it.id), init);
+            let result = self.value(Some(&it.id), true, init);
             self.record(result);
         }
         walk::walk_variable_declarator(self, it);
@@ -127,7 +134,11 @@ impl<'a> Visit<'a> for Collect<'_> {
         if !it.computed
             && let Some(value) = &it.value
         {
-            let result = self.value(None, value);
+            let named = matches!(
+                it.key,
+                PropertyKey::StaticIdentifier(_) | PropertyKey::PrivateIdentifier(_)
+            );
+            let result = self.value(None, named, value);
             self.record(result);
         }
         walk::walk_property_definition(self, it);
@@ -140,7 +151,7 @@ impl<'a> Visit<'a> for Collect<'_> {
             .assignments
             .contains(&it.node_id.get())
         {
-            let result = self.value(None, &it.right);
+            let result = self.value(None, true, &it.right);
             self.record(result);
         }
         walk::walk_assignment_expression(self, it);

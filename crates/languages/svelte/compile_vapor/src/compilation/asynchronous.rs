@@ -9,6 +9,13 @@ pub(crate) fn has_await(e: &Expression<'_>) -> bool {
     v.0
 }
 
+/// An `await` that a program's top level runs.
+pub(crate) fn program_has_await(program: &oxc_ast::ast::Program<'_>) -> bool {
+    let mut v = Await(false);
+    v.visit_program(program);
+    v.0
+}
+
 struct Await(bool);
 
 impl<'a> Visit<'a> for Await {

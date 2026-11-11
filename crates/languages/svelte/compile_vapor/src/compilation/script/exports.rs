@@ -58,7 +58,8 @@ pub(super) fn expose<'t>(
             [b.return_(Some(value))],
         ));
         let assignable = match res.declaration(symbol) {
-            oxc_ast::AstKind::Function(_) => true,
+            // A class declaration binds like `let`.
+            oxc_ast::AstKind::Function(_) | oxc_ast::AstKind::Class(_) => true,
             _ => res.variable_kind(symbol) == Some(VariableDeclarationKind::Let),
         };
         if assignable {

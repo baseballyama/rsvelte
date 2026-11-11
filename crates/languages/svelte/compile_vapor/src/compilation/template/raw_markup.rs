@@ -1,6 +1,6 @@
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{CompilerNodeIdentifier, Helper, Namespace, R, Span, Template, spelled, vue};
+use super::{CompilerNodeIdentifier, Helper, Namespace, Span, Template, spelled, vue};
 
 impl Template<'_, '_, '_> {
     pub(super) fn raw_markup(
@@ -9,7 +9,7 @@ impl Template<'_, '_, '_> {
         expression: ExpressionIdentifier,
         parent: Option<vue::CompilerNodeIdentifier>,
         span: Span,
-    ) -> R<vue::CompilerNodeIdentifier> {
+    ) -> vue::CompilerNodeIdentifier {
         let value = self.template_expression(expression);
         if !self.i.server {
             self.helpers.insert(Helper::RawMarkup);
@@ -33,6 +33,6 @@ impl Template<'_, '_, '_> {
         if namespace != Namespace::Html {
             self.namespaces.insert(node, namespace);
         }
-        Ok(node)
+        node
     }
 }

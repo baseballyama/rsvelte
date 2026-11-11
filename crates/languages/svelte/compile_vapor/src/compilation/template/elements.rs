@@ -2,8 +2,8 @@ use oxc_ast::ast::{BinaryOperator, Expression};
 
 use super::{
     Attribute, AttributeValue, CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Helper,
-    Name, Namespace, NodeKind, Parent, R, Span, Steps, Template, TypedIndex, captured_event,
-    directive, spelled, unsupported, vue,
+    Name, Namespace, NodeKind, Parent, R, Span, Steps, Template, captured_event, directive,
+    spelled, unsupported, vue,
 };
 use crate::compilation::string_key;
 
@@ -62,54 +62,17 @@ impl<'t> Template<'_, '_, 't> {
             props.push(self.bound("$$tag", el.name, value, attribute.span));
         }
         let mut steps = Steps::default();
-        let mut select_target = None;
-        let spread = attributes
-            .iter()
-            .any(|a| matches!(a.value, AttributeValue::Spread(_)));
-        let directives = attributes
-            .iter()
-            .any(|a| matches!(a.value, AttributeValue::Class(_)));
-        let styles = !self.i.server
-            && attributes
-                .iter()
-                .any(|attribute| matches!(attribute.value, AttributeValue::Style { .. }));
-        if styles && !spread {
-            self.styles(attributes, &mut steps)?;
-        }
-        if spread {
-            self.spread((tag, namespace), attributes, &mut props, &mut steps, scope)?;
-        } else {
-            if directives || scope.is_some() {
-                self.class_directives(el.name, attributes, &mut props, &mut steps, scope)?;
-            }
-            for a in attributes {
-                if let AttributeValue::Bind(t) = a.value
-                    && tag == "select"
-                {
-                    select_target = Some(t);
-                }
-                let class = matches!(a.value, AttributeValue::Class(_))
-                    || a.name.text(source_text) == "class";
-                let style = styles
-                    && (matches!(a.value, AttributeValue::Style { .. })
-                        || a.name.text(source_text) == "style");
-                if !(((directives || scope.is_some()) && class) || style) {
-                    self.attribute(tag, namespace, attributes, a, &mut props, &mut steps)?;
-                }
-            }
-        }
+        let select_target = self.element_attributes(
+            (tag, namespace),
+            el.name,
+            attributes,
+            scope,
+            &mut props,
+            &mut steps,
+        )?;
         props.extend(extra);
-        if self.i.server && !spread && LOAD_ERROR_ELEMENTS.contains(&tag) {
-            for a in attributes {
-                let name = a.name.text(source_text);
-                let event = matches!(
-                    a.value,
-                    AttributeValue::Expression { .. } | AttributeValue::Shorthand(_)
-                ) && matches!(name, "onload" | "onerror");
-                if event {
-                    props.push(captured_event(name, a.span));
-                }
-            }
+        if self.i.server && !has_spread(attributes) && LOAD_ERROR_ELEMENTS.contains(&tag) {
+            captured_events(attributes, source_text, &mut props);
         }
         if let Some(f) = self.ref_function(steps) {
             props.push(self.bound("$$ref", el.name, f, el.name));
@@ -126,7 +89,7 @@ impl<'t> Template<'_, '_, 't> {
             props: range,
             children: vue::Children::default(),
         });
-        let origin = u32::try_from(identifier.index()).expect("fewer than u32::MAX nodes");
+        let origin = super::origin(identifier);
         let v = self.vb.node(kind, node.span, vue_parent, origin);
         if namespace != Namespace::Html {
             self.namespaces.insert(v, namespace);
@@ -153,6 +116,54 @@ impl<'t> Template<'_, '_, 't> {
         };
         self.vb.set_element_children(v, children);
         Ok(v)
+    }
+
+    /// The element's attributes as Vue props and steps; the target of a `<select>`'s `bind:`.
+    fn element_attributes(
+        &mut self,
+        (tag, namespace): (&str, Namespace),
+        name: Span,
+        attributes: &[Attribute],
+        scope: Option<&str>,
+        props: &mut Vec<vue::Property>,
+        steps: &mut Steps<'t>,
+    ) -> R<Option<rsvelte_typescript_tree::ExpressionIdentifier>> {
+        let source_text = self.i.source_text;
+        let mut select_target = None;
+        let spread = has_spread(attributes);
+        let directives = attributes
+            .iter()
+            .any(|a| matches!(a.value, AttributeValue::Class(_)));
+        let styles = !self.i.server
+            && attributes
+                .iter()
+                .any(|attribute| matches!(attribute.value, AttributeValue::Style { .. }));
+        if styles && !spread {
+            self.styles(attributes, steps)?;
+        }
+        if spread {
+            self.spread((tag, namespace), attributes, props, steps, scope)?;
+        } else {
+            if directives || scope.is_some() {
+                self.class_directives(name, attributes, props, steps, scope)?;
+            }
+            for a in attributes {
+                if let AttributeValue::Bind(t) = a.value
+                    && tag == "select"
+                {
+                    select_target = Some(t);
+                }
+                let class = matches!(a.value, AttributeValue::Class(_))
+                    || a.name.text(source_text) == "class";
+                let style = styles
+                    && (matches!(a.value, AttributeValue::Style { .. })
+                        || a.name.text(source_text) == "style");
+                if !(((directives || scope.is_some()) && class) || style) {
+                    self.attribute(tag, namespace, attributes, a, props, steps)?;
+                }
+            }
+        }
+        Ok(select_target)
     }
 
     /// An element with a spread attribute: all its attributes as one object, in order, which
@@ -226,14 +237,10 @@ impl<'t> Template<'_, '_, 't> {
             self.helpers.insert(Helper::ScopedClass);
             object = self.call("$$scoped_spread", [object, b.string(scope)]);
         }
-        let styles = if attributes
+        let styles = attributes
             .iter()
             .any(|attribute| matches!(attribute.value, AttributeValue::Style { .. }))
-        {
-            Some(self.style_declarations(attributes)?)
-        } else {
-            None
-        };
+            .then(|| self.style_declarations(attributes));
         let at = attributes
             .first()
             .map_or_else(Span::default, |attribute| attribute.span);
@@ -365,5 +372,25 @@ impl<'t> Template<'_, '_, 't> {
         }
         body.extend(steps.this.into_iter().map(|s| b.stmt(s)));
         Some(b.arrow_block(b.params(["$$el"]), body, false))
+    }
+}
+
+fn has_spread(attributes: &[Attribute]) -> bool {
+    attributes
+        .iter()
+        .any(|a| matches!(a.value, AttributeValue::Spread(_)))
+}
+
+/// `onload` / `onerror` marked on the server for the client to replay.
+fn captured_events(attributes: &[Attribute], source_text: &str, props: &mut Vec<vue::Property>) {
+    for a in attributes {
+        let name = a.name.text(source_text);
+        let event = matches!(
+            a.value,
+            AttributeValue::Expression { .. } | AttributeValue::Shorthand(_)
+        ) && matches!(name, "onload" | "onerror");
+        if event {
+            props.push(captured_event(name, a.span));
+        }
     }
 }

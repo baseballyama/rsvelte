@@ -1215,6 +1215,13 @@ dependencies = [
 name = "rsvelte_svelte_compile_vapor"
 version = "0.0.0"
 dependencies = [
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_visit",
+ "oxc_parser",
+ "oxc_semantic",
+ "oxc_span",
+ "oxc_syntax",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
  "rsvelte_svelte_compile",
@@ -1222,8 +1229,7 @@ dependencies = [
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
  "rsvelte_typescript_compile",
- "rsvelte_typescript_semantic",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
  "rsvelte_vue_semantic",
  "rsvelte_vue_syntax",
  "rustc-hash",

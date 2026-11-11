@@ -50,10 +50,10 @@ impl Template<'_, '_, '_> {
             vue_parent = Some(scope);
             source = b.id(&collection_name);
         }
-        let context = match each.context {
-            Some(context) => self.parameter(javascript.get_pattern(context)),
-            None => b.parameter(b.binding(&format!("$$each_item_{}", node.span.start_offset))),
-        };
+        let context = each.context.map_or_else(
+            || b.parameter(b.binding(&format!("$$each_item_{}", node.span.start_offset))),
+            |context| self.parameter(javascript.get_pattern(context)),
+        );
         let mut parameters = vec![context];
         if let Some(index) = each.index {
             parameters.push(self.parameter(javascript.get_pattern(index)));

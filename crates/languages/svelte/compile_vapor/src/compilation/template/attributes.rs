@@ -50,97 +50,29 @@ impl<'t> Template<'_, '_, 't> {
             && !name.starts_with("on")
             && plain
         {
-            return self.custom_element_attribute(a, steps);
+            self.custom_element_attribute(a, steps);
+            return Ok(());
         }
         if name.eq_ignore_ascii_case("defaultValue") || name.eq_ignore_ascii_case("defaultChecked")
         {
             return self.default_attribute(a, attributes, props, steps);
         }
         if matches!(name, "autofocus" | "hidden" | "muted") && plain {
-            return self.special_boolean_attribute(a, props, steps);
+            self.special_boolean_attribute(a, props, steps);
+            return Ok(());
         }
         match &a.value {
-            AttributeValue::Attach(expression) => {
+            AttributeValue::Attach(_)
+            | AttributeValue::Use { .. }
+            | AttributeValue::Transition { .. }
+            | AttributeValue::Animate { .. } => {
                 if !self.i.server {
-                    self.helpers.insert(Helper::Lifecycle);
-                    let expression = self.template_expression(*expression);
-                    let call = self.call(
-                        "$$attachment",
-                        [b.id("$$el"), self.key(a), self.getter(expression)],
-                    );
-                    steps.mounted.push(call);
-                }
-                Ok(())
-            }
-            AttributeValue::Use { action, argument } => {
-                if !self.i.server {
-                    self.helpers.insert(Helper::Lifecycle);
-                    let action = self.template_expression(*action);
-                    let parameter = match argument {
-                        Some(argument) => self.template_expression(*argument),
-                        None => b.id("undefined"),
-                    };
-                    let call = self.call(
-                        "$$action",
-                        [b.id("$$el"), self.key(a), action, self.getter(parameter)],
-                    );
-                    steps.mounted.push(call);
-                }
-                Ok(())
-            }
-            AttributeValue::Transition {
-                function,
-                argument,
-                intro,
-                outro,
-                modifiers,
-            } => {
-                if !self.i.server {
-                    self.helpers.insert(Helper::Transition);
-                    let function = self.template_expression(*function);
-                    let parameter = match argument {
-                        Some(argument) => self.template_expression(*argument),
-                        None => b.object([]),
-                    };
-                    let call = self.call(
-                        "$$transition",
-                        [
-                            b.id("$$el"),
-                            self.key(a),
-                            self.getter(function),
-                            self.getter(parameter),
-                            b.boolean(*intro),
-                            b.boolean(*outro),
-                            b.boolean(modifiers.contains(Modifiers::GLOBAL)),
-                        ],
-                    );
-                    steps.mounted.push(call);
-                }
-                Ok(())
-            }
-            AttributeValue::Animate { function, argument } => {
-                if !self.i.server {
-                    self.helpers.insert(Helper::Animate);
-                    let function = self.template_expression(*function);
-                    let parameter = match argument {
-                        Some(argument) => self.template_expression(*argument),
-                        None => b.id("undefined"),
-                    };
-                    let call = self.call(
-                        "$$animate",
-                        [
-                            b.id("$$el"),
-                            self.key(a),
-                            self.getter(function),
-                            self.getter(parameter),
-                        ],
-                    );
-                    steps.mounted.push(call);
+                    self.mounted_directive(a, steps);
                 }
                 Ok(())
             }
             AttributeValue::Style { value, modifiers } => {
-                let mut value = self.style_value(value)?;
+                let mut value = self.style_value(value);
                 let important = modifiers.contains(Modifiers::IMPORTANT);
                 if self.i.server {
                     if important {
@@ -182,7 +114,7 @@ impl<'t> Template<'_, '_, 't> {
                 if let Some(event) = name.strip_prefix("on") {
                     return self.handler(attributes, a, event, expression, props, steps);
                 }
-                self.expression_attribute(tag, namespace, a, expression, props, steps);
+                self.expression_attribute(namespace, a, expression, props, steps);
                 Ok(())
             }
             AttributeValue::Interpolated(parts) => {
@@ -201,10 +133,81 @@ impl<'t> Template<'_, '_, 't> {
         }
     }
 
+    /// An attachment, action, transition or animation: a call when the element mounts.
+    fn mounted_directive(&mut self, a: &Attribute, steps: &mut Steps<'t>) {
+        let b = self.b;
+        let call = match &a.value {
+            AttributeValue::Attach(expression) => {
+                self.helpers.insert(Helper::Lifecycle);
+                let expression = self.template_expression(*expression);
+                self.call(
+                    "$$attachment",
+                    [b.id("$$el"), self.key(a), self.getter(expression)],
+                )
+            }
+            AttributeValue::Use { action, argument } => {
+                self.helpers.insert(Helper::Lifecycle);
+                let action = self.template_expression(*action);
+                let parameter = argument.map_or_else(
+                    || b.id("undefined"),
+                    |argument| self.template_expression(argument),
+                );
+                self.call(
+                    "$$action",
+                    [b.id("$$el"), self.key(a), action, self.getter(parameter)],
+                )
+            }
+            AttributeValue::Transition {
+                function,
+                argument,
+                intro,
+                outro,
+                modifiers,
+            } => {
+                self.helpers.insert(Helper::Transition);
+                let function = self.template_expression(*function);
+                let parameter = argument.map_or_else(
+                    || b.object([]),
+                    |argument| self.template_expression(argument),
+                );
+                self.call(
+                    "$$transition",
+                    [
+                        b.id("$$el"),
+                        self.key(a),
+                        self.getter(function),
+                        self.getter(parameter),
+                        b.boolean(*intro),
+                        b.boolean(*outro),
+                        b.boolean(modifiers.contains(Modifiers::GLOBAL)),
+                    ],
+                )
+            }
+            AttributeValue::Animate { function, argument } => {
+                self.helpers.insert(Helper::Animate);
+                let function = self.template_expression(*function);
+                let parameter = argument.map_or_else(
+                    || b.id("undefined"),
+                    |argument| self.template_expression(argument),
+                );
+                self.call(
+                    "$$animate",
+                    [
+                        b.id("$$el"),
+                        self.key(a),
+                        self.getter(function),
+                        self.getter(parameter),
+                    ],
+                )
+            }
+            _ => unreachable!("called on a mounted directive"),
+        };
+        steps.mounted.push(call);
+    }
+
     /// `name={expression}`.
     fn expression_attribute(
         &mut self,
-        tag: &str,
         namespace: Namespace,
         a: &Attribute,
         expression: ExpressionIdentifier,
@@ -213,7 +216,6 @@ impl<'t> Template<'_, '_, 't> {
     ) {
         let name = a.name.text(self.i.source_text);
         let at = a.name.span();
-        let _ = tag;
         let x = self.template_expression(expression);
         let metadata = self.i.analysis.meta(expression);
         if !self.i.server

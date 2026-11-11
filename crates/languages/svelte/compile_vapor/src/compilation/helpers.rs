@@ -443,11 +443,6 @@ pub(crate) const fn requires(h: Helper) -> &'static [Helper] {
     }
 }
 
-/// The declarations of `helpers`, in the order given, built into `to`.
-///
-/// # Panics
-///
-
 /// The declarations of `helpers`, in the order given.
 pub(crate) fn declarations<'t>(helpers: &[Helper], b: &Builder<'t>) -> Vec<Statement<'t>> {
     let mut out = Vec::new();

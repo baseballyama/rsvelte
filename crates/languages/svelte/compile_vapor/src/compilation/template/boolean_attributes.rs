@@ -1,6 +1,6 @@
 use oxc_ast::ast::Expression;
 
-use super::{Attribute, AttributeValue, Helper, R, Steps, Template, attribute, vue};
+use super::{Attribute, AttributeValue, Helper, Steps, Template, attribute, vue};
 
 impl<'t> Template<'_, '_, 't> {
     /// A plain attribute's value as an expression.
@@ -20,17 +20,17 @@ impl<'t> Template<'_, '_, 't> {
         source: &Attribute,
         props: &mut Vec<vue::Property>,
         steps: &mut Steps<'t>,
-    ) -> R<()> {
+    ) {
         let name = source.name.text(self.i.source_text);
         if self.i.server || name == "hidden" {
             match &source.value {
                 AttributeValue::Static(value) => {
                     props.push(attribute(source, Some(value)));
-                    return Ok(());
+                    return;
                 }
                 AttributeValue::Boolean => {
                     props.push(attribute(source, None));
-                    return Ok(());
+                    return;
                 }
                 _ => {}
             }
@@ -57,6 +57,5 @@ impl<'t> Template<'_, '_, 't> {
             let call = self.call(helper, [self.b.id("$$el"), value]);
             steps.mounted.push(call);
         }
-        Ok(())
     }
 }

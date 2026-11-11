@@ -81,7 +81,7 @@ impl<'t> Template<'_, '_, 't> {
             props,
             children: vue::Children::default(),
         });
-        let origin = u32::try_from(identifier.index()).expect("fewer than u32::MAX nodes");
+        let origin = super::origin(identifier);
         let result = self.vb.node(kind, node.span, wrapper.or(parent), origin);
         let children = self.vb.children(&snippets);
         self.vb.set_element_children(result, children);
@@ -178,7 +178,12 @@ impl<'t> Template<'_, '_, 't> {
             let Expression::Identifier(name) = self.source(snippet.name) else {
                 unreachable!("a snippet's name is an identifier")
             };
-            let value = self.template_expression(snippet.name);
+            let symbol = self
+                .i
+                .resolution
+                .snippet(child)
+                .expect("a snippet name has a symbol");
+            let value = b.id(&self.snippet_names[&symbol]);
             fields.push(b.property(string_key(b, &name.name), value, false));
             snippets.push(self.snippet(child, parent, preserve, child_node.span)?);
         }

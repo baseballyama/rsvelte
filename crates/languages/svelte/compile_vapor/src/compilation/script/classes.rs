@@ -102,14 +102,14 @@ impl<'t> ScriptRewrite<'_, 't> {
                 let Expression::CallExpression(call) = &mut value else {
                     unreachable!("a rune is a call")
                 };
-                match call.arguments.pop() {
-                    Some(argument) => {
+                call.arguments.pop().map_or_else(
+                    || b.id("undefined"),
+                    |argument| {
                         let mut argument = argument.into_expression();
                         self.visit_expression(&mut argument);
                         argument
-                    }
-                    None => b.id("undefined"),
-                }
+                    },
+                )
             } else {
                 self.visit_expression(&mut value);
                 value
@@ -122,7 +122,7 @@ impl<'t> ScriptRewrite<'_, 't> {
             let hidden = fresh(&mut occupied, &mut next);
             output.push(field(b, &hidden, Some(value), p.r#static));
             let key = std::mem::replace(&mut p.key, b.key("x"));
-            accessors(b, key, &hidden, p.r#static, &mut output);
+            accessors(b, &key, &hidden, p.r#static, &mut output);
         }
         class.body.body = b.vec(output);
         self.private_fields.pop();
@@ -179,7 +179,7 @@ impl<'t> ScriptRewrite<'_, 't> {
                 self.constructor_storage
                     .insert(f.assignment, hidden.clone());
                 output.push(field(b, &hidden, None, false));
-                accessors(b, b.key(&f.property), &hidden, false, output);
+                accessors(b, &b.key(&f.property), &hidden, false, output);
             }
         }
         names
@@ -188,22 +188,24 @@ impl<'t> ScriptRewrite<'_, 't> {
 
 /// `this.#name`, or `this.name`.
 fn this_member<'t>(b: &Builder<'t>, name: &str) -> Expression<'t> {
-    match name.strip_prefix('#') {
-        Some(private) => Expression::new_private_field_expression(
-            SPAN,
-            b.this(),
-            oxc_ast::ast::PrivateIdentifier::new(SPAN, b.str(private), b),
-            false,
-            b,
-        ),
-        None => b.member(b.this(), name),
-    }
+    name.strip_prefix('#').map_or_else(
+        || b.member(b.this(), name),
+        |private| {
+            Expression::new_private_field_expression(
+                SPAN,
+                b.this(),
+                oxc_ast::ast::PrivateIdentifier::new(SPAN, b.str(private), b),
+                false,
+                b,
+            )
+        },
+    )
 }
 
 /// `get key() { return this.#hidden.value; }` and `set key($$value) { … }`.
 fn accessors<'t>(
     b: &Builder<'t>,
-    key: PropertyKey<'t>,
+    key: &PropertyKey<'t>,
     hidden: &str,
     is_static: bool,
     output: &mut Vec<ClassElement<'t>>,
@@ -227,7 +229,7 @@ fn accessors<'t>(
             SPAN,
             MethodDefinitionType::MethodDefinition,
             b.vec([]),
-            oxc_allocator::CloneIn::clone_in(&key, b.allocator()),
+            oxc_allocator::CloneIn::clone_in(key, b.allocator()),
             function,
             kind,
             false,

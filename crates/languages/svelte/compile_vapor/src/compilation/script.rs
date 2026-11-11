@@ -4,7 +4,6 @@
 //! `.value`, every reference to a prop reads `$$props.<key>`. What the script does not mean the
 //! same in both runtimes is refused in [`plan`], before anything is built.
 
-use oxc_ast::AstKind;
 use oxc_ast::ast::{
     BindingPattern, Declaration, Expression, IdentifierReference, Program, PropertyKey, Statement,
     UnaryOperator, VariableDeclaration,
@@ -455,17 +454,6 @@ pub(crate) fn prop_cell(res: &Resolution, symbol: SymbolId) -> bool {
     }
 }
 
-/// The top-level function declaration `symbol` names, if it names one.
-pub(crate) fn function(res: &Resolution, symbol: SymbolId) -> Option<&oxc_ast::ast::Function<'_>> {
-    if res.scoping().symbol_scope_id(symbol) != res.instance_scope() {
-        return None;
-    }
-    match res.declaration(symbol) {
-        AstKind::Function(f) if f.is_declaration() => Some(f),
-        _ => None,
-    }
-}
-
 mod classes;
 mod constructors;
 mod declarations;
@@ -476,4 +464,4 @@ mod imports;
 mod module;
 pub(crate) mod patterns;
 pub(crate) mod runes;
-pub(crate) use emit::{ScriptRewrite, emit, prop_member, rune_value};
+pub(crate) use emit::{ScriptRewrite, async_arrow, emit, prop_member, property_target, rune_value};
