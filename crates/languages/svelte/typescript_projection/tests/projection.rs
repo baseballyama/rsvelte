@@ -440,3 +440,62 @@ fn a_component_is_named_from_its_file_as_svelte2tsx_names_it() {
     );
     assert_eq!(component_name("src/lib/404.svelte"), "A4__SvelteComponent_");
 }
+
+#[test]
+fn a_one_way_binding_asserts_the_assigned_value() {
+    let source = "<script lang=\"ts\">let e: HTMLElement | undefined; let w = $state(0);</script>\
+                  <div bind:this={e!} bind:clientWidth={w as number}></div>";
+    let (_, output) = project(source);
+    assert!(
+        output.out.contains("e = __rsvelte_element0!;"),
+        "{}",
+        output.out
+    );
+    assert!(
+        output
+            .out
+            .contains("w = __rsvelte_element0.clientWidth as number;"),
+        "{}",
+        output.out
+    );
+}
+
+#[test]
+fn a_generic_component_renders_in_a_function_of_its_type_parameters() {
+    let source = "<script lang=\"ts\" generics=\"T extends string\">\
+                  import type { Snippet } from 'svelte';\
+                  let { item, row }: { item: T; row: Snippet<[T]> } = $props();\
+                  </script>{@render row(item)}";
+    let (_, output) = project(source);
+    let out = &output.out;
+    let at = |needle: &str| {
+        out.find(needle)
+            .unwrap_or_else(|| panic!("{needle}: {out}"))
+    };
+    assert!(at("import type { Snippet }") < at("function $$render<T extends string>() {"));
+    assert!(at("row(item)") < at("return __rsvelte_export_generic<"));
+    assert!(
+        out.contains("type $$Component<T extends string> = "),
+        "{out}"
+    );
+}
+
+#[test]
+fn a_const_type_parameter_stays_only_where_typescript_allows_it() {
+    let source =
+        "<script lang=\"ts\" generics=\"const T extends string\">let x: T = null as any;</script>";
+    let (_, output) = project(source);
+    let out = &output.out;
+    assert!(
+        out.contains("function $$render<const T extends string>()"),
+        "{out}"
+    );
+    assert!(
+        out.contains("interface __rsvelte_generic_component { <T extends string>("),
+        "{out}"
+    );
+    assert!(
+        out.contains("type $$Component<T extends string> = "),
+        "{out}"
+    );
+}

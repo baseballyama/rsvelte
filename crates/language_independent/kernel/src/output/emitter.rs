@@ -174,25 +174,23 @@ impl Emitter {
         found
     }
 
-    /// Every mapped character as (generated, original): one point per character of a copy, one per
-    /// point mapping; a later mapping at the same generated offset replaces an earlier one.
-    fn points(&self) -> Vec<(u32, u32)> {
-        let mut sorted = self.mappings.clone();
-        // A source map holds points only: an atom maps from its start.
-        sorted.extend(self.atoms.iter().map(|a| Mapping {
-            generated: a.generated.start_offset,
-            source_text: a.original.start_offset,
-            len: 0,
-        }));
-        sorted.sort_by_key(|m| m.generated);
-        // A copy has at most one point per byte.
-        let capacity = sorted.iter().map(|m| m.len.max(1) as usize).sum();
-        let mut points: Vec<(u32, u32)> = Vec::with_capacity(capacity);
-        let mut put = |g: u32, s: u32| match points.last_mut() {
-            Some(last) if last.0 == g => *last = (g, s),
-            _ => points.push((g, s)),
+    /// Calls `f` with every mapped character as (generated, original): one point per character of
+    /// a copy, one per point mapping and per atom, which maps from its start; a later mapping at
+    /// the same generated offset replaces an earlier one. Both lists are in output order, so
+    /// merging them, mappings first on a tie, is the order a stable sort of the two would give.
+    fn points(&self, mut f: impl FnMut(u32, u32)) {
+        let mut last: Option<(u32, u32)> = None;
+        let mut put = |generated: u32, source_text: u32| {
+            if let Some(point) = last.filter(|&(g, _)| g != generated) {
+                f(point.0, point.1);
+            }
+            last = Some((generated, source_text));
         };
-        for m in &sorted {
+        let mut atoms = self.atoms.iter().peekable();
+        for m in &self.mappings {
+            while let Some(a) = atoms.next_if(|a| a.generated.start_offset < m.generated) {
+                put(a.generated.start_offset, a.original.start_offset);
+            }
             if m.len == 0 {
                 put(m.generated, m.source_text);
                 continue;
@@ -202,7 +200,12 @@ impl Emitter {
                 put(m.generated + i as u32, m.source_text + i as u32);
             }
         }
-        points
+        for a in atoms {
+            put(a.generated.start_offset, a.original.start_offset);
+        }
+        if let Some((generated, source_text)) = last {
+            f(generated, source_text);
+        }
     }
 
     /// Encodes the mappings as a source map v3 JSON document, one segment per mapped character.
@@ -210,13 +213,10 @@ impl Emitter {
     #[must_use]
     pub fn source_map(&self, source: &LineIndex, source_name: &str) -> String {
         let gen_index = LineIndex::new(&self.out);
-        let points = self.points();
         let mut json = String::from("{\"version\":3,\"sources\":[");
         crate::output::structured_data::write_string(&mut json, source_name);
         // The mappings are base64 digits, commas and semicolons, which JSON writes unescaped.
         json.push_str("],\"names\":[],\"mappings\":\"");
-        // A segment is four one-byte digits for the usual small deltas, and a separator.
-        json.reserve(points.len() * 5 + 2);
         let (
             mut prev_gen_line,
             mut prev_gen_column,
@@ -224,7 +224,7 @@ impl Emitter {
             mut prev_source_text_column,
         ) = (1u32, 0i64, 0i64, 0i64);
         let mut first_in_line = true;
-        for (generated, source_text) in points {
+        self.points(|generated, source_text| {
             let g = gen_index.line_column(generated);
             let s = source.line_column(source_text);
             while prev_gen_line < g.line {
@@ -244,7 +244,7 @@ impl Emitter {
             prev_gen_column = i64::from(g.column);
             prev_source_text_line = i64::from(s.line) - 1;
             prev_source_text_column = i64::from(s.column);
-        }
+        });
         json.push_str("\"}");
         json
     }
