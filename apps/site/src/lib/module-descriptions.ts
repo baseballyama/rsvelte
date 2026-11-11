@@ -53,6 +53,15 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: '字句の記録のテスト',
 		summary: '検索が空白とコメントを飛ばすこと、抜けや短すぎる表を報告することを確かめます。',
 	},
+	'kernel/source/characters': {
+		title: '言語に共通の文字の種類',
+		summary: 'JavaScript の空白など、いくつかの言語で共通に使う文字の分類を定めます。',
+	},
+	'kernel/source/characters/tests': {
+		title: '言語に共通の文字の種類のテスト',
+		summary:
+			'JavaScript の空白が Unicode の空白とどこで違うか、その空白で単語が区切られることを確かめます。',
+	},
 	'kernel/computation/database': {
 		title: '計算結果の保存と再利用',
 		summary: '構文解析などの結果を文書ごとに保存し、複数の処理で共有します。',
@@ -79,6 +88,21 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: '処理の登録',
 		summary:
 			'プラグイン、計算結果の型、共通の呼び出し窓口、タスクを登録し、実行するタスクを選びます。',
+	},
+	'kernel/computation/file_facts': {
+		title: '文書の外にあるファイルの情報',
+		summary:
+			'package.json など、文書の外にあるファイルから読んだ情報を一度だけ読み、すべての文書で共有します。ファイルが変わったときは、そのファイルを読んだ可能性のある情報だけを捨てます。',
+	},
+	'kernel/computation/file_facts/tests': {
+		title: '文書の外にあるファイルの情報のテスト',
+		summary:
+			'同じパスは一度しか読まないこと、同時に尋ねたスレッドが一度の読み込みを共有すること、変更があったときに関係する情報だけを捨てることを確かめます。',
+	},
+	'kernel/computation/registry/tests': {
+		title: '処理の登録のテスト',
+		summary:
+			'プラグインが別のプラグインの一覧に加えた項目が、加えた順に並び、一覧ごとに分かれていることを確かめます。',
 	},
 	'kernel/computation/pipeline': {
 		title: '処理の実行',
@@ -154,6 +178,11 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	'kernel/performance/measurement/imp/tests': {
 		title: '処理時間とメモリの計測のテスト',
 		summary: '終了したスレッドの計測値が、集計を取り出すまで残ることを確かめます。',
+	},
+	'kernel/performance/stack': {
+		title: '深い入れ子のための呼び出しスタック',
+		summary:
+			'入れ子の深い文書でもスタックがあふれないよう、足りなくなったときだけ新しい領域で処理を続けます。',
 	},
 	'kernel/performance/buffer_pool': {
 		title: '作業用メモリの再利用',
