@@ -21,12 +21,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         self.fragment_without(children, |_| false)
     }
 
-    /// Upstream `Fragment` over the children but the snippets named so that `skipped` holds,
-    /// which the caller declares: the snippets come first (upstream `state.snippets`).
+    /// Upstream `Fragment` over the children but the hoisted ones for which `skipped` holds,
+    /// which the caller lowers itself: the snippets come first (upstream `state.snippets`).
     pub(super) fn fragment_without(
         &mut self,
         children: Children,
-        skipped: fn(&str) -> bool,
+        skipped: fn(&NodeKind) -> bool,
     ) -> R<Vec<Statement<'o>>> {
         let plan = self.plan;
         self.region_without(plan.fragment(children), skipped)
@@ -36,7 +36,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn region_without(
         &mut self,
         region: &Region,
-        skipped: fn(&str) -> bool,
+        skipped: fn(&NodeKind) -> bool,
     ) -> R<Vec<Statement<'o>>> {
         let (mut snippets, body) =
             self.collecting_snippets(|context| context.fragment_body(region, skipped));
@@ -57,7 +57,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     fn fragment_body(
         &mut self,
         cleaned: &Region,
-        skipped: fn(&str) -> bool,
+        skipped: fn(&NodeKind) -> bool,
     ) -> R<Vec<Statement<'o>>> {
         let b = self.b;
         let items = &cleaned.items;
@@ -186,14 +186,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     fn fragment_hoisted(
         &mut self,
         identifiers: &[CompilerNodeIdentifier],
-        skipped: fn(&str) -> bool,
+        skipped: fn(&NodeKind) -> bool,
         frag: &mut Frag<'o>,
         lists: &mut Lists<'o>,
     ) -> R<()> {
         for &identifier in identifiers {
-            if let NodeKind::Snippet(snippet) = &self.compiler_syntax_tree.node(identifier).kind
-                && skipped(self.snippet_name(snippet))
-            {
+            if skipped(&self.compiler_syntax_tree.node(identifier).kind) {
                 continue;
             }
             self.hoisted_element(identifier, frag, lists)?;

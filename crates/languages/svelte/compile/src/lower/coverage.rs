@@ -53,16 +53,15 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             }
             NodeKind::Element(el) => {
                 check_element(input, res, el)?;
-                // Upstream moves a boundary's `{@const}` into its `failed` snippet, and rejects one
-                // that a component's snippet reads.
+                // A component's snippet that reads a `{@const}` beside it is not lowered.
                 let has = |f: fn(&NodeKind) -> bool| {
                     tree.children(el.children)
                         .iter()
                         .any(|&c| f(&tree.node(c).kind))
                 };
                 (has(|k| matches!(k, NodeKind::Const { .. }))
-                    && (el.kind == ElementKind::Metadata(Some(MetadataTag::Boundary))
-                        || has(|k| matches!(k, NodeKind::Snippet(_)))))
+                    && el.kind != ElementKind::Metadata(Some(MetadataTag::Boundary))
+                    && has(|k| matches!(k, NodeKind::Snippet(_))))
                 .then_some("a `{@const}` beside a snippet")
             }
             &NodeKind::Const { declaration } => const_tag(input, res, declaration),

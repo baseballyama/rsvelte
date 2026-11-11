@@ -40,6 +40,15 @@ impl<'o> ClientCompilationContext<'_, 'o> {
 
     /// `const name = ($$anchor, …) => {…}`.
     pub(super) fn snippet_declaration(&mut self, snippet: &Snippet) -> R<Statement<'o>> {
+        self.snippet_declaration_after(snippet, Vec::new())
+    }
+
+    /// [`Self::snippet_declaration`] with `leading` first in the snippet's body.
+    pub(super) fn snippet_declaration_after(
+        &mut self,
+        snippet: &Snippet,
+        mut leading: Vec<Statement<'o>>,
+    ) -> R<Statement<'o>> {
         let b = self.b;
         let saved_scope = self.scope;
         let parameters = self.snippet_parameters(snippet);
@@ -52,8 +61,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 self.reads.remove(&symbol);
             }
         }
-        let mut declarations = parameters.declarations;
-        declarations.extend(body?);
+        leading.extend(parameters.declarations);
+        leading.extend(body?);
+        let declarations = leading;
         let callback = b.arrow_block(
             b.formal_parameters(parameters.arguments),
             declarations,

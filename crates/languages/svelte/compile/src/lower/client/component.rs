@@ -68,10 +68,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut slots = match plan.slots(identifier) {
             None => vec![(
                 "default",
-                self.fragment_without(element.children, |_| true)?,
+                self.fragment_without(element.children, is_snippet)?,
             )],
             Some(slots) => slots
-                .map(|(name, region)| Ok((name, self.region_without(region, |_| true)?)))
+                .map(|(name, region)| Ok((name, self.region_without(region, is_snippet)?)))
                 .collect::<R<Vec<_>>>()?,
         };
         if !fills_slot
@@ -345,4 +345,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             _ => false,
         }
     }
+}
+
+/// The hoisted children a component declares itself.
+const fn is_snippet(kind: &NodeKind) -> bool {
+    matches!(kind, NodeKind::Snippet(_))
 }
