@@ -1,11 +1,11 @@
 use super::*;
 
-fn html_text(text: &str) -> Cow<'_, str> {
-    decode(text, Place::Text, Rules::Html)
+fn specified_text(text: &str) -> Cow<'_, str> {
+    decode(text, Place::Text, Rules::Specification)
 }
 
-fn html_attribute(text: &str) -> Cow<'_, str> {
-    decode(text, Place::Attribute, Rules::Html)
+fn specified_attribute(text: &str) -> Cow<'_, str> {
+    decode(text, Place::Attribute, Rules::Specification)
 }
 
 #[test]
@@ -50,11 +50,15 @@ fn every_name_decodes_with_its_semicolon_and_legacy_ones_without() {
     for &(name, first, second, legacy) in NAMED {
         let first = char::from_u32(first).expect("a scalar").to_string();
         assert_eq!(decode_attribute(&format!("&{name};")), first, "{name}");
-        let html = match char::from_u32(second) {
+        let specified = match char::from_u32(second) {
             Some(second) if second != '\0' => format!("{first}{second}"),
             _ => first.clone(),
         };
-        assert_eq!(html_attribute(&format!("&{name};")), html, "{name}");
+        assert_eq!(
+            specified_attribute(&format!("&{name};")),
+            specified,
+            "{name}"
+        );
         if legacy {
             assert_eq!(decode_text(&format!("&{name}")), first, "{name}");
         }
@@ -99,36 +103,45 @@ fn svelte_numbers_keep_zero_and_replace_what_is_outside_its_planes() {
 }
 
 #[test]
-fn html_numbers_replace_zero_surrogates_and_overflow() {
+fn the_specification_replaces_zero_surrogate_and_overflowing_numbers() {
     // Each expected text is what @vue/compiler-sfc decodes the input to.
     assert_eq!(
-        html_attribute("&#0; &#10; &#x80; &#x81; &#xD800; &#x110000; &#x30000; &#xFFFF;"),
+        specified_attribute("&#0; &#10; &#x80; &#x81; &#xD800; &#x110000; &#x30000; &#xFFFF;"),
         "\u{fffd} \n € \u{81} \u{fffd} \u{fffd} \u{30000} \u{ffff}"
     );
     assert_eq!(
-        html_text("&#99999999999; &#65x &#x; &#;"),
+        specified_text("&#99999999999; &#65x &#x; &#;"),
         "\u{fffd} Ax &#x; &#;"
     );
 }
 
 #[test]
-fn html_names_keep_their_second_code_point_and_let_an_underscore_through() {
-    assert_eq!(html_text("&fjlig; &NotEqualTilde;"), "fj \u{2242}\u{338}");
+fn the_specification_keeps_a_name_s_second_code_point_and_lets_an_underscore_through() {
     assert_eq!(
-        html_attribute("&notit; &copy= &copyx &amp &ampx &copy_ &lbrace"),
+        specified_text("&fjlig; &NotEqualTilde;"),
+        "fj \u{2242}\u{338}"
+    );
+    assert_eq!(
+        specified_attribute("&notit; &copy= &copyx &amp &ampx &copy_ &lbrace"),
         "&notit; &copy= &copyx & &ampx ©_ &lbrace"
     );
-    assert_eq!(html_text("&notin &notit; &copy= &ampx"), "¬in ¬it; ©= &x");
+    assert_eq!(
+        specified_text("&notin &notit; &copy= &ampx"),
+        "¬in ¬it; ©= &x"
+    );
 }
 
 #[test]
-fn html_follows_the_spec_where_compiler_core_does_not() {
+fn the_specification_holds_where_compiler_core_does_not() {
     // @vue/compiler-sfc 3.5.44 reads these as `¬invb ×b >ques9`.
     assert_eq!(
-        html_attribute("&notinvb &timesb &gtques9"),
+        specified_attribute("&notinvb &timesb &gtques9"),
         "&notinvb &timesb &gtques9"
     );
-    assert_eq!(html_text("&notinvb &timesb &gtques9"), "¬invb ×b >ques9");
+    assert_eq!(
+        specified_text("&notinvb &timesb &gtques9"),
+        "¬invb ×b >ques9"
+    );
 }
 
 #[test]

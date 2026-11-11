@@ -15,7 +15,7 @@ use rsvelte_kernel::source::positions::Span;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Dialect {
     /// `postcss`'s own parser.
-    Css,
+    Standard,
     /// `postcss-scss`.
     Scss,
 }

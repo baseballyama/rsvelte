@@ -32,7 +32,7 @@ pub enum Rules {
     Svelte,
     /// The HTML parsing spec, which Vue's template parser follows: a zero, surrogate or
     /// out-of-range number decodes to U+FFFD.
-    Html,
+    Specification,
 }
 
 /// `text` with its references decoded by Svelte's rules for text.
@@ -119,7 +119,9 @@ fn characters(
     match rules {
         // Svelte checks a named reference's code point as it checks a number (`&NewLine;`).
         Rules::Svelte => [code_point(first, place, rules), None],
-        Rules::Html => [first, second].map(|code| char::from_u32(code).filter(|_| code != 0)),
+        Rules::Specification => {
+            [first, second].map(|code| char::from_u32(code).filter(|_| code != 0))
+        }
     }
 }
 
@@ -154,7 +156,7 @@ fn code_point(code: u32, place: Place, rules: Rules) -> Option<char> {
             128..=159 => windows(code),
             _ => 0,
         },
-        Rules::Html => match code {
+        Rules::Specification => match code {
             0 => 0xFFFD,
             128..=159 => windows(code),
             _ => code,
