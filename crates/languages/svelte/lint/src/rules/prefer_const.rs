@@ -1,6 +1,5 @@
 use oxc_ast::ast::{
-    BindingPattern, Declaration, Expression, ModuleExportName, Statement,
-    VariableDeclaration,
+    BindingPattern, Declaration, Expression, ModuleExportName, Statement, VariableDeclaration,
 };
 use oxc_semantic::{ScopeId, Scoping, SymbolId};
 use rsvelte_lint_runner::rule::Reporter;
@@ -127,12 +126,20 @@ fn props(file: &File<'_>) -> FxHashSet<SymbolId> {
                 }
             }
             Statement::ExportNamedDeclaration(export) if !export.export_kind.is_type() => {
-                for specifier in export.specifiers.iter().filter(|s| !s.export_kind.is_type()) {
+                for specifier in export
+                    .specifiers
+                    .iter()
+                    .filter(|s| !s.export_kind.is_type())
+                {
                     props.extend(scope.and_then(|scope| lookup(scoping, scope, &specifier.local)));
                 }
             }
             Statement::ExportFromDeclaration(export) if !export.export_kind.is_type() => {
-                for specifier in export.specifiers.iter().filter(|s| !s.export_kind.is_type()) {
+                for specifier in export
+                    .specifiers
+                    .iter()
+                    .filter(|s| !s.export_kind.is_type())
+                {
                     props.extend(scope.and_then(|scope| lookup(scoping, scope, &specifier.local)));
                 }
             }
@@ -157,9 +164,7 @@ fn props(file: &File<'_>) -> FxHashSet<SymbolId> {
 fn lookup(scoping: &Scoping, scope: ScopeId, local: &ModuleExportName<'_>) -> Option<SymbolId> {
     match local {
         ModuleExportName::IdentifierName(name) => scoping.find_binding(scope, name.name),
-        ModuleExportName::IdentifierReference(name) => {
-            scoping.find_binding(scope, name.name)
-        }
+        ModuleExportName::IdentifierReference(name) => scoping.find_binding(scope, name.name),
         ModuleExportName::StringLiteral(_) => None,
     }
 }

@@ -69,7 +69,8 @@ impl Evaluator<'_> {
         call: &CallExpression<'_>,
         values: &mut Values,
     ) {
-        // In scope too: an identifier of a built tree leads to its binding's initializer, an input node.
+        // In scope too: an identifier of a built tree leads to its binding's initializer, an input
+        // node.
         if let Some((rune, argument)) = self.res.rune(e) {
             match rune {
                 "$state" | "$state.raw" | "$derived" => match argument {

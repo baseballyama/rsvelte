@@ -1,4 +1,3 @@
-use crate::lower::builder::Runtime;
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{
     BindingPattern, BindingProperty, BindingRestElement, Expression, FormalParameter, PropertyKey,
@@ -8,6 +7,7 @@ use oxc_semantic::SymbolId;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
 use rsvelte_svelte_semantic::evaluate::Evaluator;
 
+use crate::lower::builder::Runtime;
 use crate::lower::client::{ClientCompilationContext, Read};
 use crate::lower::javascript::is_simple_expression;
 

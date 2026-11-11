@@ -2,7 +2,7 @@ use oxc_ast::AstKind;
 use oxc_ast::ast::{
     AssignmentOperator, BindingPattern, Expression, FormalParameters, PropertyKind, Statement,
 };
-use oxc_semantic::{NodeId, ScopeId, SymbolId};
+use oxc_semantic::{NodeId, ReferenceId, ScopeId, SymbolId};
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
@@ -15,9 +15,11 @@ use super::{Facts, Use, span};
 ///
 /// It looks at every name typescript-eslint's scope analysis declares: types, enum members and
 /// the parameters of a signature too, which the core rule reports like any variable.
-pub fn no_unused_variables(
+/// `reads` are references a host resolves to a symbol as plain reads, such as Svelte's `$store`.
+pub fn no_unused_variables<'r>(
     semantic: &Semantic,
     considered: impl Fn(SymbolId) -> bool,
+    reads: impl Fn(SymbolId) -> &'r [ReferenceId],
     reporter: &mut Reporter<'_>,
 ) {
     let f = Facts::new(semantic);
@@ -40,6 +42,21 @@ pub fn no_unused_variables(
             _ => {}
         }
         f.uses(symbol, &mut uses);
+        let extra = reads(symbol);
+        if !extra.is_empty() {
+            uses.extend(extra.iter().map(|&id| {
+                let reference = f.scoping.get_reference(id);
+                let node = reference.node_id();
+                Use {
+                    node,
+                    span: f.span(node),
+                    read: true,
+                    write: false,
+                    scope: reference.scope_id(),
+                }
+            }));
+            uses.sort_by_key(|u| u.span.start);
+        }
         if is_used(&f, symbol, declaration, &uses) || is_exported(&f, declaration) {
             continue;
         }

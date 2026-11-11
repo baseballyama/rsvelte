@@ -17,7 +17,6 @@ mod fragments;
 mod snippets;
 mod special;
 
-use crate::lower::builder::Runtime;
 use std::borrow::Cow;
 
 use events::{capture_event, capture_load_events, push_captured_events};
@@ -46,6 +45,7 @@ use super::{
     is_behaviour, is_boolean_attribute, is_customizable_select, is_directive,
     is_load_error_element, needs_clsx, synthetic_value, unsupported,
 };
+use crate::lower::builder::Runtime;
 use crate::render_plan::RenderPlan;
 
 type R<T> = Result<T, Diagnostic>;

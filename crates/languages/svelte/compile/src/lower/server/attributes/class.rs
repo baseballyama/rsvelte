@@ -1,7 +1,7 @@
-use crate::lower::builder::Runtime;
 use oxc_ast::ast::Expression;
 
 use super::scoped_class;
+use crate::lower::builder::Runtime;
 use crate::lower::javascript::string_value;
 use crate::lower::server::{Attribute, AttributeValue, ServerCompilationContext};
 

@@ -6,10 +6,9 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 
-use crate::Configuration;
-use crate::directives;
 use crate::rule::File;
 use crate::rules::{comment_directive, system};
+use crate::{Configuration, directives};
 
 /// The findings of `configuration`'s rules on a component or a module, in `ESLint`'s order, less
 /// those directive comments turn off.

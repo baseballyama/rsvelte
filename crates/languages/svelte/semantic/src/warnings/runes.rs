@@ -10,12 +10,12 @@ use oxc_semantic::SymbolFlags;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Component, Part, TemplateNode};
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 use rustc_hash::FxHashSet;
 
 use super::found::{Found, Stage};
 use super::{Phase, Raised, Section, error, span, warning};
 use crate::resolve::{RUNES, Resolution};
-use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 
 /// Svelte's runes mode: `<svelte:options runes>`, or else a top-level `await` or a reference to
 /// a rune that is not a store subscription.

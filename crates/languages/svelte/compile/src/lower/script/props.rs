@@ -1,4 +1,3 @@
-use crate::lower::builder::Runtime;
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{
     AssignmentPattern, BindingPattern, BindingProperty, BindingRestElement, Expression,
@@ -8,6 +7,7 @@ use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_span::SPAN;
 
 use super::{BindingKind, Names, ScriptRewrite, is_prop_source, should_proxy_read};
+use crate::lower::builder::Runtime;
 use crate::lower::javascript::{is_simple_expression, prop_alias};
 
 /// Upstream server `$props` declaration: `$$slots` and `$$events` go beside the rest, and
@@ -93,7 +93,8 @@ pub(super) fn lower_client_props<'o>(
     };
     for property in &object.properties {
         let key_name = prop_alias(&property.key);
-        // Upstream excludes a number key as a number, which a rest object's string keys never match.
+        // Upstream excludes a number key as a number, which a rest object's string keys never
+        // match.
         seen.push(key_name.clone().into_owned());
         let local = match &property.value {
             BindingPattern::AssignmentPattern(assignment) => &assignment.left,

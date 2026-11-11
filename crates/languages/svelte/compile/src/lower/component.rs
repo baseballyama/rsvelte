@@ -1,7 +1,6 @@
 //! What a component call passes, in upstream `build_component`'s order. The targets differ only
 //! in how they spell each prop, the children callback and the call.
 
-use crate::lower::builder::Runtime;
 use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, ElementKind, Snippet};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
@@ -12,6 +11,7 @@ use super::{
     Attribute, AttributeValue, BindingKind, Builder, CompilerNodeIdentifier, CompilerSyntaxTree,
     Diagnostic, Item, NodeKind, Resolution, Target,
 };
+use crate::lower::builder::Runtime;
 
 #[derive(Clone, Copy)]
 pub(super) enum Prop<'t> {

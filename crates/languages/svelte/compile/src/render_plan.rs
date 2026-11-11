@@ -11,8 +11,7 @@ use crate::input::CompileInput;
 
 mod namespace;
 mod normalize;
-pub use namespace::Namespace;
-pub use namespace::Namespaces;
+pub use namespace::{Namespace, Namespaces};
 pub(crate) use normalize::is_template_whitespace;
 pub use normalize::{Cleaned, Item, Parent, clean_nodes};
 

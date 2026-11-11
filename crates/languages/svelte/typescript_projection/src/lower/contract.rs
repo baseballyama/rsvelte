@@ -1,7 +1,8 @@
 use oxc_ast::ast::{
-    BindingPattern, Declaration, Expression, PropertyKey, Statement, VariableDeclaration,
-    VariableDeclarationKind,
+    BindingPattern, Declaration, Expression, IdentifierReference, PropertyKey, Statement,
+    VariableDeclaration, VariableDeclarationKind,
 };
+use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 
 use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, Span, Unsupported, span};
@@ -202,6 +203,7 @@ impl Builder<'_> {
         let mut required = Buffer::new(0);
         let mut optional = Buffer::new(0);
         let rest = object.rest.is_some();
+        let siblings = Siblings::new(pattern);
         for property in &object.properties {
             if property.computed {
                 return Err(Unsupported::at(
@@ -220,7 +222,7 @@ impl Builder<'_> {
             }
             if annotation.is_none() {
                 let name = self.source(property.key.span(), None);
-                let value = self.prop_default(default);
+                let value = self.prop_default(default, &siblings);
                 let property = self.tree.push(Node::NamedProperty { name, value });
                 if default.is_some() {
                     optional.push(property);
@@ -259,7 +261,11 @@ impl Builder<'_> {
         Ok(value)
     }
 
-    fn prop_default(&mut self, default: Option<&Expression<'_>>) -> NodeIdentifier {
+    fn prop_default<'e>(
+        &mut self,
+        default: Option<&'e Expression<'e>>,
+        siblings: &Siblings<'e>,
+    ) -> NodeIdentifier {
         let Some(mut default) = default else {
             return self.untyped_prop();
         };
@@ -276,6 +282,9 @@ impl Builder<'_> {
             };
             default = fallback;
         }
+        let Some(default) = siblings.independent(default) else {
+            return self.untyped_prop();
+        };
         let value = self.source(default.span(), None);
         if matches!(default, Expression::ArrayExpression(array) if array.elements.is_empty()) {
             let callee = self.tree.push(Node::Identifier("__rsvelte_empty_array"));
@@ -365,5 +374,74 @@ impl Builder<'_> {
         let parts = self.finish_list(start);
         self.scratch
             .push(self.tree.push(Node::ProgramParts { parts }));
+    }
+}
+
+/// The bindings of one `$props()` pattern. The props object is inferred from the defaults, so a
+/// default that reads a sibling would infer the object from itself (TS7022).
+struct Siblings<'e> {
+    names: Vec<&'e str>,
+    defaults: Vec<(&'e str, Option<&'e Expression<'e>>)>,
+}
+
+impl<'e> Siblings<'e> {
+    fn new(pattern: &'e BindingPattern<'e>) -> Self {
+        let BindingPattern::ObjectPattern(object) = pattern else {
+            return Self {
+                names: Vec::new(),
+                defaults: Vec::new(),
+            };
+        };
+        let defaults = object
+            .properties
+            .iter()
+            .filter_map(|property| match &property.value {
+                BindingPattern::BindingIdentifier(name) => Some((name.name.as_str(), None)),
+                BindingPattern::AssignmentPattern(assignment) => match &assignment.left {
+                    BindingPattern::BindingIdentifier(name) => {
+                        Some((name.name.as_str(), Some(&assignment.right)))
+                    }
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect();
+        let names = pattern
+            .get_binding_identifiers()
+            .iter()
+            .map(|name| name.name.as_str())
+            .collect();
+        Self { names, defaults }
+    }
+
+    /// The default to infer from: a sibling's own, as svelte2tsx's `typeof sibling`, or `None` for
+    /// an untyped prop, as is one that reads a sibling another way, which svelte2tsx types `any`.
+    fn independent(&self, mut default: &'e Expression<'e>) -> Option<&'e Expression<'e>> {
+        for _ in 0..=self.defaults.len() {
+            if let Expression::Identifier(name) = default.without_parentheses()
+                && let Some(&(_, next)) = self.defaults.iter().find(|(n, _)| *n == name.name)
+            {
+                default = next?;
+                continue;
+            }
+            let mut reads = Reads {
+                names: &self.names,
+                found: false,
+            };
+            reads.visit_expression(default);
+            return (!reads.found).then_some(default);
+        }
+        None
+    }
+}
+
+struct Reads<'n, 'e> {
+    names: &'n [&'e str],
+    found: bool,
+}
+
+impl<'a> Visit<'a> for Reads<'_, '_> {
+    fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
+        self.found |= self.names.contains(&it.name.as_str());
     }
 }

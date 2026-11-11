@@ -1,4 +1,3 @@
-use crate::lower::builder::Runtime;
 use oxc_allocator::TakeIn;
 use oxc_ast::ast::{Expression, VariableDeclarator};
 use oxc_ast_visit::{VisitMut, walk_mut};
@@ -6,6 +5,7 @@ use oxc_ast_visit::{VisitMut, walk_mut};
 use super::super::derived::{Created, keeps_callee};
 use super::super::javascript::without_typescript;
 use super::{ScriptRewrite, Target, should_proxy_read};
+use crate::lower::builder::Runtime;
 
 /// Lowers a `$state`, `$state.raw`, `$derived` or `$derived.by` declarator at any depth in
 /// place; `false` when `d` is none of them.

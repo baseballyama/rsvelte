@@ -1,6 +1,6 @@
-use crate::lower::builder::Runtime;
 use oxc_ast::ast::{Expression, PropertyKey};
 
+use crate::lower::builder::Runtime;
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo, R,
     event_attribute, is_behaviour, normalize_attribute,

@@ -1,9 +1,9 @@
-use rsvelte_lint_runner::finding::Fix;
-use rsvelte_lint_runner::rule::{Report, Reporter};
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
     Argument, CallExpression, Expression, FormalParameters, FunctionBody, Statement,
 };
+use rsvelte_lint_runner::finding::Fix;
+use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::javascript::walk;
 use super::nodes::{is_named, span, text};
@@ -62,7 +62,9 @@ fn derived_by_expression<'a>(call: &'a CallExpression<'a>) -> Option<&'a Express
         return None;
     }
     let body = match argument {
-        Argument::ArrowFunctionExpression(arrow) if !arrow.r#async && no_parameters(&arrow.params) => {
+        Argument::ArrowFunctionExpression(arrow)
+            if !arrow.r#async && no_parameters(&arrow.params) =>
+        {
             if let Some(expression) = arrow.body.as_expression() {
                 return Some(expression);
             }

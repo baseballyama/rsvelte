@@ -34,12 +34,19 @@ pub(super) fn mark_bound_writes(tree: &Tree, template: &Recorded, scoping: &mut 
                     .insert(ReferenceFlags::Write);
             }
         }
+
         fn expression(&mut self, _: ExpressionIdentifier) {}
+
         fn declaration(&mut self, _: DeclarationIdentifier) {}
+
         fn pattern(&mut self, _: PatternIdentifier) {}
+
         fn parameters(&mut self, _: ParametersIdentifier) {}
+
         fn name(&mut self, _: TemplateName) {}
+
         fn enter(&mut self, _: TemplateScope) {}
+
         fn leave(&mut self) {}
     }
     template.replay(&mut Bound { tree, scoping });

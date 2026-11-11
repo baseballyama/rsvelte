@@ -1,7 +1,7 @@
-use crate::lower::builder::Runtime;
 use oxc_ast::ast::Expression;
 
 use super::{Attribute, AttributeValue, ServerCompilationContext, is_boolean_attribute};
+use crate::lower::builder::Runtime;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `BindDirective` (server): the bound value as an attribute.

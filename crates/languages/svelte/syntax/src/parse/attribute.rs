@@ -1,8 +1,7 @@
 use oxc_parser::Kind;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
-
-use rsvelte_kernel::diagnostics::Diagnostic;
 
 use super::{ParseResult, Parser};
 use crate::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range, TokenType};

@@ -21,7 +21,6 @@ mod template;
 mod template_chunk;
 mod title;
 
-use crate::lower::builder::Runtime;
 use oxc_allocator::ArenaBox;
 use oxc_ast::ast::{
     Expression, FormalParameters, ImportDeclarationSpecifier, ImportOrExportKind, Statement,
@@ -49,6 +48,7 @@ use super::{
     has_dependency, is_behaviour, is_custom_element_node, is_customizable_select, is_directive,
     is_load_error_element, needs_clsx, synthetic_value, unsupported,
 };
+use crate::lower::builder::Runtime;
 use crate::render_plan::RenderPlan;
 
 const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];

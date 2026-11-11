@@ -3,8 +3,8 @@
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    Argument, AssignmentTarget, AssignmentTargetMaybeDefault,
-    BindingPattern, CallExpression, Expression, IdentifierReference,
+    Argument, AssignmentTarget, AssignmentTargetMaybeDefault, BindingPattern, CallExpression,
+    Expression, IdentifierReference,
 };
 use oxc_semantic::{NodeId, SymbolId};
 use rsvelte_svelte_syntax::syntax_tree::{

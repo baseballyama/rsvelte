@@ -1,9 +1,9 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{BindingIdentifier, BindingPattern, Expression, Statement};
-use oxc_semantic::{Reference, Scoping, SymbolId};
+use oxc_semantic::{Reference, ReferenceId, Scoping, SymbolId};
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, NodeKind};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::nodes;
 use super::runes::runes;
@@ -34,17 +34,21 @@ impl SvelteRule for NoUnusedVariables {
 }
 
 /// The core rule, without the names `svelte-eslint-parser` marks used: `$bindable()` props,
-/// snippets passed to a component, and one of two top-level names the scripts share.
+/// subscribed stores, snippets passed to a component, and one of two top-level names the scripts
+/// share.
 fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let mut skipped = FxHashSet::default();
-    if runes(file) != Some(false) {
+    let runes = runes(file) != Some(false);
+    if runes {
         bindable_props(file, &mut skipped);
     }
+    let stores = subscribed_stores(file, runes, &mut skipped);
     component_snippets(file, &mut skipped);
     shared_names(file, &mut skipped);
     rsvelte_typescript_lint::no_unused_variables(
         file.semantic(),
         |symbol| !skipped.contains(&symbol),
+        |symbol| stores.get(&symbol).map_or(&[], Vec::as_slice),
         reporter,
     );
 }
@@ -112,6 +116,65 @@ fn bindable_names<'a>(pattern: &BindingPattern<'a>, out: &mut impl FnMut(&Bindin
         }
     }
 }
+
+/// `analyzeStoreScope`: each unresolved `$name` becomes a plain read of the top-level `name` it
+/// subscribes to, in either script. A store whose only references are such reads that the code
+/// writes (`$name = v`) is marked used.
+fn subscribed_stores(
+    file: &File<'_>,
+    runes: bool,
+    used: &mut FxHashSet<SymbolId>,
+) -> FxHashMap<SymbolId, Vec<ReferenceId>> {
+    let mut stores: FxHashMap<SymbolId, Vec<ReferenceId>> = FxHashMap::default();
+    let Some(resolution) = file.resolution() else {
+        return stores;
+    };
+    let scoping = resolution.scoping();
+    let scopes = [resolution.instance_scope(), scoping.root_scope_id()];
+    for (name, references) in scoping.root_unresolved_references() {
+        let name = name.as_str();
+        let Some(store) = name.strip_prefix('$') else {
+            continue;
+        };
+        if SVELTE_GLOBALS.contains(&name) || (runes && RUNE_GLOBALS.contains(&name)) {
+            continue;
+        }
+        for symbol in scopes
+            .iter()
+            .filter_map(|&scope| scoping.get_binding(scope, store.into()))
+        {
+            stores.entry(symbol).or_default().extend(references);
+        }
+    }
+    let write_only = |&id: &ReferenceId| {
+        let reference = scoping.get_reference(id);
+        reference.is_write() && !reference.is_read()
+    };
+    // Marking is a set insertion, so the map's order does not matter.
+    used.extend(
+        stores
+            .iter()
+            .filter(|(symbol, references)| {
+                references.iter().all(write_only)
+                    && scoping.get_resolved_reference_ids(**symbol).is_empty()
+            })
+            .map(|(&symbol, _)| symbol),
+    );
+    stores
+}
+
+/// `svelte-eslint-parser`'s globals, which subscribe to nothing.
+const SVELTE_GLOBALS: [&str; 3] = ["$$slots", "$$props", "$$restProps"];
+/// Its globals outside legacy mode.
+const RUNE_GLOBALS: [&str; 7] = [
+    "$state",
+    "$derived",
+    "$effect",
+    "$props",
+    "$bindable",
+    "$inspect",
+    "$host",
+];
 
 /// A `{#snippet}` directly inside a component, `<svelte:component>` or `<svelte:boundary>` is a
 /// prop of it.

@@ -1,7 +1,7 @@
-use rsvelte_lint_runner::rule::{Report, Reporter};
 use oxc_ast::AstKind;
 use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;
+use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::javascript::{span, walk};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};

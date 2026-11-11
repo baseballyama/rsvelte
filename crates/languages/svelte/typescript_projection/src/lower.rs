@@ -184,8 +184,9 @@ impl Builder<'_> {
                 let javascript = &self.component.javascript;
                 let index = index.map(|index| javascript.get_pattern(index).span);
                 let index = index.map(|at| self.source(at, None));
-                let context = context.map(|context| javascript.get_pattern(context).span);
-                let value = context.map(|at| self.source(at, None));
+                // svelte2tsx drops a context's type annotation, and `for…of` takes none.
+                let value = context.map(|context| javascript.get_pattern(context).pattern.span());
+                let value = value.map(|at| self.source(at, None));
                 let binding = self.tree.push(Node::ArrayPattern { index, value });
                 if let Some(key) = key {
                     let value = source_expression(self.expression(key).span(), None);

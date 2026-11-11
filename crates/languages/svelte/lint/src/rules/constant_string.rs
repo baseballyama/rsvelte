@@ -9,7 +9,10 @@ use rsvelte_typescript_semantic::semantic::Semantic;
 
 /// Follows an identifier through `const name = initializer` declarations to the first expression
 /// that is not such an identifier (`findRootExpression` upstream). A cycle stops where it closes.
-pub(super) fn root<'s>(semantic: &'s Semantic, mut expression: &'s Expression<'s>) -> &'s Expression<'s> {
+pub(super) fn root<'s>(
+    semantic: &'s Semantic,
+    mut expression: &'s Expression<'s>,
+) -> &'s Expression<'s> {
     let scoping = semantic.scoping();
     let mut visited = Vec::new();
     while let Expression::Identifier(identifier) = expression {

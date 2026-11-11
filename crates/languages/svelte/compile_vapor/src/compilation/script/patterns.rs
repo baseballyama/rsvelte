@@ -1,11 +1,10 @@
 //! `let { a, b: [c] } = $state(v)`: a cell per name, each reading its part of one base cell.
 
+use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{BinaryOperator, BindingPattern, Expression, PropertyKey, VariableDeclarator};
 use oxc_ast_visit::VisitMut;
 use oxc_span::GetSpan;
 use rsvelte_typescript_compile::build::Builder;
-
-use oxc_allocator::{CloneIn, GetAllocator};
 
 use super::emit::tracked;
 

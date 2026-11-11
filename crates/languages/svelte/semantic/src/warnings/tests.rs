@@ -1,10 +1,10 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_svelte_syntax::Parsed;
 
 use super::{CompileWarnings, Options};
 use crate::{Analyzed, Lowered, Resolved};
-use rsvelte_svelte_syntax::Parsed;
 
 /// What `svelte.compile` with `runes: true` warns about `code`, as each warning's code, source
 /// text and message.
