@@ -134,22 +134,20 @@ pub fn clean_nodes<'a>(
     }
     let is_expression = |i: Option<&Item<'_>>| matches!(i, Some(Item::Expression(_)));
 
-    let mut trimmed: Vec<Item<'a>> = if preserve_ws {
-        regular
-    } else {
+    if !preserve_ws {
         let all_ws = |i: &Item<'_>| matches!(i, Item::Text { data, .. } if data.chars().all(is_template_whitespace));
         let leading = regular.iter().take_while(|item| all_ws(item)).count();
         regular.drain(..leading);
         if let Some(Item::Text { data, raw }) = regular.first_mut() {
-            *data = trim_start_owned(data);
-            *raw = trim_start_owned(raw);
+            *data = collapse(std::mem::take(data), Some(""), None);
+            *raw = collapse(std::mem::take(raw), Some(""), None);
         }
         while regular.last().is_some_and(all_ws) {
             regular.pop();
         }
         if let Some(Item::Text { data, raw }) = regular.last_mut() {
-            *data = trim_end_owned(data);
-            *raw = trim_end_owned(raw);
+            *data = collapse(std::mem::take(data), None, Some(""));
+            *raw = collapse(std::mem::take(raw), None, Some(""));
         }
         let can_remove_entirely = drops_foreign_whitespace
             || matches!(
@@ -165,32 +163,24 @@ pub fn clean_nodes<'a>(
                         | "datalist"
                 )
             );
-        let mut out = Vec::with_capacity(regular.len());
         for i in 0..regular.len() {
             let prev_is_expression = i > 0 && is_expression(regular.get(i - 1));
             let prev_text_ends_ws = i > 0
                 && matches!(&regular[i - 1], Item::Text { data, .. } if data.ends_with(is_template_whitespace));
             let next_is_expression = is_expression(regular.get(i + 1));
-            let item = &mut regular[i];
-            if let Item::Text { data, raw } = item {
-                if !prev_is_expression {
-                    let with = if prev_text_ends_ws { "" } else { " " };
-                    *data = replace_leading_ws(data, with);
-                    *raw = replace_leading_ws(raw, with);
-                }
-                if !next_is_expression {
-                    *data = replace_trailing_ws(data, " ");
-                    *raw = replace_trailing_ws(raw, " ");
-                }
-                if !data.is_empty() && (data != " " || !can_remove_entirely) {
-                    out.push(item.clone());
-                }
-            } else {
-                out.push(item.clone());
+            if let Item::Text { data, raw } = &mut regular[i] {
+                let lead =
+                    (!prev_is_expression).then_some(if prev_text_ends_ws { "" } else { " " });
+                let trail = (!next_is_expression).then_some(" ");
+                *data = collapse(std::mem::take(data), lead, trail);
+                *raw = collapse(std::mem::take(raw), lead, trail);
             }
         }
-        out
-    };
+        regular.retain(|item| {
+            !matches!(item, Item::Text { data, .. } if data.is_empty() || (data == " " && can_remove_entirely))
+        });
+    }
+    let mut trimmed = regular;
 
     if matches!(parent, Parent::Element("pre"))
         && let Some(Item::Text { data, .. }) = trimmed.first()
@@ -224,38 +214,38 @@ pub fn clean_nodes<'a>(
     }
 }
 
-fn trim_start_owned<'a>(s: &Cow<'a, str>) -> Cow<'a, str> {
-    let t = s.trim_start_matches(is_template_whitespace);
-    if t.len() == s.len() {
-        s.clone()
-    } else {
-        Cow::Owned(t.to_owned())
-    }
-}
-
-fn trim_end_owned<'a>(s: &Cow<'a, str>) -> Cow<'a, str> {
-    let t = s.trim_end_matches(is_template_whitespace);
-    if t.len() == s.len() {
-        s.clone()
-    } else {
-        Cow::Owned(t.to_owned())
-    }
-}
-
-fn replace_leading_ws<'a>(s: &Cow<'a, str>, with: &str) -> Cow<'a, str> {
-    let t = s.trim_start_matches(is_template_whitespace);
-    if t.len() == s.len() {
-        s.clone()
-    } else {
-        Cow::Owned(format!("{with}{t}"))
-    }
-}
-
-fn replace_trailing_ws<'a>(s: &Cow<'a, str>, with: &str) -> Cow<'a, str> {
-    let t = s.trim_end_matches(is_template_whitespace);
-    if t.len() == s.len() {
-        s.clone()
-    } else {
-        Cow::Owned(format!("{t}{with}"))
+/// `s` with its leading template whitespace replaced by `lead`, then its trailing by `trail`, each
+/// when given and present; a borrowed `s` stays borrowed when the result is a slice of it.
+fn collapse<'a>(
+    s: Cow<'a, str>,
+    lead: Option<&'static str>,
+    trail: Option<&'static str>,
+) -> Cow<'a, str> {
+    let start = s.len() - s.trim_start_matches(is_template_whitespace).len();
+    let (start, mut prefix) = match lead {
+        Some(lead) if start > 0 => (start, lead),
+        _ => (0, ""),
+    };
+    let core = s[start..].trim_end_matches(is_template_whitespace);
+    let (end, suffix) = match trail {
+        Some(trail) if core.len() < s.len() - start => (start + core.len(), trail),
+        // Only the replaced leading whitespace is left to trim.
+        Some(trail) if core.is_empty() && prefix == " " => {
+            prefix = "";
+            (start, trail)
+        }
+        _ => (s.len(), ""),
+    };
+    match s {
+        Cow::Borrowed(b) if b[..start].ends_with(prefix) && b[end..].starts_with(suffix) => {
+            Cow::Borrowed(&b[start - prefix.len()..end + suffix.len()])
+        }
+        Cow::Borrowed(_) if start == end && prefix.len() + suffix.len() == 1 => Cow::Borrowed(" "),
+        Cow::Borrowed(b) => Cow::Owned(format!("{prefix}{}{suffix}", &b[start..end])),
+        Cow::Owned(mut o) => {
+            o.replace_range(end.., suffix);
+            o.replace_range(..start, prefix);
+            Cow::Owned(o)
+        }
     }
 }
