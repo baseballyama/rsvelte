@@ -1,1 +1,1 @@
-error check_unsupported 13:2-13:16 not supported by the type-check projection yet: svelte: elements
+error check_unsupported 13:2-13:14 not supported by the type-check projection yet: svelte: elements

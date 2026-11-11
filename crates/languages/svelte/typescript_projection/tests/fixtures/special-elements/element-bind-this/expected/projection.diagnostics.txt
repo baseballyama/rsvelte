@@ -1,1 +1,0 @@
-error check_unsupported 1:39-1:53 not supported by the type-check projection yet: svelte: elements

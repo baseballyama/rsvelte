@@ -5,7 +5,5 @@ export function double(n) {
 }
 export default function Exports($$renderer) {
 	let value = "";
-	$.element($$renderer, "p", void 0, () => {
-		$$renderer.push(``);
-	});
+	$$renderer.push(`<enhanced:img src="./a.png"${$.attr("alt", value)}></enhanced:img>`);
 }

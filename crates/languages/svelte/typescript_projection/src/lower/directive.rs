@@ -43,7 +43,7 @@ impl Builder<'_> {
             AttributeValue::Parts(parts) => match self.component.parts(parts) {
                 [] => None,
                 &[Part::Expression { expression, span }] => {
-                    Some(self.expression_source(expression, Some(span.end_offset - 1)))
+                    Some(self.property_value(expression, Some(span.end_offset - 1)))
                 }
                 _ => return Err(unsupported()),
             },

@@ -60,18 +60,31 @@ fn is_script(document: &rsvelte_kernel::source::document::Document) -> bool {
         .any(|extension| document.path.ends_with(extension))
 }
 
-/// What svelte-check adds to the project: its JSX shim and the svelte package's types.
+/// What svelte-check adds to the project: its shims, the svelte package's types, and the element
+/// types from the package's `svelte-html.d.ts`, or from svelte2tsx's JSX shim without one.
 fn typescript_env(
     svelte: &std::path::Path,
     content_mapper: &std::path::Path,
 ) -> Result<TypeScriptEnv, String> {
     let types = svelte.join("types/index.d.ts");
     let text = std::fs::read_to_string(&types).map_err(|e| format!("{}: {e}", types.display()))?;
+    let svelte_html = svelte.join("svelte-html.d.ts");
+    let (declarations, include) = if svelte_html.is_file() {
+        (
+            rsvelte_svelte_typescript_projection::SHIMS,
+            vec![types.clone(), svelte_html],
+        )
+    } else {
+        (
+            rsvelte_svelte_typescript_projection::DECLARATIONS,
+            vec![types.clone()],
+        )
+    };
     Ok(TypeScriptEnv {
         mapped_extension: Some(".svelte"),
         content_mapper: Some(content_mapper.to_owned()),
-        declarations: vec![rsvelte_svelte_typescript_projection::DECLARATIONS],
-        include: vec![types.clone()],
+        declarations: vec![declarations],
+        include,
         paths: vec![
             ("svelte", types.clone()),
             ("svelte/elements", svelte.join("elements.d.ts")),

@@ -10,4 +10,4 @@
 	let value = $state('');
 </script>
 
-<svelte:element this="p">{value}</svelte:element>
+<enhanced:img src="./a.png" alt={value} />
