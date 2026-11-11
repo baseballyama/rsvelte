@@ -68,7 +68,7 @@ impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
                     input(),
                     b,
                 );
-                let select = b.arrow(b.params(["$$pattern_default"]), result);
+                let select = b.arrow(b.parameters(["$$pattern_default"]), result);
                 let cell = self.intermediate(at, b.call(select, [value]));
                 self.pattern(a.left, cell);
             }
@@ -152,7 +152,7 @@ impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
         match self.mode {
             Mode::Derived { tracking } => {
                 let value = tracked(b, value, tracking);
-                b.call(b.id("$$computed"), [b.arrow(b.params([]), value)])
+                b.call(b.id("$$computed"), [b.arrow(b.parameters([]), value)])
             }
             Mode::State => b.call(b.id("$$ref"), [value]),
             Mode::RawState => b.call(b.id("$$shallowRef"), [value]),

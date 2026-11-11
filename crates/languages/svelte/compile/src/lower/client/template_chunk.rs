@@ -11,6 +11,16 @@ impl<'a, 'o> ClientCompilationContext<'a, 'o> {
         memo: &mut Memo<'o>,
         if_state: bool,
     ) -> (Expression<'o>, bool) {
+        self.chunk(values, Some(memo), if_state)
+    }
+
+    /// [`Self::template_chunk`], memoizing each expression in `memo`, or none without one.
+    pub(super) fn chunk(
+        &self,
+        values: &[Item<'_>],
+        mut memo: Option<&mut Memo<'o>>,
+        if_state: bool,
+    ) -> (Expression<'o>, bool) {
         let b = self.b;
         let mut quasis: Vec<String> = vec![String::new()];
         let mut expressions: Vec<Expression<'o>> = Vec::new();
@@ -22,7 +32,9 @@ impl<'a, 'o> ClientCompilationContext<'a, 'o> {
                     continue;
                 }
                 Item::Expression(e) => *e,
-                Item::Node(_) => unreachable!("sequences hold text and expression tags"),
+                Item::Node(_) | Item::Comment => {
+                    unreachable!("sequences hold text and expression tags")
+                }
             };
             let source = self
                 .javascript
@@ -49,7 +61,10 @@ impl<'a, 'o> ClientCompilationContext<'a, 'o> {
             }
             let meta = self.an.meta(expression);
             let built = self.expression(expression);
-            let mut value = self.memoize(memo, expression, built, if_state);
+            let mut value = match memo.as_deref_mut() {
+                Some(memo) => self.memoize(memo, expression, built, if_state),
+                None => built,
+            };
             let evaluated = Evaluator::in_scope(self.res, self.scope).evaluate(&value);
             let known = evaluated.is_known.then_some(&evaluated);
             has_state |= meta.has_state && known.is_none();

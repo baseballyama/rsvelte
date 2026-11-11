@@ -1,11 +1,20 @@
-use super::super::component::{
-    Entry, Prop, child_snippets, is_dynamic, props, props_expression, push_binding, push_children,
-    reference,
+use oxc_allocator::ArenaBox;
+use oxc_ast::ast::{
+    BindingPattern, BindingProperty, Expression, FormalParameters, ObjectPropertyKind, Statement,
 };
+use oxc_span::SPAN;
+use rsvelte_svelte_semantic::compiler_syntax_tree::Element;
+
+use super::super::component::{
+    Callee, DefaultSlot, Entry, Prop, SlotCallback, callee, child_snippets, props,
+    props_expression, push_accessors, push_binding, push_children,
+};
+use super::super::lets::{pattern, slot_lets};
 use super::{
     BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind,
     Piece, R, ServerCompilationContext, Target, set_settled,
 };
+use crate::lower::builder::Runtime;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_inline_component`; a `standalone` component is its fragment's only node, so
@@ -22,30 +31,45 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             unreachable!("a component element")
         };
         let mut parts = Vec::new();
-        for prop in props(tree.attributes(element.attributes), self.source_text) {
+        let mut custom_properties = Vec::new();
+        for prop in props(
+            tree.attributes(element.attributes),
+            self.source_text,
+            self.javascript,
+        ) {
             match prop {
+                Prop::Accessors(a, get, set) => {
+                    let mut rewrite = self.rewrite();
+                    let functions = (rewrite.expression(get), rewrite.expression(set));
+                    let name = a.name.text(self.source_text);
+                    // Upstream declares them first in the fragment, with the snippets.
+                    let mut declarations = Vec::new();
+                    push_accessors(
+                        b,
+                        &mut parts,
+                        &mut declarations,
+                        name,
+                        functions,
+                        &self.names,
+                    );
+                    self.snippets.append(&mut declarations);
+                }
                 Prop::Value(a) => {
                     let value = self.attribute_value(a, false, false);
                     let name = a.name.text(self.source_text);
                     parts.push(Entry::Property(b.init(name, value)));
                 }
+                Prop::CustomProperty(a) => {
+                    let value = self.attribute_value(a, false, false);
+                    custom_properties.push(b.init(a.name.text(self.source_text), value));
+                }
                 Prop::Spread(e) => parts.push(Entry::Spread(self.expression(e))),
+                Prop::Attach(_) => {}
                 Prop::Bind(a, target) => {
                     let value = self.expression(target);
                     let source = self.javascript.get_expression(target);
-                    let store = self.rewrite().store_binding(source);
-                    let written = self.expression(target);
-                    let assignment = match written {
-                        _ if let Some(store) = store => store,
-                        oxc_ast::ast::Expression::Identifier(name) => {
-                            b.assign_name(&name.name, b.id("$$value"))
-                        }
-                        member if member.is_member_expression() => {
-                            b.assign_member(member, b.id("$$value"))
-                        }
-                        _ => unreachable!("validation keeps a bound target assignable"),
-                    };
-                    let setter = vec![b.stmt(assignment), set_settled(b, false)];
+                    let assignment = self.rewrite().binding_assignment(source, false);
+                    let setter = vec![b.statement(assignment), set_settled(b, false)];
                     let name = a.name.text(self.source_text);
                     push_binding(b, &mut parts, name, value, setter);
                 }
@@ -55,19 +79,24 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             child_snippets(tree, self.javascript, element.children, |snippet| {
                 self.snippet_declaration(snippet)
             })?;
-        let children = self.fragment_without(element.children, |_| true)?;
-        push_children(b, &mut parts, &snippets, children, &["$$renderer"]);
-        let props = props_expression(b, parts, Target::Server);
-        let reference = reference(tree, identifier);
-        let callee = self.expression(reference);
-        let statement = b.stmt(b.call(callee, [b.id("$$renderer"), props]));
-        let dynamic = is_dynamic(
-            self.res,
-            self.javascript
-                .get_expression(reference)
-                .get_inner_expression(),
+        let callbacks = self.slot_callbacks(identifier, element)?;
+        let default = DefaultSlot::of(
+            tree,
+            self.javascript,
+            self.source_text,
+            element,
+            Target::Server,
         );
-        let statement = if dynamic {
+        push_children(b, &mut parts, &snippets, callbacks, default);
+        let props = props_expression(b, parts, Target::Server);
+        let callee = callee(tree, self.javascript, self.res, identifier);
+        let function = match callee {
+            Callee::Static(reference) | Callee::Dynamic(reference) => self.expression(reference),
+            Callee::OwnFunction => b.id(self.component_name),
+        };
+        let statement = b.statement(b.call(function, [b.id("$$renderer"), props]));
+        let dynamic = matches!(callee, Callee::Dynamic(_));
+        let statement = if let Callee::Dynamic(reference) = callee {
             let test = self.expression(reference);
             let consequent = b.block([
                 self.push_literal(BLOCK_OPEN),
@@ -82,15 +111,106 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         } else {
             statement
         };
-        template.push(Piece::Statement(if declarations.is_empty() {
+        let statement = if declarations.is_empty() {
             statement
         } else {
             declarations.push(statement);
             b.block(declarations)
-        }));
-        if !dynamic && !standalone {
+        };
+        let has_custom_properties = !custom_properties.is_empty();
+        let statement =
+            self.wrap_custom_properties(identifier, custom_properties, statement, dynamic);
+        template.push(Piece::Statement(statement));
+        if !dynamic && !standalone && !has_custom_properties {
             template.push(Piece::Text(EMPTY_COMMENT.into()));
         }
         Ok(())
+    }
+
+    /// Upstream wraps a component with CSS custom properties in an element that holds them.
+    fn wrap_custom_properties(
+        &self,
+        identifier: CompilerNodeIdentifier,
+        custom_properties: Vec<ObjectPropertyKind<'o>>,
+        statement: Statement<'o>,
+        dynamic: bool,
+    ) -> Statement<'o> {
+        if custom_properties.is_empty() {
+            return statement;
+        }
+        let b = self.b;
+        let in_markup = self.plan.namespace(identifier) != crate::render_plan::Namespace::Svg;
+        let render = b.arrow_block(b.parameters([]), [statement], false);
+        let arguments = vec![
+            Some(b.id("$$renderer")),
+            Some(b.boolean(in_markup)),
+            Some(b.object(custom_properties)),
+            Some(render),
+            dynamic.then(|| b.boolean(true)),
+        ];
+        b.statement(b.runtime_some("css_props", arguments))
+    }
+
+    /// `($$renderer, { prop, other: pattern })`: a slot's callback takes the props its `let:`
+    /// directives name as one object pattern.
+    fn slot_parameters(
+        &self,
+        component: &'o Element,
+        slot: &str,
+    ) -> R<ArenaBox<'o, FormalParameters<'o>>> {
+        let b = self.b;
+        let lets = slot_lets(
+            self.compiler_syntax_tree,
+            self.javascript,
+            self.source_text,
+            component,
+            slot,
+        );
+        let mut parameters = vec![b.parameter(b.binding("$$renderer"))];
+        if !lets.is_empty() {
+            let mut properties = Vec::with_capacity(lets.len());
+            for directive in &lets {
+                let (value, shorthand) = match directive.value {
+                    None => (b.binding(directive.prop), true),
+                    Some(Expression::Identifier(name)) => {
+                        (b.binding(&name.name), name.name == directive.prop)
+                    }
+                    Some(value) => (pattern(b, directive, value)?, false),
+                };
+                let key = b.key(directive.prop);
+                properties.push(BindingProperty::new(SPAN, key, value, shorthand, false, b));
+            }
+            let object = BindingPattern::new_object_pattern(SPAN, b.vec(properties), None, b);
+            parameters.push(b.parameter(object));
+        }
+        Ok(b.formal_parameters(parameters))
+    }
+}
+
+impl<'c, 'o> ServerCompilationContext<'c, 'o> {
+    /// Each slot's callback: `($$renderer, { …props })` over the slot's content.
+    fn slot_callbacks(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        element: &'o Element,
+    ) -> R<Vec<SlotCallback<'c, 'o>>> {
+        let plan = self.plan;
+        let slots = match plan.slots(identifier) {
+            None => vec![(
+                "default",
+                self.fragment_without(element.children, |_| true)?,
+            )],
+            Some(slots) => slots
+                .map(|(name, region)| {
+                    let (mut body, template) = self.region_parts(region, |_| true)?;
+                    body.extend(template);
+                    Ok((name, body))
+                })
+                .collect::<R<Vec<_>>>()?,
+        };
+        slots
+            .into_iter()
+            .map(|(name, body)| Ok((name, self.slot_parameters(element, name)?, body)))
+            .collect()
     }
 }

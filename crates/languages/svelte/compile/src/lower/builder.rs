@@ -33,7 +33,7 @@ impl<'o> Runtime<'o> for Builder<'o> {
     }
 
     fn thunk(&self, e: Expression<'o>) -> Expression<'o> {
-        unthunk(self.arrow(self.params([]), e))
+        unthunk(self.arrow(self.parameters([]), e))
     }
 }
 

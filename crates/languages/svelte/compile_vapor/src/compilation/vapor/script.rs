@@ -80,13 +80,13 @@ impl<'o> Emitter<'_, 'o> {
                                 b.id("$$custom_element_exports"),
                                 [value.clone_in(b.allocator())],
                             );
-                            body.push(b.stmt(call));
+                            body.push(b.statement(call));
                         }
                         let expose = b.call(
                             b.member(b.id("$$setup_context"), "expose"),
                             [value.clone_in(b.allocator())],
                         );
-                        body.push(b.stmt(expose));
+                        body.push(b.statement(expose));
                         self.exposed = true;
                         continue;
                     }
@@ -138,7 +138,7 @@ impl<'o> Emitter<'_, 'o> {
         }
         b.function_expression(
             None,
-            b.params(parameters),
+            b.parameters(parameters),
             body,
             asynchronous && self.t.server,
         )
@@ -163,7 +163,7 @@ impl<'o> Emitter<'_, 'o> {
             "queuePostFlushCb",
         ]);
         module.extend(statements(b, include_str!("async_setup.js")));
-        let finish = b.stmt(b.call(b.member(b.id("$$async_context"), "finish"), []));
+        let finish = b.statement(b.call(b.member(b.id("$$async_context"), "finish"), []));
         let statement = Statement::new_try_statement(
             SPAN,
             BlockStatement::boxed(SPAN, b.vec(body), b),
@@ -171,7 +171,7 @@ impl<'o> Emitter<'_, 'o> {
             Some(BlockStatement::boxed(SPAN, b.vec([finish]), b)),
             b,
         );
-        let task = b.arrow_block(b.params(["$$async_context"]), [statement], true);
+        let task = b.arrow_block(b.parameters(["$$async_context"]), [statement], true);
         vec![b.return_(Some(b.call(b.id("$$async_setup"), [task])))]
     }
 }

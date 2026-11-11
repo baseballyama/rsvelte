@@ -481,3 +481,49 @@ fn a_type_only_dollar_import_is_erased() {
         assert_eq!(raised, expected.into_iter().collect::<Vec<_>>(), "{script}");
     }
 }
+
+#[test]
+fn a_module_file_warns_as_svelte_s_compile_module() {
+    use crate::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
+
+    let code = "let count = $state(0);\n\
+                let doubled = count * 2;\n\
+                // svelte-ignore state_referenced_locally\n\
+                let tripled = count * 3;\n\
+                class A {}\n\
+                function f() {\n\
+                \tclass B {}\n\
+                \tconst x = new class {};\n\
+                \tfunction g() {\n\
+                \t\tclass C {}\n\
+                \t}\n\
+                }\n\
+                const y = new class {};\n";
+    let document = Document::new("a.svelte.js".to_owned(), code.to_owned()).expect("small");
+    let (tree, program) =
+        rsvelte_typescript_tree::Tree::program(&document, oxc_span::SourceType::mjs())
+            .expect("parses");
+    let empty = CompilerSyntaxTreeBuilder::new(code, 0, 0).finish(Children::default());
+    let resolution = crate::resolve::resolve(&tree, None, Some(program), &empty);
+    let options = Options {
+        runes: None,
+        custom_element: false,
+    };
+    let found = super::module_warnings(&tree, program, &resolution, code, options);
+    // `tripled`'s read is found, and the `svelte-ignore` before it drops it.
+    assert_eq!(found.ignored, [false, true, false, false]);
+    let warnings: Vec<_> = found
+        .compiled()
+        .map(|w| (w.code.to_string(), w.span.text(code).to_owned()))
+        .collect();
+    // What svelte 5's `compileModule` reports for the same text.
+    assert_eq!(
+        warnings,
+        [
+            ("state_referenced_locally", "count"),
+            ("perf_avoid_inline_class", "new class {}"),
+            ("perf_avoid_nested_class", "class C {}"),
+        ]
+        .map(|(code, text)| (code.to_owned(), text.to_owned()))
+    );
+}

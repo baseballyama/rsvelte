@@ -43,10 +43,10 @@ impl T<'_, '_, '_, '_> {
             match &node.kind {
                 NodeKind::Text(t) => {
                     let kind = svelte::spelled_text(t.raw, t.text(source_text).into());
-                    out.push(self.hir.node(kind, node.span, parent, origin));
+                    out.push(self.builder.node(kind, node.span, parent, origin));
                 }
                 &NodeKind::Comment { data } => {
-                    out.push(self.hir.node(
+                    out.push(self.builder.node(
                         SvelteNodeKind::Comment { data },
                         node.span,
                         parent,
@@ -65,7 +65,7 @@ impl T<'_, '_, '_, '_> {
                         self.b,
                     );
                     let call = self.keep(call);
-                    out.push(self.hir.node(
+                    out.push(self.builder.node(
                         SvelteNodeKind::Expression { expression: call },
                         node.span,
                         parent,
@@ -142,7 +142,7 @@ impl T<'_, '_, '_, '_> {
             data: Span::default(),
         };
         let identifier = self
-            .hir
+            .builder
             .node(placeholder, span, parent, vue_tree.origin[chain[0]]);
         let mut branches = Vec::new();
         let mut otherwise = None;
@@ -168,7 +168,7 @@ impl T<'_, '_, '_, '_> {
                 Some(self.keep(e))
             };
             let body = self.fragment_body(k, Some(identifier))?;
-            let body = self.hir.children(&body);
+            let body = self.builder.children(&body);
             match test {
                 Some(test) => branches.push(Branch {
                     test,
@@ -178,8 +178,8 @@ impl T<'_, '_, '_, '_> {
                 None => otherwise = Some(body),
             }
         }
-        let branches = self.hir.branches(branches);
-        self.hir.set_kind(
+        let branches = self.builder.branches(branches);
+        self.builder.set_kind(
             identifier,
             SvelteNodeKind::If {
                 branches,
@@ -303,7 +303,7 @@ impl T<'_, '_, '_, '_> {
             [only] => b.id(only),
             _ => b.array(names.iter().map(|n| b.id(n))),
         };
-        let item = b.arrow(b.params(names.iter().map(String::as_str)), body);
+        let item = b.arrow(b.parameters(names.iter().map(String::as_str)), body);
         let render_list = self.helper(Helper::RenderList);
         let collection = b.call(render_list, [source, item]);
         let collection = self.keep(collection);
@@ -335,13 +335,13 @@ impl T<'_, '_, '_, '_> {
         let placeholder = SvelteNodeKind::Comment {
             data: Span::default(),
         };
-        let identifier = self
-            .hir
-            .node(placeholder, node.span, parent, vue_tree.origin[at_node]);
+        let identifier =
+            self.builder
+                .node(placeholder, node.span, parent, vue_tree.origin[at_node]);
         let body = self.fragment_body(at_node, Some(identifier))?;
-        let body = self.hir.children(&body);
+        let body = self.builder.children(&body);
         self.aliases = outer;
-        self.hir.set_kind(
+        self.builder.set_kind(
             identifier,
             SvelteNodeKind::Each(Each {
                 collection,

@@ -73,32 +73,23 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         } else {
             self.global_event_target(node)
         };
-        let cap = capture.then(|| b.boolean(true));
-        let passive = PASSIVE_EVENTS
-            .contains(&event_name)
-            .then(|| b.boolean(true));
-        let call = b.runtime_some(
-            if delegated { "delegated" } else { "event" },
-            vec![
-                Some(b.string(event_name)),
-                Some(x),
-                Some(handler_expression),
-                cap,
-                passive,
-            ],
+        let passive = PASSIVE_EVENTS.contains(&event_name).then_some(true);
+        let call = self.build_event(
+            event_name,
+            x,
+            handler_expression,
+            capture,
+            passive,
+            delegated,
         );
         if allow_delegation {
-            l.after.push(b.stmt(call));
+            l.after.push(b.statement(call));
         } else {
-            l.initializer.push(b.stmt(call));
+            l.initializer.push(b.statement(call));
         }
     }
 
-    fn event_handler(
-        &mut self,
-        handler: ExpressionIdentifier,
-        l: &mut Lists<'o>,
-    ) -> Expression<'o> {
+    fn event_handler(&self, handler: ExpressionIdentifier, l: &mut Lists<'o>) -> Expression<'o> {
         let b = self.b;
         let meta = self.an.meta(handler);
         let built = self.expression(handler);
@@ -125,7 +116,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     h = b.runtime("get", [b.id(&identifier)]);
                 }
                 let apply = b.optional_method_call(h, "apply", [b.this(), b.id("$$args")]);
-                b.rest_function("$$args", [b.stmt(apply)])
+                b.rest_function("$$args", [b.statement(apply)])
             }
         }
     }
@@ -142,14 +133,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let AttributeValue::On { handler, modifiers } = attribute.value else {
             unreachable!("an event directive")
         };
-        let mut handler = if let Some(handler) = handler {
-            self.event_handler(handler, lists)
-        } else {
-            self.needs_props = true;
-            let call = b.member(b.member(b.id("$"), "bubble_event"), "call");
-            let call = b.call(call, [b.this(), b.id("$$props"), b.id("$$arg")]);
-            b.function_expression(None, b.params(["$$arg"]), [b.stmt(call)], false)
-        };
+        let mut handler = self.directive_handler(handler, lists);
         for (modifier, method) in [
             (Modifiers::STOP_PROPAGATION, "stopPropagation"),
             (
@@ -165,26 +149,62 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 handler = b.runtime(method, [handler]);
             }
         }
-        let name = b.string(attribute.name.text(self.source_text));
         let target = if global {
             self.global_event_target(target)
         } else {
             b.id(target)
         };
-        let capture = modifiers
-            .contains(Modifiers::CAPTURE)
-            .then(|| b.boolean(true));
         let passive = if modifiers.contains(Modifiers::PASSIVE) {
-            Some(b.boolean(true))
+            Some(true)
         } else if modifiers.contains(Modifiers::NONPASSIVE) {
-            Some(b.boolean(false))
+            Some(false)
         } else {
             None
         };
+        let name = attribute.name.text(self.source_text);
+        let capture = modifiers.contains(Modifiers::CAPTURE);
+        self.build_event(name, target, handler, capture, passive, false)
+    }
+
+    /// Upstream `build_event`: `$.event(name, target, handler, capture?, passive?)`, or
+    /// `$.delegated` for an event the root listens for.
+    fn build_event(
+        &self,
+        name: &str,
+        target: Expression<'o>,
+        handler: Expression<'o>,
+        capture: bool,
+        passive: Option<bool>,
+        delegated: bool,
+    ) -> Expression<'o> {
+        let b = self.b;
         b.runtime_some(
-            "event",
-            vec![Some(name), Some(target), Some(handler), capture, passive],
+            if delegated { "delegated" } else { "event" },
+            vec![
+                Some(b.string(name)),
+                Some(target),
+                Some(handler),
+                capture.then(|| b.boolean(true)),
+                passive.map(|p| b.boolean(p)),
+            ],
         )
+    }
+
+    /// Upstream `build_event_handler` of an `on:` directive, which re-dispatches the event to the
+    /// component's own listeners when it has no handler.
+    pub(super) fn directive_handler(
+        &mut self,
+        handler: Option<ExpressionIdentifier>,
+        lists: &mut Lists<'o>,
+    ) -> Expression<'o> {
+        if let Some(handler) = handler {
+            return self.event_handler(handler, lists);
+        }
+        let b = self.b;
+        self.needs_props = true;
+        let call = b.member(b.member(b.id("$"), "bubble_event"), "call");
+        let call = b.call(call, [b.this(), b.id("$$props"), b.id("$$arg")]);
+        b.function_expression(None, b.parameters(["$$arg"]), [b.statement(call)], false)
     }
 
     fn global_event_target(&self, node: &str) -> Expression<'o> {

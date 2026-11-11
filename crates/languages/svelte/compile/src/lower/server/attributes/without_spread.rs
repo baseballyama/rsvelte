@@ -48,12 +48,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         for a in list {
             let raw_name = a.name.text(self.source_text);
             match a.value {
-                AttributeValue::Bind(_) if raw_name == "this" => {
-                    continue;
-                }
                 AttributeValue::Bind(_) => {
-                    let call = self.binding(a);
-                    template.push(Piece::Expression(call));
+                    if let Some(call) = self.binding(tag, list, a) {
+                        template.push(Piece::Expression(call));
+                    }
                     continue;
                 }
                 AttributeValue::Use { .. } => {
@@ -68,9 +66,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                     continue;
                 }
                 _ if matches!(raw_name, "defaultValue" | "defaultChecked") => continue,
+                // Upstream renders a `<textarea>`'s value as its content.
+                _ if raw_name == "value" && tag == "textarea" => continue,
                 _ => {}
             }
-            let name = if self.plan.namespace(identifier) == crate::render_plan::Namespace::Html {
+            let name = if self.plan.named(identifier) == crate::render_plan::Namespace::Html {
                 raw_name.to_ascii_lowercase()
             } else {
                 raw_name.to_owned()
@@ -102,7 +102,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("style")
         });
         if !has_style && !style_directives.is_empty() {
-            let call = self.attr_style(&style_directives, self.b.string(""));
+            let call = self.attribute_style(&style_directives, self.b.string(""));
             template.push(Piece::Expression(call));
         }
         push_captured_events(template, &events);
@@ -134,7 +134,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         }
         let call = match name {
             "class" => self.attribute_class(class_directives, value, hash),
-            "style" => self.attr_style(style_directives, value),
+            "style" => self.attribute_style(style_directives, value),
             _ => {
                 let mut arguments = vec![b.string(name), value];
                 if is_boolean_attribute(name) {

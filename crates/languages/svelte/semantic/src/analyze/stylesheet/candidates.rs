@@ -1,6 +1,6 @@
 use std::cell::OnceCell;
 
-use rsvelte_kernel::index::TypedIndex;
+use rsvelte_kernel::index::{IndexVector, TypedIndex};
 use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_stylesheet_semantic::matcher;
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Simple, StyleSheet};
@@ -8,7 +8,8 @@ use rustc_hash::FxHashMap;
 
 use super::is_dom;
 use crate::compiler_syntax_tree::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree,
+    Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
+    MetadataTag,
 };
 
 #[derive(Default)]
@@ -20,6 +21,9 @@ struct Bucket {
 
 pub(super) struct Candidates<'a> {
     tree: &'a CompilerSyntaxTree,
+    /// The nodes inside `<svelte:head>`, which no selector matches (upstream
+    /// `is_inside_svelte_head`).
+    in_head: IndexVector<CompilerNodeIdentifier, bool>,
     has_compound_classes: bool,
     dom: OnceCell<DomCandidates>,
     unknown: Vec<CompilerNodeIdentifier>,
@@ -35,6 +39,7 @@ impl<'a> Candidates<'a> {
     ) -> Self {
         let mut candidates = Self {
             tree,
+            in_head: in_head(tree),
             has_compound_classes: false,
             dom: OnceCell::new(),
             unknown: Vec::new(),
@@ -55,7 +60,7 @@ impl<'a> Candidates<'a> {
             return candidates;
         }
         for (identifier, element) in tree.elements() {
-            if !is_dom(element) {
+            if !candidates.is_subject(identifier, element) {
                 continue;
             }
             let attributes = tree.attributes(element.attributes);
@@ -109,7 +114,7 @@ impl<'a> Candidates<'a> {
                 unknown.next();
                 continue;
             }
-            if !is_dom(element) {
+            if !candidates.is_subject(identifier, element) {
                 continue;
             }
             classes(tree.attributes(element.attributes), source, |class| {
@@ -123,6 +128,10 @@ impl<'a> Candidates<'a> {
             });
         }
         candidates
+    }
+
+    fn is_subject(&self, identifier: CompilerNodeIdentifier, element: &Element) -> bool {
+        is_dom(element) && (self.in_head.is_empty() || !self.in_head[identifier])
     }
 
     fn select_classes(&mut self, sheet: &StyleSheet, source: &str) {
@@ -165,10 +174,7 @@ impl<'a> Candidates<'a> {
             },
         );
         let dom: &[CompilerNodeIdentifier] = if bucket.is_none() {
-            &self
-                .dom
-                .get_or_init(|| DomCandidates::new(self.tree))
-                .elements
+            &self.dom.get_or_init(|| DomCandidates::new(self)).elements
         } else {
             &[]
         };
@@ -191,11 +197,17 @@ struct DomCandidates {
 }
 
 impl DomCandidates {
-    fn new(tree: &CompilerSyntaxTree) -> Self {
+    fn new(candidates: &Candidates<'_>) -> Self {
         let mut elements = buffer_pool::take_keyed::<Self, _>();
         elements.extend(
-            tree.elements()
-                .filter_map(|(identifier, element)| is_dom(element).then_some(identifier)),
+            candidates
+                .tree
+                .elements()
+                .filter_map(|(identifier, element)| {
+                    candidates
+                        .is_subject(identifier, element)
+                        .then_some(identifier)
+                }),
         );
         Self { elements }
     }
@@ -205,6 +217,32 @@ impl Drop for DomCandidates {
     fn drop(&mut self) {
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.elements));
     }
+}
+
+/// Marks every node below a `<svelte:head>`; empty when the component has none.
+fn in_head(tree: &CompilerSyntaxTree) -> IndexVector<CompilerNodeIdentifier, bool> {
+    let mut marks = IndexVector::new();
+    let mut stack = Vec::new();
+    for (identifier, element) in tree.elements() {
+        if element.kind == ElementKind::Metadata(Some(MetadataTag::Head)) {
+            stack.push(identifier);
+        }
+    }
+    if stack.is_empty() {
+        return marks;
+    }
+    marks = IndexVector::from_element_n(false, tree.nodes.len());
+    while let Some(node) = stack.pop() {
+        for list in tree.child_lists(node) {
+            for &child in tree.children(list) {
+                if !marks[child] {
+                    marks[child] = true;
+                    stack.push(child);
+                }
+            }
+        }
+    }
+    marks
 }
 
 fn selector_classes<'a>(

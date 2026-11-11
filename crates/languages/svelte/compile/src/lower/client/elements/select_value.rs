@@ -2,6 +2,7 @@ use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{BinaryOperator, Expression, LogicalOperator, VariableDeclarationKind};
 use rsvelte_svelte_semantic::evaluate::Evaluator;
 
+use crate::lower::bindings::needs_special_value;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, Element, Frag, Lists, is_directive,
@@ -9,10 +10,11 @@ use crate::lower::client::{
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
-    /// The tail of upstream `RegularElement` for `<option>` and `<select>`: the value goes to the
-    /// hidden `__value` once the children exist, then a `<select>` picks its option.
+    /// The tail of upstream `RegularElement` for `<option>`, `<select>` and a bound checkbox or
+    /// group: the value goes to the hidden `__value` once the children exist, then a `<select>`
+    /// picks its option.
     pub(super) fn select_value(
-        &mut self,
+        &self,
         el: &Element,
         tag: &str,
         attributes: &[Attribute],
@@ -21,10 +23,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         l: &mut Lists<'o>,
     ) {
         let b = self.b;
-        if !matches!(tag, "option" | "select") {
+        let source_text = self.source_text;
+        if !needs_special_value(source_text, tag, attributes) {
             return;
         }
-        let source_text = self.source_text;
         let value_attribute = attributes
             .iter()
             .find(|a| !is_directive(&a.value) && a.name.text(source_text) == "value");
@@ -47,7 +49,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         });
         if let Some(a) = default_value {
             let (value, has_state) = self.attribute_value(a, &mut frag.memo, false);
-            let s = b.stmt(b.runtime("set_default_select_value", [b.id(node), value]));
+            let s = b.statement(b.runtime("set_default_select_value", [b.id(node), value]));
             if has_state {
                 l.update.push(s);
             } else {
@@ -62,13 +64,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         });
         if default_value.is_some() || dynamic_value || bound {
             l.initializer
-                .push(b.stmt(b.runtime("init_select", [b.id(node)])));
+                .push(b.statement(b.runtime("init_select", [b.id(node)])));
         }
     }
 
     /// Upstream `build_element_special_value_attribute`.
     fn special_value(
-        &mut self,
+        &self,
         tag: &str,
         node: &str,
         (value, has_state): (Expression<'o>, bool),
@@ -100,7 +102,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             } else {
                 set_value(assignment)
             };
-            b.stmt(e)
+            b.statement(e)
         };
         if has_state {
             let identifier = self.names.generate(&format!("{node}_value"));

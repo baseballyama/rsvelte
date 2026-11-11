@@ -365,7 +365,7 @@ export default $$v_defineVaporComponent({
 		$$v_renderEffect(() => {
 			$$v_n17.value;
 			$$tracked(() => $$v_setText($$v_n9, `${count.value ?? ""}`));
-			$$tracked(() => $$v_setText($$v_n16, `${$$v_unref(setup) ?? ""}:${clicked.value ?? ""}:${$$v_n17.value ?? ""}`));
+			$$tracked(() => $$v_setText($$v_n16, `${$$v_unref(setup)}:${clicked.value ?? ""}:${$$v_n17.value}`));
 			$$tracked(() => $$v_setText($$v_n24, `${derived.value}:${derivedBy.value}`));
 		});
 		return [

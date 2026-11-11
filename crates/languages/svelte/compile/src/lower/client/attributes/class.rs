@@ -33,7 +33,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_set_class`; `attribute` is `None` for the empty `class` upstream's analysis
     /// adds.
     pub(in crate::lower::client) fn set_class(
-        &mut self,
+        &self,
         identifier: CompilerNodeIdentifier,
         node: &str,
         attribute: Option<&Attribute>,
@@ -101,8 +101,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         else {
             unreachable!("classes belong to elements")
         };
-        let markup_namespace = element.kind == super::super::ElementKind::Regular
-            && self.plan.namespace(identifier) == crate::render_plan::Namespace::Html;
+        let markup_namespace =
+            element.kind == super::super::ElementKind::Regular && self.is_markup(identifier);
         let is_markup = b.number(f64::from(u8::from(markup_namespace)));
         let mut set_class = b.runtime_some(
             "set_class",
@@ -118,7 +118,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if let Some(name) = previous_id {
             set_class = b.assign_name(&name, set_class);
         }
-        let s = b.stmt(set_class);
+        let s = b.statement(set_class);
         if has_state {
             l.update.push(s);
         } else {

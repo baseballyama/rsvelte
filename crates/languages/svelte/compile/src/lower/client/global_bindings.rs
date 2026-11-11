@@ -61,9 +61,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             ),
         };
         if matches!(binding, GlobalBinding::This) {
-            lists.initializer.push(b.stmt(call));
+            lists.initializer.push(b.statement(call));
         } else {
-            lists.after.push(b.stmt(call));
+            lists.after.push(b.statement(call));
         }
     }
 }

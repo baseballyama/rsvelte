@@ -1,7 +1,6 @@
 use oxc_semantic::ReferenceId;
 use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
-use rsvelte_svelte_syntax::names::{is_mathml, is_svg};
 use rsvelte_typescript_compile::features::{Feature, first_runtime_feature};
 
 pub(super) mod markup;
@@ -9,23 +8,7 @@ mod runes;
 
 pub(super) use runes::{check_runes, rejects_binding};
 
-use super::{CompileInput, Diagnostic, Resolution, Span, unsupported};
-
-/// Refuses an element upstream's `is_svg` or `is_mathml` names (case-sensitively).
-///
-/// With `<svg>` and `<math>` refused, such an element would need upstream's namespace inference,
-/// which this port does not do.
-///
-/// # Errors
-///
-/// An `unsupported` [`Diagnostic`] at the element's name.
-pub(crate) fn check_foreign_element(source_text: &str, name: Span) -> Result<(), Diagnostic> {
-    let text = name.text(source_text);
-    if is_svg(text) || is_mathml(text) {
-        return unsupported(&format!("`<{text}>` outside `<svg>` or `<math>`"), name);
-    }
-    Ok(())
-}
+use super::{CompileInput, Diagnostic, Resolution, Span};
 
 /// Upstream's analysis errors in its order: the first it raises as it builds the scopes, then
 /// `$$props` and `$$restProps`, then the first its walk meets. `template` holds those of the
@@ -124,16 +107,10 @@ pub(super) fn unbound(
         })
 }
 
-/// Refuses `$$slots`, which upstream declares from `$.sanitize_slots`.
-///
-/// # Errors
-///
-/// An `unsupported` [`Diagnostic`] at its first reference.
-pub(super) fn check_slots(res: &Resolution) -> Result<(), Diagnostic> {
-    match first_unresolved(res, |name| name == "$$slots") {
-        Some((_, span)) => unsupported("`$$slots`", span),
-        None => Ok(()),
-    }
+/// Upstream `analysis.uses_slots`: the component reads `$$slots`, which it declares from
+/// `$.sanitize_slots`.
+pub(super) fn uses_slots(res: &Resolution) -> bool {
+    first_unresolved(res, |name| name == "$$slots").is_some()
 }
 
 /// Upstream `state_invalid_placement`, which the rune walk and the markup walk both raise.

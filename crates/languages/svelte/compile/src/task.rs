@@ -39,6 +39,12 @@ pub fn register(registry: &mut Registry) {
         .task(Compile {
             target: Target::Server,
         })
+        .task(crate::CompileModule {
+            target: Target::Client,
+        })
+        .task(crate::CompileModule {
+            target: Target::Server,
+        })
         .task(crate::Warn);
 }
 
@@ -114,7 +120,7 @@ pub(crate) fn compiled<'a>(
         })
     })?;
     let validated = context.get::<Validated>().as_ref().map_err(Clone::clone)?;
-    let stylesheet = if validated.is_custom_element() {
+    let stylesheet = if validated.injects_stylesheet() {
         None
     } else {
         context.get::<ScopedStylesheet>().as_deref()
@@ -203,7 +209,7 @@ pub fn compile_input(
                 )
             },
         )?;
-    let stylesheet = if validated.is_custom_element() && target == Target::Client {
+    let stylesheet = if validated.embeds_stylesheet(target) {
         crate::stylesheet::scoped_stylesheet_with_mode(
             &input.component,
             an,

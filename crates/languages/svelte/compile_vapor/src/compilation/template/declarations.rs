@@ -71,7 +71,7 @@ impl<'t> Template<'_, '_, 't> {
                             b.declaration(declaration.kind, [b.declarator(pattern, Some(value))]),
                             b.return_(Some(b.array(cells))),
                         ];
-                        value = b.call(b.arrow_block(b.params([]), body, false), []);
+                        value = b.call(b.arrow_block(b.parameters([]), body, false), []);
                         let elements = names.iter().map(|name| Some(b.binding(&name.name)));
                         pattern = BindingPattern::new_array_pattern(SPAN, b.vec(elements), None, b);
                     }
@@ -83,7 +83,7 @@ impl<'t> Template<'_, '_, 't> {
         if statements.is_empty() {
             return None;
         }
-        let source = b.arrow_block(b.params([]), statements, false);
+        let source = b.arrow_block(b.parameters([]), statements, false);
         let parameters = b.formal_parameters(parameters);
         let parameters = self.tree.keep_parameters(parameters.unbox());
         let source = self.keep(source);

@@ -5,8 +5,18 @@
 use rsvelte_svelte_compile::{CompileInput, Target, compile_input};
 use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 
+#[path = "official_parity/const_tags.rs"]
+mod const_tags;
+#[path = "official_parity/derived.rs"]
+mod derived;
 #[path = "official_parity/errors.rs"]
 mod errors;
+#[path = "official_parity/exports.rs"]
+mod exports;
+#[path = "official_parity/lets.rs"]
+mod lets;
+#[path = "official_parity/patterns.rs"]
+mod patterns;
 
 /// The output, or the code of the diagnostic that refuses the source.
 fn compile(source: &str, target: Target) -> Result<String, String> {
@@ -52,58 +62,76 @@ fn squashed(source: &str, target: Target) -> String {
 }
 
 #[test]
-fn a_destructuring_assignment_is_refused_where_the_target_reads_a_signal() {
-    for script in [
-        "let n = $state(0); [n] = [1];",
-        "let { p = $bindable(0) } = $props(); [p] = [1];",
-        "let { a = $bindable({}) } = $props(); [a.x] = [1];",
-        "let { a = $bindable({}) } = $props(); ({ y: a.y } = { y: 2 });",
-        "let n = $state(0); function f() { [[n]] = [[1]]; }",
+fn a_destructuring_assignment_writes_each_path_as_upstream_does() {
+    for (script, client, server) in [
+        (
+            "let n = $state(0); [n] = [1];",
+            "(($$value)=>{var$$array=$.to_array($$value,1);$.set(n,$$array[0],true);})([1]);",
+            "[n]=[1];",
+        ),
+        (
+            "let { p = $bindable(0) } = $props(); [p] = [1];",
+            "(($$value)=>{var$$array=$.to_array($$value,1);p($$array[0]);})([1]);",
+            "[p]=[1];",
+        ),
+        (
+            "let { a = $bindable({}) } = $props(); [a.x] = [1];",
+            "a(a().x=$$array[0],true);",
+            "[a.x]=[1];",
+        ),
+        (
+            "let { a = $bindable({}) } = $props(); ({ y: a.y } = { y: 2 });",
+            "(($$value)=>{a(a().y=$$value.y,true);})({y:2});",
+            "({y:a.y}={y:2});",
+        ),
+        (
+            "let n = $state(0); function f() { [[n]] = [[1]]; }",
+            "var$$array_1=$.to_array($$array[0],1);$.set(n,$$array_1[0],true);",
+            "[[n]]=[[1]];",
+        ),
+        // The client's mutation of state counts as a rewrite, though it keeps the mutation.
+        (
+            "let s = $state([1, 2]); function f() { s = []; [s[0], s[1]] = [s[1], s[0]]; }",
+            "$.get(s)[0]=$$array[0];$.get(s)[1]=$$array[1];})([$.get(s)[1],$.get(s)[0]]);",
+            "[s[0],s[1]]=[s[1],s[0]];",
+        ),
+        // The server reads a derived through a call, which a pattern cannot assign.
+        (
+            "let d = $derived(1); function f() { [d] = [2]; }",
+            "$.set(d,$$array[0]);",
+            "(($$value)=>{var$$array=$.to_array($$value,1);d($$array[0]);})([2]);",
+        ),
+        (
+            "let d = $derived(1); function f(o) { ({ d } = o); }",
+            "functionf(o){$.set(d,o.d);}",
+            "functionf(o){d(o.d);}",
+        ),
     ] {
-        let source = format!("<script>{script}</script>");
-        assert_eq!(
-            compile(&source, Target::Client),
-            Err("unsupported".to_owned()),
-            "{source}"
-        );
-        compiled(&source, Target::Server);
-    }
-    // The server reads a derived through a call, which a pattern cannot assign.
-    for script in [
-        "let d = $derived(1); function f() { [d] = [2]; }",
-        "let d = $derived(1); function f(o) { ({ d } = o); }",
-        "let d = $derived.by(() => 1); function f() { [d] = [2]; }",
-    ] {
-        let source = format!("<script>{script}</script><button onclick={{f}}>{{d}}</button>");
-        for target in [Target::Client, Target::Server] {
-            assert_eq!(
-                compile(&source, target),
-                Err("unsupported".to_owned()),
-                "{source} on {target:?}"
+        let markup = if script.contains("$derived") {
+            "<button onclick={f}>{d}</button>"
+        } else {
+            ""
+        };
+        let source = format!("<script>{script}</script>{markup}");
+        for (target, expected) in [(Target::Client, client), (Target::Server, server)] {
+            let compiled = squashed(&source, target);
+            assert!(
+                compiled.contains(expected),
+                "{source} on {target:?}: {compiled}"
             );
         }
+    }
+    let store = "<script>import { writable } from 'svelte/store'; const a = writable(1); let b; \
+                 function f() { [$a, b] = [1, 2]; }</script>";
+    for target in [Target::Client, Target::Server] {
+        let compiled = squashed(store, target);
+        assert!(
+            compiled.contains("$.store_set(a,$$array[0]);b=$$array[1];"),
+            "{store} on {target:?}: {compiled}"
+        );
     }
     let plain = "<script>let a = 1, b = 2; [a, b] = [b, a];</script>{a}{b}";
     assert!(squashed(plain, Target::Client).contains("[a,b]=[b,a]"));
-}
-
-/// Upstream splits each into one declaration per path, which this port does not do yet.
-#[test]
-fn a_destructured_state_or_derived_is_refused_on_both_targets() {
-    for script in [
-        "const { a, b: c } = $state({ a: 1, b: 2 });",
-        "let [x] = $state.raw([1]);",
-        "const { a } = $derived({ a: 1 });",
-    ] {
-        let source = format!("<script>{script}</script>");
-        for target in [Target::Client, Target::Server] {
-            assert_eq!(
-                compile(&source, target).err().as_deref(),
-                Some("unsupported"),
-                "{source} on {target:?}"
-            );
-        }
-    }
 }
 
 /// Upstream prints such a head as invalid JavaScript (`for ($.get(n) of xs)`, `for (d() of xs)`).
@@ -218,17 +246,11 @@ fn an_instance_export_is_returned_and_bound() {
             "{server_output}"
         );
     }
-    for script in [
-        "export class K {}",
-        "export let a = 1;",
-        "export const { a } = o;",
-    ] {
-        let source = format!("<script>{script}</script>");
-        assert_eq!(
-            compile(&source, Target::Client),
-            Err("unsupported".to_owned())
-        );
-    }
+    let source = "<script>export let a = 1;</script>";
+    assert_eq!(
+        compile(source, Target::Client),
+        Err("unsupported".to_owned())
+    );
 }
 
 /// esrap skips an empty statement only in a block or program body, not in a `switch` case.
@@ -314,7 +336,23 @@ fn a_slot_attribute_needs_a_component_parent_or_a_custom_element() {
             "<div slot=\"a\">x</div>",
             Some("slot_attribute_invalid_placement"),
         ),
-        ("<C><div slot=\"a\">x</div></C>", Some("unsupported")),
+        ("<C><div slot=\"a\">x</div></C>", None),
+        (
+            "<C><div slot={x}>x</div></C>",
+            Some("slot_attribute_invalid"),
+        ),
+        (
+            "{#snippet s()}<div slot=\"a{x}\">x</div>{/snippet}",
+            Some("slot_attribute_invalid"),
+        ),
+        (
+            "<C><C slot=\"a\" /><p slot=\"a\">x</p></C>",
+            Some("slot_attribute_duplicate"),
+        ),
+        (
+            "<C><p slot=\"default\">x</p><!-- y --></C>",
+            Some("slot_default_duplicate"),
+        ),
         ("<my-element><div slot=\"a\">x</div></my-element>", None),
     ] {
         let source = format!("{script}{markup}");
@@ -478,13 +516,10 @@ fn an_element_takes_its_namespace_from_its_name_when_a_fragment_is_inferred() {
 }
 
 #[test]
-fn a_scoped_custom_element_is_refused_on_the_client_only() {
-    let source = "<my-el></my-el><style>my-el { color: red; }</style>";
-    assert_eq!(
-        compile(source, Target::Client),
-        Err("unsupported".to_owned())
-    );
-    assert!(squashed(source, Target::Server).contains("<my-elclass=\"svelte-"));
+fn a_scoped_custom_element_sets_its_class_on_the_client_only() {
+    let source = "<my-el id=\"a\"></my-el><style>my-el { color: red; }</style>";
+    assert!(squashed(source, Target::Client).contains("$.set_class(my_el,1,\"svelte-"));
+    assert!(squashed(source, Target::Server).contains("<my-elid=\"a\"class=\"svelte-"));
 }
 
 #[test]

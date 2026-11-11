@@ -11,6 +11,7 @@ mod configuration;
 mod extension;
 mod identity;
 mod markup;
+mod module;
 mod task;
 mod warnings;
 
@@ -23,6 +24,7 @@ pub use configuration::{Configuration, CssHash, CssHashInput};
 pub use extension::EXTENSION;
 pub use identity::OutputIdentity;
 pub use input::{CompileInput, Target};
+pub use module::CompileModule;
 pub use render_plan::RenderPlan;
 pub use task::{
     Compile, PLUGIN, compile_input, lower_document, register, register_with_configuration,

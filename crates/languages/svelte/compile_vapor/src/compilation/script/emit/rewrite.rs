@@ -179,7 +179,7 @@ impl<'r, 't> ScriptRewrite<'r, 't> {
                 "$host" | "$effect" | "$effect.pre" => return Some(b.id("undefined")),
                 "$effect.tracking" => return Some(b.boolean(false)),
                 "$effect.pending" => return Some(b.number(0.0)),
-                "$effect.root" => return Some(b.arrow_block(b.params([]), [], false)),
+                "$effect.root" => return Some(b.arrow_block(b.parameters([]), [], false)),
                 _ => {}
             }
         }

@@ -77,3 +77,25 @@ fn the_version_is_the_oracle_of_the_corpus() {
         "VERSION {VERSION} is not the corpus oracle"
     );
 }
+
+#[test]
+fn compile_module_reads_javascript_whatever_the_name_says() {
+    let compiled = |filename: &str, source: &str| {
+        let options = ModuleCompileOptions {
+            filename: filename.to_owned(),
+            generate: Target::Client,
+        };
+        compile_module(source, &options)
+    };
+    let result = compiled("a.svelte.js", "export const a = $state(1);\n").expect("compiles");
+    assert_eq!(
+        result.js.code,
+        "import * as $ from \"svelte/internal/client\";\nexport const a = 1;\n"
+    );
+    assert!(
+        result.js.map.starts_with("{\"version\":3"),
+        "{}",
+        result.js.map
+    );
+    compiled("a.svelte.ts", "let a: number = 1;\n").expect_err("a type is not JavaScript");
+}

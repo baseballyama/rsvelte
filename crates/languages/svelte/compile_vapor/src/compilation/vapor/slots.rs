@@ -24,7 +24,7 @@ impl<'o> Emitter<'_, 'o> {
             LogicalOperator::Or,
             b.string("default"),
         );
-        let callback = b.arrow(b.params(["$$slot_node"]), name);
+        let callback = b.arrow(b.parameters(["$$slot_node"]), name);
         let names = b.call(b.member(b.id("Array"), "from"), [children, callback]);
         body.push(b.const_("$$native_slots", names));
     }
@@ -58,10 +58,10 @@ impl<'o> Emitter<'_, 'o> {
         );
         let mut content = Body::default();
         let node = self.native_slot(element, name, &mut content);
-        let present = self.render_block(content, node, b.params([]));
+        let present = self.render_block(content, node, b.parameters([]));
         let mut content = Body::default();
         let nodes = self.list(self.tree.children(element.children), &mut content);
-        let fallback = self.render_block(content, b.array(nodes), b.params([]));
+        let fallback = self.render_block(content, b.array(nodes), b.parameters([]));
         let fragment = self.call("createIf", [self.arrow(test), present, fallback]);
         b.id(&self.declare(fragment, body))
     }
@@ -76,7 +76,7 @@ impl<'o> Emitter<'_, 'o> {
         let node = self.template("<slot>", Namespace::Html, body);
         if name != "default" {
             let set = self.call("setAttr", [b.id(&node), b.string("name"), b.string(name)]);
-            body.push(b.stmt(set));
+            body.push(b.statement(set));
         }
         let shadow = self
             .t
@@ -88,7 +88,7 @@ impl<'o> Emitter<'_, 'o> {
             let children = self.list(self.tree.children(element.children), body);
             if !children.is_empty() {
                 let insert = self.call("insert", [b.array(children), b.id(&node)]);
-                body.push(b.stmt(insert));
+                body.push(b.statement(insert));
             }
         }
         b.id(&node)

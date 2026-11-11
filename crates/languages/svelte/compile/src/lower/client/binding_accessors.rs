@@ -2,16 +2,16 @@ use oxc_ast::ast::{
     BindingIdentifier, ChainElement, Expression, IdentifierName, IdentifierReference,
 };
 use oxc_ast_visit::Visit;
-use oxc_semantic::SymbolId;
+use oxc_semantic::{ScopeId, SymbolId};
 use oxc_span::SPAN;
-use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerSyntaxTree, NodeKind};
+use rsvelte_svelte_semantic::resolve::{Resolution, TemplateScope};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rustc_hash::FxHashSet;
 
 use super::{ClientCompilationContext, Read, ScriptRewrite};
 use crate::lower::BindingKind;
 use crate::lower::builder::Runtime;
-use crate::lower::script::mutated_bindable_prop;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn binding_accessors(
@@ -52,7 +52,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             _ => (source, None),
         };
-        let names = each_names(self.res, getter);
+        let names = each_names(self.res, &self.each_scopes, getter);
         let mut reads = self.reads.clone();
         for &(symbol, _) in &names {
             reads.insert(symbol, Read::Plain);
@@ -77,11 +77,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let parameter = |name| b.parameter(b.binding(name));
         let get = match get {
             Expression::ArrowFunctionExpression(mut f) => {
-                f.params = b.params(ids.clone());
+                f.params = b.parameters(ids.clone());
                 Expression::ArrowFunctionExpression(f)
             }
             get if setter.is_some() => get,
-            get => b.arrow(b.params(ids.clone()), optional_chain(b, get)),
+            get => b.arrow(b.parameters(ids.clone()), optional_chain(b, get)),
         };
         let set = match set {
             Expression::ArrowFunctionExpression(mut f) => {
@@ -94,7 +94,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 Expression::ArrowFunctionExpression(f)
             }
             set if setter.is_some() => set,
-            set => b.arrow(b.params(std::iter::once("$$value").chain(ids)), set),
+            set => b.arrow(b.parameters(std::iter::once("$$value").chain(ids)), set),
         };
         let values = (!values.is_empty()).then(|| b.thunk(b.array(values)));
         b.runtime_some("bind_this", vec![Some(node), Some(set), Some(get), values])
@@ -115,7 +115,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         let b = self.b;
         let assignment = self.binding_assignment(expression, primitive);
-        crate::lower::builder::unthunk(b.arrow(b.params(["$$value"]), assignment))
+        crate::lower::builder::unthunk(b.arrow(b.parameters(["$$value"]), assignment))
     }
 
     /// `expression = $$value`, as the script rewrites an assignment to it.
@@ -124,50 +124,45 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         expression: ExpressionIdentifier,
         primitive: bool,
     ) -> Expression<'o> {
-        let b = self.b;
-        let value = b.id("$$value");
         let source = self
             .javascript
             .get_expression(expression)
             .get_inner_expression();
-        if let Some(store) = self.rewriter(true).store_binding(source) {
-            return store;
-        }
-        if let Expression::Identifier(identifier) = source {
-            let target = b.id(&identifier.name);
-            match self.res.symbol(identifier) {
-                Some(symbol) if self.res.is_state_source(symbol) => {
-                    let mut arguments = vec![target, value];
-                    if !primitive && self.res.binding(symbol).kind == BindingKind::State {
-                        arguments.push(b.boolean(true));
-                    }
-                    b.runtime("set", arguments)
-                }
-                Some(symbol) if self.res.is_prop_source(symbol) => b.call(target, [value]),
-                _ => b.assign_name(&identifier.name, value),
-            }
-        } else {
-            let target = self.expression_with_rest_reads(expression, false);
-            let mut mutation = b.assign_member(target, value);
-            let object = source
-                .as_member_expression()
-                .map(oxc_ast::ast::MemberExpression::object);
-            if let Some(invalidate) = object.and_then(|o| self.rewriter(true).invalidation_of(o)) {
-                mutation = b.sequence([mutation, invalidate]);
-            }
-            match mutated_bindable_prop(self.res, self.custom_element.is_some(), source) {
-                Some(prop) => b.call(b.id_at(&prop.name, prop.span), [mutation, b.boolean(true)]),
-                None => mutation,
-            }
-        }
+        self.rewriter(true).binding_assignment(source, primitive)
     }
 }
 
-/// The names a `bind:this` target reads that an `{#each}` declares, in order. Upstream skips a
-/// name it has met before as anything, even a property key.
-fn each_names<'e>(res: &Resolution, e: &Expression<'e>) -> Vec<(SymbolId, &'e str)> {
+/// Upstream's scope of each `{#each}`, which holds its context, its index and the `{@const}`s
+/// of its body; this tree opens a scope for the context and another for the body.
+pub(super) fn each_scopes(tree: &CompilerSyntaxTree, res: &Resolution) -> FxHashSet<ScopeId> {
+    let mut scopes = FxHashSet::default();
+    for (identifier, node) in tree.nodes.iter_enumerated() {
+        if let NodeKind::Each(each) = &node.kind {
+            let opened = [
+                TemplateScope::Each(identifier),
+                TemplateScope::Fragment(each.body),
+            ];
+            scopes.extend(
+                opened
+                    .into_iter()
+                    .filter_map(|scope| res.template_scope(scope)),
+            );
+        }
+    }
+    scopes
+}
+
+/// The names a `bind:this` target reads that an `{#each}`'s scope declares, in order, except a
+/// signal, which the accessors read themselves. Upstream skips a name it has met before as
+/// anything, even a property key.
+fn each_names<'e>(
+    res: &Resolution,
+    each_scopes: &FxHashSet<ScopeId>,
+    e: &Expression<'e>,
+) -> Vec<(SymbolId, &'e str)> {
     struct Names<'r, 'e> {
         res: &'r Resolution,
+        each_scopes: &'r FxHashSet<ScopeId>,
         seen: FxHashSet<&'e str>,
         found: Vec<(SymbolId, &'e str)>,
     }
@@ -181,9 +176,13 @@ fn each_names<'e>(res: &Resolution, e: &Expression<'e>) -> Vec<(SymbolId, &'e st
             let name = it.name.as_str();
             if self.first(name)
                 && let Some(symbol) = self.res.symbol(it)
-                && matches!(
+                && self
+                    .each_scopes
+                    .contains(&self.res.scoping().symbol_scope_id(symbol))
+                && !self.res.is_state_source(symbol)
+                && !matches!(
                     self.res.binding(symbol).kind,
-                    BindingKind::Each | BindingKind::StaticIndex | BindingKind::KeyedIndex
+                    BindingKind::Derived | BindingKind::DerivedBy
                 )
             {
                 self.found.push((symbol, name));
@@ -200,6 +199,7 @@ fn each_names<'e>(res: &Resolution, e: &Expression<'e>) -> Vec<(SymbolId, &'e st
     }
     let mut names = Names {
         res,
+        each_scopes,
         seen: FxHashSet::default(),
         found: Vec::new(),
     };

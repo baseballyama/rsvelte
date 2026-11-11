@@ -126,7 +126,8 @@ pub(crate) fn check(
             continue;
         }
         let name = el.name.text(source_text);
-        let foreign = namespaces.get(identifier) != super::Namespace::Html;
+        // The svelte compiler reads an element's own name for its namespace, not its fragment's.
+        let foreign = namespaces.named(identifier) != super::Namespace::Html;
         check_element(
             compiler_syntax_tree,
             source_text,

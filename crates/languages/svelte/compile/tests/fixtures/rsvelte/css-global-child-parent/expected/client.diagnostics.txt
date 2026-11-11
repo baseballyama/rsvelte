@@ -1,0 +1,2 @@
+warning css_unused_selector 5:2-5:22 Unused CSS selector ":global(section) > p"
+    https://svelte.dev/e/css_unused_selector

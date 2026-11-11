@@ -53,7 +53,7 @@ impl<'t> Template<'_, '_, 't> {
                 self.check_target(target, attribute.span)?;
                 if !self.i.server {
                     let assignment = self.binding_write(target, b.id("$$component"));
-                    let setter = b.arrow(b.params(["$$component"]), assignment);
+                    let setter = b.arrow(b.parameters(["$$component"]), assignment);
                     properties.push(self.bound("$$ref", attribute.span, setter, attribute.span));
                 }
             }

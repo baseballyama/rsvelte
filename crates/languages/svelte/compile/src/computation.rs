@@ -44,7 +44,7 @@ impl Artifact for ScopedStylesheet {
             .get::<Validated>()
             .as_ref()
             .ok()?
-            .is_custom_element()
+            .injects_stylesheet()
         {
             rsvelte_stylesheet_compile::scope::RenderMode::Minify
         } else {

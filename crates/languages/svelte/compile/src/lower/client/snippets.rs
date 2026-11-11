@@ -1,6 +1,7 @@
 mod parameters;
 
 use oxc_ast::ast::Statement;
+pub(super) use parameters::Hooks;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
 
 use super::super::derived::{Created, callback};
@@ -39,6 +40,15 @@ impl<'o> ClientCompilationContext<'_, 'o> {
 
     /// `const name = ($$anchor, …) => {…}`.
     pub(super) fn snippet_declaration(&mut self, snippet: &Snippet) -> R<Statement<'o>> {
+        self.snippet_declaration_after(snippet, Vec::new())
+    }
+
+    /// [`Self::snippet_declaration`] with `leading` first in the snippet's body.
+    pub(super) fn snippet_declaration_after(
+        &mut self,
+        snippet: &Snippet,
+        mut leading: Vec<Statement<'o>>,
+    ) -> R<Statement<'o>> {
         let b = self.b;
         let saved_scope = self.scope;
         let parameters = self.snippet_parameters(snippet);
@@ -51,8 +61,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 self.reads.remove(&symbol);
             }
         }
-        let mut declarations = parameters.declarations;
-        declarations.extend(body?);
+        leading.extend(parameters.declarations);
+        leading.extend(body?);
+        let declarations = leading;
         let callback = b.arrow_block(
             b.formal_parameters(parameters.arguments),
             declarations,
@@ -115,7 +126,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 b.call(callee, list)
             }
         };
-        statements.push(b.stmt(call));
+        statements.push(b.statement(call));
         lists.initializer.push(if statements.len() == 1 {
             statements.pop().expect("one statement")
         } else {

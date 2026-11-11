@@ -26,7 +26,7 @@ pub(crate) fn rune_value<'t>(
             let getter = if asynchronous {
                 async_arrow(b, argument)
             } else {
-                b.arrow(b.params([]), argument)
+                b.arrow(b.parameters([]), argument)
             };
             if asynchronous {
                 let call = b.call(b.id("$$async_derived"), [getter]);
@@ -39,7 +39,7 @@ pub(crate) fn rune_value<'t>(
             let argument = argument?;
             let getter = if tracking {
                 let call = tracked(b, b.call(argument, []), true);
-                b.arrow(b.params([]), call)
+                b.arrow(b.parameters([]), call)
             } else {
                 argument
             };
@@ -51,7 +51,7 @@ pub(crate) fn rune_value<'t>(
 
 /// `async () => value`.
 pub(crate) fn async_arrow<'t>(b: &Builder<'t>, value: Expression<'t>) -> Expression<'t> {
-    let Expression::ArrowFunctionExpression(mut arrow) = b.arrow(b.params([]), value) else {
+    let Expression::ArrowFunctionExpression(mut arrow) = b.arrow(b.parameters([]), value) else {
         unreachable!("an arrow")
     };
     arrow.r#async = true;
@@ -67,5 +67,5 @@ pub(crate) fn tracked<'t>(
     if !tracking {
         return value;
     }
-    b.call(b.id("$$tracked"), [b.arrow(b.params([]), value)])
+    b.call(b.id("$$tracked"), [b.arrow(b.parameters([]), value)])
 }

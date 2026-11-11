@@ -18,6 +18,76 @@ pub(super) fn prepare<'c, 'o>(
     let custom_element = facts.validated.custom_element.as_ref();
     let javascript = input.component.javascript;
     check_runes(input, res, target, custom_element.is_some())?;
+    let mut names = names(res);
+    let each_index = each_index_names(input.component.compiler_syntax_tree, &mut names);
+    let binding_groups = super::binding_groups::binding_groups(
+        input.component.compiler_syntax_tree,
+        javascript,
+        input.component.source_text,
+        res,
+        &names,
+    );
+    let component_name = names.generate(&facts.identity.name);
+    let mut module = Vec::new();
+    let mut hoisted = Vec::new();
+    let mut rewrite = script::ScriptRewrite {
+        b,
+        target,
+        accessors: custom_element.is_some(),
+        rest_reads: Some(&facts.validated.rest_reads),
+        res,
+        template: None,
+        shadows: None,
+        stores: &facts.validated.stores,
+        untracked: None,
+        invalidates: None,
+        primitive: false,
+        classes: script::Classes::default(),
+        names: Some(&names),
+    };
+    if let Some(program) = input.component.module {
+        let statements = script::lower_script(
+            &mut rewrite,
+            javascript.get_program(program),
+            &mut module,
+            &names,
+            script::ScriptContext::Module,
+        )?;
+        module.extend(statements);
+    }
+    let mut exports = Vec::new();
+    let instance = match input.component.instance {
+        Some(program) => script::lower_script(
+            &mut rewrite,
+            javascript.get_program(program),
+            &mut hoisted,
+            &names,
+            script::ScriptContext::Instance {
+                exports: &mut exports,
+            },
+        )?,
+        None => Vec::new(),
+    };
+    let props_id = input
+        .component
+        .instance
+        .and_then(|program| script::props_id(javascript.get_program(program), res));
+    Ok(Prepared {
+        names,
+        each_index,
+        binding_groups,
+        module,
+        hoisted,
+        instance,
+        props_id,
+        exports,
+        custom_element,
+        component_name,
+    })
+}
+
+/// The names the source declares or reads, which a generated name avoids.
+pub(super) fn names(res: &Resolution) -> names::Names {
     let scoping = res.scoping();
     // Upstream erases types before it builds scopes, so a type's name is free.
     let declared = scoping
@@ -36,57 +106,7 @@ pub(super) fn prepare<'c, 'o>(
                 .any(|&r| scoping.get_reference(r).flags().is_value())
         })
         .map(|(name, _)| name.as_str());
-    let mut names = names::Names::new(declared, referenced);
-    let each_index = each_index_names(input.component.compiler_syntax_tree, &mut names);
-    let component_name = names.generate(&facts.identity.name);
-    let mut module = Vec::new();
-    let mut hoisted = Vec::new();
-    let mut rewrite = script::ScriptRewrite {
-        b,
-        target,
-        accessors: custom_element.is_some(),
-        rest_reads: Some(&facts.validated.rest_reads),
-        res,
-        template: None,
-        shadows: None,
-        stores: &facts.validated.stores,
-        untracked: None,
-        invalidates: None,
-        primitive: false,
-    };
-    if let Some(program) = input.component.module {
-        let statements = script::lower_script(
-            &mut rewrite,
-            javascript.get_program(program),
-            &mut module,
-            &mut names,
-            script::ScriptContext::Module,
-        )?;
-        module.extend(statements);
-    }
-    let mut exports = Vec::new();
-    let instance = match input.component.instance {
-        Some(program) => script::lower_script(
-            &mut rewrite,
-            javascript.get_program(program),
-            &mut hoisted,
-            &mut names,
-            script::ScriptContext::Instance {
-                exports: &mut exports,
-            },
-        )?,
-        None => Vec::new(),
-    };
-    Ok(Prepared {
-        names,
-        each_index,
-        module,
-        hoisted,
-        instance,
-        exports,
-        custom_element,
-        component_name,
-    })
+    names::Names::new(declared, referenced)
 }
 
 /// Each `{#each}`'s `$$index` name. Upstream takes them from `scope.root.unique` while it builds

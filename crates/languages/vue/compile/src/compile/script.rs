@@ -84,7 +84,11 @@ pub(super) fn script_setup<'o>(
             s
         })
         .collect();
-    let render = b.arrow_block(b.params(["_ctx", "_cache"]), [b.return_(Some(ret))], false);
+    let render = b.arrow_block(
+        b.parameters(["_ctx", "_cache"]),
+        [b.return_(Some(ret))],
+        false,
+    );
     setup_body.push(b.return_(Some(render)));
     let mut fields = Vec::new();
     if let Some(name) = component_name(path) {
@@ -93,7 +97,7 @@ pub(super) fn script_setup<'o>(
     if let Some(runtime) = define_props.as_ref().and_then(|d| d.runtime) {
         fields.push(b.property(b.key("props"), runtime.clone_in(b.allocator()), false));
     }
-    let setup = b.function_expression(None, b.params(["__props"]), setup_body, false);
+    let setup = b.function_expression(None, b.parameters(["__props"]), setup_body, false);
     fields.push(out::method(b, "setup", setup));
     let defined = options.map(|o| o.clone_in(b.allocator()));
     let main = component_object(b, fields, defined, input.typescript);

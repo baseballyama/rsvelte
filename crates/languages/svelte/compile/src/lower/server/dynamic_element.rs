@@ -1,5 +1,6 @@
 use super::{CompilerNodeIdentifier, NodeKind, Piece, R, ServerCompilationContext};
 use crate::lower::builder::Runtime;
+use crate::lower::template::DynamicTag;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     pub(super) fn dynamic_element(
@@ -14,20 +15,23 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         };
         let attributes = tree.attributes(element.attributes);
         let tag = &tree.attributes[element.this.expect("dynamic tag is validated")];
-        let tag = self.attribute_value(tag, false, false);
+        let tag = match super::super::template::dynamic_tag(self.source_text, &tag.value) {
+            DynamicTag::Text(tag) => b.string(&tag),
+            DynamicTag::Expression(e) => self.expression(e),
+        };
         let mut pieces = Vec::new();
         self.element_attributes(identifier, "svelte:element", attributes, &mut pieces);
         let statements = self.build_template(pieces);
         let attributes =
-            (!statements.is_empty()).then(|| b.arrow_block(b.params([]), statements, false));
+            (!statements.is_empty()).then(|| b.arrow_block(b.parameters([]), statements, false));
         let statements = self.fragment(element.children)?;
         let children =
-            (!statements.is_empty()).then(|| b.arrow_block(b.params([]), statements, false));
+            (!statements.is_empty()).then(|| b.arrow_block(b.parameters([]), statements, false));
         let call = b.runtime_some(
             "element",
             vec![Some(b.id("$$renderer")), Some(tag), attributes, children],
         );
-        template.push(Piece::Statement(b.stmt(call)));
+        template.push(Piece::Statement(b.statement(call)));
         Ok(())
     }
 }

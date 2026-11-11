@@ -40,7 +40,7 @@ fn a_marker_expands_to_its_prelude_in_place() {
 fn a_string_the_script_wrote_is_not_a_marker() {
     let allocator = oxc_allocator::Allocator::default();
     let b = Builder::new(&allocator);
-    let written = b.stmt(b.string(SCRIPT[2]));
+    let written = b.statement(b.string(SCRIPT[2]));
     assert!(expand(&written).is_none());
 }
 

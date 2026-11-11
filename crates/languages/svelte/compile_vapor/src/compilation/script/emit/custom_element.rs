@@ -23,10 +23,10 @@ pub(super) fn bindings<'t>(rw: &ScriptRewrite<'_, 't>) -> Statement<'t> {
             rw.binding_value(symbol, name, oxc_span::SPAN)
                 .expect("a prop has a value")
         };
-        let mut fields = vec![b.init("get", b.arrow(b.params([]), value()))];
+        let mut fields = vec![b.init("get", b.arrow(b.parameters([]), value()))];
         if prop_cell(res, symbol) {
             let set = b.assign_member(value(), b.id("$$prop_value"));
-            fields.push(b.init("set", b.arrow(b.params(["$$prop_value"]), set)));
+            fields.push(b.init("set", b.arrow(b.parameters(["$$prop_value"]), set)));
         }
         let Some(PropertyKey::StaticIdentifier(key)) = info.prop_key else {
             unreachable!("a prop has a key")
@@ -37,5 +37,5 @@ pub(super) fn bindings<'t>(rw: &ScriptRewrite<'_, 't>) -> Statement<'t> {
             false,
         ));
     }
-    b.stmt(b.call(b.id("$$custom_element_bind"), [b.object(properties)]))
+    b.statement(b.call(b.id("$$custom_element_bind"), [b.object(properties)]))
 }
