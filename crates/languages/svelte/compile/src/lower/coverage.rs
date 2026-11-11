@@ -1,7 +1,7 @@
 //! The template syntax this port does not lower yet, refused before lowering starts so neither
 //! target meets it.
 
-use oxc_ast::ast::{Expression, VariableDeclarationKind};
+use oxc_ast::ast::Expression;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, ElementKind, MetadataTag, StyleValue,
 };
@@ -183,22 +183,18 @@ fn is_bindable(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIde
     };
     let member = !matches!(target, Expression::Identifier(_));
     let Some(symbol) = res.symbol(root) else {
-        return res.is_store_subscription(&root.name);
+        return member || res.is_store_subscription(&root.name);
     };
     match res.binding(symbol).kind {
-        BindingKind::State
+        // Upstream rejects a `const` or an import, as the rune walk does; a function or a class
+        // is a name it assigns.
+        BindingKind::Normal
+        | BindingKind::State
         | BindingKind::RawState
         | BindingKind::Derived
         | BindingKind::DerivedBy
         | BindingKind::Property
         | BindingKind::BindableProperty => true,
-        BindingKind::Normal => {
-            member
-                || matches!(
-                    res.variable_kind(symbol),
-                    Some(VariableDeclarationKind::Let | VariableDeclarationKind::Var)
-                )
-        }
         _ => member,
     }
 }
@@ -280,7 +276,9 @@ fn check_element_binding(
                 "value" if !super::is_directive(&o.value) => {
                     !keeps_value || matches!(o.value, AttributeValue::Interpolated(_))
                 }
-                "checked" => property != "group" && !super::is_directive(&o.value),
+                "checked" => {
+                    !matches!(property, "group" | "value") && !super::is_directive(&o.value)
+                }
                 "group" => true,
                 _ => false,
             }
@@ -315,8 +313,8 @@ fn supported_binding(
     let Some(p) = property_of(property) else {
         return false;
     };
-    // Upstream checks `svelte:element` against each property's elements too.
-    if tag == "svelte:element" || p.elements.is_some_and(|e| !e.contains(&tag)) {
+    // Upstream checks `svelte:element` against each property's elements too, by that name.
+    if p.elements.is_some_and(|e| !e.contains(&tag)) {
         return false;
     }
     if tag == "input" {
