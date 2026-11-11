@@ -194,7 +194,6 @@ fn check_element(
                 check_target(input, res, a, target)?;
                 continue;
             }
-            AttributeValue::Attach(_) => "an attachment on a component",
             AttributeValue::Class(_) => "a `class:` directive on a component",
             AttributeValue::Spread(_) => continue,
             _ if name == "children" && has_content(input, el) => {

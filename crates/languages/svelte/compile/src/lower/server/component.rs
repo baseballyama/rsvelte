@@ -64,6 +64,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                     css.push(b.init(a.name.text(self.source_text), value));
                 }
                 Prop::Spread(e) => parts.push(Entry::Spread(self.expression(e))),
+                Prop::Attach(_) => {}
                 Prop::Bind(a, target) => {
                     let value = self.expression(target);
                     let source = self.javascript.get_expression(target);

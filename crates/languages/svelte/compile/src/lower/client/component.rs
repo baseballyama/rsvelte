@@ -1,5 +1,8 @@
-use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
+use oxc_ast::ast::{
+    Expression, LogicalOperator, ObjectPropertyKind, PropertyKey, PropertyKind, Statement,
+};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Element, Modifiers};
+use rsvelte_svelte_semantic::evaluate::Evaluator;
 
 use super::super::component::{
     Callee, Entry, Prop, bind_this, callee, child_snippets, props, props_expression,
@@ -264,6 +267,23 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 } else {
                     b.init(name, value)
                 }));
+            }
+            Prop::Attach(e) => {
+                let mut value = self.expression(e);
+                // Upstream reads a stateful attachment when the component attaches it.
+                if self.an.meta(e).has_state {
+                    let javascript = self.javascript.get_expression(e);
+                    let evaluation = Evaluator::new(self.res).evaluate(javascript);
+                    let callee = if evaluation.is_function {
+                        value
+                    } else {
+                        b.logical(value, LogicalOperator::Or, b.member(b.id("$"), "noop"))
+                    };
+                    let call = b.call(callee, [b.id("$$node")]);
+                    value = b.arrow(b.params(["$$node"]), call);
+                }
+                let key = PropertyKey::from(b.runtime("attachment", []));
+                parts.push(Entry::Property(b.property(key, value, true)));
             }
             Prop::Spread(e) => {
                 let built = self.expression(e);
