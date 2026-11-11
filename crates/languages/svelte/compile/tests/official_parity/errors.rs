@@ -473,6 +473,10 @@ fn a_snippet_name_raises_upstreams_error_where_upstream_does_in_its_order() {
         ),
         ("<script module>export { s };</script>{#snippet s()}<p>x</p>{/snippet}".to_owned(), None),
         (
+            "<script module>export { s };</script><div>{#snippet s()}x{/snippet}</div>".to_owned(),
+            Some(("snippet_invalid_export", (24, 25))),
+        ),
+        (
             "{#snippet s(x)}<input bind:value={x} />{/snippet}".to_owned(),
             Some(("snippet_parameter_assignment", (22, 36))),
         ),
