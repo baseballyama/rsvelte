@@ -267,3 +267,9 @@
 
 ["svelte/threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts".skip]
 "svelte.compileModule/server" = "upstream bug: the server treats a member assignment to a `$viewport` parameter as a mutation of store `viewport`, and emits `$.store_mutate($$store_subs ??= {}, ...)` with `$$store_subs` declared nowhere"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/error/shorthand02-input.svelte".skip]
+"svelte.compile" = "upstream bug: a `style:` shorthand whose name is no identifier is read as an expression (`style:max-width` sets `max - width`), and the server lowercases the key the client keeps"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-style-with-expr-input.svelte".skip]
+"svelte.compile" = "upstream bug: a `style:` shorthand whose name is no identifier is read as an expression (`style:max-width` sets `max - width`), and the server lowercases the key the client keeps"
