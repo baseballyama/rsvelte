@@ -131,6 +131,7 @@ fn print(
         in_shadow_root: false,
         last_in_block: None,
         buffers: Vec::new(),
+        ignore: Ignore::default(),
     };
     let root = f.top_level()?;
     refuse_lost_comments(c, &f.embedder.kept)?;
@@ -337,6 +338,18 @@ struct Printer<'a, 'd, 'x> {
     last_in_block: Option<TemplateNodeIdentifier>,
     /// Emptied lists of child layouts, kept so each text node and child list does not allocate.
     buffers: Vec<Vec<LayoutInstructionIdentifier>>,
+    ignore: Ignore,
+}
+
+/// The plugin's `ignoreNext` and `ignoreRange`.
+#[derive(Default)]
+struct Ignore {
+    /// A `prettier-ignore` comment was printed, so the next sibling that is not blank text keeps
+    /// its source.
+    next: bool,
+    /// Between a root `prettier-ignore-start` and `prettier-ignore-end`: each node keeps its
+    /// source.
+    range: bool,
 }
 
 /// Whether Svelte parses an element as a `RegularElement`, which is all the plugin asks.

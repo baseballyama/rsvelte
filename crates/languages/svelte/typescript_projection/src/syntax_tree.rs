@@ -116,6 +116,11 @@ pub enum Node {
         template: bool,
     },
     Text(Span),
+    /// Source text without a mapping, so neither findings nor typed lint see this copy.
+    UnmappedSource(Span),
+    /// A statement whose findings TypeScript drops, as svelte2tsx's ignore comments do.
+    Ignored(NodeIdentifier),
+    Parenthesized(NodeIdentifier),
 }
 
 #[derive(Clone, Copy, Debug)]

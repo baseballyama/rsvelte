@@ -34,8 +34,8 @@ The checker reads each document at its own path through its file layer; a relati
 beside `tsconfig.json`. Imports between the documents of one run resolve as on the disk. Like
 svelte-check, the checker blanks the svelte package's `declare module '*.svelte'`, so an import
 of a missing component fails. An unchecked component, written in JavaScript or with a refused
-projection, still resolves: the checker reads it as a component of any props. So empty findings
-do not prove that the checker checked the props of such a component.
+projection, still resolves: the checker reads it as `any`, with the exports of its module
+script. Empty findings do not prove that the checker checked its props or its instance.
 
 ```sh
 cargo test -p rsvelte_svelte_check --test fixtures

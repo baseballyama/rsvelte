@@ -641,7 +641,7 @@ dependencies = [
 [[package]]
 name = "oxc_allocator"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "allocator-api2",
  "hashbrown",
@@ -652,7 +652,7 @@ dependencies = [
 [[package]]
 name = "oxc_ast"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "bitflags",
  "oxc_allocator",
@@ -669,7 +669,7 @@ dependencies = [
 [[package]]
 name = "oxc_ast_macros"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "phf",
  "proc-macro2",
@@ -680,7 +680,7 @@ dependencies = [
 [[package]]
 name = "oxc_ast_visit"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -691,7 +691,7 @@ dependencies = [
 [[package]]
 name = "oxc_codegen"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "bitflags",
  "cow-utils",
@@ -712,7 +712,7 @@ dependencies = [
 [[package]]
 name = "oxc_compat"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "cow-utils",
  "oxc-browserslist",
@@ -724,7 +724,7 @@ dependencies = [
 [[package]]
 name = "oxc_data_structures"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "ropey",
 ]
@@ -732,7 +732,7 @@ dependencies = [
 [[package]]
 name = "oxc_diagnostics"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "bytecount",
  "cow-utils",
@@ -749,7 +749,7 @@ dependencies = [
 [[package]]
 name = "oxc_ecmascript"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "itoa",
  "memchr",
@@ -766,12 +766,12 @@ dependencies = [
 [[package]]
 name = "oxc_estree"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 
 [[package]]
 name = "oxc_formatter"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "cow-utils",
  "fast-glob",
@@ -799,7 +799,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_core"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "cow-utils",
  "memchr",
@@ -813,7 +813,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_css"
 version = "0.78.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "cow-utils",
  "oxc-css-parser",
@@ -829,7 +829,7 @@ dependencies = [
 [[package]]
 name = "oxc_formatter_tests"
 version = "0.62.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "cow-utils",
  "oxc_formatter_core",
@@ -849,7 +849,7 @@ dependencies = [
 [[package]]
 name = "oxc_jsdoc"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "oxc_ast",
  "oxc_span",
@@ -860,7 +860,7 @@ dependencies = [
 [[package]]
 name = "oxc_parser"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "bitflags",
  "cow-utils",
@@ -883,7 +883,7 @@ dependencies = [
 [[package]]
 name = "oxc_regular_expression"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "bitflags",
  "oxc_allocator",
@@ -899,7 +899,7 @@ dependencies = [
 [[package]]
 name = "oxc_semantic"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "itertools",
  "memchr",
@@ -934,7 +934,7 @@ dependencies = [
 [[package]]
 name = "oxc_span"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "compact_str",
  "oxc_allocator",
@@ -946,7 +946,7 @@ dependencies = [
 [[package]]
 name = "oxc_str"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "compact_str",
  "hashbrown",
@@ -958,7 +958,7 @@ dependencies = [
 [[package]]
 name = "oxc_syntax"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "bitflags",
  "cow-utils",
@@ -977,7 +977,7 @@ dependencies = [
 [[package]]
 name = "oxc_transformer"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "base64",
  "compact_str",
@@ -1006,7 +1006,7 @@ dependencies = [
 [[package]]
 name = "oxc_traverse"
 version = "0.158.0"
-source = "git+https://github.com/baseballyama/oxc?rev=dd63a17bebf548f668275ef6df350f13b4bc95f1#dd63a17bebf548f668275ef6df350f13b4bc95f1"
+source = "git+https://github.com/baseballyama/oxc?rev=603205abfce315b26f11536926148445fca83999#603205abfce315b26f11536926148445fca83999"
 dependencies = [
  "itoa",
  "oxc_allocator",
@@ -1436,6 +1436,7 @@ dependencies = [
  "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
+ "rsvelte_stylesheet_syntax",
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",

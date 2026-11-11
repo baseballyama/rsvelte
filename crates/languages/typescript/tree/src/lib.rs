@@ -8,7 +8,8 @@ use std::rc::Rc;
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    Comment, Expression, FormalParameter, FormalParameters, Program, VariableDeclaration,
+    Comment, Expression, FormalParameter, FormalParameters, Program, TSTypeParameterDeclaration,
+    VariableDeclaration,
 };
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -69,6 +70,7 @@ struct Trees<'a> {
     patterns: Vec<FormalParameter<'a>>,
     parameters: Vec<FormalParameters<'a>>,
     declarations: Vec<VariableDeclaration<'a>>,
+    type_parameters: Vec<TSTypeParameterDeclaration<'a>>,
     /// The comments of every part but the programs, which keep their own, in document order.
     comments: Vec<Comment>,
 }
@@ -129,6 +131,10 @@ identifier!(
 identifier!(
     /// A variable declaration kept by [`Builder::keep_declaration`].
     DeclarationIdentifier
+);
+identifier!(
+    /// A type parameter list parsed by [`Builder::type_parameters`].
+    TypeParametersIdentifier
 );
 
 impl Tree {
@@ -212,6 +218,14 @@ impl Tree {
         &self.0.borrow_dependent().declarations[identifier.index()]
     }
 
+    #[must_use]
+    pub fn get_type_parameters(
+        &self,
+        identifier: TypeParametersIdentifier,
+    ) -> &TSTypeParameterDeclaration<'_> {
+        &self.0.borrow_dependent().type_parameters[identifier.index()]
+    }
+
     /// Every expression kept apart from a program, with its identifier, in the order kept.
     pub fn expressions(
         &self,
@@ -254,6 +268,19 @@ impl Tree {
             .iter()
             .enumerate()
             .map(|(i, p)| (ParametersIdentifier::at(i), p))
+    }
+
+    /// Every type parameter list kept apart from a program, with its identifier, in the order
+    /// kept.
+    pub fn type_parameters(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (TypeParametersIdentifier, &TSTypeParameterDeclaration<'_>)>
+    {
+        let type_parameters = &self.0.borrow_dependent().type_parameters;
+        type_parameters
+            .iter()
+            .enumerate()
+            .map(|(i, p)| (TypeParametersIdentifier::at(i), p))
     }
 
     /// The comments outside the programs, in document order.

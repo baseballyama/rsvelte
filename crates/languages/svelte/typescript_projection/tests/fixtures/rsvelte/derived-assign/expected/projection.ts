@@ -20,4 +20,6 @@
     (e);
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const DerivedAssign__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type DerivedAssign__SvelteComponent_ = ReturnType<typeof DerivedAssign__SvelteComponent_>;
+export default DerivedAssign__SvelteComponent_;

@@ -393,3 +393,17 @@ fn a_module_file_reads_a_rune_beside_its_store_s_name_as_the_rune() {
     assert!(component.is_store_subscription("$state"));
     assert!(component.is_store_subscription("$effect"));
 }
+
+#[test]
+fn generics_bind_type_references_only() {
+    let source = "<script lang=\"ts\" generics=\"T extends Item\">\
+                  import type { Item } from './x'; let x = T; let y: T;</script>{T}";
+    let res = analyze(source);
+    let t = symbol(&res, source, "T extends");
+    assert_eq!(res.scoping().symbol_scope_id(t), res.instance_scope());
+    // `y: T` only; `let x = T` and `{T}` read a value the component does not declare.
+    assert_eq!(res.scoping().get_resolved_reference_ids(t).len(), 1);
+    let names: Vec<&str> = res.unresolved_names().collect();
+    assert_eq!(names, ["T"]);
+    assert_eq!(res.scoping().root_unresolved_references()["T"].len(), 2);
+}

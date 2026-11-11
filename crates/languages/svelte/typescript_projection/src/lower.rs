@@ -1,4 +1,5 @@
 mod attribute;
+mod binding;
 mod children;
 mod contract;
 
@@ -260,12 +261,11 @@ impl Builder<'_> {
             self.scratch
                 .push(self.tree.push(Node::ImplicitChildren(at)));
         }
+        let mut bindings = Vec::new();
         for attribute in self.component.attributes(attributes) {
             match attribute.kind {
-                AttributeKind::Bind
-                    if !is_component && attribute.name.text(self.source) == "bind:this" => {}
                 AttributeKind::Bind => {
-                    return Err(Unsupported::at("bind: directives", attribute.span));
+                    bindings.push(self.binding(attribute, tag, is_component, intrinsic)?);
                 }
                 AttributeKind::On
                 | AttributeKind::Use
@@ -294,32 +294,14 @@ impl Builder<'_> {
         };
         let properties = self.finish_list(start);
         let properties = self.tree.push(Node::Object { properties });
-        let (mut call, named) = if let Some(component) = component {
+        let (call, named) = if let Some(component) = component {
             self.component_call(component, properties, snippets)
         } else if slot {
             (self.slot_call(attributes, properties)?, None)
         } else {
             (self.element_call(name, properties), None)
         };
-        for attribute in self.component.attributes(attributes) {
-            if attribute.kind == AttributeKind::Bind
-                && let AttributeValue::Parts(parts) = attribute.value
-                && let [Part::Expression { expression, .. }] = self.component.parts(parts)
-            {
-                if matches!(
-                    self.expression(*expression),
-                    Expression::SequenceExpression(_)
-                ) {
-                    return Err(Unsupported::at("function bindings", attribute.span));
-                }
-                let target = self.expression_source(*expression, None);
-                call = self.tree.push(Node::Assignment {
-                    target,
-                    value: call,
-                });
-            }
-        }
-        self.scratch.push(self.tree.push(Node::Statement(call)));
+        self.bound_call(call, bindings);
         if let Some(component) = named {
             let declaration = self.tree.push(Node::SnippetNames {
                 names: snippets,

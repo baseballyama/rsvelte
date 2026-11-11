@@ -169,9 +169,9 @@ fn a_module_reports_the_warnings_upstream_shows() {
 
 #[test]
 fn a_destructuring_assignment_writes_each_path_through_its_transform() {
-    let source = "let a = $state(1);\nlet o = $state({});\nexport function f(x) {\n\treturn ({ a, b: \
-                  o.b = 2, ...o.c } = x);\n}\nexport function g(x) {\n\t[a, [o.d]] = [1, \
-                  [2]];\n\t[o.e] = x;\n}\n";
+    let source = "let a = $state(1);\nlet o = $state({});\n\
+                  export function f(x) {\n\treturn ({ a, b: o.b = 2, ...o.c } = x);\n}\n\
+                  export function g(x) {\n\t[a, [o.d]] = [1, [2]];\n\t[o.e] = x;\n}\n";
     let compiled = compile("a.svelte.js", source, Target::Client);
     assert!(
         compiled.contains(

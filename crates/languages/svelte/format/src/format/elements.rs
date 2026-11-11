@@ -36,11 +36,10 @@ impl Printer<'_, '_, '_> {
         if name == "svelte:options" {
             return self.options_tag(identifier);
         }
-        if matches!(name, "script" | "style") {
-            return Err(Unsupported::at(
-                "<script> or <style> inside an element",
-                span,
-            ));
+        match name {
+            "script" => return self.nested_tag(identifier, "script"),
+            "style" => return self.nested_tag(identifier, "style"),
+            _ => {}
         }
         if name == "template"
             && attributes
@@ -325,6 +324,7 @@ impl Printer<'_, '_, '_> {
             }
         }
         self.in_pre = saved;
+        self.ignore.next = false;
         Ok(self.cat(&out))
     }
 

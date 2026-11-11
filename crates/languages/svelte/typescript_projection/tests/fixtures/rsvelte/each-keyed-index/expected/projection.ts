@@ -22,4 +22,6 @@
     svelteHTML.createElement("p", {});
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const EachKeyedIndex__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type EachKeyedIndex__SvelteComponent_ = ReturnType<typeof EachKeyedIndex__SvelteComponent_>;
+export default EachKeyedIndex__SvelteComponent_;

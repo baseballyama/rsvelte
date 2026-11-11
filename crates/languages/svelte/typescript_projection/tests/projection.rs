@@ -140,11 +140,11 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
 
 #[test]
 fn unsupported_semantics_are_reported_at_the_original_construct() {
-    let source = "<input bind:value={value}>";
+    let source = "<p>{@html value}</p>";
     let component = parse(source).expect("valid Svelte source");
     let error = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
-        .expect_err("bindings need their own type semantics");
-    assert_eq!(error.span().text(source), "bind:value={value}");
+        .expect_err("special tags need their own type semantics");
+    assert_eq!(error.span().text(source), "{@html value}");
 }
 
 #[test]
@@ -192,7 +192,9 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "    }\n",
             "  }\n",
             "};\n",
-            "export default __rsvelte_export_component<__rsvelte_no_props, {}, \"\">();\n",
+            "const $$Component = __rsvelte_export_component<__rsvelte_no_props, {}, \"\">();\n",
+            "type $$Component = ReturnType<typeof $$Component>;\n",
+            "export default $$Component;\n",
         )
     );
     for mapping in output.mappings.iter().filter(|mapping| mapping.len > 0) {
@@ -414,4 +416,30 @@ fn a_component_s_slots_type_check_against_its_slots_interface() {
         "{}",
         output.out
     );
+}
+
+#[test]
+fn a_component_is_named_from_its_file_as_svelte2tsx_names_it() {
+    use rsvelte_svelte_typescript_projection::component_name;
+    assert_eq!(
+        component_name("src/lib/CitationTooltip.svelte"),
+        "CitationTooltip__SvelteComponent_"
+    );
+    assert_eq!(
+        component_name("src/routes/+page.svelte"),
+        "Page__SvelteComponent_"
+    );
+    assert_eq!(
+        component_name("src/lib/my-button_group.svelte"),
+        "MyButtonGroup__SvelteComponent_"
+    );
+    assert_eq!(
+        component_name("src/routes/[id].svelte"),
+        "Id__SvelteComponent_"
+    );
+    assert_eq!(
+        component_name("src/lib/Button.stories.svelte"),
+        "Button__SvelteComponent_"
+    );
+    assert_eq!(component_name("src/lib/404.svelte"), "A4__SvelteComponent_");
 }

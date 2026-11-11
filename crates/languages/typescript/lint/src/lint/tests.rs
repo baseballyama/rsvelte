@@ -219,6 +219,14 @@ const UNUSED: &[(&str, &[&str])] = &[
         &[],
     ),
     ("interface B {} let y: B.C; y;", &[]),
+    (
+        "const a = new class Foo {}; a; class Bar {} const C = class D { m() { return D; } }; C; const E = class F {}; let g = class H {}; g = 1;",
+        &[
+            "'Bar' is defined but never used.@37-40",
+            "'E' is assigned a value but never used.@94-95",
+            "'g' is assigned a value but never used.@130-131",
+        ],
+    ),
 ];
 
 #[test]
