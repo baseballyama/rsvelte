@@ -1,18 +1,19 @@
+use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{
     BinaryOperator, ForStatementInit, SimpleAssignmentTarget, Statement, UpdateOperator,
     VariableDeclarationKind,
 };
+use oxc_ast_visit::VisitMut;
 use oxc_span::SPAN;
 
 use crate::lower::builder::Runtime;
 use crate::lower::server::{
     BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, NodeKind, Piece, R,
-    ServerCompilationContext, unsupported,
+    ServerCompilationContext,
 };
-use crate::lower::span_of;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
-    /// Upstream `EachBlock` (server) for a block whose context is an identifier.
+    /// Upstream `EachBlock` (server).
     pub(in crate::lower::server) fn each_block(
         &mut self,
         identifier: CompilerNodeIdentifier,
@@ -23,15 +24,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let NodeKind::Each(each) = &compiler_syntax_tree.node(identifier).kind else {
             unreachable!()
         };
-        let context = &javascript
+        let mut context = javascript
             .get_pattern(each.context.expect("the parser requires `as`"))
-            .pattern;
-        let Some(item) = context
-            .get_binding_identifier()
-            .filter(|_| context.is_binding_identifier())
-        else {
-            return unsupported("a destructuring `{#each}` context", span_of(context));
-        };
+            .pattern
+            .clone_in_with_semantic_ids(b.allocator());
+        self.rewrite().visit_binding_pattern(&mut context);
         let collection = self.expression(each.collection);
         let named = each.index.map(|i| {
             javascript
@@ -51,7 +48,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let element = b.computed(b.id(&array_id), b.id(&index));
         let mut body = vec![b.declaration(
             VariableDeclarationKind::Let,
-            [b.declarator(b.binding_at(&item.name, item.span), Some(element))],
+            [b.declarator(context, Some(element))],
         )];
         if let Some(i) = named
             && i.name.as_str() != index

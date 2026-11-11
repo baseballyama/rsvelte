@@ -1,6 +1,7 @@
 mod parameters;
 
 use oxc_ast::ast::Statement;
+pub(super) use parameters::Hooks;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
 
 use super::super::derived::{Created, callback};
