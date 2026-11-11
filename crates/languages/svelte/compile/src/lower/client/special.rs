@@ -89,6 +89,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                             false,
                             lists,
                         );
+                    } else if let AttributeValue::Use { action, argument } = attribute.value {
+                        let call = self.action(action, argument, target);
+                        lists.initializer.push(b.stmt(call));
+                    } else if let AttributeValue::Attach(e) = attribute.value {
+                        lists.initializer.push(b.stmt(self.attach(e, target)));
                     } else if matches!(attribute.value, AttributeValue::Bind(_)) {
                         self.global_binding(attribute, tag, lists);
                     }

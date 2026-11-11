@@ -150,8 +150,10 @@ fn validate_globals(
             if global_binding(tag, attribute.name.text(source)).is_none() {
                 return unsupported("this global binding", attribute.span);
             }
-        } else if !matches!(attribute.value, AttributeValue::On { .. })
-            && super::event_attribute(source, attribute).is_none()
+        } else if !matches!(
+            attribute.value,
+            AttributeValue::On { .. } | AttributeValue::Use { .. } | AttributeValue::Attach(_)
+        ) && super::event_attribute(source, attribute).is_none()
         {
             return unsupported("this global attribute", attribute.span);
         }

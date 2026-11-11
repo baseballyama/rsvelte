@@ -111,7 +111,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     /// Upstream `UseDirective`: `$.action(node, ($$node, $$action_arg) => action?.(…), () => arg)`.
-    fn action(
+    pub(super) fn action(
         &self,
         action: ExpressionIdentifier,
         argument: Option<ExpressionIdentifier>,
@@ -230,7 +230,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     /// Upstream `AttachTag` (client).
-    fn attach(&self, e: ExpressionIdentifier, node: &str) -> Expression<'o> {
+    pub(super) fn attach(&self, e: ExpressionIdentifier, node: &str) -> Expression<'o> {
         let b = self.b;
         b.runtime("attach", [b.id(node), b.thunk(self.expression(e))])
     }
