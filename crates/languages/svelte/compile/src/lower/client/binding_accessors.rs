@@ -24,6 +24,29 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         (get, set)
     }
 
+    /// Upstream `build_bind_this`, which writes both accessors as arrows, never as the function
+    /// they call.
+    pub(super) fn bind_this_accessors(
+        &self,
+        expression: ExpressionIdentifier,
+    ) -> (Expression<'o>, Expression<'o>) {
+        if let Expression::SequenceExpression(s) = self
+            .javascript
+            .get_expression(expression)
+            .get_inner_expression()
+            && let [get, set] = s.expressions.as_slice()
+        {
+            return (self.rewrite(get, true), self.rewrite(set, true));
+        }
+        let b = self.b;
+        let get = b.arrow(b.params([]), self.expression(expression));
+        let set = b.arrow(
+            b.params(["$$value"]),
+            self.binding_assignment(expression, false),
+        );
+        (get, set)
+    }
+
     pub(super) fn binding_setter(
         &self,
         expression: ExpressionIdentifier,
