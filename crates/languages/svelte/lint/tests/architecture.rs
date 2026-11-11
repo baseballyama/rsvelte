@@ -54,8 +54,8 @@ fn disabled_and_syntax_rules_do_not_build_semantic_facts() {
         context.computed(),
         [
             "svelte.parse",
-            "svelte.resolve",
-            "svelte.compiler_syntax_tree"
+            "svelte.compiler_syntax_tree",
+            "svelte.resolve"
         ]
     );
 }
