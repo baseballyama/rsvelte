@@ -21,6 +21,15 @@ pub(super) struct Names<'r> {
 
 impl<'r> Names<'r> {
     pub(super) fn new(input: &CompileInput<'_>, res: &'r Resolution) -> Self {
+        let dollar = |name: &str| {
+            name.starts_with('$') && !matches!(name, "$$props" | "$$restProps" | "$$slots")
+        };
+        let mut names: Vec<_> = unbound(res, dollar)
+            .filter(|(_, references)| !references.is_empty())
+            .collect();
+        if names.is_empty() {
+            return Self { names };
+        }
         let javascript = input.component.javascript;
         let program = |p| javascript.get_program(p).span;
         let module = input.component.module.map(program);
@@ -38,16 +47,9 @@ impl<'r> Names<'r> {
                 walk.order(start)
             }
         };
-        let dollar = |name: &str| {
-            name.starts_with('$') && !matches!(name, "$$props" | "$$restProps" | "$$slots")
-        };
-        let mut names: Vec<_> = unbound(res, dollar)
-            .filter(|(_, references)| !references.is_empty())
-            .map(|(name, mut references)| {
-                references.sort_unstable_by_key(|&r| order(r));
-                (name, references)
-            })
-            .collect();
+        for (_, references) in &mut names {
+            references.sort_unstable_by_key(|&r| order(r));
+        }
         names.sort_unstable_by_key(|(_, references)| order(references[0]));
         Self { names }
     }
