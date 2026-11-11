@@ -309,7 +309,7 @@ fn affix(
     visited: &mut Vec<Span>,
 ) -> Option<String> {
     let source = file.source();
-    match without_assertions(expression) {
+    match expression.get_inner_expression() {
         Expression::BinaryExpression(binary) => affix(
             file,
             if end == End::Prefix {
@@ -362,20 +362,6 @@ fn affix(
             })?
         }
         _ => None,
-    }
-}
-
-/// The expression inside `e as T`, `e satisfies T`, `e!` and `<T>e`, which the value does not
-/// change.
-fn without_assertions<'e>(mut expression: &'e Expression<'e>) -> &'e Expression<'e> {
-    loop {
-        expression = match expression {
-            Expression::TSAsExpression(e) => &e.expression,
-            Expression::TSSatisfiesExpression(e) => &e.expression,
-            Expression::TSNonNullExpression(e) => &e.expression,
-            Expression::TSTypeAssertion(e) => &e.expression,
-            _ => return expression,
-        };
     }
 }
 

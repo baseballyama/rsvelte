@@ -93,7 +93,7 @@ impl SvelteRule for NoReactiveReassign {
             if left.start <= name.span.start && name.span.end <= left.end {
                 continue;
             }
-            let bound = bound.get_or_insert_with(|| bindings(component));
+            let bound = bound.get_or_insert_with(|| bindings(file));
             let Some((at, properties)) = reassignment(nodes, bound, reference.node_id()) else {
                 continue;
             };
@@ -161,10 +161,15 @@ fn reassignment(
                 path.push(kind);
                 node = parent;
             }
-            // `foo?.prop`, `(test ? foo : bar).prop` and `[foo] = …`.
+            // `foo?.prop`, `(test ? foo : bar).prop`, `[foo] = …`, and a cast, which this
+            // crate's cases see through.
             kind @ (AstKind::ChainExpression(_)
             | AstKind::ConditionalExpression(_)
-            | AstKind::ArrayAssignmentTarget(_))
+            | AstKind::ArrayAssignmentTarget(_)
+            | AstKind::TSAsExpression(_)
+            | AstKind::TSSatisfiesExpression(_)
+            | AstKind::TSNonNullExpression(_)
+            | AstKind::TSTypeAssertion(_))
                 if !matches!(kind, AstKind::ConditionalExpression(conditional)
                     if is_node(&conditional.test)) =>
             {

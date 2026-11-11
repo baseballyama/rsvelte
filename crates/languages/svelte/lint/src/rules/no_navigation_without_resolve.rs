@@ -1,14 +1,14 @@
-use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte_syntax::syntax_tree::{Attribute, Component, Part, decode_attribute};
 use oxc_ast::ast::{Expression, IdentifierReference};
 use oxc_semantic::{NodeId, SymbolId};
 use oxc_syntax::operator::BinaryOperator;
+use rsvelte_lint_runner::rule::Reporter;
+use rsvelte_svelte_syntax::syntax_tree::{Attribute, Component, Part, decode_attribute};
 
 use super::kit_navigation::{
     Navigation, Options, Script, first_argument, first_part, has_scheme, links, string, template,
 };
-use super::nodes::span;
 use super::kit_route::runs_for;
+use super::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -164,25 +164,11 @@ impl<'a> Check<'_, 'a> {
             }
             _ => {}
         }
-        (allow.absolute && self.is_absolute(node))
+        (allow.absolute && is_absolute(node))
             || (allow.empty && is_empty(node))
             || (allow.fragment && self.starts_with(node, "#", visited))
             || (allow.nullish && is_nullish(node))
             || self.is_resolve_call(node, visited)
-    }
-
-    fn is_absolute(&self, node: &'a Expression<'a>) -> bool {
-        match node {
-            Expression::BinaryExpression(binary) if binary.operator == BinaryOperator::Addition => {
-                self.is_absolute(&binary.left) || self.is_absolute(&binary.right)
-            }
-            Expression::StringLiteral(_) => string(node).is_some_and(has_scheme),
-            Expression::TemplateLiteral(_) => template(node).is_some_and(|(quasis, expressions)| {
-                expressions.iter().any(|e| self.is_absolute(e))
-                    || quasis.iter().any(|quasi| has_scheme(quasi))
-            }),
-            _ => false,
-        }
     }
 
     fn starts_with(
@@ -201,14 +187,16 @@ impl<'a> Check<'_, 'a> {
                 })
                 .unwrap_or(false),
             Expression::StringLiteral(_) => string(node).is_some_and(|s| s.starts_with(prefix)),
-            Expression::TemplateLiteral(_) => template(node).is_some_and(|(quasis, expressions)| {
-                expressions
-                    .first()
-                    .is_some_and(|e| self.starts_with(e, prefix, visited))
-                    || quasis
+            Expression::TemplateLiteral(_) => {
+                template(node).is_some_and(|(quasis, expressions)| {
+                    expressions
                         .first()
-                        .is_some_and(|quasi| quasi.starts_with(prefix))
-            }),
+                        .is_some_and(|e| self.starts_with(e, prefix, visited))
+                        || quasis
+                            .first()
+                            .is_some_and(|quasi| quasi.starts_with(prefix))
+                })
+            }
             _ => false,
         }
     }
@@ -245,7 +233,9 @@ impl<'a> Check<'_, 'a> {
                         }
                         Expression::Identifier(identifier) => script
                             .initializer(identifier)
-                            .is_some_and(|(_, initializer)| string(initializer) == Some("external")),
+                            .is_some_and(|(_, initializer)| {
+                                string(initializer) == Some("external")
+                            }),
                         _ => false,
                     }
                 }
@@ -255,9 +245,24 @@ impl<'a> Check<'_, 'a> {
     }
 }
 
+fn is_absolute(node: &Expression<'_>) -> bool {
+    match node {
+        Expression::BinaryExpression(binary) if binary.operator == BinaryOperator::Addition => {
+            is_absolute(&binary.left) || is_absolute(&binary.right)
+        }
+        Expression::StringLiteral(_) => string(node).is_some_and(has_scheme),
+        Expression::TemplateLiteral(_) => template(node).is_some_and(|(quasis, expressions)| {
+            expressions.iter().any(|e| is_absolute(e))
+                || quasis.iter().any(|quasi| has_scheme(quasi))
+        }),
+        _ => false,
+    }
+}
+
 fn is_empty(node: &Expression<'_>) -> bool {
     string(node) == Some("")
-        || template(node).is_some_and(|(quasis, expressions)| expressions.is_empty() && quasis == [""])
+        || template(node)
+            .is_some_and(|(quasis, expressions)| expressions.is_empty() && quasis == [""])
 }
 
 /// `undefined` or `null`, as written.

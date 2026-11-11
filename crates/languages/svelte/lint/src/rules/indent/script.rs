@@ -2,8 +2,7 @@
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    BindingPattern, ClassType, FormalParameters, FunctionType, TSNamespaceDeclarationBody,
-    TSThisParameter,
+    ClassType, FormalParameters, FunctionType, TSNamespaceDeclarationBody, TSThisParameter,
 };
 use oxc_ast_visit::Visit;
 use oxc_parser::Kind;
@@ -45,11 +44,6 @@ pub(super) fn parameter_spans(
         .chain(parameters.items.iter().map(|p| p.span))
         .chain(parameters.rest.as_ref().map(|r| r.span))
         .collect()
-}
-
-/// A binding pattern with its type annotation, which `ESTree` puts inside the pattern.
-pub(super) fn annotated(pattern: &BindingPattern<'_>, annotation: Option<OxcSpan>) -> OxcSpan {
-    annotation.map_or_else(|| pattern.span(), |a| pattern.span().merge(a))
 }
 
 impl<'s, 'a> Script<'s, 'a> {

@@ -22,14 +22,22 @@ impl TypeFacts {
             match node.kind() {
                 AstKind::BindingIdentifier(identifier) => {
                     if let Some(symbol) = identifier.symbol_id.get() {
-                        identifiers[symbol.index()].get_or_insert(node.id());
+                        identifiers[symbol.index()].get_or_insert_with(|| node.id());
                     }
                 }
                 AstKind::VariableDeclarator(declarator) => {
-                    annotate(&mut declared, &declarator.id, declarator.type_annotation.as_deref());
+                    annotate(
+                        &mut declared,
+                        &declarator.id,
+                        declarator.type_annotation.as_deref(),
+                    );
                 }
                 AstKind::CatchParameter(parameter) => {
-                    annotate(&mut declared, &parameter.pattern, parameter.type_annotation.as_deref());
+                    annotate(
+                        &mut declared,
+                        &parameter.pattern,
+                        parameter.type_annotation.as_deref(),
+                    );
                 }
                 AstKind::FormalParameter(parameter) => {
                     if parameter.optional {
@@ -39,7 +47,11 @@ impl TypeFacts {
                             declared[symbol.index()] = Some(ConditionType::Unknown);
                         }
                     } else {
-                        annotate(&mut declared, &parameter.pattern, parameter.type_annotation.as_deref());
+                        annotate(
+                            &mut declared,
+                            &parameter.pattern,
+                            parameter.type_annotation.as_deref(),
+                        );
                     }
                 }
                 AstKind::TSAsExpression(expression) => {

@@ -1,0 +1,3 @@
+{
+	"indent/invalid/ts/ts-class02-input.svelte": "TypeScript rejects `readonly protected` (TS1029); typescript-eslint parses it only because TypeScript reports the error from its checker"
+}

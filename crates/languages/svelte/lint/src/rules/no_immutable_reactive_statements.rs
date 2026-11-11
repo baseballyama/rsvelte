@@ -164,7 +164,7 @@ impl<'a> Checker<'a> {
             resolution,
             legacy,
             stores,
-            bound: bindings(component),
+            bound: bindings(file),
             each,
             mutable: FxHashMap::default(),
         }
