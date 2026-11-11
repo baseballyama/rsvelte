@@ -10,4 +10,4 @@
 	let value = $state('');
 </script>
 
-<input bind:value />
+<p style:color={value}>{value}</p>

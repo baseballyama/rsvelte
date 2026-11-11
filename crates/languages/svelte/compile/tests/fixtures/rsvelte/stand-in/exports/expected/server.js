@@ -5,5 +5,5 @@ export function double(n) {
 }
 export default function Exports($$renderer) {
 	let value = "";
-	$$renderer.push(`<input${$.attr("value", value)}/>`);
+	$$renderer.push(`<p${$.attr_style("", { color: value })}></p>`);
 }
