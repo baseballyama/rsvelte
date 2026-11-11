@@ -84,8 +84,8 @@ impl Fixtures {
         self
     }
 
-    /// Runs each case on its own. Against the snapshots a batched run writes, this shows that
-    /// no case's output depends on the others in its batch.
+    /// Runs each case on its own, or with its group (see `Case::group`). Against the snapshots a
+    /// batched run writes, this shows that no case's output depends on the others in its batch.
     #[must_use]
     pub const fn each_alone(mut self) -> Self {
         self.batches = Batches::Alone;
@@ -241,7 +241,7 @@ impl Fixtures {
         for project in cases.chunk_by(|a, b| match self.batches {
             Batches::All => true,
             Batches::PerProject => a.project() == b.project(),
-            Batches::Alone => false,
+            Batches::Alone => a.group() == b.group(),
         }) {
             projects.push((offset, project));
             offset += project.len();
@@ -281,6 +281,7 @@ enum Batches {
     All,
     /// The cases with the same first directory.
     PerProject,
+    /// Each case, or each group of cases that import each other.
     Alone,
 }
 
