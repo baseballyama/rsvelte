@@ -10,20 +10,34 @@ const TEMPLATE_USE_IMPORT_NODE: u32 = 2;
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `Fragment` visitor: the statements of one block.
     pub(super) fn fragment(&mut self, children: Children) -> R<Vec<Statement<'o>>> {
-        self.fragment_with_snippets(children, true)
+        self.fragment_without(children, |_| false)
     }
 
-    pub(super) fn fragment_with_snippets(
+    /// Upstream `Fragment` over the children but the snippets named so that `skipped` holds,
+    /// which the caller declares: the snippets come first (upstream `state.snippets`).
+    pub(super) fn fragment_without(
         &mut self,
         children: Children,
-        include_snippets: bool,
+        skipped: fn(&str) -> bool,
+    ) -> R<Vec<Statement<'o>>> {
+        let outer = std::mem::take(&mut self.snippets);
+        let body = self.fragment_body(children, skipped);
+        let mut snippets = std::mem::replace(&mut self.snippets, outer);
+        snippets.extend(body?);
+        Ok(snippets)
+    }
+
+    fn fragment_body(
+        &mut self,
+        children: Children,
+        skipped: fn(&str) -> bool,
     ) -> R<Vec<Statement<'o>>> {
         let b = self.b;
         let cleaned = self.plan.fragment(children);
         let items = &cleaned.items;
         let mut frag = Frag::default();
         let mut l = Lists::default();
-        self.fragment_hoisted(&cleaned.hoisted, include_snippets, &mut frag, &mut l)?;
+        self.fragment_hoisted(&cleaned.hoisted, skipped, &mut frag, &mut l)?;
         if items.is_empty() {
             l.initializer.append(&mut l.after);
             return Ok(l.initializer);
@@ -61,14 +75,19 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 let initial = Prev::Identifier(text.clone());
                 self.process_children(items, initial, false, &mut frag, &mut l)?;
                 Some((text, b.runtime("text", [])))
-            } else if let Some(component) = super::super::component::standalone_component(
+            } else if let Some(standalone) = super::super::component::standalone(
                 self.compiler_syntax_tree,
                 self.javascript,
                 self.res,
                 items,
             ) {
-                // A lone static component has no markup to clone, so it mounts at the anchor.
-                self.component(component, "$$anchor", true, &mut frag, &mut l)?;
+                // A lone static component or render tag has no markup to clone, so it mounts at
+                // the anchor.
+                if let NodeKind::Render { .. } = self.compiler_syntax_tree.node(standalone).kind {
+                    self.render_tag(standalone, "$$anchor", &mut frag, &mut l);
+                } else {
+                    self.component(standalone, "$$anchor", true, &mut frag, &mut l)?;
+                }
                 None
             } else {
                 let initial = Prev::Call {
@@ -106,20 +125,17 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     fn fragment_hoisted(
         &mut self,
         identifiers: &[CompilerNodeIdentifier],
-        include_snippets: bool,
+        skipped: fn(&str) -> bool,
         frag: &mut Frag<'o>,
         lists: &mut Lists<'o>,
     ) -> R<()> {
         for &identifier in identifiers {
-            if !include_snippets
-                && matches!(
-                    self.compiler_syntax_tree.node(identifier).kind,
-                    NodeKind::Snippet(_)
-                )
+            if let NodeKind::Snippet(snippet) = &self.compiler_syntax_tree.node(identifier).kind
+                && skipped(self.snippet_name(snippet))
             {
                 continue;
             }
-            self.special_element(identifier, "", frag, lists)?;
+            self.hoisted_element(identifier, frag, lists)?;
         }
         Ok(())
     }

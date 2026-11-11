@@ -8,7 +8,6 @@ pub(super) fn validate(
 ) -> Result<Option<super::custom_element::CustomElement>, Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
-    validate_snippet_parameters(input)?;
     let mut seen = 0_u8;
     let mut custom_element = None;
     for (identifier, element) in tree.elements() {
@@ -113,25 +112,6 @@ fn validate_globals(
             && super::event_attribute(source, attribute).is_none()
         {
             return unsupported("this global attribute", attribute.span);
-        }
-    }
-    Ok(())
-}
-
-fn validate_snippet_parameters(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
-    let component = input.component;
-    for node in &component.compiler_syntax_tree.nodes {
-        let NodeKind::Snippet(snippet) = &node.kind else {
-            continue;
-        };
-        if let Some(rest) =
-            (snippet.parameters).and_then(|p| component.javascript.get_parameters(p).rest.as_ref())
-        {
-            return invalid(
-                "snippet_invalid_rest_parameter",
-                "Snippets do not support rest parameters; use an array instead",
-                super::span_of(&**rest),
-            );
         }
     }
     Ok(())

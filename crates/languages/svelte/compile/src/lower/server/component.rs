@@ -47,18 +47,29 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 }
             }
         }
-        let children = self.fragment(element.children)?;
-        push_children(b, &mut parts, children, &["$$renderer"]);
+        // Upstream declares the snippet children in a block, so that they can be props without
+        // clashing with the parent's names.
+        let mut declarations = Vec::new();
+        let mut snippets = Vec::new();
+        for &child in tree.children(element.children) {
+            if let NodeKind::Snippet(snippet) = &tree.node(child).kind {
+                declarations.push(self.snippet_declaration(snippet)?);
+                snippets.push(self.snippet_name(snippet));
+            }
+        }
+        let children = self.fragment_without(element.children, |_| true)?;
+        push_children(b, &mut parts, &snippets, children, &["$$renderer"]);
         let props = props_expression(b, parts, Target::Server);
         let reference = reference(tree, identifier);
         let callee = self.expression(reference);
         let statement = b.stmt(b.call(callee, [b.id("$$renderer"), props]));
-        if is_dynamic(
+        let dynamic = is_dynamic(
             self.res,
             self.javascript
                 .get_expression(reference)
                 .get_inner_expression(),
-        ) {
+        );
+        let statement = if dynamic {
             let test = self.expression(reference);
             let consequent = b.block([
                 self.push_literal(BLOCK_OPEN),
@@ -69,12 +80,18 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 self.push_literal(BLOCK_OPEN_ELSE),
                 self.push_literal(BLOCK_CLOSE),
             ]);
-            template.push(Piece::Statement(b.if_(test, consequent, Some(alternate))));
+            b.if_(test, consequent, Some(alternate))
         } else {
-            template.push(Piece::Statement(statement));
-            if !standalone {
-                template.push(Piece::Text(EMPTY_COMMENT.into()));
-            }
+            statement
+        };
+        template.push(Piece::Statement(if declarations.is_empty() {
+            statement
+        } else {
+            declarations.push(statement);
+            b.block(declarations)
+        }));
+        if !dynamic && !standalone {
+            template.push(Piece::Text(EMPTY_COMMENT.into()));
         }
         Ok(())
     }

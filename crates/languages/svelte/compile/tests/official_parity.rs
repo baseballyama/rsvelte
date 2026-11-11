@@ -10,8 +10,18 @@ mod errors;
 
 /// The output, or the code of the diagnostic that refuses the source.
 fn compile(source: &str, target: Target) -> Result<String, String> {
-    let component =
-        rsvelte_svelte_syntax::parse::parse(source).map_err(|error| error.code.to_string())?;
+    compile_at(source, target).map_err(|(code, _)| code)
+}
+
+/// The output, or the error's code and where it is (UTF-8 bytes, which equal upstream's offsets
+/// in ASCII).
+fn compile_at(source: &str, target: Target) -> Result<String, (String, (u32, u32))> {
+    let component = rsvelte_svelte_syntax::parse::parse(source).map_err(|error| {
+        (
+            error.code.to_string(),
+            (error.span.start_offset, error.span.end_offset),
+        )
+    })?;
     let tree = compiler_syntax_tree::lower(&component, source);
     let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte");
     let resolution = resolve::resolve(
@@ -21,8 +31,12 @@ fn compile(source: &str, target: Target) -> Result<String, String> {
         &tree,
     );
     let analysis = analyze::analyze(&input, &resolution);
-    compile_input(&CompileInput::from(input), &resolution, &analysis, target)
-        .map_err(|error| error.code.to_string())
+    compile_input(&CompileInput::from(input), &resolution, &analysis, target).map_err(|error| {
+        (
+            error.code.to_string(),
+            (error.span.start_offset, error.span.end_offset),
+        )
+    })
 }
 
 fn compiled(source: &str, target: Target) -> String {

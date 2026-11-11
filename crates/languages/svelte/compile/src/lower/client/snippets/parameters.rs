@@ -23,10 +23,7 @@ struct Path<'o> {
 }
 
 impl<'o> ClientCompilationContext<'_, 'o> {
-    pub(in crate::lower::client::boundary) fn snippet_parameters(
-        &mut self,
-        snippet: &Snippet,
-    ) -> Parameters<'o> {
+    pub(super) fn snippet_parameters(&mut self, snippet: &Snippet) -> Parameters<'o> {
         let b = self.b;
         let parameters: &'o [FormalParameter<'o>] = snippet
             .parameters

@@ -16,6 +16,7 @@ mod prepare;
 mod rest_reads;
 mod script;
 mod server;
+mod snippets;
 mod special;
 mod template;
 
@@ -168,6 +169,7 @@ pub(crate) fn validate(
     if let Some(error) = res.syntax_error() {
         return Err(error.clone());
     }
+    snippets::validate(input, res)?;
     let custom_element = special::validate(input)?;
     validation::check_names(input, res)?;
     validation::markup::check(input)?;

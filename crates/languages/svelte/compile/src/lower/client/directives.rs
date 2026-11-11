@@ -19,7 +19,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 AttributeValue::Bind(expression)
                     if tag == "svelte:element" && a.name.text(self.source_text) == "this" =>
                 {
-                    let (get, set) = self.binding_accessors(expression, false);
+                    let (get, set) = self.bind_this_accessors(expression);
                     let call = b.runtime("bind_this", [b.id(node), set, get]);
                     directives.initializer.push(b.stmt(call));
                 }

@@ -48,6 +48,7 @@ pub(super) fn prepare<'c, 'o>(
         rest_reads: Some(&facts.validated.rest_reads),
         res,
         template: None,
+        shadows: None,
     };
     if let Some(program) = input.component.module {
         let statements = script::lower_script(

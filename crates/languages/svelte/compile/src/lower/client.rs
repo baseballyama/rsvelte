@@ -14,6 +14,7 @@ mod events;
 mod expressions;
 mod fragments;
 mod global_bindings;
+mod snippets;
 mod special;
 mod template;
 mod template_chunk;
@@ -161,6 +162,14 @@ struct ClientCompilationContext<'c, 'o> {
     custom_element: Option<&'c super::custom_element::CustomElement>,
     rest_reads: &'c FxHashSet<ReferenceId>,
     needs_props: bool,
+    /// The snippets the block being lowered declares (upstream `state.snippets`).
+    snippets: Vec<Statement<'o>>,
+    /// Top-level snippets that read only module-level names, declared after the imports.
+    module_snippets: Vec<Statement<'o>>,
+    /// The other top-level snippets, declared before the instance script.
+    instance_snippets: Vec<Statement<'o>>,
+    hoistable: FxHashSet<SymbolId>,
+    shadows: FxHashMap<SymbolId, SymbolId>,
 }
 
 pub(super) fn lower_prepared<'c, 'o>(
@@ -206,6 +215,11 @@ pub(super) fn lower_prepared<'c, 'o>(
         custom_element,
         rest_reads: &facts.validated.rest_reads,
         needs_props: res.unresolved_names().any(|name| name == "$host"),
+        snippets: Vec::new(),
+        module_snippets: Vec::new(),
+        instance_snippets: Vec::new(),
+        hoistable: super::snippets::hoistable(input, res),
+        shadows: super::snippets::shadows(input, res),
     };
     let template = context.fragment(input.component.compiler_syntax_tree.root)?;
 
@@ -225,6 +239,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         .chain(context.hoisted)
         .partition(|statement| matches!(statement, Statement::ImportDeclaration(_)));
     program.extend(imports);
+    program.append(&mut context.module_snippets);
     program.extend(rest);
     program.extend(stylesheet);
     program.push(export_default(b, func));
@@ -285,7 +300,7 @@ impl Walk {
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     fn component_function(
-        &self,
+        &mut self,
         instance: Vec<Statement<'o>>,
         template: Vec<Statement<'o>>,
         exports: Vec<oxc_ast::ast::ObjectPropertyKind<'o>>,
@@ -301,6 +316,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if stylesheet {
             body.push(b.stmt(b.runtime("append_styles", [b.id("$$anchor"), b.id("$$css")])));
         }
+        body.append(&mut self.instance_snippets);
         body.extend(instance);
         if has_exports {
             body.push(b.var("$$exports", b.object(exports)));

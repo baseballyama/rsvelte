@@ -17,6 +17,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                         NodeKind::Element(_) => self.element(*identifier, template)?,
                         NodeKind::If { .. } => self.if_block(*identifier, template)?,
                         NodeKind::Each(_) => self.each_block(*identifier, template)?,
+                        NodeKind::Render { .. } => self.render_tag(*identifier, false, template),
                         _ => unreachable!("clean_nodes keeps only elements and blocks as nodes"),
                     }
                 }

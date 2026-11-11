@@ -20,7 +20,9 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             NodeKind::Text { .. }
             | NodeKind::Comment { .. }
             | NodeKind::Expression { .. }
-            | NodeKind::If { .. } => None,
+            | NodeKind::If { .. }
+            | NodeKind::Snippet(_)
+            | NodeKind::Render { .. } => None,
             NodeKind::Each(each) => each
                 .context
                 .is_none()
@@ -31,20 +33,6 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             }
             NodeKind::Key { .. } => Some("a `{#key}` block"),
             NodeKind::Await(_) => Some("an `{#await}` block"),
-            NodeKind::Snippet(snippet) => {
-                let parent_is_boundary = tree.node(identifier).parent.is_some_and(|parent| matches!(&tree.node(parent).kind, NodeKind::Element(element) if element.kind == ElementKind::Metadata(Some(MetadataTag::Boundary))));
-                if parent_is_boundary
-                    && matches!(
-                        input.component.javascript.get_expression(snippet.name).get_inner_expression(),
-                        Expression::Identifier(name) if matches!(name.name.as_str(), "failed" | "pending")
-                    )
-                {
-                    None
-                } else {
-                    Some("this snippet")
-                }
-            }
-            NodeKind::Render { .. } => Some("a `{@render}` tag"),
             NodeKind::Html { .. } => Some("an `{@html}` tag"),
             NodeKind::Const { .. } => Some("a `{@const}` tag"),
             NodeKind::Debug { .. } => Some("a `{@debug}` tag"),
