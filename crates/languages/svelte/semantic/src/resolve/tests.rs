@@ -311,7 +311,8 @@ fn an_instance_export_specifier_reassigns_and_a_module_one_does_not() {
     // Upstream's `ExportSpecifier` visitor: instance scripts only.
     let source = "<script module>let moduleLocal = 1; export { moduleLocal };</script>\
                   <script>let klass = ''; let counter = $state(0); let { prop = 1 } = $props();\
-                  let handler = () => 0; export { klass as class, counter, prop, handler };</script>\
+                  let handler = () => 0; export { klass as class, counter, prop, handler \
+                      };</script>\
                   <div class={klass}></div>";
     let res = analyze(source);
     let [klass, counter, prop, handler, module_local] =

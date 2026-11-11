@@ -350,7 +350,8 @@ fn generics_declare_and_read_names() {
     assert_eq!(
         unused(
             "<script lang=\"ts\" module>import type { Item } from './x'; type T = unknown;</script>\
-             <script lang=\"ts\" generics=\"T extends Item\">let { a }: { a: T } = $props();</script>{a}"
+             <script lang=\"ts\" generics=\"T extends Item\">let { a }: { a: T } = \
+                 $props();</script>{a}"
         ),
         Vec::<String>::new()
     );

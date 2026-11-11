@@ -73,10 +73,12 @@ impl SvelteRule for NoTargetBlank {
                 }
                 let external = attributes.iter().filter(plain).any(|attribute| {
                     attribute.name.text(source) == "href"
-                        && matches!(
-                            parts(component, attribute).first(),
-                            Some(Part::Text(text)) if is_external(&decode_attribute(text.text(source)))
-                        )
+                        && match parts(component, attribute).first() {
+                            Some(Part::Text(text)) => {
+                                is_external(&decode_attribute(text.text(source)))
+                            }
+                            _ => false,
+                        }
                 });
                 let dynamic = named("href").map_or_else(
                     || {

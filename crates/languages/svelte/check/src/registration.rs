@@ -111,7 +111,20 @@ fn typescript_view(
     env: Option<&Result<Arc<TypeScriptEnv>, String>>,
 ) -> Result<TypeScriptDocument, Diagnostic> {
     // svelte-check type-checks a component whose style sheet does not parse.
-    let component = context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
+    let component = match context.get::<Parsed>() {
+        Ok(component) => component,
+        // svelte2tsx throws Svelte's parse error, which svelte-check reports with its link.
+        Err(error) => {
+            return Ok(TypeScriptDocument::Rejected {
+                message: format!("{}\nhttps://svelte.dev/e/{}", error.message, error.code),
+                span: if error.has_end {
+                    error.span
+                } else {
+                    Span::new(error.span.start_offset, error.span.start_offset)
+                },
+            });
+        }
+    };
     if !component
         .instance
         .as_ref()

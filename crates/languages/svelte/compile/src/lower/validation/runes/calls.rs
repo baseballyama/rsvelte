@@ -79,7 +79,8 @@ impl RuneWalk<'_> {
                     (
                         code,
                         format!(
-                            "`{rune}()` can only be used at the top level of components as a variable declaration initializer"
+                            "`{rune}()` can only be used at the top level of components as a \
+                                variable declaration initializer"
                         ),
                     )
                 } else {

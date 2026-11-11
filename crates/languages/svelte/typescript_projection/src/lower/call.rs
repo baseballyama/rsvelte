@@ -1,7 +1,9 @@
 //! The calls that check an element, a component or a slot against its attributes.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, Range};
+use rsvelte_svelte_syntax::syntax_tree::{
+    AttributeKind, AttributeValue, Part, Range, TemplateNode,
+};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{Builder, Node, NodeIdentifier, Result, Unsupported};
@@ -87,6 +89,22 @@ impl Builder<'_> {
         self.tree.push(Node::String {
             parts,
             template: false,
+        })
+    }
+
+    /// Whether a child fills a named slot with `let:`, which reads the component's slots.
+    pub(super) fn fills_slot_with_lets(&self, children: Range) -> bool {
+        self.component.children(children).iter().any(|&child| {
+            matches!(
+                *self.component.node(child),
+                TemplateNode::Element { attributes, .. }
+                    if self.has_slot(attributes)
+                        && self
+                            .component
+                            .attributes(attributes)
+                            .iter()
+                            .any(|a| a.kind == AttributeKind::Let)
+            )
         })
     }
 

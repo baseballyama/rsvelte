@@ -87,7 +87,7 @@ pub(super) fn prepare<'c, 'o>(
 }
 
 /// The names the source declares or reads, which a generated name avoids.
-pub(super) fn names(res: &Resolution) -> names::Names {
+pub(super) fn names(res: &Resolution) -> names::Names<'_> {
     let scoping = res.scoping();
     // Upstream erases types before it builds scopes, so a type's name is free.
     let declared = scoping
@@ -114,12 +114,12 @@ pub(super) fn names(res: &Resolution) -> names::Names {
 /// block itself.
 fn each_index_names(
     compiler_syntax_tree: &CompilerSyntaxTree,
-    names: &mut names::Names,
+    names: &mut names::Names<'_>,
 ) -> FxHashMap<CompilerNodeIdentifier, String> {
     fn walk(
         compiler_syntax_tree: &CompilerSyntaxTree,
         list: Children,
-        names: &mut names::Names,
+        names: &mut names::Names<'_>,
         out: &mut FxHashMap<CompilerNodeIdentifier, String>,
     ) {
         for &identifier in compiler_syntax_tree.children(list) {

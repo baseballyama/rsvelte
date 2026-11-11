@@ -1,4 +1,5 @@
 mod attribute;
+mod attributes;
 mod binding;
 mod call;
 mod children;
@@ -44,6 +45,7 @@ pub fn lower<'a>(
         component_name: None,
         directives: directive::Directives::default(),
         root_snippets: None,
+        slot_parent: None,
     };
     // svelte2tsx moves the root's snippets after the instance script's imports, or leaves them in
     // place without an instance script.
@@ -116,6 +118,8 @@ struct Builder<'a> {
     directives: directive::Directives,
     /// The root's snippets, which the instance script holds after its imports.
     root_snippets: Option<NodeIdentifier>,
+    /// The component whose children are being lowered, whose named slots their `let:` read.
+    slot_parent: Option<NodeIdentifier>,
 }
 
 /// The source text at `at`, whose mapping ends at `end` when that is not its own end.
@@ -350,56 +354,22 @@ impl Builder<'_> {
             self.scratch
                 .push(self.tree.push(Node::ImplicitChildren(at)));
         }
-        let mut bindings = Vec::new();
         let mut directives = std::mem::take(&mut self.directives);
         directives.clear();
-        for attribute in self.component.attributes(attributes) {
-            match attribute.kind {
-                AttributeKind::Bind => {
-                    bindings.push(self.binding(attribute, tag, is_component, intrinsic)?);
-                }
-                AttributeKind::On if intrinsic => {
-                    let property = self.event_property(attribute)?;
-                    self.scratch.push(property);
-                }
-                AttributeKind::On if is_component => {
-                    let event = self.component_event(attribute)?;
-                    directives.events.push(event);
-                }
-                AttributeKind::Let if is_component && !self.has_slot(attributes) => {
-                    let property = self.component_let(attribute)?;
-                    directives.lets.push(property);
-                }
-                AttributeKind::Use
-                | AttributeKind::Transition { .. }
-                | AttributeKind::Animate
-                | AttributeKind::Style
-                    if intrinsic =>
-                {
-                    self.directive(attribute, name, &mut directives)?;
-                }
-                AttributeKind::On
-                | AttributeKind::Use
-                | AttributeKind::Transition { .. }
-                | AttributeKind::Animate
-                | AttributeKind::Style
-                | AttributeKind::Let => {
-                    return Err(Unsupported::at("directives", attribute.span));
-                }
-                AttributeKind::Class if !is_component => {}
-                AttributeKind::Class | AttributeKind::Attach if is_component => {
-                    return Err(Unsupported::at("component directives", attribute.span));
-                }
-                // svelte2tsx passes a slot's name, and a dynamic component, outside the props.
-                AttributeKind::Attribute
-                    if (slot && attribute.name.text(self.source) == "name")
-                        || (dynamic && attribute.name.text(self.source) == "this") => {}
-                _ => {
-                    let property = self.attribute(attribute, intrinsic, custom_element);
-                    self.scratch.push(property);
-                }
-            }
-        }
+        let kind = match (is_component, slot) {
+            (true, _) => attributes::Kind::Component,
+            (false, true) => attributes::Kind::Slot,
+            (false, false) => attributes::Kind::Element {
+                custom: custom_element,
+            },
+        };
+        let host = attributes::Host {
+            name,
+            kind,
+            dynamic,
+        };
+        let bindings = self.element_attributes(&host, attributes, &mut directives)?;
+        self.slot_let(attributes, &mut directives)?;
         // `<svelte:boundary>`'s snippets are its props, as a component's are.
         let snippet_props = is_component || tag == "svelte:boundary";
         let snippets = self.snippet_props(children, snippet_props)?;
@@ -410,7 +380,9 @@ impl Builder<'_> {
                 component,
                 properties,
                 snippets,
-                !directives.events.is_empty() || !directives.lets.is_empty(),
+                !directives.events.is_empty()
+                    || !directives.lets.is_empty()
+                    || self.fills_slot_with_lets(children),
             )
         } else if slot {
             (self.slot_call(attributes, properties)?, None)
@@ -423,7 +395,9 @@ impl Builder<'_> {
         let lets = self.after_call(call, named, bindings, snippets, &directives);
         self.directives = directives;
         self.class_expressions(attributes);
+        let parent = std::mem::replace(&mut self.slot_parent, named);
         self.element_children(children, snippet_props, lets)?;
+        self.slot_parent = parent;
         let body = self.finish_list(start);
         Ok(self.tree.push(Node::Block { body }))
     }
@@ -438,6 +412,7 @@ impl Builder<'_> {
         snippets: Range,
         directives: &directive::Directives,
     ) -> Option<usize> {
+        self.scratch.extend(directives.slot_let);
         self.scratch.extend_from_slice(&directives.actions);
         self.bound_call(call, bindings);
         self.scratch.extend_from_slice(&directives.checks);

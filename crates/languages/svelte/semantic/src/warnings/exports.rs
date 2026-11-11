@@ -81,13 +81,18 @@ pub(super) fn unused_exports(
                 })
         });
         if !used && !subscribed.contains(text) {
-            out.push(Stage::Bindings, 0, warning(
-                "export_let_unused",
-                &format!(
-                    "Component has unused export property '{text}'. If it is for external reference only, please consider using `export const {text}`"
+            out.push(
+                Stage::Bindings,
+                0,
+                warning(
+                    "export_let_unused",
+                    &format!(
+                        "Component has unused export property '{text}'. If it is for external \
+                        reference only, please consider using `export const {text}`"
+                    ),
+                    span(scoping.symbol_span(symbol)),
                 ),
-                span(scoping.symbol_span(symbol)),
-            ));
+            );
         }
     }
 }

@@ -39,7 +39,12 @@ impl Template<'_, '_> {
                 .children(children)
                 .iter()
                 .map(|&c| component.node(c))
-                .filter(|n| !matches!(n, TemplateNode::Text { span } if trim_ecmascript(span.text(source)).is_empty()))
+                .filter(|n| {
+                    let TemplateNode::Text { span } = n else {
+                        return true;
+                    };
+                    !trim_ecmascript(span.text(source)).is_empty()
+                })
                 .map(|n| Some(Item::Node(n.span())))
                 .collect();
             self.script.layout.list(

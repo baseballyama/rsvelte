@@ -363,11 +363,11 @@ impl Resolution {
         let AstKind::IdentifierReference(identifier) = nodes.kind(node) else {
             return false;
         };
-        matches!(
-            nodes.parent_kind(node),
-            AstKind::CallExpression(call)
-                if matches!(&call.callee, Expression::Identifier(callee) if callee.span == identifier.span)
-        ) && RUNES.contains(&identifier.name.as_str())
+        let AstKind::CallExpression(call) = nodes.parent_kind(node) else {
+            return false;
+        };
+        matches!(&call.callee, Expression::Identifier(callee) if callee.span == identifier.span)
+            && RUNES.contains(&identifier.name.as_str())
     }
 
     /// The scope the reference `reference` is in.

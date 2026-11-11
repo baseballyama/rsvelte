@@ -77,7 +77,8 @@ fn an_export_specifier_reassigns_its_binding() {
 
 #[test]
 fn only_a_reference_below_a_state_argument_suggests_a_derived() {
-    let source = "<script>\n  let { a, b } = $props();\n  let c = $state(a);\n  let d = $state([b]);\n</script>\n";
+    let source = "<script>\n  let { a, b } = $props();\n  let c = $state(a);\n  let d = \
+        $state([b]);\n</script>\n";
     let kinds: Vec<(String, bool)> = compiled(source)
         .into_iter()
         .filter(|(c, ..)| c == "state_referenced_locally")
@@ -88,7 +89,9 @@ fn only_a_reference_below_a_state_argument_suggests_a_derived() {
 
 #[test]
 fn state_is_read_locally_at_its_own_function_depth() {
-    let source = "<script>\n  console.log(a);\n  var a = $state(1);\n  a = 2;\n  function f() {\n    let b = $state(1);\n    b = 2;\n    b;\n    () => b;\n  }\n  export { a };\n</script>\n";
+    let source = "<script>\n  console.log(a);\n  var a = $state(1);\n  a = 2;\n  function f() \
+        {\n    let b = $state(1);\n    b = 2;\n    b;\n    () => b;\n  }\n  export { a \
+        };\n</script>\n";
     // Only `b;`: `a` is read before its declarator, `() => b` is a function deeper, and the
     // export specifier's name is not visited.
     assert_eq!(texts("state_referenced_locally", source), ["b"]);
@@ -149,7 +152,9 @@ fn a_div_with_a_click_handler_needs_a_key_handler_and_a_role() {
         [
             pair(
                 "a11y_click_events_have_key_events",
-                "Visible, non-interactive element `<div>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate"
+                "Visible, non-interactive element `<div>` with a click event must be accompanied \
+                    by a keyboard event handler. Consider whether an interactive element such as \
+                    `<button type=\"button\">` or `<a>` might be more appropriate"
             ),
             pair(
                 "a11y_no_static_element_interactions",
@@ -170,7 +175,8 @@ fn a_link_needs_a_label_and_somewhere_to_go() {
         [
             pair(
                 "a11y_consider_explicit_label",
-                "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute"
+                "Buttons and links should either contain text or have an `aria-label`, \
+                    `aria-labelledby` or `title` attribute"
             ),
             pair(
                 "a11y_invalid_attribute",
@@ -182,7 +188,8 @@ fn a_link_needs_a_label_and_somewhere_to_go() {
             ),
             pair(
                 "a11y_consider_explicit_label",
-                "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute"
+                "Buttons and links should either contain text or have an `aria-label`, \
+                    `aria-labelledby` or `title` attribute"
             ),
         ]
     );
@@ -192,7 +199,8 @@ fn a_link_needs_a_label_and_somewhere_to_go() {
 fn a_role_is_checked_token_by_token() {
     assert_eq!(
         messages(
-            "<ul><li><figure role=\"figure\"><img alt=\"\" /></figure></li></ul><div role=\"buton\"></div><article role=\"button\"></article>"
+            "<ul><li><figure role=\"figure\"><img alt=\"\" /></figure></li></ul><div \
+                role=\"buton\"></div><article role=\"button\"></article>"
         ),
         [
             pair("a11y_no_redundant_roles", "Redundant role 'figure'"),
@@ -269,7 +277,8 @@ fn the_selectors_of_a_global_block_are_used() {
 
 #[test]
 fn a_comment_in_a_default_slot_warns_once() {
-    let source = "<script>\n  import C from './C.svelte';\n</script>\n<C>\n  <!-- svelte-ignore a11y-autofocus -->\n  <div></div>\n  <input autofocus />\n</C>\n";
+    let source = "<script>\n  import C from './C.svelte';\n</script>\n<C>\n  <!-- svelte-ignore \
+        a11y-autofocus -->\n  <div></div>\n  <input autofocus />\n</C>\n";
     // Upstream warns twice and ignores the later `<input>` too; see `upstream_issues.md`.
     assert_eq!(texts("legacy_code", source), ["a11y-autofocus"]);
     assert_eq!(texts("a11y_autofocus", source), ["autofocus"]);
@@ -277,7 +286,8 @@ fn a_comment_in_a_default_slot_warns_once() {
 
 #[test]
 fn a_rune_named_after_a_binding_subscribes_to_a_store() {
-    let source = "<script>\n  import { state } from './s.js';\n  let foo = $state(0);\n  foo = 1;\n</script>\n{foo}\n";
+    let source = "<script>\n  import { state } from './s.js';\n  let foo = $state(0);\n  foo = \
+        1;\n</script>\n{foo}\n";
     // `foo` is no state, so updating it does not render.
     assert_eq!(texts("store_rune_conflict", source), ["$state"]);
     assert_eq!(texts("non_reactive_update", source), ["foo"]);
@@ -285,7 +295,8 @@ fn a_rune_named_after_a_binding_subscribes_to_a_store() {
 
 #[test]
 fn store_rune_conflicts_come_name_by_name() {
-    let source = "<script>\n  import { state, effect } from './s.js';\n  $state(1);\n  $effect(() => {});\n  $state(2);\n</script>\n";
+    let source = "<script>\n  import { state, effect } from './s.js';\n  $state(1);\n  $effect(() \
+        => {});\n  $state(2);\n</script>\n";
     // Upstream warns each name's references together, in the order the names first appear.
     assert_eq!(
         texts("store_rune_conflict", source),
@@ -320,7 +331,8 @@ fn the_tables_come_from_the_svelte_the_oracle_installs() {
                 .strip_prefix("// svelte ")
                 .and_then(|rest| rest.split(',').next()),
             Some(pinned),
-            "{header}: the oracle installs svelte {pinned}; run `node tools/oracle/oracle.ts warnings`"
+            "{header}: the oracle installs svelte {pinned}; run `node tools/oracle/oracle.ts \
+                warnings`"
         );
     }
 }
@@ -337,9 +349,11 @@ fn every_checked_code_is_a_svelte_code() {
 fn a_script_comment_ignores_a_local_state_reference() {
     for script in [
         "let count = $state(0);\n// svelte-ignore state_referenced_locally\nlet x = count;",
-        "let count = $state(0);\nlet x = $derived(1);\n// svelte-ignore state_referenced_locally\nconsole.log(count);",
+        "let count = $state(0);\nlet x = $derived(1);\n// svelte-ignore \
+            state_referenced_locally\nconsole.log(count);",
         "let { a } = $props();\n// svelte-ignore state_referenced_locally\nconst b = a;",
-        "let count = $state(0) as number;\n// svelte-ignore state_referenced_locally\nlet x = count;",
+        "let count = $state(0) as number;\n// svelte-ignore state_referenced_locally\nlet x = \
+            count;",
     ] {
         let lang = if script.contains(" as ") {
             " lang=\"ts\""
@@ -393,8 +407,10 @@ fn an_erased_or_parameter_dollar_name_is_no_binding() {
 
 #[test]
 fn a_cast_attribute_value_selects_as_its_value() {
-    let source = "<script lang=\"ts\">\n\t//\n</script>\n\n<div data-active={false as true}>\n\t<span></span>\n</div>\n\n\
-                  <style>\n\t[data-active='true'] > span {\n\t\tbackground-color: red;\n\t}\n</style>\n";
+    let source = "<script lang=\"ts\">\n\t//\n</script>\n\n<div data-active={false as \
+        true}>\n\t<span></span>\n</div>\n\n\
+                  <style>\n\t[data-active='true'] > span {\n\t\tbackground-color: \
+                      red;\n\t}\n</style>\n";
     let codes: Vec<String> = compiled(source)
         .into_iter()
         .map(|(code, ..)| code)

@@ -285,7 +285,8 @@ pub(super) fn rune_placement(
             if !placed.contains(&call) {
                 let found = error(
                     "props_invalid_placement",
-                    "`$props()` can only be used at the top level of components as a variable declaration initializer",
+                    "`$props()` can only be used at the top level of components as a variable \
+                        declaration initializer",
                     at,
                 );
                 out.push((walk(section, at.start_offset), found));
@@ -380,7 +381,10 @@ pub(super) fn custom_element(
             if let Some(at) = at {
                 out.push(Stage::Walk(Section::Instance), declarator.span.start, warning(
                     "custom_element_props_identifier",
-                    "Using a rest element or a non-destructured declaration with `$props()` means that Svelte can't infer what properties to expose when creating a custom element. Consider destructuring all the props or explicitly specifying the `customElement.props` option.",
+                    "Using a rest element or a non-destructured declaration with `$props()` means \
+                        that Svelte can't infer what properties to expose when creating a custom \
+                        element. Consider destructuring all the props or explicitly specifying the \
+                        `customElement.props` option.",
                     span(at),
                 ));
             }

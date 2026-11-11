@@ -19,6 +19,10 @@ pub(super) struct Directives {
     pub(super) events: Vec<Range>,
     /// The properties of the pattern that a component's `let:` directives destructure.
     pub(super) lets: Vec<NodeIdentifier>,
+    /// The same for an element that fills a named slot of its parent component.
+    pub(super) slot_lets: Vec<NodeIdentifier>,
+    /// svelte2tsx's `const { … } = parent.$$slot_def["name"]` of those, before the element.
+    pub(super) slot_let: Option<NodeIdentifier>,
 }
 
 impl Directives {
@@ -28,6 +32,8 @@ impl Directives {
         self.checks.clear();
         self.events.clear();
         self.lets.clear();
+        self.slot_lets.clear();
+        self.slot_let = None;
     }
 }
 
@@ -129,6 +135,52 @@ impl Builder<'_> {
         let value = self.tree.push(Node::Member { object, property });
         self.scratch
             .push(self.tree.push(Node::Const { name, value }));
+    }
+
+    /// Builds the declaration of the named slot's `let:` bindings, from the parent component.
+    pub(super) fn slot_let(
+        &mut self,
+        attributes: Range,
+        directives: &mut Directives,
+    ) -> Result<()> {
+        if directives.slot_lets.is_empty() {
+            return Ok(());
+        }
+        let Some(slot) = self
+            .component
+            .attributes(attributes)
+            .iter()
+            .find(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "slot")
+        else {
+            return Ok(());
+        };
+        let unsupported = || Unsupported::at("directives", slot.span);
+        let name = match slot.value {
+            AttributeValue::Parts(parts) => match self.component.parts(parts) {
+                &[Part::Text(text)] => Some(text),
+                _ => None,
+            },
+            AttributeValue::True => None,
+        }
+        .ok_or_else(unsupported)?;
+        let parent = self.slot_parent.ok_or_else(unsupported)?;
+        let properties = self.tree.list(&directives.slot_lets);
+        let pattern = self.tree.push(Node::Object { properties });
+        let object = self.instance(parent);
+        let property = self.tree.push(Node::Identifier("$$slot_def"));
+        let object = self.tree.push(Node::Member { object, property });
+        let text = self.tree.push(Node::Text(name));
+        let parts = self.tree.list(&[text]);
+        let index = self.tree.push(Node::String {
+            parts,
+            template: false,
+        });
+        let value = self.tree.push(Node::Index { object, index });
+        directives.slot_let = Some(self.tree.push(Node::Const {
+            name: pattern,
+            value,
+        }));
+        Ok(())
     }
 
     /// `__rsvelte_instance(component)`: the instance svelte2tsx constructs.

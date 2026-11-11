@@ -315,7 +315,8 @@ impl<'a> RuneWalk<'a> {
         if place.rendering && suspends {
             return crate::lower::special::invalid(
                 "experimental_async",
-                "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`",
+                "Cannot use `await` in deriveds and template expressions, or at the top level of a \
+                    component, unless the `experimental.async` compiler option is `true`",
                 span_of(&kind),
             );
         }
