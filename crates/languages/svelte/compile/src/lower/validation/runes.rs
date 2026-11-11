@@ -18,7 +18,9 @@ mod assignments;
 mod calls;
 mod places;
 
-use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
+use assignments::{
+    awaits_in_default, check_assignment, fixed_expression, fixed_simple, fixed_target,
+};
 use places::place_of;
 
 use super::state_invalid_placement;
@@ -368,11 +370,17 @@ impl<'a> RuneWalk<'a> {
                     span_of(assign)
                 })?;
                 self.check_field_assignment(assign.left.as_member_expression(), assign.span)?;
+                // Only a script's rewrite has the names its `$$array`s take.
+                let scripted = matches!(
+                    self.frames.first().map(|f| f.kind),
+                    Some(AstKind::Program(_))
+                );
                 if matches!(
                     assign.left,
                     AssignmentTarget::ArrayAssignmentTarget(_)
                         | AssignmentTarget::ObjectAssignmentTarget(_)
-                ) {
+                ) && (!scripted || awaits_in_default(&assign.left))
+                {
                     self.check_pattern_assignment(span_of(assign), &assign.left, self.target)?;
                 }
             }
