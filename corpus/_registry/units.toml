@@ -15,6 +15,15 @@
 "svelte.check" = "upstream bug: svelte2tsx deletes an instance-script `export { foo } from` and reads `foo` only in generated code, so svelte-check hides both the unresolved module and the unbound name"
 "svelte.compile" = "upstream bug: svelte 5.57.3 exports `foo` from an instance-script `export { foo } from`, which binds no local `foo`, so the component throws a ReferenceError"
 
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-input.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `foo` from an instance-script `export { foo } from`, which binds no local `foo`, so the component throws a ReferenceError"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-output.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `foo` from an instance-script `export { foo } from`, which binds no local `foo`, so the component throws a ReferenceError"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal06-input.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `inspect` from an instance-script `export { inspect } from`, which binds no local `inspect`, so the component throws a ReferenceError"
+
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-abstract-accessor-property-input.svelte".skip]
 "svelte.compile" = "svelte 5.57.3 leaves the TypeScript `abstract accessor` in the emitted JS, which does not parse"
 

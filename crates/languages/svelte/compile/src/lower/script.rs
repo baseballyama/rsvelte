@@ -445,11 +445,12 @@ pub(super) fn lower_script<'t, 'o>(
                 exports::check_specifiers(rw.res, export, exports)?;
             }
             Statement::ImportDeclaration(_) => hoisted.push(rw.statement(statement)),
+            // Upstream drops a re-export of everything, which names nothing the component can
+            // export.
+            Statement::ExportAllDeclaration(_) if instance => {}
             // Upstream turns these into the component's exports; copying them would put an
             // `export` inside the component function.
-            Statement::ExportDefaultDeclaration(_)
-            | Statement::ExportFromDeclaration(_)
-            | Statement::ExportAllDeclaration(_)
+            Statement::ExportDefaultDeclaration(_) | Statement::ExportFromDeclaration(_)
                 if instance =>
             {
                 return unsupported("an export from the instance script", span_of(statement));
