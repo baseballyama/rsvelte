@@ -32,8 +32,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 Prop::Spread(e) => parts.push(Entry::Spread(self.expression(e))),
                 Prop::Bind(a, target) => {
                     let value = self.expression(target);
+                    let source = self.javascript.get_expression(target);
+                    let store = self.rewrite().store_binding(source);
                     let written = self.expression(target);
                     let assignment = match written {
+                        _ if let Some(store) = store => store,
                         oxc_ast::ast::Expression::Identifier(name) => {
                             b.assign_name(&name.name, b.id("$$value"))
                         }

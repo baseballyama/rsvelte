@@ -140,9 +140,18 @@ pub(super) fn lower_prepared<'c, 'o>(
     } else {
         snippets.extend(template);
     }
-    let template = snippets;
+    let mut template = snippets;
+    let stores = !facts.validated.stores.is_empty();
+    if stores {
+        let unsubscribe = b.stmt(b.runtime("unsubscribe_stores", [b.id("$$store_subs")]));
+        template.push(b.if_(b.id("$$store_subs"), unsubscribe, None));
+    }
 
-    let mut body: Vec<Statement<'o>> = instance;
+    let mut body: Vec<Statement<'o>> = Vec::with_capacity(instance.len() + template.len() + 2);
+    if stores {
+        body.push(b.declare(VariableDeclarationKind::Var, "$$store_subs", None));
+    }
+    body.extend(instance);
     body.extend(template);
     body.extend(bind_props(b, res, &exports));
     if an.needs_context {

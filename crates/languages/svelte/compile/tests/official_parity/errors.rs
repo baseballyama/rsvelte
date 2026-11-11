@@ -320,7 +320,7 @@ fn a_reserved_or_legacy_name_raises_upstreams_error_on_both_targets() {
         ),
         (
             "<script lang=\"ts\">import { writable } from 'svelte/store'; const a = writable(1); declare const $a: number;</script>{$a}",
-            Some("unsupported"),
+            None,
         ),
     ] {
         for target in [Target::Client, Target::Server] {
@@ -520,5 +520,46 @@ fn a_snippet_upstream_declares_beside_a_let_of_its_name_is_refused_on_the_server
             server,
             "{source}"
         );
+    }
+}
+
+#[test]
+fn a_store_subscription_raises_upstreams_error_where_upstream_does() {
+    let store = "import { writable } from 'svelte/store'; const a = writable(1);";
+    for (source, expected) in [
+        (
+            format!("<script module>{store} console.log($a);</script>"),
+            Some(("store_invalid_subscription", (91, 93))),
+        ),
+        (
+            format!("<script>{store} function f(a) {{ return $a; }}</script>"),
+            Some(("store_invalid_scoped_subscription", (95, 97))),
+        ),
+        (
+            format!("<script>{store}</script>{{#each [1] as a}}{{$a}}{{/each}}"),
+            Some(("store_invalid_scoped_subscription", (97, 99))),
+        ),
+        (
+            "<script>let x = $y;</script>".to_owned(),
+            Some(("global_reference_invalid", (16, 18))),
+        ),
+        (
+            "<p>{$}</p>".to_owned(),
+            Some(("global_reference_invalid", (4, 5))),
+        ),
+        (
+            "<p>{$$x}</p>".to_owned(),
+            Some(("global_reference_invalid", (4, 7))),
+        ),
+        ("<p>{$Foo}</p>".to_owned(), None),
+        (format!("<script>{store}</script><p>{{$a}}</p>"), None),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(
+                compile_at(&source, target).err(),
+                expected.map(|(code, span)| (code.to_owned(), span)),
+                "{source} on {target:?}"
+            );
+        }
     }
 }

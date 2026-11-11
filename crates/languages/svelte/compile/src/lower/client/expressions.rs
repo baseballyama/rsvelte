@@ -35,6 +35,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             res: self.res,
             template: Some(&self.reads),
             shadows: Some(&self.shadows),
+            stores: self.stores,
+            untracked: None,
+            invalidates: Some(&self.invalidates),
         }
     }
 

@@ -1,4 +1,4 @@
-use oxc_ast::ast::Ident;
+use oxc_semantic::ReferenceId;
 use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
 use rsvelte_svelte_syntax::names::{is_mathml, is_svg};
@@ -37,6 +37,7 @@ pub(crate) fn check_foreign_element(source_text: &str, name: Span) -> Result<(),
 pub(super) fn check_analysis(
     input: &CompileInput<'_>,
     res: &Resolution,
+    names: &super::stores::Names<'_>,
     mut errors: Vec<(Raised, Diagnostic)>,
 ) -> Result<(), Diagnostic> {
     let component = input.component;
@@ -61,6 +62,7 @@ pub(super) fn check_analysis(
     if let Some((_, error)) = errors.next_if(|(raised, _)| raised.phase == Phase::Scopes) {
         return Err(error);
     }
+    names.check(input, res)?;
     check_legacy_props(res)?;
     errors.next().map_or(Ok(()), |(_, error)| Err(error))
 }
@@ -83,8 +85,24 @@ fn check_legacy_props(res: &Resolution) -> Result<(), Diagnostic> {
 }
 
 /// The first value reference, in document order, to a name no binding declares that `wanted`
-/// takes. Upstream erases a `declare`d name, so it declares nothing.
+/// takes.
 fn first_unresolved(res: &Resolution, wanted: impl Fn(&str) -> bool) -> Option<(&str, Span)> {
+    unbound(res, wanted)
+        .flat_map(|(name, references)| {
+            references
+                .into_iter()
+                .map(move |r| (name, res.reference_span(r)))
+        })
+        .min_by_key(|(_, span)| span.start)
+        .map(|(name, span)| (name, Span::new(span.start, span.end)))
+}
+
+/// Each name no binding declares that `wanted` takes, with its value references. Upstream erases a
+/// `declare`d name, so it declares nothing.
+pub(super) fn unbound(
+    res: &Resolution,
+    wanted: impl Fn(&str) -> bool,
+) -> impl Iterator<Item = (&str, Vec<ReferenceId>)> {
     let scoping = res.scoping();
     let ambient = (scoping.symbol_ids())
         .filter(|&s| scoping.symbol_flags(s).contains(SymbolFlags::Ambient))
@@ -97,52 +115,25 @@ fn first_unresolved(res: &Resolution, wanted: impl Fn(&str) -> bool) -> Option<(
     (scoping.root_unresolved_references().iter())
         .map(|(name, references)| (name.as_str(), references.as_slice()))
         .chain(ambient)
-        .filter(|(name, _)| wanted(name))
-        .flat_map(|(name, references)| {
-            references
-                .iter()
-                .filter(|&&r| scoping.get_reference(r).flags().is_value())
-                .map(move |&r| (name, res.reference_span(r)))
+        .filter(move |(name, _)| wanted(name))
+        .map(|(name, references)| {
+            let values = (references.iter().copied())
+                .filter(|&r| scoping.get_reference(r).flags().is_value())
+                .collect();
+            (name, values)
         })
-        .min_by_key(|(_, span)| span.start)
-        .map(|(name, span)| (name, Span::new(span.start, span.end)))
 }
 
-/// Refuses a `$name` reference that upstream's analysis turns into a store subscription (its
-/// synthetic `store_sub` bindings); this port has no store support.
-///
-/// Also refuses `$$slots`, which upstream declares from `$.sanitize_slots`.
+/// Refuses `$$slots`, which upstream declares from `$.sanitize_slots`.
 ///
 /// # Errors
 ///
-/// Upstream's `global_reference_invalid` for an undeclared store, or an `unsupported`
-/// [`Diagnostic`], at the first such reference.
-pub(super) fn check_stores(_input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
-    let first = first_unresolved(res, |name| {
-        name == "$$slots" || res.is_store_subscription(name)
-    });
-    let Some((name, span)) = first else {
-        return Ok(());
-    };
-    if name == "$$slots" {
-        return unsupported("`$$slots`", span);
+/// An `unsupported` [`Diagnostic`] at its first reference.
+pub(super) fn check_slots(res: &Resolution) -> Result<(), Diagnostic> {
+    match first_unresolved(res, |name| name == "$$slots") {
+        Some((_, span)) => unsupported("`$$slots`", span),
+        None => Ok(()),
     }
-    // In runes mode upstream reads an undeclared lowercase store as a misspelt global.
-    let store = &name[1..];
-    let declared = res
-        .scoping()
-        .find_binding(res.instance_scope(), Ident::from(store))
-        .is_some();
-    if !declared && store.starts_with(|c: char| c.is_ascii_lowercase()) {
-        return super::special::invalid(
-            "global_reference_invalid",
-            &format!(
-                "`{name}` is an illegal variable name. To reference a global variable called `{name}`, use `globalThis.{name}`"
-            ),
-            span,
-        );
-    }
-    unsupported(&format!("the store subscription `{name}`"), span)
 }
 
 /// Upstream `state_invalid_placement`, which the rune walk and the markup walk both raise.

@@ -6,8 +6,8 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::Each;
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 
 use crate::lower::client::{
-    ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R, Read,
-    has_dependency, unsupported,
+    ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R, Read, dependencies,
+    unsupported,
 };
 use crate::lower::span_of;
 
@@ -91,6 +91,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         for symbol in bindings.iter() {
             self.reads.remove(&symbol);
+            self.invalidates.remove(&symbol);
         }
 
         let thunk = b.thunk(collection);
@@ -137,17 +138,16 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             let key = javascript.get_expression(k).get_inner_expression();
             matches!(key, Expression::Identifier(k) if k.name == context.name)
         });
-        if !key_is_item
-            && has_dependency(
-                self.res,
-                javascript
-                    .get_expression(each.collection)
-                    .get_inner_expression(),
-            )
-        {
+        let collection = javascript.get_expression(each.collection);
+        let dependencies = dependencies(self.res, collection.get_inner_expression());
+        // A store's items may be mutated in place, so they are read again.
+        let store = dependencies.store.is_some();
+        if dependencies.any && (!key_is_item || store) {
             flags |= EACH_ITEM_REACTIVE;
         }
-        flags |= EACH_ITEM_IMMUTABLE;
+        if !store {
+            flags |= EACH_ITEM_IMMUTABLE;
+        }
         if controlled {
             flags |= EACH_IS_CONTROLLED;
         }
@@ -216,6 +216,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if let Some(symbol) = bindings.item {
             self.reads
                 .insert(symbol, Read::get_if(flags & EACH_ITEM_REACTIVE != 0));
+            let collection = self.javascript.get_expression(each.collection);
+            if let Some(store) = dependencies(self.res, collection.get_inner_expression()).store {
+                self.invalidates.insert(symbol, store);
+            }
         }
         if let Some(symbol) = bindings.index {
             self.reads

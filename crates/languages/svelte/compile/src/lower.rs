@@ -18,6 +18,7 @@ mod script;
 mod server;
 mod snippets;
 mod special;
+mod stores;
 mod template;
 
 use oxc_allocator::Allocator;
@@ -153,6 +154,8 @@ pub(crate) struct ValidatedOptions {
     rest_reads: FxHashSet<ReferenceId>,
     /// The top-level snippets declared beside the component.
     hoistable: FxHashSet<SymbolId>,
+    /// The store subscriptions (`$name`), in the order upstream declares them.
+    stores: Vec<String>,
 }
 
 impl ValidatedOptions {
@@ -170,17 +173,19 @@ pub(crate) fn validate(
         return Err(error.clone());
     }
     let custom_element = special::validate(input)?;
-    validation::check_analysis(input, res, snippets::errors(input, res))?;
+    let names = stores::Names::new(input, res);
+    validation::check_analysis(input, res, &names, snippets::errors(input, res))?;
     let hoistable = snippets::hoistable(input, res);
     snippets::check_exports(input, res, &hoistable)?;
     coverage::check(input, res)?;
     validation::check_typescript(input)?;
-    check_stores(input, res)?;
+    check_slots(res)?;
     let rest_reads = rest_reads::build(res, custom_element.is_some());
     Ok(ValidatedOptions {
         custom_element,
         rest_reads,
         hoistable,
+        stores: names.subscriptions(res),
     })
 }
 
@@ -228,8 +233,8 @@ fn unsupported<T>(what: &str, span: Span) -> Result<T, Diagnostic> {
 mod validation;
 pub use template::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
 use template::{
-    event_attribute, has_dependency, is_directive, is_dom_property, is_load_error_element,
+    dependencies, event_attribute, is_directive, is_dom_property, is_load_error_element,
     synthetic_value,
 };
 pub(crate) use validation::check_foreign_element;
-use validation::{check_runes, check_stores};
+use validation::{check_runes, check_slots};

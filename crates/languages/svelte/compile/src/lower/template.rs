@@ -1,5 +1,5 @@
 use oxc_ast::ast::{ArrowFunctionExpression, Expression, Function, IdentifierReference};
-use oxc_ast_visit::{Visit, walk};
+use oxc_ast_visit::Visit;
 use oxc_syntax::scope::ScopeFlags;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
@@ -67,29 +67,38 @@ pub(super) fn is_dom_property(name: &str) -> bool {
         )
 }
 
-/// Upstream's `EACH_ITEM_REACTIVE` test: the collection reads a binding (references inside a
-/// function of the expression are not its dependencies).
-#[must_use]
-pub(super) fn has_dependency(res: &Resolution, e: &Expression<'_>) -> bool {
-    struct Dependency<'r> {
+/// What `e` reads outside the functions it holds: whether any binding (upstream's
+/// `dependencies`), and its first store subscription, as upstream's analysis meets them.
+pub(super) fn dependencies<'e>(res: &Resolution, e: &'e Expression<'e>) -> Dependencies<'e> {
+    struct Walk<'r, 'e> {
         res: &'r Resolution,
-        found: bool,
+        found: Dependencies<'e>,
     }
-    impl<'a> Visit<'a> for Dependency<'_> {
-        fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
-            self.found |= self.res.symbol(it).is_some();
-        }
-        fn visit_function(&mut self, _: &Function<'a>, _: ScopeFlags) {}
-        fn visit_arrow_function_expression(&mut self, _: &ArrowFunctionExpression<'a>) {}
-        fn visit_expression(&mut self, it: &Expression<'a>) {
-            if !self.found {
-                walk::walk_expression(self, it);
+    impl<'e> Visit<'e> for Walk<'_, 'e> {
+        fn visit_identifier_reference(&mut self, it: &IdentifierReference<'e>) {
+            let symbol = self.res.symbol(it);
+            let store = symbol.is_none() && self.res.is_store_subscription(&it.name);
+            self.found.any |= symbol.is_some() || store;
+            if store && self.found.store.is_none() {
+                self.found.store = Some(it.name.as_str());
             }
         }
+        fn visit_function(&mut self, _: &Function<'e>, _: ScopeFlags) {}
+        fn visit_arrow_function_expression(&mut self, _: &ArrowFunctionExpression<'e>) {}
     }
-    let mut dependency = Dependency { res, found: false };
-    dependency.visit_expression(e);
-    dependency.found
+    let mut walk = Walk {
+        res,
+        found: Dependencies::default(),
+    };
+    walk.visit_expression(e);
+    walk.found
+}
+
+#[derive(Default, Clone, Copy)]
+pub(super) struct Dependencies<'e> {
+    pub any: bool,
+    /// The first store subscription (`$name`).
+    pub store: Option<&'e str>,
 }
 
 /// Upstream `is_event_attribute` for this port's attribute shapes.

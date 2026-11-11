@@ -1,5 +1,5 @@
 use crate::lower::builder::Runtime;
-use oxc_ast::ast::Expression;
+use oxc_ast::ast::{Expression, PropertyKind};
 
 use super::super::component::{
     Entry, Prop, child_snippets, is_dynamic, props, props_expression, push_binding, push_children,
@@ -107,7 +107,30 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             Prop::Bind(a, target) => {
                 let value = self.expression(target);
                 let setter = vec![b.stmt(self.binding_assignment(target, false))];
-                push_binding(b, parts, a.name.text(self.source_text), value, setter);
+                let name = a.name.text(self.source_text);
+                // A store read through a binding tells the store it is bound.
+                let store = matches!(
+                    self.javascript.get_expression(target).get_inner_expression(),
+                    Expression::Identifier(identifier) if self.rewriter(true).is_store(identifier)
+                );
+                if store {
+                    let mark = b.stmt(b.runtime("mark_store_binding", []));
+                    let get = vec![mark, b.return_(Some(value))];
+                    parts.push(Entry::Property(b.accessor(
+                        PropertyKind::Get,
+                        name,
+                        b.params([]),
+                        get,
+                    )));
+                    parts.push(Entry::Property(b.accessor(
+                        PropertyKind::Set,
+                        name,
+                        b.params(["$$value"]),
+                        setter,
+                    )));
+                } else {
+                    push_binding(b, parts, name, value, setter);
+                }
             }
         }
     }
