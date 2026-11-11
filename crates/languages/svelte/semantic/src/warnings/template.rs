@@ -1,6 +1,5 @@
 //! The template's warnings and errors, in one walk in the compiler's order.
 
-use crate::resolve::Resolution;
 use oxc_ast::ast::BindingPattern;
 use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -12,9 +11,9 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 use rustc_hash::FxHashSet;
 
-use super::a11y;
 use super::found::{Found, Stage};
-use super::{Phase, Raised, Section, error, slot_name_error, warning};
+use super::{Phase, Raised, Section, a11y, error, slot_name_error, warning};
+use crate::resolve::Resolution;
 
 mod element;
 mod placement;

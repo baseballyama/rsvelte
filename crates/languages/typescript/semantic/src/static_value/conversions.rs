@@ -2,9 +2,8 @@
 
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
-use crate::number::number;
-
 use super::{Global, Value};
+use crate::number::number;
 
 pub(super) const fn is_nullish(value: &Value) -> bool {
     matches!(value, Value::Undefined | Value::Null)

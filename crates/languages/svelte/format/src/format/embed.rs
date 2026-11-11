@@ -1,3 +1,5 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+
 use super::children::Child;
 use super::javascript::{Adjust, Part as JavaScriptPart};
 use super::{
@@ -6,7 +8,6 @@ use super::{
     TemplateNodeIdentifier, Unsupported, only_ws,
 };
 use crate::options::Part as SortPart;
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 impl Printer<'_, '_, '_> {
     /// `printTopLevelParts`: options, scripts, markup and styles in `svelteSortOrder`, or in the

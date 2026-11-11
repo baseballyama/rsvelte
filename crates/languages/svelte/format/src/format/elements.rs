@@ -1,9 +1,10 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+
 use super::{
     Attribute, AttributeKind, AttributeValue, ElementKind, LayoutInstructionIdentifier, Part,
     Printer, R, TemplateNode, TemplateNodeIdentifier, Unsupported, is_collapse_ws,
 };
 use crate::options::WhitespaceSensitivity;
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 /// prettier-plugin-svelte `selfClosingTags`.
 const SELF_CLOSING: &[&str] = &[

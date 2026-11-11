@@ -1,6 +1,7 @@
 use oxc_ast::ast::Expression;
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
 
 use super::javascript::{Adjust, Part, trim_semicolon};
@@ -10,7 +11,6 @@ use super::{
     Unsupported, ends_with_linebreak, is_collapse_ws, only_ws, starts_with_linebreak,
 };
 use crate::options::EmbeddedLanguageFormatting;
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 /// A child of a fragment: a template node, or, at the root under `svelteSortOrder: "none"`, a
 /// `<script>` or `<style>` already printed, which the plugin prints like any other node.
