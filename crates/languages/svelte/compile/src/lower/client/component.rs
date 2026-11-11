@@ -69,26 +69,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             child_snippets(tree, self.javascript, element.children, |snippet| {
                 self.snippet_declaration(snippet)
             })?;
-        let plan = self.plan;
-        let mut slots = match plan.slots(identifier) {
-            None => vec![(
-                "default",
-                self.fragment_without(element.children, is_snippet)?,
-            )],
-            Some(slots) => slots
-                .map(|(name, region)| Ok((name, self.region_without(region, is_snippet)?)))
-                .collect::<R<Vec<_>>>()?,
-        };
-        if !fills_slot
-            && let Some((_, body)) = slots.iter_mut().find(|(name, _)| *name == "default")
-            && !body.is_empty()
-        {
-            body.splice(0..0, std::mem::take(&mut lets));
-        }
-        let callbacks = slots
-            .into_iter()
-            .map(|(name, body)| (name, b.parameters(["$$anchor", "$$slotProps"]), body))
-            .collect();
         let default = DefaultSlot::of(
             tree,
             self.javascript,
@@ -96,7 +76,17 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             element,
             Target::Client,
         );
-        push_children(b, &mut parts, &snippets, callbacks, default);
+        let plan = self.plan;
+        let callbacks = plan
+            .slots(identifier, element.children)
+            .map(|(name, region)| {
+                let mut body = self.region_without(region, is_snippet)?;
+                if name == "default" && !fills_slot && !body.is_empty() {
+                    body.splice(0..0, std::mem::take(&mut lets));
+                }
+                Ok((name, b.parameters(["$$anchor", "$$slotProps"]), body))
+            });
+        push_children(b, &mut parts, &snippets, callbacks, default)?;
         let props = props_expression(b, parts, Target::Client);
         statements.extend(self.memo_deriveds(memo));
         // Upstream mounts a component with CSS custom properties in an element that holds them.

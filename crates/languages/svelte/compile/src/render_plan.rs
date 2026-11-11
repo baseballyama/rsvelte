@@ -107,17 +107,21 @@ impl RenderPlan {
         &self.regions[*identifier]
     }
 
-    /// The regions of a component's slots, in upstream's order, when a child names its slot.
+    /// The regions of a component's slots, in upstream's order: all its `children` as `default`
+    /// unless a child names its slot.
     pub(crate) fn slots(
         &self,
         component: CompilerNodeIdentifier,
-    ) -> Option<impl Iterator<Item = (&str, &Region)>> {
-        let slots = self.slots.get(&component)?;
-        Some(
-            slots
-                .iter()
-                .map(|(name, identifier)| (&**name, &self.regions[*identifier])),
-        )
+        children: Children,
+    ) -> impl Iterator<Item = (&str, &Region)> {
+        let slots = self.slots.get(&component);
+        let default = slots
+            .is_none()
+            .then(|| ("default", self.fragment(children)));
+        let named = slots.into_iter().flatten();
+        named
+            .map(|(name, identifier)| (&**name, &self.regions[*identifier]))
+            .chain(default)
     }
 
     fn region(
