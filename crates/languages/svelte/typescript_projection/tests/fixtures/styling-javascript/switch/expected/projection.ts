@@ -9,4 +9,4 @@ const value="a";function run(x){switch(x){case 1:return "a";case 2:throw new Err
     });
   }
 };
-export default __rsvelte_export_component<Record<string, never>, {}, "">();
+export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();

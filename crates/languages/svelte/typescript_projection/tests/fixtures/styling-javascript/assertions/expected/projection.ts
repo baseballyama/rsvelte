@@ -9,4 +9,4 @@ const value=<string>("a" as unknown as string);const fn=((x:string)=>x) as (x:st
     });
   }
 };
-export default __rsvelte_export_component<Record<string, never>, {}, "">();
+export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();

@@ -192,7 +192,7 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "    }\n",
             "  }\n",
             "};\n",
-            "export default __rsvelte_export_component<Record<string, never>, {}, \"\">();\n",
+            "export default __rsvelte_export_component<__rsvelte_no_props, {}, \"\">();\n",
         )
     );
     for mapping in output.mappings.iter().filter(|mapping| mapping.len > 0) {
@@ -324,7 +324,7 @@ fn component_content_passes_children_where_svelte2tsx_maps_them() {
 
 #[test]
 fn a_default_slot_lets_the_component_take_children_as_svelte2tsx_does() {
-    let widened = "__rsvelte_props_with_children<Record<string, never>>";
+    let widened = "__rsvelte_props_with_children<__rsvelte_no_props>";
     for (source, expected) in [
         ("<div><slot /></div>", true),
         ("<slot name=\"default\" />", true),
@@ -339,4 +339,37 @@ fn a_default_slot_lets_the_component_take_children_as_svelte2tsx_does() {
             output.out
         );
     }
+}
+
+#[test]
+fn a_component_s_snippets_are_props_after_its_attributes_as_svelte2tsx_passes_them() {
+    let source = "<script lang=\"ts\">import Foo from \"./Foo.svelte\"; let n = 1;</script>\
+                  <Foo a={n}>{#snippet head(x: number)}<b>{x}</b>{/snippet}text\
+                  {#snippet foot}{n}{/snippet}</Foo>";
+    let (_, output) = project(source);
+    let out = &output.out;
+    let at = |text: &str| out.find(text).unwrap_or_else(|| panic!("{text}\n{out}"));
+    // The implicit children, the attributes, then the snippets in source order.
+    assert!(at("children: __rsvelte_children") < at("a: n"), "{out}");
+    assert!(at("a: n") < at("head: (x: number) => {"), "{out}");
+    assert!(at("head: (x: number) => {") < at("foot: () => {"), "{out}");
+    assert!(
+        at("foot: () => {") < at("const { head, foot } = __rsvelte_component_props("),
+        "{out}"
+    );
+    let head = at("head: (") as u32;
+    let mapped = output
+        .lookup_span(Span::new(head, head + 4))
+        .expect("mapped");
+    assert_eq!(mapped.text(source), "head");
+    // Snippets that are not a component's children still refuse.
+    let error = rsvelte_svelte_typescript_projection::lower_alone(
+        &parse("{#snippet s()}{/snippet}").expect("valid"),
+        "{#snippet s()}{/snippet}",
+    )
+    .expect_err("a template snippet is not projected yet");
+    assert_eq!(
+        error.span().text("{#snippet s()}{/snippet}"),
+        "{#snippet s()}{/snippet}"
+    );
 }

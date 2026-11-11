@@ -1,12 +1,13 @@
 //! svelte2tsx's `handleImplicitChildren`: the `children` prop a component's content passes.
 
+use oxc_span::GetSpan;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Part, Range, TemplateNode,
 };
 
-use super::Builder;
+use super::{Builder, Node, NodeIdentifier, Result, Unsupported};
 
 impl Builder<'_> {
     /// Where the `children` prop maps, when the content passes one: anything but whitespace,
@@ -76,5 +77,52 @@ impl Builder<'_> {
             },
             |a| a.name.end_offset + 1,
         )
+    }
+}
+
+impl Builder<'_> {
+    /// svelte2tsx's `addImplicitSnippetProp`: each `{#snippet}` among a component's children is a
+    /// prop after the attributes. Returns the snippets' names.
+    pub(super) fn snippet_props(&mut self, children: Range) -> Result<Range> {
+        let mut names = Vec::new();
+        for &child in self.component.children(children) {
+            let TemplateNode::Snippet {
+                name,
+                type_parameters,
+                parameters,
+                body,
+                span,
+            } = *self.component.node(child)
+            else {
+                continue;
+            };
+            if type_parameters.is_some() {
+                return Err(Unsupported::at("generic snippets", span));
+            }
+            let javascript = &self.component.javascript;
+            let name = javascript.get_expression(name).span();
+            let parameters = parameters.map(|p| javascript.get_parameters(p).span);
+            let name = self.source(name, None);
+            let parameters = parameters.map(|at| self.source(at, None));
+            let body = self.children(body)?;
+            let property = self.tree.push(Node::SnippetProperty {
+                name,
+                parameters,
+                body,
+            });
+            self.scratch.push(property);
+            names.push(name);
+        }
+        Ok(self.tree.list(&names))
+    }
+
+    /// The generated name of a component whose snippets' names are declared from its props.
+    pub(super) fn component_name(&mut self) -> NodeIdentifier {
+        if let Some(name) = self.component_name {
+            return name;
+        }
+        let name = self.unused_name("__rsvelte_component_");
+        self.component_name = Some(name);
+        name
     }
 }
