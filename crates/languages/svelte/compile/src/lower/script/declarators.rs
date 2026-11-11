@@ -23,23 +23,28 @@ pub(super) fn lower_value_declarator<'o>(
     let Some((rune, argument)) = rw.res.rune(init.get_inner_expression()) else {
         return false;
     };
+    // Upstream's server declares a binding to any other rune's value as its argument.
+    if rw.target == Target::Server
+        && matches!(
+            rune,
+            "$state.snapshot" | "$state.eager" | "$effect.pending" | "$host"
+        )
+        && d.id.is_binding_identifier()
+    {
+        let mut value = rune_argument(rw, d);
+        rw.visit_expression(&mut value);
+        d.init = Some(value);
+        return true;
+    }
     if !matches!(rune, "$state" | "$state.raw" | "$derived" | "$derived.by") {
         return false;
     }
-    let b = rw.b;
     // What the value is decided on is the argument as written, before the rewrite reads it.
     let argument = argument.map(Expression::get_inner_expression);
     let proxy = rune == "$state" && argument.is_some_and(|a| should_proxy_read(rw.res, a));
     let keeps = rune == "$derived"
         && keeps_callee(rw.res, argument, Created::Script(super::super::span_of(d)));
-    let Some(Expression::CallExpression(mut call)) = d.init.take().map(without_typescript) else {
-        unreachable!("a rune is a call")
-    };
-    // Upstream erases the argument's types too, so `$derived(x as T)` may keep `x`.
-    let mut value = call.arguments.first_mut().map_or_else(
-        || b.void0(),
-        |argument| without_typescript(argument.take_in(b).into_expression()),
-    );
+    let mut value = rune_argument(rw, d);
     rw.visit_expression(&mut value);
     walk_mut::walk_binding_pattern(rw, &mut d.id);
     let signal = (d.id.get_binding_identifier())
@@ -52,6 +57,19 @@ pub(super) fn lower_value_declarator<'o>(
     };
     d.init = Some(rune_value(rw, rune, Some(value), lowering));
     true
+}
+
+/// The rune call's argument, taken from `d`, or `undefined`; upstream erases its types too, so
+/// `$derived(x as T)` may keep `x`.
+fn rune_argument<'o>(rw: &ScriptRewrite<'_, 'o>, d: &mut VariableDeclarator<'o>) -> Expression<'o> {
+    let b = rw.b;
+    let Some(Expression::CallExpression(mut call)) = d.init.take().map(without_typescript) else {
+        unreachable!("a rune is a call")
+    };
+    call.arguments.first_mut().map_or_else(
+        || b.void0(),
+        |argument| without_typescript(argument.take_in(b).into_expression()),
+    )
 }
 
 /// How a declaration lowers its state or derived rune.
