@@ -5,6 +5,7 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
+use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
 
 use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, Span, Unsupported, span};
 
@@ -79,6 +80,15 @@ impl Builder<'_> {
             let arguments = self.tree.list(&[key, value]);
             self.tree.push(Node::TypeArguments { callee, arguments })
         });
+        let props = if self.has_default_slot() {
+            let callee = self
+                .tree
+                .push(Node::Identifier("__rsvelte_props_with_children"));
+            let arguments = self.tree.list(&[props]);
+            self.tree.push(Node::TypeArguments { callee, arguments })
+        } else {
+            props
+        };
         let exports = self.tree.list(&exports);
         let exports = self.tree.push(Node::TypeLiteral(exports));
         let bindings = if bindings.is_empty() {
@@ -100,6 +110,30 @@ impl Builder<'_> {
             arguments: Range::default(),
         });
         Ok(self.tree.push(Node::ExportDefault(value)))
+    }
+
+    /// svelte2tsx's `slots` has a `default` key: a `<slot>` without a `name`, or named `default`.
+    fn has_default_slot(&self) -> bool {
+        self.component.nodes.iter().any(|node| match *node {
+            TemplateNode::Element {
+                name,
+                component: None,
+                attributes,
+                ..
+            } if name.text(self.source) == "slot" => {
+                let named = self
+                    .component
+                    .attributes(attributes)
+                    .iter()
+                    .find(|a| a.name.text(self.source) == "name");
+                named.is_none_or(|a| {
+                    matches!(a.value, AttributeValue::Parts(parts)
+                        if matches!(self.component.parts(parts).first(),
+                            Some(Part::Text(text)) if text.text(self.source) == "default"))
+                })
+            }
+            _ => false,
+        })
     }
 
     /// The variable declaration `statement` is or exports, after recording what it exports.

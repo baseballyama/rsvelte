@@ -287,3 +287,22 @@ fn a_store_subscription_is_declared_where_svelte2tsx_declares_it() {
     // svelte2tsx declares none for a function.
     assert_eq!(declaration("f"), None, "{out}");
 }
+
+#[test]
+fn a_default_slot_lets_the_component_take_children_as_svelte2tsx_does() {
+    let widened = "__rsvelte_props_with_children<Record<string, never>>";
+    for (source, expected) in [
+        ("<div><slot /></div>", true),
+        ("<slot name=\"default\" />", true),
+        ("<slot name=\"x\" />", false),
+        ("<div></div>", false),
+    ] {
+        let (_, output) = project(source);
+        assert_eq!(
+            output.out.contains(widened),
+            expected,
+            "{source}\n{}",
+            output.out
+        );
+    }
+}
