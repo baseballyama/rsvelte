@@ -1417,3 +1417,15 @@
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/interpolated_slot_attribute_on_a_slot_element_keeps_the_slot_prop/8562adffe2dd3415.svelte".skip]
 "svelte.compile/server" = "upstream bug: svelte 5.57.3's server fills the slot `a`, the first text of a `<slot>` element's `slot=\"a{b}c\"`, while its client fills the default slot"
+
+["svelte/rsvelte-tests-core-3/server_effect_pending_declarator_3213/a_declarator_initializer_is_void_0/2332f60b2ae47c8f.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3's client drops a declarator of `$effect.pending()`, so a read of its name throws a ReferenceError, and its server declares it `void 0` where the same rune in an expression is `0`"
+
+["svelte/rsvelte-tests-core-3/server_effect_pending_declarator_3213/a_declarator_initializer_is_void_0/30b02f159d759adf.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3's client drops a declarator of `$effect.pending()`, so a read of its name throws a ReferenceError, and its server declares it `void 0` where the same rune in an expression is `0`"
+
+["svelte/rsvelte-tests-core-3/server_effect_pending_declarator_3213/a_declarator_initializer_is_void_0/b5cbcfb53a526636.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3's client drops a declarator of `$effect.pending()`, so a read of its name throws a ReferenceError, and its server declares it `void 0` where the same rune in an expression is `0`"
+
+["svelte/rsvelte-tests-core-3/server_effect_pending_declarator_3213/a_declarator_initializer_is_void_0/cb83b250d1814afb.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3's client drops a declarator of `$effect.pending()`, so a read of its name throws a ReferenceError, and its server declares it `void 0` where the same rune in an expression is `0`"
