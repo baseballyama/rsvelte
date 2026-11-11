@@ -356,20 +356,7 @@ impl Builder<'_> {
     }
 
     fn props_name(&mut self) -> NodeIdentifier {
-        let prefix = "__rsvelte_public_props";
-        let taken = |name: &str| {
-            (self.resolution)().is_some_and(|resolution| {
-                let scoping = resolution.scoping();
-                scoping.symbol_names().any(|n| n == name)
-                    || resolution.unresolved_names().any(|n| n == name)
-            })
-        };
-        let mut index = 0;
-        while taken(&format!("{prefix}{index}")) {
-            index += 1;
-        }
-        let prefix = self.tree.push(Node::Identifier(prefix));
-        self.tree.push(Node::GeneratedIdentifier { prefix, index })
+        self.unused_name("__rsvelte_public_props")
     }
 
     /// Whether `e`, without its TypeScript wrappers, calls the rune `name` in its scope.

@@ -35,6 +35,7 @@ pub fn lower<'a>(
         tree: SyntaxTree::default(),
         element_callee: None,
         attachment_key: None,
+        component_name: None,
     };
     let contract = builder.scripts()?;
     let body = builder.children(component.root)?;
@@ -78,6 +79,7 @@ struct Builder<'a> {
     tree: SyntaxTree,
     element_callee: Option<NodeIdentifier>,
     attachment_key: Option<NodeIdentifier>,
+    component_name: Option<NodeIdentifier>,
 }
 
 /// The source text at `at`, whose mapping ends at `end` when that is not its own end.
@@ -278,32 +280,18 @@ impl Builder<'_> {
                 }
             }
         }
+        let snippets = if is_component {
+            self.snippet_props(children)?
+        } else {
+            Range::default()
+        };
         let properties = self.finish_list(start);
         let properties = self.tree.push(Node::Object { properties });
-        let call = if let Some(component) = component {
-            let component = self.expression_source(component, None);
-            let callee = self.tree.push(Node::Identifier("__rsvelte_component"));
-            let arguments = self.tree.list(&[component]);
-            let callee = self.tree.push(Node::Call { callee, arguments });
-            let internals = self.tree.push(Node::Identifier("__rsvelte_internals"));
-            let internals = self.tree.push(Node::Call {
-                callee: internals,
-                arguments: Range::default(),
-            });
-            let arguments = self.tree.list(&[internals, properties]);
-            self.tree.push(Node::Call { callee, arguments })
+        let (mut call, named) = if let Some(component) = component {
+            self.component_call(component, properties, snippets)
         } else {
-            let name = self.tree.push(Node::Text(name));
-            let parts = self.tree.list(&[name]);
-            let name = self.tree.push(Node::String {
-                parts,
-                template: false,
-            });
-            let arguments = self.tree.list(&[name, properties]);
-            let callee = self.element_callee();
-            self.tree.push(Node::Call { callee, arguments })
+            (self.element_call(name, properties), None)
         };
-        let mut call = call;
         for attribute in self.component.attributes(attributes) {
             if attribute.kind == AttributeKind::Bind
                 && let AttributeValue::Parts(parts) = attribute.value
@@ -323,6 +311,13 @@ impl Builder<'_> {
             }
         }
         self.scratch.push(self.tree.push(Node::Statement(call)));
+        if let Some(component) = named {
+            let declaration = self.tree.push(Node::SnippetNames {
+                names: snippets,
+                component,
+            });
+            self.scratch.push(declaration);
+        }
         for attribute in self.component.attributes(attributes) {
             if attribute.kind == AttributeKind::Class
                 && let AttributeValue::Parts(parts) = attribute.value
@@ -332,9 +327,83 @@ impl Builder<'_> {
                 self.scratch.push(self.tree.push(Node::Expression(value)));
             }
         }
-        self.append_children(children)?;
+        self.element_children(children, is_component)?;
         let body = self.finish_list(start);
         Ok(self.tree.push(Node::Block { body }))
+    }
+
+    /// An element's children; a component's snippets are already its props.
+    fn element_children(&mut self, children: Range, is_component: bool) -> Result<()> {
+        for &child in self.component.children(children) {
+            let snippet = matches!(self.component.node(child), TemplateNode::Snippet { .. });
+            if !(is_component && snippet)
+                && let Some(node) = self.node(child)?
+            {
+                self.scratch.push(node);
+            }
+        }
+        Ok(())
+    }
+
+    /// `__rsvelte_component(C)(internals, properties)`, with the name it gives the component when
+    /// the snippets' names are declared from its props.
+    fn component_call(
+        &mut self,
+        component: ExpressionIdentifier,
+        properties: NodeIdentifier,
+        snippets: Range,
+    ) -> (NodeIdentifier, Option<NodeIdentifier>) {
+        let component = self.expression_source(component, None);
+        let callee = self.tree.push(Node::Identifier("__rsvelte_component"));
+        let arguments = self.tree.list(&[component]);
+        let mut callee = self.tree.push(Node::Call { callee, arguments });
+        let named = (snippets.len != 0).then(|| {
+            let name = self.component_name();
+            let value = callee;
+            self.scratch
+                .push(self.tree.push(Node::Const { name, value }));
+            name
+        });
+        if let Some(name) = named {
+            callee = name;
+        }
+        let internals = self.tree.push(Node::Identifier("__rsvelte_internals"));
+        let internals = self.tree.push(Node::Call {
+            callee: internals,
+            arguments: Range::default(),
+        });
+        let arguments = self.tree.list(&[internals, properties]);
+        (self.tree.push(Node::Call { callee, arguments }), named)
+    }
+
+    /// `svelteHTML.createElement("name", properties)`.
+    fn element_call(&mut self, name: Span, properties: NodeIdentifier) -> NodeIdentifier {
+        let name = self.tree.push(Node::Text(name));
+        let parts = self.tree.list(&[name]);
+        let name = self.tree.push(Node::String {
+            parts,
+            template: false,
+        });
+        let arguments = self.tree.list(&[name, properties]);
+        let callee = self.element_callee();
+        self.tree.push(Node::Call { callee, arguments })
+    }
+
+    /// A name for generated code that no binding or reference of the component uses.
+    fn unused_name(&mut self, prefix: &'static str) -> NodeIdentifier {
+        let taken = |name: &str| {
+            (self.resolution)().is_some_and(|resolution| {
+                let scoping = resolution.scoping();
+                scoping.symbol_names().any(|n| n == name)
+                    || resolution.unresolved_names().any(|n| n == name)
+            })
+        };
+        let mut index = 0;
+        while taken(&format!("{prefix}{index}")) {
+            index += 1;
+        }
+        let prefix = self.tree.push(Node::Identifier(prefix));
+        self.tree.push(Node::GeneratedIdentifier { prefix, index })
     }
 
     fn attribute(&mut self, attribute: &Attribute) -> NodeIdentifier {
