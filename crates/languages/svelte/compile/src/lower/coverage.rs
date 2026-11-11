@@ -60,16 +60,7 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             }
             NodeKind::Element(el) => {
                 check_element(input, res, el)?;
-                // A component's snippet that reads a `{@const}` beside it is not lowered.
-                let has = |f: fn(&NodeKind) -> bool| {
-                    tree.children(el.children)
-                        .iter()
-                        .any(|&c| f(&tree.node(c).kind))
-                };
-                (has(|k| matches!(k, NodeKind::Const { .. }))
-                    && el.kind != ElementKind::Metadata(Some(MetadataTag::Boundary))
-                    && has(|k| matches!(k, NodeKind::Snippet(_))))
-                .then_some("a `{@const}` beside a snippet")
+                None
             }
         };
         if let Some(what) = what {
