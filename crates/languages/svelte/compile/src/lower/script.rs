@@ -381,7 +381,8 @@ pub(super) enum ScriptContext<'e, 't> {
         exports: &'e mut Vec<Export<'t>>,
     },
     Module,
-    /// A `.svelte.js` module, which keeps its imports where they are.
+    /// A `.svelte.js` module, which keeps its imports where they are and its types for
+    /// TypeScript's emit.
     File,
 }
 
@@ -423,10 +424,8 @@ pub(super) fn lower_script<'t, 'o>(
     let mut out = Vec::with_capacity(program.body.len());
     for statement in &program.body {
         // Upstream erases the types before it analyzes the component.
-        if is_type_only(statement) {
-            if matches!(context, ScriptContext::File) {
-                out.extend(kept_by_typescript(rw, statement));
-            }
+        // A module's types are TypeScript's emit to erase, once it is lowered.
+        if is_type_only(statement) && !matches!(context, ScriptContext::File) {
             continue;
         }
         match statement {
@@ -450,6 +449,19 @@ pub(super) fn lower_script<'t, 'o>(
                 if let ScriptContext::Instance { exports } = &mut context =>
             {
                 exports::check_specifiers(rw.res, export, exports)?;
+            }
+            // TypeScript keeps an export of types only as `export {}`, which oxc's emit drops.
+            Statement::ExportNamedDeclaration(export)
+                if matches!(context, ScriptContext::File)
+                    && !export.export_kind.is_type()
+                    && !export.specifiers.is_empty()
+                    && is_type_only(statement) =>
+            {
+                let mut kept = rw.statement(statement);
+                if let Statement::ExportNamedDeclaration(export) = &mut kept {
+                    export.specifiers.clear();
+                }
+                out.push(kept);
             }
             Statement::ImportDeclaration(_) if matches!(context, ScriptContext::File) => {
                 out.push(rw.statement(statement));
@@ -475,31 +487,6 @@ pub(super) fn lower_script<'t, 'o>(
         }
     }
     Ok(out)
-}
-
-/// What TypeScript's emit keeps of a module's statement that names only types: an import for its
-/// side effects, and an export as `export {}`.
-fn kept_by_typescript<'o>(
-    rw: &mut ScriptRewrite<'_, 'o>,
-    statement: &Statement<'_>,
-) -> Option<Statement<'o>> {
-    match statement {
-        Statement::ImportDeclaration(d) if !d.import_kind.is_type() => {
-            let mut kept = rw.statement(statement);
-            if let Statement::ImportDeclaration(d) = &mut kept {
-                d.specifiers = None;
-            }
-            Some(kept)
-        }
-        Statement::ExportNamedDeclaration(d) if !d.export_kind.is_type() => {
-            let mut kept = rw.statement(statement);
-            if let Statement::ExportNamedDeclaration(d) = &mut kept {
-                d.specifiers.clear();
-            }
-            Some(kept)
-        }
-        _ => None,
-    }
 }
 
 /// A top-level declaration. Upstream's instance gives each declarator its own declaration.

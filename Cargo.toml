@@ -68,6 +68,7 @@ oxc_semantic = { git = "https://github.com/baseballyama/oxc", rev = "cb98582d874
 oxc_span = { git = "https://github.com/baseballyama/oxc", rev = "cb98582d874a7778507a37a19996c2dde9310f8a" }
 oxc_str = { git = "https://github.com/baseballyama/oxc", rev = "cb98582d874a7778507a37a19996c2dde9310f8a" }
 oxc_syntax = { git = "https://github.com/baseballyama/oxc", rev = "cb98582d874a7778507a37a19996c2dde9310f8a" }
+oxc_transformer = { git = "https://github.com/baseballyama/oxc", rev = "cb98582d874a7778507a37a19996c2dde9310f8a" }
 self_cell = "1.2.0"
 rayon = "1.12.0"
 stacker = "0.1.25"

@@ -28,6 +28,7 @@ oxc_semantic.workspace = true
 oxc_span.workspace = true
 oxc_str.workspace = true
 oxc_syntax.workspace = true
+oxc_transformer.workspace = true
 
 [dev-dependencies]
 libc.workspace = true

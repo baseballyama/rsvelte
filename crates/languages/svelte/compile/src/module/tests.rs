@@ -62,6 +62,12 @@ fn a_typescript_module_keeps_what_typescript_emits() {
         compiled("import type { A } from './a.js';\nlet a: A = 1;\n"),
         "import * as $ from \"svelte/internal/client\";\nlet a = 1;\nexport {};\n"
     );
+    // A parameter property is a field the constructor sets.
+    assert_eq!(
+        compiled("export class A {\n\tconstructor(public x: number) {}\n}\n"),
+        "import * as $ from \"svelte/internal/client\";\nexport class A {\n\tx;\n\tconstructor(x) \
+         {\n\t\tthis.x = x;\n\t}\n}\n"
+    );
     // A script is strict.
     assert_eq!(
         compiled("let a: number = 1;\n"),

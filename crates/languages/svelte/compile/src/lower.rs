@@ -177,6 +177,23 @@ pub(crate) fn validate(
     input: &CompileInput<'_>,
     res: &Resolution,
 ) -> Result<ValidatedOptions, Diagnostic> {
+    validate_erased_by(input, res, Erasure::Svelte)
+}
+
+/// Who erases the types before upstream analyzes the source.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Erasure {
+    /// Upstream's own, which rejects a TypeScript feature that has a runtime meaning.
+    Svelte,
+    /// TypeScript's emit, as a bundler runs it on a `.svelte.ts` module.
+    TypeScript,
+}
+
+pub(crate) fn validate_erased_by(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    erasure: Erasure,
+) -> Result<ValidatedOptions, Diagnostic> {
     // Acorn rejects at parse time what oxc's semantic checker finds after the parser.
     if let Some(error) = res.syntax_error() {
         return Err(error.clone());
@@ -187,7 +204,9 @@ pub(crate) fn validate(
     let hoistable = snippets::hoistable(input, res, &names);
     snippets::check_exports(input, res, &hoistable)?;
     coverage::check(input, res)?;
-    validation::check_typescript(input)?;
+    if erasure == Erasure::Svelte {
+        validation::check_typescript(input)?;
+    }
     let rest_reads = rest_reads::build(res, custom_element.is_some());
     Ok(ValidatedOptions {
         custom_element,
