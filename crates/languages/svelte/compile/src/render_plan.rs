@@ -265,15 +265,15 @@ fn slot_groups<'t>(
     source: &str,
     nodes: &[CompilerNodeIdentifier],
 ) -> Option<Vec<(&'t str, Vec<CompilerNodeIdentifier>)>> {
+    let slot = |node| match &tree.node(node).kind {
+        NodeKind::Snippet(_) => None,
+        NodeKind::Element(element) => Some(slot_name(tree, source, element.attributes)),
+        _ => Some(None),
+    };
+    nodes.iter().find_map(|&node| slot(node).flatten())?;
     let mut groups: Vec<(&str, Vec<CompilerNodeIdentifier>)> = Vec::new();
-    let mut named = false;
     for &node in nodes {
-        let name = match &tree.node(node).kind {
-            NodeKind::Snippet(_) => continue,
-            NodeKind::Element(element) => slot_name(tree, source, element.attributes),
-            _ => None,
-        };
-        named |= name.is_some();
+        let Some(name) = slot(node) else { continue };
         let name = name.unwrap_or("default");
         match groups.iter_mut().find(|(n, _)| *n == name) {
             Some((_, group)) => group.push(node),
@@ -282,7 +282,7 @@ fn slot_groups<'t>(
     }
     // Object keys that are array indices come first, in numeric order.
     groups.sort_by_key(|&(name, _)| array_index(name).map_or((1, 0), |index| (0, index)));
-    named.then_some(groups)
+    Some(groups)
 }
 
 fn array_index(name: &str) -> Option<u32> {
