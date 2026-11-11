@@ -9,10 +9,12 @@ pub(crate) fn has_await(e: &Expression<'_>) -> bool {
     v.0
 }
 
-/// An `await` that a program's top level runs.
+/// An `await` that a program's top level runs, the preludes it marks among it.
 pub(crate) fn program_has_await(program: &oxc_ast::ast::Program<'_>) -> bool {
     let mut v = Await(false);
-    v.visit_program(program);
+    for statement in super::prelude::expanded(&program.body) {
+        v.visit_statement(statement);
+    }
     v.0
 }
 

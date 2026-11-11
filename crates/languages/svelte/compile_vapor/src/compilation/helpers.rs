@@ -4,7 +4,7 @@
 use oxc_ast::ast::Statement;
 use rsvelte_typescript_compile::build::Builder;
 
-use crate::compilation::statements;
+use crate::compilation::prelude;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum Helper {
@@ -443,14 +443,14 @@ pub(crate) const fn requires(h: Helper) -> &'static [Helper] {
     }
 }
 
-/// The declarations of `helpers`, in the order given.
+/// Markers for the declarations of `helpers`, in the order given.
 pub(crate) fn declarations<'t>(helpers: &[Helper], b: &Builder<'t>) -> Vec<Statement<'t>> {
     let mut out = Vec::new();
     for &h in helpers {
         if h == Helper::Spread {
             out.push(boolean_names("$$booleans", b));
         }
-        out.extend(statements(b, h.source()));
+        out.push(prelude::marker(b, h.source()));
     }
     out
 }

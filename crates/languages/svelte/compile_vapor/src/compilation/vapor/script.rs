@@ -12,7 +12,7 @@ use rsvelte_vue_semantic::resolve::call_name;
 use super::expressions::script_getter;
 use super::{Body, Emitter};
 use crate::compilation::asynchronous::program_has_await;
-use crate::compilation::statements;
+use crate::compilation::{prelude, statements};
 
 const EFFECT_WATCH: [&str; 4] = [
     "currentInstance",
@@ -35,7 +35,7 @@ impl<'o> Emitter<'_, 'o> {
         let call = define_props.map(|d| d.call.node_id.get());
         let mut module = Vec::new();
         let mut fields = Vec::new();
-        for s in &program.body {
+        for s in prelude::expanded(&program.body) {
             if let Statement::FunctionDeclaration(f) = s
                 && f.id
                     .as_ref()

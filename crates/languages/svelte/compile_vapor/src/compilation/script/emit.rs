@@ -14,7 +14,7 @@ use rsvelte_typescript_compile::build::Builder;
 pub(crate) use rune_values::{async_arrow, rune_value, tracked};
 
 use super::{BindingKind, Plan, Resolution};
-use crate::compilation::{import, statements};
+use crate::compilation::{import, prelude};
 use crate::helpers::{self, Helper};
 
 /// What decides the imports and helpers of the program.
@@ -181,29 +181,29 @@ fn head<'t>(
         body.push(b.const_("$$host", b.arrow(b.params([]), b.id("$$host_value"))));
     }
     if uses.prop_cells {
-        body.extend(statements(b, include_str!("props.js")));
+        body.push(prelude::marker(b, include_str!("props.js")));
         prop_declarations(rw, body);
     }
     if plan.rest.is_some() {
-        body.extend(statements(b, include_str!("rest.js")));
+        body.push(prelude::marker(b, include_str!("rest.js")));
         let attrs = b.call(b.id("$$rest_props"), [b.call(b.id("$$useAttrs"), [])]);
         body.push(b.const_("$$attrs", attrs));
     }
     body.extend(helpers::declarations(helpers, b));
     if plan.async_values && server {
-        body.extend(statements(
+        body.push(prelude::marker(
             b,
             "const $$async_derived = async (getter) => ({ value: await getter() });",
         ));
     }
     if plan.core_patterns {
-        body.extend(statements(b, include_str!("patterns.js")));
+        body.push(prelude::marker(b, include_str!("patterns.js")));
     }
     if (uses.state || uses.bindable) && !server {
-        body.extend(statements(b, include_str!("state.js")));
+        body.push(prelude::marker(b, include_str!("state.js")));
     }
     if uses.derived {
-        body.extend(statements(b, include_str!("derived.js")));
+        body.push(prelude::marker(b, include_str!("derived.js")));
         let make = b.call(b.id("$$make_derived"), [b.boolean(server)]);
         body.push(b.const_("$$computed", make));
     }
@@ -216,7 +216,7 @@ fn head<'t>(
         || helpers.contains(&Helper::CustomElementData)
         || helpers.contains(&Helper::WindowScroll)
     {
-        body.extend(statements(b, super::runes::SOURCE));
+        body.push(prelude::marker(b, super::runes::SOURCE));
     }
     imported_names(rw, plan, body);
 }
@@ -226,7 +226,7 @@ fn imported_names<'t>(rw: &ScriptRewrite<'_, 't>, plan: &Plan, body: &mut Vec<St
     let (b, res, server) = (rw.b, rw.res, rw.server);
     let local = |symbol| res.scoping().symbol_name(symbol);
     if !plan.lifecycle.is_empty() {
-        body.extend(statements(b, include_str!("lifecycle.js")));
+        body.push(prelude::marker(b, include_str!("lifecycle.js")));
         for &(imported, symbol) in &plan.lifecycle {
             let value = if imported == "onDestroy" && server {
                 let push = b.member(b.id("$$destroy"), "push");
@@ -245,7 +245,7 @@ fn imported_names<'t>(rw: &ScriptRewrite<'_, 't>, plan: &Plan, body: &mut Vec<St
         }
     }
     if !plan.attachments.is_empty() {
-        body.extend(statements(b, include_str!("attachments.js")));
+        body.push(prelude::marker(b, include_str!("attachments.js")));
         for &(imported, symbol) in &plan.attachments {
             let value = b.id(match imported {
                 "createAttachmentKey" => "$$create_attachment_key",
