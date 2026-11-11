@@ -13,6 +13,8 @@ mod errors;
 mod exports;
 #[path = "official_parity/lets.rs"]
 mod lets;
+#[path = "official_parity/patterns.rs"]
+mod patterns;
 
 /// The output, or the code of the diagnostic that refuses the source.
 fn compile(source: &str, target: Target) -> Result<String, String> {
@@ -128,39 +130,6 @@ fn a_destructuring_assignment_writes_each_path_as_upstream_does() {
     }
     let plain = "<script>let a = 1, b = 2; [a, b] = [b, a];</script>{a}{b}";
     assert!(squashed(plain, Target::Client).contains("[a,b]=[b,a]"));
-}
-
-#[test]
-fn a_pattern_default_that_awaits_is_awaited_as_upstream_awaits_it() {
-    for (assignment, client) in [
-        (
-            "({ c = await Promise.resolve(3) } = {});",
-            "$.set(c,await$.fallback($$value.c,()=>Promise.resolve(3),true),true);",
-        ),
-        (
-            "({ c = false || await Promise.resolve(6) } = {});",
-            "await$.fallback($$value.c,async()=>false||awaitPromise.resolve(6),true),true);",
-        ),
-        (
-            "({ c = await o } = {});",
-            "$.set(c,await$.fallback($$value.c,o),true);",
-        ),
-        (
-            "({ c = (await o)() } = {});",
-            "$.set(c,await$.fallback($$value.c,async()=>(awaito)(),true),true);",
-        ),
-    ] {
-        let source = format!(
-            "<script>let c = $state(0); let o; async function f() {{ {assignment} }}</script>{{c}}"
-        );
-        let compiled = squashed(&source, Target::Client);
-        assert!(compiled.contains(client), "{source}: {compiled}");
-        let server = squashed(&source, Target::Server);
-        assert!(
-            server.contains(&assignment.replace(' ', "")),
-            "{source}: {server}"
-        );
-    }
 }
 
 /// Upstream prints such a head as invalid JavaScript (`for ($.get(n) of xs)`, `for (d() of xs)`).
