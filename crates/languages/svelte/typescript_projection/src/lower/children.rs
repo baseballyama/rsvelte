@@ -6,6 +6,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Part, Range, TemplateNode,
 };
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{Builder, Node, NodeIdentifier, Result, Unsupported};
 
@@ -83,7 +84,10 @@ impl Builder<'_> {
 impl Builder<'_> {
     /// svelte2tsx's `addImplicitSnippetProp`: each `{#snippet}` among a component's children is a
     /// prop after the attributes. Returns the snippets' names.
-    pub(super) fn snippet_props(&mut self, children: Range) -> Result<Range> {
+    pub(super) fn snippet_props(&mut self, children: Range, is_component: bool) -> Result<Range> {
+        if !is_component {
+            return Ok(Range::default());
+        }
         let mut names = Vec::new();
         for &child in self.component.children(children) {
             let TemplateNode::Snippet {
@@ -124,5 +128,25 @@ impl Builder<'_> {
         let name = self.unused_name("__rsvelte_component_");
         self.component_name = Some(name);
         name
+    }
+
+    /// The expression of `<svelte:component this={…}>`, which svelte2tsx checks as a component.
+    pub(super) fn dynamic_component(
+        &self,
+        name: Span,
+        attributes: Range,
+    ) -> Result<ExpressionIdentifier> {
+        self.component
+            .attributes(attributes)
+            .iter()
+            .find(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "this")
+            .and_then(|a| match a.value {
+                AttributeValue::Parts(parts) => match self.component.parts(parts) {
+                    &[Part::Expression { expression, .. }] => Some(expression),
+                    _ => None,
+                },
+                AttributeValue::True => None,
+            })
+            .ok_or_else(|| Unsupported::at("svelte: elements", name))
     }
 }
