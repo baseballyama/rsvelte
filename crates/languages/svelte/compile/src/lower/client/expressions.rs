@@ -61,7 +61,27 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let read = self.b.id(&name);
         memo.entries.push(Memoized {
             value,
-            source,
+            source: Some(source),
+            name,
+        });
+        if memo.derived {
+            self.b.runtime("get", [read])
+        } else {
+            read
+        }
+    }
+
+    /// `value` memoized whatever it reads, for a value built from several template expressions.
+    pub(super) fn memoize_value(
+        &self,
+        memo: &mut Memo<'o>,
+        value: Expression<'o>,
+    ) -> Expression<'o> {
+        let name = format!("${}", memo.entries.len());
+        let read = self.b.id(&name);
+        memo.entries.push(Memoized {
+            value,
+            source: None,
             name,
         });
         if memo.derived {

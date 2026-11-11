@@ -65,7 +65,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     &name,
                     false,
                     &mut inner,
-                )?;
+                );
             }
         }
         if first.is_none() && (!classes.is_empty() || self.an.scoped[identifier]) {

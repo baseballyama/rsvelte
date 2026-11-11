@@ -79,7 +79,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             frag.tpl.set_prop("is", Some(v.to_string()));
         }
         if has_spread {
-            self.attribute_effect(identifier, &tag, attribute_list, node, remove_defaults, l)?;
+            self.attribute_effect(identifier, &tag, attribute_list, node, remove_defaults, l);
         } else {
             self.element_attributes(identifier, &tag, attribute_list, node, frag, l)?;
         }

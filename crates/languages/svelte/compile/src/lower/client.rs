@@ -103,7 +103,7 @@ struct Memo<'o> {
 struct Memoized<'o> {
     value: Expression<'o>,
     /// The template expression `value` was built from, which a derived's callback reads.
-    source: ExpressionIdentifier,
+    source: Option<ExpressionIdentifier>,
     name: String,
 }
 
