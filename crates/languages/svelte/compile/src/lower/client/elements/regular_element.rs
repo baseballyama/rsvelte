@@ -24,9 +24,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut lets = self.let_directives(identifier, el)?;
         l.lets.append(&mut lets);
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
-        if matches!(tag.as_str(), "script" | "template") {
-            return unsupported(&format!("`<{tag}>`"), el.name);
-        }
         let custom_element = is_custom_element_node(compiler_syntax_tree, self.source_text, el);
         // Upstream sets a custom element's scoping class as a property, which is not lowered.
         if self.an.scoped[identifier] && custom_element {

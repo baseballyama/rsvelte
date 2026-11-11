@@ -25,7 +25,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let use_text_content = items.iter().all(|i| match i {
             Item::Text { .. } => true,
             Item::Expression(e) => !self.an.meta(*e).has_state,
-            Item::Node(_) => false,
+            Item::Node(_) | Item::Comment => false,
         }) && items.iter().any(|i| matches!(i, Item::Expression(_)));
         if use_text_content {
             let (value, _) = self.template_chunk(items, &mut frag.memo, false);
@@ -37,16 +37,25 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     .push(b.stmt(b.assign_member(target, value)));
             }
         } else {
-            let needs_reset = items.iter().any(|i| match i {
-                Item::Text { .. } => false,
-                Item::Expression(_) => true,
-                Item::Node(n) => !self.is_static_element(*n),
-            });
+            // Upstream points the hydration cursor into a `<template>`'s content.
+            let content = el.name.text(self.source_text) == "template";
+            if content {
+                child
+                    .initializer
+                    .push(b.stmt(b.runtime("hydrate_template", [b.id(node)])));
+            }
+            let needs_reset = content
+                || items.iter().any(|i| match i {
+                    Item::Text { .. } => false,
+                    Item::Expression(_) | Item::Comment => true,
+                    Item::Node(n) => !self.is_static_element(*n),
+                });
             self.process_children(
                 items,
                 Prev::Call {
                     method: "child",
                     of: node.to_owned(),
+                    content,
                 },
                 true,
                 frag,

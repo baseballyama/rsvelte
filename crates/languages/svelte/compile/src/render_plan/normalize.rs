@@ -18,6 +18,9 @@ pub enum Item<'a> {
         data: Cow<'a, str>,
         raw: Cow<'a, str>,
     },
+    /// The empty comment upstream puts after a lone `<script>`, so the runtime can replace the
+    /// script with one that runs.
+    Comment,
 }
 
 /// Which node holds the fragment; decides the special cases of [`clean_nodes`].
@@ -194,6 +197,13 @@ pub fn clean_nodes<'a>(
         && (data == "\n" || data == "\r\n")
     {
         trimmed.remove(0);
+    }
+
+    if let [Item::Node(only)] = trimmed.as_slice()
+        && matches!(&compiler_syntax_tree.node(*only).kind,
+            NodeKind::Element(el) if el.kind == ElementKind::Regular && el.name.text(source_text) == "script")
+    {
+        trimmed.push(Item::Comment);
     }
 
     let text_first = matches!(

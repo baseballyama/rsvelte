@@ -147,7 +147,12 @@ struct Lists<'o> {
 /// How to reach the first node of a child list (upstream `process_children`'s `initial`).
 #[derive(Clone)]
 enum Prev {
-    Call { method: &'static str, of: String },
+    Call {
+        method: &'static str,
+        of: String,
+        /// Reads the children of a `<template>`'s content.
+        content: bool,
+    },
     Identifier(String),
 }
 

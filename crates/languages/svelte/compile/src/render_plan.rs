@@ -185,6 +185,7 @@ impl RenderPlan {
                 .into_iter()
                 .map(|item| match item {
                     Item::Node(node) => Item::Node(node),
+                    Item::Comment => Item::Comment,
                     Item::Expression(expression) => Item::Expression(expression),
                     Item::Text { data, raw } => Item::Text {
                         data: data.into_owned().into(),
@@ -213,7 +214,7 @@ impl RenderPlan {
                         element.children,
                         Parent::Element(&tag),
                         preserve
-                            || matches!(tag.as_ref(), "pre" | "textarea")
+                            || matches!(tag.as_ref(), "pre" | "textarea" | "script")
                             || element.kind == ElementKind::Title,
                     );
                 }
