@@ -21,7 +21,7 @@
 		{ id: 'rsvelte_command_line', x: 250, y: 10, w: 260, role: 'corpus · run · benchmark' },
 		{ id: 'rsvelte_svelte_semantic', x: 90, y: 110, w: 280, role: 'HIR · resolve · analysis' },
 		{ id: 'rsvelte_svelte_syntax', x: 390, y: 110, w: 280, role: 'parse · trees' },
-		{ id: 'rsvelte_typescript_syntax', x: 90, y: 210, w: 280, role: 'JS/TS: parse · trees' },
+		{ id: 'rsvelte_typescript_tree', x: 90, y: 210, w: 280, role: 'JS/TS: oxc trees' },
 		{ id: 'rsvelte_stylesheet_syntax', x: 390, y: 210, w: 280, role: 'CSS: parse · trees' },
 		{
 			id: 'rsvelte_kernel',
@@ -36,10 +36,10 @@
 		['rsvelte_command_line', 'rsvelte_svelte_semantic'],
 		['rsvelte_command_line', 'rsvelte_svelte_syntax'],
 		['rsvelte_svelte_semantic', 'rsvelte_svelte_syntax'],
-		['rsvelte_svelte_semantic', 'rsvelte_typescript_syntax'],
-		['rsvelte_svelte_syntax', 'rsvelte_typescript_syntax'],
+		['rsvelte_svelte_semantic', 'rsvelte_typescript_tree'],
+		['rsvelte_svelte_syntax', 'rsvelte_typescript_tree'],
 		['rsvelte_svelte_syntax', 'rsvelte_stylesheet_syntax'],
-		['rsvelte_typescript_syntax', 'rsvelte_kernel'],
+		['rsvelte_typescript_tree', 'rsvelte_kernel'],
 		['rsvelte_stylesheet_syntax', 'rsvelte_kernel'],
 		['rsvelte_command_line', 'rsvelte_kernel'],
 	];
