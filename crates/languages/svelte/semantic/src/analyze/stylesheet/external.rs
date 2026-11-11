@@ -50,3 +50,30 @@ pub(super) fn mark_external(
         mark_external(source, &rule.children, external, used);
     }
 }
+
+/// Per selector: whether a rule nested in a `:global {…}` block holds it. Upstream's pruning never
+/// enters such a block, so its selectors are used and scope no element.
+pub(super) fn in_global_blocks(source: &str, rules: &[Rule], count: usize) -> Vec<bool> {
+    fn walk(source: &str, rules: &[Rule], inside: bool, out: &mut [bool]) {
+        for rule in rules {
+            let opens = if let RuleKind::Style { selectors, .. } = &rule.kind {
+                for selector in selectors {
+                    out[selector.id as usize] = inside;
+                }
+                selectors.iter().any(|selector| {
+                    selector
+                        .parts
+                        .last()
+                        .and_then(|part| part.simple.iter().next_back())
+                        .is_some_and(|simple| simple.is_global_block(source))
+                })
+            } else {
+                false
+            };
+            walk(source, &rule.children, inside || opens, out);
+        }
+    }
+    let mut out = vec![false; count];
+    walk(source, rules, false, &mut out);
+    out
+}
