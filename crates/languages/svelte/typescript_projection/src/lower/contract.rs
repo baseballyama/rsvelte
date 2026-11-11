@@ -5,6 +5,7 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
+use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
 
 use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, Span, Unsupported, span};
 
@@ -73,12 +74,18 @@ impl Builder<'_> {
             self.scratch[generated_start..].rotate_right(1);
         }
         let props = props.unwrap_or_else(|| {
-            let callee = self.tree.push(Node::Identifier("Record"));
-            let key = self.tree.push(Node::Identifier("string"));
-            let value = self.tree.push(Node::Identifier("never"));
-            let arguments = self.tree.list(&[key, value]);
-            self.tree.push(Node::TypeArguments { callee, arguments })
+            // A name of the prelude's, which no `Record` of the component's own can shadow.
+            self.tree.push(Node::Identifier("__rsvelte_no_props"))
         });
+        let props = if self.has_default_slot() {
+            let callee = self
+                .tree
+                .push(Node::Identifier("__rsvelte_props_with_children"));
+            let arguments = self.tree.list(&[props]);
+            self.tree.push(Node::TypeArguments { callee, arguments })
+        } else {
+            props
+        };
         let exports = self.tree.list(&exports);
         let exports = self.tree.push(Node::TypeLiteral(exports));
         let bindings = if bindings.is_empty() {
@@ -100,6 +107,30 @@ impl Builder<'_> {
             arguments: Range::default(),
         });
         Ok(self.tree.push(Node::ExportDefault(value)))
+    }
+
+    /// svelte2tsx's `slots` has a `default` key: a `<slot>` without a `name`, or named `default`.
+    fn has_default_slot(&self) -> bool {
+        self.component.nodes.iter().any(|node| match *node {
+            TemplateNode::Element {
+                name,
+                component: None,
+                attributes,
+                ..
+            } if name.text(self.source) == "slot" => {
+                let named = self
+                    .component
+                    .attributes(attributes)
+                    .iter()
+                    .find(|a| a.name.text(self.source) == "name");
+                named.is_none_or(|a| {
+                    matches!(a.value, AttributeValue::Parts(parts)
+                        if matches!(self.component.parts(parts).first(),
+                            Some(Part::Text(text)) if text.text(self.source) == "default"))
+                })
+            }
+            _ => false,
+        })
     }
 
     /// The variable declaration `statement` is or exports, after recording what it exports.
@@ -322,20 +353,7 @@ impl Builder<'_> {
     }
 
     fn props_name(&mut self) -> NodeIdentifier {
-        let prefix = "__rsvelte_public_props";
-        let taken = |name: &str| {
-            (self.resolution)().is_some_and(|resolution| {
-                let scoping = resolution.scoping();
-                scoping.symbol_names().any(|n| n == name)
-                    || resolution.unresolved_names().any(|n| n == name)
-            })
-        };
-        let mut index = 0;
-        while taken(&format!("{prefix}{index}")) {
-            index += 1;
-        }
-        let prefix = self.tree.push(Node::Identifier(prefix));
-        self.tree.push(Node::GeneratedIdentifier { prefix, index })
+        self.unused_name("__rsvelte_public_props")
     }
 
     /// Whether `e`, without its TypeScript wrappers, calls the rune `name` in its scope.

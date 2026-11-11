@@ -44,6 +44,9 @@
 ["svelte/svelte-bits/src/lib/components/landing/Features/VariantTabs.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
+["svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
 ["svelte/svelte-commerce/src/lib/core/components/plugins/whatsapp-chat-button.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 

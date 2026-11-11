@@ -1,7 +1,6 @@
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 use super::children::Child;
-use super::javascript::{Adjust, Part as JavaScriptPart};
 use super::{
     Attribute, AttributeKind, AttributeValue, Cow, ElementKind, LayoutInstructionIdentifier,
     LayoutInstructions, Part, Printer, R, Span, TagAttributes, TemplateNode,
@@ -28,7 +27,7 @@ impl Printer<'_, '_, '_> {
         let mut hoisted = Vec::new();
         for script in c.module.iter().chain(&c.instance) {
             let comments = self.leading_comments(&mut root, script.span.start_offset);
-            let body = if self.ignores(&comments) {
+            let body = if self.ignores(&comments) || self.unsupported(&script.attributes) {
                 self.preformatted(script.content)
             } else {
                 self.refuse_script_language(&script.attributes)?;
@@ -40,14 +39,9 @@ impl Printer<'_, '_, '_> {
         }
         if let Some(style) = &c.style {
             let comments = self.leading_comments(&mut root, style.span.start_offset);
-            let body = if self.ignores(&comments) {
-                // The task formats only a component whose style sheet parsed.
-                if style.sheet.is_err() {
-                    return Err(Unsupported::at(
-                        "a style sheet that does not parse",
-                        style.content,
-                    ));
-                }
+            // The plugin takes the body out before Svelte parses, so Svelte's CSS errors do not
+            // reach it.
+            let body = if self.ignores(&comments) || self.unsupported(&style.attributes) {
                 self.preformatted(style.content)
             } else {
                 self.style_body(style)?
@@ -305,6 +299,7 @@ impl Printer<'_, '_, '_> {
 
     /// `preformattedBody`: the text without its first and last line break, on a literal line.
     fn preformatted(&mut self, content: Span) -> LayoutInstructionIdentifier {
+        self.embedder.kept.push(content);
         let text = content.text(self.source_text);
         if text.is_empty() {
             return self.d().nil();
@@ -480,47 +475,6 @@ impl Printer<'_, '_, '_> {
         self.group(&[open, body, close])
     }
 
-    /// The plugin's `getLangAttribute` names a language other than JavaScript or TypeScript: JSON
-    /// goes to Prettier's JSON printer, and any other body the plugin keeps when it does not parse.
-    fn refuse_script_language(&self, attributes: &[TagAttributes]) -> R<()> {
-        let value = |name: &str| {
-            attributes
-                .iter()
-                .find(|(n, _)| n.text(self.source_text) == name)
-                .and_then(|&(n, v)| v.map(|v| (n, v.text(self.source_text))))
-                .filter(|(_, v)| !v.is_empty())
-        };
-        let Some((at, lang)) = value("lang").or_else(|| value("type")) else {
-            return Ok(());
-        };
-        let lang = lang.strip_prefix("text/").unwrap_or(lang);
-        if matches!(
-            lang,
-            "ts" | "typescript" | "js" | "javascript" | "module" | "application/javascript"
-        ) {
-            Ok(())
-        } else {
-            Err(Unsupported::at(
-                "a script language other than JavaScript",
-                at,
-            ))
-        }
-    }
-
-    /// `formatBodyContent` around the script's program.
-    pub(super) fn script_body(&mut self, content: Span) -> R<LayoutInstructionIdentifier> {
-        let text = content.text(self.source_text);
-        if text.trim_matches(is_ecmascript_whitespace).is_empty() {
-            return Ok(if text.is_empty() {
-                self.d().nil()
-            } else {
-                self.d().hardline()
-            });
-        }
-        let body = self.embed(content, JavaScriptPart::Script, Adjust::default())?;
-        Ok(self.indented_body(body))
-    }
-
     /// `[indent([hardline, body]), hardline]` after trimming the body's trailing lines, without
     /// the `indent` when `svelteIndentScriptAndStyle` is off.
     pub(super) fn indented_body(
@@ -549,68 +503,7 @@ impl Printer<'_, '_, '_> {
             self.d().line()
         }
     }
-
-    pub(super) fn style_body(
-        &mut self,
-        style: &rsvelte_svelte_syntax::syntax_tree::Style,
-    ) -> R<LayoutInstructionIdentifier> {
-        // The plugin's `getLangAttribute`: `lang`, else `type`, without a `text/` prefix.
-        let language = ["lang", "type"].iter().find_map(|&name| {
-            style
-                .attributes
-                .iter()
-                .find(|(n, _)| n.text(self.source_text) == name)
-                .and_then(|&(n, v)| Some((n, v?.text(self.source_text))))
-                .filter(|(_, value)| !value.is_empty())
-        });
-        // Prettier formats any other language, such as `postcss`, with its CSS parser.
-        if let Some((n, language)) = language
-            && matches!(
-                language.strip_prefix("text/").unwrap_or(language),
-                "less" | "scss" | "sass" | "styl" | "stylus"
-            )
-        {
-            return Err(Unsupported::at("a Less, Sass or Stylus style", n));
-        }
-        // The task formats only a component whose style sheet parsed.
-        if style.sheet.is_err() {
-            return Err(Unsupported::at(
-                "a style sheet that does not parse",
-                style.content,
-            ));
-        }
-        let text = style.content.text(self.source_text);
-        if text.trim_matches(is_ecmascript_whitespace).is_empty() {
-            return Ok(if text.is_empty() {
-                self.d().nil()
-            } else {
-                self.d().hardline()
-            });
-        }
-        let text = oxc_formatter_core::normalize_newlines(text, ['\r']);
-        let core = &self.embedder.options;
-        let options = oxc_formatter_css::CssFormatOptions {
-            indent_style: core.indent_style,
-            indent_width: core.indent_width,
-            line_width: core.line_width,
-            line_ending: core.line_ending,
-            single_quote: self.options.single_quote.into(),
-            ..oxc_formatter_css::CssFormatOptions::default()
-        };
-        #[expect(
-            clippy::map_err_ignore,
-            reason = "oxc's diagnostic points into the sheet, not the component"
-        )]
-        let ir = oxc_formatter_css::format_to_ir(
-            self.embedder.embedding.session(),
-            &text,
-            options,
-            None,
-        )
-        .map_err(|_| Unsupported::at("CSS that oxc's formatter does not format", style.content))?;
-        let body = self.keep(ir.ir);
-        Ok(self.indented_body(body))
-    }
 }
 
+mod language;
 mod options;

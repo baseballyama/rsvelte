@@ -9,4 +9,4 @@ let value=$state("a");export function set(next){value=next;}export function get(
     });
   }
 };
-export default __rsvelte_export_component<Record<string, never>, {}, "">();
+export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();

@@ -107,6 +107,9 @@ impl Printer<'_> {
                 self.node(value);
                 self.output.push(",\n");
             }
+            node @ (Node::SnippetProperty { .. }
+            | Node::SnippetNames { .. }
+            | Node::ImplicitChildren(_)) => self.component_part(node),
             Node::Shorthand(value) => {
                 self.node(value);
                 self.output.push(",\n");
@@ -127,6 +130,44 @@ impl Printer<'_> {
             Node::String { parts, template } => self.string(parts, template),
             Node::Text(_) => unreachable!("text is printed only inside a string literal"),
             node => self.contract_node(node),
+        }
+    }
+
+    /// What svelte2tsx adds around a component's call for its children.
+    fn component_part(&mut self, node: Node) {
+        match node {
+            Node::SnippetProperty {
+                name,
+                parameters,
+                body,
+            } => {
+                self.node(name);
+                self.output.push(": ");
+                match parameters {
+                    Some(parameters) => self.node(parameters),
+                    None => self.output.push("()"),
+                }
+                self.output.push(" => {\n");
+                self.indent += 1;
+                self.children(body);
+                self.indentation();
+                self.output.push("return __rsvelte_snippet_return;\n");
+                self.indent -= 1;
+                self.indentation();
+                self.output.push("},\n");
+            }
+            Node::SnippetNames { names, component } => {
+                self.output.push("const { ");
+                self.separated(names, ", ");
+                self.output.push(" } = __rsvelte_component_props(");
+                self.node(component);
+                self.output.push(");\n");
+            }
+            Node::ImplicitChildren(at) => {
+                self.output.mark(at);
+                self.output.push("children: __rsvelte_children,\n");
+            }
+            _ => unreachable!("only a component's parts are printed here"),
         }
     }
 

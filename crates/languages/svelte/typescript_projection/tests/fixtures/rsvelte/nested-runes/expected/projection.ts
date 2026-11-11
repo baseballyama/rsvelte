@@ -19,4 +19,4 @@
     (result);
   }
 };
-export default __rsvelte_export_component<Record<string, never>, {}, "">();
+export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();

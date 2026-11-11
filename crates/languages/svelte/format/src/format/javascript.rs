@@ -19,6 +19,9 @@ pub(super) struct Embedder<'x> {
     /// The plugin parses with TypeScript when any `<script>` says `lang="ts"`.
     pub(super) typescript: bool,
     pub(super) options: JsFormatOptions,
+    /// The source the output keeps the comments of: what oxc formatted from its text, and what
+    /// is printed as it is.
+    pub(super) kept: Vec<Span>,
 }
 
 /// The plugin's adjustments to a part: `forceSingleQuote` inside a quoted attribute,
@@ -73,7 +76,7 @@ impl<'x> Printer<'_, '_, 'x> {
 
     /// `text`, the code at `span`, formatted as `part`.
     pub(super) fn format_javascript(
-        &self,
+        &mut self,
         text: &str,
         span: Span,
         part: Part,
@@ -118,6 +121,7 @@ impl<'x> Printer<'_, '_, 'x> {
             JsEmbeddedIn::default(),
         )
         .map_err(|_| Unsupported::at("code that oxc's formatter does not format", span))?;
+        self.embedder.kept.push(span);
         Ok(ir.ir)
     }
 }

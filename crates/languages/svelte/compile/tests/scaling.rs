@@ -155,33 +155,53 @@ fn a_call_chain_compiles_in_allocations_linear_in_its_length() {
     assert!(long < 3 * short, "{short} allocations, then {long}");
 }
 
+/// CPU time this thread has spent, which a busy machine does not inflate as it does wall-clock
+/// time.
+#[cfg(unix)]
+fn thread_time() -> std::time::Duration {
+    let mut now = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    #[expect(unsafe_code, reason = "reads this thread's clock into a local")]
+    // SAFETY: `now` is a valid, writable timespec, and the clock id is a constant.
+    let status = unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &raw mut now) };
+    assert_eq!(status, 0, "the thread's CPU clock is readable");
+    std::time::Duration::new(
+        u64::try_from(now.tv_sec).expect("a non-negative time"),
+        u32::try_from(now.tv_nsec).expect("nanoseconds under a second"),
+    )
+}
+
+#[cfg(unix)]
 #[test]
-fn a_components_snippets_take_as_long_as_an_elements() {
+fn a_components_snippets_compile_in_time_linear_in_their_number() {
     // Checking each of a component's snippets against all its attributes and children is
-    // quadratic; an element's snippets meet neither check, so they bound the time.
-    let markup = |tag: &str| {
-        let attributes: Vec<String> = (0..6000).map(|i| format!(" a{i}={{x}}")).collect();
-        let snippets: Vec<String> = (0..6000)
+    // quadratic, which makes twice the snippets cost about four times as much.
+    let markup = |n: usize| {
+        let attributes: Vec<String> = (0..n).map(|i| format!(" a{i}={{x}}")).collect();
+        let snippets: Vec<String> = (0..n)
             .map(|i| format!("{{#snippet s{i}()}}<p>{{x}}</p>{{/snippet}}"))
             .collect();
         let (attributes, snippets) = (attributes.concat(), snippets.concat());
         format!(
-            "<script>import C from './C.svelte'; let x = $state(0);</script><{tag}{attributes}>{snippets}</{tag}>"
+            "<script>import C from './C.svelte'; let x = $state(0);</script><C{attributes}>{snippets}</C>"
         )
     };
+    let (short, long) = (markup(3000), markup(6000));
     let time = |source: &str| {
-        (0..3)
-            .map(|_| {
-                let start = std::time::Instant::now();
-                stages(source, Stage::Compile);
-                start.elapsed()
-            })
-            .min()
-            .expect("three runs")
+        let start = thread_time();
+        stages(source, Stage::Compile);
+        thread_time().saturating_sub(start)
     };
-    let (component, element) = (time(&markup("C")), time(&markup("div")));
+    // Alternating the sizes lets both meet the same machine.
+    let (mut short_time, mut long_time) = (std::time::Duration::MAX, std::time::Duration::MAX);
+    for _ in 0..3 {
+        short_time = short_time.min(time(&short));
+        long_time = long_time.min(time(&long));
+    }
     assert!(
-        component < 2 * element,
-        "the component took {component:?}, the element {element:?}"
+        long_time < 3 * short_time,
+        "3000 snippets took {short_time:?}, 6000 took {long_time:?}"
     );
 }

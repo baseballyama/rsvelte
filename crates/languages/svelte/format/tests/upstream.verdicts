@@ -184,12 +184,12 @@ pass	printer/style-directive.html
 pass	printer/style-inside-comment.html
 refused	printer/style-inside-element.html	<script> or <style> inside an element
 pass	printer/style-inside-script.html
-refused	printer/style-lang-less.html	a Less, Sass or Stylus style
-refused	printer/style-lang-scss.html	a Less, Sass or Stylus style
+pass	printer/style-lang-less.html
+pass	printer/style-lang-scss.html
 pass	printer/style-script-commented-out.html
-refused	printer/style-scripts-snipping-spans.html	a Less, Sass or Stylus style
-refused	printer/style-type-less.html	a Less, Sass or Stylus style
-refused	printer/style-type-scss.html	a Less, Sass or Stylus style
+pass	printer/style-scripts-snipping-spans.html
+pass	printer/style-type-less.html
+pass	printer/style-type-scss.html
 pass	printer/style-unclosed-inside-script.html
 pass	printer/style-with-attributes.html
 pass	printer/style.html
