@@ -171,6 +171,7 @@ impl Printer<'_> {
             | Node::Arrow { .. }
             | Node::Statements(_)
             | Node::Await(_)
+            | Node::Index { .. }
             | Node::Try { .. }
             | Node::Template(_)) => self.template_part(node),
             Node::Boolean => self.output.push("true"),
@@ -377,6 +378,12 @@ impl Printer<'_> {
                 Node::Statements(statements) => {
                     self.output.push("\n");
                     self.children(statements);
+                }
+                Node::Index { object, index } => {
+                    self.node(object);
+                    self.output.push("[");
+                    self.node(index);
+                    self.output.push("]");
                 }
                 Node::Await(value) => {
                     self.output.push("await (");
