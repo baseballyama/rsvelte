@@ -225,14 +225,14 @@ pub(super) fn child_snippets<'t, 'o>(
     Ok((declarations, names))
 }
 
-/// Each snippet child as a prop of its name, the other children as a callback in the `children`
-/// prop, and `$$slots` so that a `<slot>` in the child renders them; the targets differ only in
-/// the callback's parameters.
+/// Each snippet child as a prop of its name, the default slot as a callback in the `children`
+/// prop, the other slots in `$$slots`, and `$$slots` so that a `<slot>` in the child renders them
+/// all; the targets differ only in the callbacks' parameters.
 pub(super) fn push_children<'o>(
     b: &Builder<'o>,
     parts: &mut Vec<Entry<'o>>,
     snippets: &[&str],
-    children: Vec<Statement<'o>>,
+    slot_bodies: Vec<(&str, Vec<Statement<'o>>)>,
     parameters: &[&str],
 ) {
     let mut slots = Vec::new();
@@ -242,10 +242,17 @@ pub(super) fn push_children<'o>(
         let slot = if name == "children" { "default" } else { name };
         slots.push(b.init(slot, b.boolean(true)));
     }
-    if !children.is_empty() {
-        let callback = b.arrow_block(b.params(parameters.iter().copied()), children, false);
-        parts.push(Entry::Property(b.init("children", callback)));
-        slots.push(b.init("default", b.boolean(true)));
+    for (name, body) in slot_bodies {
+        if body.is_empty() {
+            continue;
+        }
+        let callback = b.arrow_block(b.params(parameters.iter().copied()), body, false);
+        if name == "default" {
+            parts.push(Entry::Property(b.init("children", callback)));
+            slots.push(b.init("default", b.boolean(true)));
+        } else {
+            slots.push(b.init(name, callback));
+        }
     }
     if !slots.is_empty() {
         parts.push(Entry::Property(b.init("$$slots", b.object(slots))));

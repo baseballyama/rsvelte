@@ -165,7 +165,10 @@ impl Foreign {
         let checks_nodes = match owner.map(|owner| &tree.node(owner).kind) {
             Some(NodeKind::Element(element)) if is_dom(element.kind) => return inherited,
             None | Some(NodeKind::Snippet(_)) => true,
-            Some(NodeKind::Element(element)) => element.kind == ElementKind::Component,
+            Some(NodeKind::Element(element)) => matches!(
+                element.kind,
+                ElementKind::Component | ElementKind::Metadata(Some(MetadataTag::Fragment))
+            ),
             Some(_) => false,
         };
         if checks_nodes

@@ -64,8 +64,21 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             child_snippets(tree, self.javascript, element.children, |snippet| {
                 self.snippet_declaration(snippet)
             })?;
-        let children = self.fragment_without(element.children, |_| true)?;
-        push_children(b, &mut parts, &snippets, children, &["$$renderer"]);
+        let plan = self.plan;
+        let slots = match plan.slots(identifier) {
+            None => vec![(
+                "default",
+                self.fragment_without(element.children, |_| true)?,
+            )],
+            Some(slots) => slots
+                .map(|(name, region)| {
+                    let (mut body, template) = self.region_parts(region, |_| true)?;
+                    body.extend(template);
+                    Ok((name, body))
+                })
+                .collect::<R<_>>()?,
+        };
+        push_children(b, &mut parts, &snippets, slots, &["$$renderer"]);
         let props = props_expression(b, parts, Target::Server);
         let callee = callee(tree, self.javascript, self.res, identifier);
         let function = match callee {

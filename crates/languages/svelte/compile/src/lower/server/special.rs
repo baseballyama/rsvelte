@@ -67,6 +67,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             ElementKind::Metadata(Some(MetadataTag::Boundary)) => {
                 self.boundary(element, template)?;
             }
+            ElementKind::Metadata(Some(MetadataTag::Fragment)) => {
+                let body = self.fragment(element.children)?;
+                template.push(Piece::Statement(b.block(body)));
+            }
             ElementKind::Metadata(Some(MetadataTag::Element)) => {
                 return self.dynamic_element(identifier, template);
             }
