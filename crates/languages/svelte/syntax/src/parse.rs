@@ -129,21 +129,33 @@ impl Template {
         }
     }
 
-    fn into_component(self, javascript: Tree) -> Component {
+    fn into_component(mut self, javascript: Tree) -> Component {
         Component {
             javascript,
-            nodes: self.nodes,
-            children: self.children,
-            attributes: self.attributes,
-            parts: self.parts,
-            modifiers: self.modifiers,
-            debug_identifiers: self.debug_identifiers,
+            nodes: std::mem::take(&mut self.nodes),
+            children: std::mem::take(&mut self.children),
+            attributes: std::mem::take(&mut self.attributes),
+            parts: std::mem::take(&mut self.parts),
+            modifiers: std::mem::take(&mut self.modifiers),
+            debug_identifiers: std::mem::take(&mut self.debug_identifiers),
             root: self.root,
-            module: self.module,
-            instance: self.instance,
-            style: self.style,
-            tokens: self.tokens,
+            module: self.module.take(),
+            instance: self.instance.take(),
+            style: self.style.take(),
+            tokens: std::mem::take(&mut self.tokens),
         }
+    }
+}
+
+/// A component that does not parse gives its buffers back, as a parsed one does when dropped.
+impl Drop for Template {
+    fn drop(&mut self) {
+        buffer_pool::give_keyed::<Component, _>(std::mem::take(&mut self.nodes));
+        buffer_pool::give_keyed::<Component, _>(std::mem::take(&mut self.children));
+        buffer_pool::give_keyed::<Component, _>(std::mem::take(&mut self.attributes));
+        buffer_pool::give_keyed::<Component, _>(std::mem::take(&mut self.parts));
+        buffer_pool::give_keyed::<Component, _>(std::mem::take(&mut self.modifiers));
+        buffer_pool::give_keyed::<Component, _>(std::mem::take(&mut self.debug_identifiers));
     }
 }
 
