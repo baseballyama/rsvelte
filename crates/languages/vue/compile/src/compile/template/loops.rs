@@ -1,6 +1,6 @@
 use super::{
-    Cg, DirectiveExpression, DirectiveName, Exit, Helper, NOT_CONSTANT, Nid, Node, NodeIdentifier,
-    Property, PropertyIdentifier, PropertyKind, R, Transform, VChildren, VNodeArgs, patch,
+    Cg, DirectiveExpression, DirectiveName, Exit, ExpressionIdentifier, Helper, NOT_CONSTANT, Nid,
+    Node, Property, PropertyIdentifier, PropertyKind, R, Transform, VChildren, VNodeArgs, patch,
 };
 
 impl Transform<'_> {
@@ -11,7 +11,7 @@ impl Transform<'_> {
         &mut self,
         el: Nid,
         parent: Option<Nid>,
-        raw: NodeIdentifier,
+        raw: ExpressionIdentifier,
         identifier: PropertyIdentifier,
     ) -> R<(Nid, Exit)> {
         let PropertyKind::Directive(d) = &self.compiler_syntax_tree.props[identifier].kind else {
@@ -20,7 +20,7 @@ impl Transform<'_> {
         let DirectiveExpression::For(f) = &d.exp else {
             unreachable!("a v-for has its parse result")
         };
-        let parameters = f.parameters.clone();
+        let parameters = f.parameters;
         let source = self.process_expression(raw, false)?;
         let for_node = self.push(Node::For {
             source,
@@ -90,7 +90,7 @@ impl Transform<'_> {
         else {
             unreachable!("a v-for with its codegen")
         };
-        let (source, parameters, vnode) = (*source, parameters.clone(), *vnode);
+        let (source, parameters, vnode) = (*source, *parameters, *vnode);
         let Cg::VNode {
             children: Some(VChildren::Cg(render)),
             ..

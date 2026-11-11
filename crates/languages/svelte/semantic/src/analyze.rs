@@ -5,9 +5,12 @@ use rsvelte_kernel::index::IndexVector;
 use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
-use crate::compiler_syntax_tree::CompilerNodeIdentifier;
+use oxc_ast::ast::{ChainElement, Expression};
+
+use crate::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use crate::input::ComponentInput;
 use crate::resolve::Resolution;
+use crate::typescript::without_typescript;
 
 mod dynamic;
 mod evaluation;
@@ -36,6 +39,9 @@ pub struct Analysis {
     pub expressions: FxHashMap<ExpressionIdentifier, ExpressionMetadata>,
     /// Keyed by every `{@const}` and `{let}` tag's declaration.
     pub declarations: FxHashMap<DeclarationIdentifier, ExpressionMetadata>,
+    /// Keyed by each `{@render}` tag's expression: one per argument of its call (upstream
+    /// `metadata.arguments`).
+    render_arguments: FxHashMap<ExpressionIdentifier, Vec<ExpressionMetadata>>,
     pub needs_context: bool,
     /// Per HIR node: whether the style sheet selects it (elements only).
     pub scoped: IndexVector<CompilerNodeIdentifier, bool>,
@@ -69,6 +75,15 @@ impl Analysis {
             .get(&declaration)
             .expect("every tag's declaration is analysed")
     }
+
+    /// Each argument's metadata of the call a `{@render}` tag's `expression` makes; empty for
+    /// another expression.
+    #[must_use]
+    pub fn render_arguments(&self, expression: ExpressionIdentifier) -> &[ExpressionMetadata] {
+        self.render_arguments
+            .get(&expression)
+            .map_or(&[], Vec::as_slice)
+    }
 }
 
 #[must_use]
@@ -77,6 +92,7 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
     let mut analysis = Analysis {
         expressions: FxHashMap::default(),
         declarations: FxHashMap::default(),
+        render_arguments: FxHashMap::default(),
         needs_context: false,
         scoped: IndexVector::from_element_n(false, compiler_syntax_tree.nodes.len()),
         dynamic: IndexVector::from_element_n(false, compiler_syntax_tree.nodes.len()),
@@ -96,11 +112,41 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
         compiler_syntax_tree.component_references().collect();
     let mut expressions =
         FxHashMap::with_capacity_and_hasher(tree.expressions().len(), FxBuildHasher);
+    let renders: FxHashSet<ExpressionIdentifier> = compiler_syntax_tree
+        .nodes
+        .iter()
+        .filter_map(|node| match node.kind {
+            NodeKind::Render { expression } => Some(expression),
+            _ => None,
+        })
+        .collect();
     for (identifier, expression) in tree.expressions() {
         let mut walker = MetadataWalker::<true>::new(res, &mut values);
-        walker.visit_expression(expression);
-        needs_context |= walker.needs_context() && !references.contains(&identifier);
+        // Upstream's render tag visits its call's callee and each argument, never the call.
+        let call = renders
+            .contains(&identifier)
+            .then(|| render_call(expression))
+            .flatten();
+        let Some(call) = call else {
+            walker.visit_expression(expression);
+            needs_context |= walker.needs_context() && !references.contains(&identifier);
+            expressions.insert(identifier, walker.metadata());
+            continue;
+        };
+        walker.visit_expression(&call.callee);
+        needs_context |= walker.needs_context();
         expressions.insert(identifier, walker.metadata());
+        let arguments = call
+            .arguments
+            .iter()
+            .map(|argument| {
+                let mut walker = MetadataWalker::<true>::new(res, &mut values);
+                walker.visit_argument(argument);
+                needs_context |= walker.needs_context();
+                walker.metadata()
+            })
+            .collect();
+        analysis.render_arguments.insert(identifier, arguments);
     }
     let mut declarations = FxHashMap::default();
     for (identifier, declaration) in tree.declarations() {
@@ -122,3 +168,18 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
     stylesheet::analyze(input, res, &mut analysis);
     analysis
 }
+
+/// Upstream `unwrap_optional` of a render tag's expression: the call it makes.
+fn render_call<'a>(e: &'a Expression<'a>) -> Option<&'a oxc_ast::ast::CallExpression<'a>> {
+    match without_typescript(e) {
+        Expression::CallExpression(call) => Some(call),
+        Expression::ChainExpression(chain) => match &chain.expression {
+            ChainElement::CallExpression(call) => Some(call),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests;

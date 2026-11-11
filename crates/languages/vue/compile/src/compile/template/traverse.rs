@@ -1,7 +1,7 @@
 use super::{
-    CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Exit, Exp, Helper, NOT_CONSTANT,
-    Nid, Node, NodeIdentifier, NodeKind, Property, PropertyIdentifier, PropertyKind, R, TagType,
-    Transform, Unsupported,
+    CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Exit, Exp, ExpressionIdentifier,
+    Helper, NOT_CONSTANT, Nid, Node, NodeKind, Property, PropertyIdentifier, PropertyKind, R,
+    TagType, Transform, Unsupported,
 };
 
 impl Transform<'_> {
@@ -85,9 +85,12 @@ impl Transform<'_> {
                         return Err(Unsupported::at("this bound attribute", p.span));
                     }
                     let raw = match &d.exp {
-                        DirectiveExpression::None => NodeIdentifier::NONE,
-                        DirectiveExpression::Expression(e) => *e,
-                        DirectiveExpression::For(f) => f.source,
+                        DirectiveExpression::None if d.name == DirectiveName::Else => None,
+                        DirectiveExpression::None => {
+                            return Err(Unsupported::at("a directive without a value", p.span));
+                        }
+                        DirectiveExpression::Expression(e) => Some(*e),
+                        DirectiveExpression::For(f) => Some(f.source),
                     };
                     Property::Dir {
                         name: d.name,
@@ -138,6 +141,7 @@ impl Transform<'_> {
             }
         }
         if let Some((_, raw, identifier)) = self.take_directive(n, |d| d == DirectiveName::For) {
+            let raw = raw.expect("a v-for has a value");
             let (for_node, exit) = self.process_for(n, parent, raw, identifier)?;
             n = for_node;
             exits.push(exit);
@@ -211,7 +215,11 @@ impl Transform<'_> {
         &mut self,
         n: Nid,
         matches: impl Fn(DirectiveName) -> bool,
-    ) -> Option<(DirectiveName, NodeIdentifier, PropertyIdentifier)> {
+    ) -> Option<(
+        DirectiveName,
+        Option<ExpressionIdentifier>,
+        PropertyIdentifier,
+    )> {
         let Node::Element { props, .. } = &mut self.tree[n] else {
             return None;
         };

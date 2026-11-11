@@ -3,6 +3,7 @@
 mod task;
 pub use task::*;
 
+pub mod build;
 pub mod features;
 pub mod print;
 pub mod strip;

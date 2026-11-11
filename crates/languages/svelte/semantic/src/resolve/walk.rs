@@ -47,6 +47,74 @@ pub trait Roots {
     fn leave(&mut self);
 }
 
+/// The template's roots in document order, walked once for the passes that each read them all.
+#[derive(Debug)]
+pub(super) struct Recorded(Vec<Root>);
+
+#[derive(Clone, Copy, Debug)]
+enum Root {
+    Expression(ExpressionIdentifier),
+    Bound(ExpressionIdentifier),
+    Declaration(DeclarationIdentifier),
+    Pattern(PatternIdentifier),
+    Parameters(ParametersIdentifier),
+    Name(TemplateName),
+    Enter(TemplateScope),
+    Leave,
+}
+
+impl Roots for Vec<Root> {
+    fn expression(&mut self, expression: ExpressionIdentifier) {
+        self.push(Root::Expression(expression));
+    }
+    fn bound(&mut self, expression: ExpressionIdentifier) {
+        self.push(Root::Bound(expression));
+    }
+    fn declaration(&mut self, declaration: DeclarationIdentifier) {
+        self.push(Root::Declaration(declaration));
+    }
+    fn pattern(&mut self, pattern: PatternIdentifier) {
+        self.push(Root::Pattern(pattern));
+    }
+    fn parameters(&mut self, parameters: ParametersIdentifier) {
+        self.push(Root::Parameters(parameters));
+    }
+    fn name(&mut self, name: TemplateName) {
+        self.push(Root::Name(name));
+    }
+    fn enter(&mut self, scope: TemplateScope) {
+        self.push(Root::Enter(scope));
+    }
+    fn leave(&mut self) {
+        self.push(Root::Leave);
+    }
+}
+
+impl Recorded {
+    #[must_use]
+    pub(super) fn new(compiler_syntax_tree: &CompilerSyntaxTree) -> Self {
+        let mut roots = Vec::new();
+        walk(compiler_syntax_tree, compiler_syntax_tree.root, &mut roots);
+        Self(roots)
+    }
+
+    /// Meets the roots in the order [`walk`] does, without walking the markup again.
+    pub(super) fn replay(&self, roots: &mut impl Roots) {
+        for &root in &self.0 {
+            match root {
+                Root::Expression(e) => roots.expression(e),
+                Root::Bound(e) => roots.bound(e),
+                Root::Declaration(d) => roots.declaration(d),
+                Root::Pattern(p) => roots.pattern(p),
+                Root::Parameters(p) => roots.parameters(p),
+                Root::Name(n) => roots.name(n),
+                Root::Enter(s) => roots.enter(s),
+                Root::Leave => roots.leave(),
+            }
+        }
+    }
+}
+
 /// Walks the template's roots. Fragments nest through here, so the stack grows as deep as the
 /// markup does.
 pub fn walk(compiler_syntax_tree: &CompilerSyntaxTree, list: Children, roots: &mut impl Roots) {

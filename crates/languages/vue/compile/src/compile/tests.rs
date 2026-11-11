@@ -8,12 +8,21 @@ fn refusal(script: &str, template: &str) -> Option<&'static str> {
     let res = rsvelte_vue_semantic::resolve::resolve(
         &c.javascript,
         c.program,
+        None,
         compiler_syntax_tree.as_ref(),
-        &source_text,
     );
     let input =
         CompileInput::from_single_file_component(&c, compiler_syntax_tree.as_ref(), &source_text);
     compile(&input, &res, "a.vue").err().map(|u| u.what)
+}
+
+/// `javascript` without whitespace and with one kind of quote: the printer's layout is free.
+fn flat(javascript: &str) -> String {
+    javascript
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .map(|c| if c == '"' { '\'' } else { c })
+        .collect()
 }
 
 fn output(script: &str, template: &str) -> String {
@@ -24,12 +33,12 @@ fn output(script: &str, template: &str) -> String {
     let res = rsvelte_vue_semantic::resolve::resolve(
         &c.javascript,
         c.program,
+        None,
         compiler_syntax_tree.as_ref(),
-        &source_text,
     );
     let input =
         CompileInput::from_single_file_component(&c, compiler_syntax_tree.as_ref(), &source_text);
-    compile(&input, &res, "a.vue").expect("compiles").javascript
+    flat(&compile(&input, &res, "a.vue").expect("compiles").javascript)
 }
 
 // Expected fragments from @vue/compiler-sfc 3.5.43's compileScript (inlineTemplate) on the
@@ -42,21 +51,21 @@ fn define_options_merges_into_the_component_object() {
         "<p>{{ a }}</p>",
     );
     assert!(
-        javascript.contains(
+        javascript.contains(&flat(
             "const _sfc_main = /* @__PURE__ */ Object.assign({ inheritAttrs: false, name: \
              'X' }, { __name: 'a', props: { a: {} }, setup(__props) {"
-        ),
+        )),
         "{javascript}"
     );
-    assert!(!javascript.contains("defineOptions"), "{javascript}");
+    assert!(!javascript.contains(&flat("defineOptions")), "{javascript}");
     let javascript = output("defineOptions()", "<p></p>");
     assert!(
-        javascript.contains("const _sfc_main = { __name: 'a', setup(__props) {"),
+        javascript.contains(&flat("const _sfc_main = { __name: 'a', setup(__props) {")),
         "{javascript}"
     );
     let javascript = output("const k = 'a'\ndefineOptions({ name: k })", "<p></p>");
     assert!(
-        javascript.contains("Object.assign({ name: k }, {"),
+        javascript.contains(&flat("Object.assign({ name: k }, {")),
         "{javascript}"
     );
 }
@@ -94,17 +103,17 @@ fn a_function_ref_patches_and_marks_v_for() {
          <ul><li v-for=\"i in 3\" :key=\"i\" :ref=\"(el) => n = el\">{{ i }}</li></ul>",
     );
     assert!(
-        javascript.contains(
+        javascript.contains(&flat(
             "_createElementVNode('p', { ref: (el) => n.value = el }, \
              _toDisplayString(n.value), 513)"
-        ),
+        )),
         "{javascript}"
     );
     assert!(
-        javascript.contains(
+        javascript.contains(&flat(
             "_createElementVNode('li', { key: i, ref_for: true, ref: (el) => n.value = el }, \
              _toDisplayString(i), 1)"
-        ),
+        )),
         "{javascript}"
     );
 }
@@ -113,8 +122,9 @@ fn a_function_ref_patches_and_marks_v_for() {
 fn pre_compiles_with_its_text_as_the_compiler_syntax_tree_holds_it() {
     let javascript = output("const s = 'a'", "<pre>  {{ s }}\n x</pre>");
     assert!(
-        javascript
-            .contains("_createElementBlock('pre', null, '  ' + _toDisplayString(s) + '\\n x')"),
+        javascript.contains(&flat(
+            "_createElementBlock('pre', null, '  ' + _toDisplayString(s) + '\\n x')"
+        )),
         "{javascript}"
     );
 }

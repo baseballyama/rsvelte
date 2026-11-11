@@ -10,7 +10,7 @@ use rsvelte_typescript_tree::{
 };
 use rustc_hash::FxHashMap;
 
-use super::walk::{Roots, TemplateName, TemplateScope, walk};
+use super::walk::{Recorded, Roots, TemplateName, TemplateScope};
 use crate::compiler_syntax_tree::{
     AttributeIdentifier, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Name, NodeKind,
 };
@@ -19,7 +19,7 @@ use crate::compiler_syntax_tree::{
 /// one, else inside the instance's own.
 pub(super) struct ComponentHost<'t, 'a> {
     pub(super) tree: &'a Tree,
-    pub(super) compiler_syntax_tree: &'t CompilerSyntaxTree,
+    pub(super) template: &'t Recorded,
     /// The instance script, when the module script is the root program.
     pub(super) nested_instance: Option<&'a Program<'a>>,
     pub(super) names: &'t Names<'a>,
@@ -163,11 +163,7 @@ impl<'a> Host<'a> for ComponentHost<'_, 'a> {
             visitor,
             open: Vec::new(),
         };
-        walk(
-            self.compiler_syntax_tree,
-            self.compiler_syntax_tree.root,
-            &mut roots,
-        );
+        self.template.replay(&mut roots);
         if self.nested_instance.is_some() {
             visitor.leave_scope();
         }
