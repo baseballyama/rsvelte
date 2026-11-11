@@ -8,7 +8,7 @@ use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
 use super::javascript::member_root;
 use super::snippets::{is_dynamic_render, render_call};
-use super::template::single_expression;
+use super::template::{is_directive, single_expression};
 use super::{
     Attribute, AttributeValue, BindingKind, Builder, CompilerNodeIdentifier, CompilerSyntaxTree,
     Diagnostic, Item, NodeKind, Resolution, Target,
@@ -24,6 +24,8 @@ pub(super) enum Prop<'t> {
     Bind(&'t Attribute, ExpressionIdentifier),
     /// `bind:name={get, set}`, whose functions the parent declares.
     Accessors(&'t Attribute, &'t Expression<'t>, &'t Expression<'t>),
+    /// `--name={value}`: a CSS custom property set around the component, not passed to it.
+    CssProperty(&'t Attribute),
 }
 
 /// Values, spreads and getter-and-setter bindings as written, then the other bindings, so that a
@@ -45,6 +47,7 @@ pub(super) fn props<'t>(
         }
         AttributeValue::Bind(_) | AttributeValue::On { .. } | AttributeValue::Let(_) => None,
         AttributeValue::Spread(e) => Some(Prop::Spread(e)),
+        _ if a.name.text(source_text).starts_with("--") => Some(Prop::CssProperty(a)),
         _ => Some(Prop::Value(a)),
     });
     let bindings = attributes.iter().filter_map(move |a| match a.value {
@@ -152,12 +155,13 @@ pub(super) enum Standalone {
     Render(CompilerNodeIdentifier),
 }
 
-/// Upstream `is_standalone`: the static component or render tag that is a fragment's only item
-/// needs no template.
+/// Upstream `is_standalone`: the static component without CSS custom properties, or the render
+/// tag, that is a fragment's only item needs no template.
 pub(super) fn standalone(
     compiler_syntax_tree: &CompilerSyntaxTree,
     javascript: &Tree,
     res: &Resolution,
+    source_text: &str,
     items: &[Item<'_>],
 ) -> Option<Standalone> {
     let &[Item::Node(identifier)] = items else {
@@ -166,6 +170,9 @@ pub(super) fn standalone(
     match &compiler_syntax_tree.node(identifier).kind {
         NodeKind::Element(element)
             if element.kind == ElementKind::Component
+                && !(compiler_syntax_tree.attributes(element.attributes).iter()).any(|a| {
+                    !is_directive(&a.value) && a.name.text(source_text).starts_with("--")
+                })
                 && !is_dynamic(
                     res,
                     javascript

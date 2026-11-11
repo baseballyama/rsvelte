@@ -111,6 +111,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 self.compiler_syntax_tree,
                 self.javascript,
                 self.res,
+                self.source_text,
                 items,
             ) {
                 // A lone static component or render tag has no markup to clone, so it mounts at

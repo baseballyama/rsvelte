@@ -1,5 +1,5 @@
-use oxc_ast::ast::{Expression, PropertyKind, Statement};
-use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
+use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Element, Modifiers};
 
 use super::super::component::{
     Callee, Entry, Prop, bind_this, callee, child_snippets, props, props_expression,
@@ -44,12 +44,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut memo = Memo::derived();
         let mut parts = Vec::new();
         let mut accessors = Vec::new();
+        let mut css = Vec::new();
         for prop in props(
             tree.attributes(element.attributes),
             self.source_text,
             self.javascript,
         ) {
-            self.push_prop(prop, &mut memo, &mut parts, &mut accessors);
+            self.push_prop(prop, &mut memo, &mut parts, &mut accessors, &mut css);
         }
         self.push_events(
             tree.attributes(element.attributes),
@@ -90,28 +91,14 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         push_children(b, &mut parts, &snippets, callbacks, takes_props);
         let props = props_expression(b, parts, Target::Client);
         statements.extend(self.memo_deriveds(memo));
-        let this = bind_this(tree.attributes(element.attributes), self.source_text);
-        let instance = |call| match this {
-            Some(target) => self.bind_this(target, call, false),
-            None => call,
+        // Upstream mounts a component with CSS custom properties in an element that holds them.
+        let anchor = if css.is_empty() {
+            b.id(node)
+        } else {
+            b.member(b.id(node), "lastChild")
         };
-        let call = match (callee, intermediate) {
-            (Callee::Dynamic(reference), Some(intermediate)) => {
-                let inner = b.call(b.id(&intermediate), [b.id("$$anchor"), props]);
-                let inner = b.stmt(instance(inner));
-                let render = b.arrow_block(b.params(["$$anchor", &intermediate]), [inner], false);
-                let get = b.thunk(self.expression(reference));
-                b.runtime("component", [b.id(node), get, render])
-            }
-            (Callee::Static(reference), _) => {
-                instance(b.call(self.expression(reference), [b.id(node), props]))
-            }
-            _ => instance(b.call(b.id(&self.component_name), [b.id(node), props])),
-        };
-        statements.push(b.stmt(call));
-        if !standalone {
-            frag.tpl.push_comment();
-        }
+        let call = self.instantiate(element, callee, intermediate, anchor, props);
+        statements.extend(self.mount(identifier, node, css, call, standalone, frag));
         lists.initializer.append(&mut accessors);
         // Upstream declares a slot filler's own directives before it, where its attributes see
         // them.
@@ -124,6 +111,75 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             b.block(statements)
         });
         Ok(())
+    }
+
+    /// Mounts the component `call` at `node`, or in an element around it that holds its CSS
+    /// custom properties.
+    fn mount(
+        &self,
+        identifier: CompilerNodeIdentifier,
+        node: &str,
+        css: Vec<ObjectPropertyKind<'o>>,
+        call: Expression<'o>,
+        standalone: bool,
+        frag: &mut Frag<'o>,
+    ) -> Vec<Statement<'o>> {
+        let b = self.b;
+        if css.is_empty() {
+            if !standalone {
+                frag.tpl.push_comment();
+            }
+            vec![b.stmt(call)]
+        } else {
+            let svg = self.plan.namespace(identifier) == crate::render_plan::Namespace::Svg;
+            frag.tpl
+                .push_element(if svg { "g" } else { "svelte-css-wrapper" }, false);
+            if !svg {
+                frag.tpl
+                    .set_prop("style", Some("display: contents".to_owned()));
+            }
+            frag.tpl.push_comment();
+            frag.tpl.pop_element();
+            let properties = b.thunk(b.object(css));
+            vec![
+                b.stmt(b.runtime("css_props", [b.id(node), properties])),
+                b.stmt(call),
+                b.stmt(b.runtime("reset", [b.id(node)])),
+            ]
+        }
+    }
+
+    /// The call that renders the component at `anchor`, through `$.component` when it may change.
+    fn instantiate(
+        &self,
+        element: &Element,
+        callee: Callee,
+        intermediate: Option<String>,
+        anchor: Expression<'o>,
+        props: Expression<'o>,
+    ) -> Expression<'o> {
+        let b = self.b;
+        let this = bind_this(
+            self.compiler_syntax_tree.attributes(element.attributes),
+            self.source_text,
+        );
+        let instance = |call| match this {
+            Some(target) => self.bind_this(target, call, false),
+            None => call,
+        };
+        match (callee, intermediate) {
+            (Callee::Dynamic(reference), Some(intermediate)) => {
+                let inner = b.call(b.id(&intermediate), [b.id("$$anchor"), props]);
+                let inner = b.stmt(instance(inner));
+                let render = b.arrow_block(b.params(["$$anchor", &intermediate]), [inner], false);
+                let get = b.thunk(self.expression(reference));
+                b.runtime("component", [anchor, get, render])
+            }
+            (Callee::Static(reference), _) => {
+                instance(b.call(self.expression(reference), [anchor, props]))
+            }
+            _ => instance(b.call(b.id(&self.component_name), [anchor, props])),
+        }
     }
 
     /// Upstream's `$$events`: each `on:` handler by event name, in the order the names first
@@ -186,9 +242,14 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         memo: &mut Memo<'o>,
         parts: &mut Vec<Entry<'o>>,
         accessors: &mut Vec<Statement<'o>>,
+        css: &mut Vec<ObjectPropertyKind<'o>>,
     ) {
         let b = self.b;
         match prop {
+            Prop::CssProperty(a) => {
+                let (value, _) = self.attribute_value(a, memo, false);
+                css.push(b.init(a.name.text(self.source_text), value));
+            }
             Prop::Accessors(a, get, set) => {
                 let functions = (self.rewrite(get, true), self.rewrite(set, true));
                 let name = a.name.text(self.source_text);

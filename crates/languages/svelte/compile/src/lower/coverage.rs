@@ -162,7 +162,6 @@ fn check_element(
             AttributeValue::Attach(_) => "an attachment on a component",
             AttributeValue::Class(_) => "a `class:` directive on a component",
             AttributeValue::Spread(_) => continue,
-            _ if name.starts_with("--") => "a CSS custom property on a component",
             _ if name == "children" && has_content(input, el) => {
                 "a `children` prop beside the component's content"
             }
