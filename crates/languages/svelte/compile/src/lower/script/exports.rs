@@ -1,8 +1,7 @@
 //! The names the instance script exports, which become the component's exports.
 
 use oxc_ast::ast::{
-    Declaration, ExportNamedDeclaration, ModuleExportName, Statement, VariableDeclaration,
-    VariableDeclarationKind,
+    Declaration, ExportNamedDeclaration, ModuleExportName, Statement, VariableDeclarationKind,
 };
 use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -65,43 +64,6 @@ pub(super) fn check_declaration<'t>(
         return Ok(());
     }
     unsupported("this export from the instance script", span_of(statement))
-}
-
-/// Upstream's errors for an exported declaration of a derived, or of a state the script
-/// reassigns, which the importer could not read through.
-pub(super) fn check_exported_state(
-    res: &Resolution,
-    statement: &Statement<'_>,
-    declaration: &VariableDeclaration<'_>,
-) -> Result<(), Diagnostic> {
-    let mut error = None;
-    for declarator in &declaration.declarations {
-        bound_names(&declarator.id, false, &mut |name, _| {
-            let Some(symbol) = name.symbol_id.get() else {
-                return;
-            };
-            if error.is_some() {
-                return;
-            }
-            error = match res.binding(symbol).kind {
-                BindingKind::Derived | BindingKind::DerivedBy => Some((
-                    "derived_invalid_export",
-                    "Cannot export derived state from a module. To expose the current derived \
-                     value, export a function returning its value",
-                )),
-                BindingKind::State | BindingKind::RawState if res.reassigned(symbol) => Some((
-                    "state_invalid_export",
-                    "Cannot export state from a module if it is reassigned. Either export a \
-                     function returning the state value or only mutate the state value's \
-                     properties",
-                )),
-                _ => None,
-            };
-        });
-    }
-    error.map_or(Ok(()), |(code, message)| {
-        super::super::special::invalid(code, message, span_of(statement))
-    })
 }
 
 /// Pushes the names of `export { name as alias }`, which renders nothing in the component.

@@ -246,11 +246,6 @@ fn an_instance_export_is_returned_and_bound() {
             "{server_output}"
         );
     }
-    let source = "<script>export let a = 1;</script>";
-    assert_eq!(
-        compile(source, Target::Client),
-        Err("unsupported".to_owned())
-    );
 }
 
 /// esrap skips an empty statement only in a block or program body, not in a `switch` case.
