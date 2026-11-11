@@ -49,13 +49,19 @@ impl<'o> Emitter<'_, 'o> {
             if !self.t.server && declares(s, |name| name == "$$effect_watch") {
                 self.helpers.extend(EFFECT_WATCH);
             }
-            let hoisted = matches!(s, Statement::VariableDeclaration(d) if d.declarations.iter().all(|d| {
-                d.id.get_binding_identifier().is_some_and(|id| {
-                    id.name.starts_with("$$")
-                        && !id.name.starts_with("$$pattern_")
-                        && !matches!(id.name.as_str(), "$$props" | "$$attrs" | "$$host" | "$$host_value")
-                })
-            }));
+            let hoisted = match s {
+                Statement::VariableDeclaration(d) => d.declarations.iter().all(|d| {
+                    d.id.get_binding_identifier().is_some_and(|id| {
+                        id.name.starts_with("$$")
+                            && !id.name.starts_with("$$pattern_")
+                            && !matches!(
+                                id.name.as_str(),
+                                "$$props" | "$$attrs" | "$$host" | "$$host_value"
+                            )
+                    })
+                }),
+                _ => false,
+            };
             if matches!(s, Statement::ImportDeclaration(_)) || hoisted {
                 module.push(s.clone_in(b.allocator()));
                 continue;
@@ -193,7 +199,8 @@ impl<'o> VisitMut<'o> for PropsRewrite<'_, 'o> {
             }
             Expression::CallExpression(c)
                 if !self.server
-                    && matches!(&c.callee, Expression::Identifier(id) if id.name == "$$async_derived") =>
+                    && matches!(&c.callee, Expression::Identifier(id) if id.name == "$$async_deriv\
+                        ed") =>
             {
                 let getter = c.arguments[0].to_expression_mut().take_in(b);
                 *c.arguments[0].to_expression_mut() = script_getter(b, getter);
