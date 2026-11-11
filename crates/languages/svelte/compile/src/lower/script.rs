@@ -422,6 +422,9 @@ pub(super) fn lower_script<'t, 'o>(
     let instance = matches!(context, ScriptContext::Instance { .. });
     let mut out = Vec::with_capacity(program.body.len());
     for statement in &program.body {
+        for _ in 0..writes::pattern_arrays(statement) {
+            names.generate("$$array");
+        }
         // Upstream erases the types before it analyzes the component.
         if is_type_only(statement) {
             if matches!(context, ScriptContext::File) {

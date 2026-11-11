@@ -2,9 +2,10 @@
 
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn};
 use oxc_ast::ast::{
-    AssignmentOperator, AssignmentTarget, Expression, SimpleAssignmentTarget, UpdateOperator,
+    ArrayAssignmentTarget, AssignmentOperator, AssignmentTarget, Expression, ForStatementLeft,
+    SimpleAssignmentTarget, Statement, UpdateOperator,
 };
-use oxc_ast_visit::{VisitMut, walk_mut};
+use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
 use rsvelte_svelte_semantic::resolve::BindingKind;
 
 use super::super::{Builder, Target};
@@ -170,4 +171,22 @@ pub(super) fn assignment_value<'o>(
         (None, Some(binary)) => b.binary(current, binary, value),
         (None, None) => unreachable!("a compound assignment has an operator"),
     }
+}
+
+/// How many array patterns the destructuring assignments in `statement` hold: upstream names a
+/// `$$array` for each as it visits the assignment, even one it leaves as written.
+pub(super) fn pattern_arrays(statement: &Statement<'_>) -> usize {
+    struct Count(usize);
+    impl<'a> Visit<'a> for Count {
+        fn visit_array_assignment_target(&mut self, it: &ArrayAssignmentTarget<'a>) {
+            self.0 += 1;
+            walk::walk_array_assignment_target(self, it);
+        }
+
+        // A `for` loop's pattern is not an assignment expression upstream.
+        fn visit_for_statement_left(&mut self, _: &ForStatementLeft<'a>) {}
+    }
+    let mut count = Count(0);
+    count.visit_statement(statement);
+    count.0
 }
