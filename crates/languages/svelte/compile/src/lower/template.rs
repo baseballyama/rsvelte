@@ -4,26 +4,9 @@ use oxc_syntax::scope::ScopeFlags;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{
-    Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Cow, Element,
+    Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
     NodeKind, Resolution,
 };
-
-/// Upstream `sanitize_template_string`: cooked text → raw template literal text.
-#[must_use]
-pub fn sanitize_template_string(s: &str) -> Cow<'_, str> {
-    if !s.contains(['`', '\\']) && !s.contains("${") {
-        return Cow::Borrowed(s);
-    }
-    let mut out = String::with_capacity(s.len() + 4);
-    let b = s.as_bytes();
-    for (i, ch) in s.char_indices() {
-        if ch == '`' || ch == '\\' || (ch == '$' && b.get(i + 1) == Some(&b'{')) {
-            out.push('\\');
-        }
-        out.push(ch);
-    }
-    Cow::Owned(out)
-}
 
 pub const DOM_BOOLEAN_ATTRIBUTES: &[&str] = &[
     "allowfullscreen",

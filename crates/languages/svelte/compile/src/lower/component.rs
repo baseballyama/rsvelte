@@ -1,6 +1,7 @@
 //! What a component call passes, in upstream `build_component`'s order. The targets differ only
 //! in how they spell each prop, the children callback and the call.
 
+use crate::lower::builder::Runtime;
 use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
 use rsvelte_svelte_semantic::compiler_syntax_tree::ElementKind;
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};

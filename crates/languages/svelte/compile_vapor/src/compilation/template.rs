@@ -11,7 +11,8 @@
 
 use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::positions::{SourceLocation, Span};
-use rsvelte_svelte_compile::lower::{Item, Parent, clean_nodes, sanitize_template_string};
+use rsvelte_svelte_compile::lower::{Item, Parent, clean_nodes};
+use rsvelte_typescript_compile::build::sanitize_template_string;
 use rsvelte_svelte_compile::render_plan::Namespace;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{

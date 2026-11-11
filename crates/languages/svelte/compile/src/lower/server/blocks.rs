@@ -4,7 +4,7 @@ mod if_block;
 use oxc_ast::ast::{Argument, Expression, Statement};
 
 use super::ServerCompilationContext;
-use crate::lower::sanitize_template_string;
+use rsvelte_typescript_compile::build::sanitize_template_string;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `prepend_block_marker`: folds the marker into a leading static push.

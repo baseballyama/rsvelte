@@ -2,6 +2,7 @@ mod class;
 mod with_spread;
 mod without_spread;
 
+use crate::lower::builder::Runtime;
 use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 

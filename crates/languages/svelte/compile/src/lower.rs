@@ -20,8 +20,6 @@ mod snippets;
 mod special;
 mod template;
 
-use std::borrow::Cow;
-
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{BindingIdentifier, Program, Statement};
 use oxc_ast_visit::VisitMut;
@@ -225,9 +223,7 @@ fn unsupported<T>(what: &str, span: Span) -> Result<T, Diagnostic> {
 }
 
 mod validation;
-pub use template::{
-    DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select, sanitize_template_string,
-};
+pub use template::{DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select};
 use template::{
     event_attribute, has_dependency, is_directive, is_dom_property, is_load_error_element,
     synthetic_value,

@@ -1,3 +1,4 @@
+use crate::lower::builder::Runtime;
 use std::borrow::Cow;
 
 use oxc_allocator::{CloneIn, GetAllocator};

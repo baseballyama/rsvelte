@@ -20,6 +20,7 @@ mod template;
 mod template_chunk;
 mod title;
 
+use crate::lower::builder::Runtime;
 use oxc_allocator::ArenaBox;
 use oxc_ast::ast::{
     Expression, FormalParameters, ImportDeclarationSpecifier, ImportOrExportKind, Statement,
