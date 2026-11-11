@@ -246,6 +246,9 @@
 ["svelte/svelte/packages/svelte/tests/runtime-runes/samples/state-snapshot-date/main.svelte".skip]
 "svelte.compile/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
 
+["svelte/originui-svelte/src/lib/components/tables/table-16.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
 ["svelte/melt-ui/packages/melt/src/lib/builders/Popover.svelte.ts".skip]
 "svelte.compileModule/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
 
