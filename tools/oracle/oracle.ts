@@ -1,6 +1,6 @@
 // oracle <command> [options]
 //
-//   import --from <dir> [--source id,...] [--accept-commit]   copy the registered sources into corpus/
+//   import [--from <dir>] [--source id,...] [--accept-commit] copy the registered sources into corpus/
 //   regen [--task id,...] [--source id,...]                   write each oracle's output to expected/
 //   upgrade                                                   regen every task after an oracle bump
 //   run-all [--binary <binary>]                               write rsvelte's output to every unit's actual/

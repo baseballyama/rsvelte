@@ -1,0 +1,9 @@
+{
+	"name": "check-fixture-kit-routes-js",
+	"private": true,
+	"type": "module",
+	"devDependencies": {
+		"@sveltejs/kit": "*",
+		"svelte": "*"
+	}
+}

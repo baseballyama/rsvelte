@@ -1,0 +1,1 @@
+{#each arr as v ()}{v}{/each}

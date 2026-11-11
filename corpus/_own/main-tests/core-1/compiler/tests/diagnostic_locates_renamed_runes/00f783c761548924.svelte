@@ -1,0 +1,1 @@
+<script>$effect.active</script>

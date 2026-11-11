@@ -1,0 +1,1 @@
+<script>export let cb;</script><button on:click={cb()}>go</button>

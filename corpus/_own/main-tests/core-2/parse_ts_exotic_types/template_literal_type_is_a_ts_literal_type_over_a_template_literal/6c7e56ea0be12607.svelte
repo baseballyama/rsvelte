@@ -1,0 +1,1 @@
+<script lang="ts">type T2 = `${number}`;</script>

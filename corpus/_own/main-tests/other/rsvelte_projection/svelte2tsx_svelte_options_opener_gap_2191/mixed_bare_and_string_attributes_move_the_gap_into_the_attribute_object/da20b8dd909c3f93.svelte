@@ -1,0 +1,1 @@
+<svelte:options runes customElement="my-el" />

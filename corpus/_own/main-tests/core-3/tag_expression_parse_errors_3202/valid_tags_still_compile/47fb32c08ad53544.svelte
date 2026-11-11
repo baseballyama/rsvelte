@@ -1,0 +1,1 @@
+{#await obj.then}<b>x</b>{/await}

@@ -1,0 +1,1 @@
+<script>let value = $state(1);</script><div contenteditable="true" bind:innerText={value}>{value}</div>

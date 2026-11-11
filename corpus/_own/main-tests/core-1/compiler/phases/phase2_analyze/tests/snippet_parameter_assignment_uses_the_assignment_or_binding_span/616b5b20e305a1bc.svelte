@@ -1,0 +1,1 @@
+{#snippet s(value)}<button onclick={() => { value = "next"; }}>x</button>{/snippet}

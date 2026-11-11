@@ -1,0 +1,1 @@
+<script>let v = "OUTER";</script>{#each ["A"] as v}{String(v)}{/each}<button onclick={() => { v = "W"; }}>b</button>

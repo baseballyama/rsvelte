@@ -1,0 +1,1 @@
+<div title={globalThis.make()}></div>

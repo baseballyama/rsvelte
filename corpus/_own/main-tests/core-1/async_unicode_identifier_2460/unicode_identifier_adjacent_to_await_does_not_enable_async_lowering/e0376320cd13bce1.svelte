@@ -1,0 +1,1 @@
+<script>let 名前await = 1; let value = $derived(名前await);</script>{value}

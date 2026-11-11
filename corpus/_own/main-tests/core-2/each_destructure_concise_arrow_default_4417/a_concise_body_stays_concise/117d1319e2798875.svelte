@@ -1,0 +1,1 @@
+<script>let items = [[]]; let f = () => 1;</script>{#each items as [a = () => 'a']}<span>{a}</span>{/each}

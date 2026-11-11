@@ -1,0 +1,1 @@
+<script context="module" lang="ts">export const a: number = 1</script>

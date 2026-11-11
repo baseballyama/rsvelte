@@ -1,0 +1,1 @@
+<script module>const SHARED = 42;</script><script>let c = $state(0);</script><p>x</p>

@@ -1,0 +1,1 @@
+<textarea>a&not;b</textarea>

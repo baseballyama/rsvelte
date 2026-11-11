@@ -1,0 +1,1 @@
+<svelte:boundary>{#snippet failed(e)}err{/snippet}<p>main</p></svelte:boundary>

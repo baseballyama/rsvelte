@@ -1,0 +1,1 @@
+<script>const x=await fetch(1)</script>{x}

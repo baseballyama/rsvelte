@@ -1,0 +1,1 @@
+<script lang="ts">export let p: number;</script><p>{p}</p>

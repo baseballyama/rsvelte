@@ -1,0 +1,1 @@
+<div onclick={a?.b()}></div>

@@ -1,0 +1,1 @@
+{#each items as {data:{name},id}}<li>{name}</li>{/each}

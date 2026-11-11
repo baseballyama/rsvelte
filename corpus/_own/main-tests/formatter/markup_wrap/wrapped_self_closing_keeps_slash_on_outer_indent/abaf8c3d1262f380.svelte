@@ -1,0 +1,1 @@
+<input type="text" value={foo} placeholder="hello world"/>

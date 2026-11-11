@@ -1,0 +1,1 @@
+{#await a b}<b>x</b>{/await}

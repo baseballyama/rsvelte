@@ -1,0 +1,1 @@
+<div {@attach node => node.value > 0}></div>

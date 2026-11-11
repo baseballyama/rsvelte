@@ -1,0 +1,1 @@
+{#if true}{@const c = '='}<b>{c}</b>{/if}

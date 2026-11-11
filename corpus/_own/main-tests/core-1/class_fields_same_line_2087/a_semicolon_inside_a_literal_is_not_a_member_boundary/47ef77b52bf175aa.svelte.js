@@ -1,0 +1,1 @@
+export class Foo { s = $state('a; b'); t = $state(`c;${1};d`); r = $state(/[};]+/g); }

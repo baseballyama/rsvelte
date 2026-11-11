@@ -1,0 +1,1 @@
+<script lang="ts">let a: any;</script>{#if 1}{@const c = <string>() => a}{c}{/if}

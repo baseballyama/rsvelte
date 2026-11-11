@@ -1,0 +1,2 @@
+{#await
+p}a{/await}

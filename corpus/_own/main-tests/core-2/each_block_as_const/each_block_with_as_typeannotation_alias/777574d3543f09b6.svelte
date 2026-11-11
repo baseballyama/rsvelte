@@ -1,0 +1,1 @@
+{#each items as readonly string[] as item}<p>{item}</p>{/each}

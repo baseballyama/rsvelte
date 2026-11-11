@@ -1,0 +1,1 @@
+<Foo><div slot="a" let:v>{v}</div></Foo>

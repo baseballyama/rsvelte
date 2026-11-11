@@ -1,0 +1,1 @@
+{#snippet a‍b()}x{/snippet}{@render a‍b()}

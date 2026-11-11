@@ -1,0 +1,4 @@
+<script>
+	public;
+	foo(;
+</script>

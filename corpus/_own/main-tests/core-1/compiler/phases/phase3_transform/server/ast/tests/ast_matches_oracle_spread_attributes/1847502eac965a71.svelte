@@ -1,0 +1,1 @@
+<script>let spread = $state({}); let on = $state(true);</script><div {...spread} class:foo={on}></div>

@@ -1,0 +1,1 @@
+<script>function make() {}</script><svelte:component this={Widget} prop={make()} />

@@ -1,0 +1,1 @@
+<script lang="ts">let a: any = { b: { c: 1 } };</script>{a?.b!.c}

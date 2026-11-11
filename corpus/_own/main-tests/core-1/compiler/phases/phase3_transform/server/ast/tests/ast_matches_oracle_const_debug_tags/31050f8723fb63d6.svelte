@@ -1,0 +1,1 @@
+{#if true}{@const { a, b } = obj}<p>{a}{b}</p>{/if}

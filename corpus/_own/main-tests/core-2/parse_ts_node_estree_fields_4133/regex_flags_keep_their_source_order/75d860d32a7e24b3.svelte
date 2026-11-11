@@ -1,0 +1,1 @@
+<script>const r = /a/ig;</script>

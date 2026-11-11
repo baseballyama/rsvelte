@@ -1,0 +1,1 @@
+<script lang="ts"></script><p>{x as const}</p>

@@ -1,0 +1,1 @@
+<script lang="ts">let a: = ;</script><p>x</p>

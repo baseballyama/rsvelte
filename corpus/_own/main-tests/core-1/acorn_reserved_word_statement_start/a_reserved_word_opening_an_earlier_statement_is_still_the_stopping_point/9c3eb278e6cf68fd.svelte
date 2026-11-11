@@ -1,0 +1,4 @@
+<script>
+	static;
+	foo(;
+</script>

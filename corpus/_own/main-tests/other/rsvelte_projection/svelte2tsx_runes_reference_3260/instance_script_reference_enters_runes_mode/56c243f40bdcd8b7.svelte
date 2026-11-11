@@ -1,0 +1,1 @@
+<script>const f = () => $state;</script>

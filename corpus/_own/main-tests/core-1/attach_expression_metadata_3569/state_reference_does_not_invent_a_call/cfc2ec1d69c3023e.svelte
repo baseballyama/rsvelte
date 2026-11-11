@@ -1,0 +1,1 @@
+<script>let attachment = $state();</script><div {@attach attachment}></div>

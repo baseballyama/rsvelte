@@ -1,0 +1,1 @@
+<script>let x = 1;</script><div class="C:\temp\new{x}"></div>

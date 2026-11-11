@@ -1,0 +1,1 @@
+<div style:--foo="bar"></div>

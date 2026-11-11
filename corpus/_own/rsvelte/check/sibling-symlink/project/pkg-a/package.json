@@ -1,0 +1,9 @@
+{
+	"name": "pkg-a",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"dependencies": {
+		"libs": "workspace:*"
+	}
+}

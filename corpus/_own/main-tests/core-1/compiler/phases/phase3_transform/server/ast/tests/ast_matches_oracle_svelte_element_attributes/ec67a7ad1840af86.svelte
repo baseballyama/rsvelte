@@ -1,0 +1,1 @@
+<svelte:element this={"div"} class:foo={a}>c</svelte:element><style>div{color:red}</style>

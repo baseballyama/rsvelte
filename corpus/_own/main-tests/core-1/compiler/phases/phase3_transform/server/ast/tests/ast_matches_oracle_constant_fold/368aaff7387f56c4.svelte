@@ -1,0 +1,1 @@
+<script>let x = $state(0); function f(){x++}</script><p>{x}</p>

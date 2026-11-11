@@ -1,0 +1,25 @@
+<section>
+  <div>
+    <div>
+      <div>
+        <div>
+          <div>
+            <div>
+              <DropdownMenuItemAction
+                label="History"
+                icon="file-clock"
+                href={resolve(
+                  '/(app)/folders/[parentFolderId]/tables/[tableId]/import-export-history',
+                  {
+                    parentFolderId,
+                    tableId,
+                  },
+                )}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

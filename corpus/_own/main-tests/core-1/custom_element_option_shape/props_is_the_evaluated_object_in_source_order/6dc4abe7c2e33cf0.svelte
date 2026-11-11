@@ -1,0 +1,1 @@
+<svelte:options customElement={{ tag: 'a-b', props: { a: { reflect: true, type: 'Number', attribute: 'a-b' } } }} />

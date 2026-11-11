@@ -1,0 +1,1 @@
+<script type="text/typescript">let a = 1</script>

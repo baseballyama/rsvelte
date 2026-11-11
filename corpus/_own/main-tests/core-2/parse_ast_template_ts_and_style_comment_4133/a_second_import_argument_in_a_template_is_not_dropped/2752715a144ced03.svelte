@@ -1,0 +1,1 @@
+<script></script>{#await import("x", { with: { type: "json" } })}a{/await}

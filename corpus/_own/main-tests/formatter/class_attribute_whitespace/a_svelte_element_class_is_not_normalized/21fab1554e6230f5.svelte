@@ -1,0 +1,1 @@
+<svelte:element this="div" class="a  b  "></svelte:element>

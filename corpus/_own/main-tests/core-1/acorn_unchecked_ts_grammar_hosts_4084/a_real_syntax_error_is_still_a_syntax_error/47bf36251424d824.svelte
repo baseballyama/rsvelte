@@ -1,0 +1,1 @@
+<script lang="ts">const q = (;</script><p>x</p>

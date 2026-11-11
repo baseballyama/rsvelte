@@ -1,0 +1,5 @@
+{
+	"name": "ts-relative-import-bundler",
+	"private": true,
+	"type": "module"
+}

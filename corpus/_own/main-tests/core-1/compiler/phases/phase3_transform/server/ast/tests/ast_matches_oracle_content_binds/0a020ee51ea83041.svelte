@@ -1,0 +1,1 @@
+<script>let x = $state('');</script><textarea bind:value={x}>fallback</textarea>

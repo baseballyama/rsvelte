@@ -1,0 +1,1 @@
+<script>let r = $state(0); let spread = { class: 'bar' };</script><p>x</p>

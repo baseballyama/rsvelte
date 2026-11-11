@@ -1,0 +1,1 @@
+<script lang="ts">import C from './C.svelte'; let value = '';</script><C bind:value={value as never} />

@@ -1,0 +1,1 @@
+{#await promise catch [arguments]}x{/await}

@@ -1,0 +1,1 @@
+<script>let y = $state(0);</script>{@debug y}

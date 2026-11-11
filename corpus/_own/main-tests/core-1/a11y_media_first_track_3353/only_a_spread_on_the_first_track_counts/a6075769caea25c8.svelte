@@ -1,0 +1,1 @@
+<video src="a"><track kind="subtitles" /><track {...rest} /></video>

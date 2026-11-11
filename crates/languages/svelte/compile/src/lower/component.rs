@@ -282,13 +282,13 @@ impl DefaultSlot {
 
 /// Each snippet child as a prop of its name, the default slot as `default` says, the other slots
 /// in `$$slots`, and `$$slots` so that a `<slot>` in the child renders them all.
-pub(super) fn push_children<'o>(
+pub(super) fn push_children<'s, 'o>(
     b: &Builder<'o>,
     parts: &mut Vec<Entry<'o>>,
     snippets: &[&str],
-    slot_callbacks: Vec<SlotCallback<'_, 'o>>,
+    slot_callbacks: impl Iterator<Item = Result<SlotCallback<'s, 'o>, Diagnostic>>,
     default: DefaultSlot,
-) {
+) -> Result<(), Diagnostic> {
     let mut slots = Vec::new();
     for &name in snippets {
         parts.push(Entry::Property(b.init(name, b.id(name))));
@@ -296,7 +296,8 @@ pub(super) fn push_children<'o>(
         let slot = if name == "children" { "default" } else { name };
         slots.push(b.init(slot, b.boolean(true)));
     }
-    for (name, parameters, body) in slot_callbacks {
+    for callback in slot_callbacks {
+        let (name, parameters, body) = callback?;
         if body.is_empty() {
             continue;
         }
@@ -315,6 +316,7 @@ pub(super) fn push_children<'o>(
     if !slots.is_empty() {
         parts.push(Entry::Property(b.init("$$slots", b.object(slots))));
     }
+    Ok(())
 }
 
 /// One object, or `$.spread_props` over the runs of properties and the spreads between them.

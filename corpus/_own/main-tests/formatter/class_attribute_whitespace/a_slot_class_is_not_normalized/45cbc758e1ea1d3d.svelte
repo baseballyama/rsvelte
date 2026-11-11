@@ -1,0 +1,1 @@
+<slot class="a  b  "></slot>

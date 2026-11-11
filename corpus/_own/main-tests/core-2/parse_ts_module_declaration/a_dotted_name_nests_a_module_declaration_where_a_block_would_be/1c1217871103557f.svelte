@@ -1,0 +1,1 @@
+<script lang="ts">namespace A.B.C { const a = 1; }</script>

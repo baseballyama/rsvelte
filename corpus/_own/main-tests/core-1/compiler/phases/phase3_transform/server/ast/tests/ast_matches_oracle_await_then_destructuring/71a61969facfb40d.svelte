@@ -1,0 +1,1 @@
+{#await p then { value: theValue }}<p>{theValue}</p>{/await}

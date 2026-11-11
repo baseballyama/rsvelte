@@ -1,0 +1,1 @@
+<script>{ 'not a directive'; }</script>

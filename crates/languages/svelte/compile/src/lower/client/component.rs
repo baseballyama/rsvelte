@@ -69,26 +69,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             child_snippets(tree, self.javascript, element.children, |snippet| {
                 self.snippet_declaration(snippet)
             })?;
-        let plan = self.plan;
-        let mut slots = match plan.slots(identifier) {
-            None => vec![(
-                "default",
-                self.fragment_without(element.children, is_snippet)?,
-            )],
-            Some(slots) => slots
-                .map(|(name, region)| Ok((name, self.region_without(region, is_snippet)?)))
-                .collect::<R<Vec<_>>>()?,
-        };
-        if !fills_slot
-            && let Some((_, body)) = slots.iter_mut().find(|(name, _)| *name == "default")
-            && !body.is_empty()
-        {
-            body.splice(0..0, std::mem::take(&mut lets));
-        }
-        let callbacks = slots
-            .into_iter()
-            .map(|(name, body)| (name, b.parameters(["$$anchor", "$$slotProps"]), body))
-            .collect();
         let default = DefaultSlot::of(
             tree,
             self.javascript,
@@ -96,7 +76,17 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             element,
             Target::Client,
         );
-        push_children(b, &mut parts, &snippets, callbacks, default);
+        let plan = self.plan;
+        let callbacks = plan
+            .slots(identifier, element.children)
+            .map(|(name, region)| {
+                let mut body = self.region_without(region, is_snippet)?;
+                if name == "default" && !fills_slot && !body.is_empty() {
+                    body.splice(0..0, std::mem::take(&mut lets));
+                }
+                Ok((name, b.parameters(["$$anchor", "$$slotProps"]), body))
+            });
+        push_children(b, &mut parts, &snippets, callbacks, default)?;
         let props = props_expression(b, parts, Target::Client);
         statements.extend(self.memo_deriveds(memo));
         // Upstream mounts a component with CSS custom properties in an element that holds them.
@@ -105,8 +95,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         } else {
             b.member(b.id(node), "lastChild")
         };
-        let call = self.instantiate(element, callee, intermediate, anchor, props);
-        statements.extend(self.mount(identifier, node, custom_properties, call, standalone, frag));
+        let call = b.statement(self.instantiate(element, callee, intermediate, anchor, props));
+        match self.mount(identifier, node, custom_properties, standalone, frag) {
+            None => statements.push(call),
+            Some((set, reset)) => statements.extend([set, call, reset]),
+        }
         lists.initializer.append(&mut accessors);
         // Upstream declares a slot filler's own directives before it, where its attributes see
         // them.
@@ -121,23 +114,22 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         Ok(())
     }
 
-    /// Mounts the component `call` at `node`, or in an element around it that holds its CSS
-    /// custom properties.
+    /// Mounts the component at `node`, or in an element around it that holds its CSS custom
+    /// properties, then the statements that set and reset them around the call.
     fn mount(
         &self,
         identifier: CompilerNodeIdentifier,
         node: &str,
         custom_properties: Vec<ObjectPropertyKind<'o>>,
-        call: Expression<'o>,
         standalone: bool,
         frag: &mut Frag<'o>,
-    ) -> Vec<Statement<'o>> {
+    ) -> Option<(Statement<'o>, Statement<'o>)> {
         let b = self.b;
         if custom_properties.is_empty() {
             if !standalone {
                 frag.tpl.push_comment();
             }
-            vec![b.statement(call)]
+            None
         } else {
             let svg = self.plan.namespace(identifier) == crate::render_plan::Namespace::Svg;
             frag.tpl
@@ -149,11 +141,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             frag.tpl.push_comment();
             frag.tpl.pop_element();
             let properties = b.thunk(b.object(custom_properties));
-            vec![
+            Some((
                 b.statement(b.runtime("css_props", [b.id(node), properties])),
-                b.statement(call),
                 b.statement(b.runtime("reset", [b.id(node)])),
-            ]
+            ))
         }
     }
 

@@ -1,0 +1,1 @@
+<div onclick={obj.handler}></div>

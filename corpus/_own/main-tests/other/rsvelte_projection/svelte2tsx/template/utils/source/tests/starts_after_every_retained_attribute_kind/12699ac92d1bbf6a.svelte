@@ -1,0 +1,1 @@
+<div animate:flip={{ duration: a > b ? a : b }}></div>

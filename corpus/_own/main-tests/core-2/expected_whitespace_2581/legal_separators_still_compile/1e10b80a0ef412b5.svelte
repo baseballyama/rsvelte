@@ -1,0 +1,1 @@
+<div {@attach fn}></div>

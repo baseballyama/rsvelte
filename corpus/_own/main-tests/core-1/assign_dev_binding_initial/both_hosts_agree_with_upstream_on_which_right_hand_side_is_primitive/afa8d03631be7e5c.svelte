@@ -1,0 +1,6 @@
+<script>
+	let o = $state({});
+	const h = 1; const g = h;
+	function f() { h.x = 1; o.a = o.b = g; }
+</script>
+<button onclick={f}>x</button>

@@ -1,0 +1,1 @@
+<script lang="ts">let n: string = 'a';</script><p>{n.length}</p>

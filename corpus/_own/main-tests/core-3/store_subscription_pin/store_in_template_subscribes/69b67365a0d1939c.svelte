@@ -1,0 +1,1 @@
+<script>import { writable } from "svelte/store"; let w = writable(1);</script>{$w}

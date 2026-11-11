@@ -1,0 +1,1 @@
+<script>import {writable} from 'svelte/store'; const s = writable(false); function g(){ $s = true; }</script><p>{$s}</p>

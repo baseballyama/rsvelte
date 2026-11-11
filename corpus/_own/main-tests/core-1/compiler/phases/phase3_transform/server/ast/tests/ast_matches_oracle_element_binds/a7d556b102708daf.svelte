@@ -1,0 +1,1 @@
+<script>let el = $state();</script><input bind:this={el}>

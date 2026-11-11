@@ -1,0 +1,1 @@
+<!-- eslint-disable-next-line svelte/html-quotes --> <div a=b></div>

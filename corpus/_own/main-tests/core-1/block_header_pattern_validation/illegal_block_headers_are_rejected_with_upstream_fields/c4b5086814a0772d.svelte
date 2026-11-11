@@ -1,0 +1,1 @@
+{#each arr as v /*c*/}{v}{/each}

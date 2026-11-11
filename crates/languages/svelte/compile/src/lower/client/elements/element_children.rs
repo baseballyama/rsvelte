@@ -28,7 +28,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             Item::Expression(e) => !self.an.meta(*e).has_state,
             Item::Node(_) | Item::Comment => false,
         }) && items.iter().any(|i| matches!(i, Item::Expression(_)));
-        let tag = el.name.text(self.source_text).to_ascii_lowercase();
         if use_text_content {
             let (value, _) = self.template_chunk(items, &mut frag.memo, false);
             let empty = matches!(&value, Expression::StringLiteral(s) if s.value.is_empty());
@@ -39,6 +38,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     .push(b.statement(b.assign_member(target, value)));
             }
         } else if is_customizable_select(compiler_syntax_tree, self.source_text, el) {
+            let tag = el.name.text(self.source_text).to_ascii_lowercase();
             let namespace = self.plan.namespace(identifier);
             let content = self.customizable_select(items, node, &tag, namespace, frag)?;
             child.initializer.push(content);

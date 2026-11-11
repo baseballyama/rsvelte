@@ -1,0 +1,1 @@
+{#await fetch( url )}<p>loading</p>{:then data}<p>{ data.value }</p>{/await}

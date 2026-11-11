@@ -1,0 +1,1 @@
+<script lang="ts">let base: number = $state(2); let twice: number = $derived(base * 2); function add(a: number, b: number): number { return a + b; }</script><p>{add(twice, 1)}</p>

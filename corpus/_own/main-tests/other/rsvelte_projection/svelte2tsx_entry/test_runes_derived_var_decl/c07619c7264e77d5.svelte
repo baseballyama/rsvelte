@@ -1,0 +1,1 @@
+<script>let x=$derived(1)</script>{x}

@@ -1,0 +1,1 @@
+<script>let v = 'a';</script><option>{v}</option>

@@ -1,0 +1,7 @@
+{
+	"description": "Relative `.svelte`-suffixed imports under ESM-mode module resolution (`moduleResolution: nodenext` in a `\"type\": \"module\"` package), from both a plain .ts barrel and a .svelte file: a real component, a generic component and two `.svelte.ts` rune modules (one with a default export). Covers #1916 — TypeScript adds no implicit extension in ESM mode, so the only candidate it probes for `./x.svelte` is `./x.d.svelte.ts` and everything else falls through to the ambient `*.svelte` wildcard (TS2614 on every named import).",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		1916
+	]
+}

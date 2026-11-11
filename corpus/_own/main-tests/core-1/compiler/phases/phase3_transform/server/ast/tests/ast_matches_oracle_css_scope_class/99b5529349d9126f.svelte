@@ -1,0 +1,1 @@
+<input type="text" disabled><style>input{color:red}</style>

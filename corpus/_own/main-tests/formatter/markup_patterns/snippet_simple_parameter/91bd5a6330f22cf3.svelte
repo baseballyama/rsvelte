@@ -1,0 +1,1 @@
+{#snippet item(name)}<li>{name}</li>{/snippet}

@@ -1,0 +1,1 @@
+<script>let v = 'a';</script><select value={v}><option value="a">A</option></select>

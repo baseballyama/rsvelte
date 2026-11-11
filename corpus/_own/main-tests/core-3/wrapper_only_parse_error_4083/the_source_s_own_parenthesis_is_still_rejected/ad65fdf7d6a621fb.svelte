@@ -1,0 +1,1 @@
+<script lang="ts">let accessor: any; const q = (accessor satisfies string);</script><p>{q}</p>

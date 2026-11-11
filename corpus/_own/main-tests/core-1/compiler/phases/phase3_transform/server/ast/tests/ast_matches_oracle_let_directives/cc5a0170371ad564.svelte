@@ -1,0 +1,1 @@
+<script>import Comp from './Comp.svelte';</script><Comp let:x={{a, b}}>{a}{b}</Comp>

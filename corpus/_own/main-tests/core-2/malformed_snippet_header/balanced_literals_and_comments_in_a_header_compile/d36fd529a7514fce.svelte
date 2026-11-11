@@ -1,0 +1,1 @@
+{#snippet row(a /* it's */)}<p>{a}</p>{/snippet}

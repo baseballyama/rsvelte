@@ -1,0 +1,1 @@
+<script>let Cmp = $state(null); let x = $state(1);</script>z<svelte:component this={Cmp} a={x}/>

@@ -1,0 +1,1 @@
+<style lang="scss">$a: 1; .b { c: $a }</style>

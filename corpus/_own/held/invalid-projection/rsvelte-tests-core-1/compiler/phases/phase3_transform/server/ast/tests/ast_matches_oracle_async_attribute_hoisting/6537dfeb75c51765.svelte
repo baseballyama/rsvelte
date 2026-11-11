@@ -1,0 +1,1 @@
+<div {...{ 'data-x': String(await p) }}></div>

@@ -1,0 +1,1 @@
+<script lang="ts">class A { x? = 1 }</script>
