@@ -18,6 +18,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             match &self.compiler_syntax_tree.node(identifier).kind {
                 NodeKind::Snippet(snippet) if skipped(self.snippet_name(snippet)) => {}
                 NodeKind::Snippet(_) => self.snippet(identifier)?,
+                NodeKind::Const { .. } => self.const_tag(identifier),
                 _ => self.special_element(identifier, template)?,
             }
         }
