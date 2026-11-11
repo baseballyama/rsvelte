@@ -210,6 +210,7 @@ fn a_textarea_s_content_but_one_text_is_its_value() {
             .iter()
             .map(|a| {
                 let parts = match &a.value {
+                    AttributeValue::Expression { quoted: true, .. } => vec!["quoted".to_owned()],
                     AttributeValue::Interpolated(parts) => parts
                         .iter()
                         .map(|p| match p {
@@ -249,7 +250,7 @@ fn a_textarea_s_content_but_one_text_is_its_value() {
     );
     assert_eq!(
         lowered("<textarea>{a}</textarea>"),
-        (vec![("value".to_owned(), owned(&["{a}"]))], Vec::new())
+        (vec![("value".to_owned(), owned(&["quoted"]))], Vec::new())
     );
     // One text stays the content, decoded as upstream decodes an attribute: `&ampx` is kept.
     assert_eq!(

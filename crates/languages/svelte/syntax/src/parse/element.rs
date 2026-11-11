@@ -146,7 +146,7 @@ impl<'a> Parser<'a, '_> {
             if rest.is_empty() {
                 return self.err("`<textarea>` was left open");
             }
-            if is_textarea_end(rest) {
+            if textarea_end(rest).is_some() {
                 break;
             }
             let start_offset = self.position;
@@ -159,7 +159,7 @@ impl<'a> Parser<'a, '_> {
             } else {
                 let mut end = rest.len();
                 for i in memchr::memchr2_iter(b'{', b'<', rest.as_bytes()) {
-                    if rest.as_bytes()[i] == b'{' || is_textarea_end(&rest[i..]) {
+                    if rest.as_bytes()[i] == b'{' || textarea_end(&rest[i..]).is_some() {
                         end = i;
                         break;
                     }
@@ -173,12 +173,14 @@ impl<'a> Parser<'a, '_> {
             self.pending_children.push(child);
         }
         let children = self.finish_children(children_start);
+        let end = self.position + textarea_end(self.rest()).expect("the loop stops at an end tag");
         self.eat_token(TokenType::EndTagOpen, 2);
         self.tag_name();
         self.skip_ws();
-        if self.peek() != Some(b'>') {
-            return self.err("expected `>`");
-        }
+        // Upstream's end tag takes anything up to its `>`, which no tree keeps.
+        let ignored = self.position;
+        self.position = end - 1;
+        self.words(TokenType::Text, ignored);
         self.eat_token(TokenType::TagEnd, 1);
         Ok((children, true))
     }
@@ -217,10 +219,20 @@ impl<'a> Parser<'a, '_> {
     }
 }
 
-/// Upstream `regex_closing_textarea_tag`, without attributes on the end tag.
-fn is_textarea_end(s: &str) -> bool {
+/// The length of the end tag that starts `s`, as upstream's `regex_closing_textarea_tag`
+/// (`/<\/textarea(\s[^>]*)?>/i`) reads it.
+fn textarea_end(s: &str) -> Option<usize> {
     const END: &str = "</textarea";
-    s.get(..END.len())
-        .is_some_and(|h| h.eq_ignore_ascii_case(END))
-        && super::whitespace::trim_whitespace_start(&s[END.len()..]).starts_with('>')
+    if !s.get(..END.len())?.eq_ignore_ascii_case(END) {
+        return None;
+    }
+    let rest = &s[END.len()..];
+    let close = if rest.starts_with('>') {
+        0
+    } else if rest.starts_with(is_ecmascript_whitespace) {
+        rest.find('>')?
+    } else {
+        return None;
+    };
+    Some(END.len() + close + 1)
 }
