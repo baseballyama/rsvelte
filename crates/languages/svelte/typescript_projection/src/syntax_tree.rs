@@ -88,6 +88,20 @@ pub enum Node {
         value: NodeIdentifier,
         end: Option<u32>,
     },
+    /// A `{#snippet}` among a component's children, as the prop svelte2tsx passes for it.
+    SnippetProperty {
+        name: NodeIdentifier,
+        parameters: Option<NodeIdentifier>,
+        body: Range,
+    },
+    /// svelte2tsx's `const { a, b } = $$_C.$$prop_def` after a component's call: the names of
+    /// its snippet props, typed by its props.
+    SnippetNames {
+        names: Range,
+        component: NodeIdentifier,
+    },
+    /// svelte2tsx's `children` prop for a component's content, mapped to this offset.
+    ImplicitChildren(u32),
     Shorthand(NodeIdentifier),
     Spread(NodeIdentifier),
     ComputedProperty {

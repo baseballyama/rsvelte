@@ -9,4 +9,4 @@ let name="a";const obj={get name(){return name;},set name(value){name=value;}};
     });
   }
 };
-export default __rsvelte_export_component<Record<string, never>, {}, "">();
+export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
