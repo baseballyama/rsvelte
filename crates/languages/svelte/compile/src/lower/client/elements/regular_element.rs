@@ -126,6 +126,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let (snippets, child) =
             self.collecting_snippets(|context| context.element_children(identifier, node, frag));
         let mut child = child?;
+        // A slot's element may hold `{@const}`s, which upstream declares with the fragment's.
+        l.consts.append(&mut child.consts);
         if snippets.is_empty() {
             if self.an.dynamic[identifier] {
                 l.initializer.append(&mut child.initializer);
