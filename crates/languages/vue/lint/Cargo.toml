@@ -18,8 +18,9 @@ rsvelte_markup_syntax.workspace = true
 rsvelte_markup_lint.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript_lint.workspace = true
-rsvelte_typescript_syntax.workspace = true
-rsvelte_typescript_semantic.workspace = true
+oxc_ast.workspace = true
+oxc_semantic.workspace = true
+rustc-hash.workspace = true
 
 [dev-dependencies]
 rsvelte_test_harness.workspace = true

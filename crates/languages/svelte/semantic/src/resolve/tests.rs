@@ -160,11 +160,12 @@ fn what_a_module_rejects_is_a_syntax_error_and_template_names_are_not() {
 }
 
 #[test]
-fn the_module_may_export_a_top_level_snippet_and_nothing_else_undeclared() {
+fn the_module_may_export_any_snippet_and_nothing_else_undeclared() {
     let snippet = "<script module>export { row };</script>{#snippet row()}x{/snippet}";
     assert!(analyze(snippet).syntax_error().is_none());
+    // The compiler rejects a nested one as `snippet_invalid_export`.
     let nested = "<script module>export { row };</script>{#if a}{#snippet row()}x{/snippet}{/if}";
-    assert!(analyze(nested).syntax_error().is_some());
+    assert!(analyze(nested).syntax_error().is_none());
     let missing = "<script module>export { row };</script>";
     assert!(analyze(missing).syntax_error().is_some());
 }

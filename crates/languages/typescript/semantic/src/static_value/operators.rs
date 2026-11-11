@@ -1,6 +1,6 @@
 //! Unary and binary operators, and JavaScript's comparisons.
 
-use rsvelte_typescript_syntax::operators::{BinaryOperator, UnaryOperator};
+use oxc_ast::ast::{BinaryOperator, UnaryOperator};
 
 use super::Value;
 use super::conversions::{
@@ -9,32 +9,29 @@ use super::conversions::{
 
 pub(super) fn unary(operator: UnaryOperator, value: &Value) -> Option<Value> {
     Some(match operator {
-        UnaryOperator::Neg => Value::Number(-to_number(value)?),
-        UnaryOperator::Plus => Value::Number(to_number(value)?),
-        UnaryOperator::Not => Value::Boolean(!truthy(value)),
-        UnaryOperator::BitNot => Value::Number(f64::from(!to_int32(value)?)),
-        UnaryOperator::TypeOf => Value::String(type_of(value).into()),
+        UnaryOperator::UnaryNegation => Value::Number(-to_number(value)?),
+        UnaryOperator::UnaryPlus => Value::Number(to_number(value)?),
+        UnaryOperator::LogicalNot => Value::Boolean(!truthy(value)),
+        UnaryOperator::BitwiseNot => Value::Number(f64::from(!to_int32(value)?)),
+        UnaryOperator::Typeof => Value::String(type_of(value).into()),
         UnaryOperator::Void => Value::Undefined,
         UnaryOperator::Delete => return None,
     })
 }
 
 pub(super) fn binary(operator: BinaryOperator, left: &Value, right: &Value) -> Option<Value> {
-    use BinaryOperator::{
-        Add, BitAnd, BitOr, BitXor, Div, Eq, Exp, Gt, GtEq, In, InstanceOf, Lt, LtEq, Mul, NotEq,
-        Remainder, Shl, Shr, StrictEq, StrictNotEq, Sub, UShr,
-    };
+    use BinaryOperator as B;
     let numbers = || Some((to_number(left)?, to_number(right)?));
     Some(match operator {
-        Eq => Value::Boolean(loose_equals(left, right)?),
-        NotEq => Value::Boolean(!loose_equals(left, right)?),
-        StrictEq => Value::Boolean(strict_equals(left, right)?),
-        StrictNotEq => Value::Boolean(!strict_equals(left, right)?),
-        Lt => Value::Boolean(less_than(left, right)? == Order::Less),
-        Gt => Value::Boolean(less_than(right, left)? == Order::Less),
-        LtEq => Value::Boolean(less_than(right, left)? == Order::NotLess),
-        GtEq => Value::Boolean(less_than(left, right)? == Order::NotLess),
-        Add => {
+        B::Equality => Value::Boolean(loose_equals(left, right)?),
+        B::Inequality => Value::Boolean(!loose_equals(left, right)?),
+        B::StrictEquality => Value::Boolean(strict_equals(left, right)?),
+        B::StrictInequality => Value::Boolean(!strict_equals(left, right)?),
+        B::LessThan => Value::Boolean(less_than(left, right)? == Order::Less),
+        B::GreaterThan => Value::Boolean(less_than(right, left)? == Order::Less),
+        B::LessEqualThan => Value::Boolean(less_than(right, left)? == Order::NotLess),
+        B::GreaterEqualThan => Value::Boolean(less_than(left, right)? == Order::NotLess),
+        B::Addition => {
             let (left, right) = (to_primitive(left)?, to_primitive(right)?);
             if matches!(left, Value::String(_)) || matches!(right, Value::String(_)) {
                 let mut out = to_string(&left)?;
@@ -44,20 +41,22 @@ pub(super) fn binary(operator: BinaryOperator, left: &Value, right: &Value) -> O
                 Value::Number(to_number(&left)? + to_number(&right)?)
             }
         }
-        Sub => numbers().map(|(a, b)| Value::Number(a - b))?,
-        Mul => numbers().map(|(a, b)| Value::Number(a * b))?,
-        Div => numbers().map(|(a, b)| Value::Number(a / b))?,
-        Remainder => numbers().map(|(a, b)| Value::Number(a % b))?,
-        Exp => numbers().map(|(a, b)| Value::Number(power(a, b)))?,
-        BitOr => Value::Number(f64::from(to_int32(left)? | to_int32(right)?)),
-        BitXor => Value::Number(f64::from(to_int32(left)? ^ to_int32(right)?)),
-        BitAnd => Value::Number(f64::from(to_int32(left)? & to_int32(right)?)),
-        Shl => Value::Number(f64::from(
+        B::Subtraction => numbers().map(|(a, b)| Value::Number(a - b))?,
+        B::Multiplication => numbers().map(|(a, b)| Value::Number(a * b))?,
+        B::Division => numbers().map(|(a, b)| Value::Number(a / b))?,
+        B::Remainder => numbers().map(|(a, b)| Value::Number(a % b))?,
+        B::Exponential => numbers().map(|(a, b)| Value::Number(power(a, b)))?,
+        B::BitwiseOR => Value::Number(f64::from(to_int32(left)? | to_int32(right)?)),
+        B::BitwiseXOR => Value::Number(f64::from(to_int32(left)? ^ to_int32(right)?)),
+        B::BitwiseAnd => Value::Number(f64::from(to_int32(left)? & to_int32(right)?)),
+        B::ShiftLeft => Value::Number(f64::from(
             to_int32(left)?.wrapping_shl(to_uint32(right)? & 31),
         )),
-        Shr => Value::Number(f64::from(to_int32(left)? >> (to_uint32(right)? & 31))),
-        UShr => Value::Number(f64::from(to_uint32(left)? >> (to_uint32(right)? & 31))),
-        In | InstanceOf => return None,
+        B::ShiftRight => Value::Number(f64::from(to_int32(left)? >> (to_uint32(right)? & 31))),
+        B::ShiftRightZeroFill => {
+            Value::Number(f64::from(to_uint32(left)? >> (to_uint32(right)? & 31)))
+        }
+        B::In | B::Instanceof => return None,
     })
 }
 

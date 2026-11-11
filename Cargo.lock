@@ -1392,11 +1392,15 @@ dependencies = [
 name = "rsvelte_typescript_lint"
 version = "0.0.0"
 dependencies = [
+ "oxc_ast",
+ "oxc_ast_visit",
+ "oxc_semantic",
+ "oxc_span",
  "rsvelte_kernel",
  "rsvelte_lint_runner",
  "rsvelte_plugin_interface",
  "rsvelte_typescript_semantic",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
  "rustc-hash",
 ]
 
@@ -1516,6 +1520,8 @@ dependencies = [
 name = "rsvelte_vue_lint"
 version = "0.0.0"
 dependencies = [
+ "oxc_ast",
+ "oxc_semantic",
  "rsvelte_kernel",
  "rsvelte_lint_runner",
  "rsvelte_markup_lint",
@@ -1523,10 +1529,9 @@ dependencies = [
  "rsvelte_plugin_interface",
  "rsvelte_test_harness",
  "rsvelte_typescript_lint",
- "rsvelte_typescript_semantic",
- "rsvelte_typescript_syntax",
  "rsvelte_vue_semantic",
  "rsvelte_vue_syntax",
+ "rustc-hash",
 ]
 
 [[package]]

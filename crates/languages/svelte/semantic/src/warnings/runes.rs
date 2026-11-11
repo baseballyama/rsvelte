@@ -106,6 +106,7 @@ pub fn dollar_name_errors(
     let mut found: Vec<(Raised, Span)> = Vec::new();
     // TypeScript erases types and `declare`d names; an enum stays, as a variable.
     let erased = SymbolFlags::Ambient
+        | SymbolFlags::TypeImport
         | SymbolFlags::TypeAlias
         | SymbolFlags::Interface
         | SymbolFlags::TypeParameter
@@ -129,11 +130,7 @@ pub fn dollar_name_errors(
                     AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_)
                 )
             });
-        let type_only = flags.contains(SymbolFlags::Import)
-            && ancestors().any(
-                |kind| matches!(kind, AstKind::ImportDeclaration(d) if d.import_kind.is_type()),
-            );
-        if is_parameter || type_only {
+        if is_parameter {
             continue;
         }
         let at = span(scoping.symbol_span(symbol));
@@ -150,10 +147,14 @@ pub fn dollar_name_errors(
             Section::Template => continue,
         };
         let scope = scoping.symbol_scope_id(symbol);
+        let scope_node = nodes.kind(scoping.get_node_id(scope));
         // A class expression's own name is not in the compiler's scopes.
-        if matches!(nodes.kind(scoping.get_node_id(scope)), AstKind::Class(_)) {
+        if matches!(scope_node, AstKind::Class(_)) {
             continue;
         }
+        // Upstream declares a function expression's name in a scope that counts no depth.
+        let names_function_expression = matches!(scope_node, AstKind::Function(f)
+            if f.is_expression() && f.id.as_ref().and_then(|id| id.symbol_id.get()) == Some(symbol));
         let phase = if flags.intersects(SymbolFlags::Enum) {
             Phase::Scopes
         } else {
@@ -166,7 +167,10 @@ pub fn dollar_name_errors(
                 };
                 scope = parent;
             }
-            let declared = flags.contains(SymbolFlags::Function)
+            depth -= u32::from(names_function_expression);
+            // The walk checks only function and class declarations and variable declarators.
+            let declared = (flags.contains(SymbolFlags::Function) && !names_function_expression)
+                || flags.contains(SymbolFlags::Class)
                 || matches!(declaration, AstKind::VariableDeclarator(_));
             if depth <= 1 {
                 Phase::Scopes

@@ -401,3 +401,83 @@ fn a_cast_attribute_value_selects_as_its_value() {
         .collect();
     assert_eq!(codes, ["css_unused_selector"]);
 }
+
+#[test]
+fn a_function_expression_name_counts_no_depth_and_a_class_is_walked() {
+    // Each case with where svelte 5.57.3 raises `dollar_prefix_invalid`, without and with runes.
+    let cases = [
+        ("function g() { const f = function $x() {}; }", None, None),
+        ("const f = function $x() {};", Some(27), Some(27)),
+        (
+            "function g() { function h() { const f = function $x() {}; } }",
+            None,
+            None,
+        ),
+        ("function g() { class $C {} }", None, Some(29)),
+        (
+            "function g() { function h() { class $C {} } }",
+            None,
+            Some(44),
+        ),
+        (
+            "function g() { function h() { let $v = 1; } }",
+            None,
+            Some(42),
+        ),
+    ];
+    let mut registry = Registry::new();
+    crate::register(&mut registry);
+    for (script, without, with) in cases {
+        let source = format!("<script>{script}</script>");
+        let document = Document::new("Test.svelte".to_owned(), source).expect("small");
+        let context = DocumentContext::new(&document, registry.artifacts());
+        let component = context.get::<Parsed>().as_ref().expect("parses");
+        let resolution = context.get::<Resolved>().as_ref().expect("resolves");
+        for (runes, expected) in [(false, without), (true, with)] {
+            let errors = super::dollar_name_errors(
+                &component.javascript,
+                component.instance.as_ref().map(|s| s.program),
+                None,
+                resolution,
+                runes,
+            );
+            let raised: Vec<_> = errors
+                .iter()
+                .map(|(_, e)| (e.code.to_string(), e.span.start_offset))
+                .collect();
+            let expected: Vec<_> = expected
+                .map(|at| ("dollar_prefix_invalid".to_owned(), at))
+                .into_iter()
+                .collect();
+            assert_eq!(raised, expected, "{script} runes={runes}");
+        }
+    }
+}
+
+#[test]
+fn a_type_only_dollar_import_is_erased() {
+    // svelte 5.57.3 compiles the first two and rejects the value import at 27.
+    let cases = [
+        ("import type { $T } from \"./t\";", None),
+        ("import { type $T } from \"./t\";", None),
+        ("import { $T } from \"./t\";", Some(27)),
+    ];
+    let mut registry = Registry::new();
+    crate::register(&mut registry);
+    for (script, expected) in cases {
+        let source = format!("<script lang=\"ts\">{script}</script>");
+        let document = Document::new("Test.svelte".to_owned(), source).expect("small");
+        let context = DocumentContext::new(&document, registry.artifacts());
+        let component = context.get::<Parsed>().as_ref().expect("parses");
+        let resolution = context.get::<Resolved>().as_ref().expect("resolves");
+        let errors = super::dollar_name_errors(
+            &component.javascript,
+            component.instance.as_ref().map(|s| s.program),
+            None,
+            resolution,
+            false,
+        );
+        let raised: Vec<_> = errors.iter().map(|(_, e)| e.span.start_offset).collect();
+        assert_eq!(raised, expected.into_iter().collect::<Vec<_>>(), "{script}");
+    }
+}
