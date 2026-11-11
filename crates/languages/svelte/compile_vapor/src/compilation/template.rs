@@ -441,21 +441,6 @@ impl<'t> VisitMut<'t> for TemplateRewrite<'_, 't> {
     }
 }
 
-/// `` ${event}="this.__e=event"``, which Svelte's server prints for a load or error event.
-fn captured_event(event: &str, span: Span) -> vue::Property {
-    vue::Property {
-        kind: PropertyKind::Attribute {
-            name: spelled(event, span),
-            value: Some(Text {
-                raw: span,
-                cooked: Some("this.__e=event".into()),
-            }),
-        },
-        span,
-        origin: 0,
-    }
-}
-
 /// The Svelte node a Vue node came from, as the Vue tree records it.
 fn origin(identifier: CompilerNodeIdentifier) -> u32 {
     u32::try_from(identifier.index()).expect("fewer than u32::MAX nodes")

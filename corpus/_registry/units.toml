@@ -13,6 +13,9 @@
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-abstract-accessor-property-output.svelte".skip]
 "svelte.compile" = "svelte 5.57.3 leaves the TypeScript `abstract accessor` in the emitted JS, which does not parse"
 
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte".skip]
+"svelte.compile" = "upstream bug: acorn-typescript accepts a parameter with both `?` and an initializer, which TypeScript rejects (TS1015)"
+
 ["svelte/svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte".skip]
 "svelte.compile/client" = "svelte 5.57.3 emits invalid JS here (duplicate declaration of `foo`); the sample expects a compile error"
 

@@ -2,8 +2,8 @@ use oxc_ast::ast::{BinaryOperator, Expression};
 
 use super::{
     Attribute, AttributeValue, CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Helper,
-    Name, Namespace, NodeKind, Parent, R, Span, Steps, Template, captured_event, directive,
-    spelled, unsupported, vue,
+    Name, Namespace, NodeKind, Parent, R, Span, Steps, Template, directive, spelled, unsupported,
+    vue,
 };
 use crate::compilation::string_key;
 
@@ -392,5 +392,20 @@ fn captured_events(attributes: &[Attribute], source_text: &str, props: &mut Vec<
         if event {
             props.push(captured_event(name, a.span));
         }
+    }
+}
+
+/// `` ${event}="this.__e=event"``, which Svelte's server prints for a load or error event.
+fn captured_event(event: &str, span: Span) -> vue::Property {
+    vue::Property {
+        kind: vue::PropertyKind::Attribute {
+            name: spelled(event, span),
+            value: Some(vue::Text {
+                raw: span,
+                cooked: Some("this.__e=event".into()),
+            }),
+        },
+        span,
+        origin: 0,
     }
 }
