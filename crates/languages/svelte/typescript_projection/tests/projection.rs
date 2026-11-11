@@ -224,3 +224,18 @@ fn a_style_sheet_error_does_not_stop_the_content_mapper() {
     assert!(!output.contains("\"diagnostics\""), "{output}");
     assert!(output.contains("let a = 1;"), "{output}");
 }
+
+#[test]
+fn a_typed_each_context_drops_its_annotation_as_svelte2tsx_does() {
+    let source = "<script lang=\"ts\">let letters = ['a'];</script>\
+                  {#each letters as letter: string, i}<span>{i}{letter}</span>{/each}";
+    let (_, output) = project(source);
+    assert!(
+        output
+            .out
+            .contains("for (let [i, letter] of __rsvelte_each(letters))"),
+        "{}",
+        output.out
+    );
+    assert!(!output.out.contains(": string"), "{}", output.out);
+}
