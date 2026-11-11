@@ -1,14 +1,21 @@
 //! A `.svelte.js` module (upstream `compileModule`): its script lowered as a component's module
 //! script is, with no component around it.
 
-use oxc_allocator::{Allocator, Vec as ArenaVec};
-use oxc_ast::ast::{ImportOrExportKind, Program, Statement};
-use oxc_ast_visit::VisitMut;
+use std::path::Path;
+
+use oxc_allocator::Allocator;
+use oxc_ast::ast::{Program, Statement};
+use oxc_semantic::SemanticBuilder;
 use oxc_span::{SPAN, SourceType};
+use oxc_transformer::{TransformOptions, Transformer};
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 
-use super::{Builder, CompileInput, Target, check_runes, client, prepare, script, validate};
+use super::{
+    Builder, CompileInput, Erasure, Target, check_runes, client, prepare, script,
+    validate_erased_by,
+};
 
 /// The module of one target, in `allocator`; its spans index the module's text.
 ///
@@ -21,7 +28,7 @@ pub(crate) fn lower_module<'o>(
     target: Target,
     allocator: &'o Allocator,
 ) -> Result<Program<'o>, Diagnostic> {
-    let validated = validate(input, res)?;
+    let validated = validate_erased_by(input, res, Erasure::TypeScript)?;
     check_runes(input, res, target, false)?;
     let component = &input.component;
     let program = component
@@ -55,9 +62,6 @@ pub(crate) fn lower_module<'o>(
         Target::Client => "svelte/internal/client",
         Target::Server => "svelte/internal/server",
     };
-    let body = std::iter::once(client::import(&b, Some("$"), runtime))
-        .chain(hoisted)
-        .chain(statements);
     let mut out = Program::new(
         SPAN,
         SourceType::mjs(),
@@ -65,36 +69,47 @@ pub(crate) fn lower_module<'o>(
         [],
         None,
         [],
-        b.vec(body),
+        b.vec(hoisted.into_iter().chain(statements)),
         &b,
     );
     if program.source_type.is_typescript() {
-        // Each statement, not the list: the list keeps what TypeScript's emit keeps.
-        let mut strip = rsvelte_typescript_compile::strip::Strip::new(allocator);
-        for statement in &mut out.body {
-            strip.visit_statement(statement);
-        }
-        typescript_emit(&b, program, &mut out.body);
+        typescript_emit(&b, allocator, program, component.filename, &mut out)?;
     }
+    out.body.insert(0, client::import(&b, Some("$"), runtime));
     Ok(out)
 }
 
-/// What TypeScript's own emit adds to a `.svelte.ts` module before upstream reads it: a script
-/// is strict, and a module whose every import and export was a type stays a module.
+/// TypeScript's emit of a `.svelte.ts` module, which upstream reads instead of the module: oxc's
+/// transform erases the types as `verbatimModuleSyntax` does and lowers parameter properties
+/// and enums, and a script is strict.
 fn typescript_emit<'o>(
     b: &Builder<'o>,
+    allocator: &'o Allocator,
     source: &Program<'_>,
-    body: &mut ArenaVec<'o, Statement<'o>>,
-) {
-    // The first statement is upstream's import of its runtime.
-    if !source.body.iter().any(Statement::is_module_declaration) {
-        body.insert(1, b.stmt(b.string("use strict")));
-    } else if !body[1..].iter().any(Statement::is_module_declaration) {
-        body.push(Statement::new_export_named_declaration(
-            SPAN,
-            b.vec([]),
-            ImportOrExportKind::Value,
-            b,
+    filename: &str,
+    out: &mut Program<'o>,
+) -> Result<(), Diagnostic> {
+    out.source_type = SourceType::ts();
+    let scoping = SemanticBuilder::new().build(out).semantic.into_scoping();
+    let mut options = TransformOptions::default();
+    options.typescript.only_remove_type_imports = true;
+    let transformed =
+        Transformer::new(allocator, Path::new(filename), &options).build_with_scoping(scoping, out);
+    out.source_type = SourceType::mjs();
+    if let Some(error) = transformed.diagnostics.first() {
+        // oxc's transform labels the node it cannot emit, in the module's own text.
+        let span = error.labels.first().map_or_else(
+            || Span::new(source.span.start, source.span.end),
+            |label| Span::new(label.offset(), label.offset() + label.len()),
+        );
+        return Err(Diagnostic::error(
+            "typescript_transform",
+            error.message.to_string(),
+            span,
         ));
     }
+    if !source.body.iter().any(Statement::is_module_declaration) {
+        out.body.insert(0, b.stmt(b.string("use strict")));
+    }
+    Ok(())
 }

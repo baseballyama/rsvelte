@@ -9609,62 +9609,62 @@ describe("alt-selection-state", () => {
 		expect(state.current).toBe("1");
 	});
 });
-=== 1447 packages/melt/src/lib/utils/selection-state.test.svelte.ts	warnings.json
+=== 1443 packages/melt/src/lib/utils/selection-state.test.svelte.ts	warnings.json
 [
 	{
 		"code": "state_referenced_locally",
 		"message": "This reference only captures the initial value of `value`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
 		"start": {
-			"line": 55,
-			"column": 15,
-			"character": 1931
+			"line": 60,
+			"column": 9,
+			"character": 1650
 		},
 		"end": {
-			"line": 55,
-			"column": 20,
-			"character": 1936
+			"line": 60,
+			"column": 14,
+			"character": 1655
 		}
 	},
 	{
 		"code": "state_referenced_locally",
 		"message": "This reference only captures the initial value of `value`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
 		"start": {
-			"line": 58,
-			"column": 15,
-			"character": 2063
+			"line": 64,
+			"column": 9,
+			"character": 1765
 		},
 		"end": {
-			"line": 58,
-			"column": 20,
-			"character": 2068
+			"line": 64,
+			"column": 14,
+			"character": 1770
 		}
 	},
 	{
 		"code": "state_referenced_locally",
 		"message": "This reference only captures the initial value of `value`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
 		"start": {
-			"line": 72,
-			"column": 15,
-			"character": 2548
+			"line": 79,
+			"column": 9,
+			"character": 2177
 		},
 		"end": {
-			"line": 72,
-			"column": 20,
-			"character": 2553
+			"line": 79,
+			"column": 14,
+			"character": 2182
 		}
 	},
 	{
 		"code": "state_referenced_locally",
 		"message": "This reference only captures the initial value of `value`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
 		"start": {
-			"line": 75,
-			"column": 15,
-			"character": 2715
+			"line": 83,
+			"column": 9,
+			"character": 2327
 		},
 		"end": {
-			"line": 75,
-			"column": 20,
-			"character": 2720
+			"line": 83,
+			"column": 14,
+			"character": 2332
 		}
 	}
 ]
