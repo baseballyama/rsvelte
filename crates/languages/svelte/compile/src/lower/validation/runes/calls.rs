@@ -127,10 +127,18 @@ impl RuneWalk<'_> {
         place: Place,
         lowered: bool,
     ) {
-        // Upstream splits a destructured state or derived into one declaration per path; this
-        // port has no `extract_paths` yet.
-        let destructured = matches!(rune, "$state" | "$state.raw" | "$derived" | "$derived.by")
-            && matches!(place.parent, Parent::Initializer { named: false, .. });
+        // Upstream splits a destructured state or derived into one declaration per path.
+        let destructured = match place.parent {
+            Parent::Initializer {
+                named: false, top, ..
+            } => match rune {
+                "$state" | "$state.raw" => true,
+                // Only the instance's top level has the names its `$$d` and arrays take.
+                "$derived" | "$derived.by" => !top,
+                _ => false,
+            },
+            _ => false,
+        };
         let supported = lowered
             && !destructured
             && match rune {

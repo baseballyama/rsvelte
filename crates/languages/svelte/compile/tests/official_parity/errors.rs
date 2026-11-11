@@ -238,7 +238,7 @@ fn a_destructured_rune_is_refused_only_when_upstream_raises_nothing() {
             "unsupported",
         ),
         (
-            "<script>let [a] = $derived.by(() => [1]);</script>{a}",
+            "<script>function f() { let [a] = $derived.by(() => [1]); return a; }</script>",
             "unsupported",
         ),
     ] {

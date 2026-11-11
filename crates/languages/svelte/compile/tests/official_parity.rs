@@ -5,6 +5,8 @@
 use rsvelte_svelte_compile::{CompileInput, Target, compile_input};
 use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 
+#[path = "official_parity/derived.rs"]
+mod derived;
 #[path = "official_parity/errors.rs"]
 mod errors;
 #[path = "official_parity/exports.rs"]
@@ -91,11 +93,10 @@ fn a_destructuring_assignment_is_refused_where_the_target_reads_a_signal() {
 
 /// Upstream splits each into one declaration per path, which this port does not do yet.
 #[test]
-fn a_destructured_state_or_derived_is_refused_on_both_targets() {
+fn a_destructured_state_is_refused_on_both_targets() {
     for script in [
         "const { a, b: c } = $state({ a: 1, b: 2 });",
         "let [x] = $state.raw([1]);",
-        "const { a } = $derived({ a: 1 });",
     ] {
         let source = format!("<script>{script}</script>");
         for target in [Target::Client, Target::Server] {
