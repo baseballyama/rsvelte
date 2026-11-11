@@ -12,12 +12,19 @@ use crate::input::ComponentInput;
 pub(super) fn mark_dynamic(
     input: &ComponentInput<'_>,
     expressions: &FxHashMap<ExpressionIdentifier, ExpressionMetadata>,
+    scoped: &IndexVector<CompilerNodeIdentifier, bool>,
     list: &[CompilerNodeIdentifier],
     out: &mut IndexVector<CompilerNodeIdentifier, bool>,
 ) -> bool {
     let (compiler_syntax_tree, source_text) = (input.compiler_syntax_tree, input.source_text);
     let body = |c, out: &mut IndexVector<CompilerNodeIdentifier, bool>| {
-        mark_dynamic(input, expressions, compiler_syntax_tree.children(c), out)
+        mark_dynamic(
+            input,
+            expressions,
+            scoped,
+            compiler_syntax_tree.children(c),
+            out,
+        )
     };
     let mut any = false;
     for &identifier in list {
@@ -69,9 +76,11 @@ pub(super) fn mark_dynamic(
                         && el.name.text(source_text) == "selectedcontent");
                 let own = body(el.children, out) || hydrated;
                 any |= el.kind != compiler_syntax_tree::ElementKind::Regular;
-                // Upstream sets a custom element's attributes at runtime, as its properties.
+                // Upstream sets a custom element's attributes at runtime, as its properties, and
+                // gives a scoped one an empty `class` when it has none.
                 any |= compiler_syntax_tree.is_custom_element(el, source_text)
-                    && !compiler_syntax_tree.attributes(el.attributes).is_empty();
+                    && (!compiler_syntax_tree.attributes(el.attributes).is_empty()
+                        || scoped[identifier]);
                 out[identifier] = own;
                 any |= own;
                 for a in compiler_syntax_tree.attributes(el.attributes) {
