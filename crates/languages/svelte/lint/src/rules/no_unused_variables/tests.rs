@@ -307,3 +307,27 @@ fn a_store_updated_only_for_itself_is_unused() {
         ["'count' is defined but never used."]
     );
 }
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0: the scripts see a top-level snippet only.
+#[test]
+fn a_script_reads_a_top_level_snippet() {
+    assert_eq!(
+        unused("<script>bar;</script>{#snippet bar()}x{/snippet}{#snippet baz()}y{/snippet}"),
+        ["'baz' is defined but never used."]
+    );
+    assert_eq!(
+        unused("<script module>bar;</script>{#snippet bar()}x{/snippet}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>x;</script><div>{#snippet x()}y{/snippet}</div>"),
+        ["'x' is defined but never used."]
+    );
+    assert_eq!(
+        unused(
+            "<script>function f() { return bar; } f;</script>\
+             {#if true}{#snippet bar()}x{/snippet}{/if}"
+        ),
+        ["'bar' is defined but never used."]
+    );
+}
