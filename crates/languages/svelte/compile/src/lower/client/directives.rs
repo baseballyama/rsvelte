@@ -1,10 +1,12 @@
 use crate::lower::builder::Runtime;
+use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::Expression;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
 
 use super::{Attribute, AttributeValue, ClientCompilationContext, Lists};
+use crate::lower::bindings::{Lowering, property_of};
 
 const TRANSITION_IN: u32 = 1;
 const TRANSITION_OUT: u32 = 1 << 1;
@@ -43,7 +45,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 }
                 AttributeValue::Bind(_) => {
                     let call = self.binding(a, tag, node);
-                    directives.after.push(b.stmt(call));
+                    // Upstream defers a binding beside an action, as it does an event.
+                    if has_use {
+                        let effect = b.runtime("effect", [b.thunk(call)]);
+                        directives.initializer.push(b.stmt(effect));
+                    } else {
+                        directives.after.push(b.stmt(call));
+                    }
                 }
                 AttributeValue::Attach(e) => {
                     let call = self.attach(e, node);
@@ -114,18 +122,43 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     /// Upstream `BindDirective` (client, non-dev) for the bindings coverage admits.
-    fn binding(&self, a: &Attribute, tag: &str, node: &str) -> Expression<'o> {
-        let AttributeValue::Bind(e) = a.value else {
+    fn binding(&self, attribute: &Attribute, tag: &str, node: &str) -> Expression<'o> {
+        let AttributeValue::Bind(target) = attribute.value else {
             unreachable!("called on bindings")
         };
-        let (get, set) = self.binding_accessors(e, true);
-        let method = match a.name.text(self.source_text) {
-            "value" if tag == "select" => "bind_select_value",
-            "value" => "bind_value",
-            "checked" => "bind_checked",
-            p => unreachable!("coverage admits no `bind:{p}`"),
+        let b = self.b;
+        let name = attribute.name.text(self.source_text);
+        let property = property_of(name).expect("coverage admits known properties");
+        let (get, set) = self.binding_accessors(target, true);
+        // Upstream drops a setter that is the getter, as both are a prop's accessor.
+        let same = matches!((&get, &set),
+            (Expression::Identifier(g), Expression::Identifier(s)) if g.name == s.name);
+        let accessors = |method, mut arguments: Vec<Expression<'o>>| {
+            arguments.push(get.clone_in(b.allocator()));
+            if !same {
+                arguments.push(set.clone_in(b.allocator()));
+            }
+            b.runtime(method, arguments)
         };
-        self.b.runtime(method, [self.b.id(node), get, set])
+        let node = b.id(node);
+        match property.lowering {
+            Lowering::Event(event) => {
+                let mut arguments = vec![b.string(name), b.string(event), node, set];
+                if property.bidirectional {
+                    arguments.push(get);
+                }
+                b.runtime("bind_property", arguments)
+            }
+            Lowering::Accessors(method) => accessors(method, vec![node]),
+            Lowering::Value if tag == "select" => accessors("bind_select_value", vec![node]),
+            Lowering::Value => accessors("bind_value", vec![node]),
+            Lowering::Setter(method) => b.runtime(method, [node, set]),
+            Lowering::Measured(method) => b.runtime(method, [node, b.string(name), set]),
+            Lowering::ContentEditable => {
+                accessors("bind_content_editable", vec![b.string(name), node])
+            }
+            Lowering::Group | Lowering::This => unreachable!("lowered on their own"),
+        }
     }
 
     /// Upstream `AttachTag` (client).

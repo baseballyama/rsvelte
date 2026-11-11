@@ -1,3 +1,6 @@
+use oxc_allocator::{CloneIn, GetAllocator};
+use oxc_ast::ast::Expression;
+
 use crate::lower::server::{
     AttributeValue, CompilerNodeIdentifier, ElementKind, NodeKind, Piece, R,
     ServerCompilationContext, check_foreign_element, is_customizable_select, is_void, unsupported,
@@ -58,8 +61,31 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let void = is_void(&tag);
         template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
         let cleaned = self.plan.fragment(el.children);
-        self.hoisted_elements(&cleaned.hoisted, |_| false, template)?;
-        self.process_children(&cleaned.items, template)?;
+        let body = self.element_body(compiler_syntax_tree.attributes(el.attributes));
+        if let Some(body) = body {
+            // Upstream renders the children only when the bound content is empty.
+            let b = self.b;
+            let id = if let Expression::Identifier(_) = body {
+                body
+            } else {
+                let name = self.names.generate("$$body");
+                template.push(Piece::Statement(b.const_(&name, body)));
+                b.id(&name)
+            };
+            let mut children = Vec::new();
+            self.hoisted_elements(&cleaned.hoisted, |_| false, &mut children)?;
+            self.process_children(&cleaned.items, &mut children)?;
+            let content = self.build_template(vec![Piece::Expression(id.clone_in(b.allocator()))]);
+            let children = self.build_template(children);
+            template.push(Piece::Statement(b.if_(
+                id,
+                b.block(content),
+                Some(b.block(children)),
+            )));
+        } else {
+            self.hoisted_elements(&cleaned.hoisted, |_| false, template)?;
+            self.process_children(&cleaned.items, template)?;
+        }
         if !void {
             template.push(Piece::Text(format!("</{tag}>")));
         }

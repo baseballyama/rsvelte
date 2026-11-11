@@ -4,6 +4,7 @@
 //! name generation are shared; only the parts where the targets really differ (DOM building on
 //! the client, string pushing on the server) live in `client` and `server`.
 
+mod bindings;
 mod builder;
 mod client;
 mod component;
