@@ -106,6 +106,7 @@ pub(crate) fn lower_with_facts<'o>(
     target: Target,
     allocator: &'o Allocator,
 ) -> Result<Program<'o>, Diagnostic> {
+    coverage::check_static_custom_elements(facts.input, facts.an)?;
     let b = Builder::new(allocator);
     let prepared = prepare::prepare(facts, target, &b)?;
     let body = match target {

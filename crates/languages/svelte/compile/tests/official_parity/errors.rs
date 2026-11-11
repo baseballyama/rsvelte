@@ -74,13 +74,9 @@ fn template_errors_come_from_the_template_on_both_targets() {
             "<A>{#if v}<svelte:fragment slot=\"a\">x</svelte:fragment>{/if}</A>",
             Some("svelte_fragment_invalid_placement"),
         ),
-        (
-            "<button is=\"x-b\" class=\"a\">b</button>",
-            Some("unsupported"),
-        ),
-        ("<button is=\"x-b\">b</button>", None),
-        ("<my-el></my-el>", None),
-        ("<my-el a=\"1\"></my-el>", Some("unsupported")),
+        ("<button is=\"x-b\" class=\"a\">b</button>", None),
+        ("<my-el a=\"1\"></my-el>", None),
+        ("<div><my-el a=\"1\"></my-el></div>", Some("unsupported")),
     ] {
         let source = format!("{script}{markup}");
         for target in [Target::Client, Target::Server] {

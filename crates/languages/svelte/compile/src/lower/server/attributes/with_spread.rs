@@ -2,8 +2,9 @@ use oxc_ast::ast::{Expression, ObjectPropertyKind};
 
 use super::escaped_text;
 use crate::lower::builder::Runtime;
+use crate::lower::is_custom_element_node;
 use crate::lower::server::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, Piece, ServerCompilationContext,
+    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, Piece, ServerCompilationContext,
     capture_event, capture_load_events, event_attribute, is_behaviour, is_directive,
     push_captured_events,
 };
@@ -130,15 +131,27 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             None
         };
         let hash = hash.map(|h| b.string(&h));
-        let flags = if self.plan.named(identifier) != crate::render_plan::Namespace::Html {
+        let flags = self.spread_flags(identifier, tag);
+        let flags = (flags != 0).then(|| b.number(f64::from(flags)));
+        let styles = self.spread_styles(&style_directives);
+        (vec![Some(object), hash, classes, styles, flags], events)
+    }
+}
+
+impl ServerCompilationContext<'_, '_> {
+    /// Upstream `prepare_element_spread`'s flags.
+    fn spread_flags(&self, identifier: CompilerNodeIdentifier, tag: &str) -> u32 {
+        let tree = self.compiler_syntax_tree;
+        let custom = matches!(&tree.node(identifier).kind,
+            NodeKind::Element(el) if is_custom_element_node(tree, self.source_text, el));
+        if self.plan.named(identifier) != crate::render_plan::Namespace::Html {
             ELEMENT_IS_NAMESPACED | ELEMENT_PRESERVE_ATTRIBUTE_CASE
+        } else if custom {
+            ELEMENT_PRESERVE_ATTRIBUTE_CASE
         } else if tag == "input" {
             ELEMENT_IS_INPUT
         } else {
             0
-        };
-        let flags = (flags != 0).then(|| b.number(f64::from(flags)));
-        let styles = self.spread_styles(&style_directives);
-        (vec![Some(object), hash, classes, styles, flags], events)
+        }
     }
 }
