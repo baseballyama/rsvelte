@@ -28,3 +28,18 @@ fn a_nested_call_gets_its_own_arena() {
         assert_eq!(kept, "outer");
     });
 }
+
+#[test]
+fn a_build_that_fails_gives_its_arena_back() {
+    let text = format!("let = ;{}", " ".repeat(1 << 20));
+    let failed = crate::Tree::build(&text, |builder| {
+        let source_text = builder.source_text();
+        builder.parse_program(source_text, 0, oxc_span::SourceType::mjs())
+    });
+    failed.expect_err("the text does not parse");
+    let capacity = with_scratch_arena(oxc_allocator::Allocator::capacity);
+    assert!(
+        capacity >= 1 << 20,
+        "the failed build's arena came back: {capacity}"
+    );
+}
