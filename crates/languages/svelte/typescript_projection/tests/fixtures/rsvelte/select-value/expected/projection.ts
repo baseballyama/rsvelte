@@ -30,7 +30,7 @@
   }
   {
     svelteHTML.createElement("select", {
-      "defaultValue": fallback,
+      "defaultvalue": fallback,
     });
     {
       svelteHTML.createElement("option", {

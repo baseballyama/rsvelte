@@ -1,4 +1,4 @@
-# svelte.check/default: 12242 match
+# svelte.check/default: 12248 match
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
 svelte/animotion/src/lib/components/notes.svelte	refused
@@ -2406,7 +2406,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/input.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/style-directive/input.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	refused
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-native/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-ts-file/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/tags-without-attrs/input.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/transition-options/input.svelte	refused
@@ -3424,8 +3423,6 @@ svelte/originui-svelte/src/lib/components/switches/switch-16.svelte	refused
 svelte/originui-svelte/src/lib/components/switches/switch-17.svelte	refused
 svelte/originui-svelte/src/lib/components/tables/table-13.svelte	refused
 svelte/originui-svelte/src/lib/components/tables/table-16.svelte	refused
-svelte/originui-svelte/src/lib/components/tables/table-18.svelte	mismatch
-svelte/originui-svelte/src/lib/components/tables/table-19.svelte	mismatch
 svelte/originui-svelte/src/lib/components/tables/table-20.svelte	refused
 svelte/originui-svelte/src/lib/components/textareas/textarea-05.svelte	refused
 svelte/originui-svelte/src/lib/components/textareas/textarea-16.svelte	refused
@@ -5984,10 +5981,8 @@ svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertTweetDialog.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertYoutubeDialog.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/Composer.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/ContentEditable.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/NestedComposer.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/BlockWithAlignableContents.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuItem.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuPlugin.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Image/ImageComponent.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Image/ImagePlugin.svelte	refused
@@ -5998,7 +5993,6 @@ svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/TreeView/Tree
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/bluesky/BlueskyPostComponent.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditor.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditorPlugin.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/youtube/YouTubeComponent.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/routes/RichTextToolbar.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/routes/examples/Composer1Toolbar.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/routes/examples/Composer2Toolbar.svelte	refused

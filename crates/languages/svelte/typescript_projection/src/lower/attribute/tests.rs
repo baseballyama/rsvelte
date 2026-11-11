@@ -24,3 +24,22 @@ fn a_number_is_what_javascript_s_is_nan_accepts() {
         assert!(!is_number(text), "{text}");
     }
 }
+
+#[test]
+fn svelte2tsx_lowercases_a_name_unless_it_is_an_svg_or_event_one() {
+    assert!(super::SVG_CAMEL_CASE.is_sorted());
+    for (name, custom_element, lowercased) in [
+        ("tabIndex", false, true),
+        ("class", false, false),
+        ("viewBox", false, false),
+        ("onClick", false, false),
+        ("tabIndex", true, false),
+        ("ÄB", false, true),
+    ] {
+        assert_eq!(
+            super::lowercased(name, custom_element),
+            lowercased,
+            "{name}"
+        );
+    }
+}

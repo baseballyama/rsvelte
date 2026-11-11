@@ -34,6 +34,27 @@ impl Printer<'_> {
         }
     }
 
+    fn property(&mut self, name: Span, lowercase: bool, value: NodeIdentifier, end: Option<u32>) {
+        // svelte2tsx quotes every name, and a finding on it covers the name without quotes.
+        let start = self.output.out.len() as u32;
+        self.output.push("\"");
+        if lowercase {
+            for c in name.text(self.source).chars().flat_map(char::to_lowercase) {
+                self.output.push_char(c);
+            }
+        } else {
+            self.output.push(name.text(self.source));
+        }
+        self.output.push("\"");
+        self.output.atom_since(start, name);
+        if let Some(end) = end {
+            self.output.mark(end);
+        }
+        self.output.push(": ");
+        self.node(value);
+        self.output.push(",\n");
+    }
+
     fn node(&mut self, identifier: NodeIdentifier) {
         match self.tree.node(identifier) {
             Node::Program { span, .. } => {
@@ -91,20 +112,12 @@ impl Printer<'_> {
                 consequent,
                 alternate,
             } => self.branch(test, consequent, alternate),
-            Node::Property { name, value, end } => {
-                // svelte2tsx quotes every name, and a finding on it covers the name without quotes.
-                let start = self.output.out.len() as u32;
-                self.output.push("\"");
-                self.output.push(name.text(self.source));
-                self.output.push("\"");
-                self.output.atom_since(start, name);
-                if let Some(end) = end {
-                    self.output.mark(end);
-                }
-                self.output.push(": ");
-                self.node(value);
-                self.output.push(",\n");
-            }
+            Node::Property {
+                name,
+                lowercase,
+                value,
+                end,
+            } => self.property(name, lowercase, value, end),
             node @ (Node::SnippetProperty { .. }
             | Node::SnippetNames { .. }
             | Node::ImplicitChildren(_)) => self.component_part(node),
