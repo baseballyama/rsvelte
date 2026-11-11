@@ -1,0 +1,1 @@
+error unsupported 4:15-4:37 `$state.snapshot` is not supported yet

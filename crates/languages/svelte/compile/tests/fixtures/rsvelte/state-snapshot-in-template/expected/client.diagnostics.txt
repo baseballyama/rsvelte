@@ -1,0 +1,1 @@
+error unsupported 5:5-5:27 `$state.snapshot` is not supported yet
