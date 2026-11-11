@@ -1,5 +1,6 @@
 mod each_block;
 mod if_block;
+mod key_block;
 
 use oxc_ast::ast::{Expression, Statement};
 

@@ -15,6 +15,10 @@ use super::{
 
 pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
+    let source = input.component.source_text;
+    let ignores_html_changes = tree.nodes.iter().any(|node| {
+        matches!(node.kind, NodeKind::Comment { data } if data.text(source).contains("hydration_html_changed"))
+    });
     for (identifier, node) in tree.nodes.iter_enumerated() {
         let what = match &node.kind {
             NodeKind::Text { .. }
@@ -22,7 +26,10 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             | NodeKind::Expression { .. }
             | NodeKind::If { .. }
             | NodeKind::Snippet(_)
+            | NodeKind::Key { .. }
             | NodeKind::Render { .. } => None,
+            // Upstream passes a `svelte-ignore hydration_html_changed` on to `$.html`.
+            NodeKind::Html { .. } => ignores_html_changes.then_some("an ignored `{@html}` change"),
             NodeKind::Each(each) => each
                 .context
                 .is_none()
@@ -31,9 +38,7 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
                 check_element(input, res, identifier, el)?;
                 None
             }
-            NodeKind::Key { .. } => Some("a `{#key}` block"),
             NodeKind::Await(_) => Some("an `{#await}` block"),
-            NodeKind::Html { .. } => Some("an `{@html}` tag"),
             NodeKind::Const { .. } => Some("a `{@const}` tag"),
             NodeKind::Debug { .. } => Some("a `{@debug}` tag"),
             NodeKind::Declaration { .. } => Some("a declaration tag"),

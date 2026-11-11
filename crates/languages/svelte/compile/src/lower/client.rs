@@ -14,6 +14,7 @@ mod events;
 mod expressions;
 mod fragments;
 mod global_bindings;
+mod html_tag;
 mod snippets;
 mod special;
 mod stores;
