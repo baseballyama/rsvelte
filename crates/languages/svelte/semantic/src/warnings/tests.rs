@@ -453,3 +453,31 @@ fn a_function_expression_name_counts_no_depth_and_a_class_is_walked() {
         }
     }
 }
+
+#[test]
+fn a_type_only_dollar_import_is_erased() {
+    // svelte 5.57.3 compiles the first two and rejects the value import at 27.
+    let cases = [
+        ("import type { $T } from \"./t\";", None),
+        ("import { type $T } from \"./t\";", None),
+        ("import { $T } from \"./t\";", Some(27)),
+    ];
+    let mut registry = Registry::new();
+    crate::register(&mut registry);
+    for (script, expected) in cases {
+        let source = format!("<script lang=\"ts\">{script}</script>");
+        let document = Document::new("Test.svelte".to_owned(), source).expect("small");
+        let context = DocumentContext::new(&document, registry.artifacts());
+        let component = context.get::<Parsed>().as_ref().expect("parses");
+        let resolution = context.get::<Resolved>().as_ref().expect("resolves");
+        let errors = super::dollar_name_errors(
+            &component.javascript,
+            component.instance.as_ref().map(|s| s.program),
+            None,
+            resolution,
+            false,
+        );
+        let raised: Vec<_> = errors.iter().map(|(_, e)| e.span.start_offset).collect();
+        assert_eq!(raised, expected.into_iter().collect::<Vec<_>>(), "{script}");
+    }
+}

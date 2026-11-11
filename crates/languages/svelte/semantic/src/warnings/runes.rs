@@ -106,6 +106,7 @@ pub fn dollar_name_errors(
     let mut found: Vec<(Raised, Span)> = Vec::new();
     // TypeScript erases types and `declare`d names; an enum stays, as a variable.
     let erased = SymbolFlags::Ambient
+        | SymbolFlags::TypeImport
         | SymbolFlags::TypeAlias
         | SymbolFlags::Interface
         | SymbolFlags::TypeParameter
@@ -129,11 +130,7 @@ pub fn dollar_name_errors(
                     AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_)
                 )
             });
-        let type_only = flags.contains(SymbolFlags::Import)
-            && ancestors().any(
-                |kind| matches!(kind, AstKind::ImportDeclaration(d) if d.import_kind.is_type()),
-            );
-        if is_parameter || type_only {
+        if is_parameter {
             continue;
         }
         let at = span(scoping.symbol_span(symbol));
