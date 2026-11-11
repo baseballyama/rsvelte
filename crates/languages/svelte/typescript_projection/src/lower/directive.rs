@@ -2,7 +2,7 @@
 //! directives, which call the helpers of its shims.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part};
+use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range};
 
 use super::{Builder, Node, NodeIdentifier, Result, SourceExpression, Unsupported};
 
@@ -15,6 +15,8 @@ pub(super) struct Directives {
     pub(super) action_names: Vec<NodeIdentifier>,
     /// Statements after the call.
     pub(super) checks: Vec<NodeIdentifier>,
+    /// The arguments of a component's `$on` calls.
+    pub(super) events: Vec<Range>,
 }
 
 impl Directives {
@@ -22,6 +24,7 @@ impl Directives {
         self.actions.clear();
         self.action_names.clear();
         self.checks.clear();
+        self.events.clear();
     }
 }
 
@@ -50,6 +53,48 @@ impl Builder<'_> {
             value,
             end,
         }))
+    }
+
+    /// The arguments of svelte2tsx's `$on("name", handler)` for `on:` on a component.
+    pub(super) fn component_event(&mut self, attribute: &Attribute) -> Result<Range> {
+        let unsupported = || Unsupported::at("directives", attribute.span);
+        let name = attribute
+            .directive_name(&self.component.modifiers)
+            .ok_or_else(unsupported)?;
+        let handler = match attribute.value {
+            AttributeValue::True => None,
+            AttributeValue::Parts(parts) => match self.component.parts(parts) {
+                [] => None,
+                &[Part::Expression { expression, .. }] => {
+                    Some(self.expression_source(expression, None))
+                }
+                _ => return Err(unsupported()),
+            },
+        };
+        let handler = handler.unwrap_or_else(|| self.tree.push(Node::Identifier("() => {}")));
+        let text = self.tree.push(Node::Text(name));
+        let parts = self.tree.list(&[text]);
+        let name = self.tree.push(Node::String {
+            parts,
+            template: false,
+        });
+        Ok(self.tree.list(&[name, handler]))
+    }
+
+    /// `__rsvelte_events(component).$on(name, handler);` for each event.
+    pub(super) fn component_events(&mut self, component: NodeIdentifier, events: &[Range]) {
+        for &arguments in events {
+            let callee = self.tree.push(Node::Identifier("__rsvelte_events"));
+            let object = self.tree.list(&[component]);
+            let object = self.tree.push(Node::Call {
+                callee,
+                arguments: object,
+            });
+            let property = self.tree.push(Node::Identifier("$on"));
+            let callee = self.tree.push(Node::Member { object, property });
+            let call = self.tree.push(Node::Call { callee, arguments });
+            self.scratch.push(self.tree.push(Node::Statement(call)));
+        }
     }
 
     /// Adds what `use:`, a transition, `animate:` or `style:` on the element `tag` checks.

@@ -5,6 +5,7 @@ declare const __rsvelte_children: () => any;
 declare function __rsvelte_slots<Slots = Record<string, Record<string, any>>>(): <Name extends keyof Slots>(name: Name, attributes: Slots[Name]) => void;
 declare const __rsvelte_snippet_return: any;
 declare function __rsvelte_component_props<C extends (internals: any, props: any) => unknown>(component: C): Parameters<C>[1] & Record<string, any>;
+declare function __rsvelte_events<C>(component: C): C extends ConstructorOfATypedSvelteComponent ? InstanceType<C> : C extends import('svelte').Component<infer Props extends Record<string, any>, any, any> ? import('svelte').SvelteComponent<Props, { [event: string]: CustomEvent<any> }, any> : any;
 declare function __rsvelte_internals(): Parameters<import('svelte').Component>[0];
 declare function __rsvelte_export_component<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings extends keyof Props | ''>(): import('svelte').Component<Props, Exports, Bindings>;
 declare function __rsvelte_props<Required extends Record<string, unknown>, Optional extends Record<string, unknown>, Rest extends boolean>(required: Required, optional: Optional, rest: Rest): Required & Partial<Optional> & (Rest extends true ? Record<string, any> : {});

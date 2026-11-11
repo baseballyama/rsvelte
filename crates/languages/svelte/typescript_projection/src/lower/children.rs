@@ -83,7 +83,10 @@ impl Builder<'_> {
 impl Builder<'_> {
     /// svelte2tsx's `addImplicitSnippetProp`: each `{#snippet}` among a component's children is a
     /// prop after the attributes. Returns the snippets' names.
-    pub(super) fn snippet_props(&mut self, children: Range) -> Result<Range> {
+    pub(super) fn snippet_props(&mut self, children: Range, is_component: bool) -> Result<Range> {
+        if !is_component {
+            return Ok(Range::default());
+        }
         let mut names = Vec::new();
         for &child in self.component.children(children) {
             let TemplateNode::Snippet {

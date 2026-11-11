@@ -292,8 +292,8 @@ impl Builder<'_> {
         attributes: Range,
         children: Range,
     ) -> Result<NodeIdentifier> {
-        let is_component = component.is_some();
         let tag = name.text(self.source);
+        let is_component = component.is_some();
         if !is_component && !is_element(tag) {
             return Err(Unsupported::at("svelte: elements", name));
         }
@@ -320,6 +320,10 @@ impl Builder<'_> {
                 AttributeKind::On if intrinsic => {
                     let property = self.event_property(attribute)?;
                     self.scratch.push(property);
+                }
+                AttributeKind::On if is_component => {
+                    let event = self.component_event(attribute)?;
+                    directives.events.push(event);
                 }
                 AttributeKind::Use
                 | AttributeKind::Transition { .. }
@@ -349,36 +353,58 @@ impl Builder<'_> {
                 }
             }
         }
-        let snippets = if is_component {
-            self.snippet_props(children)?
-        } else {
-            Range::default()
-        };
+        let snippets = self.snippet_props(children, is_component)?;
         let properties = self.finish_list(start);
         let properties = self.tree.push(Node::Object { properties });
         let (call, named) = if let Some(component) = component {
-            self.component_call(component, properties, snippets)
+            self.component_call(
+                component,
+                properties,
+                snippets,
+                !directives.events.is_empty(),
+            )
         } else if slot {
             (self.slot_call(attributes, properties)?, None)
         } else {
-            let enhancers = (!directives.action_names.is_empty()).then(|| {
-                let callee = self.tree.push(Node::Identifier("__sveltets_2_union"));
-                let arguments = self.tree.list(&directives.action_names);
-                self.tree.push(Node::Call { callee, arguments })
-            });
-            (self.element_call(name, enhancers, properties), None)
+            (
+                self.element_call(name, &directives.action_names, properties),
+                None,
+            )
         };
+        self.after_call(call, named, bindings, snippets, &directives);
+        self.directives = directives;
+        self.class_expressions(attributes);
+        self.element_children(children, is_component)?;
+        let body = self.finish_list(start);
+        Ok(self.tree.push(Node::Block { body }))
+    }
+
+    /// The call with what svelte2tsx writes around it: actions before, then bindings, directive
+    /// checks, a component's events and the names of its snippet props.
+    fn after_call(
+        &mut self,
+        call: NodeIdentifier,
+        named: Option<NodeIdentifier>,
+        bindings: Vec<binding::Binding>,
+        snippets: Range,
+        directives: &directive::Directives,
+    ) {
         self.scratch.extend_from_slice(&directives.actions);
         self.bound_call(call, bindings);
         self.scratch.extend_from_slice(&directives.checks);
-        self.directives = directives;
-        if let Some(component) = named {
+        let Some(component) = named else { return };
+        self.component_events(component, &directives.events);
+        if snippets.len != 0 {
             let declaration = self.tree.push(Node::SnippetNames {
                 names: snippets,
                 component,
             });
             self.scratch.push(declaration);
         }
+    }
+
+    /// The expressions of `class:` directives, which svelte2tsx checks after the call.
+    fn class_expressions(&mut self, attributes: Range) {
         for attribute in self.component.attributes(attributes) {
             if attribute.kind == AttributeKind::Class
                 && let AttributeValue::Parts(parts) = attribute.value
@@ -388,9 +414,6 @@ impl Builder<'_> {
                 self.scratch.push(self.tree.push(Node::Expression(value)));
             }
         }
-        self.element_children(children, is_component)?;
-        let body = self.finish_list(start);
-        Ok(self.tree.push(Node::Block { body }))
     }
 
     /// An element's children; a component's snippets are already its props.
@@ -403,18 +426,19 @@ impl Builder<'_> {
     }
 
     /// `__rsvelte_component(C)(internals, properties)`, with the name it gives the component when
-    /// the snippets' names are declared from its props.
+    /// the snippets' names are declared from its props or its events are checked.
     fn component_call(
         &mut self,
         component: ExpressionIdentifier,
         properties: NodeIdentifier,
         snippets: Range,
+        events: bool,
     ) -> (NodeIdentifier, Option<NodeIdentifier>) {
         let component = self.expression_source(component, None);
         let callee = self.tree.push(Node::Identifier("__rsvelte_component"));
         let arguments = self.tree.list(&[component]);
         let mut callee = self.tree.push(Node::Call { callee, arguments });
-        let named = (snippets.len != 0).then(|| {
+        let named = (snippets.len != 0 || events).then(|| {
             let name = self.component_name();
             let value = callee;
             self.scratch
@@ -438,9 +462,14 @@ impl Builder<'_> {
     fn element_call(
         &mut self,
         name: Span,
-        enhancers: Option<NodeIdentifier>,
+        actions: &[NodeIdentifier],
         properties: NodeIdentifier,
     ) -> NodeIdentifier {
+        let enhancers = (!actions.is_empty()).then(|| {
+            let callee = self.tree.push(Node::Identifier("__sveltets_2_union"));
+            let arguments = self.tree.list(actions);
+            self.tree.push(Node::Call { callee, arguments })
+        });
         let name = self.tree.push(Node::Text(name));
         let parts = self.tree.list(&[name]);
         let name = self.tree.push(Node::String {
