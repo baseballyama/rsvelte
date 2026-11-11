@@ -1,9 +1,15 @@
 use oxc_ast::ast::{Expression, Statement};
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerNodeIdentifier};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Children, CompilerNodeIdentifier, MetadataTag,
+};
 
 use super::super::component::Standalone;
-use super::{ClientCompilationContext, Frag, Item, Lists, NodeKind, Prev, R, Template};
+use super::{
+    ClientCompilationContext, ElementKind, Frag, Item, Lists, NodeKind, Prev, R, Template,
+    unsupported,
+};
 use crate::lower::builder::Runtime;
+use crate::render_plan::Region;
 
 const TEMPLATE_FRAGMENT: u32 = 1;
 
@@ -22,8 +28,18 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         children: Children,
         skipped: fn(&str) -> bool,
     ) -> R<Vec<Statement<'o>>> {
+        let plan = self.plan;
+        self.region_without(plan.fragment(children), skipped)
+    }
+
+    /// [`Self::fragment_without`] over a region the plan prepared, such as one slot's.
+    pub(super) fn region_without(
+        &mut self,
+        region: &Region,
+        skipped: fn(&str) -> bool,
+    ) -> R<Vec<Statement<'o>>> {
         let (mut snippets, body) =
-            self.collecting_snippets(|context| context.fragment_body(children, skipped));
+            self.collecting_snippets(|context| context.fragment_body(region, skipped));
         snippets.extend(body?);
         Ok(snippets)
     }
@@ -40,11 +56,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
 
     fn fragment_body(
         &mut self,
-        children: Children,
+        cleaned: &Region,
         skipped: fn(&str) -> bool,
     ) -> R<Vec<Statement<'o>>> {
         let b = self.b;
-        let cleaned = self.plan.fragment(children);
         let items = &cleaned.items;
         let mut frag = Frag::default();
         let mut l = Lists::default();
@@ -54,16 +69,20 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             l.consts.append(&mut l.after);
             return Ok(l.consts);
         }
+        let lone_fragment = self.lone_fragment(items)?;
         let single_element = match items.as_ref() {
             [Item::Node(identifier)] => match &self.compiler_syntax_tree.node(*identifier).kind {
-                NodeKind::Element(e) if e.kind == super::ElementKind::Regular => {
+                NodeKind::Element(e) if e.kind == ElementKind::Regular => {
                     Some((*identifier, e.name))
                 }
                 _ => None,
             },
             _ => None,
         };
-        let root = if let Some((el, name)) = single_element {
+        let root = if let Some(identifier) = lone_fragment {
+            self.special_element(identifier, "", &mut frag, &mut l)?;
+            None
+        } else if let Some((el, name)) = single_element {
             let identifier = self.names.generate(name.text(self.source_text));
             self.element(el, &identifier, &mut frag, &mut l)?;
             let flags = if frag.tpl.needs_import_node {
@@ -133,6 +152,31 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         body.append(&mut l.after);
         body.extend(close);
         Ok(body)
+    }
+
+    /// Upstream's `is_single_child_not_needing_template` for a `<svelte:fragment>`, which renders
+    /// at the fragment's anchor; one beside other content is refused.
+    fn lone_fragment(&self, items: &[Item<'_>]) -> R<Option<CompilerNodeIdentifier>> {
+        let tree = self.compiler_syntax_tree;
+        let mut fragments = items.iter().filter_map(|item| match item {
+            Item::Node(identifier) => match &tree.node(*identifier).kind {
+                NodeKind::Element(e)
+                    if e.kind == ElementKind::Metadata(Some(MetadataTag::Fragment)) =>
+                {
+                    Some(*identifier)
+                }
+                _ => None,
+            },
+            _ => None,
+        });
+        match fragments.next() {
+            Some(identifier) if items.len() == 1 => Ok(Some(identifier)),
+            Some(identifier) => unsupported(
+                "a `<svelte:fragment>` beside other content",
+                tree.node(identifier).span,
+            ),
+            None => Ok(None),
+        }
     }
 
     fn fragment_hoisted(

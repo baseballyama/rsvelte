@@ -317,7 +317,23 @@ fn a_slot_attribute_needs_a_component_parent_or_a_custom_element() {
             "<div slot=\"a\">x</div>",
             Some("slot_attribute_invalid_placement"),
         ),
-        ("<C><div slot=\"a\">x</div></C>", Some("unsupported")),
+        ("<C><div slot=\"a\">x</div></C>", None),
+        (
+            "<C><div slot={x}>x</div></C>",
+            Some("slot_attribute_invalid"),
+        ),
+        (
+            "{#snippet s()}<div slot=\"a{x}\">x</div>{/snippet}",
+            Some("slot_attribute_invalid"),
+        ),
+        (
+            "<C><C slot=\"a\" /><p slot=\"a\">x</p></C>",
+            Some("slot_attribute_duplicate"),
+        ),
+        (
+            "<C><p slot=\"default\">x</p><!-- y --></C>",
+            Some("slot_default_duplicate"),
+        ),
         ("<my-element><div slot=\"a\">x</div></my-element>", None),
     ] {
         let source = format!("{script}{markup}");

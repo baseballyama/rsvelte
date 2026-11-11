@@ -100,6 +100,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 return self.component(identifier, node, false, frag, lists);
             }
             ElementKind::Metadata(Some(MetadataTag::Options)) => {}
+            ElementKind::Metadata(Some(MetadataTag::Fragment)) => {
+                let body = self.fragment(element.children)?;
+                lists.initializer.extend(body);
+            }
             ElementKind::Slot => return self.slot_element(identifier, node, frag, lists),
             _ => return unsupported("this special element", element.name),
         }

@@ -24,7 +24,7 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
         .nodes
         .iter()
         .any(|node| matches!(node.kind, NodeKind::Render { .. }));
-    for (identifier, node) in tree.nodes.iter_enumerated() {
+    for node in &tree.nodes {
         let what = match &node.kind {
             NodeKind::Text { .. }
             | NodeKind::Comment { .. }
@@ -44,7 +44,7 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
                 Some("a `<slot>` beside a `{@render}` tag")
             }
             NodeKind::Element(el) => {
-                check_element(input, res, identifier, el)?;
+                check_element(input, res, el)?;
                 // Upstream moves a boundary's `{@const}` into its `failed` snippet, and rejects one
                 // that a component's snippet reads.
                 let has = |f: fn(&NodeKind) -> bool| {
@@ -73,7 +73,6 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
 fn check_element(
     input: &CompileInput<'_>,
     res: &Resolution,
-    identifier: CompilerNodeIdentifier,
     el: &Element,
 ) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
@@ -97,9 +96,6 @@ fn check_element(
         return unsupported("a directive on `<slot>`", a.span);
     }
     let component = el.kind.renders_component();
-    let in_component = tree.node(identifier).parent.is_some_and(|parent| {
-        matches!(&tree.node(parent).kind, NodeKind::Element(owner) if owner.kind.renders_component())
-    });
     // Upstream checks the element's name as written.
     let tag = match el.kind {
         ElementKind::Regular => Some(el.name.text(source)),
@@ -137,15 +133,8 @@ fn check_element(
             AttributeValue::Style { .. } if tag == Some("svelte:element") => {
                 "a `style:` directive on `<svelte:element>`"
             }
-            AttributeValue::Style { .. } if !component => continue,
             AttributeValue::Let(_) => "a `let:` directive",
-            _ if !component => {
-                if name == "slot" && !super::is_directive(&a.value) && in_component {
-                    "a named slot"
-                } else {
-                    continue;
-                }
-            }
+            _ if !component => continue,
             AttributeValue::Bind(target) if name == "this" => {
                 check_target(input, res, a, target)?;
                 continue;
@@ -158,7 +147,6 @@ fn check_element(
             AttributeValue::Class(_) => "a `class:` directive on a component",
             AttributeValue::Spread(_) => continue,
             _ if name.starts_with("--") => "a CSS custom property on a component",
-            _ if name == "slot" => "a `slot` attribute",
             _ if name == "children" && has_content(input, el) => {
                 "a `children` prop beside the component's content"
             }

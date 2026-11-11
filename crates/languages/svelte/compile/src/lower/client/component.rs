@@ -56,12 +56,21 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             child_snippets(tree, self.javascript, element.children, |snippet| {
                 self.snippet_declaration(snippet)
             })?;
-        let children = self.fragment_without(element.children, |_| true)?;
+        let plan = self.plan;
+        let slots = match plan.slots(identifier) {
+            None => vec![(
+                "default",
+                self.fragment_without(element.children, |_| true)?,
+            )],
+            Some(slots) => slots
+                .map(|(name, region)| Ok((name, self.region_without(region, |_| true)?)))
+                .collect::<R<_>>()?,
+        };
         push_children(
             b,
             &mut parts,
             &snippets,
-            children,
+            slots,
             &["$$anchor", "$$slotProps"],
         );
         let props = props_expression(b, parts, Target::Client);

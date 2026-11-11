@@ -5,8 +5,10 @@ use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Each, ElementKind, MetadataTag};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
+use rustc_hash::FxHashSet;
 
 mod placement;
+mod slots;
 
 use placement::Ancestors;
 
@@ -58,6 +60,7 @@ fn walk<'a>(
 ) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
+    let mut slots = FxHashSet::default();
     for &identifier in tree.children(children) {
         let node = tree.node(identifier);
         let text = match &node.kind {
@@ -73,7 +76,7 @@ fn walk<'a>(
             return node_invalid_placement(&message, node.span);
         }
         let (inner, inner_placement) = match &node.kind {
-            NodeKind::Element(el) => element(input, identifier, el, owner, placement)?,
+            NodeKind::Element(el) => element(input, identifier, el, owner, placement, &mut slots)?,
             NodeKind::Each(each) if let Some(rune) = each_rune(input, each) => {
                 return super::state_invalid_placement(rune, node.span);
             }
@@ -162,6 +165,7 @@ fn element<'a>(
     el: &'a Element,
     owner: Option<Owner>,
     placement: &Placement<'a>,
+    slots: &mut FxHashSet<&'a str>,
 ) -> Result<(Option<Owner>, Placement<'a>), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
@@ -199,6 +203,15 @@ fn element<'a>(
             "Element with a slot='...' attribute must be a child of a component or a descendant of a custom element",
             slot.span,
         );
+    }
+    let fills = match owner {
+        Some(Owner::Component(component)) => node.parent == Some(component),
+        _ => false,
+    };
+    if let Some(slot) = slot
+        && (fills || matches!(parent, Some(NodeKind::Snippet(_))))
+    {
+        slots::check(input, slot, node.parent.filter(|_| fills), slots)?;
     }
     let placement = element_placement(input, identifier, el, placement)?;
     for a in attributes {
