@@ -1,4 +1,5 @@
 mod class;
+mod style;
 mod with_spread;
 mod without_spread;
 
@@ -52,6 +53,12 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 unreachable!("directives are handled by the caller")
             }
         };
+        self.interpolated(parts, trim)
+    }
+
+    /// Upstream `build_attribute_value` for text with `{expression}`s: one template literal.
+    pub(super) fn interpolated(&self, parts: &[Part], trim: bool) -> Expression<'o> {
+        let b = self.b;
         let mut quasis = vec![String::new()];
         let mut expressions = Vec::new();
         for p in parts {

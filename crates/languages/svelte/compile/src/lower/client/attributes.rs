@@ -1,4 +1,5 @@
 mod class;
+mod style;
 mod with_spread;
 mod without_spread;
 

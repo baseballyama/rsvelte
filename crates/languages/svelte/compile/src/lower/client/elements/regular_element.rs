@@ -58,7 +58,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let remove_defaults = el.name.text(self.source_text) == "input"
             && self.remove_input_defaults(attribute_list, has_spread, node, l);
         if has_spread {
-            self.attribute_effect(identifier, &tag, attribute_list, node, remove_defaults, l);
+            self.attribute_effect(identifier, &tag, attribute_list, node, remove_defaults, l)?;
         } else {
             self.element_attributes(identifier, &tag, attribute_list, node, frag, l)?;
         }

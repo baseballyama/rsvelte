@@ -3,7 +3,7 @@ use oxc_ast::ast::Expression;
 
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, R,
-    event_attribute, is_behaviour, normalize_attribute, unsupported,
+    event_attribute, is_behaviour, is_directive, normalize_attribute, unsupported,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -21,9 +21,18 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .iter()
             .filter(|a| matches!(a.value, AttributeValue::Class(_)))
             .collect();
+        let style_directives: Vec<&Attribute> = attributes
+            .iter()
+            .filter(|a| matches!(a.value, AttributeValue::Style { .. }))
+            .collect();
         for a in attributes {
             if is_behaviour(&a.value)
-                || matches!(a.value, AttributeValue::Bind(_) | AttributeValue::Class(_))
+                || matches!(
+                    a.value,
+                    AttributeValue::Bind(_)
+                        | AttributeValue::Class(_)
+                        | AttributeValue::Style { .. }
+                )
             {
                 continue;
             }
@@ -46,6 +55,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             };
             if !crate::lower::cannot_be_set_statically(raw_name)
                 && (attribute_name != "class" || class_directives.is_empty())
+                && (attribute_name != "style" || style_directives.is_empty())
                 && let Some(value) = literal
             {
                 self.static_attribute(frag, identifier, raw_name, &attribute_name, value);
@@ -58,8 +68,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     &mut frag.memo,
                     l,
                 );
-            } else if attribute_name == "autofocus" || attribute_name == "style" {
-                return unsupported(&format!("a dynamic `{attribute_name}` attribute"), a.span);
+            } else if attribute_name == "autofocus" {
+                return unsupported("a dynamic `autofocus` attribute", a.span);
+            } else if attribute_name == "style" {
+                self.set_style(node, Some(a), &style_directives, &mut frag.memo, l)?;
             } else {
                 let (value, has_state) = self.attribute_value(a, &mut frag.memo, false);
                 let s = self
@@ -81,6 +93,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             self.set_class(identifier, node, None, &class_directives, &mut frag.memo, l);
         } else if !has_class && self.an.scoped[identifier] {
             self.static_attribute(frag, identifier, "class", "class", Some(String::new()));
+        }
+        // And `style=""` to one with `style:`.
+        let has_style = attributes.iter().any(|a| {
+            !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("style")
+        });
+        if !has_style && !style_directives.is_empty() {
+            self.set_style(node, None, &style_directives, &mut frag.memo, l)?;
         }
         Ok(())
     }

@@ -43,6 +43,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let mut events = Vec::new();
         let mut props: Vec<ObjectPropertyKind<'o>> = Vec::with_capacity(list.len());
         let mut class_directives = Vec::new();
+        let mut style_directives = Vec::new();
         for a in list {
             let raw_name = a.name.text(self.source_text);
             match a.value {
@@ -62,6 +63,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 _ if is_behaviour(&a.value) => continue,
                 AttributeValue::Class(e) => {
                     class_directives.push((raw_name, e));
+                    continue;
+                }
+                AttributeValue::Style { .. } => {
+                    style_directives.push(a);
                     continue;
                 }
                 AttributeValue::Spread(e) => {
@@ -130,6 +135,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             0
         };
         let flags = (flags != 0).then(|| b.number(f64::from(flags)));
-        (vec![Some(object), hash, classes, None, flags], events)
+        let styles = self.spread_styles(&style_directives);
+        (vec![Some(object), hash, classes, styles, flags], events)
     }
 }
