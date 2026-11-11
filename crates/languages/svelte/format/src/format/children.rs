@@ -468,7 +468,7 @@ impl Printer<'_, '_, '_> {
         };
         let span = span(declarator.span);
         // `(a: T = b)` is no expression: the plugin's parse fails and it prints the source.
-        if has_typescript(|f| f.visit_variable_declarator(declarator)) {
+        if declarator.type_annotation.is_some() {
             let source = span.text(self.source_text);
             if source.contains(['\n', '\r']) {
                 return Err(Unsupported::at(

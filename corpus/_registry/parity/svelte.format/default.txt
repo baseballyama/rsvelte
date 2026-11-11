@@ -1,4 +1,4 @@
-# svelte.format/default: 19046 match
+# svelte.format/default: 19059 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -23,7 +23,6 @@ svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/database
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/backups/+page.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/+page.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/create.svelte	mismatch
-svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/editRelated.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/settings/displayName.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/dangerZone.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateScopes.svelte	mismatch
@@ -98,7 +97,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/b
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/valid/pug01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-add-event-listener/invalid/test01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/invalid/comments01-input.svelte	refused
-svelte/flare/src/lib/components/extensions/ExtensionDetailView.svelte	refused
 svelte/flowbite-svelte/src/lib/forms/tags/Tags.svelte	mismatch
 svelte/flowbite-svelte/src/lib/utils/responsive.svelte	mismatch
 svelte/flowbite-svelte/src/routes/admin-dashboard/utils/dashboard/Chat.svelte	mismatch
@@ -171,13 +169,9 @@ svelte/kener/src/routes/(manage)/manage/nav-user.svelte	mismatch
 svelte/kener/src/routes/+error.svelte	mismatch
 svelte/kite-public/src/lib/components/ChaosIndex.svelte	mismatch
 svelte/kite-public/src/lib/components/DataLoader.svelte	refused
-svelte/kite-public/src/lib/components/StoryList.svelte	mismatch
 svelte/kite-public/src/lib/components/contribute/ContributeFeedStep.svelte	mismatch
 svelte/kite-public/src/lib/components/nhl/NHLScores.svelte	mismatch
 svelte/kite-public/src/lib/components/story/CitationText.svelte	mismatch
-svelte/kite-public/src/lib/components/story/StoryHighlights.svelte	refused
-svelte/kite-public/src/lib/components/story/StoryPerspectives.svelte	refused
-svelte/kite-public/src/lib/components/story/StorySectionManager.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ts-ignore-attribute.v5/input.svelte	refused
 svelte/language-tools/packages/svelte-vscode/test/grammar/samples/template-pug/input.svelte	refused
@@ -186,12 +180,10 @@ svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/script-tag-in-
 svelte/layercake/src/routes/+page.svelte	mismatch
 svelte/layercake/src/routes/_site-components/Nav.svelte	mismatch
 svelte/layercake/src/routes/components/+page.svelte	mismatch
-svelte/layerchart/docs/src/examples/components/AnnotationLine/playground.svelte	mismatch
 svelte/layerchart/docs/src/examples/components/BarChart/sparkbar-within-a-paragraph-with-tooltip-and-highlight.svelte	mismatch
 svelte/layerchart/docs/src/examples/components/BarChart/sparkbar-within-a-paragraph.svelte	mismatch
 svelte/layerchart/docs/src/examples/components/Brush/two-dimensional.svelte	mismatch
 svelte/layerchart/docs/src/examples/components/BrushContext/synced-brushes.svelte	mismatch
-svelte/layerchart/docs/src/examples/components/Chart/facet-brush-overview.svelte	mismatch
 svelte/layerchart/docs/src/examples/components/GeoTile/basic.svelte	mismatch
 svelte/layerchart/docs/src/examples/components/GeoTile/clipped.svelte	mismatch
 svelte/layerchart/docs/src/examples/components/LineChart/perf-series-arrays.svelte	mismatch
@@ -203,8 +195,6 @@ svelte/layerchart/docs/src/examples/components/Treemap/stacked-zoom.svelte	misma
 svelte/layerchart/docs/src/routes/+page.svelte	mismatch
 svelte/layerchart/examples/shadcn-svelte-1/src/lib/components/ui/chart/chart-tooltip.svelte	mismatch
 svelte/layerchart/packages/layerchart/src/lib/bench/PrimitiveBench.svelte	mismatch
-svelte/layerchart/packages/layerchart/src/lib/components/Grid/Grid.base.svelte	refused
-svelte/layerchart/packages/layerchart/src/lib/components/Waffle/Waffle.svelte	refused
 svelte/layerchart/packages/layerchart/src/lib/components/layers/Canvas.svelte	mismatch
 svelte/layerchart/packages/layerchart/src/lib/components/layers/Layer.svelte	mismatch
 svelte/layerchart/packages/layerchart/src/lib/components/tooltip/TooltipContext.svelte	mismatch
@@ -255,10 +245,10 @@ svelte/networking-toolbox/src/routes/cidr/split/+page.svelte	mismatch
 svelte/networking-toolbox/src/routes/cidr/summarize/+page.svelte	mismatch
 svelte/networking-toolbox/src/routes/diagnostics/dns/axfr-tester/+page.svelte	mismatch
 svelte/networking-toolbox/src/routes/diagnostics/dns/dnssec-adflag/+page.svelte	mismatch
-svelte/networking-toolbox/src/routes/diagnostics/dns/soa-serial/+page.svelte	refused
-svelte/networking-toolbox/src/routes/diagnostics/email/dmarc-check/+page.svelte	refused
+svelte/networking-toolbox/src/routes/diagnostics/dns/soa-serial/+page.svelte	mismatch
+svelte/networking-toolbox/src/routes/diagnostics/email/dmarc-check/+page.svelte	mismatch
 svelte/networking-toolbox/src/routes/diagnostics/email/mx-health/+page.svelte	mismatch
-svelte/networking-toolbox/src/routes/diagnostics/email/spf-check/+page.svelte	refused
+svelte/networking-toolbox/src/routes/diagnostics/email/spf-check/+page.svelte	mismatch
 svelte/networking-toolbox/src/routes/diagnostics/network/tcp-port-check/+page.svelte	mismatch
 svelte/networking-toolbox/src/routes/diagnostics/tls/certificate/+page.svelte	mismatch
 svelte/networking-toolbox/src/routes/diagnostics/tls/ct-log-search/+page.svelte	mismatch
@@ -266,7 +256,6 @@ svelte/networking-toolbox/src/routes/diagnostics/tls/handshake-analyzer/+page.sv
 svelte/networking-toolbox/src/routes/diagnostics/tls/ocsp-stapling/+page.svelte	mismatch
 svelte/networking-toolbox/src/routes/diagnostics/tls/versions/+page.svelte	mismatch
 svelte/networking-toolbox/src/routes/ip-address-convertor/families/+layout.svelte	mismatch
-svelte/networking-toolbox/src/routes/ip-address-convertor/mac-address/+page.svelte	refused
 svelte/networking-toolbox/src/routes/ip-address-convertor/notation/+layout.svelte	mismatch
 svelte/networking-toolbox/src/routes/reference/reserved-ranges/+page.svelte	mismatch
 svelte/networking-toolbox/src/routes/subnetting/ipv6-subnet-calculator/+page.svelte	mismatch
@@ -276,7 +265,6 @@ svelte/originui-svelte/src/lib/components/tables/table-20.svelte	mismatch
 svelte/primo/src/lib/builder/components/Content.svelte	mismatch
 svelte/primo/src/lib/builder/components/Fields/FieldsContent.svelte	mismatch
 svelte/primo/src/lib/builder/views/editor/Layout/BlockToolbar.svelte	mismatch
-svelte/primo/src/lib/builder/views/editor/Layout/ComponentNode.svelte	refused
 svelte/primo/src/lib/builder/views/editor/LocaleSelector.svelte	mismatch
 svelte/primo/src/lib/builder/views/editor/Page.svelte	mismatch
 svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte	mismatch
@@ -324,7 +312,6 @@ svelte/smelte/src/routes/dark-mode.svelte	mismatch
 svelte/smelte/src/routes/index.svelte	mismatch
 svelte/svader/packages/test-site/src/invalid.svelte	refused
 svelte/svar-core/svelte/demos/cases/DropdownScroll.svelte	mismatch
-svelte/svelte-bits/src/lib/components/docs/pages/GlassIconsDemo.svelte	refused
 svelte/svelte-bits/src/lib/components/docs/pages/Installation.svelte	mismatch
 svelte/svelte-bits/src/lib/components/docs/pages/Introduction.svelte	mismatch
 svelte/svelte-bits/src/lib/components/docs/pages/McpServer.svelte	mismatch
