@@ -52,7 +52,7 @@ pub(super) fn classify_props<'a>(
                         is_function: false,
                         initial: match bindable {
                             Some((_, argument)) => argument,
-                            None => default,
+                            None => default.map(|d| crate::typescript::without_typescript(d)),
                         },
                         prop_key: Some(key),
                     },

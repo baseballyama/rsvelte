@@ -1,3 +1,4 @@
+use crate::typescript::without_typescript;
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, CallExpression, ChainElement, ChainExpression,
     ComputedMemberExpression, Expression, Function, IdentifierReference, NewExpression,
@@ -68,7 +69,7 @@ impl<'r, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'r, 'walk, COLLECT_
     /// Judges a member whose object is not itself a member: every link of a chain `a.b.c…` shares
     /// its root, so only the innermost one is judged.
     fn member(&mut self, object: &Expression<'_>) {
-        if object.is_member_expression() {
+        if without_typescript(object).is_member_expression() {
             return;
         }
         self.meta.has_member = true;
@@ -280,6 +281,7 @@ impl<'a, const COLLECT_METADATA: bool> Visit<'a> for MetadataWalker<'_, '_, COLL
 /// The identifier a member chain starts from; an optional chain as an object has none.
 fn root<'e>(mut e: &'e Expression<'e>) -> Option<&'e IdentifierReference<'e>> {
     loop {
+        e = without_typescript(e);
         if let Expression::Identifier(identifier) = e {
             return Some(identifier);
         }

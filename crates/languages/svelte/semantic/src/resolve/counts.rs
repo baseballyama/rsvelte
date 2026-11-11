@@ -7,6 +7,7 @@ use rsvelte_typescript_tree::{
 
 use super::walk::{Roots, TemplateName, TemplateScope, walk as walk_template};
 use crate::compiler_syntax_tree::CompilerSyntaxTree;
+use crate::typescript::without_typescript;
 
 /// Per symbol: how often it is read, assigned after its declaration, and assigned through a member
 /// (`x.y = 1`, `x[i]++`, `bind:value={x.y}`).
@@ -29,7 +30,9 @@ pub(super) fn mark_bound_writes(
     }
     impl Roots for Bound<'_> {
         fn bound(&mut self, expression: ExpressionIdentifier) {
-            if let Expression::Identifier(identifier) = self.tree.get_expression(expression) {
+            if let Expression::Identifier(identifier) =
+                without_typescript(self.tree.get_expression(expression))
+            {
                 self.scoping
                     .get_reference_mut(identifier.reference_id())
                     .flags_mut()
@@ -93,9 +96,9 @@ struct Mutations<'s> {
 
 impl Mutations<'_> {
     /// Counts a write through a member of `object`'s root binding.
-    fn mutate(&mut self, mut object: &Expression<'_>) {
+    fn mutate<'e>(&mut self, mut object: &'e Expression<'e>) {
         loop {
-            object = match object {
+            object = match without_typescript(object) {
                 Expression::StaticMemberExpression(m) => &m.object,
                 Expression::ComputedMemberExpression(m) => &m.object,
                 Expression::PrivateFieldExpression(m) => &m.object,
@@ -131,7 +134,7 @@ impl Roots for Mutations<'_> {
 
     fn bound(&mut self, expression: ExpressionIdentifier) {
         let e = self.tree.get_expression(expression);
-        if let Some(member) = e.as_member_expression() {
+        if let Some(member) = without_typescript(e).as_member_expression() {
             self.mutate(member.object());
         }
         self.visit_expression(e);

@@ -3,6 +3,8 @@ use oxc_ast::ast::{Argument, CallExpression, ChainElement, Expression, Identifie
 use oxc_semantic::{ScopeId, SymbolFlags};
 use rsvelte_typescript_semantic::semantic::Semantic;
 
+use crate::typescript::without_typescript;
+
 pub const RUNES: &[&str] = &[
     "$state",
     "$state.raw",
@@ -78,7 +80,7 @@ fn named<'a>(call: &'a CallExpression<'a>) -> Option<(&'static str, &'a Identifi
 /// The call `e` is when it lowers as a rune call: not inside an optional chain, and with a
 /// callee that is not one, which upstream wraps in a `ChainExpression` that names no rune.
 fn lowered<'a>(e: &'a Expression<'a>) -> Option<&'a CallExpression<'a>> {
-    match e {
+    match without_typescript(e) {
         Expression::CallExpression(call)
             if !matches!(call.callee, Expression::ChainExpression(_)) =>
         {
@@ -90,7 +92,10 @@ fn lowered<'a>(e: &'a Expression<'a>) -> Option<&'a CallExpression<'a>> {
 
 /// The first argument of a rune call, which no rune spreads.
 fn first_argument<'a>(call: &'a CallExpression<'a>) -> Option<&'a Expression<'a>> {
-    call.arguments.first().and_then(Argument::as_expression)
+    call.arguments
+        .first()
+        .and_then(Argument::as_expression)
+        .map(without_typescript)
 }
 
 /// A rune call that lowers as one, with its first argument, by syntax alone. Whether a
@@ -130,7 +135,7 @@ pub(super) fn named_in_scope_anywhere<'a>(
     subscribed: &[&str],
     e: &'a Expression<'a>,
 ) -> Option<&'static str> {
-    match e {
+    match without_typescript(e) {
         Expression::CallExpression(call) => named_in_scope(semantic, subscribed, call),
         Expression::ChainExpression(chain) => match &chain.expression {
             ChainElement::CallExpression(call) => named_in_scope(semantic, subscribed, call),

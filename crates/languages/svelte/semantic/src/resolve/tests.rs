@@ -168,3 +168,59 @@ fn the_module_may_export_a_top_level_snippet_and_nothing_else_undeclared() {
     let missing = "<script module>export { row };</script>";
     assert!(analyze(missing).syntax_error().is_some());
 }
+
+#[test]
+fn a_rune_reads_through_the_typescript_around_it() {
+    let source = "<script lang=\"ts\">\n\
+                  let a = $derived(f()) as any;\n\
+                  let b = $state() as HTMLElement;\n\
+                  let c = $derived(x)!;\n\
+                  let { d = $bindable(0) as number, e = 1 as number } = $props();\n\
+                  </script>";
+    let res = analyze(source);
+    let kind = |name| res.binding(symbol(&res, source, name)).kind;
+    assert_eq!(kind("a ="), BindingKind::Derived);
+    assert_eq!(kind("b ="), BindingKind::State);
+    assert_eq!(kind("c ="), BindingKind::Derived);
+    assert_eq!(kind("d ="), BindingKind::BindableProperty);
+    let initial = |name| {
+        res.binding(symbol(&res, source, name))
+            .initial
+            .map(|e| matches!(e, oxc_ast::ast::Expression::NumericLiteral(_)))
+    };
+    assert_eq!(initial("d ="), Some(true));
+    assert_eq!(initial("e ="), Some(true));
+}
+
+#[test]
+fn a_cast_bound_value_is_written() {
+    let source = "<script lang=\"ts\">let { value = $bindable() } = $props();</script>\n\
+                  <input bind:value={value as never} />";
+    let res = analyze(source);
+    assert_eq!(res.writes(symbol(&res, source, "value =")), 1);
+}
+
+#[test]
+fn a_cast_global_needs_no_context() {
+    for (script, needs) in [
+        ("(window as any).addEventListener('a', f);", false),
+        (
+            "function f(e: Event) { return (e.target as HTMLElement | null)?.dataset; }",
+            false,
+        ),
+        ("import { g } from 'g'; (g as any).h();", true),
+    ] {
+        let source = format!("<script lang=\"ts\">{script}</script>");
+        let component = parse(&source).expect("parses");
+        let lowered = lower(&component, &source);
+        let res = resolve(
+            &component.javascript,
+            component.instance.as_ref().map(|s| s.program),
+            None,
+            &lowered,
+        );
+        let input = crate::svelte_input(&component, &lowered, &source, "App.svelte");
+        let analysis = crate::analyze::analyze(&input, &res);
+        assert_eq!(analysis.needs_context, needs, "{script}");
+    }
+}

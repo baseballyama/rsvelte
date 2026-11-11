@@ -5,6 +5,7 @@ use rsvelte_typescript_semantic::semantic::Semantic;
 
 use super::{BindingInformation, BindingKind, Counts, TemplateNames, runes};
 use crate::compiler_syntax_tree::CompilerSyntaxTree;
+use crate::typescript::without_typescript;
 
 mod props;
 mod template;
@@ -27,7 +28,7 @@ pub(super) fn classify<'a>(
                 && (scoping.symbol_flags(symbol).contains(SymbolFlags::Function)
                     || initializer(semantic, symbol).is_some_and(|i| {
                         matches!(
-                            i,
+                            without_typescript(i),
                             Expression::FunctionExpression(_)
                                 | Expression::ArrowFunctionExpression(_)
                         )
