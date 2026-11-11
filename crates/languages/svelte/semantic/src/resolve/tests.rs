@@ -346,3 +346,29 @@ fn the_module_script_sees_the_instance_imports_and_no_other_instance_binding() {
     let names: Vec<&str> = res.unresolved_names().collect();
     assert_eq!(names, ["local"]);
 }
+
+#[test]
+fn a_redeclared_var_s_initializer_is_its_last_declarator_s() {
+    let initial = |source: &str| {
+        let res = analyze(source);
+        let symbol = res
+            .scoping()
+            .symbol_ids()
+            .find(|&s| res.scoping().symbol_name(s) == "test")
+            .expect("declared");
+        res.initializer(symbol)
+            .map(|init| oxc_span::GetSpan::span(init).source_text(source).to_owned())
+    };
+    assert_eq!(
+        initial("<script>var test = \"\"; var test = 42;</script>{test}").as_deref(),
+        Some("42")
+    );
+    assert_eq!(
+        initial("<script>var test = 1; var test;</script>{test}"),
+        None
+    );
+    assert_eq!(
+        initial("<script>var test = 1;</script>{test}").as_deref(),
+        Some("1")
+    );
+}

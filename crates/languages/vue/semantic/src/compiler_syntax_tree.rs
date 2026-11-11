@@ -98,7 +98,7 @@ impl Text {
     pub(crate) fn decoded(raw: Span, source_text: &str, place: Place) -> Self {
         Self {
             raw,
-            cooked: match decode(raw.text(source_text), place, Rules::Html) {
+            cooked: match decode(raw.text(source_text), place, Rules::Specification) {
                 std::borrow::Cow::Borrowed(_) => None,
                 std::borrow::Cow::Owned(s) => Some(s.into_boxed_str()),
             },

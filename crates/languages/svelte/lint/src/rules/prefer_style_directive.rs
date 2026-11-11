@@ -7,7 +7,7 @@ use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, TemplateNode}
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::element_kind::is_html_like;
+use super::element_kind::is_markup_like;
 use super::nodes;
 use super::style_attribute::{expression_of_hole, inline_style, is_style, literal_style};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
@@ -38,7 +38,7 @@ impl SvelteRule for PreferStyleDirective {
             let TemplateNode::Element { attributes, .. } = node else {
                 continue;
             };
-            if !is_html_like(node, source) {
+            if !is_markup_like(node, source) {
                 continue;
             }
             let all = component.attributes(*attributes);
