@@ -39,7 +39,7 @@
 "svelte.compile/client" = "svelte 5.57.3 emits invalid JS here (duplicate declaration of `foo`); the sample expects a compile error"
 
 ["svelte/svelte/packages/svelte/tests/compiler-errors/samples/const-tag-cyclical/main.svelte".skip]
-"svelte.compile" = "upstream bug: runes mode does not report `const_tag_cycle`, and its evaluator folds the cycle `a = b, b = a` to an empty string; the sample expects a compile error"
+"svelte.compile" = "upstream bug: runes mode does not report `const_tag_cycle`: the client's evaluator folds the cycle `a = b, b = a` to an empty string, and the server emits `const a = b; const b = a;`, which throws; the sample expects a compile error"
 
 ["svelte/svelte-bits/src/lib/components/library/Animations/StickerPeel/StickerPeel.svelte".skip]
 "svelte.lint" = "upstream bug: the core no-unused-vars rule reports a TypeScript `this` parameter, which declares the type of `this` and is no parameter at run time, as an unused variable"

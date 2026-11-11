@@ -5,6 +5,8 @@
 use rsvelte_svelte_compile::{CompileInput, Target, compile_input};
 use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 
+#[path = "official_parity/const_tags.rs"]
+mod const_tags;
 #[path = "official_parity/derived.rs"]
 mod derived;
 #[path = "official_parity/errors.rs"]
