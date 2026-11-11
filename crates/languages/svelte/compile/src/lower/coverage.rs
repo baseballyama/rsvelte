@@ -34,6 +34,7 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             | NodeKind::Key { .. }
             | NodeKind::Await(_)
             | NodeKind::Each(_)
+            | NodeKind::Debug { .. }
             | NodeKind::Render { .. } => None,
             // Upstream renders `<select>` and `<option>` content apart, which is not lowered.
             NodeKind::Declaration { .. } => node.parent.and_then(|p| match &tree.node(p).kind {
@@ -65,7 +66,6 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
                 .then_some("a `{@const}` beside a snippet")
             }
             &NodeKind::Const { declaration } => const_tag(input, res, declaration),
-            NodeKind::Debug { .. } => Some("a `{@debug}` tag"),
         };
         if let Some(what) = what {
             return unsupported(what, node.span);

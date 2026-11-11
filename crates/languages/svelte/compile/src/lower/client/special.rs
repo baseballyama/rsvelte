@@ -37,6 +37,22 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 lists.consts.extend(lowered);
                 return Ok(());
             }
+            NodeKind::Debug { identifiers } => {
+                let b = self.b;
+                let tree = self.compiler_syntax_tree;
+                let body = crate::lower::debug_tag::debug_tag(
+                    b,
+                    tree,
+                    self.javascript,
+                    identifiers,
+                    |e| b.runtime("snapshot", [self.expression(e)]),
+                );
+                let effect = b.arrow_block(b.params([]), body, false);
+                lists
+                    .initializer
+                    .push(b.stmt(b.runtime("template_effect", [effect])));
+                return Ok(());
+            }
             _ => {}
         }
         self.special_element(identifier, "", frag, lists)

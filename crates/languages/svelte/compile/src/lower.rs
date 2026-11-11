@@ -12,6 +12,7 @@ mod client;
 mod component;
 mod coverage;
 mod custom_element;
+mod debug_tag;
 mod derived;
 mod javascript;
 mod lets;
