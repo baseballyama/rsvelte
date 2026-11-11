@@ -93,10 +93,14 @@ impl RuneWalk<'_> {
             {
                 return state_invalid_placement(rune, span_of(call));
             }
-            "$effect" | "$effect.pre" if !matches!(parent, Parent::Statement(_)) => (
-                "effect_invalid_placement",
-                "`$effect()` can only be used as an expression statement".to_owned(),
-            ),
+            "$effect" | "$effect.pre"
+                if !matches!(parent, Parent::Statement(_) | Parent::LoneExpression) =>
+            {
+                (
+                    "effect_invalid_placement",
+                    "`$effect()` can only be used as an expression statement".to_owned(),
+                )
+            }
             "$inspect.trace" => match parent {
                 Parent::Statement(Some((
                     Body {
@@ -147,7 +151,14 @@ impl RuneWalk<'_> {
                 "$state.snapshot" => self.snapshot == Snapshot::Lowered,
                 "$host" => self.custom_element,
                 "$effect" | "$effect.pre" => {
-                    matches!(place.parent, Parent::Statement(_)) || self.target == Target::Client
+                    matches!(place.parent, Parent::Statement(_) | Parent::LoneExpression)
+                        || self.target == Target::Client
+                }
+                // Upstream prints these statements as `;;` outside development, which only a
+                // statement list holds as written, and breaks the code it prints for any other
+                // use.
+                "$inspect" | "$inspect().with" | "$inspect.trace" => {
+                    matches!(place.parent, Parent::Statement(_))
                 }
                 _ => false,
             };

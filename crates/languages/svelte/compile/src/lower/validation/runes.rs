@@ -53,6 +53,11 @@ enum Parent {
     Body(Body),
     BodyStatement(Body, bool),
     Statement(Option<(Body, bool)>),
+    /// An expression statement that is a loop's or an `if`'s whole body, and its expression.
+    LoneStatement,
+    LoneExpression,
+    /// The callee of an `$inspect(…).with(…)` statement, whose `$inspect(…)` stands in it.
+    InspectWith(Option<(Body, bool)>),
     /// The value of a class field that is neither static nor computed.
     ClassField,
     /// The value of `this.x = …`, a statement of a constructor's body.
@@ -512,7 +517,31 @@ fn parent_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Parent {
         (AstKind::ExpressionStatement(_), Parent::BodyStatement(body, first)) => {
             Parent::Statement(Some((body, first)))
         }
+        (
+            AstKind::IfStatement(_)
+            | AstKind::ForStatement(_)
+            | AstKind::ForInStatement(_)
+            | AstKind::ForOfStatement(_)
+            | AstKind::WhileStatement(_)
+            | AstKind::DoWhileStatement(_)
+            | AstKind::LabeledStatement(_)
+            | AstKind::WithStatement(_),
+            _,
+        ) if matches!(kind, AstKind::ExpressionStatement(_)) => Parent::LoneStatement,
+        (AstKind::ExpressionStatement(_), Parent::LoneStatement) => Parent::LoneExpression,
         (AstKind::ExpressionStatement(_), _) => Parent::Statement(None),
+        (AstKind::CallExpression(call), Parent::Statement(statement))
+            if is(call.callee.span())
+                && matches!(kind, AstKind::StaticMemberExpression(m) if m.property.name == "with") =>
+        {
+            Parent::InspectWith(statement)
+        }
+        (AstKind::StaticMemberExpression(_), Parent::InspectWith(statement))
+            if matches!(kind, AstKind::CallExpression(c)
+                if matches!(&c.callee, Expression::Identifier(i) if i.name == "$inspect")) =>
+        {
+            Parent::Statement(statement)
+        }
         (
             AstKind::AssignmentExpression(assign),
             Parent::Statement(Some((
