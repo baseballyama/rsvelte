@@ -448,7 +448,7 @@ pub(super) fn check_attribute(
             } else if name.starts_with("on") {
                 !interpolated
             } else if name == "value" {
-                !interpolated && matches!(tag, "input" | "textarea")
+                tag == "textarea" || (!interpolated && tag == "input")
             } else {
                 true
             };
