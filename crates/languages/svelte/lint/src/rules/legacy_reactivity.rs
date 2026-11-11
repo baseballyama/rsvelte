@@ -50,7 +50,7 @@ pub(super) fn bindings(file: &File<'_>) -> FxHashMap<NodeId, Span> {
 
 /// Whether an element named `name` is an HTML element, `<svelte:element>` included, rather than a
 /// component or another special element.
-pub(super) fn is_html_element(name: &str) -> bool {
+pub(super) fn is_markup_element(name: &str) -> bool {
     name == "svelte:element"
         || !(name.starts_with("svelte:")
             || name.contains('.')

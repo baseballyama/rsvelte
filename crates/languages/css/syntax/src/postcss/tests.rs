@@ -13,34 +13,34 @@ fn error(source: &str, dialect: Dialect) -> SyntaxError {
 #[test]
 fn a_valid_sheet_parses_in_both_dialects() {
     let source = "a { color: red; } @media (x) { b { c: d } }";
-    assert_eq!(check(source, whole(source), Dialect::Css), Ok(()));
+    assert_eq!(check(source, whole(source), Dialect::Standard), Ok(()));
     assert_eq!(check(source, whole(source), Dialect::Scss), Ok(()));
 }
 
 #[test]
 fn errors_name_the_reason_and_a_utf16_column() {
     let source = "a {\n  é class .x/35\n}";
-    let found = error(source, Dialect::Css);
+    let found = error(source, Dialect::Standard);
     assert_eq!(found.reason, "Unknown word é");
     assert_eq!((found.line, found.column), (2, 3));
     assert_eq!(
-        error("a { b: c d: e }", Dialect::Css).reason,
+        error("a { b: c d: e }", Dialect::Standard).reason,
         "Missed semicolon"
     );
-    assert_eq!(error("a {", Dialect::Css).reason, "Unclosed block");
-    assert_eq!(error("}", Dialect::Css).reason, "Unexpected }");
+    assert_eq!(error("a {", Dialect::Standard).reason, "Unclosed block");
+    assert_eq!(error("}", Dialect::Standard).reason, "Unexpected }");
     assert_eq!(
-        error("a { b: \"c }", Dialect::Css).reason,
+        error("a { b: \"c }", Dialect::Standard).reason,
         "Unclosed string"
     );
-    assert_eq!(error("/* a", Dialect::Css).reason, "Unclosed comment");
+    assert_eq!(error("/* a", Dialect::Standard).reason, "Unclosed comment");
 }
 
 #[test]
 fn scss_reads_line_comments_and_interpolation() {
     let source = "// a\n.x-#{$y} { z: 1 }";
     assert_eq!(check(source, whole(source), Dialect::Scss), Ok(()));
-    assert!(check(source, whole(source), Dialect::Css).is_err());
+    assert!(check(source, whole(source), Dialect::Standard).is_err());
     assert_eq!(
         error("a { b: #{c", Dialect::Scss).reason,
         "Unclosed interpolation"
@@ -50,7 +50,7 @@ fn scss_reads_line_comments_and_interpolation() {
 #[test]
 fn the_content_span_is_where_lines_count_from() {
     let source = "<style>\n}</style>";
-    let found = check(source, Span::new(7, 9), Dialect::Css).expect_err("an extra brace");
+    let found = check(source, Span::new(7, 9), Dialect::Standard).expect_err("an extra brace");
     assert_eq!((found.line, found.column), (2, 1));
 }
 
@@ -124,14 +124,14 @@ fn a_missed_semicolon_splits_an_inline_declaration() {
 #[test]
 fn a_comment_may_hold_any_character() {
     let source = "/* é */ a { b: c }";
-    assert_eq!(check(source, whole(source), Dialect::Css), Ok(()));
+    assert_eq!(check(source, whole(source), Dialect::Standard), Ok(()));
     let source = "/* é */ color: red";
     assert!(inline(source, whole(source), &[]).is_some());
 }
 
 #[test]
 fn every_parenthesis_up_to_a_bad_bracket_close_is_alone() {
-    let found = error(":global(:where(.a[b)) {}", Dialect::Css);
+    let found = error(":global(:where(.a[b)) {}", Dialect::Standard);
     assert_eq!(
         (found.reason.as_str(), found.line, found.column),
         ("Unclosed bracket", 1, 8)
@@ -159,7 +159,7 @@ fn postcss_scss_records_one_past_a_comma() {
         (found.reason.as_str(), found.line, found.column),
         ("Missed semicolon", 1, 9)
     );
-    assert_eq!(error("&.x:y_,x:y", Dialect::Css).column, 9);
+    assert_eq!(error("&.x:y_,x:y", Dialect::Standard).column, 9);
     let found = error("&:!,😀a:not(x)", Dialect::Scss);
     assert_eq!((found.line, found.column), (1, 6));
 }
@@ -174,5 +174,5 @@ fn many_missed_semicolons_split_without_recursion() {
 #[test]
 fn many_open_parentheses_stay_linear() {
     let source = format!("a {{ b: {} }}", "(".repeat(200_000));
-    assert!(check(&source, whole(&source), Dialect::Css).is_err());
+    assert!(check(&source, whole(&source), Dialect::Standard).is_err());
 }

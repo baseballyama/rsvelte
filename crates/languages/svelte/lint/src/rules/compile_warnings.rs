@@ -10,7 +10,7 @@ use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
 use rsvelte_typescript_tree::ProgramIdentifier;
 
 use crate::rule::File;
-use crate::words::{is_js_space, words};
+use crate::words::{is_javascript_space, words};
 
 /// One code of a `svelte-ignore` comment.
 #[derive(Debug)]
@@ -30,7 +30,7 @@ pub(super) struct Ignores {
     pub(super) missing_code: Vec<Span>,
 }
 
-const CSS_CODES: &[&str] = &[
+const STYLESHEET_CODES: &[&str] = &[
     "css-unused-selector",
     "css_unused_selector",
     "css-invalid-global",
@@ -73,11 +73,11 @@ fn block_end(comment: Span, source: &str) -> u32 {
 /// parenthesized note is not a code.
 fn read(value: Span, comment: Span, source: &str, out: &mut Ignores) {
     let text = value.text(source);
-    let trimmed = text.trim_start_matches(is_js_space);
+    let trimmed = text.trim_start_matches(is_javascript_space);
     let Some(rest) = trimmed.strip_prefix("svelte-ignore") else {
         return;
     };
-    let codes = rest.trim_start_matches(is_js_space);
+    let codes = rest.trim_start_matches(is_javascript_space);
     if codes.len() == rest.len() {
         return;
     }
@@ -155,7 +155,7 @@ pub(super) fn apply<'a>(
     let stripped = component
         .style
         .as_ref()
-        .filter(|style| !is_css(style.attributes.as_slice(), source))
+        .filter(|style| !is_stylesheet(style.attributes.as_slice(), source))
         .map(|style| style.span);
     // A style sheet that does not parse fails the compile before analysis; a stripped one is
     // never parsed.
@@ -199,8 +199,8 @@ pub(super) fn apply<'a>(
         let leading = targets.leading(component.root, style.start_offset);
         if let Some((i, _)) = leading.iter().rev().find_map(|&comment| {
             ignores.of(comment).find(|(_, item)| {
-                CSS_CODES.contains(&item.code.text(source))
-                    || CSS_CODES.contains(&item.code_for_v5.as_str())
+                STYLESHEET_CODES.contains(&item.code.text(source))
+                    || STYLESHEET_CODES.contains(&item.code_for_v5.as_str())
             })
         }) {
             used[i] = true;
@@ -215,7 +215,7 @@ pub(super) fn apply<'a>(
 
 /// `lang` absent, `css`, or a language upstream transforms to CSS without a preprocessor
 /// package: `postcss`.
-fn is_css(attributes: &[(Span, Option<Span>)], source: &str) -> bool {
+fn is_stylesheet(attributes: &[(Span, Option<Span>)], source: &str) -> bool {
     attributes
         .iter()
         .find(|(name, _)| name.text(source) == "lang")

@@ -198,3 +198,37 @@ fn a_custom_element_with_attributes_makes_its_parent_s_children_dynamic() {
     assert!(!dynamic("<div><custom-elements></custom-elements></div>"));
     assert!(!dynamic("<div><p title=\"t\"></p></div>"));
 }
+
+#[test]
+fn a_rune_call_around_state_is_a_call_as_any_other() {
+    let source = "<script>let s = $state([1]);</script>\
+                  <p>{2 in $state.snapshot(s)}</p><p>{$state.snapshot(1)}</p>";
+    let component = parse(source).expect("parses");
+    let lowered = lower(&component, source);
+    let res = resolve(
+        &component.javascript,
+        component.instance.as_ref().map(|s| s.program),
+        None,
+        &lowered,
+    );
+    let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+    let analysis = super::analyze(&input, &res);
+    let mut calls: Vec<(String, bool)> = component
+        .javascript
+        .expressions()
+        .filter_map(|(identifier, e)| {
+            let meta = analysis.expressions.get(&identifier)?;
+            let text = oxc_span::GetSpan::span(e).source_text(source).to_owned();
+            Some((text, meta.has_call))
+        })
+        .collect();
+    calls.sort();
+    // Upstream's CallExpression visitor: the rune's callee is pure, and only the first reads state.
+    assert_eq!(
+        calls,
+        [
+            ("$state.snapshot(1)".to_owned(), false),
+            ("2 in $state.snapshot(s)".to_owned(), true),
+        ]
+    );
+}

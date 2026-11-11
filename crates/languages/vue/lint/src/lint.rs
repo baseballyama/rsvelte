@@ -193,7 +193,7 @@ impl<'a> Rule<RuleContext<'a>> for MarkupButtonHasType {
                     report(Problem::Empty, a.span);
                     continue;
                 };
-                let text = decode(v.text(source_text), Place::Attribute, Rules::Html);
+                let text = decode(v.text(source_text), Place::Attribute, Rules::Specification);
                 if let Some(p) = check_static(&text, Allowed::default()) {
                     report(p, value_node(v, a.quoted));
                 }
