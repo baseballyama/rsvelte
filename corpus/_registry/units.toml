@@ -102,6 +102,15 @@
 "svelte.compile/server" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
 "svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
 
+["svelte/kener/src/routes/(docs)/docs/LandingStatusDemo.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/kite-public/src/lib/components/ClusteringExplainerModal.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/svelte-bits/src/lib/components/library/Components/GooeyNav/GooeyNav.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
 ["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte".skip]
 "svelte.compile" = "upstream bug: an `<svg>` beside a component makes the component's children svg, which drops the HTML whitespace between their components"
 
