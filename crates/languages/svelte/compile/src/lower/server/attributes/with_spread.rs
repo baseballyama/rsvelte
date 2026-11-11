@@ -79,7 +79,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                     continue;
                 }
                 _ if all => {}
-                _ if raw_name == "value" && tag == "select" => continue,
+                _ if raw_name == "value" && matches!(tag, "select" | "textarea") => continue,
                 _ if event_attribute(self.source_text, a).is_some() => {
                     capture_event(&mut events, tag, raw_name);
                     continue;

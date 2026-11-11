@@ -60,6 +60,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 _ => None,
             };
             if !crate::lower::cannot_be_set_statically(raw_name)
+                && (attribute_name != "value" || tag != "textarea")
                 && (attribute_name != "class" || class_directives.is_empty())
                 && (attribute_name != "style" || style_directives.is_empty())
                 && let Some(value) = literal
