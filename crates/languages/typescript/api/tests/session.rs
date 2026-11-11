@@ -74,3 +74,45 @@ fn a_layer_supplies_files_the_disk_lacks() {
         .unwrap();
     assert_eq!(found.iter().map(|d| d.code).collect::<Vec<_>>(), [2322]);
 }
+
+#[test]
+fn a_syntax_error_in_one_file_keeps_the_type_errors_of_another() {
+    let directory = std::fs::canonicalize(std::env::temp_dir()).unwrap();
+    let root = directory.join(format!("rsvelte-api-syntax-{}", std::process::id()));
+    let (config, broken, typed) = (
+        root.join("tsconfig.json"),
+        root.join("broken.ts"),
+        root.join("typed.ts"),
+    );
+    let layer = Layer {
+        files: vec![
+            (
+                config.clone(),
+                r#"{"compilerOptions":{"strict":true}}"#.to_owned(),
+            ),
+            (broken.clone(), "export const = ;\n".to_owned()),
+            (typed.clone(), "export const n: number = 's';\n".to_owned()),
+        ],
+        links: Vec::new(),
+    };
+    let (program, _) = NodePackages::locate().type_checker();
+    let mut session = Session::start(&program, &[], &directory).unwrap();
+    let project = session.open(&[&config], &layer).unwrap().remove(0);
+    let files = [broken.as_path(), typed.as_path()];
+    let codes = |session: &mut Session, kind| {
+        session
+            .diagnostics(&project, kind, Some(&files))
+            .unwrap()
+            .iter()
+            .map(|d| (d.file_name.clone().unwrap(), d.code))
+            .collect::<Vec<_>>()
+    };
+    let syntactic = codes(&mut session, DiagnosticKind::Syntactic);
+    assert!(
+        syntactic.iter().all(|(f, _)| *f == broken) && !syntactic.is_empty(),
+        "{syntactic:?}"
+    );
+    // The tsc command line reports no semantic diagnostic once any file has a syntax error.
+    let semantic = codes(&mut session, DiagnosticKind::Semantic);
+    assert!(semantic.contains(&(typed, 2322)), "{semantic:?}");
+}
