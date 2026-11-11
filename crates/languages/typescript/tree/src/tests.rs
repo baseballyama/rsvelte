@@ -110,6 +110,26 @@ fn snippet_parameters_parse_in_place() {
 }
 
 #[test]
+fn generics_parse_in_place_with_their_own_tokens() {
+    let source = "<script generics=\"T extends Item = Default, U\">";
+    let (tree, (parameters, recorded)) = Tree::build(source, |builder| {
+        let parameters = builder.type_parameters(Span::new(18, 45), SourceType::ts())?;
+        Ok((parameters, builder.recorded().to_vec()))
+    })
+    .expect("parses");
+    let parameters = tree.get_type_parameters(parameters);
+    let at = |span: oxc_span::Span| &source[span.start as usize..span.end as usize];
+    assert_eq!(parameters.params.len(), 2);
+    assert_eq!(at(parameters.params[0].span), "T extends Item = Default");
+    assert_eq!(at(parameters.params[1].name.span), "U");
+    let texts = recorded
+        .iter()
+        .map(|r| r.span.text(source))
+        .collect::<Vec<_>>();
+    assert_eq!(texts, ["T", "extends", "Item", "=", "Default", ",", "U"]);
+}
+
+#[test]
 fn two_patterns_are_not_one() {
     let error = Tree::build("{#each x as a, b}", |builder| {
         builder.pattern(Span::new(12, 16), SourceType::mjs())
