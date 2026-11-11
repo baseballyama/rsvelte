@@ -1,4 +1,4 @@
-# svelte.check/default: 14424 match
+# svelte.check/default: 14427 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/animotion/src/lib/components/embed.svelte	refused
 svelte/animotion/src/lib/components/notes.svelte	refused
@@ -1654,16 +1654,13 @@ svelte/kite-public/src/lib/components/nfl/NFLScores.svelte	refused
 svelte/kite-public/src/lib/components/nhl/NHLScores.svelte	refused
 svelte/kite-public/src/lib/components/onthisday/OnThisDayEventTimeline.svelte	refused
 svelte/kite-public/src/lib/components/onthisday/OnThisDayPeopleCarousel.svelte	refused
-svelte/kite-public/src/lib/components/search/SearchModal.svelte	mismatch
 svelte/kite-public/src/lib/components/search/SearchResults.svelte	refused
 svelte/kite-public/src/lib/components/settings/ContributeCategoryModal.svelte	refused
 svelte/kite-public/src/lib/components/settings/SettingsCategories.svelte	refused
 svelte/kite-public/src/lib/components/settings/SettingsSections.svelte	refused
 svelte/kite-public/src/lib/components/settings/snippets/SectionsList.svelte	refused
-svelte/kite-public/src/lib/components/story/CitationText.svelte	mismatch
 svelte/kite-public/src/lib/components/story/SectionWrapper.svelte	refused
 svelte/kite-public/src/lib/components/story/StoryPerspectives.svelte	refused
-svelte/kite-public/src/lib/components/story/StorySectionManager.svelte	mismatch
 svelte/kite-public/src/routes/+layout.svelte	refused
 svelte/kite-public/src/routes/+page.svelte	refused
 svelte/kite-public/src/routes/contribute/+page.svelte	refused

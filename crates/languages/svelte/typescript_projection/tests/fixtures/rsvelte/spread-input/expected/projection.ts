@@ -47,4 +47,6 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {}, true);
     (checked);
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const SpreadInput__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type SpreadInput__SvelteComponent_ = ReturnType<typeof SpreadInput__SvelteComponent_>;
+export default SpreadInput__SvelteComponent_;

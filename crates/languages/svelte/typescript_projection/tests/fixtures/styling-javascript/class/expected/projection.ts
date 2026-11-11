@@ -9,4 +9,6 @@ class Value{#value="a";get value(){return this.#value;}set value(next){this.#val
     });
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const Class__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type Class__SvelteComponent_ = ReturnType<typeof Class__SvelteComponent_>;
+export default Class__SvelteComponent_;

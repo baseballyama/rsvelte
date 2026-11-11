@@ -38,4 +38,6 @@
     (choice);
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const SelectBind__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type SelectBind__SvelteComponent_ = ReturnType<typeof SelectBind__SvelteComponent_>;
+export default SelectBind__SvelteComponent_;

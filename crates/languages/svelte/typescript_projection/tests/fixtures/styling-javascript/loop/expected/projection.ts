@@ -9,4 +9,6 @@ const values=["a","b"];function run(){for(let i=0;i<values.length;i++){if(i)cont
     });
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const Loop__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type Loop__SvelteComponent_ = ReturnType<typeof Loop__SvelteComponent_>;
+export default Loop__SvelteComponent_;
