@@ -1,38 +1,49 @@
-use super::{Kind, NodeIdentifier, Plan, R, SyntaxTree, span, unsupported};
+use oxc_ast::ast::{ImportDeclarationSpecifier, ModuleExportName, StringLiteral};
+use oxc_span::GetSpan;
+
+use super::{Plan, R, span_of, unsupported};
 
 pub(super) fn collect(
-    tree: &SyntaxTree,
-    source: &str,
-    specifiers: &[NodeIdentifier],
+    source: &StringLiteral<'_>,
+    specifiers: Option<&[ImportDeclarationSpecifier<'_>]>,
     plan: &mut Plan,
 ) -> R<()> {
+    let source = source.value.as_str();
     let target = match source {
-        "svelte" => &mut plan.lifecycle,
-        "svelte/attachments" => &mut plan.attachments,
+        Some("svelte") => &mut plan.lifecycle,
+        Some("svelte/attachments") => &mut plan.attachments,
         _ => return Ok(()),
     };
-    for &specifier in specifiers {
-        let Kind::ImportNamed { imported, local } = tree.kind(specifier) else {
+    for specifier in specifiers.unwrap_or_default() {
+        let ImportDeclarationSpecifier::ImportSpecifier(s) = specifier else {
             return Err(unsupported(
                 "a default or namespace import from Svelte",
-                span(tree, specifier),
+                span_of(specifier.span()),
             ));
         };
-        let name = match (source, tree.name(imported)) {
-            ("svelte", "onMount") => "onMount",
-            ("svelte", "onDestroy") => "onDestroy",
-            ("svelte", "tick") => "tick",
-            ("svelte", "untrack") => "untrack",
-            ("svelte/attachments", "createAttachmentKey") => "createAttachmentKey",
-            ("svelte/attachments", "fromAction") => "fromAction",
+        let imported = match &s.imported {
+            ModuleExportName::IdentifierName(n) => Some(n.name.as_str()),
+            ModuleExportName::IdentifierReference(n) => Some(n.name.as_str()),
+            ModuleExportName::StringLiteral(n) => n.value.as_str(),
+        };
+        let name = match (source, imported) {
+            (Some("svelte"), Some("onMount")) => "onMount",
+            (Some("svelte"), Some("onDestroy")) => "onDestroy",
+            (Some("svelte"), Some("tick")) => "tick",
+            (Some("svelte"), Some("untrack")) => "untrack",
+            (Some("svelte/attachments"), Some("createAttachmentKey")) => "createAttachmentKey",
+            (Some("svelte/attachments"), Some("fromAction")) => "fromAction",
             _ => {
                 return Err(unsupported(
                     "this import from Svelte",
-                    span(tree, specifier),
+                    span_of(specifier.span()),
                 ));
             }
         };
-        target.push((name, local));
+        target.push((
+            name,
+            s.local.symbol_id.get().expect("an import has a symbol"),
+        ));
     }
     Ok(())
 }

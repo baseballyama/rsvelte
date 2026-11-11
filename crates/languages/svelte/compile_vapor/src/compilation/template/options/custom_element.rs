@@ -1,125 +1,131 @@
-use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
-use rsvelte_typescript_compile::copy::{Verbatim, copy};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
-use rustc_hash::{FxHashMap, FxHashSet};
+use oxc_ast::ast::{Expression, ObjectPropertyKind};
+use rsvelte_svelte_semantic::resolve::BindingKind;
+use rustc_hash::FxHashSet;
 
-use super::CustomElement;
+use super::super::{CustomElementValues, Template};
+use super::{CustomElement, key_name, option};
+use crate::compilation::string_key;
 
-pub(crate) fn copy_options(
-    options: &CustomElement,
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    resolution: &Resolution,
-    source_text: &str,
-) -> CustomElement {
-    let mut result = options.clone();
-    result.shadow = options
-        .shadow
-        .map(|value| copy(from, to, &mut Verbatim, value));
-    result.extend = options
-        .extend
-        .map(|value| copy(from, to, &mut Verbatim, value));
-    result.props = options
-        .props
-        .map(|value| properties(from, to, resolution, source_text, value));
-    result
-}
-
-fn properties(
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    resolution: &Resolution,
-    source_text: &str,
-    options: NodeIdentifier,
-) -> NodeIdentifier {
-    let bindings: FxHashMap<_, _> = resolution
-        .bindings
-        .iter_enumerated()
-        .filter(|(_, info)| {
-            matches!(
-                info.kind,
-                BindingKind::Property | BindingKind::BindableProperty
+impl<'t> Template<'_, '_, 't> {
+    /// The options the emitter reads, their expressions copied into the component's tree.
+    pub(in super::super) fn custom_element_values(
+        &mut self,
+        options: &CustomElement,
+    ) -> CustomElementValues {
+        let mut values = CustomElementValues {
+            tag: options.tag.clone(),
+            shadow_root: options.shadow_root,
+            shadow: None,
+            props: None,
+            extend: None,
+        };
+        let Some(expression) = options.options else {
+            return values;
+        };
+        let Expression::ObjectExpression(object) = self.source(expression).get_inner_expression()
+        else {
+            unreachable!("checked custom element options")
+        };
+        if let Some(shadow) = option(object, "shadow")
+            && matches!(
+                shadow.get_inner_expression(),
+                Expression::ObjectExpression(_)
             )
-        })
-        .map(|(binding, info)| (from.name(resolution.sem.bindings[binding].node), info))
-        .collect();
-    let Kind::Object(properties) = from.kind(options) else {
-        unreachable!("custom element props are an object");
-    };
-    let mut names = FxHashSet::default();
-    let mut properties: Vec<_> = properties
-        .iter()
-        .map(|&property| {
-            let Kind::Property { key, value, .. } = from.kind(property) else {
-                unreachable!("checked custom element prop");
+        {
+            let value = self.verbatim(shadow);
+            values.shadow = Some(self.keep(value));
+        }
+        if let Some(extend) = option(object, "extend") {
+            let value = self.verbatim(extend);
+            values.extend = Some(self.keep(value));
+        }
+        if let Some(Expression::ObjectExpression(props)) =
+            option(object, "props").map(Expression::get_inner_expression)
+        {
+            let value = self.properties(props);
+            values.props = Some(self.keep(value));
+        }
+        values
+    }
+
+    /// `e` copied as written, without its types.
+    fn verbatim(&self, e: &Expression<'_>) -> Expression<'t> {
+        let mut value =
+            oxc_allocator::CloneIn::clone_in(e, oxc_allocator::GetAllocator::allocator(self.b));
+        oxc_ast_visit::VisitMut::visit_expression(
+            &mut rsvelte_typescript_compile::strip::Strip::new(
+                oxc_allocator::GetAllocator::allocator(self.b),
+            ),
+            &mut value,
+        );
+        value
+    }
+
+    /// The `props` option, keyed by each prop's key, a boolean default's `type` inferred, and an
+    /// empty definition for each prop it leaves out.
+    fn properties(&self, options: &oxc_ast::ast::ObjectExpression<'_>) -> Expression<'t> {
+        let (b, res) = (self.b, self.i.resolution);
+        let scoping = res.scoping();
+        let props: Vec<_> = scoping
+            .symbol_ids()
+            .filter(|&s| {
+                matches!(
+                    res.binding(s).kind,
+                    BindingKind::Property | BindingKind::BindableProperty
+                )
+            })
+            .collect();
+        let mut names = FxHashSet::default();
+        let mut out = Vec::new();
+        for property in &options.properties {
+            let ObjectPropertyKind::ObjectProperty(p) = property else {
+                unreachable!("checked custom element prop")
             };
-            let name = if matches!(from.kind(key), Kind::String) {
-                from.str_value(key, source_text)
-            } else {
-                from.name(key)
-            };
-            let binding = bindings.get(name);
-            names.insert(name);
-            let key = to.write_string(
-                binding
-                    .and_then(|binding| binding.prop_key)
-                    .map_or(name, |key| from.name(key)),
-            );
-            let Kind::Object(definitions) = from.kind(value) else {
-                unreachable!("checked custom element prop options");
+            let name = key_name(&p.key).expect("checked custom element prop");
+            let binding = props
+                .iter()
+                .find(|&&s| scoping.symbol_name(s) == name)
+                .map(|&s| res.binding(s));
+            names.insert(name.to_owned());
+            let key = binding
+                .and_then(|binding| binding.prop_key)
+                .and_then(|key| key.static_name()?.into_cow_str())
+                .map_or_else(|| name.to_owned(), std::borrow::Cow::into_owned);
+            let Expression::ObjectExpression(definitions) = p.value.get_inner_expression() else {
+                unreachable!("checked custom element prop options")
             };
             let mut inferred = binding
                 .and_then(|binding| binding.initial)
-                .is_some_and(|initial| matches!(from.kind(initial), Kind::Boolean(_)));
-            let mut fields = Vec::with_capacity(definitions.len() + usize::from(inferred));
-            for &definition in definitions {
-                let Kind::Property { key, .. } = from.kind(definition) else {
-                    unreachable!("checked custom element prop option");
+                .is_some_and(|initial| matches!(initial, Expression::BooleanLiteral(_)));
+            let mut fields = Vec::with_capacity(definitions.properties.len() + 1);
+            for definition in &definitions.properties {
+                let ObjectPropertyKind::ObjectProperty(d) = definition else {
+                    unreachable!("checked custom element prop option")
                 };
-                let name = if matches!(from.kind(key), Kind::String) {
-                    from.str_value(key, source_text)
-                } else {
-                    from.name(key)
-                };
-                inferred &= name != "type";
-                fields.push(copy(from, to, &mut Verbatim, definition));
-            }
-            if inferred {
-                let name = to.identifier("type");
-                let value = to.write_string("Boolean");
-                fields.push(to.property(
-                    name,
-                    value,
-                    0,
-                    rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
+                inferred &= key_name(&d.key) != Some("type");
+                fields.push(oxc_allocator::CloneIn::clone_in(
+                    definition,
+                    oxc_allocator::GetAllocator::allocator(b),
                 ));
             }
-            let value = to.object(&fields, from.source_location(value));
-            to.property(key, value, 0, from.source_location(property))
-        })
-        .collect();
-    for binding in &resolution.bindings {
-        if !matches!(
-            binding.kind,
-            BindingKind::Property | BindingKind::BindableProperty
-        ) {
-            continue;
+            if inferred {
+                fields.push(b.init("type", b.string("Boolean")));
+            }
+            out.push(b.property(string_key(b, &key), b.object(fields), false));
         }
-        let key = from.name(binding.prop_key.expect("a prop has a key"));
-        if names.contains(key) {
-            continue;
+        for &symbol in &props {
+            let Some(key) = res
+                .binding(symbol)
+                .prop_key
+                .and_then(|k| k.static_name()?.into_cow_str())
+            else {
+                continue;
+            };
+            if names.contains(&*key) {
+                continue;
+            }
+            out.push(b.property(string_key(b, &key), b.object([]), false));
         }
-        let key = to.write_string(key);
-        let value = to.object(
-            &[],
-            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-        );
-        properties.push(to.property(
-            key,
-            value,
-            0,
-            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-        ));
+        b.object(out)
     }
-    to.object(&properties, from.source_location(options))
 }

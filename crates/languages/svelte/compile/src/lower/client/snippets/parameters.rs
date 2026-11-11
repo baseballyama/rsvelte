@@ -158,12 +158,21 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         paths: &mut Vec<Path<'o>>,
     ) {
         let b = self.b;
-        let simple = is_simple_expression(fallback);
-        let fallback = self.rewrite(fallback, true);
-        let value = if simple {
-            b.runtime("fallback", [value, fallback])
+        let value = if is_simple_expression(fallback) {
+            b.runtime("fallback", [value, self.rewrite(fallback, true)])
         } else {
-            b.runtime("fallback", [value, b.thunk(fallback), b.boolean(true)])
+            // Upstream makes the thunk before it rewrites the fallback, so `() => f()` is `f`.
+            let thunk = match fallback.get_inner_expression() {
+                Expression::CallExpression(call)
+                    if call.arguments.is_empty()
+                        && !call.optional
+                        && matches!(call.callee, Expression::Identifier(_)) =>
+                {
+                    self.rewrite(&call.callee, true)
+                }
+                fallback => b.arrow(b.params([]), self.rewrite(fallback, true)),
+            };
+            b.runtime("fallback", [value, thunk, b.boolean(true)])
         };
         self.parameter_paths(pattern, value, true, inserts, paths);
     }

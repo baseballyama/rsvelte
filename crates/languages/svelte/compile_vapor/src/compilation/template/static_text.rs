@@ -1,5 +1,7 @@
-use super::{Builder, Item, Parent, Span, Text, vue};
+use super::{Item, Parent, Span, Template, Text, spelled, vue};
 
+/// A `<textarea>`'s text: the parser drops one leading newline (client), and Svelte's server
+/// drops a lone one beside an expression.
 pub(super) fn textarea_text<'a>(
     raw: &'a str,
     first: bool,
@@ -21,7 +23,7 @@ pub(super) fn textarea_text<'a>(
     }
 }
 
-impl Builder<'_, '_> {
+impl Template<'_, '_, '_> {
     pub(super) fn static_text(
         &mut self,
         text: String,
@@ -32,45 +34,33 @@ impl Builder<'_, '_> {
     ) -> vue::CompilerNodeIdentifier {
         let title = matches!(parent, Parent::Element("title"))
             && vue_parent.is_some_and(|parent| !self.namespaces.contains_key(&parent));
-        if !self.i.server && !title && !matches!(parent, Parent::Element("style" | "script")) {
-            let raw = items
-                .iter()
-                .map(|item| match item {
-                    Item::Text { raw, .. } => raw.as_ref(),
-                    _ => unreachable!("static text has no expression"),
-                })
-                .collect::<String>();
-            let properties = self.vb.props([vue::Property {
-                kind: vue::PropertyKind::Attribute {
-                    name: super::spelled("$$raw", at),
-                    value: Some(Text {
-                        raw: at,
-                        cooked: Some(raw.into_boxed_str()),
-                    }),
-                },
-                span: at,
-                origin: 0,
-            }]);
-            let element = vue::Element {
-                tag: super::spelled(
-                    if matches!(parent, Parent::Element("textarea")) {
-                        "$$TextareaText"
-                    } else if matches!(parent, Parent::Element("pre")) {
-                        "$$PreText"
-                    } else {
-                        "$$Text"
-                    },
-                    at,
-                ),
-                tag_type: vue::TagType::Template,
-                props: properties,
-                children: vue::Children::default(),
-            };
-            self.vb
-                .node(vue::NodeKind::Element(element), at, vue_parent, 0)
-        } else {
-            self.text(text, vue_parent, at)
+        if self.i.server || title || matches!(parent, Parent::Element("style" | "script")) {
+            return self.text(text, vue_parent, at);
         }
+        let raw = items
+            .iter()
+            .map(|item| match item {
+                Item::Text { raw, .. } => raw.as_ref(),
+                _ => unreachable!("static text has no expression"),
+            })
+            .collect::<String>();
+        let property = vue::Property {
+            kind: vue::PropertyKind::Attribute {
+                name: spelled("$$raw", at),
+                value: Some(Text {
+                    raw: at,
+                    cooked: Some(raw.into_boxed_str()),
+                }),
+            },
+            span: at,
+            origin: 0,
+        };
+        let tag = match parent {
+            Parent::Element("textarea") => "$$TextareaText",
+            Parent::Element("pre") => "$$PreText",
+            _ => "$$Text",
+        };
+        self.template_node(tag, at, vec![property], vue_parent)
     }
 
     pub(super) fn text(
@@ -79,10 +69,10 @@ impl Builder<'_, '_> {
         vue_parent: Option<vue::CompilerNodeIdentifier>,
         at: Span,
     ) -> vue::CompilerNodeIdentifier {
-        let t = Text {
+        let text = Text {
             raw: at,
             cooked: Some(data.into_boxed_str()),
         };
-        self.vb.node(vue::NodeKind::Text(t), at, vue_parent, 0)
+        self.vb.node(vue::NodeKind::Text(text), at, vue_parent, 0)
     }
 }

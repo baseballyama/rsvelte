@@ -75,21 +75,21 @@ impl Compile {
             .expect("a parsed component is analysed");
         let t = {
             let _p = measurement::phase("vuelte.translate");
-            translate(
-                c,
+            translate(Input {
+                component: c,
                 compiler_syntax_tree,
                 resolution,
                 analysis,
                 plan,
-                context.source_text(),
-                self.server,
-                &context.document.path,
-            )?
+                source_text: context.source_text(),
+                server: self.server,
+                filename: &context.document.path,
+            })?
         };
         let _p = measurement::phase("vuelte.vapor");
-        let javascript = compile(&t, context.source_text());
+        let javascript = compile(&t);
         let external_stylesheet =
-            t.css_mode == crate::template::CssMode::External && t.custom_element.is_none();
+            t.css_mode == crate::template::CssMode::External && t.template.custom_element.is_none();
         Ok((
             javascript,
             external_stylesheet.then_some(t.stylesheet).flatten(),
@@ -126,4 +126,4 @@ impl Task for Compile {
 #[cfg(test)]
 mod tests;
 
-use crate::compilation::{R, check, compile, translate};
+use crate::compilation::{Input, R, check, compile, translate};

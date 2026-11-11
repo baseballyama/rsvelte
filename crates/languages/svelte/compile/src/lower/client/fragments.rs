@@ -2,6 +2,7 @@ use crate::lower::builder::Runtime;
 use oxc_ast::ast::{Expression, Statement};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerNodeIdentifier};
 
+use super::super::component::Standalone;
 use super::{ClientCompilationContext, Frag, Item, Lists, NodeKind, Prev, R, Template};
 
 const TEMPLATE_FRAGMENT: u32 = 1;
@@ -21,11 +22,20 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         children: Children,
         skipped: fn(&str) -> bool,
     ) -> R<Vec<Statement<'o>>> {
-        let outer = std::mem::take(&mut self.snippets);
-        let body = self.fragment_body(children, skipped);
-        let mut snippets = std::mem::replace(&mut self.snippets, outer);
+        let (mut snippets, body) =
+            self.collecting_snippets(|context| context.fragment_body(children, skipped));
         snippets.extend(body?);
         Ok(snippets)
+    }
+
+    /// `f`'s result and the snippets it declares (upstream `state.snippets`), kept apart.
+    pub(super) fn collecting_snippets<T>(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> (Vec<Statement<'o>>, T) {
+        let outer = std::mem::take(&mut self.snippets);
+        let result = f(self);
+        (std::mem::replace(&mut self.snippets, outer), result)
     }
 
     fn fragment_body(
@@ -84,10 +94,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             ) {
                 // A lone static component or render tag has no markup to clone, so it mounts at
                 // the anchor.
-                if let NodeKind::Render { .. } = self.compiler_syntax_tree.node(standalone).kind {
-                    self.render_tag(standalone, "$$anchor", &mut frag, &mut l);
-                } else {
-                    self.component(standalone, "$$anchor", true, &mut frag, &mut l)?;
+                match standalone {
+                    Standalone::Render(tag) => self.render_tag(tag, "$$anchor", &mut frag, &mut l),
+                    Standalone::Component(component) => {
+                        self.component(component, "$$anchor", true, &mut frag, &mut l)?;
+                    }
                 }
                 None
             } else {

@@ -1,17 +1,15 @@
-use rsvelte_typescript_syntax::SyntaxTree;
-
 use super::*;
 use crate::helpers;
 
-/// The module for one target, or the refusal's message.
+/// The module for one target on one line, or the refusal's message.
 fn run(source_text: &str, server: bool) -> Result<String, String> {
     let c = rsvelte_svelte_syntax::parse::parse(source_text).map_err(|d| d.message)?;
     let compiler_syntax_tree =
         rsvelte_svelte_semantic::compiler_syntax_tree::lower(&c, source_text);
     let resolution = rsvelte_svelte_semantic::resolve::resolve(
         &c.javascript,
-        source_text,
-        c.program,
+        c.instance.as_ref().map(|s| s.program),
+        c.module.as_ref().map(|s| s.program),
         &compiler_syntax_tree,
     );
     let analysis = rsvelte_svelte_semantic::analyze::analyze(
@@ -19,18 +17,26 @@ fn run(source_text: &str, server: bool) -> Result<String, String> {
         &resolution,
     );
     let plan = check(&c, &compiler_syntax_tree, &resolution, source_text).map_err(|d| d.message)?;
-    let t = translate(
-        &c,
-        &compiler_syntax_tree,
-        &resolution,
-        &analysis,
-        &plan,
+    let t = translate(Input {
+        component: &c,
+        compiler_syntax_tree: &compiler_syntax_tree,
+        resolution: &resolution,
+        analysis: &analysis,
+        plan: &plan,
         source_text,
         server,
-        "A.svelte",
-    )
+        filename: "A.svelte",
+    })
     .map_err(|d| d.message)?;
-    Ok(compile(&t, source_text))
+    Ok(one_line(&compile(&t)))
+}
+
+/// `text` with each line break and the indentation after it as one space.
+fn one_line(text: &str) -> String {
+    text.split('\n')
+        .map(str::trim_start)
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn both(source_text: &str) -> (String, String) {
@@ -42,7 +48,8 @@ fn both(source_text: &str) -> (String, String) {
 #[test]
 fn every_helper_parses() {
     use helpers::Helper::*;
-    let mut to = SyntaxTree::new();
+    let allocator = oxc_allocator::Allocator::default();
+    let b = rsvelte_typescript_compile::build::Builder::new(&allocator);
     let all = [
         Each,
         EachServer,
@@ -80,10 +87,7 @@ fn every_helper_parses() {
         Boundary,
         CustomElementData,
     ];
-    assert_ne!(
-        helpers::declarations(&all, &mut to),
-        Vec::<rsvelte_typescript_syntax::NodeIdentifier>::new()
-    );
+    assert!(!helpers::declarations(&all, &b).is_empty());
 }
 
 #[test]
@@ -101,12 +105,12 @@ fn runes_become_refs_and_props_read_through_define_props() {
         "const n = $$ref($$props.b);",
         "const d = $$computed(() => n.value * 2);",
         "const r = $$shallowRef([]);",
-        "'click', () => n.value++",
-        // `n * 2` is a number: Svelte's chunk leaves out `?? ''` where it proves a value
+        "\"click\", () => n.value++",
+        // `n * 2` is a number: Svelte\"s chunk leaves out `?? \"\"` where it proves a value
         // defined.
-        "${$$props.a ?? ''}",
+        "${$$props.a ?? \"\"}",
         "${d.value}",
-        "${r.value.length ?? ''}",
+        "${r.value.length ?? \"\"}",
     ] {
         assert!(client.contains(want), "{want}\n{client}");
     }
@@ -117,10 +121,10 @@ fn text_follows_each_runtime() {
     let source_text = "<script>\n\tlet x = $state(null);\n</script>\n\
                <p onclick={() => (x = 1)}>{x}</p><p>{JSON.stringify(1)}</p>";
     let (client, server) = both(source_text);
-    assert!(client.contains("`${x.value ?? ''}`"), "{client}");
+    assert!(client.contains("`${x.value ?? \"\"}`"), "{client}");
     assert!(client.contains("$$node(JSON.stringify(1))"), "{client}");
     assert!(
-        server.contains("$$escape(String(x.value ?? ''))"),
+        server.contains("$$escape(String(x.value ?? \"\"))"),
         "{server}"
     );
 }
@@ -131,7 +135,7 @@ fn bindings_run_svelte_effects_on_the_client_and_print_on_the_server() {
                <input bind:value={s} /><input type=\"checkbox\" bind:checked={c} />";
     let (client, server) = both(source_text);
     assert!(
-        client.contains("s.value !== $$el.value && ($$el.value = s.value ?? '')"),
+        client.contains("s.value !== $$el.value && ($$el.value = s.value ?? \"\")"),
         "{client}"
     );
     assert!(
@@ -139,11 +143,11 @@ fn bindings_run_svelte_effects_on_the_client_and_print_on_the_server() {
         "{client}"
     );
     assert!(
-        server.contains("$$attribute('value', $$attr(s.value))"),
+        server.contains("$$attribute(\"value\", $$attr(s.value))"),
         "{server}"
     );
     assert!(
-        server.contains("$$attribute('checked', $$bool(c.value))"),
+        server.contains("$$attribute(\"checked\", $$bool(c.value))"),
         "{server}"
     );
 }
@@ -153,11 +157,11 @@ fn class_removes_the_attribute_when_empty() {
     let (client, server) =
         both("<script>\n\tlet on = $state(false);\n</script>\n<p class={{ on }}>x</p>");
     assert!(
-        client.contains("'class', $$class({ on: on.value })"),
+        client.contains("\"class\", $$class({ on: on.value })"),
         "{client}"
     );
     assert!(
-        server.contains("$$attribute('class', $$class({ on: on.value }))"),
+        server.contains("$$attribute(\"class\", $$class({ on: on.value }))"),
         "{server}"
     );
 }
@@ -173,15 +177,15 @@ fn a_spread_is_one_object_for_svelte_set_attributes_or_attributes() {
     );
     assert!(
         client.contains(
-            "$$attributes($$el, { 'class': ['x', $$props.a], ...$$v_unref($$attrs), \
-             'hidden': true })"
+            "$$attributes($$el, { \"class\": [\"x\", $$props.a], ...$$attrs, \
+             \"hidden\": true })"
         ),
         "{client}"
     );
     assert!(
         server.contains(
-            "$$attributes_text($$spread({ 'class': $$sclsx(['x', $$props.a]), \
-             ...$$v_unref($$attrs), 'hidden': true }))"
+            "$$attributes_text($$spread({ \"class\": $$sclsx([\"x\", $$props.a]), \
+             ...$$attrs, \"hidden\": true }))"
         ),
         "{server}"
     );
@@ -198,7 +202,7 @@ fn server_branches_and_each_render_spreads() {
     for want in [
         "on.value ?",
         "$$each(xs.value).map((x) =>",
-        "$$attributes_text($$spread({ ...$$v_unref($$attrs) }))",
+        "$$attributes_text($$spread({ ...$$attrs }))",
     ] {
         assert!(server.contains(want), "{want}\n{server}");
     }
@@ -210,12 +214,12 @@ fn class_directives_are_to_class_of_the_value_and_the_directives() {
                <p class=\"a b\" class:b={on} class:c-d={!on}>x</p>";
     let (client, server) = both(source_text);
     assert!(
-        client.contains("$$set_class($$el, 'a b', { 'b': on.value, 'c-d': !on.value })"),
+        client.contains("$$set_class($$el, \"a b\", { \"b\": on.value, \"c-d\": !on.value })"),
         "{client}"
     );
     assert!(
         server.contains(
-            "$$attribute('class', $$to_class('a b', { 'b': on.value, 'c-d': !on.value }))"
+            "$$attribute(\"class\", $$to_class(\"a b\", { \"b\": on.value, \"c-d\": !on.value }))"
         ),
         "{server}"
     );
@@ -224,9 +228,9 @@ fn class_directives_are_to_class_of_the_value_and_the_directives() {
 #[test]
 fn load_and_error_elements_carry_the_server_event_marks() {
     let (_, server) = both("<img src=\"a.png\" onload={() => {}} />");
-    assert!(server.contains("onload=\"this.__e=event\""), "{server}");
+    assert!(server.contains(r#"onload=\"this.__e=event\""#), "{server}");
     let (_, server) = both("<img {...{ src: 'a.png' }} />");
-    assert!(server.contains("['onload', 'onerror']"), "{server}");
+    assert!(server.contains("[\"onload\", \"onerror\"]"), "{server}");
 }
 
 #[test]
@@ -251,7 +255,7 @@ fn client_uses_vapor_blocks_and_resolves_loop_aliases_by_binding() {
         "{client}"
     );
     assert!(client.contains("${i.value}"), "{client}");
-    assert!(client.contains("${x.value.id ?? ''}"), "{client}");
+    assert!(client.contains("${x.value.id ?? \"\"}"), "{client}");
     assert!(client.contains("xs.value.map((x) => x.id)"), "{client}");
     assert!(client.contains("(x, i) => x.id"), "{client}");
     assert!(
@@ -284,7 +288,7 @@ fn vapor_boolean_bindings_use_dom_property_names() {
     .unwrap();
     for property in ["readOnly", "noValidate", "formNoValidate", "isMap"] {
         assert!(
-            client.contains(&format!("'{property}', Boolean(locked.value)")),
+            client.contains(&format!("\"{property}\", Boolean(locked.value)")),
             "{client}"
         );
     }
