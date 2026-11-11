@@ -74,10 +74,8 @@ impl Namespaces {
             .unwrap_or(Namespace::Html);
         let has_foreign = configured != Namespace::Html
             || tree.elements().any(|(_, element)| {
-                if matches!(
-                    element.name.text(input.component.source_text),
-                    "svg" | "math"
-                ) {
+                let name = element.name.text(input.component.source_text);
+                if element.kind == ElementKind::Regular && (is_svg(name) || is_mathml(name)) {
                     return true;
                 }
                 tree.attributes(element.attributes).iter().any(|attribute| {
@@ -104,11 +102,29 @@ impl Namespaces {
             in_text: false,
             regular: Namespace::Html,
             dynamic: configured,
+            in_element: false,
         };
         foreign.walk(input, tree.root, scope);
+        foreign.assign(
+            tree,
+            input.component.source_text,
+            tree.root,
+            None,
+            configured,
+        );
         Self(Some(Box::new(foreign)))
     }
 
+    /// Upstream `metadata.svg` and `metadata.mathml`: the namespace an element's own name
+    /// gives it, wherever it stands.
+    #[must_use]
+    pub fn named(&self, node: CompilerNodeIdentifier) -> Namespace {
+        self.0
+            .as_ref()
+            .map_or(Namespace::Html, |foreign| foreign.named[node])
+    }
+
+    /// The namespace of the fragment `node` stands in.
     #[must_use]
     pub fn get(&self, node: CompilerNodeIdentifier) -> Namespace {
         self.0
@@ -167,7 +183,9 @@ impl Foreign {
             None | Some(NodeKind::Snippet(_)) => true,
             Some(NodeKind::Element(element)) => matches!(
                 element.kind,
-                ElementKind::Component | ElementKind::Metadata(Some(MetadataTag::Fragment))
+                ElementKind::Component
+                    | ElementKind::Slot
+                    | ElementKind::Metadata(Some(MetadataTag::Component | MetadataTag::Fragment))
             ),
             Some(_) => false,
         };
@@ -177,6 +195,37 @@ impl Foreign {
             return namespace;
         }
         self.consistent(tree, nodes, inherited)
+    }
+
+    /// Upstream's namespace of each fragment, `infer_namespace` of what its parent passes down:
+    /// an element passes the namespace its own name gives, anything else its fragment's.
+    fn assign(
+        &mut self,
+        tree: &CompilerSyntaxTree,
+        source_text: &str,
+        children: Children,
+        owner: Option<CompilerNodeIdentifier>,
+        passed: Namespace,
+    ) {
+        let nodes = tree.children(children);
+        let namespace = self.infer(tree, source_text, nodes, owner, passed);
+        for &node in nodes {
+            self.namespaces[node] = namespace;
+            let passed = match &tree.node(node).kind {
+                NodeKind::Element(element) if is_dom(element.kind) => {
+                    if element.name.text(source_text) == "foreignObject" {
+                        Namespace::Html
+                    } else {
+                        self.named[node]
+                    }
+                }
+                _ => namespace,
+            };
+            self.children[node].0 = passed;
+            for children in tree.child_lists(node) {
+                self.assign(tree, source_text, children, Some(node), passed);
+            }
+        }
     }
 
     /// Upstream `check_nodes_for_namespace(nodes, 'keep')`: elements and text, looking through
@@ -268,6 +317,9 @@ struct Scope {
     /// What a `<svelte:element>` without `xmlns` takes: the nearest element's, or the configured
     /// namespace below a component, a snippet or the root.
     dynamic: Namespace,
+    /// Upstream analysis's `parent_element`: inside a regular element, and not below a
+    /// component, a snippet, a `<svelte:element>` or a `<svelte:fragment>` since.
+    in_element: bool,
 }
 
 impl Foreign {
@@ -322,6 +374,13 @@ impl Foreign {
                         namespace
                     };
                     inner.in_text |= element.kind == ElementKind::Regular && name == "text";
+                    inner.in_element = match element.kind {
+                        ElementKind::Regular => true,
+                        ElementKind::Metadata(Some(
+                            MetadataTag::Element | MetadataTag::Fragment,
+                        )) => false,
+                        kind => scope.in_element && !kind.renders_component(),
+                    };
                     match element.kind {
                         ElementKind::Regular => {
                             inner.regular = named;
@@ -342,6 +401,7 @@ impl Foreign {
                 NodeKind::Snippet(_) => {
                     inner.namespace = self.configured;
                     inner.dynamic = self.configured;
+                    inner.in_element = false;
                 }
                 _ => {}
             }
@@ -349,6 +409,19 @@ impl Foreign {
             self.children[identifier] = (inner.namespace, inner.in_text);
             for children in tree.child_lists(identifier) {
                 self.walk(input, children, inner);
+            }
+            // Upstream: an `<a>` outside any element is svg when a child of it is.
+            if let NodeKind::Element(element) = &tree.node(identifier).kind
+                && element.kind == ElementKind::Regular
+                && !scope.in_element
+                && element.name.text(source_text) == "a"
+                && tree.children(element.children).iter().any(|&child| {
+                    matches!(&tree.node(child).kind, NodeKind::Element(c)
+                        if c.kind == ElementKind::Regular && c.name.text(source_text) != "svg")
+                        && self.named[child] == Namespace::Svg
+                })
+            {
+                self.named[identifier] = Namespace::Svg;
             }
         }
     }

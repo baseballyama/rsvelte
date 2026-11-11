@@ -90,6 +90,12 @@ impl RenderPlan {
         self.namespaces.get(node)
     }
 
+    /// Upstream `metadata.svg` and `metadata.mathml` of the element `node`.
+    #[must_use]
+    pub(crate) fn named(&self, node: CompilerNodeIdentifier) -> Namespace {
+        self.namespaces.named(node)
+    }
+
     /// # Panics
     /// If the plan has no region for this child-list key.
     #[must_use]

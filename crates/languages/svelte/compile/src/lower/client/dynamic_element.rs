@@ -89,7 +89,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let callback = (!body.is_empty())
             .then(|| b.arrow_block(b.params([name.as_str(), "$$anchor"]), body, false));
         let namespace = self.dynamic_namespace(attributes);
-        let foreign = self.plan.namespace(identifier) != crate::render_plan::Namespace::Html;
+        let foreign = self.plan.named(identifier) != crate::render_plan::Namespace::Html;
         let call = b.runtime_some(
             "element",
             vec![

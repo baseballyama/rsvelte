@@ -70,7 +70,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 _ if raw_name == "value" && tag == "textarea" => continue,
                 _ => {}
             }
-            let name = if self.plan.namespace(identifier) == crate::render_plan::Namespace::Html {
+            let name = if self.plan.named(identifier) == crate::render_plan::Namespace::Html {
                 raw_name.to_ascii_lowercase()
             } else {
                 raw_name.to_owned()

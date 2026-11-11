@@ -3,7 +3,7 @@ use oxc_ast::ast::Expression;
 
 use crate::lower::server::{
     AttributeValue, CompilerNodeIdentifier, ElementKind, NodeKind, Piece, R,
-    ServerCompilationContext, check_foreign_element, is_customizable_select, is_void, unsupported,
+    ServerCompilationContext, is_customizable_select, is_void, unsupported,
 };
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -28,9 +28,6 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             return unsupported(&format!("rich content in `<{tag}>`"), el.name);
         }
         let namespace = self.plan.namespace(identifier);
-        if namespace == crate::render_plan::Namespace::Html {
-            check_foreign_element(self.source_text, el.name)?;
-        }
         let tag = if namespace == crate::render_plan::Namespace::Html {
             tag
         } else {

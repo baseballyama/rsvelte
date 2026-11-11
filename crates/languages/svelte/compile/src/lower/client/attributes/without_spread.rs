@@ -26,7 +26,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .iter()
             .filter(|a| matches!(a.value, AttributeValue::Style { .. }))
             .collect();
-        let html = self.plan.namespace(identifier) == crate::render_plan::Namespace::Html;
+        let html = self.plan.named(identifier) == crate::render_plan::Namespace::Html;
         let defaults = self.defaults(identifier, tag, attributes);
         for a in attributes {
             if is_behaviour(&a.value)

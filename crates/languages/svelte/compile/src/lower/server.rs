@@ -44,9 +44,9 @@ use super::names::Names;
 use super::script::ScriptRewrite;
 use super::slot_element::has_slot_element;
 use super::{
-    Builder, Item, Prepared, Target, check_foreign_element, escape_markup, event_attribute,
-    is_behaviour, is_boolean_attribute, is_customizable_select, is_directive,
-    is_load_error_element, needs_clsx, synthetic_value, unsupported, uses_slots,
+    Builder, Item, Prepared, Target, escape_markup, event_attribute, is_behaviour,
+    is_boolean_attribute, is_customizable_select, is_directive, is_load_error_element, needs_clsx,
+    synthetic_value, unsupported, uses_slots,
 };
 use crate::lower::builder::Runtime;
 use crate::render_plan::RenderPlan;
