@@ -258,6 +258,7 @@ fn the_shared_checker_selects_standalone_typescript() {
         identifier: "ts.check/default",
         documents: rsvelte_typescript_check::Documents::WithTypeScriptView,
         tsc: None,
+        stand_in: None,
     });
     let document = registry
         .document("input.ts", "const value: number = 1;")
@@ -344,6 +345,7 @@ fn javascript_type_checking_is_explicitly_unchecked() {
         identifier: "ts.check/default",
         documents: rsvelte_typescript_check::Documents::WithTypeScriptView,
         tsc: None,
+        stand_in: None,
     });
     for path in ["input.js", "input.mjs", "input.cjs"] {
         let document = registry
