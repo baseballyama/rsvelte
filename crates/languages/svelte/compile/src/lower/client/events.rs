@@ -53,6 +53,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     ) {
         let b = self.b;
         let mut event_name = &raw_name[2..];
+        // Upstream decides delegation on the name with its `capture` suffix.
+        let delegated = allow_delegation && DELEGATED_EVENTS.contains(&event_name);
         let capture = if event_name.ends_with("capture")
             && event_name != "gotpointercapture"
             && event_name != "lostpointercapture"
@@ -63,7 +65,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             false
         };
         let handler_expression = self.event_handler(handler, l);
-        let delegated = allow_delegation && DELEGATED_EVENTS.contains(&event_name);
         if delegated && !self.events.iter().any(|e| e == event_name) {
             self.events.push(event_name.to_owned());
         }
