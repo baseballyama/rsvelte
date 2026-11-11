@@ -10,9 +10,22 @@ use rsvelte_kernel::source::positions::{LineBreaks, LineIndex};
 #[cfg(test)]
 mod tests;
 
+thread_local! {
+    static BUFFER: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+}
+
+/// One buffer per thread grows once; each program gets a copy of exactly its output's length.
+fn printed<'a>(codegen: Codegen<'a>, program: &Program<'a>) -> oxc_codegen::CodegenReturn<'a> {
+    let buffer = BUFFER.with_borrow_mut(std::mem::take);
+    let mut printed = codegen.with_buffer(buffer).build(program);
+    let code = printed.code.as_str().to_owned();
+    BUFFER.with_borrow_mut(|b| *b = std::mem::replace(&mut printed.code, code));
+    printed
+}
+
 #[must_use]
 pub fn print(program: &Program<'_>) -> String {
-    Codegen::new().with_options(options()).build(program).code
+    printed(Codegen::new().with_options(options()), program).code
 }
 
 /// Upstream's printer keeps a template literal's text as written, `</script` too.
@@ -41,12 +54,13 @@ pub fn print_mapped(program: &Program<'_>, lines: &LineIndex) -> Emitter {
     } else {
         lines
     };
-    let printed = Codegen::new()
-        .with_options(CodegenOptions {
+    let printed = printed(
+        Codegen::new().with_options(CodegenOptions {
             source_map_path: Some("source".into()),
             ..options()
-        })
-        .build(program);
+        }),
+        program,
+    );
     let mut emitter = Emitter::new();
     if let Some(map) = printed.map {
         let mut generated = Cursor::new(&printed.code);

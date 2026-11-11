@@ -128,8 +128,8 @@ refused	printer/no-tag-snippings.html	<script> or <style> inside an element
 pass	printer/pre-element-inside-other-element.html
 pass	printer/pre-element-with-code-element.html
 pass	printer/pre-element.html
-refused	printer/prettier-ignore-nested.html	prettier-ignore comments
-refused	printer/prettier-ignore-range.html	prettier-ignore comments
+pass	printer/prettier-ignore-nested.html
+pass	printer/prettier-ignore-range.html
 pass	printer/prettier-ignore-script.html
 pass	printer/prettier-ignore-style.html
 pass	printer/raw-mustaches.html
@@ -279,11 +279,11 @@ pass	formatting/move-options-to-top
 pass	formatting/no-html-whitespace-inside-inline-element
 pass	formatting/no-html-whitespace-outside-inline-element
 pass	formatting/pre-mustache
-refused	formatting/prettier-ignore	prettier-ignore comments
-refused	formatting/prettier-ignore-range-1	prettier-ignore comments
-refused	formatting/prettier-ignore-range-2	prettier-ignore comments
-refused	formatting/prettier-ignore-range-wrong	prettier-ignore comments
-refused	formatting/prettier-ignore-ranges-and-lines	prettier-ignore comments
+pass	formatting/prettier-ignore
+pass	formatting/prettier-ignore-range-1
+pass	formatting/prettier-ignore-range-2
+pass	formatting/prettier-ignore-range-wrong
+pass	formatting/prettier-ignore-ranges-and-lines
 refused	formatting/region-markers	`<!-- #endregion -->` after <script> or <style>
 pass	formatting/require-pragma-present
 pass	formatting/script-only-extra-whitespace
