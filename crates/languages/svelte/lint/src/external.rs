@@ -1,7 +1,7 @@
 //! Rules a host function implements.
 //!
-//! The function is one of the configuration's runtime or a symbol of a native library. It sees the
-//! document's path, its text and its options, and returns reports with `ESLint`'s UTF-16 ranges.
+//! The function is one of the configuration's runtime. It sees the document's path, its text and
+//! its options, and returns reports with `ESLint`'s UTF-16 ranges.
 
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
