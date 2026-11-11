@@ -19,6 +19,14 @@ pub const DECLARATIONS: (&str, &str) = (
     ),
 );
 
+/// What an import of a component that is not projected reads: a component of any props, as the
+/// svelte package's `declare module '*.svelte'` declares one.
+pub const STAND_IN: &str = "import { SvelteComponent } from 'svelte';\n\
+    import { LegacyComponentType } from 'svelte/legacy';\n\
+    declare const Comp: LegacyComponentType;\n\
+    type Comp = SvelteComponent;\n\
+    export default Comp;\n";
+
 /// Takes no options.
 pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_interface::Extension {
     identifier: "svelte.typescript_projection",

@@ -13,7 +13,6 @@ use super::{
     Attribute, AttributeValue, BindingKind, CompileInput, Diagnostic, Element, NodeKind,
     Resolution, unsupported,
 };
-use crate::render_plan::slot_name;
 
 pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
@@ -103,9 +102,6 @@ fn check_element(
         return unsupported("a directive on `<slot>`", a.span);
     }
     let component = el.kind.renders_component();
-    if component {
-        check_let_scope(input, res, el)?;
-    }
     // Upstream checks the element's name as written.
     let tag = match el.kind {
         ElementKind::Regular => Some(el.name.text(source)),
@@ -276,55 +272,6 @@ fn check_target(
             "a binding to anything but a `let`, `$state`, `$derived`, a prop or a member",
             a.span,
         );
-    }
-    Ok(())
-}
-
-/// Upstream's component declares its `let:` names for its default slot alone, while the semantic
-/// model lets a child that names its slot see them too.
-fn check_let_scope(
-    input: &CompileInput<'_>,
-    res: &Resolution,
-    el: &Element,
-) -> Result<(), Diagnostic> {
-    let tree = input.component.compiler_syntax_tree;
-    let source = input.component.source_text;
-    if slot_name(tree, source, el.attributes).is_some() {
-        return Ok(());
-    }
-    let named: Vec<_> = tree
-        .children(el.children)
-        .iter()
-        .filter_map(|&child| match &tree.node(child).kind {
-            NodeKind::Element(child_el) => {
-                slot_name(tree, source, child_el.attributes).map(|_| tree.node(child).span)
-            }
-            _ => None,
-        })
-        .collect();
-    if named.is_empty() {
-        return Ok(());
-    }
-    let scoping = res.scoping();
-    for (attribute, a) in el.attributes.iter().zip(tree.attributes(el.attributes)) {
-        if !matches!(a.value, AttributeValue::Let(_)) {
-            continue;
-        }
-        for &symbol in res.let_names(attribute) {
-            for &reference in scoping.get_resolved_reference_ids(symbol) {
-                let span = res.reference_span(reference);
-                if named
-                    .iter()
-                    .any(|slot| slot.start_offset <= span.start && span.end <= slot.end_offset)
-                {
-                    let span = super::span_of(&span);
-                    return unsupported(
-                        "a named slot that reads its component's `let:` name",
-                        span,
-                    );
-                }
-            }
-        }
     }
     Ok(())
 }

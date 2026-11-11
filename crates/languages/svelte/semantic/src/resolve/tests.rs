@@ -278,6 +278,35 @@ fn an_element_attribute_sees_its_let_names_and_a_component_one_only_with_a_slot(
 }
 
 #[test]
+fn a_component_s_let_names_reach_its_default_slot_and_not_a_named_one() {
+    // Upstream `create_scopes`: a child with a static `slot` gets a scope of the component's outer
+    // one, unless the component has a static `slot` of its own and so declares its `let:` there.
+    let script =
+        "<script>import C from './C.svelte'; import O from './O.svelte'; let x = 1;</script>";
+    for (template, instance_reads, let_reads) in [
+        ("<C let:x><p slot=\"a\">{x}</p>{x}</C>", 1, 1),
+        ("<C let:x><p slot=\"default\">{x}</p></C>", 1, 0),
+        ("<C let:x><p slot={\"a\"}>{x}</p></C>", 0, 1),
+        ("<O><C slot=\"s\" let:x><p slot=\"a\">{x}</p></C></O>", 0, 1),
+    ] {
+        let source = format!("{script}{template}");
+        let res = analyze(&source);
+        let instance = symbol(&res, &source, "x = 1");
+        let declared = symbol(&res, &source, "x>");
+        assert_eq!(
+            res.counts().reads[instance.index()],
+            instance_reads,
+            "{template}"
+        );
+        assert_eq!(
+            res.counts().reads[declared.index()],
+            let_reads,
+            "{template}"
+        );
+    }
+}
+
+#[test]
 fn an_instance_export_specifier_reassigns_and_a_module_one_does_not() {
     // Upstream's `ExportSpecifier` visitor: instance scripts only.
     let source = "<script module>let moduleLocal = 1; export { moduleLocal };</script>\

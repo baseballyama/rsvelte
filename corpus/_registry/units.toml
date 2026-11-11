@@ -191,3 +191,27 @@
 
 ["svelte/networking-toolbox/src/lib/components/tools/ReversePTRGenerator.svelte".skip]
 "svelte.compile/client" = "upstream bug: an element that holds a {#snippet} shares its parent's memoizer, so the parent's template_effect also takes the values the element's own effect memoized, as parameters it never reads"
+
+["svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/component-named-slot/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/smelte/src/routes/components/lists.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/smelte/src/routes/components/tabs.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/Menu/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/ToggleButton/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/svelte/packages/svelte/tests/runtime-legacy/samples/component-slot-let-scope-3/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/svelte/packages/svelte/tests/runtime-legacy/samples/component-slot-let-scope/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/component-let-directive/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
