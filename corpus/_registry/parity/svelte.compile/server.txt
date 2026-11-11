@@ -1,4 +1,4 @@
-# svelte.compile/server: 14281 match
+# svelte.compile/server: 14282 match
 svelte/animotion/src/lib/components/action.svelte	refused
 svelte/animotion/src/lib/components/slides.svelte	refused
 svelte/animotion/src/lib/components/transition.svelte	refused
@@ -4755,7 +4755,6 @@ svelte/svelte/packages/svelte/tests/validator/samples/inline-new-class-5/input.s
 svelte/svelte/packages/svelte/tests/validator/samples/inline-new-class/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/invalid-node-placement-3/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/invalid-node-placement-template/input.svelte	refused
-svelte/svelte/packages/svelte/tests/validator/samples/multiple-var-same-name/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/mutate-derived-private-field/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/no-missing-declarations-for-same-node-let-variable/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/reassign-derived-private-public-field/input.svelte	refused
