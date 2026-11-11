@@ -6,7 +6,8 @@ use rsvelte_svelte_semantic::resolve::{Resolution, resolve};
 
 /// The resolution of a component whose instance script is `script`.
 fn resolution(script: &str) -> Resolution {
-    let source = format!("<script>{script}</script>");
+    // TypeScript parses every script these tests write.
+    let source = format!("<script lang=\"ts\">{script}</script>");
     let component = rsvelte_svelte_syntax::parse::parse(&source).expect("parses");
     let lowered = lower(&component, &source);
     resolve(
@@ -147,4 +148,11 @@ fn a_string_converts_to_a_number_or_a_bigint_after_javascript_trims_it() {
     for (source, expected) in [(r#"1n < "\uFEFF2";"#, true), (r#"1n < "\u00852";"#, false)] {
         assert_eq!(evaluate(source).value, Value::Boolean(expected), "{source}");
     }
+}
+
+#[test]
+fn types_around_a_binding_and_its_initial_fold_away() {
+    let folded =
+        evaluate("let count = $state(1)!; let double = $derived(count! * 2)!; double! as number;");
+    assert_eq!(folded.value, Value::Number(2.0));
 }

@@ -8,6 +8,8 @@ use super::{Evaluator, Value, Values, add, bigint};
 
 impl Evaluator<'_> {
     pub(super) fn eval_into(&mut self, e: &Expression<'_>, values: &mut Values) {
+        // Upstream evaluates after erasing types.
+        let e = crate::typescript::without_typescript(e);
         match e {
             // A value with a lone surrogate is no Rust string.
             Expression::StringLiteral(s) => match s.value.as_str() {
