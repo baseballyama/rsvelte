@@ -2,6 +2,7 @@ mod attribute;
 mod binding;
 mod children;
 mod contract;
+mod directive;
 
 use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;
@@ -38,6 +39,7 @@ pub fn lower<'a>(
         element_callee: None,
         attachment_key: None,
         component_name: None,
+        directives: directive::Directives::default(),
     };
     let contract = builder.scripts()?;
     let body = builder.children(component.root)?;
@@ -82,6 +84,8 @@ struct Builder<'a> {
     element_callee: Option<NodeIdentifier>,
     attachment_key: Option<NodeIdentifier>,
     component_name: Option<NodeIdentifier>,
+    /// Reused for each element, as elements' directives are done before their children.
+    directives: directive::Directives,
 }
 
 /// The source text at `at`, whose mapping ends at `end` when that is not its own end.
@@ -91,6 +95,19 @@ fn source_expression(at: oxc_span::Span, end: Option<u32>) -> SourceExpression {
         span,
         end: end.unwrap_or(span.end_offset),
     }
+}
+
+/// Whether svelte2tsx writes the tag as an element, which `svelteHTML` types.
+fn is_element(tag: &str) -> bool {
+    matches!(
+        tag,
+        "svelte:head"
+            | "svelte:options"
+            | "svelte:window"
+            | "svelte:body"
+            | "svelte:document"
+            | "svelte:fragment"
+    ) || (tag.starts_with(|c: char| c.is_ascii_lowercase()) && !tag.contains(':'))
 }
 
 /// The document position of an oxc node.
@@ -273,20 +290,7 @@ impl Builder<'_> {
     ) -> Result<NodeIdentifier> {
         let is_component = component.is_some();
         let tag = name.text(self.source);
-        // svelte2tsx writes these as elements, which `svelteHTML` types.
-        let special = matches!(
-            tag,
-            "svelte:head"
-                | "svelte:options"
-                | "svelte:window"
-                | "svelte:body"
-                | "svelte:document"
-                | "svelte:fragment"
-        );
-        if !is_component
-            && !special
-            && (!tag.starts_with(|c: char| c.is_ascii_lowercase()) || tag.contains(':'))
-        {
+        if !is_component && !is_element(tag) {
             return Err(Unsupported::at("svelte: elements", name));
         }
         let slot = !is_component && tag == "slot";
@@ -302,10 +306,24 @@ impl Builder<'_> {
                 .push(self.tree.push(Node::ImplicitChildren(at)));
         }
         let mut bindings = Vec::new();
+        let mut directives = std::mem::take(&mut self.directives);
+        directives.clear();
         for attribute in self.component.attributes(attributes) {
             match attribute.kind {
                 AttributeKind::Bind => {
                     bindings.push(self.binding(attribute, tag, is_component, intrinsic)?);
+                }
+                AttributeKind::On if intrinsic => {
+                    let property = self.event_property(attribute)?;
+                    self.scratch.push(property);
+                }
+                AttributeKind::Use
+                | AttributeKind::Transition { .. }
+                | AttributeKind::Animate
+                | AttributeKind::Style
+                    if intrinsic =>
+                {
+                    self.directive(attribute, name, &mut directives)?;
                 }
                 AttributeKind::On
                 | AttributeKind::Use
@@ -339,9 +357,17 @@ impl Builder<'_> {
         } else if slot {
             (self.slot_call(attributes, properties)?, None)
         } else {
-            (self.element_call(name, properties), None)
+            let enhancers = (!directives.action_names.is_empty()).then(|| {
+                let callee = self.tree.push(Node::Identifier("__sveltets_2_union"));
+                let arguments = self.tree.list(&directives.action_names);
+                self.tree.push(Node::Call { callee, arguments })
+            });
+            (self.element_call(name, enhancers, properties), None)
         };
+        self.scratch.extend_from_slice(&directives.actions);
         self.bound_call(call, bindings);
+        self.scratch.extend_from_slice(&directives.checks);
+        self.directives = directives;
         if let Some(component) = named {
             let declaration = self.tree.push(Node::SnippetNames {
                 names: snippets,
@@ -407,15 +433,24 @@ impl Builder<'_> {
         (self.tree.push(Node::Call { callee, arguments }), named)
     }
 
-    /// `svelteHTML.createElement("name", properties)`.
-    fn element_call(&mut self, name: Span, properties: NodeIdentifier) -> NodeIdentifier {
+    /// `svelteHTML.createElement("name", properties)`, with the attributes its actions add
+    /// between them.
+    fn element_call(
+        &mut self,
+        name: Span,
+        enhancers: Option<NodeIdentifier>,
+        properties: NodeIdentifier,
+    ) -> NodeIdentifier {
         let name = self.tree.push(Node::Text(name));
         let parts = self.tree.list(&[name]);
         let name = self.tree.push(Node::String {
             parts,
             template: false,
         });
-        let arguments = self.tree.list(&[name, properties]);
+        let arguments = match enhancers {
+            Some(enhancers) => self.tree.list(&[name, enhancers, properties]),
+            None => self.tree.list(&[name, properties]),
+        };
         let callee = self.element_callee();
         self.tree.push(Node::Call { callee, arguments })
     }
@@ -479,6 +514,12 @@ impl Builder<'_> {
 
     /// A name for generated code that no binding or reference of the component uses.
     fn unused_name(&mut self, prefix: &'static str) -> NodeIdentifier {
+        self.unused_name_from(prefix, 0)
+    }
+
+    /// [`Self::unused_name`] with an index of at least `from`, so names generated into one
+    /// scope differ.
+    fn unused_name_from(&mut self, prefix: &'static str, from: u32) -> NodeIdentifier {
         let taken = |name: &str| {
             (self.resolution)().is_some_and(|resolution| {
                 let scoping = resolution.scoping();
@@ -486,7 +527,7 @@ impl Builder<'_> {
                     || resolution.unresolved_names().any(|n| n == name)
             })
         };
-        let mut index = 0;
+        let mut index = from;
         while taken(&format!("{prefix}{index}")) {
             index += 1;
         }

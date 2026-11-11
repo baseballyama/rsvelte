@@ -1,1 +1,0 @@
-error check_unsupported 5:14-5:31 not supported by the type-check projection yet: directives
