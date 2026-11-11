@@ -155,6 +155,17 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
         needs_context |= walker.needs_context();
         declarations.insert(identifier, walker.metadata());
     }
+    // Upstream's visitors also meet the calls in the template's patterns' defaults.
+    for (_, pattern) in tree.patterns() {
+        let mut walker = MetadataWalker::<true>::new(res, &mut values);
+        walker.visit_formal_parameter(pattern);
+        needs_context |= walker.needs_context();
+    }
+    for (_, parameters) in tree.parameters() {
+        let mut walker = MetadataWalker::<true>::new(res, &mut values);
+        walker.visit_formal_parameters(parameters);
+        needs_context |= walker.needs_context();
+    }
     analysis.expressions = expressions;
     analysis.declarations = declarations;
     analysis.needs_context = needs_context;

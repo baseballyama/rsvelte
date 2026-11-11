@@ -189,10 +189,11 @@ fn allow_snippet_exports(
     compiler_syntax_tree: &CompilerSyntaxTree,
     built: &mut oxc_semantic::SemanticBuilderReturn<'_>,
 ) {
+    // A nested snippet's export is upstream's `snippet_invalid_export`, which the compiler raises.
     let snippets: Vec<&str> = compiler_syntax_tree
-        .children(compiler_syntax_tree.root)
+        .nodes
         .iter()
-        .filter_map(|&node| match &compiler_syntax_tree.node(node).kind {
+        .filter_map(|node| match &node.kind {
             NodeKind::Snippet(snippet) => match tree.get_expression(snippet.name) {
                 Expression::Identifier(name) => Some(name.name.as_str()),
                 _ => None,

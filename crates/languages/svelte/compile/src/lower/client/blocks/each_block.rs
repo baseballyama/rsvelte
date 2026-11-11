@@ -75,7 +75,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             index: index.and_then(|i| i.symbol_id.get()),
         };
         let collection_id = self
-            .shadows_outer_name(bindings)
+            .shadows_outer_name(identifier, each)
             .then(|| self.names.unique("$$array"));
         let index_name = index.map_or_else(
             || self.each_index[&identifier].clone(),
@@ -154,19 +154,26 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         flags
     }
 
-    /// Upstream passes the collection to the render function when the item or the index hides a
-    /// name of an outer scope.
-    fn shadows_outer_name(&self, bindings: EachBindings) -> bool {
+    /// Upstream passes the collection to the render function when a name the block declares, in
+    /// its context, its index or its body, hides a name of an outer scope.
+    fn shadows_outer_name(&self, identifier: CompilerNodeIdentifier, each: &Each) -> bool {
         let scoping = self.res.scoping();
-        bindings.iter().any(|symbol| {
-            scoping
-                .scope_parent_id(scoping.symbol_scope_id(symbol))
-                .is_some_and(|p| {
-                    scoping
-                        .find_binding(p, scoping.symbol_name(symbol).into())
-                        .is_some()
-                })
-        })
+        let scopes = [
+            TemplateScope::Each(identifier),
+            TemplateScope::Fragment(each.body),
+        ]
+        .map(|scope| self.res.template_scope(scope));
+        let Some(outer) = scopes
+            .iter()
+            .flatten()
+            .next()
+            .and_then(|&s| scoping.scope_parent_id(s))
+        else {
+            return false;
+        };
+        (scopes.into_iter().flatten())
+            .flat_map(|scope| scoping.get_bindings(scope).keys())
+            .any(|&name| scoping.find_binding(outer, name).is_some())
     }
 
     fn index_use(&self, each: &Each, bindings: EachBindings) -> IndexUse {

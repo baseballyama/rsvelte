@@ -133,8 +133,10 @@ fn a_constant_cannot_be_assigned_or_bound_whatever_declares_it() {
             "</script><input bind:value={r} />",
             Some("constant_binding"),
         ),
-        // A binding this port does not lower is refused before upstream's error is raised.
-        ("</script><input bind:value={x} />", Some("unsupported")),
+        (
+            "</script><input bind:value={x} />",
+            Some("constant_binding"),
+        ),
         (
             "function f() { s = 1; }</script>",
             Some("constant_assignment"),
@@ -161,7 +163,7 @@ fn a_constant_cannot_be_assigned_or_bound_whatever_declares_it() {
         ),
         (
             "</script>{#each items as item}<input bind:value={item} />{/each}",
-            Some("unsupported"),
+            Some("each_item_invalid_assignment"),
         ),
         (
             "</script>{#each items as item}<button onclick={() => item++}>{item}</button>{/each}",
@@ -340,10 +342,8 @@ fn a_snippet_or_render_tag_raises_upstreams_error_where_upstream_does() {
             format!("{props}{{@render a?.apply(null, [])}}"),
             Some(("render_tag_invalid_call_expression", (48, 76))),
         ),
-        (
-            format!("{props}{{@render a[call]()}}"),
-            Some(("render_tag_invalid_call_expression", (48, 67))),
-        ),
+        // Upstream also rejects a computed `a[call]`, which reads a variable, not `call`.
+        (format!("{props}{{@render a[call]()}}"), None),
         (format!("{props}{{@render a[\"call\"]()}}"), None),
         (
             "<script>let x = 1;</script>{#snippet x()}a{/snippet}".to_owned(),
@@ -383,5 +383,116 @@ fn a_snippet_or_render_tag_raises_upstreams_error_where_upstream_does() {
             let actual = actual.as_ref().map(|(code, span)| (code.as_str(), *span));
             assert_eq!(actual, expected, "{source} on {target:?}");
         }
+    }
+}
+
+#[test]
+fn a_snippet_name_raises_upstreams_error_where_upstream_does_in_its_order() {
+    for (source, expected) in [
+        (
+            "{#snippet a()}<p>1</p>{/snippet}{#snippet a()}<p>2</p>{/snippet}".to_owned(),
+            Some(("declaration_duplicate", (42, 43))),
+        ),
+        (
+            "<div>{#snippet a()}1{/snippet}{#snippet a()}2{/snippet}</div>".to_owned(),
+            Some(("declaration_duplicate", (40, 41))),
+        ),
+        (
+            "{#if 1}{#snippet a()}1{/snippet}{#snippet a()}2{/snippet}{/if}".to_owned(),
+            Some(("declaration_duplicate", (42, 43))),
+        ),
+        (
+            "<script>let { items } = $props();</script>{#each items as row}{#snippet row()}x{/snippet}{/each}".to_owned(),
+            Some(("declaration_duplicate", (72, 75))),
+        ),
+        (
+            "<script>let { items } = $props();</script>{#each items as item, i}{#snippet i()}x{/snippet}{/each}".to_owned(),
+            Some(("declaration_duplicate", (76, 77))),
+        ),
+        (
+            "{#snippet s(x)}{#snippet x()}y{/snippet}{/snippet}".to_owned(),
+            Some(("declaration_duplicate", (25, 26))),
+        ),
+        (
+            "{#snippet s({x})}{#snippet x()}y{/snippet}{/snippet}".to_owned(),
+            Some(("declaration_duplicate", (27, 28))),
+        ),
+        (
+            "<script>let { p } = $props();</script>{#await p then v}{#snippet v()}x{/snippet}{/await}".to_owned(),
+            Some(("declaration_duplicate", (53, 54))),
+        ),
+        (
+            "<script>import C from \"./C.svelte\";</script><C let:a>{#snippet a()}x{/snippet}</C>".to_owned(),
+            Some(("declaration_duplicate", (63, 64))),
+        ),
+        ("<script lang=\"ts\">declare let x: number;</script>{#snippet x()}a{/snippet}".to_owned(), None),
+        ("<script>import a from \"./a.js\";</script>{#snippet a()}<p>1</p>{/snippet}".to_owned(), None),
+        ("<script module>const a = 1;</script>{#snippet a()}<p>1</p>{/snippet}".to_owned(), None),
+        ("{#snippet a()}1{/snippet}{#if 1}{#snippet a()}2{/snippet}{@render a()}{/if}{@render a()}".to_owned(), None),
+        ("{#snippet a(a)}{a}{/snippet}{@render a(1)}".to_owned(), None),
+        ("{#snippet a()}{#snippet a()}2{/snippet}{@render a()}{/snippet}{@render a()}".to_owned(), None),
+        ("{#snippet s(x)}<div>{#snippet x()}y{/snippet}</div>{/snippet}".to_owned(), None),
+        ("{#if 1}{#snippet a()}1{/snippet}{:else}{#snippet a()}2{/snippet}{/if}".to_owned(), None),
+        (
+            "<script>let x = 1; let { a, xs } = $props();</script>{#snippet x()}{@render a(...xs)}{/snippet}".to_owned(),
+            Some(("render_tag_invalid_spread_argument", (78, 83))),
+        ),
+        (
+            "<script>import C from \"./C.svelte\"; let { a, xs } = $props();</script><C foo={1}>{#snippet foo()}{@render a(...xs)}{/snippet}</C>".to_owned(),
+            Some(("render_tag_invalid_spread_argument", (108, 113))),
+        ),
+        (
+            "<script module>export { s };</script><script>let v = $state(1);</script>{#snippet s()}<p>{v}</p>{/snippet}".to_owned(),
+            Some(("snippet_invalid_export", (24, 25))),
+        ),
+        (
+            "<script module>export { a };</script><script>let { name } = $props();</script>{#snippet a()}{@render b()}{/snippet}{#snippet b()}{name}{/snippet}".to_owned(),
+            Some(("snippet_invalid_export", (24, 25))),
+        ),
+        ("<script module>export { s };</script>{#snippet s()}<p>x</p>{/snippet}".to_owned(), None),
+        (
+            "{#snippet s(x)}<input bind:value={x} />{/snippet}".to_owned(),
+            Some(("snippet_parameter_assignment", (22, 36))),
+        ),
+        (
+            "<script>let $$a = 1; let { a, xs } = $props();</script>{@render a(...xs)}".to_owned(),
+            Some(("dollar_prefix_invalid", (12, 15))),
+        ),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            let actual = compile_at(&source, target).err();
+            let actual = actual.as_ref().map(|(code, span)| (code.as_str(), *span));
+            assert_eq!(actual, expected, "{source} on {target:?}");
+        }
+    }
+}
+
+#[test]
+fn a_snippet_upstream_declares_beside_a_let_of_its_name_is_refused_on_the_server() {
+    // Upstream's server output declares both in the component's function, which does not parse.
+    for (source, server) in [
+        (
+            "<script>let { label } = $props();</script><p>{#snippet label()}x{/snippet}{@render label()}</p>",
+            Some("unsupported"),
+        ),
+        (
+            "<script>class label {}</script><p><b>{#snippet label()}x{/snippet}{@render label()}</b></p>",
+            Some("unsupported"),
+        ),
+        (
+            "<script>import label from './l.js';</script><p>{#snippet label()}x{/snippet}{@render label()}</p>",
+            None,
+        ),
+        (
+            "<script>let { label } = $props();</script>{#if 1}{#snippet label()}x{/snippet}{@render label()}{/if}",
+            None,
+        ),
+    ] {
+        assert_eq!(compile(source, Target::Client).err(), None, "{source}");
+        assert_eq!(
+            compile(source, Target::Server).err().as_deref(),
+            server,
+            "{source}"
+        );
     }
 }

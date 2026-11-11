@@ -6,16 +6,19 @@ use super::{
 };
 
 impl<'o> ServerCompilationContext<'_, 'o> {
+    /// The snippets and special elements of a fragment, but the snippets named so that `skipped`
+    /// holds.
     pub(super) fn hoisted_elements(
         &mut self,
         identifiers: &[CompilerNodeIdentifier],
+        skipped: fn(&str) -> bool,
         template: &mut Vec<Piece<'o>>,
     ) -> R<()> {
         for &identifier in identifiers {
-            if let NodeKind::Snippet(_) = self.compiler_syntax_tree.node(identifier).kind {
-                self.snippet(identifier)?;
-            } else {
-                self.special_element(identifier, template)?;
+            match &self.compiler_syntax_tree.node(identifier).kind {
+                NodeKind::Snippet(snippet) if skipped(self.snippet_name(snippet)) => {}
+                NodeKind::Snippet(_) => self.snippet(identifier)?,
+                _ => self.special_element(identifier, template)?,
             }
         }
         Ok(())

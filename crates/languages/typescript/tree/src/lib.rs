@@ -203,6 +203,28 @@ impl Tree {
             .map(|(i, d)| (DeclarationIdentifier::at(i), d))
     }
 
+    /// Every pattern kept apart from a program, with its identifier, in the order kept.
+    pub fn patterns(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (PatternIdentifier, &FormalParameter<'_>)> {
+        let patterns = &self.0.borrow_dependent().patterns;
+        patterns
+            .iter()
+            .enumerate()
+            .map(|(i, p)| (PatternIdentifier::at(i), p))
+    }
+
+    /// Every parameter list kept apart from a program, with its identifier, in the order kept.
+    pub fn parameters(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (ParametersIdentifier, &FormalParameters<'_>)> {
+        let parameters = &self.0.borrow_dependent().parameters;
+        parameters
+            .iter()
+            .enumerate()
+            .map(|(i, p)| (ParametersIdentifier::at(i), p))
+    }
+
     /// The comments outside the programs, in document order.
     #[must_use]
     pub fn comments(&self) -> &[Comment] {

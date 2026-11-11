@@ -89,7 +89,9 @@ struct ServerCompilationContext<'c, 'o> {
     snippets: Vec<Statement<'o>>,
     /// Top-level snippets that read only module-level names, declared beside the component.
     hoisted_snippets: Vec<Statement<'o>>,
-    hoistable: FxHashSet<SymbolId>,
+    hoistable: &'c FxHashSet<SymbolId>,
+    /// The component has an instance script, whose names its function declares.
+    instance_script: bool,
 }
 
 pub(super) fn lower_prepared<'c, 'o>(
@@ -128,12 +130,17 @@ pub(super) fn lower_prepared<'c, 'o>(
         identity,
         snippets: Vec::new(),
         hoisted_snippets: Vec::new(),
-        hoistable: super::snippets::hoistable(input, res),
+        hoistable: &facts.validated.hoistable,
+        instance_script: input.component.instance.is_some(),
     };
-    let mut template = sx.fragment(input.component.compiler_syntax_tree.root)?;
+    let (mut snippets, template) =
+        sx.fragment_parts(input.component.compiler_syntax_tree.root, |_| false)?;
     if uses_component_bindings(input) {
-        template = sx.settle(template);
+        sx.settle(template, &mut snippets);
+    } else {
+        snippets.extend(template);
     }
+    let template = snippets;
 
     let mut body: Vec<Statement<'o>> = instance;
     body.extend(template);
@@ -218,13 +225,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         b.stmt(b.call(b.member(b.id("$$renderer"), "push"), [b.string(text)]))
     }
 
-    /// Renders the template until no child binding changes a value (`$$settled`).
-    fn settle(&self, template: Vec<Statement<'o>>) -> Vec<Statement<'o>> {
+    /// Renders the template until no child binding changes a value (`$$settled`), after the
+    /// snippets, which stay outside where the component's own names can read them.
+    fn settle(&self, template: Vec<Statement<'o>>, snippets: &mut Vec<Statement<'o>>) {
         let b = self.b;
-        // The snippets stay outside, where the component's own names can read them.
-        let (mut snippets, template): (Vec<_>, Vec<_>) = template
-            .into_iter()
-            .partition(|statement| matches!(statement, Statement::FunctionDeclaration(_)));
         let render_inner =
             b.function_declaration("$$render_inner", b.params(["$$renderer"]), template, false);
         let copy = b.call(b.member(b.id("$$renderer"), "copy"), []);
@@ -251,7 +255,6 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             do_while,
             b.stmt(subsume),
         ]);
-        snippets
     }
 }
 

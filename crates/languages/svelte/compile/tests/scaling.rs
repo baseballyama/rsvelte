@@ -154,3 +154,34 @@ fn a_call_chain_compiles_in_allocations_linear_in_its_length() {
         .expect("compiles");
     assert!(long < 3 * short, "{short} allocations, then {long}");
 }
+
+#[test]
+fn a_components_snippets_take_as_long_as_an_elements() {
+    // Checking each of a component's snippets against all its attributes and children is
+    // quadratic; an element's snippets meet neither check, so they bound the time.
+    let markup = |tag: &str| {
+        let attributes: Vec<String> = (0..6000).map(|i| format!(" a{i}={{x}}")).collect();
+        let snippets: Vec<String> = (0..6000)
+            .map(|i| format!("{{#snippet s{i}()}}<p>{{x}}</p>{{/snippet}}"))
+            .collect();
+        let (attributes, snippets) = (attributes.concat(), snippets.concat());
+        format!(
+            "<script>import C from './C.svelte'; let x = $state(0);</script><{tag}{attributes}>{snippets}</{tag}>"
+        )
+    };
+    let time = |source: &str| {
+        (0..3)
+            .map(|_| {
+                let start = std::time::Instant::now();
+                stages(source, Stage::Compile);
+                start.elapsed()
+            })
+            .min()
+            .expect("three runs")
+    };
+    let (component, element) = (time(&markup("C")), time(&markup("div")));
+    assert!(
+        component < 2 * element,
+        "the component took {component:?}, the element {element:?}"
+    );
+}

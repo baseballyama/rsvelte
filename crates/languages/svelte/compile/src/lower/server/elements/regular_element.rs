@@ -58,7 +58,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let void = is_void(&tag);
         template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
         let cleaned = self.plan.fragment(el.children);
-        self.hoisted_elements(&cleaned.hoisted, template)?;
+        self.hoisted_elements(&cleaned.hoisted, |_| false, template)?;
         self.process_children(&cleaned.items, template)?;
         if !void {
             template.push(Piece::Text(format!("</{tag}>")));
