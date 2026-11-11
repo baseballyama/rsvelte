@@ -2,7 +2,7 @@
 let value=$state("a");export function set(next){value=next;}export function get(){return value;}
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": get(),

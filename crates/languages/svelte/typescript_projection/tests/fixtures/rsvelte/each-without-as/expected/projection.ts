@@ -9,7 +9,7 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
   items: __rsvelte_array_prop(),
   count: 2,
 }, false);
-() => {
+async () => {
   {
     for (let [, ] of __rsvelte_each(items)) {
       {

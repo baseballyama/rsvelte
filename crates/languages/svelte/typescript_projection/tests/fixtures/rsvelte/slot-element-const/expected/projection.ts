@@ -5,7 +5,7 @@
 
 ;
 
-() => {
+async () => {
   {
     __rsvelte_component(C)(__rsvelte_internals(), {});
     {

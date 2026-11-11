@@ -14,7 +14,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {});
     (label);

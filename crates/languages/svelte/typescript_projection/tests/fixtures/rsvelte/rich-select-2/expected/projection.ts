@@ -2,7 +2,7 @@
 import Option from './Option.svelte'; let x = $state(1); let html = '';
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("div", {});
     {

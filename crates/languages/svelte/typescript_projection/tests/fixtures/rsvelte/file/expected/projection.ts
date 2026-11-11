@@ -6,7 +6,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {});
     (header ? 'with header' : 'no header');

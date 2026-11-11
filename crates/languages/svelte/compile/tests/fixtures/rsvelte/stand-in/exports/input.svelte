@@ -10,4 +10,4 @@
 	let value = $state('');
 </script>
 
-<p style:color={value}>{value}</p>
+<svelte:element this="p">{value}</svelte:element>

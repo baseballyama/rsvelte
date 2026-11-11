@@ -8,7 +8,7 @@
 const __rsvelte_public_props0 = __rsvelte_props({}, {
   options: __rsvelte_array_prop(),
 }, true);
-() => {
+async () => {
   {
     svelteHTML.createElement("select", {
       ...(rest),

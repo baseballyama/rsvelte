@@ -8,7 +8,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("ul", {});
     {

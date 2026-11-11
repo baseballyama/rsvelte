@@ -2,7 +2,7 @@
 const f=(pattern=/[(){}]/) => pattern.test("a");
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": f() ? "a" : "b",

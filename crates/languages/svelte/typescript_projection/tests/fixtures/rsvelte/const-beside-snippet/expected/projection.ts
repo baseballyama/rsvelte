@@ -7,14 +7,16 @@
 const __rsvelte_public_props0 = __rsvelte_props({
   items: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   {
     const __rsvelte_component_0 = __rsvelte_component(Component);
     __rsvelte_component_0(__rsvelte_internals(), {
       children: __rsvelte_children,
       prop: () => {
-        const foo = items[0];
-        (foo);
+        async () => {
+          const foo = items[0];
+          (foo);
+        };
         return __rsvelte_snippet_return;
       },
     });
@@ -25,7 +27,9 @@ const __rsvelte_public_props0 = __rsvelte_props({
       const __rsvelte_component_0 = __rsvelte_component(Component);
       __rsvelte_component_0(__rsvelte_internals(), {
         prop: () => {
-          (foo);
+          async () => {
+            (foo);
+          };
           return __rsvelte_snippet_return;
         },
       });

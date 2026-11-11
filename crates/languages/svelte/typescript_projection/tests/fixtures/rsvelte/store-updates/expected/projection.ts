@@ -3,7 +3,7 @@ import { writable } from 'svelte/store'; let a = $state(writable(1));;let $a!: _
  function f() { a = writable(2); $a++; ++$a; $a -= 1; $a.x--; }
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {});
     ($a);

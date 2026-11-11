@@ -8,7 +8,7 @@
 const __rsvelte_public_props0 = __rsvelte_props({
   title: __rsvelte_untyped_prop(),
 }, {}, true);
-() => {
+async () => {
   if ($$slots.header) {
     {
       svelteHTML.createElement("header", {});

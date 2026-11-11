@@ -9,7 +9,7 @@
 
 ;
 
-() => {
+async () => {
   {
     for (let [i, item] of __rsvelte_each(items)) {
       (item);

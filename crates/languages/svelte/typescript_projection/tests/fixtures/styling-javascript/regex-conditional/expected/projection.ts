@@ -2,7 +2,7 @@
 const value=(/[)]/.test("a")?"a":"b");
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": value,

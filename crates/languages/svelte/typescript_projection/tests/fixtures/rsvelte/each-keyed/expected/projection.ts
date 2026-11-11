@@ -7,7 +7,7 @@
 
 ;
 
-() => {
+async () => {
   {
     for (let [, person] of __rsvelte_each(people)) {
       (person.id);

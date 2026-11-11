@@ -6,14 +6,14 @@
 	let f = () => 1;
 	class K {}
 	let _class = '';
-	export { a, s, p, f, K, _class as class };
+	
 
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({}, {
   p: 1,
 }, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("div", {
       "class": _class,
@@ -24,6 +24,13 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
     (p);
   }
 };
-const ExportSpecifiersUnwritten__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const ExportSpecifiersUnwritten__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {
+  a: typeof a;
+  s: typeof s;
+  p: typeof p;
+  f: typeof f;
+  K: typeof K;
+  class: typeof _class;
+}, "">();
 type ExportSpecifiersUnwritten__SvelteComponent_ = ReturnType<typeof ExportSpecifiersUnwritten__SvelteComponent_>;
 export default ExportSpecifiersUnwritten__SvelteComponent_;

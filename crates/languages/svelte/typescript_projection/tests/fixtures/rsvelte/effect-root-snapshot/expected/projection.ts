@@ -14,7 +14,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("button", {
       "onclick": () => console.log(copy(), cleanup),

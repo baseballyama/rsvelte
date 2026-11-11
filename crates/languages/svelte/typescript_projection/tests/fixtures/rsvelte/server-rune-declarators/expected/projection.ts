@@ -11,7 +11,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {});
     (JSON.stringify(start));

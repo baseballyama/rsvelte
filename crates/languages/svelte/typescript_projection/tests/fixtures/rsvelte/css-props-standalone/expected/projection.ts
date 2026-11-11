@@ -10,7 +10,7 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
   show: true,
   w: 1,
 }, false);
-() => {
+async () => {
   {
     __rsvelte_component(C)(__rsvelte_internals(), {
       "--w": `${w}px`,

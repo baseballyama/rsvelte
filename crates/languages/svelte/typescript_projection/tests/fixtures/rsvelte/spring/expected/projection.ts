@@ -6,7 +6,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {});
     (size.current);

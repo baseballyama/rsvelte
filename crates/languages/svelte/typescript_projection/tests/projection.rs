@@ -140,11 +140,11 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
 
 #[test]
 fn unsupported_semantics_are_reported_at_the_original_construct() {
-    let source = "<p on:click={handler}></p>";
+    let source = "<svelte:element this=\"p\"></svelte:element>";
     let component = parse(source).expect("valid Svelte source");
     let error = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
-        .expect_err("event directives need their own type semantics");
-    assert_eq!(error.span().text(source), "on:click={handler}");
+        .expect_err("a dynamic element needs its own type semantics");
+    assert_eq!(error.span().text(source), "svelte:element");
 }
 
 #[test]
@@ -181,7 +181,7 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
     assert_eq!(
         output.out,
         concat!(
-            ";\n() => {\n",
+            ";\nasync () => {\n",
             "  if (ready) {\n",
             "    {\n",
             "      svelteHTML.createElement(\"p\", {\n",
@@ -207,7 +207,7 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
 fn template_nodes(tree: &SyntaxTree) -> &[NodeIdentifier] {
     for &identifier in tree.children(tree.root()) {
         if let Node::Statement(value) = tree.node(identifier)
-            && let Node::Arrow { body } = tree.node(value)
+            && let Node::Template(body) = tree.node(value)
         {
             return tree.children(body);
         }
@@ -364,16 +364,13 @@ fn a_component_s_snippets_are_props_after_its_attributes_as_svelte2tsx_passes_th
         .lookup_span(Span::new(head, head + 4))
         .expect("mapped");
     assert_eq!(mapped.text(source), "head");
-    // Snippets that are not a component's children still refuse.
-    let error = rsvelte_svelte_typescript_projection::lower_alone(
-        &parse("{#snippet s()}{/snippet}").expect("valid"),
-        "{#snippet s()}{/snippet}",
-    )
-    .expect_err("a template snippet is not projected yet");
-    assert_eq!(
-        error.span().text("{#snippet s()}{/snippet}"),
-        "{#snippet s()}{/snippet}"
-    );
+    // A snippet elsewhere is a constant, before the other children of its parent.
+    let source = "<div>{@render s()}{#snippet s()}{/snippet}</div>";
+    let (_, output) = project(source);
+    let out = &output.out;
+    let declared = out.find("const s = (): ReturnType<import('svelte').Snippet>");
+    let rendered = out.find("__rsvelte_ensure_snippet(s())");
+    assert!(declared.is_some() && declared < rendered, "{out}");
 }
 
 #[test]

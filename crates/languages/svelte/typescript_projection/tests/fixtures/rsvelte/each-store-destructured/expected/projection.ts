@@ -6,7 +6,7 @@
 
 ;
 
-() => {
+async () => {
   {
     for (let [i, { name, icon = 1 }] of __rsvelte_each($items)) {
       (name);

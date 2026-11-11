@@ -18,7 +18,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("button", {
       "onclick": () => { a++; one = 3; bb = 1; rest.x; c++; others = []; f++; g = 1; },

@@ -5,7 +5,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("select", {
       "multiple": true,

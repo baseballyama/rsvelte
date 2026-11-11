@@ -2,7 +2,7 @@
 const values=["a","b"];
 ;
 
-() => {
+async () => {
   {
     for (let [i, value] of __rsvelte_each(values as string[])) {
       (i);

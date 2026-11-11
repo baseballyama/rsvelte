@@ -11,7 +11,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
   pairs: __rsvelte_untyped_prop(),
   fixed: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   {
     for (let [, { id, name, size = 1, ...rest }] of __rsvelte_each(items)) {
       (id);

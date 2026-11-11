@@ -4,7 +4,7 @@
 
 ;
 
-() => {
+async () => {
   {
     for (let [, { id, data }] of __rsvelte_each(list)) {
       {

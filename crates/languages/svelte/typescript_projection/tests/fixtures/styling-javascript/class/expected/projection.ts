@@ -2,7 +2,7 @@
 class Value{#value="a";get value(){return this.#value;}set value(next){this.#value=next;}}const value=new Value();
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": value.value,

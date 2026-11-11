@@ -20,7 +20,7 @@
 
 ;
 
-() => {
+async () => {
   if (a) {
     const c = a;
     {

@@ -12,7 +12,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("button", {
       "onclick": () => { $inspect(a); a++; },

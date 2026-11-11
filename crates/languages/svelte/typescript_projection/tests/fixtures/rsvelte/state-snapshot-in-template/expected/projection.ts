@@ -4,7 +4,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {});
     ($state.snapshot(items).length);

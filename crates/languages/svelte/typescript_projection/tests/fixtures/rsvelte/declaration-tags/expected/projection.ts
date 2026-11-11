@@ -5,7 +5,7 @@
 
 ;
 
-() => {
+async () => {
   let n = $state(0), twice = $derived(n * 2);
   {
     svelteHTML.createElement("button", {

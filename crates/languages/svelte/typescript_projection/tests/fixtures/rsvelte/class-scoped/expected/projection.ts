@@ -5,7 +5,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": kind,

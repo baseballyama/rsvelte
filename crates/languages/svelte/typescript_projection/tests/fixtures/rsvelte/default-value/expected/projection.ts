@@ -4,7 +4,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("input", {
       "value": "x",

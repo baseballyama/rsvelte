@@ -2,7 +2,7 @@
 const text=(`a${{value:`b${1}`}.value}`);
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": text,

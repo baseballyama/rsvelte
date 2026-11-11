@@ -7,7 +7,7 @@
 const __rsvelte_public_props0 = __rsvelte_props({
   results: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   {
     for (let [, result] of __rsvelte_each(results)) {
       {

@@ -2,7 +2,7 @@
 const value=<string>("a" as unknown as string);const fn=((x:string)=>x) as (x:string)=>string;
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": fn(value),

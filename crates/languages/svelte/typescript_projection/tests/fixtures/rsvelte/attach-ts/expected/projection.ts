@@ -16,7 +16,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       [Symbol("@attach")]: grow,

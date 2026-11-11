@@ -9,7 +9,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("input", {
       "type": "checkbox",

@@ -6,7 +6,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("select", {
       "value": picked,

@@ -1,1 +1,1 @@
-error check_unsupported 7:2-7:17 not supported by the type-check projection yet: custom elements and svelte: elements
+error check_unsupported 7:2-7:17 not supported by the type-check projection yet: svelte: elements

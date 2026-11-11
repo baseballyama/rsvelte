@@ -10,7 +10,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
 }, {
   title: 'List',
 }, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("section", {
       "class": "list",

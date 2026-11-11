@@ -1,1 +1,0 @@
-error check_unsupported 7:1-7:33 not supported by the type-check projection yet: blocks

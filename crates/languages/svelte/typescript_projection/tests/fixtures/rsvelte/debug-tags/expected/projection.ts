@@ -2,7 +2,7 @@
 let x = $state(1); let y = 2; let o = $state({a: 1});
 ;
 
-() => {
+async () => {
   {
     (x);
     (y);

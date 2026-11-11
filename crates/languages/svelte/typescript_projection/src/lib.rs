@@ -15,6 +15,8 @@ pub const DECLARATIONS: (&str, &str) = (
     concat!(
         include_str!("../vendor/svelte-jsx-v4.d.ts"),
         "\n",
+        include_str!("../vendor/svelte-shims-v4.d.ts"),
+        "\n",
         include_str!("../projection.d.ts")
     ),
 );

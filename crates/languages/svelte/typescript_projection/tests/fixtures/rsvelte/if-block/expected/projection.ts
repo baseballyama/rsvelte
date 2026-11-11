@@ -7,7 +7,7 @@
 const __rsvelte_public_props0 = __rsvelte_props({
   ok: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   if (ok) {
     {
       svelteHTML.createElement("p", {});

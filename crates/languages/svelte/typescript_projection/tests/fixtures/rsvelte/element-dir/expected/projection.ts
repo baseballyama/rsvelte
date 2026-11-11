@@ -2,7 +2,7 @@
 let count = $state(0);
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("div", {
       "dir": "auto",
