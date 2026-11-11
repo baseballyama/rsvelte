@@ -58,6 +58,8 @@ pub enum Node {
         type_parameters: Span,
         /// The parameters' names, which instantiate the render function.
         names: Range,
+        /// The parameters without modifiers, for the interface and the instance type.
+        declared: Range,
     },
     Expression(SourceExpression),
     Statement(NodeIdentifier),

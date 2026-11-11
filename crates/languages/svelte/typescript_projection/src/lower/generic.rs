@@ -13,6 +13,8 @@ pub(super) struct Generics {
     pub(super) start: usize,
     type_parameters: Span,
     names: rsvelte_svelte_syntax::syntax_tree::Range,
+    /// Each parameter without its modifiers, which an interface or a type alias rejects.
+    declared: rsvelte_svelte_syntax::syntax_tree::Range,
 }
 
 impl Builder<'_> {
@@ -47,6 +49,12 @@ impl Builder<'_> {
                 .push(self.tree.push(Node::UnmappedSource(name)));
         }
         let names = self.finish_list(start);
+        for parameter in &declaration.params {
+            let declared = Span::new(parameter.name.span.start, parameter.span.end);
+            self.scratch
+                .push(self.tree.push(Node::UnmappedSource(declared)));
+        }
+        let declared = self.finish_list(start);
         for statement in &program.body {
             match statement {
                 Statement::ImportDeclaration(import) => {
@@ -83,6 +91,7 @@ impl Builder<'_> {
             start: 0,
             type_parameters: Span::new(first.span.start, last.span.end),
             names,
+            declared,
         }))
     }
 
@@ -98,6 +107,7 @@ impl Builder<'_> {
         self.scratch.push(self.tree.push(Node::GenericExport {
             type_parameters: generics.type_parameters,
             names: generics.names,
+            declared: generics.declared,
         }));
     }
 }

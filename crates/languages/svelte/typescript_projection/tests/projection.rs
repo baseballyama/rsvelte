@@ -479,3 +479,23 @@ fn a_generic_component_renders_in_a_function_of_its_type_parameters() {
         "{out}"
     );
 }
+
+#[test]
+fn a_const_type_parameter_stays_only_where_typescript_allows_it() {
+    let source =
+        "<script lang=\"ts\" generics=\"const T extends string\">let x: T = null as any;</script>";
+    let (_, output) = project(source);
+    let out = &output.out;
+    assert!(
+        out.contains("function $$render<const T extends string>()"),
+        "{out}"
+    );
+    assert!(
+        out.contains("interface __rsvelte_generic_component { <T extends string>("),
+        "{out}"
+    );
+    assert!(
+        out.contains("type $$Component<T extends string> = "),
+        "{out}"
+    );
+}
