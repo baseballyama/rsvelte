@@ -7,6 +7,7 @@ mod classes;
 mod declarators;
 mod exports;
 mod props;
+mod statements;
 mod stores;
 mod writes;
 
@@ -26,6 +27,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_compile::strip::is_type_only;
 use rustc_hash::{FxHashMap, FxHashSet};
+use statements::{Inspect, inspect, is_effect};
 
 use super::javascript::member_root;
 use super::names::Names;
@@ -70,27 +72,6 @@ pub(super) enum Read {
 impl Read {
     pub(super) const fn get_if(through_get: bool) -> Self {
         if through_get { Self::Get } else { Self::Plain }
-    }
-}
-
-impl<'o> ScriptRewrite<'_, 'o> {
-    /// A statement list, rewritten; `drop_empty` as esrap prints a block or program body.
-    fn statement_list(&mut self, list: &mut ArenaVec<'o, Statement<'o>>, drop_empty: bool) {
-        let b = self.b;
-        let mut out = ArenaVec::with_capacity_in(list.len(), b);
-        for mut statement in list.drain(..) {
-            if inspect(self.res, &statement) == Some(Inspect::Value) {
-                let span = oxc_span::GetSpan::span(&statement);
-                out.push(Statement::new_empty_statement(span, b));
-                out.push(Statement::new_empty_statement(span, b));
-                continue;
-            }
-            self.visit_statement(&mut statement);
-            if !drop_empty || !matches!(statement, Statement::EmptyStatement(_)) {
-                out.push(statement);
-            }
-        }
-        *list = out;
     }
 }
 
@@ -389,33 +370,6 @@ pub(super) fn bindable_root<'e>(
     (res.binding(symbol).kind == BindingKind::BindableProperty
         && is_prop_source(res, accessors, symbol))
     .then_some(root)
-}
-
-/// Upstream server `ExpressionStatement`: an effect statement renders nothing.
-fn is_effect(res: &Resolution, statement: &Statement<'_>) -> bool {
-    matches!(statement, Statement::ExpressionStatement(s)
-        if res.rune(&s.expression).is_some_and(|(r, _)| matches!(r, "$effect" | "$effect.pre" | "$effect.root")))
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Inspect {
-    /// `$inspect(…)` or `$inspect(…).with(…)`, whose call upstream replaces with an empty
-    /// statement, so the statement prints as `;;`.
-    Value,
-    /// `$inspect.trace(…)`, whose statement upstream replaces with an empty one.
-    Trace,
-}
-
-/// An `$inspect` statement, which only a development build keeps.
-fn inspect(res: &Resolution, statement: &Statement<'_>) -> Option<Inspect> {
-    let Statement::ExpressionStatement(s) = statement else {
-        return None;
-    };
-    match res.rune(&s.expression)?.0 {
-        "$inspect" | "$inspect().with" => Some(Inspect::Value),
-        "$inspect.trace" => Some(Inspect::Trace),
-        _ => None,
-    }
 }
 
 /// Upstream `should_proxy` on a value it has already visited, where a prop's name has become a
