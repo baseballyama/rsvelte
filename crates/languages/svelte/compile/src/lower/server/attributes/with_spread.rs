@@ -4,7 +4,8 @@ use oxc_ast::ast::{Expression, ObjectPropertyKind};
 use super::escaped_text;
 use crate::lower::server::{
     Attribute, AttributeValue, CompilerNodeIdentifier, Piece, ServerCompilationContext,
-    capture_event, event_attribute, is_directive, is_load_error_element, push_captured_events,
+    capture_event, capture_load_events, event_attribute, is_behaviour, is_directive,
+    push_captured_events,
 };
 
 const ELEMENT_IS_INPUT: u32 = 1 << 2;
@@ -54,7 +55,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                     props.push(b.init(&name, value));
                     continue;
                 }
-                AttributeValue::Attach(_) | AttributeValue::On { .. } => continue,
+                AttributeValue::Use { .. } => {
+                    capture_load_events(&mut events, tag);
+                    continue;
+                }
+                _ if is_behaviour(&a.value) => continue,
                 AttributeValue::Class(e) => {
                     class_directives.push((raw_name, e));
                     continue;
@@ -62,10 +67,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 AttributeValue::Spread(e) => {
                     let v = self.expression(e);
                     props.push(b.spread_property(v));
-                    if is_load_error_element(tag) {
-                        capture_event(&mut events, tag, "onload");
-                        capture_event(&mut events, tag, "onerror");
-                    }
+                    capture_load_events(&mut events, tag);
                     continue;
                 }
                 _ if all => {}

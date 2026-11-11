@@ -3,7 +3,7 @@ use oxc_ast::ast::Expression;
 
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, R,
-    event_attribute, normalize_attribute, unsupported,
+    event_attribute, is_behaviour, normalize_attribute, unsupported,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -22,10 +22,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .filter(|a| matches!(a.value, AttributeValue::Class(_)))
             .collect();
         for a in attributes {
-            if let AttributeValue::Bind(_)
-            | AttributeValue::Attach(_)
-            | AttributeValue::On { .. }
-            | AttributeValue::Class(_) = a.value
+            if is_behaviour(&a.value)
+                || matches!(a.value, AttributeValue::Bind(_) | AttributeValue::Class(_))
             {
                 continue;
             }

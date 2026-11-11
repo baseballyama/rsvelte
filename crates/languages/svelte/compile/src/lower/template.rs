@@ -115,6 +115,19 @@ pub(super) const fn is_directive(v: &AttributeValue) -> bool {
     )
 }
 
+/// A directive that adds behaviour to the element and renders no attribute, on either target.
+#[must_use]
+pub(super) const fn is_behaviour(v: &AttributeValue) -> bool {
+    matches!(
+        v,
+        AttributeValue::On { .. }
+            | AttributeValue::Use { .. }
+            | AttributeValue::Transition { .. }
+            | AttributeValue::Animate { .. }
+            | AttributeValue::Attach(_)
+    )
+}
+
 /// Upstream analysis' `synthetic_value_node`: an `<option>` without a `value` attribute whose
 /// only child is an expression tag takes that expression as its value.
 #[must_use]

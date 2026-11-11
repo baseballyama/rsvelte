@@ -130,13 +130,14 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
     }
 
+    /// Upstream `OnDirective`: the `$.event` call, which the caller places.
     pub(super) fn event_directive(
         &mut self,
         attribute: &Attribute,
         target: &str,
         global: bool,
         lists: &mut Lists<'o>,
-    ) {
+    ) -> Expression<'o> {
         let b = self.b;
         let AttributeValue::On { handler, modifiers } = attribute.value else {
             unreachable!("an event directive")
@@ -180,15 +181,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         } else {
             None
         };
-        let call = b.runtime_some(
+        b.runtime_some(
             "event",
             vec![Some(name), Some(target), Some(handler), capture, passive],
-        );
-        if global {
-            lists.initializer.push(b.stmt(call));
-        } else {
-            lists.after.push(b.stmt(call));
-        }
+        )
     }
 
     fn global_event_target(&self, node: &str) -> Expression<'o> {

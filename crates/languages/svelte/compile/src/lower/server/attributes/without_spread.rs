@@ -5,8 +5,8 @@ use super::{escaped_text, scoped_class};
 use crate::lower::javascript::string_value;
 use crate::lower::server::{
     Attribute, AttributeValue, CompilerNodeIdentifier, Piece, R, ServerCompilationContext,
-    capture_event, escape_markup, event_attribute, is_boolean_attribute, is_directive,
-    push_captured_events, unsupported,
+    capture_event, capture_load_events, escape_markup, event_attribute, is_behaviour,
+    is_boolean_attribute, is_directive, push_captured_events, unsupported,
 };
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -51,9 +51,12 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                     template.push(Piece::Expression(call));
                     continue;
                 }
-                AttributeValue::Attach(_)
-                | AttributeValue::On { .. }
-                | AttributeValue::Class(_) => continue,
+                AttributeValue::Use { .. } => {
+                    capture_load_events(&mut events, tag);
+                    continue;
+                }
+                AttributeValue::Class(_) => continue,
+                _ if is_behaviour(&a.value) => continue,
                 AttributeValue::Spread(_) => unreachable!("spreads take the spread path"),
                 _ if event_attribute(self.source_text, a).is_some() => {
                     capture_event(&mut events, tag, raw_name);
@@ -105,19 +108,36 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 template.push(Piece::Expression(self.b.runtime("attr", arguments)));
             }
         }
-        // Upstream's analysis appends `class=""` to such an element.
+        self.implicit_class(
+            identifier,
+            list,
+            &class_directives,
+            hash.as_deref(),
+            template,
+        );
+        push_captured_events(template, &events);
+        Ok(())
+    }
+
+    /// Upstream's analysis appends `class=""` to an element with `class:` or a scoped one.
+    fn implicit_class(
+        &self,
+        identifier: CompilerNodeIdentifier,
+        list: &[Attribute],
+        class_directives: &[&Attribute],
+        hash: Option<&str>,
+        template: &mut Vec<Piece<'o>>,
+    ) {
         let has_class = list.iter().any(|a| {
             !matches!(a.value, AttributeValue::Class(_))
                 && a.name.text(self.source_text).eq_ignore_ascii_case("class")
         });
         if !has_class && !class_directives.is_empty() {
-            let call = self.attribute_class(&class_directives, self.b.string(""), hash.as_deref());
+            let call = self.attribute_class(class_directives, self.b.string(""), hash);
             template.push(Piece::Expression(call));
         } else if !has_class && self.an.scoped[identifier] {
-            Self::literal_attribute(template, "class", Some(String::new()), hash.as_deref());
+            Self::literal_attribute(template, "class", Some(String::new()), hash);
         }
-        push_captured_events(template, &events);
-        Ok(())
     }
 
     fn literal_attribute(
