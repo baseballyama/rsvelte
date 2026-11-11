@@ -130,24 +130,6 @@ fn a_destructuring_assignment_writes_each_path_as_upstream_does() {
     assert!(squashed(plain, Target::Client).contains("[a,b]=[b,a]"));
 }
 
-/// Upstream splits each into one declaration per path, which this port does not do yet.
-#[test]
-fn a_destructured_state_is_refused_on_both_targets() {
-    for script in [
-        "const { a, b: c } = $state({ a: 1, b: 2 });",
-        "let [x] = $state.raw([1]);",
-    ] {
-        let source = format!("<script>{script}</script>");
-        for target in [Target::Client, Target::Server] {
-            assert_eq!(
-                compile(&source, target).err().as_deref(),
-                Some("unsupported"),
-                "{source} on {target:?}"
-            );
-        }
-    }
-}
-
 /// Upstream prints such a head as invalid JavaScript (`for ($.get(n) of xs)`, `for (d() of xs)`).
 #[test]
 fn a_loop_head_that_assigns_a_signal_is_refused_on_both_targets() {

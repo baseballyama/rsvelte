@@ -135,9 +135,8 @@ impl RuneWalk<'_> {
         // Upstream splits a destructured state or derived into one declaration per path.
         let destructured = match place.parent {
             Parent::Initializer { named: false, .. } => match rune {
-                "$state" | "$state.raw" => true,
-                // Only a script's rewrite has the names its `$$d` and arrays take.
-                "$derived" | "$derived.by" => !matches!(
+                // Only a script's rewrite has the names its `tmp`, `$$d` and arrays take.
+                "$state" | "$state.raw" | "$derived" | "$derived.by" => !matches!(
                     self.frames.first().map(|f| f.kind),
                     Some(AstKind::Program(_))
                 ),
