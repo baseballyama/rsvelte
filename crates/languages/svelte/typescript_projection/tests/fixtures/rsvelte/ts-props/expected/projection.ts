@@ -17,4 +17,6 @@
     (count);
   }
 };
-export default __rsvelte_export_component<Props, {}, "">();
+const TsProps__SvelteComponent_ = __rsvelte_export_component<Props, {}, "">();
+type TsProps__SvelteComponent_ = ReturnType<typeof TsProps__SvelteComponent_>;
+export default TsProps__SvelteComponent_;

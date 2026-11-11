@@ -46,4 +46,6 @@ const __rsvelte_public_props0 = __rsvelte_props({
     }
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const StoreSubscriptions__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type StoreSubscriptions__SvelteComponent_ = ReturnType<typeof StoreSubscriptions__SvelteComponent_>;
+export default StoreSubscriptions__SvelteComponent_;

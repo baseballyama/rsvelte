@@ -6,7 +6,7 @@ mod lower;
 pub mod syntax_tree;
 pub use lower::{Resolve, lower, lower_alone};
 mod emit;
-pub use emit::emit;
+pub use emit::{emit, emit_named};
 mod computation;
 pub use computation::{Printed, Projected, register, register_artifacts};
 
@@ -18,6 +18,46 @@ pub const DECLARATIONS: (&str, &str) = (
         include_str!("../projection.d.ts")
     ),
 );
+
+/// svelte2tsx's `classNameFromFilename`: the name a component's default export declares.
+///
+/// It is the part of the file name before the first `.` in `PascalCase`, without the characters
+/// a name cannot have, and with the suffix that keeps it apart from the component's own names.
+#[must_use]
+pub fn component_name(path: &str) -> String {
+    let mut name = String::new();
+    write_component_name(path, &mut name);
+    name
+}
+
+/// Appends [`component_name`] to `out`.
+pub(crate) fn write_component_name(path: &str, out: &mut String) {
+    let file = path.rsplit(['/', '\\']).next().unwrap_or(path);
+    let stem = file.split('.').next().unwrap_or(file);
+    let valid = |c: &char| c.is_ascii_alphanumeric() || matches!(c, '_' | '-');
+    // A name starts at its first letter; JavaScript's `substr(-1)` keeps the last character
+    // when there is none.
+    let start = stem
+        .find(|c: char| c.is_ascii_alphabetic())
+        .unwrap_or_else(|| {
+            out.push('A');
+            stem.char_indices()
+                .rfind(|(_, c)| valid(c))
+                .map_or(stem.len(), |(i, _)| i)
+        });
+    let mut upper = true;
+    for c in stem[start..].chars().filter(valid) {
+        if matches!(c, '_' | '-') {
+            upper = true;
+        } else if upper {
+            out.push(c.to_ascii_uppercase());
+            upper = false;
+        } else {
+            out.push(c);
+        }
+    }
+    out.push_str("__SvelteComponent_");
+}
 
 /// What an import of a component that is not projected reads: a component of any props.
 ///

@@ -60,6 +60,8 @@ return their original source range.
   keys.
 - Instance value exports are members of the component instance; module exports keep their
   module meaning. A component without props rejects arbitrary property names.
+- The default export also names the instance's type, as svelte2tsx does, so an import can
+  annotate a variable with the component.
 
 Still unsupported:
 

@@ -59,4 +59,6 @@ const __rsvelte_public_props0 = __rsvelte_props({
     }
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "p">();
+const BindThis__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "p">();
+type BindThis__SvelteComponent_ = ReturnType<typeof BindThis__SvelteComponent_>;
+export default BindThis__SvelteComponent_;

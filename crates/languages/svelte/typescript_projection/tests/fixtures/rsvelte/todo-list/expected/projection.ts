@@ -89,4 +89,6 @@
     });
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const TodoList__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type TodoList__SvelteComponent_ = ReturnType<typeof TodoList__SvelteComponent_>;
+export default TodoList__SvelteComponent_;

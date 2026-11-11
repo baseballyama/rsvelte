@@ -24,4 +24,6 @@
     (level);
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const ClassTs__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type ClassTs__SvelteComponent_ = ReturnType<typeof ClassTs__SvelteComponent_>;
+export default ClassTs__SvelteComponent_;
