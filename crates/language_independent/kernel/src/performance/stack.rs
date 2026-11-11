@@ -11,7 +11,7 @@ const RED_ZONE: usize = 256 << 10;
 /// The size of each new segment.
 const SEGMENT: usize = 4 << 20;
 
-/// Runs `f` on this stack, or on a new segment when less than [`RED_ZONE`] is left.
+/// Runs `f` on this stack, or on a new segment when less than the red zone is left.
 #[inline]
 pub fn grow<R>(f: impl FnOnce() -> R) -> R {
     stacker::maybe_grow(RED_ZONE, SEGMENT, f)

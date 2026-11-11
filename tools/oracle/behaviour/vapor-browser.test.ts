@@ -179,7 +179,7 @@ test(
 					positiveControls++;
 				}
 				if (name === 'custom-element-spreads') {
-					const assignment = "const custom = el.nodeName.includes('-');";
+					const assignment = 'const custom = el.nodeName.includes("-");';
 					assert.ok(code.includes(assignment));
 					modules.set(`${name}:vapor`, code.replace(assignment, 'const custom = false;'));
 					assert.notDeepEqual(
@@ -275,7 +275,7 @@ test(
 					positiveControls += 2;
 				}
 				if (name === 'transitions-deferred') {
-					const condition = "typeof config === 'function'";
+					const condition = 'typeof config === "function"';
 					assert.ok(code.includes(condition));
 					modules.set(`${name}:vapor`, code.replace(condition, 'false'));
 					assert.notDeepEqual(

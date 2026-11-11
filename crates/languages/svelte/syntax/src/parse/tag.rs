@@ -119,7 +119,7 @@ impl Parser<'_, '_> {
             if self.peek() != Some(b'}') {
                 let identifiers = match self.read_expression()? {
                     Expression::SequenceExpression(sequence) => sequence.unbox().expressions,
-                    expression => ArenaVec::from_value_in(expression, &self.builder.ast()),
+                    expression => ArenaVec::from_value_in(expression, &self.builder.nodes()),
                 };
                 for identifier in identifiers {
                     if !matches!(identifier, Expression::Identifier(_)) {
@@ -163,22 +163,22 @@ impl Parser<'_, '_> {
         }
         let declarator_end = self.position as u32;
         self.close_mustache()?;
-        let ast = self.builder.ast();
+        let nodes = self.builder.nodes();
         let declarator = VariableDeclarator::new(
             oxc_span::Span::new(pattern.span.start, declarator_end),
             pattern.pattern,
             pattern.type_annotation,
             Some(initializer),
             false,
-            &ast,
+            &nodes,
         );
         // Upstream's declaration starts at `const`, after the `{@`.
         let declaration = VariableDeclaration::new(
             oxc_span::Span::new(start_offset as u32 + 2, self.position as u32 - 1),
             VariableDeclarationKind::Const,
-            ArenaVec::from_value_in(declarator, &ast),
+            ArenaVec::from_value_in(declarator, &nodes),
             false,
-            &ast,
+            &nodes,
         );
         let declaration = self.builder.keep_declaration(declaration);
         let span = Span::new(start_offset as u32, self.position as u32);

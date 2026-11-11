@@ -193,12 +193,12 @@ test('the Vapor trace detects omitted autofocus', async () => {
 
 test('the Vapor trace detects boolean coercion of a normal attribute', async () => {
 	const [unit, code] = vaporSource('ordinary-attributes');
-	const value = "'answer', active.value ? 42 : false";
+	const value = '"answer", active.value ? 42 : false';
 	assert.ok(code.includes(value));
 	const observed = await vuelteCompile.observe!.derive(
 		unit,
 		{ id: 'client', options: {} },
-		moduleFile(code.replace(value, "'answer', Boolean(active.value ? 42 : false)"), 'client'),
+		moduleFile(code.replace(value, '"answer", Boolean(active.value ? 42 : false)'), 'client'),
 	);
 	assert.match(observed.diff(await expected(unit, 'client')) ?? '', /step 1/);
 });
@@ -228,13 +228,13 @@ test('the Vapor trace detects a preserved static pre newline', async () => {
 
 test('the Vapor trace detects a stale nonreactive attribute', async () => {
 	const [unit, code] = vaporSource('nonreactive-reads');
-	const value = "'title', $$attr(plain)";
+	const value = '"title", $$attr(plain)';
 	assert.ok(code.includes(value));
 	const observed = await vuelteCompile.observe!.derive(
 		unit,
 		{ id: 'client', options: {} },
 		moduleFile(
-			code.replace(value, () => "'title', $$attr(0)"),
+			code.replace(value, () => '"title", $$attr(0)'),
 			'client',
 		),
 	);
@@ -310,8 +310,9 @@ test('the Vapor trace detects missing boundary recovery', async () => {
 	const unit = units.find((candidate) => candidate.path === 'boundary.svelte')!;
 	const file = path.join(ROOT, CASES[1]!.dir, 'boundary/expected/client.js');
 	const code = fs.readFileSync(file, 'utf8');
-	assert.ok(code.includes('failure.value = { error, reset, failed: options.failed };'));
-	const broken = code.replace('failure.value = { error, reset, failed: options.failed };', '');
+	const recovery = /failure\.value = \{\s*error,\s*reset,\s*failed: options\.failed\s*\};/;
+	assert.match(code, recovery);
+	const broken = code.replace(recovery, '');
 	const observed = await vuelteCompile.observe!.derive(
 		unit,
 		{ id: 'client', options: {} },
@@ -352,9 +353,12 @@ test('the Vapor trace detects a wrong SVG namespace', async () => {
 	const unit = units.find((candidate) => candidate.path === 'namespaces.svelte')!;
 	const file = path.join(ROOT, CASES[1]!.dir, 'namespaces/expected/client.js');
 	const code = fs.readFileSync(file, 'utf8');
-	const factory = `$$v_template('<circle cx="5" cy="5">', 0, 1)`;
+	const factory = String.raw`$$v_template("<circle cx=\"5\" cy=\"5\">", 0, 1)`;
 	assert.ok(code.includes(factory));
-	const broken = code.replace(factory, () => `$$v_template('<circle cx="5" cy="5">')`);
+	const broken = code.replace(
+		factory,
+		() => String.raw`$$v_template("<circle cx=\"5\" cy=\"5\">")`,
+	);
 	const observed = await vuelteCompile.observe!.derive(
 		unit,
 		{ id: 'client', options: {} },
@@ -368,7 +372,7 @@ test('the Vapor trace detects a wrong SVG namespace', async () => {
 
 test('the Vapor trace detects lowercased namespaced spread attributes', async () => {
 	const [unit, code] = vaporSource('namespace-spreads');
-	const namespace = "el.namespaceURI === 'http://www.w3.org/1999/xhtml'";
+	const namespace = 'el.namespaceURI === "http://www.w3.org/1999/xhtml"';
 	assert.ok(code.includes(namespace));
 	const broken = code.replace(namespace, 'true');
 	const observed = await vuelteCompile.observe!.derive(
