@@ -14,6 +14,7 @@ mod custom_element;
 mod derived;
 mod javascript;
 mod names;
+mod paths;
 mod prepare;
 mod rest_reads;
 mod script;
