@@ -6,6 +6,7 @@
 mod classes;
 mod declarators;
 mod exports;
+mod patterns;
 mod props;
 mod statements;
 mod stores;
@@ -23,13 +24,14 @@ use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::{ReferenceId, SymbolId};
 use oxc_span::Span;
 use oxc_syntax::scope::ScopeFlags;
+pub(super) use patterns::is_async;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_compile::strip::is_type_only;
 use rustc_hash::{FxHashMap, FxHashSet};
 use statements::{Inspect, inspect, is_effect};
+pub(super) use writes::mutates_signal;
 
-use super::javascript::member_root;
 use super::names::Names;
 use super::{Builder, Target, span_of, unsupported};
 use crate::lower::builder::Runtime;
@@ -143,7 +145,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
             }
             (Target::Client, BindingKind::Derived | BindingKind::DerivedBy) => Some(get()),
             (Target::Client, BindingKind::Property | BindingKind::BindableProperty) => {
-                if is_prop_source(self.res, self.accessors, symbol) {
+                if writes::is_prop_source(self.res, self.accessors, symbol) {
                     return Some(b.call(x(), []));
                 }
                 let key = info.prop_key?;
@@ -242,6 +244,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
                 match (self.class_assign(it))
                     .or_else(|| self.store_assign(it))
                     .or_else(|| self.assign(it))
+                    .or_else(|| self.pattern_assign(it, false))
                 {
                     Some(e) => e,
                     None => return walk_mut::walk_expression(self, it),
@@ -324,7 +327,7 @@ impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
             *it = Statement::new_empty_statement(oxc_span::GetSpan::span(it), self.b);
             return;
         }
-        walk_mut::walk_statement(self, it);
+        self.statement_patterns(it);
     }
 
     fn visit_class_body(&mut self, it: &mut ClassBody<'o>) {
@@ -355,30 +358,6 @@ impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
             walk_mut::walk_variable_declarator(self, it);
         }
     }
-}
-
-/// Upstream `is_prop_source`; a custom element's accessors read every prop through its signal.
-fn is_prop_source(res: &Resolution, accessors: bool, symbol: SymbolId) -> bool {
-    res.is_prop_source(symbol)
-        || (accessors
-            && matches!(
-                res.binding(symbol).kind,
-                BindingKind::Property | BindingKind::BindableProperty
-            ))
-}
-
-/// The `$bindable` prop with a signal that a write through a member of `object` writes:
-/// upstream's `mutate` transform then tells the parent, `prop((prop().x = value), true)`.
-pub(super) fn bindable_root<'e>(
-    res: &Resolution,
-    accessors: bool,
-    object: &'e Expression<'e>,
-) -> Option<&'e IdentifierReference<'e>> {
-    let root = member_root(object)?;
-    let symbol = res.symbol(root)?;
-    (res.binding(symbol).kind == BindingKind::BindableProperty
-        && is_prop_source(res, accessors, symbol))
-    .then_some(root)
 }
 
 /// Upstream `should_proxy` on a value it has already visited, where a prop's name has become a
@@ -445,9 +424,6 @@ pub(super) fn lower_script<'t, 'o>(
     let instance = matches!(context, ScriptContext::Instance { .. });
     let mut out = Vec::with_capacity(program.body.len());
     for statement in &program.body {
-        for _ in 0..writes::pattern_arrays(statement) {
-            names.generate("$$array");
-        }
         // Upstream erases the types before it analyzes the component.
         // A module's types are TypeScript's emit to erase, once it is lowered.
         if is_type_only(statement) && !matches!(context, ScriptContext::File) {

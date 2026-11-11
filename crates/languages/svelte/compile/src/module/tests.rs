@@ -166,3 +166,28 @@ fn a_module_reports_the_warnings_upstream_shows() {
     );
     assert_eq!(codes("export const b = $state(0);\n"), []);
 }
+
+#[test]
+fn a_destructuring_assignment_writes_each_path_through_its_transform() {
+    let source = "let a = $state(1);\nlet o = $state({});\nexport function f(x) {\n\treturn ({ a, b: \
+                  o.b = 2, ...o.c } = x);\n}\nexport function g(x) {\n\t[a, [o.d]] = [1, \
+                  [2]];\n\t[o.e] = x;\n}\n";
+    let compiled = compile("a.svelte.js", source, Target::Client);
+    assert!(
+        compiled.contains(
+            "return $.set(a, x.a, true), o.b = $.fallback(x.b, 2), o.c = \
+             $.exclude_from_object(x, [\"a\", \"b\"]);"
+        ),
+        "{compiled}"
+    );
+    assert!(
+        compiled.contains(
+            "(($$value) => {\n\t\tvar $$array = $.to_array($$value, 2);\n\t\tvar $$array_1 = \
+             $.to_array($$array[1], 1);\n\t\t$.set(a, $$array[0], true);\n\t\to.d = \
+             $$array_1[0];\n\t})([1, [2]]);\n\t[o.e] = x;"
+        ),
+        "{compiled}"
+    );
+    let compiled = compile("a.svelte.js", source, Target::Server);
+    assert!(compiled.contains("[a, [o.d]] = [1, [2]];"), "{compiled}");
+}

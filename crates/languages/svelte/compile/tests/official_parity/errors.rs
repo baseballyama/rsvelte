@@ -520,11 +520,6 @@ fn a_store_subscription_raises_upstreams_error_where_upstream_does() {
             Some(("global_reference_invalid", (4, 7))),
         ),
         ("<p>{$Foo}</p>".to_owned(), None),
-        // A destructuring assignment needs upstream's per-path assignment.
-        (
-            format!("<script>{store} let b; function f() {{ [$a, b] = [1, 2]; }}</script>"),
-            Some(("unsupported", (94, 110))),
-        ),
         (format!("<script>{store}</script><p>{{$a}}</p>"), None),
     ] {
         for target in [Target::Client, Target::Server] {

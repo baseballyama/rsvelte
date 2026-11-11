@@ -6,7 +6,8 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_span::SPAN;
 
-use super::{BindingKind, Names, ScriptRewrite, is_prop_source, should_proxy_read};
+use super::writes::is_prop_source;
+use super::{BindingKind, Names, ScriptRewrite, should_proxy_read};
 use crate::lower::builder::Runtime;
 use crate::lower::javascript::{is_simple_expression, prop_alias};
 

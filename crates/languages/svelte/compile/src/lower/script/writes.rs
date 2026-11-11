@@ -2,14 +2,16 @@
 
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn};
 use oxc_ast::ast::{
-    ArrayAssignmentTarget, AssignmentOperator, AssignmentTarget, Expression, ForStatementLeft,
-    SimpleAssignmentTarget, Statement, UpdateOperator,
+    AssignmentOperator, AssignmentTarget, Expression, IdentifierReference, SimpleAssignmentTarget,
+    UpdateOperator,
 };
-use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
-use rsvelte_svelte_semantic::resolve::BindingKind;
+use oxc_ast_visit::{VisitMut, walk_mut};
+use oxc_semantic::SymbolId;
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 
+use super::super::javascript::member_root;
 use super::super::{Builder, Target};
-use super::{ScriptRewrite, bindable_root, is_prop_source};
+use super::ScriptRewrite;
 use crate::lower::builder::Runtime;
 
 impl<'o> ScriptRewrite<'_, 'o> {
@@ -173,20 +175,45 @@ pub(super) fn assignment_value<'o>(
     }
 }
 
-/// How many array patterns the destructuring assignments in `statement` hold: upstream names a
-/// `$$array` for each as it visits the assignment, even one it leaves as written.
-pub(super) fn pattern_arrays(statement: &Statement<'_>) -> usize {
-    struct Count(usize);
-    impl<'a> Visit<'a> for Count {
-        fn visit_array_assignment_target(&mut self, it: &ArrayAssignmentTarget<'a>) {
-            self.0 += 1;
-            walk::walk_array_assignment_target(self, it);
-        }
+/// Upstream `is_prop_source`; a custom element's accessors read every prop through its signal.
+pub(super) fn is_prop_source(res: &Resolution, accessors: bool, symbol: SymbolId) -> bool {
+    res.is_prop_source(symbol)
+        || (accessors
+            && matches!(
+                res.binding(symbol).kind,
+                BindingKind::Property | BindingKind::BindableProperty
+            ))
+}
 
-        // A `for` loop's pattern is not an assignment expression upstream.
-        fn visit_for_statement_left(&mut self, _: &ForStatementLeft<'a>) {}
-    }
-    let mut count = Count(0);
-    count.visit_statement(statement);
-    count.0
+/// The `$bindable` prop with a signal that a write through a member of `object` writes:
+/// upstream's `mutate` transform then tells the parent, `prop((prop().x = value), true)`.
+fn bindable_root<'e>(
+    res: &Resolution,
+    accessors: bool,
+    object: &'e Expression<'e>,
+) -> Option<&'e IdentifierReference<'e>> {
+    let root = member_root(object)?;
+    let symbol = res.symbol(root)?;
+    (res.binding(symbol).kind == BindingKind::BindableProperty
+        && is_prop_source(res, accessors, symbol))
+    .then_some(root)
+}
+
+/// Upstream's client `mutate` transform: a write through a member of state, a derived or a prop
+/// is a rewrite, though in runes mode it keeps the mutation as it is.
+pub(in crate::lower) fn mutates_signal(
+    res: &Resolution,
+    accessors: bool,
+    object: &Expression<'_>,
+) -> bool {
+    (member_root(object))
+        .and_then(|root| res.symbol(root))
+        .is_some_and(|symbol| {
+            res.is_state_source(symbol)
+                || matches!(
+                    res.binding(symbol).kind,
+                    BindingKind::Derived | BindingKind::DerivedBy
+                )
+                || is_prop_source(res, accessors, symbol)
+        })
 }
