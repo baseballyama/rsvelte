@@ -1,4 +1,4 @@
-import { defineVaporComponent as $$v_defineVaporComponent, insert as $$v_insert, on as $$v_on, renderEffect as $$v_renderEffect, setText as $$v_setText, template as $$v_template, unref as $$v_unref } from "vue";
+import { computed as $$v_computed, defineVaporComponent as $$v_defineVaporComponent, insert as $$v_insert, on as $$v_on, renderEffect as $$v_renderEffect, setText as $$v_setText, template as $$v_template, unref as $$v_unref } from "vue";
 import { customRef as $$createState, computed as $$createDerived, watchEffect as $$watchEffect, watchPostEffect as $$watchPostEffect, effectScope as $$effectScope, ReactiveEffect as $$ReactiveEffect } from "vue";
 const $$state_marker = Symbol();
 const $$state_deleted = Symbol();
@@ -213,9 +213,11 @@ export default $$v_defineVaporComponent({
 		const $$v_n7 = $$v_n6.firstChild;
 		const $$v_n9 = $$v_n8();
 		const $$v_n11 = $$v_n10();
+		const $$v_n12 = $$v_computed(() => count.value);
 		$$v_insert([$$v_n11], $$v_n9);
 		$$v_renderEffect(() => {
-			$$v_setText($$v_n11, `${$$v_unref(initial) ?? ""}:${count.value ?? ""}:${count.value ?? ""}:${doubled.value}:${sampled.value ?? ""}`);
+			$$v_n12.value;
+			$$v_setText($$v_n11, `${$$v_unref(initial) ?? ""}:${count.value ?? ""}:${$$v_n12.value ?? ""}:${doubled.value}:${sampled.value ?? ""}`);
 		});
 		return [
 			$$v_n1,
