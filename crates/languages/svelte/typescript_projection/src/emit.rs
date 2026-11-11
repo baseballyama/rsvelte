@@ -107,6 +107,10 @@ impl Printer<'_> {
                 self.node(value);
                 self.output.push(",\n");
             }
+            Node::ImplicitChildren(at) => {
+                self.output.mark(at);
+                self.output.push("children: __rsvelte_children,\n");
+            }
             Node::Shorthand(value) => {
                 self.node(value);
                 self.output.push(",\n");

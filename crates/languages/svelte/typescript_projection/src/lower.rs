@@ -1,3 +1,4 @@
+mod children;
 mod contract;
 
 use oxc_ast::ast::Expression;
@@ -145,10 +146,11 @@ impl Builder<'_> {
                 component,
                 attributes,
                 children,
+                start_tag,
                 ..
             } => {
                 return self
-                    .element(name, component, attributes, children)
+                    .element(name, start_tag, component, attributes, children)
                     .map(Some);
             }
             TemplateNode::If {
@@ -228,6 +230,7 @@ impl Builder<'_> {
     fn element(
         &mut self,
         name: Span,
+        start_tag: Span,
         component: Option<ExpressionIdentifier>,
         attributes: Range,
         children: Range,
@@ -242,11 +245,14 @@ impl Builder<'_> {
                 name,
             ));
         }
-        if is_component && children.len != 0 {
-            return Err(Unsupported::at("component children", name));
-        }
         let start = self.scratch.len();
-        self.scratch.reserve(attributes.len as usize);
+        self.scratch.reserve(attributes.len as usize + 1);
+        if is_component
+            && let Some(at) = self.implicit_children(name, start_tag, attributes, children)
+        {
+            self.scratch
+                .push(self.tree.push(Node::ImplicitChildren(at)));
+        }
         for attribute in self.component.attributes(attributes) {
             match attribute.kind {
                 AttributeKind::Bind

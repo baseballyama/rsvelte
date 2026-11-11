@@ -289,6 +289,40 @@ fn a_store_subscription_is_declared_where_svelte2tsx_declares_it() {
 }
 
 #[test]
+fn component_content_passes_children_where_svelte2tsx_maps_them() {
+    // The offsets svelte2tsx 0.7.63's source map gives its `children` key, in the template.
+    let cases: &[(&str, Option<usize>)] = &[
+        ("<Foo>hi</Foo>", Some(3)),
+        ("<Foo a={1}>hi</Foo>", Some(7)),
+        ("<Foo\n  a={1}>hi</Foo>", Some(5)),
+        ("<Foo a={1}\n>hi</Foo>", Some(7)),
+        ("<Foo {...x}>hi</Foo>", Some(5)),
+        ("<Foo a=\"s\">hi</Foo>", Some(7)),
+        ("<Foo a>hi</Foo>", Some(3)),
+        ("<Foo {x}>hi</Foo>", Some(5)),
+        ("<Foo  a={1}>hi</Foo>", Some(5)),
+        ("<Foo\n>hi</Foo>", Some(3)),
+        ("<Foo a={1} b={2}>hi</Foo>", Some(13)),
+        ("<p><Foo>hi</Foo></p>", Some(6)),
+        ("<Foo> \n<!-- c --> </Foo>", None),
+        ("<Foo><p slot=\"x\"></p><slot /></Foo>", None),
+        ("<Foo><p slot=\"default\"></p></Foo>", Some(3)),
+    ];
+    for &(template, expected) in cases {
+        let script = "<script lang=\"ts\">import Foo from \"./Foo.svelte\"; let x = {};</script>\n";
+        let source = format!("{script}{template}");
+        let (_, output) = project(&source);
+        let key = output.out.find("children: __rsvelte_children").map(|at| {
+            let at = at as u32;
+            let mapped = output.lookup_span(Span::new(at, at + 8)).expect("mapped");
+            assert_eq!(mapped.start_offset, mapped.end_offset, "{template}");
+            mapped.start_offset as usize - script.len()
+        });
+        assert_eq!(key, expected, "{template}\n{}", output.out);
+    }
+}
+
+#[test]
 fn a_default_slot_lets_the_component_take_children_as_svelte2tsx_does() {
     let widened = "__rsvelte_props_with_children<Record<string, never>>";
     for (source, expected) in [

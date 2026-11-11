@@ -88,6 +88,8 @@ pub enum Node {
         value: NodeIdentifier,
         end: Option<u32>,
     },
+    /// svelte2tsx's `children` prop for a component's content, mapped to this offset.
+    ImplicitChildren(u32),
     Shorthand(NodeIdentifier),
     Spread(NodeIdentifier),
     ComputedProperty {

@@ -1,1 +1,1 @@
-error check_unsupported 2:2-2:6 not supported by the type-check projection yet: component children
+error check_unsupported 3:2-3:54 not supported by the type-check projection yet: blocks
