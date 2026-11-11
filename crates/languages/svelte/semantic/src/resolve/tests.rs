@@ -386,3 +386,13 @@ fn generics_bind_type_references_only() {
     assert_eq!(names, ["T"]);
     assert_eq!(res.scoping().root_unresolved_references()["T"].len(), 2);
 }
+
+#[test]
+fn an_each_key_does_not_see_a_const_of_the_body() {
+    // Svelte 5.57.3 compiles the key to `(thing) => key`, a global.
+    let source = "<script>let things = [];</script>\
+                  {#each things as thing (key)}{@const key = thing.id}{thing}{/each}";
+    let res = analyze(source);
+    let names: Vec<&str> = res.unresolved_names().collect();
+    assert_eq!(names, ["key"]);
+}
