@@ -346,6 +346,13 @@ impl<'a> Builder<'a> {
         identifier
     }
 
+    /// Keeps a parameter list built in [`Builder::ast`]'s arena, such as aliases a compiler writes.
+    pub fn keep_parameters(&mut self, parameters: FormalParameters<'a>) -> ParametersIdentifier {
+        let identifier = ParametersIdentifier::at(self.parameters.len());
+        self.parameters.push(parameters);
+        identifier
+    }
+
     pub fn keep_pattern(&mut self, pattern: FormalParameter<'a>) -> PatternIdentifier {
         let identifier = PatternIdentifier::at(self.patterns.len());
         self.patterns.push(pattern);
