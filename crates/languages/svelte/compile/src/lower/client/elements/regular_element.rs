@@ -50,7 +50,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let attribute_list = compiler_syntax_tree.attributes(el.attributes);
         frag.tpl.needs_import_node |= tag == "video" || custom_element;
         // Upstream visits directives into their own lists, which follow the children's.
-        let directives = self.element_directives(attribute_list, &tag, node);
+        let directives =
+            self.element_directives(attribute_list, &tag, node, Some(&mut l.initializer));
         let has_spread = attribute_list
             .iter()
             .any(|a| matches!(a.value, AttributeValue::Spread(_)));

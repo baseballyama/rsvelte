@@ -30,7 +30,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let get_tag = b.thunk(tag);
         let name = self.names.generate("$$element");
         let mut inner = Lists::default();
-        let directives = self.element_directives(attributes, "svelte:element", &name);
+        let directives = self.element_directives(attributes, "svelte:element", &name, None);
         inner.initializer.extend(directives.initializer);
         let classes: Vec<_> = attributes
             .iter()

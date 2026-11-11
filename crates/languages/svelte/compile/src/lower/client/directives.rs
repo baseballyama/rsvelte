@@ -1,5 +1,5 @@
 use oxc_allocator::{CloneIn, GetAllocator};
-use oxc_ast::ast::Expression;
+use oxc_ast::ast::{Expression, Statement};
 use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
@@ -13,11 +13,14 @@ const TRANSITION_GLOBAL: u32 = 1 << 2;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// The directives of upstream `RegularElement`'s `other_directives`, in attribute order.
+    /// An event handler's derived goes to `handlers` when the element's parent declares it at
+    /// once, as upstream visits an `on:` with the parent's state.
     pub(super) fn element_directives(
         &mut self,
         attributes: &[Attribute],
         tag: &str,
         node: &str,
+        mut handlers: Option<&mut Vec<Statement<'o>>>,
     ) -> Lists<'o> {
         let b = self.b;
         let mut directives = Lists::default();
@@ -29,7 +32,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         for a in attributes {
             match a.value {
                 AttributeValue::On { .. } => {
-                    let call = self.event_directive(a, node, false, &mut directives);
+                    let mut own = Lists::default();
+                    let call = self.event_directive(a, node, false, &mut own);
+                    match handlers.as_deref_mut() {
+                        Some(handlers) => handlers.append(&mut own.initializer),
+                        None => directives.initializer.append(&mut own.initializer),
+                    }
                     // An action may add listeners first, so the events wait for it.
                     if has_use {
                         let effect = b.runtime("effect", [b.thunk(call)]);
