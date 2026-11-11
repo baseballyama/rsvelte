@@ -3,8 +3,16 @@ use rsvelte_kernel::computation::registry::Registry;
 
 use super::*;
 
-/// What the task writes for `path`, or its first diagnostic's code.
+/// What the task writes for `path`, or its diagnostics when it writes nothing.
 fn compile(path: &str, source: &str, target: Target) -> String {
+    let mut output = output(path, source, target);
+    match output.files.pop() {
+        Some(file) => file.text,
+        None => format!("{:?}", output.diagnostics),
+    }
+}
+
+fn output(path: &str, source: &str, target: Target) -> TaskOutput {
     let mut registry = Registry::new();
     crate::register(&mut registry);
     let document = registry.document(path, source).expect("small");
@@ -20,11 +28,8 @@ fn compile(path: &str, source: &str, target: Target) -> String {
     )
     .expect("valid plugins")
     .remove(0);
-    let (_, mut output) = result.outputs.into_iter().next().expect("the task ran");
-    match output.files.pop() {
-        Some(file) => file.text,
-        None => format!("{:?}", output.diagnostics),
-    }
+    let (_, output) = result.outputs.into_iter().next().expect("the task ran");
+    output
 }
 
 const COUNTER: &str = "export class Counter {\n\tcount = $state(0);\n}\n";
@@ -144,4 +149,20 @@ fn a_functions_destructured_derived_is_split_as_at_the_top_level() {
         ),
         "{compiled}"
     );
+}
+
+#[test]
+fn a_module_reports_the_warnings_upstream_shows() {
+    let codes = |source| {
+        let output = output("a.svelte.js", source, Target::Client);
+        assert!(!output.files.is_empty(), "{:?}", output.diagnostics);
+        (output.diagnostics.iter())
+            .map(|d| (d.code.to_string(), d.span.start_offset))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        codes("let a = $state(0);\nexport const b = { a };\n"),
+        [("state_referenced_locally".to_owned(), 38)]
+    );
+    assert_eq!(codes("export const b = $state(0);\n"), []);
 }

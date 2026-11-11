@@ -118,20 +118,20 @@ pub fn compile_module(
     let document = document(&options.filename, source)?;
     let lines = rsvelte_kernel::source::positions::LineIndex::new(source);
     // The official one reads JavaScript whatever the name says.
-    let javascript = crate::module::compiled(
+    let module = crate::module::compiled(
         &document,
         oxc_span::SourceType::mjs(),
         options.generate,
         Some(&lines),
     )?;
-    let map = javascript.source_map(&lines, &options.filename);
+    let map = module.javascript.source_map(&lines, &options.filename);
     Ok(CompileResult {
         js: JavaScript {
-            code: javascript.out,
+            code: module.javascript.out,
             map,
         },
         css: None,
-        warnings: Vec::new(),
+        warnings: module.warnings,
     })
 }
 

@@ -13,10 +13,12 @@ use rsvelte_kernel::source::positions::LineIndex;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
 use rsvelte_svelte_semantic::input::ComponentInput;
 use rsvelte_svelte_semantic::resolve::resolve;
+use rsvelte_svelte_semantic::warnings::module_warnings;
 use rsvelte_typescript_compile::print;
 use rsvelte_typescript_tree::Tree;
 
 use crate::lower::{self, CompileInput, Target};
+use crate::warnings::OPTIONS;
 
 /// A module `compileModule` reads; a `.svelte.ts` one is read with its types.
 fn matches(document: &Document) -> bool {
@@ -48,10 +50,19 @@ impl Task for CompileModule {
             SourceType::mjs()
         };
         match compiled(context.document, source_type, self.target, None) {
-            Ok(javascript) => out.file("js", javascript.out),
+            Ok(module) => {
+                out.file("js", module.javascript.out);
+                out.diagnostics.extend(module.warnings);
+            }
             Err(diagnostic) => out.diagnostics.push(diagnostic),
         }
     }
+}
+
+/// One target's module and the warnings upstream shows for it.
+pub(crate) struct Module {
+    pub(crate) javascript: Emitter,
+    pub(crate) warnings: Vec<Diagnostic>,
 }
 
 /// One target's module, printed, with its mappings to `document` when `lines` is given.
@@ -64,7 +75,7 @@ pub(crate) fn compiled(
     source_type: SourceType,
     target: Target,
     lines: Option<&LineIndex>,
-) -> Result<Emitter, Diagnostic> {
+) -> Result<Module, Diagnostic> {
     let (javascript, program) = Tree::program(document, source_type)?;
     let compiler_syntax_tree =
         CompilerSyntaxTreeBuilder::new(&document.text, 0, 0).finish(Children::default());
@@ -86,14 +97,23 @@ pub(crate) fn compiled(
         });
         lower::lower_module(&input, &res, target, &allocator)?
     };
+    let warnings = {
+        let _p = measurement::phase("svelte.analyze");
+        let found = module_warnings(&javascript, program, &res, &document.text, OPTIONS);
+        found.compiled().cloned().collect()
+    };
     let _p = measurement::phase("js.print");
-    Ok(lines.map_or_else(
+    let javascript = lines.map_or_else(
         || Emitter {
             out: print::print(&module),
-            mappings: Vec::new(),
+            ..Emitter::default()
         },
         |lines| print::print_mapped(&module, lines),
-    ))
+    );
+    Ok(Module {
+        javascript,
+        warnings,
+    })
 }
 
 #[cfg(test)]
