@@ -111,3 +111,61 @@ fn a_call_in_a_template_default_needs_context() {
         "{script}{{#each xs as {{ v = f() }}}}{{v}}{{/each}}"
     )));
 }
+
+#[test]
+fn a_store_subscription_is_state_and_asks_of_its_store() {
+    // Each template expression's text with its metadata, and whether the component needs context.
+    let analyzed = |source: &str| {
+        let component = parse(source).expect("parses");
+        let lowered = lower(&component, source);
+        let res = resolve(
+            &component.javascript,
+            component.instance.as_ref().map(|s| s.program),
+            None,
+            &lowered,
+        );
+        let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+        let analysis = super::analyze(&input, &res);
+        let mut metas: Vec<(String, bool, bool, bool)> = component
+            .javascript
+            .expressions()
+            .filter_map(|(identifier, e)| {
+                let meta = analysis.expressions.get(&identifier)?;
+                let span = oxc_span::GetSpan::span(e);
+                let text = source[span.start as usize..span.end as usize].to_owned();
+                Some((
+                    text,
+                    meta.has_state,
+                    meta.has_call,
+                    meta.first_store_subscription.is_some(),
+                ))
+            })
+            .collect();
+        metas.sort();
+        (metas, analysis.needs_context)
+    };
+    // Whether svelte 5.57.3 pushes a context for each, in runes mode.
+    let local = "<script>const f = { subscribe: (fn) => { fn(() => 1); return () => {}; } };\
+                 </script><p>{$f()}</p>";
+    assert_eq!(
+        analyzed(local),
+        (vec![("$f()".to_owned(), true, true, true)], false)
+    );
+    // A prop's subscription is unsafe as the prop is, so calling it needs context.
+    let prop = "<script>let { f } = $props();</script><p>{$f()}</p>";
+    assert_eq!(
+        analyzed(prop),
+        (vec![("$f()".to_owned(), true, true, true)], true)
+    );
+    let prop_read = "<script>let { f } = $props();</script><p>{$f}</p>";
+    assert_eq!(
+        analyzed(prop_read),
+        (vec![("$f".to_owned(), true, false, true)], false)
+    );
+    let import = "<script>import { writable } from 'svelte/store'; const count = writable(0);\
+                  </script><p>{$count}</p>";
+    assert_eq!(
+        analyzed(import),
+        (vec![("$count".to_owned(), true, false, true)], true)
+    );
+}

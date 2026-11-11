@@ -39,6 +39,8 @@ pub struct CompilerSyntaxTree {
     debug_identifiers: Vec<ExpressionIdentifier>,
     // Keep component references outside Node so its size stays fixed.
     component_references: Vec<(CompilerNodeIdentifier, ExpressionIdentifier)>,
+    /// Every `slot="…"` with a static value, in order (upstream `determine_slot`).
+    static_slots: Vec<AttributeIdentifier>,
     pub root: Children,
 }
 
@@ -311,6 +313,15 @@ impl CompilerSyntaxTree {
             .binary_search_by_key(&identifier, |&(node, _)| node)
             .ok()?;
         Some(self.component_references[index].1)
+    }
+
+    /// Whether `attributes` hold a `slot` with a static value (upstream `determine_slot`).
+    #[must_use]
+    pub fn has_static_slot(&self, attributes: IndexRange<AttributeIdentifier>) -> bool {
+        let at = self.static_slots.partition_point(|&a| a < attributes.start);
+        self.static_slots
+            .get(at)
+            .is_some_and(|&a| a < attributes.end)
     }
 
     /// The expression each component element names its component by.

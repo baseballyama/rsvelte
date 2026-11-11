@@ -1130,6 +1130,9 @@ name = "rsvelte_site"
 version = "0.0.0"
 dependencies = [
  "oxc_allocator",
+ "oxc_ast",
+ "oxc_semantic",
+ "oxc_span",
  "rsvelte_kernel",
  "rsvelte_svelte_compile",
  "rsvelte_svelte_lint",
@@ -1317,6 +1320,7 @@ dependencies = [
  "memchr",
  "oxc_allocator",
  "oxc_ast",
+ "oxc_ast_visit",
  "oxc_parser",
  "oxc_span",
  "rsvelte_kernel",

@@ -1,4 +1,5 @@
-use oxc_ast::ast::Expression;
+use oxc_ast::ast::{Expression, TSAsExpression};
+use oxc_ast_visit::{Visit, walk};
 use oxc_parser::Kind;
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
@@ -219,10 +220,9 @@ impl Parser<'_, '_> {
             Expression::SequenceExpression(sequence) => &sequence.expressions[0],
             expression => expression,
         };
-        // TypeScript reads `items as item` as an assertion; the `as` before its type is the
-        // block's.
-        if let Expression::TSAsExpression(assertion) = first {
-            let type_start = assertion.type_annotation.span().start;
+        // TypeScript reads `items as item` as an assertion, also inside `a || [] as item`: the
+        // `as` of the one that ends the expression is the block's (upstream's walk).
+        if let Some(type_start) = trailing_assertion(first) {
             let keyword = self
                 .component
                 .tokens
@@ -347,6 +347,32 @@ impl Parser<'_, '_> {
     }
 }
 
+/// Where the type starts of the outermost `as` assertion in `e` that ends where `e` does.
+fn trailing_assertion(e: &Expression<'_>) -> Option<u32> {
+    struct Find {
+        end: u32,
+        type_start: Option<u32>,
+    }
+    impl<'a> Visit<'a> for Find {
+        fn visit_ts_as_expression(&mut self, it: &TSAsExpression<'a>) {
+            if self.type_start.is_some() {
+                return;
+            }
+            if it.span.end == self.end {
+                self.type_start = Some(it.type_annotation.span().start);
+                return;
+            }
+            walk::walk_ts_as_expression(self, it);
+        }
+    }
+    let mut find = Find {
+        end: e.span().end,
+        type_start: None,
+    };
+    find.visit_expression(e);
+    find.type_start
+}
+
 /// The offset of the last `as` keyword in `s` that has whitespace before it.
 fn last_as(s: &str) -> Option<usize> {
     s.rmatch_indices("as").map(|(i, _)| i).find(|&i| {
@@ -367,3 +393,6 @@ struct IfHead {
     test: ExpressionIdentifier,
     consequent: Range,
 }
+
+#[cfg(test)]
+mod tests;

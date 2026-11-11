@@ -16,7 +16,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let tag = &tree.attributes[element.this.expect("dynamic tag is validated")];
         let tag = self.attribute_value(tag, false, false);
         let mut pieces = Vec::new();
-        self.element_attributes(identifier, "svelte:element", attributes, &mut pieces)?;
+        self.element_attributes(identifier, "svelte:element", attributes, &mut pieces);
         let statements = self.build_template(pieces);
         let attributes =
             (!statements.is_empty()).then(|| b.arrow_block(b.params([]), statements, false));

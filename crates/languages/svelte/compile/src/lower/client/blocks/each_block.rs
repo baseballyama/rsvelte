@@ -2,7 +2,9 @@ use crate::lower::builder::Runtime;
 use oxc_ast::ast::{BindingIdentifier, Expression, Statement};
 use oxc_semantic::SymbolId;
 use oxc_span::GetSpan;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Each;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, Each, ElementKind, MetadataTag,
+};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 
 use crate::lower::client::{
@@ -16,6 +18,8 @@ const EACH_ITEM_REACTIVE: u32 = 1;
 const EACH_INDEX_REACTIVE: u32 = 1 << 1;
 
 const EACH_IS_CONTROLLED: u32 = 1 << 2;
+
+const EACH_IS_ANIMATED: u32 = 1 << 3;
 
 const EACH_ITEM_IMMUTABLE: u32 = 1 << 4;
 
@@ -148,10 +152,26 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             flags |= EACH_ITEM_REACTIVE;
         }
         flags |= EACH_ITEM_IMMUTABLE;
+        if each.key.is_some() && self.animated(each) {
+            flags |= EACH_IS_ANIMATED;
+        }
         if controlled {
             flags |= EACH_IS_CONTROLLED;
         }
         flags
+    }
+
+    /// Whether an element of the body has `animate:`, which only a keyed block's sole child may.
+    fn animated(&self, each: &Each) -> bool {
+        let tree = self.compiler_syntax_tree;
+        tree.children(each.body).iter().any(|&child| {
+            matches!(&tree.node(child).kind, NodeKind::Element(el)
+                if matches!(el.kind, ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element)))
+                    && tree
+                        .attributes(el.attributes)
+                        .iter()
+                        .any(|a| matches!(a.value, AttributeValue::Animate { .. })))
+        })
     }
 
     /// Upstream passes the collection to the render function when a name the block declares, in

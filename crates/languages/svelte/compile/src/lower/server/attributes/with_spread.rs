@@ -4,7 +4,8 @@ use oxc_ast::ast::{Expression, ObjectPropertyKind};
 use super::escaped_text;
 use crate::lower::server::{
     Attribute, AttributeValue, CompilerNodeIdentifier, Piece, ServerCompilationContext,
-    capture_event, event_attribute, is_directive, is_load_error_element, push_captured_events,
+    capture_event, capture_load_events, event_attribute, is_behaviour, is_directive,
+    push_captured_events,
 };
 
 const ELEMENT_IS_INPUT: u32 = 1 << 2;
@@ -42,6 +43,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let mut events = Vec::new();
         let mut props: Vec<ObjectPropertyKind<'o>> = Vec::with_capacity(list.len());
         let mut class_directives = Vec::new();
+        let mut style_directives = Vec::new();
         for a in list {
             let raw_name = a.name.text(self.source_text);
             match a.value {
@@ -54,18 +56,23 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                     props.push(b.init(&name, value));
                     continue;
                 }
-                AttributeValue::Attach(_) | AttributeValue::On { .. } => continue,
+                AttributeValue::Use { .. } => {
+                    capture_load_events(&mut events, tag);
+                    continue;
+                }
+                _ if is_behaviour(&a.value) => continue,
                 AttributeValue::Class(e) => {
                     class_directives.push((raw_name, e));
+                    continue;
+                }
+                AttributeValue::Style { .. } => {
+                    style_directives.push(a);
                     continue;
                 }
                 AttributeValue::Spread(e) => {
                     let v = self.expression(e);
                     props.push(b.spread_property(v));
-                    if is_load_error_element(tag) {
-                        capture_event(&mut events, tag, "onload");
-                        capture_event(&mut events, tag, "onerror");
-                    }
+                    capture_load_events(&mut events, tag);
                     continue;
                 }
                 _ if all => {}
@@ -128,6 +135,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             0
         };
         let flags = (flags != 0).then(|| b.number(f64::from(flags)));
-        (vec![Some(object), hash, classes, None, flags], events)
+        let styles = self.spread_styles(&style_directives);
+        (vec![Some(object), hash, classes, styles, flags], events)
     }
 }
