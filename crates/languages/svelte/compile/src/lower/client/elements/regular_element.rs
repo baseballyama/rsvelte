@@ -83,6 +83,15 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             let dir = || b.member(b.id(node), "dir");
             l.update.push(b.stmt(b.assign_member(dir(), dir())));
         }
+        if tag == "selectedcontent" {
+            let b = self.b;
+            let assign = b.arrow(
+                b.params(["$$element"]),
+                b.assign_name(node, b.id("$$element")),
+            );
+            let call = b.runtime("selectedcontent", [b.id(node), assign]);
+            l.initializer.push(b.stmt(call));
+        }
         if !has_spread {
             self.select_value(el, &tag, attribute_list, node, frag, l);
         }
