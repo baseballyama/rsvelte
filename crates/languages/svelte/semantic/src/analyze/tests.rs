@@ -196,6 +196,13 @@ fn a_custom_element_with_attributes_makes_its_parent_s_children_dynamic() {
     ));
     assert!(dynamic("<div><p is=\"x-y\" title=\"t\"></p></div>"));
     assert!(!dynamic("<div><custom-elements></custom-elements></div>"));
+    // A scoped one gets upstream's empty `class` (runtime-runes custom-element-svelte-class).
+    assert!(dynamic(
+        "<div><my-element></my-element></div><style>my-element { color: red; }</style>"
+    ));
+    assert!(!dynamic(
+        "<div><my-element></my-element></div><style>p { color: red; }</style>"
+    ));
     assert!(!dynamic("<div><p title=\"t\"></p></div>"));
 }
 
