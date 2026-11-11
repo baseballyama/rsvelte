@@ -108,7 +108,8 @@ fn with_parent(child: &str, parent: &str) -> Option<String> {
             }
             let allowed: Vec<String> = list.iter().map(|t| format!("`<{t}>`")).collect();
             return Some(format!(
-                "`<{child}>` cannot be a child of `<{parent}>`. `<{parent}>` only allows these children: {}",
+                "`<{child}>` cannot be a child of `<{parent}>`. `<{parent}>` only allows these \
+                    children: {}",
                 allowed.join(", ")
             ));
         }
@@ -183,7 +184,9 @@ impl Template<'_> {
         for (message, only_warn) in found {
             if only_warn {
                 let message = format!(
-                    "{message}. When rendering this component on the server, the resulting HTML will be modified by the browser (by moving, removing, or inserting elements), likely resulting in a `hydration_mismatch` warning"
+                    "{message}. When rendering this component on the server, the resulting HTML \
+                        will be modified by the browser (by moving, removing, or inserting \
+                        elements), likely resulting in a `hydration_mismatch` warning"
                 );
                 self.found.push(
                     Stage::Walk(super::Section::Template),
@@ -192,7 +195,9 @@ impl Template<'_> {
                 );
             } else {
                 let message = format!(
-                    "{message}. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components."
+                    "{message}. The browser will 'repair' the HTML (by moving, removing, or \
+                        inserting elements) which breaks Svelte's assumptions about the structure \
+                        of your components."
                 );
                 self.error(span, error("node_invalid_placement", &message, span));
             }

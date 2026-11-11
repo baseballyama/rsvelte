@@ -185,9 +185,16 @@ impl Walk<'_> {
                 resolution.writes(symbol) > 0
                     || exported
                     || resolution.initializer(symbol).is_some_and(|init| {
-                        matches!(crate::typescript::without_typescript(init), Expression::CallExpression(call)
-                            if matches!(call.arguments.as_slice(), [only]
-                                if only.as_expression().is_some_and(|only| !resolution.should_proxy(only))))
+                        let Expression::CallExpression(call) =
+                            crate::typescript::without_typescript(init)
+                        else {
+                            return false;
+                        };
+                        let [only] = call.arguments.as_slice() else {
+                            return false;
+                        };
+                        only.as_expression()
+                            .is_some_and(|only| !resolution.should_proxy(only))
                     })
             }
             BindingKind::RawState
@@ -207,7 +214,8 @@ impl Walk<'_> {
             "closure"
         };
         let message = format!(
-            "This reference only captures the initial value of `{name}`. Did you mean to reference it inside a {kind} instead?"
+            "This reference only captures the initial value of `{name}`. Did you mean to reference \
+                it inside a {kind} instead?"
         );
         self.warn(
             at.start,
@@ -244,7 +252,9 @@ impl Walk<'_> {
             && self.resolution.is_store_subscription(name)
         {
             let message = format!(
-                "It looks like you're using the `{name}` rune, but there is a local binding called `{store}`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `{store}` to avoid the ambiguity"
+                "It looks like you're using the `{name}` rune, but there is a local binding called \
+                    `{store}`. Referencing a local variable with a `$` prefix will create a store \
+                    subscription. Please rename `{store}` to avoid the ambiguity"
             );
             self.conflicts.push((
                 order,
@@ -263,8 +273,11 @@ impl Walk<'_> {
             return;
         };
         let targets = options.properties.iter().any(|p| {
-            matches!(p, ObjectPropertyKind::ObjectProperty(p)
-                if !p.computed && matches!(&p.key, PropertyKey::StaticIdentifier(key) if key.name == "target"))
+            let ObjectPropertyKind::ObjectProperty(p) = p else {
+                return false;
+            };
+            !p.computed
+                && matches!(&p.key, PropertyKey::StaticIdentifier(key) if key.name == "target")
         });
         let Expression::Identifier(callee) = &new.callee else {
             return;
@@ -291,11 +304,15 @@ impl Walk<'_> {
                 })
         });
         if from_svelte {
-            self.warn(new.span.start, warning(
-                "legacy_component_creation",
-                "Svelte 5 components are no longer classes. Instantiate them using `mount` or `hydrate` (imported from 'svelte') instead.",
-                span(new.span),
-            ));
+            self.warn(
+                new.span.start,
+                warning(
+                    "legacy_component_creation",
+                    "Svelte 5 components are no longer classes. Instantiate them using `mount` or \
+                    `hydrate` (imported from 'svelte') instead.",
+                    span(new.span),
+                ),
+            );
         }
     }
 

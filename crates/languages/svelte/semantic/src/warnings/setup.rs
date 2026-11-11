@@ -27,7 +27,8 @@ pub(super) fn warnings(
                 let span = tag_attribute(component, attribute);
                 found.push(Stage::Parse, span.start_offset, warning(
                     "script_unknown_attribute",
-                    "Unrecognised attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it",
+                    "Unrecognised attribute — should be one of `generics`, `lang` or `module`. If \
+                        this exists for a preprocessor, ensure that the preprocessor removes it",
                     span,
                 ));
             }
@@ -67,17 +68,20 @@ pub(super) fn warnings(
             let found_one = match attribute.name.text(source) {
                 "accessors" if runes => warning(
                     "options_deprecated_accessors",
-                    "The `accessors` option has been deprecated. It will have no effect in runes mode",
+                    "The `accessors` option has been deprecated. It will have no effect in runes \
+                        mode",
                     attribute.span,
                 ),
                 "customElement" if !options.custom_element => warning(
                     "options_missing_custom_element",
-                    "The `customElement` option is used when generating a custom element. Did you forget the `customElement: true` compile option?",
+                    "The `customElement` option is used when generating a custom element. Did you \
+                        forget the `customElement: true` compile option?",
                     attribute.span,
                 ),
                 "immutable" if runes => warning(
                     "options_deprecated_immutable",
-                    "The `immutable` option has been deprecated. It will have no effect in runes mode",
+                    "The `immutable` option has been deprecated. It will have no effect in runes \
+                        mode",
                     attribute.span,
                 ),
                 _ => continue,
