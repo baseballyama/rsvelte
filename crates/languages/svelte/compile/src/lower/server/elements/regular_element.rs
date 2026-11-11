@@ -54,7 +54,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             &tag,
             compiler_syntax_tree.attributes(el.attributes),
             template,
-        )?;
+        );
         let void = is_void(&tag);
         template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
         let cleaned = self.plan.fragment(el.children);
