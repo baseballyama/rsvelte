@@ -251,9 +251,8 @@
 	)}
 	<p>
 		今の <code>offset</code> は、行末を越える列と、サロゲートペアの内側を指す列に <code>None</code>
-		を返します。丸めに頼っていた呼び出し側は、tsc のレポートの解析だけでした。tsc は行末にある幅 0 の範囲を、行末より一列先の位置として報告します。この列も
-		<code>None</code>
-		になるので、この場合だけ解析の側で行末に戻します。tsc 7.0.2 の実際の出力で確かめました（<a
+		を返します。型検査は、TypeScript の API が返す診断の行と列をこの <code>offset</code>
+		で変えます。<code>None</code> になった診断は、その文書の結果をエラーにします（<a
 			href="/learn/kernel/source#offset">02 章</a
 		>）。
 	</p>
@@ -262,14 +261,14 @@
 		'P3',
 		'範囲の検査が debug ビルドだけだった',
 		'fixed',
-		'output/edits.rs · Edits::apply_in、lint/rule.rs · Reporter、check/report.rs · parse_report',
+		'output/edits.rs · Edits::apply_in、lint/rule.rs · Reporter、check/run.rs · located',
 	)}
 	<p>
 		<code>Edits</code>（出力に加える書き換えの一覧）の重なりと範囲は、release
 		ビルドでも確かめます。コード検査のルールは指摘の識別名を自分で書きません。<code>Reporter</code>
 		が付けるので、別の名前では報告できません。<code>Span::new</code> は
-		<code>debug_assert!</code> のままです。パーサが読んだテキストから Span を作る、一番よく通る道だからです。その代わり、外から来た位置（tsc
-		のレポート）は、Span を作る前に解析の側で確かめます。
+		<code>debug_assert!</code> のままです。パーサが読んだテキストから Span を作る、一番よく通る道だからです。その代わり、外から来た位置（TypeScript
+		の API が返す行と列）は、Span を作る前に確かめます。
 	</p>
 
 	{@render item(
@@ -280,7 +279,7 @@
 	)}
 </div>
 
-<Code item={data.code.trimLeft} mark={['self.set_parts(d, s + dropped, l - dropped);']} />
+<Code item={data.code.trimLeft} mark={['self.set_parts(d, s + inner, l - inner);']} />
 
 <div class="prose-learn">
 	<p>
@@ -338,9 +337,10 @@
 		'document_printer · string_width',
 	)}
 	<p>
-		以前は、絵文字、異体字セレクタ、ゼロ幅の文字の幅を数え違えていました。一度 Prettier
-		の表に合わせたあと、今は Unicode の幅の規則（unicode-width crate）で数えます。Prettier
-		の表との完全な一致は目的にしていません（<a href="/learn/document-printer#flat-only">09 章</a
+		以前は、絵文字、異体字セレクタ、ゼロ幅の文字の幅を数え違えていました。今は、Prettier 3.9.10 の
+		<code>getStringWidth</code> が全スカラー値に返す幅を表にして使います。Prettier
+		が一文字として数える絵文字の並びは、この表では数えられません。その並びを含む文書は、整形を断ります（<a
+			href="/learn/document-printer#flat-only">09 章</a
 		>）。
 	</p>
 

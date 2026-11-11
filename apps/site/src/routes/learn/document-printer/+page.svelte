@@ -189,7 +189,7 @@
 	item={data.code.fitsIn}
 	mark={[
 		'rest_i -= 1;',
-		'&& let Some(width) = self.docs.measure(identifier).width()',
+		'&& let Some(flat) = self.docs.measure(identifier).flat()',
 		'if must_be_flat && breaks_line {',
 		'if mode == Mode::Break || matches!(kind, LineKind::Hard | LineKind::Literal)',
 	]}
@@ -300,19 +300,23 @@
 
 <div class="prose-learn">
 	<p>
-		幅は Rust の <code>unicode-width</code> crate
-		で数えます。全角の東アジア文字に加え、結合文字や、ゼロ幅接合子でつないだ絵文字の並びも扱うので、このプロジェクトで
-		Unicode の表を持つ必要はありません。表示できる ASCII
-		だけの文字列は、バイト数をそのまま幅にします。数えるのは端末での表示列数で、フォントで描いたときの実際の幅や、Prettier
-		の <code>getStringWidth</code> の表との完全な一致は目的にしていません。<Note
+		幅は Prettier の <code>getStringWidth</code> と同じに数えます。幅が 2 の文字の表（<code
+			>WIDE</code
+		>）は、Prettier 3.9.10
+		で全スカラー値を測って作りました。表にない文字は、制御文字、結合文字、異体字セレクタが 0、残りが
+		1 です。キーキャップ、国旗、異体字セレクタ 16 で絵文字にした文字は、並び全体で 2
+		です。表示できる ASCII だけの文字列は、バイト数をそのまま幅にします。<Note
 			>この教材のブラウザ上のプリンタ（図 9.1）も、WebAssembly を通して同じ Rust の <code
 				>string_width</code
 			> を使います。</Note
 		>
 	</p>
 	<p>
-		このリポジトリのテストは、ASCII、日本語、結合文字、絵文字の幅を確かめます。依存のバージョンは
-		<code>Cargo.lock</code> が固定するので、同じツリーなら整形結果も同じです。
+		肌の色の指定やゼロ幅接合子でつないだ絵文字の並びは、Prettier が一文字として数えます。<code
+			>string_width</code
+		>
+		はこの並びを見分けないので、<code>has_emoji_sequence</code> が見つけます。見つかった文書は、Svelte
+		と Vue の整形が断ります。テストは、各文字列の幅を Prettier 3.9.10 で測った値と比べます。
 	</p>
 </div>
 

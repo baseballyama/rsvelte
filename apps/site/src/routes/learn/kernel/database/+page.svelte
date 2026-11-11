@@ -116,35 +116,42 @@
 		タスクの側は、計算結果を求めるだけです。Svelte のコード検査のルール <code
 			>svelte/valid-each-key</code
 		>
-		は、構文木、コンパイル用に整理した構文木、名前解決の三つを求めます。どれも構文木の上に重ねた別々の層です（<a
-			href="/learn/kernel/layers">05 章</a
-		>）。
+		は、構文木、コンパイル用に整理した構文木、名前解決の三つを求めます。ルールが受け取る
+		<code>File</code> が、求められた層を <code>DocumentContext</code>
+		から引きます。どれも構文木の上に重ねた別々の層です（<a href="/learn/kernel/layers">05 章</a>）。
 	</p>
 </div>
 
 <Code
 	item={data.code.eachKey}
-	mark={['.get::<Parsed>()', '.get::<Lowered>()', '.get::<Resolved>()']}
+	mark={['file.component()', 'file.normalized()', 'file.resolution()']}
 />
 
 <div class="prose-learn">
 	<p>
-		コード検査のタスクの本体 <code>Lint::run</code> は、指摘を JSON で書き出すときに
-		<code>context.line_index()</code> を使います。
+		コード検査のタスクの本体は <code>Lint::run</code> です。指摘を JSON で書き出すときは
+		<code>context.ecmascript_line_index()</code> を使います。
 	</p>
 </div>
 
-<Code item={data.code.lint} mark={['context.line_index()']} />
+<Code item={data.code.lint} mark={['context.ecmascript_line_index()']} />
 
 <div class="prose-learn">
 	<p>
-		<code>context.line_index()</code> が返す
+		このメソッドが返す
 		<code>LineIndex</code>（バイト位置を行と列に直す表）は、計算結果ではありません。<code
 			>DocumentContext</code
 		>
 		が別の <code>OnceCell</code>
-		で持ちます。行と列への変換はどの言語でも同じなので、カーネルが直接持ちます。コード検査のほか、Svelte
-		と Vue の整形器も同じ表を受け取ります。以前は二つの整形器がそれぞれ表を作っていました。共有に変えると、ベンチマークの
+		で持ちます。行と列への変換はどの言語でも同じなので、カーネルが直接持ちます。表は行の区切り方ごとに二つあります。<code
+			>line_index</code
+		>
+		は、Svelte のコンパイラと同じく <code>\n</code> だけで行を区切ります。<code
+			>ecmascript_line_index</code
+		>
+		は、ESLint と同じく ECMAScript のすべての改行で区切ります。Vue の整形器も
+		<code>line_index</code>
+		を受け取ります。以前は Svelte と Vue の二つの整形器がそれぞれ表を作っていました。共有に変えると、ベンチマークの
 		1 ラウンドの命令数は 2,853,755,764 から 2,810,876,017 に減りました（−1.5%）。1 ラウンドは、全ファイルを一回処理する測定です（<a
 			href="/learn/measure">14 章</a
 		>）。
