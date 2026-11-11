@@ -19,6 +19,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 NodeKind::Snippet(snippet) if skipped(self.snippet_name(snippet)) => {}
                 NodeKind::Snippet(_) => self.snippet(identifier)?,
                 NodeKind::Const { .. } => self.const_tag(identifier),
+                &NodeKind::Declaration { declaration } => {
+                    let lowered = self.declaration_tag(declaration);
+                    self.snippets.extend(lowered);
+                }
                 _ => self.special_element(identifier, template)?,
             }
         }

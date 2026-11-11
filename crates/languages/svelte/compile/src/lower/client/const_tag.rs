@@ -1,13 +1,28 @@
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{BindingPattern, PropertyKey};
 use oxc_ast_visit::VisitMut;
+use rsvelte_typescript_tree::DeclarationIdentifier;
 
 use crate::lower::builder::Runtime;
 use crate::lower::client::{ClientCompilationContext, CompilerNodeIdentifier, Lists, NodeKind};
+use crate::lower::names::Names;
 use crate::lower::paths::bound_names;
-use crate::lower::script::Read;
+use crate::lower::script::{self, Read};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
+    /// Upstream `DeclarationTag` (client): declared with the fragment's `{@const}`s.
+    pub(super) fn declaration_tag(
+        &mut self,
+        declaration: DeclarationIdentifier,
+    ) -> Vec<oxc_ast::ast::Statement<'o>> {
+        let declaration = self.javascript.get_declaration(declaration);
+        let mut names = std::mem::replace(&mut self.names, Names::empty());
+        let lowered =
+            script::lower_declaration_tag(&mut self.rewriter(true), declaration, &mut names);
+        self.names = names;
+        lowered
+    }
+
     /// Upstream `ConstTag` (client): `const x = $.derived(() => init)`, read through `$.get`. A
     /// destructured tag keeps its names in one derived object, `computed_const`.
     pub(super) fn const_tag(&mut self, identifier: CompilerNodeIdentifier, l: &mut Lists<'o>) {

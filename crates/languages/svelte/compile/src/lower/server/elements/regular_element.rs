@@ -54,18 +54,62 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             template.extend(self.build_template(own).into_iter().map(Piece::Statement));
             return Ok(());
         }
+        let tree = compiler_syntax_tree;
+        if !(tree.children(el.children).iter())
+            .any(|&c| matches!(tree.node(c).kind, NodeKind::Declaration { .. }))
+        {
+            return self.markup(identifier, el, &tag, template);
+        }
+        // Upstream renders an element that holds a declaration tag in a block of its own.
+        let outer = std::mem::take(&mut self.snippets);
+        let mut own = Vec::new();
+        self.markup(identifier, el, &tag, &mut own)?;
+        let mut block = std::mem::replace(&mut self.snippets, outer);
+        block.extend(self.build_template(own));
+        template.push(Piece::Statement(self.b.block(block)));
+        Ok(())
+    }
+}
+
+impl<'o> ServerCompilationContext<'_, 'o> {
+    /// The text of a `<script>` or `<style>`, which upstream writes as it is.
+    fn raw_text(&self, tag: &str, el: &Element) -> Option<&'o str> {
+        if !matches!(tag, "script" | "style") {
+            return None;
+        }
+        match self.compiler_syntax_tree.children(el.children) {
+            [] => Some(""),
+            &[only] => match &self.compiler_syntax_tree.node(only).kind {
+                NodeKind::Text { raw, .. } => Some(raw.text(self.source_text)),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+}
+
+impl<'o> ServerCompilationContext<'_, 'o> {
+    /// The element's tag, attributes and children.
+    fn markup(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        el: &Element,
+        tag: &str,
+        template: &mut Vec<Piece<'o>>,
+    ) -> R<()> {
+        let compiler_syntax_tree = self.compiler_syntax_tree;
         template.push(Piece::Text(format!("<{tag}")));
         self.element_attributes(
             identifier,
-            &tag,
+            tag,
             compiler_syntax_tree.attributes(el.attributes),
             template,
         );
-        let void = is_void(&tag);
+        let void = is_void(tag);
         template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
 
         let cleaned = self.plan.fragment(el.children);
-        let body = self.element_body(&tag, compiler_syntax_tree.attributes(el.attributes));
+        let body = self.element_body(tag, compiler_syntax_tree.attributes(el.attributes));
         if let Some(body) = body {
             // Upstream renders the children only when the bound content is empty.
             let b = self.b;
@@ -94,22 +138,5 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             template.push(Piece::Text(format!("</{tag}>")));
         }
         Ok(())
-    }
-}
-
-impl<'o> ServerCompilationContext<'_, 'o> {
-    /// The text of a `<script>` or `<style>`, which upstream writes as it is.
-    fn raw_text(&self, tag: &str, el: &Element) -> Option<&'o str> {
-        if !matches!(tag, "script" | "style") {
-            return None;
-        }
-        match self.compiler_syntax_tree.children(el.children) {
-            [] => Some(""),
-            &[only] => match &self.compiler_syntax_tree.node(only).kind {
-                NodeKind::Text { raw, .. } => Some(raw.text(self.source_text)),
-                _ => None,
-            },
-            _ => None,
-        }
     }
 }

@@ -504,6 +504,18 @@ pub(super) fn lower_script<'t, 'o>(
     Ok(out)
 }
 
+/// Upstream `DeclarationTag`: the tag's declaration, lowered as the script's would be.
+pub(super) fn lower_declaration_tag<'o>(
+    rw: &mut ScriptRewrite<'_, 'o>,
+    declaration: &VariableDeclaration<'_>,
+    names: &mut Names,
+) -> Vec<Statement<'o>> {
+    let mut out = Vec::with_capacity(1);
+    let mut hoisted = Vec::new();
+    lower_declaration(rw, declaration, false, &mut out, &mut hoisted, names);
+    out
+}
+
 /// A top-level declaration. Upstream's instance gives each declarator its own declaration.
 fn lower_declaration<'o>(
     rw: &mut ScriptRewrite<'_, 'o>,

@@ -32,6 +32,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 self.const_tag(identifier, lists);
                 return Ok(());
             }
+            NodeKind::Declaration { declaration } => {
+                let lowered = self.declaration_tag(declaration);
+                lists.consts.extend(lowered);
+                return Ok(());
+            }
             _ => {}
         }
         self.special_element(identifier, "", frag, lists)

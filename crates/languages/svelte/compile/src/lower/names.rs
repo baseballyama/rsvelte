@@ -26,6 +26,11 @@ impl Names {
         }
     }
 
+    /// A stand-in while the names are lent out.
+    pub(super) fn empty() -> Self {
+        Self::new(std::iter::empty(), std::iter::empty())
+    }
+
     /// Upstream `Scope.generate`.
     pub(super) fn generate(&mut self, preferred: &str) -> String {
         let preferred = crate::identity::sanitize_identifier(preferred);
