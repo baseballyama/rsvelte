@@ -64,7 +64,7 @@ fn template_errors_come_from_the_template_on_both_targets() {
         ),
         ("<button is=\"x-b\" class=\"a\">b</button>", None),
         ("<my-el a=\"1\"></my-el>", None),
-        ("<div><my-el a=\"1\"></my-el></div>", Some("unsupported")),
+        ("<div><my-el a=\"1\"></my-el></div>", None),
     ] {
         let source = format!("{script}{markup}");
         for target in [Target::Client, Target::Server] {
@@ -213,10 +213,6 @@ fn a_destructured_rune_is_refused_only_when_upstream_raises_nothing() {
         ),
         (
             "<script>let { a } = $state({ a: 1 });</script>{a}",
-            "unsupported",
-        ),
-        (
-            "<script>function f() { let [a] = $derived.by(() => [1]); return a; }</script>",
             "unsupported",
         ),
     ] {

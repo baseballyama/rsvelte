@@ -18,21 +18,21 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
 () => {
   {
     svelteHTML.createElement("input", {
-      type: "text",
-      onclick: onClick,
+      "type": "text",
+      "onclick": onClick,
       ...(attrs),
-      class: 'class' in attrs ? [own, attrs.class] : own,
+      "class": 'class' in attrs ? [own, attrs.class] : own,
     });
   }
   {
     svelteHTML.createElement("input", {
-      type: "text",
+      "type": "text",
       [Symbol("@attach")]: vmodel(vModelText, () => text, {}, { 'onUpdate:modelValue': (v) => (text = v) }),
     });
   }
   {
     svelteHTML.createElement("div", {
-      onclick: () => (text = 'x'),
+      "onclick": () => (text = 'x'),
       ...(attrs),
     });
     (text);

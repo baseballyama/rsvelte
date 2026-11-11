@@ -8,12 +8,12 @@
 () => {
   {
     svelteHTML.createElement("p", {
-      class: kind,
+      "class": kind,
     });
   }
   {
     svelteHTML.createElement("p", {
-      class: `note ${kind}`,
+      "class": `note ${kind}`,
     });
   }
   {
@@ -22,28 +22,28 @@
   }
   {
     svelteHTML.createElement("p", {
-      class: "static",
+      "class": "static",
     });
     (open);
   }
   {
     svelteHTML.createElement("p", {
-      class: { open },
+      "class": { open },
     });
   }
   {
     svelteHTML.createElement("p", {
-      class: 'fixed & sure',
+      "class": 'fixed & sure',
     });
   }
   {
     svelteHTML.createElement("span", {
-      class: "plain",
+      "class": "plain",
     });
   }
   {
     svelteHTML.createElement("button", {
-      onclick: () => (open = !open),
+      "onclick": () => (open = !open),
     });
   }
 };

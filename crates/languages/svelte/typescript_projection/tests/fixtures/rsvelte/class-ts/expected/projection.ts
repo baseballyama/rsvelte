@@ -9,7 +9,7 @@
 () => {
   {
     svelteHTML.createElement("div", {
-      class: { active, [tone]: level > 1 },
+      "class": { active, [tone]: level > 1 },
     });
     (level > 2);
   }
@@ -19,7 +19,7 @@
   }
   {
     svelteHTML.createElement("button", {
-      onclick: () => level++,
+      "onclick": () => level++,
     });
     (level);
   }

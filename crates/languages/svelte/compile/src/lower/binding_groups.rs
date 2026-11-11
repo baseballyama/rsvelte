@@ -32,7 +32,7 @@ pub(super) fn binding_groups(
     javascript: &Tree,
     source_text: &str,
     res: &Resolution,
-    names: &mut names::Names,
+    names: &names::Names,
 ) -> BindingGroups {
     let mut groups = BindingGroups::default();
     // The key upstream matches a group by: the target's key path and the bindings it reads.

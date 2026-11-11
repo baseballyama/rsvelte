@@ -5,7 +5,7 @@ const pattern=/[(){}\/]+/giu;
 () => {
   {
     svelteHTML.createElement("p", {
-      class: pattern.test("a") ? "a" : "b",
+      "class": pattern.test("a") ? "a" : "b",
     });
   }
 };

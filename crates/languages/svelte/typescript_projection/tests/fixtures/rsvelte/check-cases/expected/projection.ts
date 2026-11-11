@@ -10,8 +10,8 @@
 () => {
   {
     svelteHTML.createElement("button", {
-      type: "button",
-      onclick: () => count.toUpperCase(),
+      "type": "button",
+      "onclick": () => count.toUpperCase(),
     });
     (label.foo);
   }
@@ -28,7 +28,7 @@
   }
   {
     svelteHTML.createElement("p", {
-      title: `a${count.bar}b`,
+      "title": `a${count.bar}b`,
     });
     (label.baz);
   }

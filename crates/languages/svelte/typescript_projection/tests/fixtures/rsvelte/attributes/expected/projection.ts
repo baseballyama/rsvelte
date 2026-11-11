@@ -12,8 +12,8 @@ const __rsvelte_public_props0 = __rsvelte_props({
   {
     svelteHTML.createElement("a", {
       href,
-      class: "link",
-      title: `go to ${label}`,
+      "class": "link",
+      "title": `go to ${label}`,
     });
     (label);
   }

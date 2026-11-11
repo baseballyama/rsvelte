@@ -5,7 +5,7 @@ const f=(pattern=/[(){}]/) => pattern.test("a");
 () => {
   {
     svelteHTML.createElement("p", {
-      class: f() ? "a" : "b",
+      "class": f() ? "a" : "b",
     });
   }
 };

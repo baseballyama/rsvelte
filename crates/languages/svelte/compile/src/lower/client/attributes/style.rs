@@ -11,7 +11,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_set_style`; `attribute` is `None` for the empty `style` upstream's analysis
     /// adds.
     pub(in crate::lower::client) fn set_style(
-        &mut self,
+        &self,
         node: &str,
         attribute: Option<&Attribute>,
         directives: &[&Attribute],

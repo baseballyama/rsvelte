@@ -42,12 +42,15 @@ fn parent_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Parent {
     let is = |span: oxc_span::Span| kind.span() == span;
     match (frame.kind, parent) {
         (AstKind::Program(_), _) if !frame.place.module => Parent::InstanceBody,
-        (AstKind::VariableDeclaration(_), Parent::InstanceBody) => Parent::TopDeclarator,
+        (AstKind::Program(_), _) => Parent::ModuleBody,
+        (AstKind::VariableDeclaration(_), Parent::InstanceBody | Parent::ModuleBody) => {
+            Parent::TopDeclarator
+        }
         // Upstream asks for the instance scope, which an `export` does not leave.
         (
             AstKind::ExportDeclaration(_) | AstKind::ExportNamedDeclaration(_),
-            Parent::InstanceBody,
-        ) => Parent::InstanceBody,
+            Parent::InstanceBody | Parent::ModuleBody,
+        ) => parent,
         (AstKind::VariableDeclarator(d), _) if d.init.as_ref().is_some_and(|i| is(i.span())) => {
             Parent::Initializer {
                 top: parent == Parent::TopDeclarator,

@@ -103,6 +103,7 @@ fn typescript_view(
         projection: Emitter {
             out: projection.out.clone(),
             mappings: projection.mappings.clone(),
+            atoms: projection.atoms.clone(),
         },
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),

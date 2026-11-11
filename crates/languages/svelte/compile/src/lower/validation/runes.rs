@@ -38,9 +38,11 @@ enum Parent {
     Other,
     /// A statement of the instance script's body.
     InstanceBody,
-    /// A declarator of a declaration in the instance script's body.
+    /// A statement of the module script's body, or of a `.svelte.js` module's.
+    ModuleBody,
+    /// A declarator of a declaration in a script's body.
     TopDeclarator,
-    /// A declarator's initializer; `top` at the instance's top level, `named` binding one name,
+    /// A declarator's initializer; `top` at a script's top level, `named` binding one name,
     /// and the rune it calls, named once at the declarator.
     Initializer {
         top: bool,

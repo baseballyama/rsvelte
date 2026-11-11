@@ -86,3 +86,45 @@ fn a_transform_gets_the_options_of_its_project() {
         [Some(r#"{"projections":"/s.json"}"#.to_owned()), None]
     );
 }
+
+#[test]
+fn copies_and_atoms_are_written_in_generated_order_with_their_kinds() {
+    use rsvelte_kernel::output::emitter::{Atom, Mapping};
+    use rsvelte_kernel::source::positions::Span;
+
+    #[derive(serde::Deserialize)]
+    struct Written {
+        mappings: Vec<[u32; 5]>,
+    }
+    let mappings = [
+        Mapping {
+            generated: 0,
+            source_text: 4,
+            len: 3,
+        },
+        Mapping {
+            generated: 5,
+            source_text: 9,
+            len: 0,
+        },
+        Mapping {
+            generated: 20,
+            source_text: 12,
+            len: 2,
+        },
+    ];
+    let atoms = [Atom {
+        generated: Span::new(8, 16),
+        original: Span::new(7, 7),
+    }];
+    let mut output = StructuredDataWriter::new(false);
+    output.begin_object();
+    super::write_mappings(&mappings, &atoms, &mut output);
+    output.end_object();
+    let written: Written = serde_json::from_str(&output.finish()).expect("JSON");
+    // [virtualStart, virtualLength, originalStart, originalLength, kind]: 0 verbatim, 1 atom.
+    assert_eq!(
+        written.mappings,
+        [[0, 3, 4, 3, 0], [8, 8, 7, 0, 1], [20, 2, 12, 2, 0]]
+    );
+}

@@ -21,6 +21,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             invalidates: None,
             primitive: false,
             classes: crate::lower::script::Classes::default(),
+            names: None,
         }
     }
 

@@ -1,3 +1,4 @@
+mod attribute;
 mod children;
 mod contract;
 
@@ -7,7 +8,7 @@ use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{
-    Attribute, AttributeKind, AttributeValue, Component, Part, Range, TemplateNode,
+    AttributeKind, AttributeValue, Component, Part, Range, TemplateNode,
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
@@ -247,6 +248,10 @@ impl Builder<'_> {
                 name,
             ));
         }
+        let slot = !is_component && tag == "slot";
+        // An element whose attributes svelte2tsx checks against the intrinsic element types.
+        let intrinsic = !is_component && !slot;
+        let custom_element = intrinsic && self.has_custom_is(attributes);
         let start = self.scratch.len();
         self.scratch.reserve(attributes.len as usize + 1);
         if is_component
@@ -274,8 +279,10 @@ impl Builder<'_> {
                 AttributeKind::Class | AttributeKind::Attach if is_component => {
                     return Err(Unsupported::at("component directives", attribute.span));
                 }
+                // svelte2tsx passes a slot's name as the call's first argument.
+                AttributeKind::Attribute if slot && attribute.name.text(self.source) == "name" => {}
                 _ => {
-                    let property = self.attribute(attribute);
+                    let property = self.attribute(attribute, intrinsic, custom_element);
                     self.scratch.push(property);
                 }
             }
@@ -289,6 +296,8 @@ impl Builder<'_> {
         let properties = self.tree.push(Node::Object { properties });
         let (mut call, named) = if let Some(component) = component {
             self.component_call(component, properties, snippets)
+        } else if slot {
+            (self.slot_call(attributes, properties)?, None)
         } else {
             (self.element_call(name, properties), None)
         };
@@ -389,6 +398,63 @@ impl Builder<'_> {
         self.tree.push(Node::Call { callee, arguments })
     }
 
+    /// svelte2tsx's `isCustomElement` for a tag without a dash: an `is` with a dash in it.
+    fn has_custom_is(&self, attributes: Range) -> bool {
+        self.component.attributes(attributes).iter().any(|a| {
+            a.name.text(self.source) == "is"
+                && matches!(a.value, AttributeValue::Parts(parts)
+                        if matches!(self.component.parts(parts).first(),
+                            Some(Part::Text(text)) if text.text(self.source).contains('-')))
+        })
+    }
+
+    /// svelte2tsx's `__sveltets_createSlot(name, { … })`, which checks the attributes against
+    /// the component's `$$Slots` when it declares one.
+    fn slot_call(
+        &mut self,
+        attributes: Range,
+        properties: NodeIdentifier,
+    ) -> Result<NodeIdentifier> {
+        let named = self
+            .component
+            .attributes(attributes)
+            .iter()
+            .find(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "name");
+        let name = match named.map(|a| (a, a.value)) {
+            None => self.tree.push(Node::StringLiteral("default")),
+            Some((a, AttributeValue::Parts(parts))) => match self.component.parts(parts) {
+                &[Part::Text(text)] => {
+                    let text = self.tree.push(Node::Text(text));
+                    let parts = self.tree.list(&[text]);
+                    self.tree.push(Node::String {
+                        parts,
+                        template: false,
+                    })
+                }
+                _ => return Err(Unsupported::at("dynamic slot names", a.span)),
+            },
+            Some((a, AttributeValue::True)) => {
+                return Err(Unsupported::at("dynamic slot names", a.span));
+            }
+        };
+        let mut callee = self.tree.push(Node::Identifier("__rsvelte_slots"));
+        if self.declares("$$Slots") {
+            let slots = self.tree.push(Node::Identifier("$$Slots"));
+            let arguments = self.tree.list(&[slots]);
+            callee = self.tree.push(Node::TypeArguments { callee, arguments });
+        }
+        let arguments = self.tree.list(&[]);
+        let callee = self.tree.push(Node::Call { callee, arguments });
+        let arguments = self.tree.list(&[name, properties]);
+        Ok(self.tree.push(Node::Call { callee, arguments }))
+    }
+
+    /// Whether the component binds `name`, a type included.
+    fn declares(&self, name: &str) -> bool {
+        (self.resolution)()
+            .is_some_and(|resolution| resolution.scoping().symbol_names().any(|n| n == name))
+    }
+
     /// A name for generated code that no binding or reference of the component uses.
     fn unused_name(&mut self, prefix: &'static str) -> NodeIdentifier {
         let taken = |name: &str| {
@@ -404,52 +470,6 @@ impl Builder<'_> {
         }
         let prefix = self.tree.push(Node::Identifier(prefix));
         self.tree.push(Node::GeneratedIdentifier { prefix, index })
-    }
-
-    fn attribute(&mut self, attribute: &Attribute) -> NodeIdentifier {
-        let parts = match attribute.value {
-            AttributeValue::True => &[][..],
-            AttributeValue::Parts(range) => self.component.parts(range),
-        };
-        let value = match (attribute.value, parts) {
-            (AttributeValue::True, _) => self.tree.push(Node::Boolean),
-            (_, [Part::Expression { expression, span }]) => {
-                self.expression_source(*expression, Some(span.end_offset - 1))
-            }
-            _ => {
-                let template = parts
-                    .iter()
-                    .any(|part| matches!(part, Part::Expression { .. }));
-                let start = self.scratch.len();
-                self.scratch.reserve(parts.len());
-                for part in parts {
-                    let value = match *part {
-                        Part::Text(span) => self.tree.push(Node::Text(span)),
-                        Part::Expression { expression, span } => {
-                            self.expression_source(expression, Some(span.end_offset - 1))
-                        }
-                    };
-                    self.scratch.push(value);
-                }
-                let parts = self.finish_list(start);
-                self.tree.push(Node::String { parts, template })
-            }
-        };
-        let node = match attribute.kind {
-            AttributeKind::Spread => Node::Spread(value),
-            AttributeKind::Attach => Node::ComputedProperty {
-                key: self.attachment_key(),
-                value,
-            },
-            _ if attribute.shorthand => Node::Shorthand(value),
-            _ => Node::Property {
-                name: attribute.name,
-                value,
-                end: (!matches!(attribute.value, AttributeValue::True))
-                    .then_some(attribute.name.end_offset),
-            },
-        };
-        self.tree.push(node)
     }
 
     fn element_callee(&mut self) -> NodeIdentifier {

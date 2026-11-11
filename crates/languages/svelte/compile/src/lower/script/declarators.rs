@@ -1,5 +1,5 @@
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn};
-use oxc_ast::ast::{BindingPattern, Expression, VariableDeclarator};
+use oxc_ast::ast::{BindingPattern, Expression, VariableDeclaration, VariableDeclarator};
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::SymbolId;
 
@@ -56,6 +56,42 @@ pub(super) fn lower_value_declarator<'o>(
         keeps,
     };
     d.init = Some(rune_value(rw, rune, Some(value), lowering));
+    true
+}
+
+/// A declaration in a script's function that destructures a `$derived`, split as at the top
+/// level; `false` when it destructures none.
+pub(super) fn lower_destructured_declaration<'o>(
+    rw: &mut ScriptRewrite<'_, 'o>,
+    it: &mut VariableDeclaration<'o>,
+) -> bool {
+    let destructured = |d: &VariableDeclarator<'_>| {
+        !d.id.is_binding_identifier()
+            && d.init.as_ref().is_some_and(|init| {
+                matches!(
+                    rw.res.rune(init.get_inner_expression()),
+                    Some(("$derived" | "$derived.by", _))
+                )
+            })
+    };
+    let Some(names) = rw.names else {
+        return false;
+    };
+    if !it.declarations.iter().any(destructured) {
+        return false;
+    }
+    let b = rw.b;
+    let declarations = it.declarations.take_in(b);
+    let mut out = Vec::with_capacity(declarations.len());
+    for mut d in declarations {
+        if destructured(&d) {
+            lower_destructured_derived(rw, &d, &mut out, names);
+        } else {
+            rw.visit_variable_declarator(&mut d);
+            out.push(d);
+        }
+    }
+    it.declarations = oxc_allocator::Vec::from_iter_in(out, b);
     true
 }
 
@@ -125,7 +161,7 @@ pub(super) fn lower_destructured_derived<'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
     d: &VariableDeclarator<'_>,
     out: &mut Vec<VariableDeclarator<'o>>,
-    names: &mut Names,
+    names: &Names,
 ) {
     let b = rw.b;
     let init = d.init.as_ref().expect("a rune initialises the declarator");
@@ -180,7 +216,7 @@ pub(super) fn lower_destructured_derived<'o>(
 /// A destructured derived keeps each array in a derived of its own.
 struct Hooks<'w, 'r, 'o> {
     rw: &'w mut ScriptRewrite<'r, 'o>,
-    names: &'w mut Names,
+    names: &'w Names,
     array: &'static str,
     out: &'w mut Vec<VariableDeclarator<'o>>,
     /// The name `$derived` reads when it is the value destructured.

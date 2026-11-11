@@ -15,9 +15,9 @@ const __rsvelte_public_props0 = __rsvelte_props({
   }
   {
     svelteHTML.createElement("section", {
-      id: "main",
+      "id": "main",
       ...(rest),
-      title: "after",
+      "title": "after",
     });
   }
   {
@@ -28,7 +28,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
   {
     svelteHTML.createElement("img", {
       ...(rest),
-      alt: "",
+      "alt": "",
     });
   }
 };

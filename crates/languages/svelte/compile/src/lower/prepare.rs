@@ -25,7 +25,7 @@ pub(super) fn prepare<'c, 'o>(
         javascript,
         input.component.source_text,
         res,
-        &mut names,
+        &names,
     );
     let component_name = names.generate(&facts.identity.name);
     let mut module = Vec::new();
@@ -43,13 +43,14 @@ pub(super) fn prepare<'c, 'o>(
         invalidates: None,
         primitive: false,
         classes: script::Classes::default(),
+        names: Some(&names),
     };
     if let Some(program) = input.component.module {
         let statements = script::lower_script(
             &mut rewrite,
             javascript.get_program(program),
             &mut module,
-            &mut names,
+            &names,
             script::ScriptContext::Module,
         )?;
         module.extend(statements);
@@ -60,7 +61,7 @@ pub(super) fn prepare<'c, 'o>(
             &mut rewrite,
             javascript.get_program(program),
             &mut hoisted,
-            &mut names,
+            &names,
             script::ScriptContext::Instance {
                 exports: &mut exports,
             },

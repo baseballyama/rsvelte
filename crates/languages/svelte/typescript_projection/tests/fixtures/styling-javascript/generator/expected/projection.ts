@@ -5,7 +5,7 @@ function* values(){yield "a";yield* ["b"];}const value=values().next().value;
 () => {
   {
     svelteHTML.createElement("p", {
-      class: value,
+      "class": value,
     });
   }
 };

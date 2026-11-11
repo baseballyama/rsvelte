@@ -3,8 +3,16 @@ use rsvelte_kernel::computation::registry::Registry;
 
 use super::*;
 
-/// What the task writes for `path`, or its first diagnostic's code.
+/// What the task writes for `path`, or its diagnostics when it writes nothing.
 fn compile(path: &str, source: &str, target: Target) -> String {
+    let mut output = output(path, source, target);
+    match output.files.pop() {
+        Some(file) => file.text,
+        None => format!("{:?}", output.diagnostics),
+    }
+}
+
+fn output(path: &str, source: &str, target: Target) -> TaskOutput {
     let mut registry = Registry::new();
     crate::register(&mut registry);
     let document = registry.document(path, source).expect("small");
@@ -20,11 +28,8 @@ fn compile(path: &str, source: &str, target: Target) -> String {
     )
     .expect("valid plugins")
     .remove(0);
-    let (_, mut output) = result.outputs.into_iter().next().expect("the task ran");
-    match output.files.pop() {
-        Some(file) => file.text,
-        None => format!("{:?}", output.diagnostics),
-    }
+    let (_, output) = result.outputs.into_iter().next().expect("the task ran");
+    output
 }
 
 const COUNTER: &str = "export class Counter {\n\tcount = $state(0);\n}\n";
@@ -82,4 +87,82 @@ fn a_javascript_module_is_read_as_written() {
         compiled,
         "import * as $ from \"svelte/internal/client\";\nlet a = 1;\n"
     );
+}
+
+#[test]
+fn a_modules_destructured_derived_takes_names_from_the_module() {
+    let source = "let obj = $state({ a: 1, b: [2] });\nconst { a, b: [c] } = \
+                  $derived(obj);\nlet { x } = $derived.by(() => obj);\nexport function read() { \
+                  return a + c + x; }\n";
+    let compiled = compile("a.svelte.js", source, Target::Client);
+    assert!(
+        compiled.contains(
+            "const $$array = $.derived(() => $.to_array(obj.b, 1)), a = $.derived(() => obj.a), c \
+             = $.derived(() => $.get($$array)[0]);\nlet $$d = $.derived(() => obj), x = \
+             $.derived(() => $.get($$d).x);\n"
+        ),
+        "{compiled}"
+    );
+    let compiled = compile("a.svelte.js", source, Target::Server);
+    assert!(
+        compiled.contains(
+            "const $$derived_array = $.derived(() => $.to_array(obj.b, 1)), a = $.derived(() => \
+             obj.a), c = $.derived(() => $$derived_array()[0]);\nlet $$d = $.derived(() => obj), \
+             x = $.derived(() => $$d().x);\n"
+        ),
+        "{compiled}"
+    );
+}
+
+#[test]
+fn a_module_exports_no_derived_and_no_state_it_reassigns() {
+    let compiled = |source| compile("a.svelte.js", source, Target::Client);
+    let derived = compiled("let obj = $state({ a: 1 });\nexport const { a } = $derived(obj);\n");
+    assert!(derived.contains("derived_invalid_export"), "{derived}");
+    let state = compiled("export let a = $state(1);\nexport function f() { a = 2; }\n");
+    assert!(state.contains("state_invalid_export"), "{state}");
+    let mutated =
+        compiled("export const a = $state({ b: 1 });\nexport function f() { a.b = 2; }\n");
+    assert!(mutated.starts_with("import"), "{mutated}");
+}
+
+#[test]
+fn a_functions_destructured_derived_is_split_as_at_the_top_level() {
+    let source = "export function f(x) {\n\tconst { a, b: [c] } = $derived(x());\n\tconst { d } = \
+                  $derived(x), e = $derived(1);\n\treturn () => a + c + d + e;\n}\n";
+    let compiled = compile("a.svelte.js", source, Target::Client);
+    assert!(
+        compiled.contains(
+            "const $$d = $.derived(x), $$array = $.derived(() => $.to_array($.get($$d).b, 1)), a = \
+             $.derived(() => $.get($$d).a), c = $.derived(() => $.get($$array)[0]);\n\tconst d = \
+             $.derived(() => x.d), e = $.derived(() => 1);\n\treturn () => $.get(a) + $.get(c) + \
+             $.get(d) + $.get(e);"
+        ),
+        "{compiled}"
+    );
+    let compiled = compile("a.svelte.js", source, Target::Server);
+    assert!(
+        compiled.contains(
+            "const $$d = $.derived(x), $$derived_array = $.derived(() => $.to_array($$d().b, 1)), \
+             a = $.derived(() => $$d().a), c = $.derived(() => $$derived_array()[0]);\n\tconst d = \
+             $.derived(() => x.d), e = $.derived(() => 1);\n\treturn () => a() + c() + d() + e();"
+        ),
+        "{compiled}"
+    );
+}
+
+#[test]
+fn a_module_reports_the_warnings_upstream_shows() {
+    let codes = |source| {
+        let output = output("a.svelte.js", source, Target::Client);
+        assert!(!output.files.is_empty(), "{:?}", output.diagnostics);
+        (output.diagnostics.iter())
+            .map(|d| (d.code.to_string(), d.span.start_offset))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        codes("let a = $state(0);\nexport const b = { a };\n"),
+        [("state_referenced_locally".to_owned(), 38)]
+    );
+    assert_eq!(codes("export const b = $state(0);\n"), []);
 }

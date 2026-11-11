@@ -240,7 +240,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
 
     /// A prop as a property or a spread; memoized values become deriveds in `memo`.
     fn push_prop(
-        &mut self,
+        &self,
         prop: Prop<'_>,
         memo: &mut Memo<'o>,
         parts: &mut Vec<Entry<'o>>,
@@ -256,7 +256,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             Prop::Accessors(a, get, set) => {
                 let functions = (self.rewrite(get, true), self.rewrite(set, true));
                 let name = a.name.text(self.source_text);
-                push_accessors(b, parts, accessors, name, functions, &mut self.names);
+                push_accessors(b, parts, accessors, name, functions, &self.names);
             }
             Prop::Value(a) => {
                 let if_state = self.wraps_in_derived(&a.value);

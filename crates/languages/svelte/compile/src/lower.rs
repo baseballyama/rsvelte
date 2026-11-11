@@ -266,12 +266,7 @@ pub(crate) struct Prepared<'c, 'o> {
 /// Upstream `is_custom_element_node`: a regular element with a `-` in its name or an `is`
 /// attribute, whose attributes upstream sets as properties.
 fn is_custom_element_node(tree: &CompilerSyntaxTree, source_text: &str, el: &Element) -> bool {
-    el.kind == ElementKind::Regular
-        && (el.name.text(source_text).contains('-')
-            || tree
-                .attributes(el.attributes)
-                .iter()
-                .any(|a| !is_directive(&a.value) && a.name.text(source_text) == "is"))
+    tree.is_custom_element(el, source_text)
 }
 
 /// The document span of an oxc node.

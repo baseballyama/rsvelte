@@ -14,10 +14,20 @@ pub struct Mapping {
     pub len: u32,
 }
 
+/// Generated text that maps as a whole to an original range of any length, empty included: no
+/// position inside it has a counterpart of its own (native TypeScript's atom segment).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Atom {
+    pub generated: Span,
+    pub original: Span,
+}
+
 #[derive(Default, Debug)]
 pub struct Emitter {
     pub out: String,
     pub mappings: Vec<Mapping>,
+    /// In output order, beside the copies and points, so a [`Mapping`] stays small.
+    pub atoms: Vec<Atom>,
 }
 
 impl Emitter {
@@ -44,6 +54,30 @@ impl Emitter {
             source_text,
             len: 0,
         });
+    }
+
+    /// Pushes `text`, which maps as a whole to `original`.
+    pub fn atom(&mut self, text: &str, original: Span) {
+        let start = self.out.len() as u32;
+        self.out.push_str(text);
+        self.atom_since(start, original);
+    }
+
+    /// Maps the text pushed since the output offset `start` as a whole to `original`.
+    pub fn atom_since(&mut self, start: u32, original: Span) {
+        self.atoms.push(Atom {
+            generated: Span::new(start, self.out.len() as u32),
+            original,
+        });
+    }
+
+    /// The atom whose generated text holds all of `span`.
+    fn atom_around(&self, span: Span) -> Option<&Atom> {
+        let i = self
+            .atoms
+            .partition_point(|a| a.generated.start_offset <= span.start_offset);
+        let atom = self.atoms.get(i.checked_sub(1)?)?;
+        (span.end_offset <= atom.generated.end_offset).then_some(atom)
     }
 
     /// Copies `span` of `source` verbatim, with a 1:1 mapping.
@@ -88,6 +122,9 @@ impl Emitter {
     /// `None` when either end has no mapping before it on its line.
     #[must_use]
     pub fn lookup_span(&self, span: Span) -> Option<Span> {
+        if let Some(atom) = self.atom_around(span) {
+            return Some(atom.original);
+        }
         let start_offset = self.lookup(span.start_offset)?;
         let end_offset = self.lookup(span.end_offset)?;
         Some(Span::new(start_offset, end_offset.max(start_offset)))
@@ -98,6 +135,9 @@ impl Emitter {
     /// a copy contains it (its end included). `None` when no copied character is inside.
     #[must_use]
     pub fn lookup_overlap(&self, span: Span) -> Option<Span> {
+        if let Some(atom) = self.atom_around(span) {
+            return Some(atom.original);
+        }
         // Copies are recorded in output order, so both ends of the mappings are sorted.
         let first = self
             .mappings
@@ -138,6 +178,12 @@ impl Emitter {
     /// point mapping; a later mapping at the same generated offset replaces an earlier one.
     fn points(&self) -> Vec<(u32, u32)> {
         let mut sorted = self.mappings.clone();
+        // A source map holds points only: an atom maps from its start.
+        sorted.extend(self.atoms.iter().map(|a| Mapping {
+            generated: a.generated.start_offset,
+            source_text: a.original.start_offset,
+            len: 0,
+        }));
         sorted.sort_by_key(|m| m.generated);
         let mut points: Vec<(u32, u32)> = Vec::with_capacity(sorted.len());
         let mut put = |g: u32, s: u32| match points.last_mut() {

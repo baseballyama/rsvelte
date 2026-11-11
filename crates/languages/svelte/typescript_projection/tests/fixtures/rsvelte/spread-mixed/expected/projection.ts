@@ -21,24 +21,24 @@ const __rsvelte_public_props0 = __rsvelte_props({
   {
     svelteHTML.createElement("div", {
       ...(rest),
-      class: className,
-      onclick: () => count++,
+      "class": className,
+      "onclick": () => count++,
       "data-count": count,
     });
   }
   {
     svelteHTML.createElement("div", {
       ...(extra()),
-      title: `n ${count}`,
+      "title": `n ${count}`,
     });
     (active);
   }
   {
     svelteHTML.createElement("p", {
-      class: "note",
+      "class": "note",
       ...(rest),
-      onmouseenter: log,
-      hidden: true,
+      "onmouseenter": log,
+      "hidden": true,
     });
   }
   {
@@ -50,8 +50,8 @@ const __rsvelte_public_props0 = __rsvelte_props({
   }
   {
     svelteHTML.createElement("button", {
-      type: "button",
-      onclick: () => (active = !active),
+      "type": "button",
+      "onclick": () => (active = !active),
     });
   }
 };

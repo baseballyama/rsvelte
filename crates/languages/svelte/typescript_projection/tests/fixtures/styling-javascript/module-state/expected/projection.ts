@@ -5,7 +5,7 @@ let value=$state("a");export function set(next){value=next;}export function get(
 () => {
   {
     svelteHTML.createElement("p", {
-      class: get(),
+      "class": get(),
     });
   }
 };

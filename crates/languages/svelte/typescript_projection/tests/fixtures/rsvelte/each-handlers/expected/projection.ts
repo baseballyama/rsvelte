@@ -15,13 +15,13 @@
       (item);
       {
         svelteHTML.createElement("button", {
-          onclick: () => (picked = item),
+          "onclick": () => (picked = item),
         });
         (item);
       }
       {
         svelteHTML.createElement("button", {
-          onclick: () => remove(item),
+          "onclick": () => remove(item),
         });
         (i);
       }

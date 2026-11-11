@@ -8,7 +8,7 @@ const value="b";
 () => {
   {
     svelteHTML.createElement("p", {
-      class: value,
+      "class": value,
     });
   }
 };

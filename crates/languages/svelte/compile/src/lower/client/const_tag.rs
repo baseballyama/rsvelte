@@ -5,22 +5,17 @@ use rsvelte_typescript_tree::DeclarationIdentifier;
 
 use crate::lower::builder::Runtime;
 use crate::lower::client::{ClientCompilationContext, CompilerNodeIdentifier, Lists, NodeKind};
-use crate::lower::names::Names;
 use crate::lower::paths::bound_names;
 use crate::lower::script::{self, Read};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `DeclarationTag` (client): declared with the fragment's `{@const}`s.
     pub(super) fn declaration_tag(
-        &mut self,
+        &self,
         declaration: DeclarationIdentifier,
     ) -> Vec<oxc_ast::ast::Statement<'o>> {
         let declaration = self.javascript.get_declaration(declaration);
-        let mut names = std::mem::replace(&mut self.names, Names::empty());
-        let lowered =
-            script::lower_declaration_tag(&mut self.rewriter(true), declaration, &mut names);
-        self.names = names;
-        lowered
+        script::lower_declaration_tag(&mut self.rewriter(true), declaration, &self.names)
     }
 
     /// Upstream `ConstTag` (client): `const x = $.derived(() => init)`, read through `$.get`. A

@@ -15,7 +15,7 @@ use rsvelte_svelte_syntax::Parsed;
 pub struct Warn;
 
 /// The options this crate compiles with.
-const OPTIONS: Options = Options {
+pub(crate) const OPTIONS: Options = Options {
     runes: Some(true),
     custom_element: false,
 };

@@ -5,7 +5,7 @@ const value="a";function run(x){switch(x){case 1:return "a";case 2:throw new Err
 () => {
   {
     svelteHTML.createElement("p", {
-      class: run(1),
+      "class": run(1),
     });
   }
 };

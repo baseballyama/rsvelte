@@ -35,7 +35,7 @@ pub(crate) fn lower_module<'o>(
         .javascript
         .get_program(component.module.expect("a module is one program"));
     let b = Builder::new(allocator);
-    let mut names = prepare::names(res);
+    let names = prepare::names(res);
     let mut rewrite = script::ScriptRewrite {
         b: &b,
         target,
@@ -49,13 +49,14 @@ pub(crate) fn lower_module<'o>(
         invalidates: None,
         primitive: false,
         classes: script::Classes::default(),
+        names: Some(&names),
     };
     let mut hoisted = Vec::new();
     let statements = script::lower_script(
         &mut rewrite,
         program,
         &mut hoisted,
-        &mut names,
+        &names,
         script::ScriptContext::File,
     )?;
     let runtime = match target {

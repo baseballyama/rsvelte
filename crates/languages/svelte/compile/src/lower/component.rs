@@ -70,7 +70,7 @@ pub(super) fn push_accessors<'o>(
     declarations: &mut Vec<Statement<'o>>,
     name: &str,
     (get, set): (Expression<'o>, Expression<'o>),
-    names: &mut super::names::Names,
+    names: &super::names::Names,
 ) {
     let get_id = names.generate("bind_get");
     let set_id = names.generate("bind_set");

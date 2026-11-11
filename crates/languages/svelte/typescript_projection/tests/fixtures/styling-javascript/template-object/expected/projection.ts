@@ -5,7 +5,7 @@ const items=Array.from({length:2},(_,i)=>({text:`a${i}`}));
 () => {
   {
     svelteHTML.createElement("p", {
-      class: items[0].text,
+      "class": items[0].text,
     });
   }
 };

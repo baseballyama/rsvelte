@@ -34,6 +34,27 @@ impl Printer<'_> {
         }
     }
 
+    fn property(&mut self, name: Span, lowercase: bool, value: NodeIdentifier, end: Option<u32>) {
+        // svelte2tsx quotes every name, and a finding on it covers the name without quotes.
+        let start = self.output.out.len() as u32;
+        self.output.push("\"");
+        if lowercase {
+            for c in name.text(self.source).chars().flat_map(char::to_lowercase) {
+                self.output.push_char(c);
+            }
+        } else {
+            self.output.push(name.text(self.source));
+        }
+        self.output.push("\"");
+        self.output.atom_since(start, name);
+        if let Some(end) = end {
+            self.output.mark(end);
+        }
+        self.output.push(": ");
+        self.node(value);
+        self.output.push(",\n");
+    }
+
     fn node(&mut self, identifier: NodeIdentifier) {
         match self.tree.node(identifier) {
             Node::Program { span, .. } => {
@@ -91,22 +112,12 @@ impl Printer<'_> {
                 consequent,
                 alternate,
             } => self.branch(test, consequent, alternate),
-            Node::Property { name, value, end } => {
-                if is_identifier(name.text(self.source)) {
-                    self.output.copy(self.source, name);
-                } else {
-                    self.output.mark(name.start_offset);
-                    self.output.push("\"");
-                    self.output.copy(self.source, name);
-                    self.output.push("\"");
-                }
-                if let Some(end) = end {
-                    self.output.mark(end);
-                }
-                self.output.push(": ");
-                self.node(value);
-                self.output.push(",\n");
-            }
+            Node::Property {
+                name,
+                lowercase,
+                value,
+                end,
+            } => self.property(name, lowercase, value, end),
             node @ (Node::SnippetProperty { .. }
             | Node::SnippetNames { .. }
             | Node::ImplicitChildren(_)) => self.component_part(node),
@@ -164,8 +175,10 @@ impl Printer<'_> {
                 self.output.push(");\n");
             }
             Node::ImplicitChildren(at) => {
-                self.output.mark(at);
-                self.output.push("children: __rsvelte_children,\n");
+                // svelte2tsx's `children` has no source text, so a finding on it lands where its
+                // source map puts the key.
+                self.output.atom("children", Span::new(at, at));
+                self.output.push(": __rsvelte_children,\n");
             }
             _ => unreachable!("only a component's parts are printed here"),
         }
@@ -390,12 +403,4 @@ impl Printer<'_> {
             c => self.output.push_char(c),
         }
     }
-}
-
-fn is_identifier(name: &str) -> bool {
-    let mut chars = name.chars();
-    chars
-        .next()
-        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
-        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 }

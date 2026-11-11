@@ -14,7 +14,7 @@
 () => {
   {
     svelteHTML.createElement("button", {
-      onclick: measure,
+      "onclick": measure,
     });
     (result);
   }

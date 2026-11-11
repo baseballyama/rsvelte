@@ -33,7 +33,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_set_class`; `attribute` is `None` for the empty `class` upstream's analysis
     /// adds.
     pub(in crate::lower::client) fn set_class(
-        &mut self,
+        &self,
         identifier: CompilerNodeIdentifier,
         node: &str,
         attribute: Option<&Attribute>,

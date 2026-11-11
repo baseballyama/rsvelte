@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::{Component, Path, PathBuf};
 
-use rsvelte_kernel::output::emitter::Mapping;
+use rsvelte_kernel::output::emitter::{Atom, Mapping};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 
 use super::CheckRequest;
@@ -11,6 +11,7 @@ pub(crate) struct ContentMappedInput {
     pub source: String,
     pub extension: &'static str,
     pub mappings: Vec<Mapping>,
+    pub atoms: Vec<Atom>,
 }
 
 /// Extensions the checker reads as JavaScript or TypeScript without a content mapper.
@@ -40,10 +41,10 @@ impl CheckRequest {
     pub(super) fn stand_ins<'a>(
         &'a self,
         root: &'a Path,
-    ) -> impl Iterator<Item = (PathBuf, &'static str)> + 'a {
+    ) -> impl Iterator<Item = (PathBuf, &'a str)> + 'a {
         self.stand_ins
             .iter()
-            .map(move |(path, text)| (normalized(&root.join(path)), *text))
+            .map(move |(path, text)| (normalized(&root.join(path)), text.as_str()))
     }
 
     pub(super) fn write_mapper_config(
@@ -99,7 +100,7 @@ pub(super) fn store_json(req: &CheckRequest, root: &Path, paths: &[PathBuf]) -> 
             .write_string(text)
             .key("extension")
             .write_string(".ts");
-        rsvelte_typescript_content_mapper::write_mappings(&file.mappings, &mut output);
+        rsvelte_typescript_content_mapper::write_mappings(&file.mappings, &file.atoms, &mut output);
         output.end_object();
     }
     for (path, text) in req.stand_ins(root) {
@@ -112,7 +113,7 @@ pub(super) fn store_json(req: &CheckRequest, root: &Path, paths: &[PathBuf]) -> 
             .write_string(text)
             .key("extension")
             .write_string(".ts");
-        rsvelte_typescript_content_mapper::write_mappings(&[], &mut output);
+        rsvelte_typescript_content_mapper::write_mappings(&[], &[], &mut output);
         output.end_object();
     }
     output.end_object().end_object();

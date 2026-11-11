@@ -10,7 +10,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_attribute_effect`: every attribute and spread, in order, as one object the
     /// runtime diffs, with its own memoized values.
     pub(in crate::lower::client) fn attribute_effect(
-        &mut self,
+        &self,
         identifier: CompilerNodeIdentifier,
         tag: &str,
         attributes: &[Attribute],

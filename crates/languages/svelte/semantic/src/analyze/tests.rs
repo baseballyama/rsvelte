@@ -204,3 +204,28 @@ fn no_selector_matches_an_element_inside_svelte_head() {
         assert_eq!(analysis.stylesheet_used, [used], "{style}");
     }
 }
+
+#[test]
+fn a_custom_element_with_attributes_makes_its_parent_s_children_dynamic() {
+    let dynamic = |source: &str| {
+        let component = parse(source).expect("parses");
+        let lowered = lower(&component, source);
+        let res = resolve(&component.javascript, None, None, &lowered);
+        let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+        let analysis = super::analyze(&input, &res);
+        let (div, _) = lowered
+            .nodes
+            .iter_enumerated()
+            .find(|(_, node)| {
+                matches!(&node.kind, NodeKind::Element(el) if el.name.text(source) == "div")
+            })
+            .expect("a div");
+        analysis.dynamic[div]
+    };
+    assert!(dynamic(
+        "<div><custom-elements with=\"attributes\"></custom-elements></div>"
+    ));
+    assert!(dynamic("<div><p is=\"x-y\" title=\"t\"></p></div>"));
+    assert!(!dynamic("<div><custom-elements></custom-elements></div>"));
+    assert!(!dynamic("<div><p title=\"t\"></p></div>"));
+}
