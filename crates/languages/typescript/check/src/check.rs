@@ -150,6 +150,9 @@ pub struct TypeScriptEnv {
     pub include: Vec<PathBuf>,
     /// `compilerOptions.paths` entries: module specifier → file.
     pub paths: Vec<(&'static str, PathBuf)>,
+    /// Existing files the checker reads with this text instead, as the language's own checker
+    /// reads them.
+    pub replaced: Vec<(PathBuf, String)>,
 }
 
 impl TypeScriptEnv {
@@ -183,6 +186,13 @@ impl TypeScriptEnv {
                 Some(_) => return Err(format!("two languages map `{}` differently", p.0)),
             }
         }
+        for r in &other.replaced {
+            match self.replaced.iter().find(|x| x.0 == r.0) {
+                None => self.replaced.push(r.clone()),
+                Some(x) if x.1 == r.1 => {}
+                Some(_) => return Err(format!("two languages replace {}", r.0.display())),
+            }
+        }
         for i in &other.include {
             if !self.include.contains(i) {
                 self.include.push(i.clone());
@@ -208,6 +218,14 @@ pub struct Check {
     pub documents: Documents,
     /// `None`: a document that needs checking reports that the task is not configured.
     pub tsc: Option<Tsc>,
+    /// What an import of a matching document that is not checked reads, as the upstream
+    /// checker still resolves it. `None`: such a document is absent from the run.
+    pub stand_in: Option<&'static str>,
+}
+
+/// A document the run does not check but other documents may import.
+struct StandIn {
+    path: String,
 }
 
 /// Which documents a [`Check`] checks.
@@ -243,11 +261,11 @@ impl FinishTask for Check {
         match context.facet::<TypeScriptView>()? {
             Err(d) => {
                 out.diagnostics.push(d.clone());
-                None
+                self.stand_in(context)
             }
             Ok(TypeScriptDocument::Unchecked) => {
                 out.file("json", render_findings(context.line_index(), &mut []));
-                None
+                self.stand_in(context)
             }
             Ok(TypeScriptDocument::Checked { .. }) if self.tsc.is_none() => {
                 out.diagnostics.push(Diagnostic::error(
@@ -279,10 +297,25 @@ impl FinishTask for Check {
             .tsc
             .as_ref()
             .expect("prepare returns parts only when configured");
-        let docs: Vec<Prepared> = parts
-            .into_iter()
-            .map(|p| *p.downcast::<Prepared>().expect("parts are this task's"))
-            .collect();
+        let mut docs: Vec<Prepared> = Vec::new();
+        let mut checked_outs = Vec::new();
+        let mut stand_ins = Vec::new();
+        for (part, out) in parts.into_iter().zip(outs) {
+            match part.downcast::<Prepared>() {
+                Ok(d) => {
+                    docs.push(*d);
+                    checked_outs.push(out);
+                }
+                Err(part) => {
+                    let s = part.downcast::<StandIn>().expect("parts are this task's");
+                    stand_ins.push((s.path, self.stand_in.expect("only with a stand-in")));
+                }
+            }
+        }
+        let outs = checked_outs;
+        if docs.is_empty() {
+            return;
+        }
         let mut env = TypeScriptEnv::default();
         let mut merged: Vec<&Arc<TypeScriptEnv>> = Vec::new();
         for d in &docs {
@@ -295,7 +328,16 @@ impl FinishTask for Check {
                 return;
             }
         }
-        check_projected(tsc, &env, docs, outs);
+        check_projected(tsc, &env, docs, stand_ins, outs);
+    }
+}
+
+impl Check {
+    fn stand_in(&self, context: &DocumentContext<'_>) -> Option<Part> {
+        self.stand_in.and(self.tsc.as_ref())?;
+        Some(Box::new(StandIn {
+            path: context.document.path.clone(),
+        }))
     }
 }
 
@@ -312,9 +354,11 @@ fn check_projected(
     tsc: &Tsc,
     env: &TypeScriptEnv,
     mut docs: Vec<Prepared>,
+    stand_ins: Vec<(String, &'static str)>,
     outs: Vec<&mut TaskOutput>,
 ) {
     let req = CheckRequest {
+        stand_ins,
         documents: docs.iter().map(|d| d.path.clone()).collect(),
         mapped_files: docs
             .iter()
@@ -343,6 +387,7 @@ fn check_projected(
             .collect(),
         declarations: env.declarations.clone(),
         include: env.include.clone(),
+        replaced: env.replaced.clone(),
         paths: env.paths.clone(),
     };
     let checked = tsc.check(&req);

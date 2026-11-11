@@ -38,6 +38,7 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         identifier: "vue.check/default",
         documents: Documents::Matching(rsvelte_vue_syntax::matches),
         tsc: config.check.as_ref().map(|c| c.tsc.clone()),
+        stand_in: None,
     });
     let env = config
         .check
@@ -60,6 +61,7 @@ fn typescript_env(vue: &std::path::Path) -> TypeScriptEnv {
         content_mapper: None,
         declarations: vec![HELPERS],
         include: Vec::new(),
+        replaced: Vec::new(),
         paths: vec![
             ("vue", vue.join("dist/vue.d.mts")),
             ("vue/jsx-runtime", vue.join("jsx-runtime/index.d.ts")),

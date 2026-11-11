@@ -37,33 +37,53 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         identifier: "svelte.check/default",
         documents: Documents::Matching(rsvelte_svelte_syntax::matches),
         tsc: config.check.as_ref().map(|c| c.tsc.clone()),
+        stand_in: Some(rsvelte_svelte_typescript_projection::STAND_IN),
     });
     let env = config
         .check
         .as_ref()
-        .map(|c| Arc::new(typescript_env(&c.svelte, &c.content_mapper)));
+        .map(|c| typescript_env(&c.svelte, &c.content_mapper).map(Arc::new));
     reg.provide::<TypeScriptView>("svelte", rsvelte_svelte_syntax::matches, move |context| {
         typescript_view(context, env.as_ref())
     });
 }
 
 /// What svelte-check adds to the project: its JSX shim and the svelte package's types.
-fn typescript_env(svelte: &std::path::Path, content_mapper: &std::path::Path) -> TypeScriptEnv {
-    TypeScriptEnv {
+fn typescript_env(
+    svelte: &std::path::Path,
+    content_mapper: &std::path::Path,
+) -> Result<TypeScriptEnv, String> {
+    let types = svelte.join("types/index.d.ts");
+    let text = std::fs::read_to_string(&types).map_err(|e| format!("{}: {e}", types.display()))?;
+    Ok(TypeScriptEnv {
         mapped_extension: Some(".svelte"),
         content_mapper: Some(content_mapper.to_owned()),
         declarations: vec![rsvelte_svelte_typescript_projection::DECLARATIONS],
-        include: vec![svelte.join("types/index.d.ts")],
+        include: vec![types.clone()],
         paths: vec![
-            ("svelte", svelte.join("types/index.d.ts")),
+            ("svelte", types.clone()),
             ("svelte/elements", svelte.join("elements.d.ts")),
         ],
-    }
+        replaced: vec![(types, without_any_component_module(text))],
+    })
+}
+
+/// svelte-check blanks the svelte package's `declare module '*.svelte'`, so an import of a
+/// component that does not exist is an error instead of a component of any props.
+fn without_any_component_module(mut types: String) -> String {
+    let Some(start) = types.find("declare module '*.svelte' {") else {
+        return types;
+    };
+    let end = types[start + 1..]
+        .find("\n}")
+        .map_or(types.len(), |at| start + 1 + at + 2);
+    types.replace_range(start..end, &" ".repeat(end - start));
+    types
 }
 
 fn typescript_view(
     context: &DocumentContext<'_>,
-    env: Option<&Arc<TypeScriptEnv>>,
+    env: Option<&Result<Arc<TypeScriptEnv>, String>>,
 ) -> Result<TypeScriptDocument, Diagnostic> {
     // svelte-check type-checks a component whose style sheet does not parse.
     let component = context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
@@ -75,13 +95,10 @@ fn typescript_view(
         return Ok(TypeScriptDocument::Unchecked);
     }
     let projection = context.get::<Printed>().as_ref().map_err(Clone::clone)?;
-    let env = env.ok_or_else(|| {
-        Diagnostic::error(
-            "check_unconfigured",
-            "svelte.check needs the svelte package",
-            Span::new(0, 0),
-        )
-    })?;
+    let env = env
+        .ok_or("svelte.check needs the svelte package")
+        .and_then(|env| env.as_ref().map_err(String::as_str))
+        .map_err(|why| Diagnostic::error("check_unconfigured", why, Span::new(0, 0)))?;
     Ok(TypeScriptDocument::Checked {
         projection: Emitter {
             out: projection.out.clone(),
@@ -91,3 +108,6 @@ fn typescript_view(
         env: Arc::clone(env),
     })
 }
+
+#[cfg(test)]
+mod tests;

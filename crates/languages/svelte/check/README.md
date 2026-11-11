@@ -31,10 +31,11 @@ inputs, unsupported projections and parse errors. A passing snapshot can still h
 because their globals can conflict.
 
 The checker reads each document at its own path through its file layer; a relative path is
-beside `tsconfig.json`. Imports between the documents of one run resolve as on the disk. This
-checker is still incomplete. Svelte's ambient `*.svelte` declaration can accept an unresolved
-import with a broad component type. So empty findings do not prove that the checker checked the
-props of imported components.
+beside `tsconfig.json`. Imports between the documents of one run resolve as on the disk. Like
+svelte-check, the checker blanks the svelte package's `declare module '*.svelte'`, so an import
+of a missing component fails. An unchecked component, written in JavaScript or with a refused
+projection, still resolves: the checker reads it as a component of any props. So empty findings
+do not prove that the checker checked the props of such a component.
 
 ```sh
 cargo test -p rsvelte_svelte_check --test fixtures
