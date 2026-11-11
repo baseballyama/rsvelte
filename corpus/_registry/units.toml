@@ -1399,3 +1399,15 @@
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-style-with-expr-input.svelte".skip]
 "svelte.compile" = "upstream bug: a `style:` shorthand whose name is no identifier is read as an expression (`style:max-width` sets `max - width`), and the server lowercases the key the client keeps"
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/named_reexport_is_hoisted_out_of_render_body/ef9d513487cc4903.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `x` from an instance-script `export { x } from`, which binds no local `x`, so the component throws a ReferenceError"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/reexport_mixes_with_plain_named_exports_in_source_order/de9aaa4626a274d0.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `x` from an instance-script `export { x } from`, which binds no local `x`, so the component throws a ReferenceError"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/reexport_of_a_local_let_still_widens_and_stays_a_prop/603d62102a5ffdc1.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `x` from an instance-script `export { x } from`, which binds no local `x`, so the component throws a ReferenceError"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/renamed_reexport_keeps_official_local_to_exported_mapping/f2186ac6a152b18e.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `x` from an instance-script `export { x } from`, which binds no local `x`, so the component throws a ReferenceError"

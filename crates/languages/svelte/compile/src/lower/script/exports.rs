@@ -1,8 +1,8 @@
 //! The names the instance script exports, which become the component's exports.
 
 use oxc_ast::ast::{
-    Declaration, ExportNamedDeclaration, ModuleExportName, Statement, VariableDeclaration,
-    VariableDeclarationKind,
+    Declaration, ExportFromDeclaration, ExportNamedDeclaration, ModuleExportName, Statement,
+    VariableDeclaration, VariableDeclarationKind,
 };
 use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -55,14 +55,21 @@ pub(super) fn check_declaration<'t>(
     let plain = named
         && exports[start..].iter().all(|export| {
             export.symbol.is_some_and(|symbol| {
+                // A `const` state is never reassigned, so its value is the proxy itself.
                 matches!(
                     res.binding(symbol).kind,
-                    BindingKind::Normal | BindingKind::RestProperty
+                    BindingKind::Normal
+                        | BindingKind::RestProperty
+                        | BindingKind::State
+                        | BindingKind::RawState
                 )
             })
         });
     if plain {
         return Ok(());
+    }
+    if let Declaration::VariableDeclaration(d) = declaration {
+        check_exported_state(res, statement, d)?;
     }
     unsupported("this export from the instance script", span_of(statement))
 }
@@ -130,6 +137,33 @@ pub(super) fn check_specifiers<'t>(
             name: local.name.as_str(),
             alias,
             symbol,
+        });
+    }
+    Ok(())
+}
+
+/// Pushes the names of `export { name as alias } from 'module'`. Upstream drops the statement and
+/// exports `name` as the instance reads it, an import of that name or nothing.
+pub(super) fn check_reexports<'t>(
+    export: &'t ExportFromDeclaration<'t>,
+    exports: &mut Vec<Export<'t>>,
+) -> Result<(), Diagnostic> {
+    if export.export_kind.is_type() {
+        return Ok(());
+    }
+    for specifier in &export.specifiers {
+        if specifier.export_kind.is_type() {
+            continue;
+        }
+        let alias = specifier.exported.name().as_str();
+        // Upstream raises `module_illegal_default_export`.
+        if alias == "default" {
+            return unsupported("this export from the instance script", span_of(specifier));
+        }
+        exports.push(Export {
+            name: specifier.local.name().as_str(),
+            alias,
+            symbol: None,
         });
     }
     Ok(())

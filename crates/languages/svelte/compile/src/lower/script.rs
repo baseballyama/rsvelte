@@ -493,11 +493,14 @@ pub(super) fn lower_script<'t, 'o>(
             // Upstream drops a re-export of everything, which names nothing the component can
             // export.
             Statement::ExportAllDeclaration(_) if instance => {}
+            Statement::ExportFromDeclaration(export)
+                if let ScriptContext::Instance { exports } = &mut context =>
+            {
+                exports::check_reexports(export, exports)?;
+            }
             // Upstream turns these into the component's exports; copying them would put an
             // `export` inside the component function.
-            Statement::ExportDefaultDeclaration(_) | Statement::ExportFromDeclaration(_)
-                if instance =>
-            {
+            Statement::ExportDefaultDeclaration(_) if instance => {
                 return unsupported("an export from the instance script", span_of(statement));
             }
             Statement::VariableDeclaration(d) => {
