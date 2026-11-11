@@ -52,9 +52,11 @@ pub(super) struct ScriptRewrite<'r, 'o> {
 }
 
 /// How a name the template declares is read on the client.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(super) enum Read {
     Plain,
+    /// `$.get(object).name`: a name a destructured `{@const}` declares in `object`.
+    Field(Box<str>),
     /// `$.get(name)`
     Get,
     /// `name()`
@@ -149,6 +151,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
                     Read::Plain => None,
                     Read::Get => Some(b.runtime("get", [x()])),
                     Read::Call => Some(b.call(x(), [])),
+                    Read::Field(object) => Some(b.member(b.runtime("get", [b.id(object)]), name)),
                 }
             }
             (Target::Server, BindingKind::Derived | BindingKind::DerivedBy) => {
