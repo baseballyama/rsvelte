@@ -10,6 +10,8 @@ use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
 use rsvelte_typescript_tree::Tree;
 use rustc_hash::{FxHashMap, FxHashSet};
 
+mod const_references;
+
 use super::special::{error, invalid};
 use super::{
     AttributeValue, BindingKind, CompileInput, Diagnostic, ElementKind, NodeKind, Resolution, Span,
@@ -58,6 +60,7 @@ pub(super) fn errors(input: &CompileInput<'_>, res: &Resolution) -> Vec<(Raised,
             _ => {}
         }
     }
+    out.extend(const_references::invalid_reference(input, res));
     out
 }
 

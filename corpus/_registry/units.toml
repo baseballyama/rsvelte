@@ -38,6 +38,9 @@
 ["svelte/svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte".skip]
 "svelte.compile/client" = "svelte 5.57.3 emits invalid JS here (duplicate declaration of `foo`); the sample expects a compile error"
 
+["svelte/svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-2/main.svelte".skip]
+"svelte.compile" = "upstream bug: without experimental.async, svelte 5.57.3 hoists a component's snippet out of the content whose `{@const}` it reads, which works here only because the value is a literal it inlines"
+
 ["svelte/svelte/packages/svelte/tests/compiler-errors/samples/const-tag-cyclical/main.svelte".skip]
 "svelte.compile" = "upstream bug: runes mode does not report `const_tag_cycle`: the client's evaluator folds the cycle `a = b, b = a` to an empty string, and the server emits `const a = b; const b = a;`, which throws; the sample expects a compile error"
 
