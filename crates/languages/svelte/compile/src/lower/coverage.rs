@@ -192,8 +192,8 @@ fn has_content(input: &CompileInput<'_>, el: &Element) -> bool {
     })
 }
 
-/// Upstream's `bind_invalid_value` takes more: this is `$state`, a prop, a `let`, a store,
-/// or a member of a declared name or of `$state`.
+/// Upstream's `bind_invalid_value` takes more: this is `$state`, a `$derived`, a prop, a
+/// `let`, a store, or a member of a declared name or of `$state`.
 fn is_bindable(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIdentifier) -> bool {
     let target = input
         .component
@@ -211,6 +211,8 @@ fn is_bindable(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIde
     match res.binding(symbol).kind {
         BindingKind::State
         | BindingKind::RawState
+        | BindingKind::Derived
+        | BindingKind::DerivedBy
         | BindingKind::Property
         | BindingKind::BindableProperty => true,
         BindingKind::Normal => {
@@ -247,7 +249,7 @@ fn check_target(
         && !rejected(input, res, target)
     {
         return unsupported(
-            "a binding to anything but a `let`, `$state`, a prop or a member",
+            "a binding to anything but a `let`, `$state`, `$derived`, a prop or a member",
             a.span,
         );
     }

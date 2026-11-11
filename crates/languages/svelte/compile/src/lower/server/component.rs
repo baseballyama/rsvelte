@@ -53,18 +53,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 Prop::Bind(a, target) => {
                     let value = self.expression(target);
                     let source = self.javascript.get_expression(target);
-                    let store = self.rewrite().store_binding(source);
-                    let written = self.expression(target);
-                    let assignment = match written {
-                        _ if let Some(store) = store => store,
-                        oxc_ast::ast::Expression::Identifier(name) => {
-                            b.assign_name(&name.name, b.id("$$value"))
-                        }
-                        member if member.is_member_expression() => {
-                            b.assign_member(member, b.id("$$value"))
-                        }
-                        _ => unreachable!("validation keeps a bound target assignable"),
-                    };
+                    let assignment = self.rewrite().binding_assignment(source, false);
                     let setter = vec![b.stmt(assignment), set_settled(b, false)];
                     let name = a.name.text(self.source_text);
                     push_binding(b, &mut parts, name, value, setter);

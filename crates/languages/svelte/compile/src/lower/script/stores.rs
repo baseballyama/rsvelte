@@ -89,18 +89,6 @@ impl<'o> ScriptRewrite<'_, 'o> {
         Some(self.mutate(prefix, arguments, it.take_in(b)))
     }
 
-    /// `target = $$value`, the setter of a binding to `target`, when `target` writes a store.
-    pub(in crate::lower) fn store_binding(
-        &mut self,
-        target: &Expression<'_>,
-    ) -> Option<Expression<'o>> {
-        let root = member_root(target)?;
-        if !self.is_store(root) {
-            return None;
-        }
-        Some(self.binding_assignment(target, false))
-    }
-
     /// `$.invalidate_store($$stores, '$name')` after a write through a member of an `{#each}` item
     /// whose collection reads `$name`.
     pub(super) fn invalidation(&self, it: &Expression<'_>) -> Option<Expression<'o>> {

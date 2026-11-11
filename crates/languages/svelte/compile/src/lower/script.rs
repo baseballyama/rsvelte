@@ -318,15 +318,6 @@ pub(super) fn bindable_root<'e>(
     .then_some(root)
 }
 
-/// [`bindable_root`] of the member `target` writes; `None` when `target` is no member.
-pub(super) fn mutated_bindable_prop<'e>(
-    res: &Resolution,
-    accessors: bool,
-    target: &'e Expression<'e>,
-) -> Option<&'e IdentifierReference<'e>> {
-    bindable_root(res, accessors, target.as_member_expression()?.object())
-}
-
 /// Upstream server `ExpressionStatement`: an effect statement renders nothing.
 fn is_effect(res: &Resolution, statement: &Statement<'_>) -> bool {
     matches!(statement, Statement::ExpressionStatement(s)

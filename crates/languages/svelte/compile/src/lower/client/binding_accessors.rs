@@ -11,7 +11,6 @@ use rustc_hash::FxHashSet;
 use super::{ClientCompilationContext, Read, ScriptRewrite};
 use crate::lower::BindingKind;
 use crate::lower::builder::Runtime;
-use crate::lower::script::mutated_bindable_prop;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn binding_accessors(
@@ -124,42 +123,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         expression: ExpressionIdentifier,
         primitive: bool,
     ) -> Expression<'o> {
-        let b = self.b;
-        let value = b.id("$$value");
         let source = self
             .javascript
             .get_expression(expression)
             .get_inner_expression();
-        if let Some(store) = self.rewriter(true).store_binding(source) {
-            return store;
-        }
-        if let Expression::Identifier(identifier) = source {
-            let target = b.id(&identifier.name);
-            match self.res.symbol(identifier) {
-                Some(symbol) if self.res.is_state_source(symbol) => {
-                    let mut arguments = vec![target, value];
-                    if !primitive && self.res.binding(symbol).kind == BindingKind::State {
-                        arguments.push(b.boolean(true));
-                    }
-                    b.runtime("set", arguments)
-                }
-                Some(symbol) if self.res.is_prop_source(symbol) => b.call(target, [value]),
-                _ => b.assign_name(&identifier.name, value),
-            }
-        } else {
-            let target = self.expression_with_rest_reads(expression, false);
-            let mut mutation = b.assign_member(target, value);
-            let object = source
-                .as_member_expression()
-                .map(oxc_ast::ast::MemberExpression::object);
-            if let Some(invalidate) = object.and_then(|o| self.rewriter(true).invalidation_of(o)) {
-                mutation = b.sequence([mutation, invalidate]);
-            }
-            match mutated_bindable_prop(self.res, self.custom_element.is_some(), source) {
-                Some(prop) => b.call(b.id_at(&prop.name, prop.span), [mutation, b.boolean(true)]),
-                None => mutation,
-            }
-        }
+        self.rewriter(true).binding_assignment(source, primitive)
     }
 }
 
