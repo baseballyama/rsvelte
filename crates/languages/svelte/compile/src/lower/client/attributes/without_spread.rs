@@ -108,7 +108,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             !matches!(a.value, AttributeValue::Class(_))
                 && a.name.text(self.source_text).eq_ignore_ascii_case("class")
         });
-        if !has_class && !class_directives.is_empty() {
+        // A custom element takes no attribute from the template, so it sets its scoping class too.
+        if !has_class
+            && (!class_directives.is_empty() || custom_element && self.an.scoped[identifier])
+        {
             self.set_class(identifier, node, None, &class_directives, &mut frag.memo, l);
         } else if !has_class && self.an.scoped[identifier] {
             self.static_attribute(frag, identifier, "class", "class", Some(String::new()));
