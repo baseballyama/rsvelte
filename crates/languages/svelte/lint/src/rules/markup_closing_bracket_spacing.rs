@@ -33,7 +33,7 @@ struct Options {
 
 fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
     let options: Options = options.single()?;
-    Ok(Box::new(HtmlClosingBracketSpacing {
+    Ok(Box::new(MarkupClosingBracketSpacing {
         start: options.start.unwrap_or(Value::Never),
         end: options.end.unwrap_or(Value::Never),
         self_closing: options.self_closing.unwrap_or(Value::Always),
@@ -41,13 +41,13 @@ fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
 }
 
 #[derive(Debug)]
-struct HtmlClosingBracketSpacing {
+struct MarkupClosingBracketSpacing {
     start: Value,
     end: Value,
     self_closing: Value,
 }
 
-impl SvelteRule for HtmlClosingBracketSpacing {
+impl SvelteRule for MarkupClosingBracketSpacing {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let tokens = &component.tokens;

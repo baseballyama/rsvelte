@@ -12,7 +12,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 /// `kind: "html"`: neither a component nor a `svelte:` element.
-pub(super) fn is_html(name: &str) -> bool {
+pub(super) fn is_markup(name: &str) -> bool {
     !name.starts_with("svelte:") && !is_component_name(name)
 }
 

@@ -1,7 +1,7 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
 
-use crate::directives::{Kind, html_directives};
+use crate::directives::{Kind, markup_directives};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 /// Turns on `<!-- eslint-disable -->` and its kin; `lint` applies them. With
@@ -39,7 +39,7 @@ impl SvelteRule for CommentDirective {
         }
         let component = file.component().expect("a component rule");
         let source = file.source();
-        for directive in html_directives(component, source) {
+        for directive in markup_directives(component, source) {
             let kind = directive.kind.keyword();
             let enable = directive.kind == Kind::Enable;
             if directive.rules.is_empty() {

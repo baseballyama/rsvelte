@@ -36,7 +36,8 @@ enum Options {
 #[serde(rename_all = "lowercase")]
 enum Preset {
     All,
-    Html,
+    #[serde(rename = "html")]
+    Markup,
     None,
 }
 
@@ -58,7 +59,7 @@ fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
         _ if options.options.len() > 1 => return Err("takes one option".to_owned()),
         None => DEFAULT,
         Some(Options::Preset(Preset::All)) => [Always; 6],
-        Some(Options::Preset(Preset::Html)) => [Always, Never, Always, Never, Never, Always],
+        Some(Options::Preset(Preset::Markup)) => [Always, Never, Always, Never, Never, Always],
         Some(Options::Preset(Preset::None)) => [Never; 6],
         Some(Options::Types(types)) => {
             let given = [
@@ -72,7 +73,7 @@ fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
             std::array::from_fn(|i| given[i].unwrap_or(DEFAULT[i]))
         }
     };
-    Ok(Box::new(HtmlSelfClosing(values)))
+    Ok(Box::new(MarkupSelfClosing(values)))
 }
 
 const TYPES: [&str; 6] = [
@@ -85,9 +86,9 @@ const TYPES: [&str; 6] = [
 ];
 
 #[derive(Debug)]
-struct HtmlSelfClosing(Values);
+struct MarkupSelfClosing(Values);
 
-impl SvelteRule for HtmlSelfClosing {
+impl SvelteRule for MarkupSelfClosing {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let source = file.source();

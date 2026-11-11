@@ -136,7 +136,7 @@ fn a_declaration_tag_reads_one_statement() {
 fn a_built_program_is_kept_beside_the_parsed_ones() {
     let (tree, (parsed, built)) = Tree::build(COMPONENT, |builder| {
         let parsed = builder.program(Span::new(18, 44), SourceType::ts())?;
-        let ast = builder.ast();
+        let nodes = builder.nodes();
         let program = oxc_ast::ast::Program::new(
             oxc_span::Span::new(0, 0),
             SourceType::mjs(),
@@ -145,7 +145,7 @@ fn a_built_program_is_kept_beside_the_parsed_ones() {
             None,
             [],
             [],
-            &ast,
+            &nodes,
         );
         Ok((parsed, builder.keep_program(program)))
     })
@@ -158,13 +158,13 @@ fn a_built_program_is_kept_beside_the_parsed_ones() {
 #[test]
 fn built_parameters_are_kept() {
     let (tree, kept) = Tree::build(COMPONENT, |builder| {
-        let ast = builder.ast();
+        let nodes = builder.nodes();
         let parameters = oxc_ast::ast::FormalParameters::new(
             oxc_span::Span::new(0, 0),
             oxc_ast::ast::FormalParameterKind::ArrowFormalParameters,
             [],
             None,
-            &ast,
+            &nodes,
         );
         Ok(builder.keep_parameters(parameters))
     })

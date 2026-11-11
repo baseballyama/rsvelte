@@ -13,7 +13,7 @@ use rsvelte_typescript_tree::Tree;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
-use super::element_kind::is_html_like;
+use super::element_kind::is_markup_like;
 use super::nodes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -62,7 +62,7 @@ impl SvelteRule for PreferClassDirective {
             let TemplateNode::Element { attributes, .. } = node else {
                 continue;
             };
-            if !is_html_like(node, source) {
+            if !is_markup_like(node, source) {
                 continue;
             }
             let all = component.attributes(*attributes);

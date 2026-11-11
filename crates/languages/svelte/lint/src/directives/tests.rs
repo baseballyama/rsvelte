@@ -30,14 +30,14 @@ impl SvelteRule for StandIn {
     }
 }
 
-fn tags(file: &File<'_>, html: bool) -> Vec<Span> {
+fn tags(file: &File<'_>, markup: bool) -> Vec<Span> {
     file.component()
         .expect("a component")
         .nodes
         .iter()
         .filter_map(|node| match *node {
-            TemplateNode::Html { span, .. } if html => Some(span),
-            TemplateNode::Debug { span, .. } if !html => Some(span),
+            TemplateNode::Html { span, .. } if markup => Some(span),
+            TemplateNode::Debug { span, .. } if !markup => Some(span),
             _ => None,
         })
         .collect()
@@ -160,7 +160,7 @@ fn at(found: &[(String, u32)]) -> Vec<(&str, u32)> {
         .collect()
 }
 
-const HTML: &str = "svelte/no-at-html-tags";
+const AT_MARKUP: &str = "svelte/no-at-html-tags";
 const UNDEF: &str = "no-undef";
 const INFIX: &str = "space-infix-ops";
 const DEBUG: &str = "svelte/no-at-debug-tags";
@@ -177,7 +177,7 @@ fn disable_all_rules() {
 #[test]
 fn disable_specific_rules() {
     let found = lint("\n      <!-- eslint-disable space-infix-ops -->\n      {@html a+b}\n      ");
-    assert_eq!(rules(&found), [HTML, UNDEF, UNDEF]);
+    assert_eq!(rules(&found), [AT_MARKUP, UNDEF, UNDEF]);
 }
 
 #[test]
@@ -185,7 +185,10 @@ fn enable_all_rules() {
     let found = lint(
         "\n      <!-- eslint-disable -->\n      {@html a+b}\n      <!-- eslint-enable -->\n      {@html a+b}\n       ",
     );
-    assert_eq!(at(&found), [(HTML, 5), (UNDEF, 5), (INFIX, 5), (UNDEF, 5)]);
+    assert_eq!(
+        at(&found),
+        [(AT_MARKUP, 5), (UNDEF, 5), (INFIX, 5), (UNDEF, 5)]
+    );
 }
 
 #[test]
@@ -226,7 +229,7 @@ fn disable_line_all_rules() {
 #[test]
 fn disable_line_specific_rules() {
     let found = lint("\n      {@html a+b} <!-- eslint-disable-line space-infix-ops -->\n      ");
-    assert_eq!(rules(&found), [HTML, UNDEF, UNDEF]);
+    assert_eq!(rules(&found), [AT_MARKUP, UNDEF, UNDEF]);
 }
 
 #[test]
@@ -234,7 +237,7 @@ fn disable_line_on_another_line() {
     let found = lint(
         "\n      <!-- eslint-disable-line -->\n      {@html a+b}\n      <!-- eslint-disable-line -->\n      ",
     );
-    assert_eq!(rules(&found), [HTML, UNDEF, INFIX, UNDEF]);
+    assert_eq!(rules(&found), [AT_MARKUP, UNDEF, INFIX, UNDEF]);
 }
 
 #[test]
@@ -250,7 +253,7 @@ fn disable_next_line_specific_rules() {
     let found = lint(
         "\n      <!-- eslint-disable-next-line space-infix-ops -->\n      {@html a+b}\n      ",
     );
-    assert_eq!(rules(&found), [HTML, UNDEF, UNDEF]);
+    assert_eq!(rules(&found), [AT_MARKUP, UNDEF, UNDEF]);
 }
 
 #[test]
@@ -258,7 +261,10 @@ fn disable_next_line_on_another_line() {
     let found = lint(
         "\n      <!-- eslint-disable-next-line -->\n\n      {@html a+b} <!-- eslint-disable-next-line -->\n      <!-- eslint-disable-next-line -->\n      ",
     );
-    assert_eq!(at(&found), [(HTML, 4), (UNDEF, 4), (INFIX, 4), (UNDEF, 4)]);
+    assert_eq!(
+        at(&found),
+        [(AT_MARKUP, 4), (UNDEF, 4), (INFIX, 4), (UNDEF, 4)]
+    );
 }
 
 #[test]
@@ -271,7 +277,7 @@ fn disable_next_line_affects_only_the_next_line() {
         [
             (UNDEF, 3),
             (UNDEF, 3),
-            (HTML, 4),
+            (AT_MARKUP, 4),
             (UNDEF, 4),
             (INFIX, 4),
             (UNDEF, 4)
@@ -292,7 +298,10 @@ fn description_enable_all() {
     let found = lint(
         "\n      <!-- eslint-disable -- description -->\n      {@html a+b}\n      <!-- eslint-enable -- description -->\n      {@html a+b}\n      ",
     );
-    assert_eq!(at(&found), [(HTML, 5), (UNDEF, 5), (INFIX, 5), (UNDEF, 5)]);
+    assert_eq!(
+        at(&found),
+        [(AT_MARKUP, 5), (UNDEF, 5), (INFIX, 5), (UNDEF, 5)]
+    );
 }
 
 #[test]
@@ -319,7 +328,7 @@ fn description_disable_line_specific_rules() {
     let found = lint(
         "\n      {@html a+b} <!-- eslint-disable-line space-infix-ops -- description -->\n      ",
     );
-    assert_eq!(rules(&found), [HTML, UNDEF, UNDEF]);
+    assert_eq!(rules(&found), [AT_MARKUP, UNDEF, UNDEF]);
 }
 
 #[test]
@@ -335,7 +344,7 @@ fn description_disable_next_line_specific_rules() {
     let found = lint(
         "\n      <!-- eslint-disable-next-line space-infix-ops -- description -->\n      {@html a+b}\n      ",
     );
-    assert_eq!(rules(&found), [HTML, UNDEF, UNDEF]);
+    assert_eq!(rules(&found), [AT_MARKUP, UNDEF, UNDEF]);
 }
 
 fn message(found: &[(String, u32, u32, String)]) -> Vec<(&str, u32, u32, &str)> {
@@ -431,7 +440,7 @@ fn report_unused_disable_next_line_of_rules() {
         ]
     );
     let rest: Vec<(&str, u32)> = found[2..].iter().map(|f| (f.0, f.1)).collect();
-    assert_eq!(rest, [(HTML, 4), (DEBUG, 4)]);
+    assert_eq!(rest, [(AT_MARKUP, 4), (DEBUG, 4)]);
 }
 
 #[test]
@@ -483,7 +492,7 @@ fn report_unused_enable_of_a_rule() {
 #[test]
 fn javascript_block_directives_reach_the_template() {
     let found = lint("<script>\n/* eslint-disable no-undef */\n</script>\n{@html a+b}\n");
-    assert_eq!(rules(&found), [HTML, INFIX]);
+    assert_eq!(rules(&found), [AT_MARKUP, INFIX]);
     let found = lint(
         "<script>\n/* eslint-disable */\n/* eslint-enable 'space-infix-ops' */\n</script>\n{@html a+b}\n",
     );
@@ -493,14 +502,14 @@ fn javascript_block_directives_reach_the_template() {
 #[test]
 fn javascript_line_comments_hold_only_line_directives() {
     let found = lint("<script>\n// eslint-disable\n</script>\n{@html a+b}\n");
-    assert_eq!(rules(&found), [HTML, UNDEF, INFIX, UNDEF]);
+    assert_eq!(rules(&found), [AT_MARKUP, UNDEF, INFIX, UNDEF]);
     let found = lint("{@html a+b /* eslint-disable-line no-undef -- why */}\n{@html a+b}\n");
     assert_eq!(
         at(&found),
         [
-            (HTML, 1),
+            (AT_MARKUP, 1),
             (INFIX, 1),
-            (HTML, 2),
+            (AT_MARKUP, 2),
             (UNDEF, 2),
             (INFIX, 2),
             (UNDEF, 2)
@@ -513,8 +522,8 @@ fn javascript_line_comments_hold_only_line_directives() {
 #[test]
 fn system_turns_ignored_rules_off_outside_script() {
     for (ignored, kept) in [
-        (UNDEF, &[(HTML, 1), (INFIX, 1), (UNDEF, 3)][..]),
-        ("/^(no|space)-/u", &[(HTML, 1), (UNDEF, 3)]),
+        (UNDEF, &[(AT_MARKUP, 1), (INFIX, 1), (UNDEF, 3)][..]),
+        ("/^(no|space)-/u", &[(AT_MARKUP, 1), (UNDEF, 3)]),
     ] {
         let mut settings = LintSettings::default();
         settings.ignore_warnings = vec![ignored.to_owned()];
@@ -546,13 +555,13 @@ fn system_rejects_an_invalid_pattern() {
 fn rule_names_separated_by_wide_spaces() {
     let found =
         lint("<!-- eslint-disable no-undef\u{3000}space-infix-ops\u{a0}x -->\n{@html a+b}\n");
-    assert_eq!(rules(&found), [HTML]);
+    assert_eq!(rules(&found), [AT_MARKUP]);
 }
 
 #[test]
 fn next_line_directives_count_a_lone_carriage_return_as_a_line_end() {
     let found = lint("<!-- eslint-disable-next-line space-infix-ops -->\r{@html a+b}\r");
-    assert_eq!(rules(&found), [HTML, UNDEF, UNDEF]);
+    assert_eq!(rules(&found), [AT_MARKUP, UNDEF, UNDEF]);
     let found = lint("<script>\r// eslint-disable-next-line no-undef\ra;\r</script>\r");
     assert_eq!(rules(&found), Vec::<&str>::new());
 }

@@ -40,7 +40,7 @@ impl<'a> Names<'a> {
         allocator: &'a Allocator,
         compiler_syntax_tree: &CompilerSyntaxTree,
     ) -> Self {
-        let ast = AstBuilder::new(allocator);
+        let nodes = AstBuilder::new(allocator);
         let source_text: &'a str = tree.source_text();
         let mut names = Self {
             snippets: FxHashMap::default(),
@@ -50,7 +50,7 @@ impl<'a> Names<'a> {
             match &node.kind {
                 NodeKind::Snippet(snippet) => {
                     if let Expression::Identifier(name) = tree.get_expression(snippet.name) {
-                        let binding = BindingIdentifier::new(name.span, name.name, &ast);
+                        let binding = BindingIdentifier::new(name.span, name.name, &nodes);
                         names.snippets.insert(identifier, allocator.alloc(binding));
                     }
                 }
@@ -63,7 +63,7 @@ impl<'a> Names<'a> {
                         let mut bindings = Vec::new();
                         if let Some(value) = value {
                             let mut add = |span: oxc_span::Span, name: &'a str| {
-                                let binding = BindingIdentifier::new(span, name, &ast);
+                                let binding = BindingIdentifier::new(span, name, &nodes);
                                 bindings.push(&*allocator.alloc(binding));
                             };
                             for_each_target(tree.get_expression(value), &mut add);
@@ -77,7 +77,7 @@ impl<'a> Names<'a> {
                                 span.end_offset - name.len() as u32,
                                 span.end_offset,
                             );
-                            let binding = BindingIdentifier::new(span, name, &ast);
+                            let binding = BindingIdentifier::new(span, name, &nodes);
                             bindings.push(&*allocator.alloc(binding));
                         }
                         names.lets.insert(attribute, bindings);

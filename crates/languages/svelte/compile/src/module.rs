@@ -12,7 +12,7 @@ use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
 use rsvelte_svelte_semantic::input::ComponentInput;
-use rsvelte_svelte_semantic::resolve::resolve;
+use rsvelte_svelte_semantic::resolve::resolve_module;
 use rsvelte_svelte_semantic::warnings::module_warnings;
 use rsvelte_typescript_compile::print;
 use rsvelte_typescript_tree::Tree;
@@ -20,9 +20,12 @@ use rsvelte_typescript_tree::Tree;
 use crate::lower::{self, CompileInput, Target};
 use crate::warnings::OPTIONS;
 
-/// A module `compileModule` reads; a `.svelte.ts` one is read with its types.
+/// A module `compileModule` reads; a `.svelte.ts` one is read with its types. A declaration file
+/// only describes a module, and nothing compiles it at runtime.
 fn matches(document: &Document) -> bool {
-    document.path.ends_with(".svelte.js") || document.path.ends_with(".svelte.ts")
+    let path = &document.path;
+    (path.ends_with(".svelte.js") || path.ends_with(".svelte.ts"))
+        && !path.ends_with(".d.svelte.ts")
 }
 
 #[derive(Debug)]
@@ -88,7 +91,7 @@ pub(crate) fn compiled(
         filename: &document.path,
         source_text: &document.text,
     });
-    let res = resolve(&javascript, None, Some(program), &compiler_syntax_tree);
+    let res = resolve_module(&javascript, program);
     let allocator = Allocator::default();
     let module = {
         let _p = measurement::phase(match target {

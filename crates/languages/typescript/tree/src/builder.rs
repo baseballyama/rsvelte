@@ -83,7 +83,7 @@ impl<'a> Builder<'a> {
 
     /// Builds the nodes a host makes itself, such as the declaration a `{@const}` tag stands for.
     #[must_use]
-    pub fn ast(&self) -> AstBuilder<'a> {
+    pub fn nodes(&self) -> AstBuilder<'a> {
         AstBuilder::new(self.allocator)
     }
 
@@ -339,14 +339,15 @@ impl<'a> Builder<'a> {
         identifier
     }
 
-    /// Keeps a program built in [`Builder::ast`]'s arena, such as one a compiler writes.
+    /// Keeps a program built in [`Builder::nodes`]'s arena, such as one a compiler writes.
     pub fn keep_program(&mut self, program: Program<'a>) -> ProgramIdentifier {
         let identifier = ProgramIdentifier::at(self.programs.len());
         self.programs.push(program);
         identifier
     }
 
-    /// Keeps a parameter list built in [`Builder::ast`]'s arena, such as aliases a compiler writes.
+    /// Keeps a parameter list built in [`Builder::nodes`]'s arena, such as aliases a compiler
+    /// writes.
     pub fn keep_parameters(&mut self, parameters: FormalParameters<'a>) -> ParametersIdentifier {
         let identifier = ParametersIdentifier::at(self.parameters.len());
         self.parameters.push(parameters);

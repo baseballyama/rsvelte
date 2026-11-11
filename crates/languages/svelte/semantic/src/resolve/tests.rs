@@ -346,3 +346,50 @@ fn the_module_script_sees_the_instance_imports_and_no_other_instance_binding() {
     let names: Vec<&str> = res.unresolved_names().collect();
     assert_eq!(names, ["local"]);
 }
+
+#[test]
+fn a_redeclared_var_s_initializer_is_its_last_declarator_s() {
+    let initial = |source: &str| {
+        let res = analyze(source);
+        let symbol = res
+            .scoping()
+            .symbol_ids()
+            .find(|&s| res.scoping().symbol_name(s) == "test")
+            .expect("declared");
+        res.initializer(symbol)
+            .map(|init| oxc_span::GetSpan::span(init).source_text(source).to_owned())
+    };
+    assert_eq!(
+        initial("<script>var test = \"\"; var test = 42;</script>{test}").as_deref(),
+        Some("42")
+    );
+    assert_eq!(
+        initial("<script>var test = 1; var test;</script>{test}"),
+        None
+    );
+    assert_eq!(
+        initial("<script>var test = 1;</script>{test}").as_deref(),
+        Some("1")
+    );
+}
+
+#[test]
+fn a_module_file_reads_a_rune_beside_its_store_s_name_as_the_rune() {
+    use crate::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
+
+    let code = "let state = 1; let effect = 2;\nlet count = $state(0);\n$effect.root(() => {});\n";
+    let document =
+        rsvelte_kernel::source::document::Document::new("a.svelte.js".to_owned(), code.to_owned())
+            .expect("small");
+    let (tree, program) =
+        rsvelte_typescript_tree::Tree::program(&document, oxc_span::SourceType::mjs())
+            .expect("parses");
+    let module = super::resolve_module(&tree, program);
+    assert!(!module.is_store_subscription("$state"));
+    assert!(!module.is_store_subscription("$effect"));
+    // A component's module script subscribes to a store of that name, as upstream's does.
+    let empty = CompilerSyntaxTreeBuilder::new(code, 0, 0).finish(Children::default());
+    let component = resolve(&tree, None, Some(program), &empty);
+    assert!(component.is_store_subscription("$state"));
+    assert!(component.is_store_subscription("$effect"));
+}

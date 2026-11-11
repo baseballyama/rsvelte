@@ -44,7 +44,7 @@ fn reports_semantic_diagnostics_with_their_chains_in_utf16() {
          \n    Type 'number' is not assignable to type 'string'."
     );
     // `é` is one UTF-16 unit and two UTF-8 bytes: `f` starts at 19 in UTF-16.
-    assert_eq!((d.pos, d.end), (19, 20));
+    assert_eq!((d.start_offset, d.end_offset), (19, 20));
     let start = d.start_position.unwrap();
     assert_eq!((start.line, start.character), (1, 4));
 }

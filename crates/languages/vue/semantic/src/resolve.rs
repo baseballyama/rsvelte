@@ -2,7 +2,7 @@
 //! compileScript derives from the script.
 //!
 //! The template is evaluated in the script's top-level scope, and each `v-for` opens a scope
-//! declaring its aliases for the element it sits on ([`host::TemplateHost`]). Lint rules,
+//! declaring its aliases for the element it sits on (`host::TemplateHost`). Lint rules,
 //! compilation and the type-check projection all read this one resolution.
 
 use std::cell::RefCell;

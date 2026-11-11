@@ -85,7 +85,7 @@ impl<'a> Parser<'a, '_> {
         if text.split('.').any(str::is_empty) {
             return None;
         }
-        let ast = self.builder.ast();
+        let nodes = self.builder.nodes();
         let span_of = |offset: u32, part: &str| {
             let end = offset + u32::try_from(part.len()).expect("source positions use u32 bytes");
             oxc_span::Span::new(offset, end)
@@ -93,15 +93,15 @@ impl<'a> Parser<'a, '_> {
         let mut parts = text.split('.');
         let first = parts.next()?;
         let mut span = span_of(name.start_offset, first);
-        let mut reference = Expression::new_identifier(span, first, &ast);
+        let mut reference = Expression::new_identifier(span, first, &nodes);
         for part in parts {
             span = span_of(span.end + 1, part);
             reference = Expression::new_static_member_expression(
                 oxc_span::Span::new(name.start_offset, span.end),
                 reference,
-                IdentifierName::new(span, part, &ast),
+                IdentifierName::new(span, part, &nodes),
                 false,
-                &ast,
+                &nodes,
             );
         }
         Some(self.builder.keep_expression(reference))

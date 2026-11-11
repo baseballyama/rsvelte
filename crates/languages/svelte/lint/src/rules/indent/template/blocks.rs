@@ -43,7 +43,7 @@ impl Template<'_, '_> {
             for t in &if_tokens {
                 self.offset(*t, 1, open);
             }
-            let test_tokens = self.js_outer(Some(self.expression_span(test)));
+            let test_tokens = self.javascript_outer(Some(self.expression_span(test)));
             self.offset(test_tokens.map(|(f, _)| f), 1, if_tokens[0]);
             let close = self.after(test_tokens.map(|(_, l)| l));
             self.offset(close, 0, open);
@@ -84,7 +84,7 @@ impl Template<'_, '_> {
     ) {
         let (open, keyword) = self.head(self.first(span));
         self.offset(keyword, 1, open);
-        let expression_tokens = self.js_outer(Some(self.expression_span(expression)));
+        let expression_tokens = self.javascript_outer(Some(self.expression_span(expression)));
         self.offset(expression_tokens.map(|(f, _)| f), 1, keyword);
         let after_expression = self.after(expression_tokens.map(|(_, l)| l));
         let tokens = self.tokens();
@@ -108,12 +108,12 @@ impl Template<'_, '_> {
             if let Some(then_token) = inline_then {
                 self.offset(Some(then_token), 1, open);
                 let value_span = value.map(|p| self.pattern_span(p));
-                let value_first = self.js_first(value_span);
+                let value_first = self.javascript_first(value_span);
                 self.offset(value_first, 1, Some(then_token));
                 let close = if value_span.is_none() {
                     self.after(Some(then_token))
                 } else {
-                    self.js_after(value_span)
+                    self.javascript_after(value_span)
                 };
                 self.offset(close, 0, open);
                 region = self.region_end(then, close);
@@ -126,12 +126,12 @@ impl Template<'_, '_> {
             if let Some(catch_token) = inline_catch {
                 self.offset(Some(catch_token), 1, open);
                 let error_span = error.map(|p| self.pattern_span(p));
-                let error_first = self.js_first(error_span);
+                let error_first = self.javascript_first(error_span);
                 self.offset(error_first, 1, Some(catch_token));
                 let close = if error_span.is_none() {
                     self.after(Some(catch_token))
                 } else {
-                    self.js_after(error_span)
+                    self.javascript_after(error_span)
                 };
                 self.offset(close, 0, open);
             } else {
@@ -180,7 +180,7 @@ impl Template<'_, '_> {
         let (_, keyword) = self.head(branch_open);
         match binding.map(|p| self.pattern_span(p)) {
             None => self.after(keyword),
-            binding => self.js_after(binding),
+            binding => self.javascript_after(binding),
         }
     }
 
@@ -193,7 +193,7 @@ impl Template<'_, '_> {
     ) {
         let (open, keyword) = self.head(branch_open);
         self.offset(keyword, 1, open);
-        let binding_first = self.js_first(binding.map(|p| self.pattern_span(p)));
+        let binding_first = self.javascript_first(binding.map(|p| self.pattern_span(p)));
         self.offset(binding_first, 1, keyword);
         let close = self.branch_close(branch_open, binding);
         self.offset(close, 0, open);
