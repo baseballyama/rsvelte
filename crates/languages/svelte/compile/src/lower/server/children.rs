@@ -19,6 +19,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                         NodeKind::If { .. } => self.if_block(*identifier, template)?,
                         NodeKind::Each(_) => self.each_block(*identifier, template)?,
                         NodeKind::Key { .. } => self.key_block(*identifier, template)?,
+                        NodeKind::Await(_) => self.await_block(*identifier, template)?,
                         // Upstream `HtmlTag` (server).
                         NodeKind::Html { expression } => template.push(Piece::Expression(
                             self.b.runtime("html", [self.expression(expression)]),
