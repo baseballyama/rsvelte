@@ -68,7 +68,8 @@ impl<'a> Values<'a> {
         if self.unknown {
             return;
         }
-        match expression {
+        // Upstream reads the value after erasing types.
+        match crate::typescript::without_typescript(expression) {
             Expression::StringLiteral(s) => match s.value.as_str() {
                 Some(value) => self.add(value),
                 None => self.unknown = true,
