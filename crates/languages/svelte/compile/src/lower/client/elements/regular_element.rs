@@ -25,20 +25,24 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         l.lets.append(&mut lets);
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
         let custom_element = is_custom_element_node(compiler_syntax_tree, self.source_text, el);
-        // Upstream sets a custom element's scoping class as a property, which is not lowered.
-        if self.an.scoped[identifier] && custom_element {
-            return unsupported("a scoped custom element", el.name);
-        }
-        // Upstream marks rich select content and its ancestors dynamic, which the analysis does not
-        // yet.
-        if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
-            let mut at = Some(identifier);
+        // Upstream marks rich select content, a scoped custom element and their ancestors dynamic,
+        // which the analysis does not yet.
+        let marked = if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
+            Some(("rich select content in a static subtree", Some(identifier)))
+        } else if custom_element && self.an.scoped[identifier] {
+            let parent = compiler_syntax_tree.node(identifier).parent;
+            Some(("a scoped custom element in a static subtree", parent))
+        } else {
+            None
+        };
+        if let Some((what, from)) = marked {
+            let mut at = from;
             while let Some(current) = at {
                 let ancestor = compiler_syntax_tree.node(current);
                 if matches!(&ancestor.kind, NodeKind::Element(a) if a.kind == ElementKind::Regular)
                     && !self.an.dynamic[current]
                 {
-                    return unsupported("rich select content in a static subtree", el.name);
+                    return unsupported(what, el.name);
                 }
                 at = ancestor.parent;
             }
