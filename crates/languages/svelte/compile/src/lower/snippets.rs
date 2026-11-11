@@ -374,7 +374,11 @@ pub(super) fn place(
 ///
 /// A snippet named like an import or a module-level name stays in the component, where it
 /// shadows that name; upstream hoists it beside it, which declares the name twice.
-pub(super) fn hoistable(input: &CompileInput<'_>, res: &Resolution) -> FxHashSet<SymbolId> {
+pub(super) fn hoistable(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    stores: &super::stores::Names<'_>,
+) -> FxHashSet<SymbolId> {
     let tree = input.component.compiler_syntax_tree;
     let scoping = res.scoping();
     let module_level = |symbol: SymbolId| {
@@ -425,6 +429,10 @@ pub(super) fn hoistable(input: &CompileInput<'_>, res: &Resolution) -> FxHashSet
         for &reference in scoping.get_resolved_reference_ids(symbol) {
             reads.judge(res, &scopes, reference, read, declared);
         }
+    }
+    // A subscription is upstream's binding in the instance scope.
+    for reference in stores.subscription_references(res) {
+        reads.judge(res, &scopes, reference, Read::Blocked, res.instance_scope());
     }
     let blocked = reads.blocked_or_reaching_blocked();
     (top_level.into_iter())
