@@ -40,8 +40,10 @@ pub struct Diagnostic {
     #[serde(rename = "fileName")]
     pub file_name: Option<PathBuf>,
     /// UTF-16 offsets in the original text of the file; -1 for a diagnostic of the program.
-    pub pos: i64,
-    pub end: i64,
+    #[serde(rename = "pos")]
+    pub start_offset: i64,
+    #[serde(rename = "end")]
+    pub end_offset: i64,
     #[serde(rename = "startPosition")]
     pub start_position: Option<Position>,
     #[serde(rename = "endPosition")]
