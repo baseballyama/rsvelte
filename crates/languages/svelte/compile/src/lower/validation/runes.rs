@@ -18,9 +18,7 @@ mod assignments;
 mod calls;
 mod places;
 
-use assignments::{
-    awaits_in_default, check_assignment, fixed_expression, fixed_simple, fixed_target,
-};
+use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
 use places::place_of;
 
 use super::state_invalid_placement;
@@ -375,7 +373,7 @@ impl<'a> RuneWalk<'a> {
                     assign.left,
                     AssignmentTarget::ArrayAssignmentTarget(_)
                         | AssignmentTarget::ObjectAssignmentTarget(_)
-                ) && (!scripted || awaits_in_default(&assign.left))
+                ) && !scripted
                 {
                     self.check_pattern_assignment(span_of(assign), &assign.left, self.target)?;
                 }
