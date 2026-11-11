@@ -59,7 +59,7 @@ impl<'t> Template<'_, '_, 't> {
             .namespaces
             .as_ref()
             .expect("translation uses a checked plan")
-            .get(identifier);
+            .named(identifier);
         let scope = self.i.analysis.scoped[identifier]
             .then_some(self.stylesheet_hash)
             .flatten();
