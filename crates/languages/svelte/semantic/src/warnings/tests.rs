@@ -316,3 +316,21 @@ fn every_checked_code_is_a_svelte_code() {
     }
     assert!(CompileWarnings::SVELTE_CODES.contains(&"ownership_invalid_mutation"));
 }
+
+#[test]
+fn a_script_comment_ignores_a_local_state_reference() {
+    for script in [
+        "let count = $state(0);\n// svelte-ignore state_referenced_locally\nlet x = count;",
+        "let count = $state(0);\nlet x = $derived(1);\n// svelte-ignore state_referenced_locally\nconsole.log(count);",
+        "let { a } = $props();\n// svelte-ignore state_referenced_locally\nconst b = a;",
+        "let count = $state(0) as number;\n// svelte-ignore state_referenced_locally\nlet x = count;",
+    ] {
+        let lang = if script.contains(" as ") {
+            " lang=\"ts\""
+        } else {
+            ""
+        };
+        let code = format!("<script{lang}>\n{script}\n</script>\n{{x}}");
+        assert_eq!(compiled(&code), [], "{script}");
+    }
+}

@@ -274,9 +274,15 @@ fn script_regions(
     out: &mut Vec<Region>,
 ) {
     let javascript = &component.javascript;
+    // The programs keep their own comments; the tree keeps the template's.
+    let programs = [component.module.as_ref(), component.instance.as_ref()]
+        .into_iter()
+        .flatten()
+        .flat_map(|script| javascript.get_program(script.program).comments.iter());
     let mut ignores: Vec<Span> = javascript
         .comments()
         .iter()
+        .chain(programs)
         .map(|c| document_span(c.span))
         .filter(|c| value(*c, source).contains("svelte-ignore"))
         .collect();
