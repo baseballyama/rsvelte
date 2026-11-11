@@ -154,3 +154,20 @@ fn a_built_program_is_kept_beside_the_parsed_ones() {
     assert_eq!(tree.get_program(parsed).body.len(), 1);
     assert!(tree.get_program(built).body.is_empty());
 }
+
+#[test]
+fn built_parameters_are_kept() {
+    let (tree, kept) = Tree::build(COMPONENT, |builder| {
+        let ast = builder.ast();
+        let parameters = oxc_ast::ast::FormalParameters::new(
+            oxc_span::Span::new(0, 0),
+            oxc_ast::ast::FormalParameterKind::ArrowFormalParameters,
+            [],
+            None,
+            &ast,
+        );
+        Ok(builder.keep_parameters(parameters))
+    })
+    .expect("builds");
+    assert!(tree.get_parameters(kept).items.is_empty());
+}

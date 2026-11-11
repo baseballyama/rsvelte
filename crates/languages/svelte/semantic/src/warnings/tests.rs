@@ -9,6 +9,15 @@ use rsvelte_svelte_syntax::Parsed;
 /// What `svelte.compile` with `runes: true` warns about `code`, as each warning's code, source
 /// text and message.
 fn compiled(code: &str) -> Vec<(String, String, String)> {
+    let (warnings, _) = compiled_with_errors(code, Some(true));
+    warnings
+}
+
+/// [`compiled`] with the `runes` option, and the codes of the errors the analysis raises.
+fn compiled_with_errors(
+    code: &str,
+    runes: Option<bool>,
+) -> (Vec<(String, String, String)>, Vec<String>) {
     let mut registry = Registry::new();
     crate::register(&mut registry);
     let document = Document::new("Test.svelte".to_owned(), code.to_owned()).expect("small");
@@ -17,11 +26,11 @@ fn compiled(code: &str) -> Vec<(String, String, String)> {
     let lowered = context.get::<Lowered>().as_ref().expect("lowers");
     let resolution = context.get::<Resolved>().as_ref().expect("resolves");
     let options = Options {
-        runes: Some(true),
+        runes,
         custom_element: false,
     };
     let analysis = context.get::<Analyzed>().as_ref();
-    super::warnings(
+    let found = super::warnings(
         component,
         lowered,
         resolution,
@@ -29,13 +38,20 @@ fn compiled(code: &str) -> Vec<(String, String, String)> {
         code,
         "Test.svelte",
         options,
-    )
-    .compiled()
-    .map(|w| {
-        let text = w.span.text(code).to_owned();
-        (w.code.to_string(), text, w.message.clone())
-    })
-    .collect()
+    );
+    let warnings = found
+        .compiled()
+        .map(|w| {
+            let text = w.span.text(code).to_owned();
+            (w.code.to_string(), text, w.message.clone())
+        })
+        .collect();
+    let errors = found
+        .errors
+        .iter()
+        .map(|(_, e)| e.code.to_string())
+        .collect();
+    (warnings, errors)
 }
 
 /// The source text of each `code` warning.
@@ -342,4 +358,46 @@ fn a_cast_state_is_referenced_locally_as_the_bare_one_is() {
         compiled("<script lang=\"ts\">let count = $state(0) as number; let x = count;</script>{x}");
     assert_eq!(bare.len(), 1);
     assert_eq!(cast, bare);
+}
+
+#[test]
+fn an_erased_or_parameter_dollar_name_is_no_binding() {
+    // The control: a plain `$` binding is an error.
+    assert_eq!(
+        compiled_with_errors("<script>let $x = 1;</script>", None).1,
+        ["dollar_prefix_invalid"]
+    );
+    for script in [
+        "<script context=\"module\" lang=\"ts\">\n\
+         import { writable } from 'svelte/store';\n\
+         const a = writable(0)\n\
+         declare const $a: string\n\
+         </script>\n\
+         <script lang=\"ts\">\n\
+         const b = writable(0)\n\
+         declare const $b: string\n\
+         </script>\n\
+         {$a}\n\
+         {$b}",
+        "<script module lang=\"ts\">import { derived } from 'svelte/store';\n\
+         export const m = derived([a, b], ([$a, $b]) => $a < $b);</script>",
+        "<script module>export const m = (($c) => $c)(1);</script>",
+    ] {
+        let errors = compiled_with_errors(script, None).1;
+        assert!(
+            !errors.iter().any(|e| e.starts_with("dollar_")),
+            "{script}: {errors:?}"
+        );
+    }
+}
+
+#[test]
+fn a_cast_attribute_value_selects_as_its_value() {
+    let source = "<script lang=\"ts\">\n\t//\n</script>\n\n<div data-active={false as true}>\n\t<span></span>\n</div>\n\n\
+                  <style>\n\t[data-active='true'] > span {\n\t\tbackground-color: red;\n\t}\n</style>\n";
+    let codes: Vec<String> = compiled(source)
+        .into_iter()
+        .map(|(code, ..)| code)
+        .collect();
+    assert_eq!(codes, ["css_unused_selector"]);
 }

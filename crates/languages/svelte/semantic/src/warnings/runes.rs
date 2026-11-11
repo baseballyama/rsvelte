@@ -15,6 +15,7 @@ use rustc_hash::FxHashSet;
 use super::found::{Found, Stage};
 use super::{Phase, Raised, Section, error, span, warning};
 use crate::resolve::{RUNES, Resolution};
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 
 /// Svelte's runes mode: `<svelte:options runes>`, or else a top-level `await` or a reference to
 /// a rune that is not a store subscription.
@@ -78,21 +79,34 @@ pub(crate) fn svelte_option(
         })
 }
 
-/// `dollar_prefix_invalid` and `dollar_binding_invalid`: a `$` name a script declares. Creating
-/// the scopes rejects one outside functions of the instance or nested at most one function deep
-/// in the module; in runes mode, the walk rejects a variable or function at any depth.
-pub(super) fn dollar_names(
-    component: &Component,
+/// `dollar_prefix_invalid` and `dollar_binding_invalid`, with where the compiler raises each.
+///
+/// A `$` name a script declares: creating the scopes rejects one outside functions of the
+/// instance or nested at most one function deep in the module; in runes mode, the walk rejects a
+/// variable or function at any depth. The compiler's errors and the warnings both read this one
+/// implementation. `instance` and `module` are the scripts' programs in `javascript`.
+#[must_use]
+pub fn dollar_name_errors(
+    javascript: &Tree,
+    instance: Option<ProgramIdentifier>,
+    module: Option<ProgramIdentifier>,
     resolution: &Resolution,
-    source: &str,
     runes: bool,
-    out: &mut Vec<(Raised, Diagnostic)>,
-) {
+) -> Vec<(Raised, Diagnostic)> {
+    let source = javascript.source_text();
+    let holds = |program: Option<ProgramIdentifier>, offset: u32| {
+        program.is_some_and(|p| {
+            let span = javascript.get_program(p).span;
+            span.start <= offset && offset < span.end
+        })
+    };
+    let mut out = Vec::new();
     let scoping = resolution.scoping();
     let nodes = resolution.semantic().nodes();
     let mut found: Vec<(Raised, Span)> = Vec::new();
-    // TypeScript erases types; an enum stays, as a variable.
-    let erased = SymbolFlags::TypeAlias
+    // TypeScript erases types and `declare`d names; an enum stays, as a variable.
+    let erased = SymbolFlags::Ambient
+        | SymbolFlags::TypeAlias
         | SymbolFlags::Interface
         | SymbolFlags::TypeParameter
         | SymbolFlags::EnumMember
@@ -104,8 +118,17 @@ pub(super) fn dollar_names(
             continue;
         }
         let declaration = resolution.declaration(symbol);
-        let ancestors = || nodes.ancestor_kinds(scoping.symbol_declaration(symbol));
-        let is_parameter = ancestors().any(|kind| matches!(kind, AstKind::FormalParameter(_)));
+        let declaration_node = scoping.symbol_declaration(symbol);
+        let ancestors = || nodes.ancestor_kinds(declaration_node);
+        // A parameter's symbol is declared at the parameter node itself.
+        let is_parameter = std::iter::once(nodes.kind(declaration_node))
+            .chain(ancestors())
+            .any(|kind| {
+                matches!(
+                    kind,
+                    AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_)
+                )
+            });
         let type_only = flags.contains(SymbolFlags::Import)
             && ancestors().any(
                 |kind| matches!(kind, AstKind::ImportDeclaration(d) if d.import_kind.is_type()),
@@ -114,7 +137,13 @@ pub(super) fn dollar_names(
             continue;
         }
         let at = span(scoping.symbol_span(symbol));
-        let section = Section::of(component, at.start_offset);
+        let section = if holds(module, at.start_offset) {
+            Section::Module
+        } else if holds(instance, at.start_offset) {
+            Section::Instance
+        } else {
+            Section::Template
+        };
         let program = match section {
             Section::Module => scoping.root_scope_id(),
             Section::Instance => resolution.instance_scope(),
@@ -155,20 +184,25 @@ pub(super) fn dollar_names(
         found.push((raised, at));
     }
     for (raised, span) in found {
-        let error = if span.text(source) == "$" {
-            error(
-                "dollar_binding_invalid",
-                "The $ name is reserved, and cannot be used for variables and imports",
-                span,
-            )
-        } else {
-            error(
-                "dollar_prefix_invalid",
-                "The $ prefix is reserved, and cannot be used for variables and imports",
-                span,
-            )
-        };
-        out.push((raised, error));
+        out.push((raised, reserved(span, source)));
+    }
+    out
+}
+
+/// The error a reserved name declared at `span` raises.
+fn reserved(span: Span, source: &str) -> Diagnostic {
+    if span.text(source) == "$" {
+        error(
+            "dollar_binding_invalid",
+            "The $ name is reserved, and cannot be used for variables and imports",
+            span,
+        )
+    } else {
+        error(
+            "dollar_prefix_invalid",
+            "The $ prefix is reserved, and cannot be used for variables and imports",
+            span,
+        )
     }
 }
 
