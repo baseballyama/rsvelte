@@ -5,9 +5,12 @@ use rsvelte_kernel::index::IndexVector;
 use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
-use crate::compiler_syntax_tree::CompilerNodeIdentifier;
+use oxc_ast::ast::{ChainElement, Expression};
+
+use crate::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use crate::input::ComponentInput;
 use crate::resolve::Resolution;
+use crate::typescript::without_typescript;
 
 mod dynamic;
 mod evaluation;
@@ -36,6 +39,9 @@ pub struct Analysis {
     pub expressions: FxHashMap<ExpressionIdentifier, ExpressionMetadata>,
     /// Keyed by every `{@const}` and `{let}` tag's declaration.
     pub declarations: FxHashMap<DeclarationIdentifier, ExpressionMetadata>,
+    /// Keyed by each `{@render}` tag's expression: one per argument of its call (upstream
+    /// `metadata.arguments`).
+    render_arguments: FxHashMap<ExpressionIdentifier, Vec<ExpressionMetadata>>,
     pub needs_context: bool,
     /// Per HIR node: whether the style sheet selects it (elements only).
     pub scoped: IndexVector<CompilerNodeIdentifier, bool>,
@@ -69,6 +75,15 @@ impl Analysis {
             .get(&declaration)
             .expect("every tag's declaration is analysed")
     }
+
+    /// Each argument's metadata of the call a `{@render}` tag's `expression` makes; empty for
+    /// another expression.
+    #[must_use]
+    pub fn render_arguments(&self, expression: ExpressionIdentifier) -> &[ExpressionMetadata] {
+        self.render_arguments
+            .get(&expression)
+            .map_or(&[], Vec::as_slice)
+    }
 }
 
 #[must_use]
@@ -77,6 +92,7 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
     let mut analysis = Analysis {
         expressions: FxHashMap::default(),
         declarations: FxHashMap::default(),
+        render_arguments: FxHashMap::default(),
         needs_context: false,
         scoped: IndexVector::from_element_n(false, compiler_syntax_tree.nodes.len()),
         dynamic: IndexVector::from_element_n(false, compiler_syntax_tree.nodes.len()),
@@ -109,6 +125,30 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
         needs_context |= walker.needs_context();
         declarations.insert(identifier, walker.metadata());
     }
+    for node in &compiler_syntax_tree.nodes {
+        let NodeKind::Render { expression } = node.kind else {
+            continue;
+        };
+        let call = match without_typescript(tree.get_expression(expression)) {
+            Expression::CallExpression(call) => Some(&**call),
+            Expression::ChainExpression(chain) => match &chain.expression {
+                ChainElement::CallExpression(call) => Some(&**call),
+                _ => None,
+            },
+            _ => None,
+        };
+        let Some(call) = call else { continue };
+        let arguments = call
+            .arguments
+            .iter()
+            .map(|argument| {
+                let mut walker = MetadataWalker::<true>::new(res, &mut values);
+                walker.visit_argument(argument);
+                walker.metadata()
+            })
+            .collect();
+        analysis.render_arguments.insert(expression, arguments);
+    }
     analysis.expressions = expressions;
     analysis.declarations = declarations;
     analysis.needs_context = needs_context;
@@ -122,3 +162,6 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
     stylesheet::analyze(input, res, &mut analysis);
     analysis
 }
+
+#[cfg(test)]
+mod tests;
