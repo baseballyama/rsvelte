@@ -11299,13 +11299,6 @@ https://svelte.dev/e/expected_token
 
 <input bind:value={value as never} />
 
-=== 77 rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_instantiation_strips_from_setter/a57f2e812dcc16aa.svelte	svelte
-<script lang="ts">
-  let f: any;
-</script>
-
-<input bind:value={f<number>} />
-
 === 76 rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_type_assertion_prefix_strips_from_setter/4407b68d90ad0482.svelte	svelte
 <script lang="ts">
   let x = 0;
@@ -13146,12 +13139,6 @@ https://svelte.dev/e/svelte_meta_duplicate
 https://svelte.dev/e/svelte_meta_invalid_placement
 > 1 | <div><svelte:head><title>t</title></svelte:head></div>
     |     ^
-
-=== 160 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	error.txt
-`<svelte:element>` must have a 'this' attribute with a value
-https://svelte.dev/e/svelte_element_missing_this
-> 1 | <svelte:element />
-    |                  ^
 
 === 159 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/b42d1ee73ee0803f.svelte	error.txt
 {@debug ...} arguments must be identifiers, not arbitrary expressions

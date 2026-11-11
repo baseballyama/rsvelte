@@ -272,7 +272,14 @@ fn lint(official: &str, actual: &str, official_rules: &[String]) -> Result<bool,
         else {
             return Err(format!("lint.txt line {line:?}"));
         };
-        if rule == "-" || actual.rules.iter().any(|r| r == rule) {
+        let ran = |rule: &str| actual.rules.iter().any(|r| r == rule);
+        let wanted_line = if rule == "-" {
+            // Whether a rule rsvelte did not run reported nothing is not rsvelte's to say.
+            unused_directive_rule(line).is_none_or(ran)
+        } else {
+            ran(rule)
+        };
+        if wanted_line {
             wanted.push(line);
         }
     }
@@ -281,6 +288,14 @@ fn lint(official: &str, actual: &str, official_rules: &[String]) -> Result<bool,
             .iter()
             .zip(&actual.findings)
             .all(|(w, a)| *w == a.line()))
+}
+
+/// The rule an `ESLint` report of an unused `eslint-disable` directive names, from its message.
+fn unused_directive_rule(line: &str) -> Option<&str> {
+    let message = line.splitn(4, ' ').nth(3)?;
+    message
+        .strip_prefix("\"Unused eslint-disable directive (no problems were reported from '")?
+        .strip_suffix("').\"")
 }
 
 #[cfg(test)]

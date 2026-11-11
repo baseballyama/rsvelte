@@ -232,7 +232,12 @@ fn match_from<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32)
         .expect("every compound after the first has a combinator")
     {
         Combinator::Child => {
+            // A parent must match what a `:global(...)` holds, as a sibling must.
             el.parents()
+                .filter(|&p| {
+                    rest.last()
+                        .is_none_or(|relative| global_arguments_match(source_text, relative, p))
+                })
                 .any(|p| match_from(source_text, rest, p, scoped, used, boundary))
                 || el.parent().is_none() && rest.iter().all(|r| is_global(source_text, r))
         }

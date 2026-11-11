@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use oxc_allocator::{CloneIn, GetAllocator};
-use oxc_ast::ast::{BindingIdentifier, Expression, ObjectPropertyKind, PropertyKind, Statement};
+use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
 use oxc_semantic::SymbolId;
 use rsvelte_typescript_tree::Tree;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -11,27 +11,9 @@ use crate::lower::BindingKind;
 use crate::lower::builder::Runtime;
 use crate::lower::custom_element::{CustomElement, Shadow, Tag, option_property};
 use crate::lower::javascript::prop_alias;
+use crate::lower::slot_element::slot_names;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
-    pub(super) fn custom_element_stylesheet(
-        &self,
-        stylesheet: Option<&str>,
-    ) -> Option<Statement<'o>> {
-        self.custom_element?;
-        let stylesheet = stylesheet?;
-        let b = self.b;
-        let hash = b.init("hash", b.string(Self::stylesheet_hash(self.identity)));
-        let code = b.init("code", b.string(stylesheet));
-        Some(b.const_("$$css", b.object([hash, code])))
-    }
-
-    fn stylesheet_hash(identity: &crate::OutputIdentity) -> &str {
-        identity
-            .stylesheet_hash
-            .as_deref()
-            .expect("a stylesheet hash")
-    }
-
     /// The props the instance declares, in declaration order.
     fn props(&self) -> impl Iterator<Item = SymbolId> {
         let res = self.res;
@@ -57,13 +39,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             let key = prop_alias(binding.prop_key.expect("a property key"));
             let read = b.return_(Some(b.call(b.id(name), [])));
-            properties.push(b.accessor(PropertyKind::Get, &key, b.params([]), [read]));
+            properties.push(b.accessor(PropertyKind::Get, &key, b.parameters([]), [read]));
             let parameter = binding.initial.map_or_else(
                 || b.parameter(b.binding("$$value")),
                 |initial| b.default_parameter("$$value", initial.clone_in(b.allocator())),
             );
-            let call = b.stmt(b.call(b.id(name), [b.id("$$value")]));
-            let flush = b.stmt(b.runtime("flush", []));
+            let call = b.statement(b.call(b.id(name), [b.id("$$value")]));
+            let flush = b.statement(b.runtime("flush", []));
             properties.push(b.accessor(
                 PropertyKind::Set,
                 &key,
@@ -76,15 +58,16 @@ impl<'o> ClientCompilationContext<'_, 'o> {
 
     pub(super) fn custom_element_registration(
         &mut self,
-        exports: &[&BindingIdentifier<'_>],
+        exports: &[crate::lower::script::Export<'_>],
     ) -> Option<Statement<'o>> {
         let b = self.b;
         let ce = self.custom_element.take()?;
         let javascript = self.javascript;
         let verbatim = |e: &Expression<'_>| e.clone_in(b.allocator());
         let props = b.object(self.custom_element_properties(ce.option(javascript, "props")));
-        let slots = b.array([]);
-        let accessors = b.array(exports.iter().map(|name| b.string(&name.name)));
+        let names = slot_names(self.compiler_syntax_tree, self.source_text);
+        let slots = b.array(names.into_iter().map(|name| b.string(name)));
+        let accessors = b.array(exports.iter().map(|export| b.string(export.alias)));
         let shadow = match &ce.shadow {
             Shadow::Open => Some(b.object([b.init("mode", b.string("open"))])),
             Shadow::None => None,
@@ -112,7 +95,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             None => create,
         };
-        Some(b.stmt(call))
+        Some(b.statement(call))
     }
 
     fn custom_element_properties(

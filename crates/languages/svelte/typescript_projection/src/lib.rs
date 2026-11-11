@@ -6,7 +6,7 @@ mod lower;
 pub mod syntax_tree;
 pub use lower::{Resolve, lower, lower_alone};
 mod emit;
-pub use emit::emit;
+pub use emit::{emit, emit_named};
 mod computation;
 pub use computation::{Printed, Projected, register, register_artifacts};
 
@@ -15,18 +15,63 @@ pub const DECLARATIONS: (&str, &str) = (
     concat!(
         include_str!("../vendor/svelte-jsx-v4.d.ts"),
         "\n",
+        include_str!("../vendor/svelte-shims-v4.d.ts"),
+        "\n",
         include_str!("../projection.d.ts")
     ),
 );
 
-/// What an import of a component that is not projected reads: a component of any props.
+/// svelte2tsx's `classNameFromFilename`: the name a component's default export declares.
 ///
-/// The svelte package's `declare module '*.svelte'` declares the same. Its names are the
-/// projection's own, so a module script before it binds none of them.
-pub const STAND_IN: &str = "import { SvelteComponent as __rsvelte_svelte_component } from 'svelte';\n\
-    import { LegacyComponentType as __rsvelte_legacy_component } from 'svelte/legacy';\n\
-    declare const __rsvelte_stand_in: __rsvelte_legacy_component;\n\
-    type __rsvelte_stand_in = __rsvelte_svelte_component;\n\
+/// It is the part of the file name before the first `.` in `PascalCase`, without the characters
+/// a name cannot have, and with the suffix that keeps it apart from the component's own names.
+#[must_use]
+pub fn component_name(path: &str) -> String {
+    let mut name = String::new();
+    write_component_name(path, &mut name);
+    name
+}
+
+/// Appends [`component_name`] to `out`.
+pub(crate) fn write_component_name(path: &str, out: &mut String) {
+    let file = path.rsplit(['/', '\\']).next().unwrap_or(path);
+    let stem = file.split('.').next().unwrap_or(file);
+    let valid = |c: &char| c.is_ascii_alphanumeric() || matches!(c, '_' | '-');
+    // A name starts at its first letter; JavaScript's `substr(-1)` keeps the last character
+    // when there is none.
+    let start = stem
+        .find(|c: char| c.is_ascii_alphabetic())
+        .unwrap_or_else(|| {
+            out.push('A');
+            stem.char_indices()
+                .rfind(|(_, c)| valid(c))
+                .map_or(stem.len(), |(i, _)| i)
+        });
+    let mut upper = true;
+    for c in stem[start..].chars().filter(valid) {
+        if matches!(c, '_' | '-') {
+            upper = true;
+        } else if upper {
+            out.push(c.to_ascii_uppercase());
+            upper = false;
+        } else {
+            out.push(c);
+        }
+    }
+    out.push_str("__SvelteComponent_");
+}
+
+/// What an import of a component that is not projected reads: a component of any props whose
+/// instance is `any`, since neither its props nor its exports are known.
+///
+/// The props stay a record of `any`, so a callback passed to it reads its parameters as `any`
+/// rather than implicitly. Its name is the projection's own, so a module script before it binds
+/// none of it.
+pub const STAND_IN: &str = "declare const __rsvelte_stand_in: {\n\
+    (internals: any, props: Record<string, any>): any;\n\
+    new (options: any): any;\n\
+    };\n\
+    type __rsvelte_stand_in = any;\n\
     export default __rsvelte_stand_in;\n";
 
 /// [`STAND_IN`] after the component's `<script module>`, so an import of a component that is not

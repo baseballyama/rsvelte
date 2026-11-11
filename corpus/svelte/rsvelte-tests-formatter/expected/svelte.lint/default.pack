@@ -12413,9 +12413,6 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:6 6:16 no-unused-vars "'value' is defined but never used."
 
-=== 41 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/23e3372c88392237.svelte	lint.txt
-10:19 - - "Parsing error: ',' expected."
-
 === 898 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/28b0870e9f3ca7af.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12458,9 +12455,6 @@
 9:1 9:51 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 9:1 9:51 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
 
-=== 41 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/3d7569588e5792f5.svelte	lint.txt
-10:20 - - "Parsing error: ',' expected."
-
 === 834 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/49732682b8c573dc.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12491,12 +12485,6 @@
 6:6 6:16 no-unused-vars "'value' is defined but never used."
 9:8 9:46 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 
-=== 41 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/727de30e9bb96c5e.svelte	lint.txt
-10:20 - - "Parsing error: ',' expected."
-
-=== 41 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/75cc15a3aa789b2f.svelte	lint.txt
-10:20 - - "Parsing error: ',' expected."
-
 === 1404 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/83ae033e2052e47e.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12524,9 +12512,6 @@
 5:6 5:15 no-unused-vars "'type' is defined but never used."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:6 6:16 no-unused-vars "'value' is defined but never used."
-
-=== 41 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/a258eaba81908a4a.svelte	lint.txt
-10:20 - - "Parsing error: ',' expected."
 
 === 1404 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/a40e6644281c72ed.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -12598,9 +12583,6 @@
 6:6 6:16 no-unused-vars "'value' is defined but never used."
 9:8 9:45 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 
-=== 41 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/f1adaa3da9accb80.svelte	lint.txt
-10:19 - - "Parsing error: ',' expected."
-
 === 834 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/f8e38580f28cfc77.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12630,9 +12612,6 @@
 
 === 41 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/ff14a907a86b8623.svelte	lint.txt
 10:20 - - "Parsing error: ',' expected."
-
-=== 41 wrapper_only_parse_error_fmt_4083/the_pattern_corpus_repro_matches_the_oracle/178ea939271aec05.svelte	lint.txt
-21:20 - - "Parsing error: ',' expected."
 
 === 874 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/00b9f98ed10382e1.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

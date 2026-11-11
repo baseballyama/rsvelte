@@ -11,7 +11,7 @@ use rsvelte_kernel::source::tokens::{TokenKind, Tokens};
 use rsvelte_stylesheet_syntax::StyleSheet;
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
-    ProgramIdentifier, Tree,
+    ProgramIdentifier, Tree, TypeParametersIdentifier,
 };
 
 pub type TemplateNodeIdentifier = u32;
@@ -289,6 +289,8 @@ pub struct Script {
     pub content: Span,
     pub program: ProgramIdentifier,
     pub typescript: bool,
+    /// The type parameters of an instance script's `generics="…"`, when they parse.
+    pub generics: Option<TypeParametersIdentifier>,
 }
 
 #[derive(Debug)]

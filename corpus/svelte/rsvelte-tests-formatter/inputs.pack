@@ -12947,17 +12947,6 @@ world</pre>
 
 {#snippet t(q)}{q}{/snippet}{@render t(readonly satisfies string)}
 
-=== 155 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/23e3372c88392237.svelte	svelte	runes	neutral
-<script lang="ts">
-	let accessor: any;
-	let declare: any;
-	let readonly: any;
-	let type: any;
-	let value: any;
-</script>
-
-{@html declare satisfies string}
-
 === 171 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/28b0870e9f3ca7af.svelte	svelte	runes	neutral
 <script lang="ts">
 	let accessor: any;
@@ -12990,17 +12979,6 @@ world</pre>
 </script>
 
 <p onclick={() => readonly satisfies string}>e</p>
-
-=== 162 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/3d7569588e5792f5.svelte	svelte	runes	neutral
-<script lang="ts">
-	let accessor: any;
-	let declare: any;
-	let readonly: any;
-	let type: any;
-	let value: any;
-</script>
-
-{#key readonly satisfies string}k{/key}
 
 === 160 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/49732682b8c573dc.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -13035,28 +13013,6 @@ world</pre>
 
 {#if 1}{@const c = readonly satisfies string}{c}{/if}
 
-=== 156 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/727de30e9bb96c5e.svelte	svelte	runes	neutral
-<script lang="ts">
-	let accessor: any;
-	let declare: any;
-	let readonly: any;
-	let type: any;
-	let value: any;
-</script>
-
-{@html accessor satisfies string}
-
-=== 156 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/75cc15a3aa789b2f.svelte	svelte	runes	neutral
-<script lang="ts">
-	let accessor: any;
-	let declare: any;
-	let readonly: any;
-	let type: any;
-	let value: any;
-</script>
-
-{@html readonly satisfies string}
-
 === 172 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/83ae033e2052e47e.svelte	svelte	runes	neutral
 <script lang="ts">
 	let accessor: any;
@@ -13078,17 +13034,6 @@ world</pre>
 </script>
 
 {#if readonly satisfies string}y{/if}
-
-=== 162 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/a258eaba81908a4a.svelte	svelte	runes	neutral
-<script lang="ts">
-	let accessor: any;
-	let declare: any;
-	let readonly: any;
-	let type: any;
-	let value: any;
-</script>
-
-{#key accessor satisfies string}k{/key}
 
 === 173 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/a40e6644281c72ed.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -13145,17 +13090,6 @@ world</pre>
 
 {#if 1}{@const c = declare satisfies string}{c}{/if}
 
-=== 161 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/f1adaa3da9accb80.svelte	svelte	runes	neutral
-<script lang="ts">
-	let accessor: any;
-	let declare: any;
-	let readonly: any;
-	let type: any;
-	let value: any;
-</script>
-
-{#key declare satisfies string}k{/key}
-
 === 159 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/f8e38580f28cfc77.svelte	svelte	runes	neutral
 <script lang="ts">
 	let accessor: any;
@@ -13188,28 +13122,6 @@ world</pre>
 </script>
 
 <p title={accessor satisfies string}>x</p>
-
-=== 625 wrapper_only_parse_error_fmt_4083/the_pattern_corpus_repro_matches_the_oracle/178ea939271aec05.svelte	svelte	runes	neutral
-<script lang="ts">
-  let accessor: any;
-  let declare: any;
-  const s = accessor satisfies string;
-</script>
-
-<p>{accessor satisfies string}</p>
-<p>{declare satisfies string}</p>
-<p title={accessor satisfies string}>x</p>
-<p onclick={() => accessor satisfies string}>e</p>
-{#if accessor satisfies string}y{/if}
-{#if 1}{@const c = accessor satisfies string}{c}{/if}
-{#each accessor satisfies string[] as z}{z}{/each}
-{#key accessor satisfies string}k{/key}
-{@html accessor satisfies string}
-{#snippet t(q)}{q}{/snippet}
-{@render t(declare satisfies string)}
-<p>{s}</p>
-<p>{accessor as string}</p>
-<p>{(accessor, declare)}</p>
 
 === 141 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/00b9f98ed10382e1.svelte	svelte	runes	neutral
 <script lang="ts">

@@ -307,3 +307,78 @@ fn a_store_updated_only_for_itself_is_unused() {
         ["'count' is defined but never used."]
     );
 }
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0: the scripts see a top-level snippet only.
+#[test]
+fn a_script_reads_a_top_level_snippet() {
+    assert_eq!(
+        unused("<script>bar;</script>{#snippet bar()}x{/snippet}{#snippet baz()}y{/snippet}"),
+        ["'baz' is defined but never used."]
+    );
+    assert_eq!(
+        unused("<script module>bar;</script>{#snippet bar()}x{/snippet}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>x;</script><div>{#snippet x()}y{/snippet}</div>"),
+        ["'x' is defined but never used."]
+    );
+    assert_eq!(
+        unused(
+            "<script>function f() { return bar; } f;</script>\
+             {#if true}{#snippet bar()}x{/snippet}{/if}"
+        ),
+        ["'bar' is defined but never used."]
+    );
+}
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0: a TypeScript instance script's `generics`
+// declare names its body reads and read names the scripts declare.
+#[test]
+fn generics_declare_and_read_names() {
+    assert_eq!(
+        unused(
+            "<script lang=\"ts\" generics=\"T extends Item = Fallback, U\">\
+             import type { Item, Fallback, Unused } from './x';\
+             let { a }: { a: T } = $props();</script>{a}"
+        ),
+        [
+            "'U' is defined but never used.",
+            "'Unused' is defined but never used."
+        ]
+    );
+    assert_eq!(
+        unused(
+            "<script lang=\"ts\" module>import type { Item } from './x'; type T = unknown;</script>\
+             <script lang=\"ts\" generics=\"T extends Item\">let { a }: { a: T } = $props();</script>{a}"
+        ),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script generics=\"T extends Item\">import { Item } from './x';</script>"),
+        ["'Item' is defined but never used."]
+    );
+    assert_eq!(
+        unused(
+            "<script lang=\"ts\" generics=\"T extends {\">import type { Item } from './x';</script>"
+        ),
+        ["'Item' is defined but never used."]
+    );
+}
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0: a snippet's own body does not use it, and two
+// snippets that render each other do.
+#[test]
+fn a_snippet_read_only_in_its_own_body_is_unused() {
+    assert_eq!(
+        unused(
+            "{#snippet c()}<span></span>{@render c()}{/snippet}\
+             {#snippet d()}{@render e()}{/snippet}{#snippet e()}{@render d()}{/snippet}\
+             <script>function f() { f(); }</script>"
+        ),
+        [
+            "'c' is defined but never used.",
+            "'f' is defined but never used."
+        ]
+    );
+}

@@ -173,6 +173,16 @@ impl Parser<'_, '_> {
             .program(content, source_type)
             .map_err(javascript_error)?;
         self.javascript_region(content.start_offset, content.end_offset);
+        // Svelte only strips `generics`, so a list that does not parse is left out, as
+        // `svelte-eslint-parser` does; read after the program's tokens are taken.
+        let generics = (!module && typescript)
+            .then(|| {
+                let (_, value) = attributes
+                    .iter()
+                    .find(|(name, _)| name.text(self.source_text) == "generics")?;
+                self.builder.type_parameters((*value)?, source_type).ok()
+            })
+            .flatten();
         self.close_raw("script");
         let span = Span::new(start_offset as u32, self.position as u32);
         let script = Script {
@@ -181,6 +191,7 @@ impl Parser<'_, '_> {
             content,
             program,
             typescript,
+            generics,
         };
         if module {
             self.component.module = Some(script);

@@ -108,7 +108,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         } else {
             b.call(callee, arguments)
         };
-        template.push(Piece::Statement(b.stmt(call)));
+        template.push(Piece::Statement(b.statement(call)));
         if !standalone {
             template.push(Piece::Text(EMPTY_COMMENT.into()));
         }

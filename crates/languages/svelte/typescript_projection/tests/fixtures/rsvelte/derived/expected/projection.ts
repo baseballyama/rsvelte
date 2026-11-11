@@ -9,7 +9,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("button", {
       "onclick": increment,
@@ -18,4 +18,6 @@
     (double);
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const Derived__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type Derived__SvelteComponent_ = ReturnType<typeof Derived__SvelteComponent_>;
+export default Derived__SvelteComponent_;

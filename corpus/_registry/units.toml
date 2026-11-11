@@ -15,6 +15,15 @@
 "svelte.check" = "upstream bug: svelte2tsx deletes an instance-script `export { foo } from` and reads `foo` only in generated code, so svelte-check hides both the unresolved module and the unbound name"
 "svelte.compile" = "upstream bug: svelte 5.57.3 exports `foo` from an instance-script `export { foo } from`, which binds no local `foo`, so the component throws a ReferenceError"
 
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-input.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `foo` from an instance-script `export { foo } from`, which binds no local `foo`, so the component throws a ReferenceError"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-output.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `foo` from an instance-script `export { foo } from`, which binds no local `foo`, so the component throws a ReferenceError"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal06-input.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `inspect` from an instance-script `export { inspect } from`, which binds no local `inspect`, so the component throws a ReferenceError"
+
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-abstract-accessor-property-input.svelte".skip]
 "svelte.compile" = "svelte 5.57.3 leaves the TypeScript `abstract accessor` in the emitted JS, which does not parse"
 
@@ -29,6 +38,12 @@
 ["svelte/svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte".skip]
 "svelte.compile/client" = "svelte 5.57.3 emits invalid JS here (duplicate declaration of `foo`); the sample expects a compile error"
 
+["svelte/svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-2/main.svelte".skip]
+"svelte.compile" = "upstream bug: without experimental.async, svelte 5.57.3 hoists a component's snippet out of the content whose `{@const}` it reads, which works here only because the value is a literal it inlines"
+
+["svelte/svelte/packages/svelte/tests/compiler-errors/samples/const-tag-cyclical/main.svelte".skip]
+"svelte.compile" = "upstream bug: runes mode does not report `const_tag_cycle`: the client's evaluator folds the cycle `a = b, b = a` to an empty string, and the server emits `const a = b; const b = a;`, which throws; the sample expects a compile error"
+
 ["svelte/svelte-bits/src/lib/components/library/Animations/StickerPeel/StickerPeel.svelte".skip]
 "svelte.lint" = "upstream bug: the core no-unused-vars rule reports a TypeScript `this` parameter, which declares the type of `this` and is no parameter at run time, as an unused variable"
 
@@ -42,6 +57,9 @@
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/svelte-bits/src/lib/components/landing/Features/VariantTabs.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/svelte-commerce/src/lib/core/components/plugins/whatsapp-chat-button.svelte".skip]
@@ -73,6 +91,10 @@
 
 ["svelte/threlte/apps/docs/src/components/Hero/Intro/Intro.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/networking-toolbox/src/routes/about/legal/+layout.svelte".skip]
+"svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+"svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
 
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang01-input.svelte".skip]
 "svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
@@ -107,7 +129,7 @@
 "svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
 
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/transform-test-svelte4-input.svelte".skip]
-"svelte.compile/server" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+"svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
 "svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
 
 ["svelte/kener/src/routes/(docs)/docs/LandingStatusDemo.svelte".skip]
@@ -119,11 +141,81 @@
 ["svelte/svelte-bits/src/lib/components/library/Components/GooeyNav/GooeyNav.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
+["svelte/kite-public/src/lib/components/contribute/ContributeOnboarding.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/networking-toolbox/src/lib/components/global/Icon.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/svelte-commerce/src/lib/components/nav/nav.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/kite-public/src/lib/components/story/SelectableText.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/edra/src/lib/edra/shadcn/components/menu/AI.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/networking-toolbox/src/lib/components/tools/CDSCDNSKEYBuilder.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/svelte-commerce/src/lib/theme/wine/WineHomepage.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/svelte-render-scan/src/routes/+page.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/networking-toolbox/src/lib/components/tools/NSEC3Hash.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/svelte-commerce/src/lib/core/components/image/lazy-img.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/svelte-commerce/src/lib/core/components/image/lazy-img-with-zoom.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/syntaxfm-website/src/lib/transcript/Transcript.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block-shadowed/input.svelte".skip]
+"svelte.compile/client" = "upstream bug: a `{:catch}` branch shares its parent's transforms, so its error's `$.get` read leaks by name to the blocks after it"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte".skip]
+"svelte.compile" = "upstream bug: a rule nested in a `:global(...)` rule gives the scoping class to every ancestor of the elements it matches, although no selector needs it"
+
+["svelte/layerchart/docs/src/routes/+page.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/svelte-bits/src/lib/components/library/Animations/StarBorder/StarBorder.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/syntaxfm-website/src/lib/Icon.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/threlte/apps/docs/src/components/ContactForm/ContactForm.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/recursive-loop01-input.svelte".skip]
+"svelte.compile/client" = "upstream bug: two `const`s initialised with each other evaluate as a known `undefined`, so an attribute that reads one is set once instead of in an effect"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/recursive-loop01-input.svelte".skip]
+"svelte.compile/client" = "upstream bug: two `const`s initialised with each other evaluate as a known `undefined`, so an attribute that reads one is set once instead of in an effect"
+
+["svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/Switch/+page.svelte".skip]
+"svelte.compile" = "upstream bug: a `svelte-ignore` comment with a legacy name among a component's children warns `legacy_code` twice when more than one node follows it"
+"svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment with a legacy name among a component's children warns `legacy_code` twice when more than one node follows it"
+
 ["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte".skip]
 "svelte.compile" = "upstream bug: an `<svg>` beside a component makes the component's children svg, which drops the HTML whitespace between their components"
 
 ["svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/avatar/svelte/filter.svelte".skip]
 "svelte.compile" = "upstream bug: an `<svg>` beside a component makes the component's children svg, which drops the HTML whitespace between their components"
+
+["svelte/runed/sites/docs/src/lib/components/demos/scroll-state.svelte".skip]
+"svelte.compile/client" = "upstream bug: an element that holds a {#snippet} shares its parent's memoizer, so the parent's template_effect also takes the values the element's own effect memoized, as parameters it never reads"
+
+["svelte/networking-toolbox/src/lib/components/tools/ReversePTRGenerator.svelte".skip]
+"svelte.compile/client" = "upstream bug: an element that holds a {#snippet} shares its parent's memoizer, so the parent's template_effect also takes the values the element's own effect memoized, as parameters it never reads"
 
 ["svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/component-named-slot/input.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
@@ -1131,3 +1223,179 @@
 
 ["svelte/rsvelte-tests-core-2/private_field_constructor_grid_2573/every_cell_emits_javascript/aaebb1b3df69360f.svelte.js".skip]
 "svelte.compileModule/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (12:3)"
+
+["svelte/svelte-material-ui/packages/autocomplete/src/Autocomplete.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/banner/src/Banner.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/chip-input/src/ChipInput.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/chips/src/Text.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/chips/src/TrailingAction.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/data-table/src/DataTable.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/dialog/src/Dialog.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/form-field/src/FormField.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/select/src/Select.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/site/src/routes/demo/common/_ExcludeAndPrefixFilterComponent.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/snackbar/src/Snackbar.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/snackbar/src/kitchen/Kitchen.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/switch/src/Switch.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/tab-bar/src/TabBar.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/tab-indicator/src/TabIndicator.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/tab-scroller/src/TabScroller.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/tab/src/Tab.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte-material-ui/packages/textfield/src/Textfield.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/svelte/packages/svelte/tests/css/samples/comment-html/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on the selector inside an HTML comment in `<style>`, so ESLint reports nothing"
+
+["svelte/threlte/apps/docs/src/examples/marching-cubes/lava-lamp/App.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws `Cannot read properties of null (reading 'range')` on this component, so ESLint reports nothing"
+
+["svelte/kener/src/routes/(docs)/docs/(with-sidebar)/[...slug]/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
+
+["svelte/kener/src/routes/(docs)/docs/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/code-actions/remove-imports-inline.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>import … from '…'</script>`, reporting `';' expected` past the end of the file"
+
+["svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/script-in-rawhtml/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
+
+["svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/script-style-like-component/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on components named `Script` and `Style`, which Svelte compiles as components"
+
+["svelte/svelte-commerce/src/lib/components/seo/structured-data.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-animate-with-expr-input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-class-with-expr-input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-in-with-exxpr-input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-out-with-expr-input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-transition-with-expr-input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-use-with-expr01-input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-use-with-expr02-input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/error/name01-input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/svelte/packages/svelte/tests/parser-modern/samples/const-tag-parenthesized-init/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `{@const}` whose initializer is in parentheses, which Svelte compiles"
+
+["svelte/svelte/packages/svelte/tests/runtime-browser/samples/html-tag-script-2/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
+
+["svelte/svelte/packages/svelte/tests/runtime-browser/samples/html-tag-script/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
+
+["svelte/svelte/packages/svelte/tests/runtime-legacy/samples/block-expression-assign/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `{@const}` whose initializer is in parentheses, which Svelte compiles"
+
+["svelte/svelte/packages/svelte/tests/runtime-legacy/samples/escaped-attr/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
+
+["svelte/svelte/packages/svelte/tests/runtime-legacy/samples/textarea-value-escape/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/directives-with-member-access/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/syntaxfm-website/src/routes/(site)/show/[show_number]/[slug]/+layout.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-each-key/invalid/const-key01-input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves an each block's key to a `{@const}` of its body, which Svelte's compiler reads as a global"
+
+["svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-shadowed-prop/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to the component's own attributes, which Svelte's compiler resolves outside the component when it has no static `slot`"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/slot-static/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to the component's own attributes, which Svelte's compiler resolves outside the component when it has no static `slot`"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser does not read the markup of a `<template lang=\"pug\">`, whose `{a}` Svelte's compiler reads as an expression"
+
+["svelte/svelte-tiny-virtual-list/src/lib/VirtualList.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/state-snapshot/main.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/state-snapshot-date/main.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/originui-svelte/src/lib/components/tables/table-16.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/melt-ui/packages/melt/src/lib/builders/Popover.svelte.ts".skip]
+"svelte.compileModule/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/melt-ui/packages/melt/src/lib/builders/Tooltip.svelte.ts".skip]
+"svelte.compileModule/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/melt-ui/packages/melt/src/lib/utils/selection-state.svelte.ts".skip]
+"svelte.compileModule/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/svelte/packages/svelte/tests/validator/samples/anonymous-declarations/class.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap prints an anonymous `export default class {}` with a trailing `;`, an extra empty statement"
+
+["svelte/threlte/apps/docs/src/examples/extras/instanced-mesh/colors/BallInstance.svelte.ts".skip]
+"svelte.compileModule" = "upstream bug: esrap prints an anonymous `export default class {}` with a trailing `;`, an extra empty statement"
+
+["svelte/threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts".skip]
+"svelte.compileModule/server" = "upstream bug: the server treats a member assignment to a `$viewport` parameter as a mutation of store `viewport`, and emits `$.store_mutate($$store_subs ??= {}, ...)` with `$$store_subs` declared nowhere"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/error/shorthand02-input.svelte".skip]
+"svelte.compile" = "upstream bug: a `style:` shorthand whose name is no identifier is read as an expression (`style:max-width` sets `max - width`), and the server lowercases the key the client keeps"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-style-with-expr-input.svelte".skip]
+"svelte.compile" = "upstream bug: a `style:` shorthand whose name is no identifier is read as an expression (`style:max-width` sets `max - width`), and the server lowercases the key the client keeps"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"

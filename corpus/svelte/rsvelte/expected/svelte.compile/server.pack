@@ -6346,22 +6346,6 @@ export default function _2_runes_via_derived_and_effect($$renderer, $$props) {
 	}
 }
 
-=== 295 lint/no-at-const-tags/15-whitespace-after-brace.svelte	error.json
-{
-	"code": "block_unexpected_character",
-	"message": "Expected a `@` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character",
-	"start": {
-		"line": 4,
-		"column": 1,
-		"character": 45
-	},
-	"end": {
-		"line": 4,
-		"column": 6,
-		"character": 50
-	}
-}
-
 === 829 lint/no-at-const-tags/16-nested-hosts.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -68166,90 +68150,6 @@ export default function Whitespace_body_inline_element_breaks_before_close($$ren
 		$$renderer.push(`<!--]--> <div><i class="wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"></i> <i class="wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"></i></div> <div>some text <i class="wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"></i></div>`);
 	});
 }
-=== 1177 pattern/issues/wrapper-only-parse-error-in-every-host.svelte	js
-import * as $ from 'svelte/internal/server';
-
-function t($$renderer, q) {
-	$$renderer.push(`<!---->${$.escape(q)}`);
-}
-
-export default function Wrapper_only_parse_error_in_every_host($$renderer) {
-	let accessor;
-	let declare;
-	const s = accessor;
-
-	$$renderer.push(`<p>${$.escape(accessor)}</p> <p>${$.escape(declare)}</p> <p${$.attr('title', accessor)}>x</p> <p>e</p> `);
-
-	if (accessor) {
-		$$renderer.push(`<!--[0-->y`);
-	} else {
-		$$renderer.push('<!--[-1-->');
-	}
-
-	$$renderer.push(`<!--]--> `);
-
-	if (1) {
-		$$renderer.push('<!--[0-->');
-
-		const c = accessor;
-
-		$$renderer.push(`${$.escape(c)}`);
-	} else {
-		$$renderer.push('<!--[-1-->');
-	}
-
-	$$renderer.push(`<!--]--> <!--[-->`);
-
-	const each_array = $.ensure_array_like(accessor);
-
-	for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
-		let z = each_array[$$index];
-
-		$$renderer.push(`<!---->${$.escape(z)}`);
-	}
-
-	$$renderer.push(`<!--]--> <!---->`);
-
-	{
-		$$renderer.push(`k`);
-	}
-
-	$$renderer.push(`<!----> ${$.html(accessor)} `);
-	t($$renderer, declare);
-	$$renderer.push(`<!----> <p>${$.escape(s)}</p> <p>${$.escape(accessor)}</p> <p>${$.escape((accessor, declare))}</p>`);
-}
-=== 851 pattern/issues/wrapper-only-parse-error-in-every-host.svelte	warnings.json
-[
-	{
-		"code": "a11y_click_events_have_key_events",
-		"message": "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
-		"start": {
-			"line": 10,
-			"column": 0,
-			"character": 219
-		},
-		"end": {
-			"line": 10,
-			"column": 50,
-			"character": 269
-		}
-	},
-	{
-		"code": "a11y_no_noninteractive_element_interactions",
-		"message": "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions",
-		"start": {
-			"line": 10,
-			"column": 0,
-			"character": 219
-		},
-		"end": {
-			"line": 10,
-			"column": 50,
-			"character": 269
-		}
-	}
-]
-
 === 284 pattern/leading-line-comment-destructure-init.svelte	error.json
 {
 	"code": "legacy_export_invalid",

@@ -4,7 +4,7 @@
 
 ;
 
-() => {
+async () => {
   {
     for (let [, item] of __rsvelte_each(items)) {
       (item);
@@ -15,4 +15,6 @@
     }
   }
 };
-export default __rsvelte_export_component<{ items: string[] }, {}, "">();
+const EachTs__SvelteComponent_ = __rsvelte_export_component<{ items: string[] }, {}, "">();
+type EachTs__SvelteComponent_ = ReturnType<typeof EachTs__SvelteComponent_>;
+export default EachTs__SvelteComponent_;

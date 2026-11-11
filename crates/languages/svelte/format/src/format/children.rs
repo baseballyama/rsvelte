@@ -236,8 +236,10 @@ impl Printer<'_, '_, '_> {
             }
             _ => false,
         };
+        // The plugin embeds a `<script>` or `<style>` element, which `print` never sees.
         if !(self.ignore.next || (self.ignore.range && !range_end()))
             || self.is_empty_text(identifier)
+            || matches!(self.element_name(identifier), Some("script" | "style"))
         {
             return false;
         }
@@ -466,7 +468,7 @@ impl Printer<'_, '_, '_> {
         };
         let span = span(declarator.span);
         // `(a: T = b)` is no expression: the plugin's parse fails and it prints the source.
-        if has_typescript(|f| f.visit_variable_declarator(declarator)) {
+        if declarator.type_annotation.is_some() {
             let source = span.text(self.source_text);
             if source.contains(['\n', '\r']) {
                 return Err(Unsupported::at(

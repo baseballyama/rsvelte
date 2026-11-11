@@ -149,6 +149,34 @@ fn lint_compares_only_the_rules_rsvelte_ran() {
 }
 
 #[test]
+fn an_unused_directive_counts_only_for_a_rule_rsvelte_ran() {
+    let expected = [(
+        "lint.txt",
+        concat!(
+            "1:1 1:2 - \"Unused eslint-disable directive ",
+            "(no problems were reported from 'no-console').\"\n",
+            "2:1 2:2 - \"Unused eslint-disable directive ",
+            "(no problems were reported from 'svelte/x').\"\n",
+        ),
+    )];
+    let ours = concat!(
+        r#"{"rules":["svelte/x"],"findings":[{"rule":null,"#,
+        r#""message":"Unused eslint-disable directive "#,
+        r#"(no problems were reported from 'svelte/x').","#,
+        r#""start":{"line":2,"column":1},"end":{"line":2,"column":2}}]}"#
+    );
+    assert_eq!(
+        judge(&expected, &[("lint.json", ours)], None),
+        Some(Verdict::Match)
+    );
+    let none = r#"{"rules":["svelte/x"],"findings":[]}"#;
+    assert_eq!(
+        judge(&expected, &[("lint.json", none)], None),
+        Some(Verdict::Mismatch)
+    );
+}
+
+#[test]
 fn labels_round_trip() {
     for v in Verdict::ALL {
         assert_eq!(Verdict::from_label(v.label()), Some(v));

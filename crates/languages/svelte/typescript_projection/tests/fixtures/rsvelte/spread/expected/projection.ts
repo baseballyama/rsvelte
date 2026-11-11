@@ -7,7 +7,7 @@
 const __rsvelte_public_props0 = __rsvelte_props({
   children: __rsvelte_untyped_prop(),
 }, {}, true);
-() => {
+async () => {
   {
     svelteHTML.createElement("div", {
       ...(rest),
@@ -32,4 +32,6 @@ const __rsvelte_public_props0 = __rsvelte_props({
     });
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const Spread__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type Spread__SvelteComponent_ = ReturnType<typeof Spread__SvelteComponent_>;
+export default Spread__SvelteComponent_;

@@ -6,11 +6,19 @@ use rsvelte_svelte_syntax::syntax_tree::Range;
 
 use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree};
 
+/// [`emit_named`] for a component without a file, which svelte2tsx names `$$Component`.
 #[must_use]
 pub fn emit(tree: &SyntaxTree, source: &str) -> Emitter {
+    emit_named(tree, source, "")
+}
+
+/// The projection of the component at `path`, whose name its default export declares.
+#[must_use]
+pub fn emit_named(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
     let mut printer = Printer {
         tree,
         source,
+        path,
         output: Emitter::new(),
         indent: 0,
     };
@@ -22,6 +30,7 @@ pub fn emit(tree: &SyntaxTree, source: &str) -> Emitter {
 struct Printer<'a> {
     tree: &'a SyntaxTree,
     source: &'a str,
+    path: &'a str,
     output: Emitter,
     indent: usize,
 }
@@ -86,11 +95,6 @@ impl Printer<'_> {
             }
             Node::Call { callee, arguments } => self.call(callee, arguments),
             Node::ArrayPattern { index, value } => self.array_pattern(index, value),
-            Node::Arrow { body } => {
-                self.output.push("() => {\n");
-                self.body(body);
-                self.output.push("}");
-            }
             Node::ForOf {
                 binding,
                 iterable,
@@ -137,6 +141,24 @@ impl Printer<'_> {
                 self.node(value);
                 self.output.push(",\n");
             }
+            Node::UnmappedSource(span) => self.output.push(span.text(self.source)),
+            Node::Ignored(statement) => {
+                self.output.push("// @ts-ignore\n");
+                self.indentation();
+                self.node(statement);
+                self.output.push(";\n");
+            }
+            Node::Parenthesized(value) => {
+                self.output.push("(");
+                self.node(value);
+                self.output.push(")");
+            }
+            node @ (Node::Snippet { .. }
+            | Node::Arrow { .. }
+            | Node::Statements(_)
+            | Node::Await(_)
+            | Node::Try { .. }
+            | Node::Template(_)) => self.template_part(node),
             Node::Boolean => self.output.push("true"),
             Node::String { parts, template } => self.string(parts, template),
             Node::Text(_) => unreachable!("text is printed only inside a string literal"),
@@ -160,7 +182,10 @@ impl Printer<'_> {
                 }
                 self.output.push(" => {\n");
                 self.indent += 1;
-                self.children(body);
+                self.indentation();
+                self.output.push("async () => {\n");
+                self.body(body);
+                self.output.push("};\n");
                 self.indentation();
                 self.output.push("return __rsvelte_snippet_return;\n");
                 self.indent -= 1;
@@ -249,11 +274,29 @@ impl Printer<'_> {
                 self.output.push(";\n");
             }
             Node::ExportDefault(value) => {
-                self.output.push("export default ");
+                // svelte2tsx's runes component: a type of the same name lets an import name the
+                // instance's type.
+                self.output.push("const ");
+                self.component_name();
+                self.output.push(" = ");
                 self.node(value);
+                self.output.push(";\ntype ");
+                self.component_name();
+                self.output.push(" = ReturnType<typeof ");
+                self.component_name();
+                self.output.push(">;\nexport default ");
+                self.component_name();
                 self.output.push(";\n");
             }
             _ => unreachable!("ordinary nodes are printed by node"),
+        }
+    }
+
+    fn component_name(&mut self) {
+        if self.path.is_empty() {
+            self.output.push("$$Component");
+        } else {
+            crate::write_component_name(self.path, &mut self.output.out);
         }
     }
 
@@ -284,6 +327,71 @@ impl Printer<'_> {
         for _ in 0..self.indent {
             self.output.push("  ");
         }
+    }
+
+    /// A function or a block of the template. A snippet's inner `async` function lets its body
+    /// hold `{#await}`.
+    fn template_part(&mut self, node: Node) {
+        let Node::Snippet {
+            name,
+            type_parameters,
+            parameters,
+            body,
+        } = node
+        else {
+            match node {
+                Node::Statements(statements) => {
+                    self.output.push("\n");
+                    self.children(statements);
+                }
+                Node::Await(value) => {
+                    self.output.push("await (");
+                    self.node(value);
+                    self.output.push(")");
+                }
+                Node::Try { body, catch } => {
+                    self.output.push("try {\n");
+                    self.body(body);
+                    self.output.push("} catch (__rsvelte_error) {\n");
+                    self.body(catch);
+                    self.output.push("}\n");
+                }
+                Node::Arrow { body } => {
+                    self.output.push("() => {\n");
+                    self.body(body);
+                    self.output.push("}");
+                }
+                Node::Template(body) => {
+                    self.output.push("async () => {\n");
+                    self.body(body);
+                    self.output.push("}");
+                }
+                _ => unreachable!("a template declaration"),
+            }
+            return;
+        };
+        self.output.push("const ");
+        self.node(name);
+        self.output.push(" = ");
+        if let Some(type_parameters) = type_parameters {
+            self.node(type_parameters);
+        }
+        match parameters {
+            Some(parameters) => self.node(parameters),
+            None => self.output.push("()"),
+        }
+        self.output
+            .push(": ReturnType<import('svelte').Snippet> => {\n");
+        self.indent += 1;
+        self.indentation();
+        self.output.push("async () => {\n");
+        self.body(body);
+        self.output.push("};\n");
+        self.indentation();
+        self.output.push("return __rsvelte_snippet_return;\n");
+        self.indent -= 1;
+        self.indentation();
+        self.output.push("};\n");
     }
 
     fn body(&mut self, body: Range) {

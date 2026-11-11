@@ -1,0 +1,10 @@
+warning a11y_click_events_have_key_events 10:1-10:50 Visible, non-interactive element `<div>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+    https://svelte.dev/e/a11y_click_events_have_key_events
+warning a11y_no_static_element_interactions 10:1-10:50 `<div>` with a click handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning non_reactive_update 3:6-3:7 `a` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 5:6-5:7 `f` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update
+warning non_reactive_update 7:6-7:12 `_class` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

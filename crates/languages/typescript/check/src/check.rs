@@ -221,6 +221,9 @@ pub struct Check {
     /// What an import of a matching document that is not checked reads, as the upstream
     /// checker still resolves it. `None`: such a document is absent from the run.
     pub stand_in: Option<&'static str>,
+    /// Documents the run passes to the checker as they are, unchecked, so imports of them
+    /// resolve as on the disk.
+    pub imported: Option<fn(&Document) -> bool>,
 }
 
 /// A document the run does not check but other documents may import.
@@ -263,20 +266,31 @@ impl FinishTask for Check {
     }
 
     fn applies(&self, document: &Document, artifacts: &ArtifactRegistry) -> bool {
-        match self.documents {
+        let checked = match self.documents {
             Documents::Matching(matches) => matches(document),
             Documents::WithTypeScriptView => artifacts.provides::<TypeScriptView>(document),
-        }
+        };
+        checked || self.imported.is_some_and(|imported| imported(document))
     }
 
     fn prepare(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) -> Option<Part> {
+        if self.tsc.is_some()
+            && self
+                .imported
+                .is_some_and(|imported| imported(context.document))
+        {
+            return Some(Box::new(StandIn {
+                path: context.document.path.clone(),
+                text: context.source_text().to_owned(),
+            }));
+        }
         match context.facet::<TypeScriptView>()? {
             Err(d) => {
                 out.diagnostics.push(d.clone());
                 self.stand_in(context)
             }
             Ok(TypeScriptDocument::Unchecked) => {
-                out.file("json", render_findings(context.line_index(), &mut []));
+                out.file("json", render_findings(context.line_index(), &[]));
                 self.stand_in(context)
             }
             Ok(TypeScriptDocument::Checked { .. }) if self.tsc.is_none() => {
@@ -433,7 +447,23 @@ fn check_projected(
             return;
         }
     };
-    let mut per_doc: Vec<Vec<(Span, u32, String)>> = vec![Vec::new(); docs.len()];
+    write_findings(&docs, outs, found);
+}
+
+/// A finding located in its document, with what orders it.
+struct Finding {
+    semantic: bool,
+    generated: u32,
+    span: Span,
+    code: u32,
+    message: String,
+}
+
+/// Writes each document's findings, ordered as svelte-check and vue-tsc list them: syntax errors
+/// first, then by position in the generated text, where the upstream projection may have moved
+/// code.
+fn write_findings(docs: &[Prepared], outs: Vec<&mut TaskOutput>, found: Vec<TypeScriptDiagnostic>) {
+    let mut per_doc: Vec<Vec<Finding>> = (0..docs.len()).map(|_| Vec::new()).collect();
     let mut unmapped: Vec<Vec<String>> = vec![Vec::new(); docs.len()];
     for f in found {
         let d = &docs[f.file];
@@ -442,7 +472,13 @@ fn check_projected(
             continue;
         };
         let bom = byte_order_mark(&d.source_text);
-        let mapped = if d.env.mapped_extension.is_some() {
+        let content_mapped = d.env.mapped_extension.is_some();
+        let generated = if content_mapped {
+            generated_offset(&d.projection, span.start_offset + bom)
+        } else {
+            span.start_offset
+        };
+        let mapped = if content_mapped {
             Some(span)
         } else {
             (d.map_back)(&d.projection, span).and_then(|span| {
@@ -453,11 +489,24 @@ fn check_projected(
             })
         };
         if let Some(span) = mapped {
-            per_doc[f.file].push((span, f.code, f.message));
+            per_doc[f.file].push(Finding {
+                // TypeScript 7 parses some grammar errors that TypeScript 6 checks, such as
+                // TS2880; svelte-check lists those with the semantic findings.
+                semantic: !f.syntactic || f.code >= 2000,
+                generated,
+                span,
+                code: f.code,
+                message: f.message,
+            });
         }
     }
     // svelte-check and vue-tsc count positions in the text TypeScript reads: without the mark.
-    for (((d, out), mut found), unmapped) in docs.iter().zip(outs).zip(per_doc).zip(unmapped) {
+    for (((d, out), mut keyed), unmapped) in docs.iter().zip(outs).zip(per_doc).zip(unmapped) {
+        keyed.sort_by_key(|f| (f.semantic, f.generated, f.span.start_offset));
+        let found: Vec<_> = keyed
+            .into_iter()
+            .map(|f| (f.span, f.code, f.message))
+            .collect();
         // A finding in synthesized code is a projection defect; the document's result is refused.
         for message in unmapped {
             out.diagnostics.push(Diagnostic::error(
@@ -467,7 +516,7 @@ fn check_projected(
             ));
         }
         let text = &d.source_text[byte_order_mark(&d.source_text) as usize..];
-        out.file("json", render_findings(&LineIndex::new(text), &mut found));
+        out.file("json", render_findings(&LineIndex::new(text), &found));
     }
 }
 
@@ -481,13 +530,35 @@ fn byte_order_mark(source: &str) -> u32 {
     }
 }
 
+/// The first generated offset copied from the original `offset`, or the end of the copy before
+/// it.
+fn generated_offset(projection: &Emitter, offset: u32) -> u32 {
+    let copies = projection
+        .mappings
+        .iter()
+        .filter(|m| m.source_text <= offset && offset <= m.source_text + m.len)
+        .map(|m| m.generated + (offset - m.source_text));
+    let atoms = projection
+        .atoms
+        .iter()
+        .filter(|a| a.original.start_offset <= offset && offset <= a.original.end_offset)
+        .map(|a| a.generated.start_offset);
+    copies.chain(atoms).min().unwrap_or_else(|| {
+        projection
+            .mappings
+            .iter()
+            .filter(|m| m.source_text + m.len <= offset)
+            .max_by_key(|m| m.source_text + m.len)
+            .map_or(0, |m| m.generated + m.len)
+    })
+}
+
 /// Findings as svelte-check and vue-tsc report them: `code`, the flattened `message`, and 0-based
-/// lines with UTF-16 characters, in document order.
-pub(crate) fn render_findings(lines: &LineIndex, found: &mut [(Span, u32, String)]) -> String {
-    found.sort_by_key(|(span, ..)| span.start_offset);
+/// lines with UTF-16 characters, in the order given.
+pub(crate) fn render_findings(lines: &LineIndex, found: &[(Span, u32, String)]) -> String {
     let mut w = StructuredDataWriter::new(true);
     w.begin_array();
-    for (span, code, message) in found.iter() {
+    for (span, code, message) in found {
         w.begin_object()
             .key("code")
             .write_number(*code)
@@ -510,7 +581,7 @@ pub(crate) fn render_findings(lines: &LineIndex, found: &mut [(Span, u32, String
 }
 
 mod run;
-pub(crate) use run::{CheckRequest, ContentMappedInput};
+pub(crate) use run::{CheckRequest, ContentMappedInput, TypeScriptDiagnostic};
 
 #[cfg(test)]
 mod tests;

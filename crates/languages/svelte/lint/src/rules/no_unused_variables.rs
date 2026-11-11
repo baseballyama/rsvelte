@@ -1,8 +1,9 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{BindingIdentifier, BindingPattern, Expression, Statement};
-use oxc_semantic::{Reference, ReferenceId, Scoping, SymbolId};
+use oxc_semantic::{Reference, ReferenceId, ScopeId, Scoping, SymbolId};
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, NodeKind};
+use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::nodes;
@@ -35,22 +36,69 @@ impl SvelteRule for NoUnusedVariables {
 
 /// The core rule, without the names `svelte-eslint-parser` marks used: `$bindable()` props,
 /// subscribed stores, snippets passed to a component, and one of two top-level names the scripts
-/// share.
+/// share. Its reads include the scripts' references to top-level snippets.
 fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let mut skipped = FxHashSet::default();
     let runes = runes(file) != Some(false);
     if runes {
         bindable_props(file, &mut skipped);
     }
-    let stores = subscribed_stores(file, runes, &mut skipped);
+    let mut reads = subscribed_stores(file, runes, &mut skipped);
+    script_snippets(file, &mut reads);
     component_snippets(file, &mut skipped);
     shared_names(file, &mut skipped);
+    let bodies = snippet_bodies(file);
     rsvelte_typescript_lint::no_unused_variables(
         file.semantic(),
         |symbol| !skipped.contains(&symbol),
-        |symbol| stores.get(&symbol).map_or(&[], Vec::as_slice),
+        |symbol| reads.get(&symbol).map_or(&[], Vec::as_slice),
+        |symbol| bodies.get(&symbol).copied(),
         reporter,
     );
+}
+
+/// The scope of each snippet's parameters and body, where `svelte-eslint-parser`'s function for
+/// it makes a reference to it a self-reference.
+fn snippet_bodies(file: &File<'_>) -> FxHashMap<SymbolId, ScopeId> {
+    let (Some(tree), Some(resolution)) = (file.normalized(), file.resolution()) else {
+        return FxHashMap::default();
+    };
+    tree.nodes
+        .iter_enumerated()
+        .filter(|(_, node)| matches!(node.kind, NodeKind::Snippet(_)))
+        .filter_map(|(identifier, _)| {
+            Some((
+                resolution.snippet(identifier)?,
+                resolution.template_scope(TemplateScope::Snippet(identifier))?,
+            ))
+        })
+        .collect()
+}
+
+/// `svelte-eslint-parser` declares a top-level snippet in the scripts' scope, where Svelte's
+/// scopes leave a script's reference to it unresolved.
+fn script_snippets(file: &File<'_>, reads: &mut FxHashMap<SymbolId, Vec<ReferenceId>>) {
+    let (Some(tree), Some(resolution)) = (file.normalized(), file.resolution()) else {
+        return;
+    };
+    let scoping = resolution.scoping();
+    let mut top_level = FxHashMap::default();
+    for (identifier, node) in tree.nodes.iter_enumerated() {
+        if matches!(node.kind, NodeKind::Snippet(_))
+            && node.parent.is_none()
+            && let Some(symbol) = resolution.snippet(identifier)
+        {
+            top_level.insert(scoping.symbol_name(symbol), symbol);
+        }
+    }
+    if top_level.is_empty() {
+        return;
+    }
+    for (name, references) in scoping.root_unresolved_references() {
+        if let Some(&symbol) = top_level.get(name.as_str()) {
+            reads.entry(symbol).or_default().extend(references);
+        }
+    }
 }
 
 /// `let { a = $bindable() } = $props()` at the top level gets a virtual read of the top-level

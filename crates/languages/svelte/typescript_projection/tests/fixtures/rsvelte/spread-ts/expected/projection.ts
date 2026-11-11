@@ -5,7 +5,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("a", {
       href,
@@ -18,4 +18,6 @@
     });
   }
 };
-export default __rsvelte_export_component<{ href?: string; tabindex?: number }, {}, "">();
+const SpreadTs__SvelteComponent_ = __rsvelte_export_component<{ href?: string; tabindex?: number }, {}, "">();
+type SpreadTs__SvelteComponent_ = ReturnType<typeof SpreadTs__SvelteComponent_>;
+export default SpreadTs__SvelteComponent_;

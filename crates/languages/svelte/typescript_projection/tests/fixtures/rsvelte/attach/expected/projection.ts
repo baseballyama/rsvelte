@@ -17,7 +17,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("div", {
       [Symbol("@attach")]: tooltip,
@@ -42,4 +42,6 @@
     });
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const Attach__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type Attach__SvelteComponent_ = ReturnType<typeof Attach__SvelteComponent_>;
+export default Attach__SvelteComponent_;

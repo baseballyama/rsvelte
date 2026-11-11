@@ -19,7 +19,7 @@
 const __rsvelte_public_props0 = __rsvelte_props({
   label: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("button", {
       "type": "",
@@ -56,4 +56,6 @@ const __rsvelte_public_props0 = __rsvelte_props({
     });
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const LintEdge__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type LintEdge__SvelteComponent_ = ReturnType<typeof LintEdge__SvelteComponent_>;
+export default LintEdge__SvelteComponent_;

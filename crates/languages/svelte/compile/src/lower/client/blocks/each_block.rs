@@ -1,5 +1,9 @@
-use oxc_ast::ast::{BindingIdentifier, Expression, Statement};
-use oxc_semantic::SymbolId;
+mod destructure;
+
+use oxc_allocator::{CloneIn, GetAllocator};
+use oxc_ast::ast::{BindingIdentifier, BindingPattern, Expression, Statement};
+use oxc_ast_visit::VisitMut;
+use oxc_semantic::{SymbolFlags, SymbolId};
 use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, Each, ElementKind, MetadataTag,
@@ -9,9 +13,8 @@ use rsvelte_svelte_semantic::resolve::TemplateScope;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R, Read,
-    has_dependency, unsupported,
+    has_dependency,
 };
-use crate::lower::span_of;
 
 const EACH_ITEM_REACTIVE: u32 = 1;
 
@@ -43,7 +46,7 @@ struct IndexUse {
 }
 
 impl<'o> ClientCompilationContext<'_, 'o> {
-    /// Upstream `EachBlock` (client, runes mode) for a block whose context is an identifier.
+    /// Upstream `EachBlock` (client, runes mode).
     pub(in crate::lower::client) fn each_block(
         &mut self,
         identifier: CompilerNodeIdentifier,
@@ -57,14 +60,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let NodeKind::Each(each) = &compiler_syntax_tree.node(identifier).kind else {
             unreachable!()
         };
-        let context = each.context.expect("the parser requires `as`");
-        let context_pattern = &javascript.get_pattern(context).pattern;
-        let Some(context) = context_pattern.get_binding_identifier() else {
-            return unsupported(
-                "a destructuring `{#each}` context",
-                span_of(context_pattern),
-            );
+        let pattern = each.context.map(|c| &javascript.get_pattern(c).pattern);
+        let (item, destructured) = match pattern {
+            Some(BindingPattern::BindingIdentifier(item)) => (Some(&**item), None),
+            pattern => (None, pattern),
         };
+        let keyed = each.keyed(javascript);
         let index = each
             .index
             .and_then(|i| javascript.get_pattern(i).pattern.get_binding_identifier());
@@ -72,36 +73,50 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if !controlled {
             frag.tpl.push_comment();
         }
-        let keyed = each.keyed(javascript);
-        let flags = self.each_flags(each, context, keyed, controlled);
+        let flags = self.each_flags(each, item, keyed, controlled);
         let bindings = EachBindings {
-            item: context.symbol_id.get(),
+            item: item.and_then(|i| i.symbol_id.get()),
             index: index.and_then(|i| i.symbol_id.get()),
         };
         let collection_id = self
             .shadows_outer_name(identifier, each)
             .then(|| self.names.unique("$$array"));
-        let index_name = index.map_or_else(
-            || self.each_index[&identifier].clone(),
-            |i| i.name.as_str().to_owned(),
-        );
-        let index_use = self.index_use(each, bindings);
+        // A group reads the index by a name of its own, which the body declares as the index.
+        let grouped = self.binding_groups.each.contains(&identifier);
+        let index_name = match index {
+            Some(i) if !grouped => i.name.as_str().to_owned(),
+            _ => self.each_index[&identifier].clone(),
+        };
+        let mut index_use = self.index_use(each, bindings);
+        index_use.body |= grouped;
 
-        let body = self.each_body(each, identifier, bindings, flags)?;
+        let destructured_names = destructured.map(destructure::names).unwrap_or_default();
+        let mut body = self.each_body(each, identifier, bindings, flags, destructured)?;
+        if grouped && let Some(i) = index {
+            body.insert(0, b.let_(&i.name, Some(b.id(&index_name))));
+        }
+        let symbols: Vec<SymbolId> = bindings
+            .iter()
+            .chain(destructured_names.iter().map(|&(symbol, _)| symbol))
+            .collect();
         let key_function = if keyed {
-            self.key_function(each, context, bindings, &index_name, index_use.key)
+            let pattern = pattern.expect("a key follows `as`");
+            self.key_function(each, pattern, &symbols, &index_name, index_use.key)
         } else {
             b.member(b.id("$"), "index")
         };
-        for symbol in bindings.iter() {
-            self.reads.remove(&symbol);
-            self.invalidates.remove(&symbol);
+        for symbol in &symbols {
+            self.reads.remove(symbol);
+            self.invalidates.remove(symbol);
         }
 
         let thunk = b.thunk(collection);
         let mut render_args = vec![
             b.parameter(b.binding("$$anchor")),
-            b.parameter(b.binding_at(&context.name, context.span)),
+            b.parameter(item.map_or_else(
+                || b.binding("$$item"),
+                |item| b.binding_at(&item.name, item.span),
+            )),
         ];
         if index_use.body || collection_id.is_some() {
             render_args.push(b.parameter(b.binding(&index_name)));
@@ -122,14 +137,14 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             arguments.push(Some(self.anchor_arrow(fallback)));
         }
         l.initializer
-            .push(b.stmt(b.runtime_some("each", arguments)));
+            .push(b.statement(b.runtime_some("each", arguments)));
         Ok(())
     }
 
     fn each_flags(
         &self,
         each: &Each,
-        context: &BindingIdentifier<'_>,
+        item: Option<&BindingIdentifier<'_>>,
         keyed: bool,
         controlled: bool,
     ) -> u32 {
@@ -138,9 +153,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if keyed && each.index.is_some() {
             flags |= EACH_INDEX_REACTIVE;
         }
-        let key_is_item = each.key.is_some_and(|k| {
+        let key_is_item = each.key.zip(item).is_some_and(|(k, item)| {
             let key = javascript.get_expression(k).get_inner_expression();
-            matches!(key, Expression::Identifier(k) if k.name == context.name)
+            matches!(key, Expression::Identifier(k) if k.name == item.name)
         });
         // A store's items may be mutated in place, so they are read again.
         let store = self
@@ -196,7 +211,14 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         (scopes.into_iter().flatten())
             .flat_map(|scope| scoping.get_bindings(scope).keys())
-            .any(|&name| scoping.find_binding(outer, name).is_some())
+            // Upstream erases the types first, so a type-only name shadows nothing.
+            .any(|&name| {
+                scoping.find_binding(outer, name).is_some_and(|symbol| {
+                    scoping
+                        .symbol_flags(symbol)
+                        .intersects(SymbolFlags::Value | SymbolFlags::Import)
+                })
+            })
     }
 
     fn index_use(&self, each: &Each, bindings: EachBindings) -> IndexUse {
@@ -235,47 +257,60 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         identifier: CompilerNodeIdentifier,
         bindings: EachBindings,
         flags: u32,
+        destructured: Option<&'o BindingPattern<'o>>,
     ) -> R<Vec<Statement<'o>>> {
+        // Upstream invalidates the store after a write through the item or a name it destructures.
+        let store = (self.an.meta(each.collection).first_store_subscription).map(|store| {
+            let span = self.res.reference_span(store);
+            &self.source_text[span.start as usize..span.end as usize]
+        });
+        let destructured_names = destructured.map(destructure::names).unwrap_or_default();
+        let item_names = bindings.item.into_iter();
+        if let Some(store) = store {
+            for symbol in item_names.chain(destructured_names.iter().map(|&(symbol, _)| symbol)) {
+                self.invalidates.insert(symbol, store);
+            }
+        }
         if let Some(symbol) = bindings.item {
             self.reads
                 .insert(symbol, Read::get_if(flags & EACH_ITEM_REACTIVE != 0));
-            if let Some(store) = self.an.meta(each.collection).first_store_subscription {
-                let span = self.res.reference_span(store);
-                self.invalidates.insert(
-                    symbol,
-                    &self.source_text[span.start as usize..span.end as usize],
-                );
-            }
         }
         if let Some(symbol) = bindings.index {
             self.reads
                 .insert(symbol, Read::get_if(flags & EACH_INDEX_REACTIVE != 0));
         }
         let outer = self.scope;
-        self.scope = self
-            .res
-            .template_scope(TemplateScope::Each(identifier))
-            .expect("an `{#each}` context opens a scope");
+        // A block that declares no name opens no scope.
+        if let Some(scope) = self.res.template_scope(TemplateScope::Each(identifier)) {
+            self.scope = scope;
+        }
+        let mut declarations = Vec::new();
+        if let Some(pattern) = destructured {
+            self.destructure(pattern, flags & EACH_ITEM_REACTIVE != 0, &mut declarations);
+        }
         let body = self.fragment(each.body);
         self.scope = outer;
-        body
+        declarations.extend(body?);
+        Ok(declarations)
     }
 
     /// The key function sees the item and the index as plain values.
     fn key_function(
         &mut self,
         each: &Each,
-        context: &BindingIdentifier<'_>,
-        bindings: EachBindings,
+        pattern: &BindingPattern<'_>,
+        symbols: &[SymbolId],
         index_name: &str,
         key_uses_index: bool,
     ) -> Expression<'o> {
         let b = self.b;
-        for symbol in bindings.iter() {
+        for &symbol in symbols {
             self.reads.insert(symbol, Read::Plain);
         }
         let key = self.expression(each.key.expect("a keyed block has a key"));
-        let mut parameters = vec![b.parameter(b.binding_at(&context.name, context.span))];
+        let mut pattern = pattern.clone_in_with_semantic_ids(b.allocator());
+        self.rewriter(true).visit_binding_pattern(&mut pattern);
+        let mut parameters = vec![b.parameter(pattern)];
         if key_uses_index {
             parameters.push(b.parameter(b.binding(index_name)));
         }

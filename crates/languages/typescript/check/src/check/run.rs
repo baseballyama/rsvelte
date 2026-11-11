@@ -42,6 +42,8 @@ pub(crate) struct TypeScriptDiagnostic {
     /// Byte range in the input: original for content-mapped files, generated otherwise. `None`
     /// in code a content mapper synthesized, which no source range explains.
     pub span: Option<Span>,
+    /// A syntax error, which TypeScript reports before the other findings of a file.
+    pub syntactic: bool,
 }
 
 static RUN: AtomicU32 = AtomicU32::new(0);
@@ -161,16 +163,15 @@ impl Tsc {
         ));
         let project = session.open(&[&config], &layer).map_err(failed)?.remove(0);
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
-        let mut found = session
+        let program = session
             .diagnostics(&project, DiagnosticKind::Program, None)
             .map_err(failed)?;
-        for kind in [DiagnosticKind::Syntactic, DiagnosticKind::Semantic] {
-            found.extend(
-                session
-                    .diagnostics(&project, kind, Some(&files))
-                    .map_err(failed)?,
-            );
-        }
+        let syntactic = session
+            .diagnostics(&project, DiagnosticKind::Syntactic, Some(&files))
+            .map_err(failed)?;
+        let semantic = session
+            .diagnostics(&project, DiagnosticKind::Semantic, Some(&files))
+            .map_err(failed)?;
         session.release(project.snapshot).map_err(failed)?;
         let lines: Vec<LineIndex> = req
             .files
@@ -185,11 +186,16 @@ impl Tsc {
                 )
             })
             .collect();
-        found
+        program
             .into_iter()
+            .map(|d| (false, d))
+            .chain(syntactic.into_iter().map(|d| (true, d)))
+            .chain(semantic.into_iter().map(|d| (false, d)))
             // The command line reports errors only; svelte-check's errors are the oracle.
-            .filter(|d| d.category == ERROR)
-            .map(|d| located(&d, &paths, &lines).ok_or_else(|| unlocated(&self.checker, &d)))
+            .filter(|(_, d)| d.category == ERROR)
+            .map(|(syntactic, d)| {
+                located(&d, &paths, &lines, syntactic).ok_or_else(|| unlocated(&self.checker, &d))
+            })
             .collect()
     }
 }
@@ -239,6 +245,7 @@ fn located(
     d: &rsvelte_typescript_api::Diagnostic,
     paths: &[PathBuf],
     lines: &[LineIndex],
+    syntactic: bool,
 ) -> Option<TypeScriptDiagnostic> {
     let file = paths.iter().position(|p| Some(p) == d.file_name.as_ref())?;
     let offset = |p: Option<Position>| {
@@ -254,6 +261,7 @@ fn located(
         code: d.code,
         message: d.flattened_message(),
         span,
+        syntactic,
     })
 }
 

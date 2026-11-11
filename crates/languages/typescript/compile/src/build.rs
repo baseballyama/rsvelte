@@ -251,7 +251,7 @@ impl<'o> Builder<'o> {
         self.accessor(
             PropertyKind::Get,
             name,
-            self.params([]),
+            self.parameters([]),
             [self.return_(Some(value))],
         )
     }
@@ -337,7 +337,7 @@ impl<'o> Builder<'o> {
     }
 
     #[must_use]
-    pub fn stmt(&self, expression: Expression<'o>) -> Statement<'o> {
+    pub fn statement(&self, expression: Expression<'o>) -> Statement<'o> {
         Statement::new_expression_statement(SPAN, expression, self)
     }
 

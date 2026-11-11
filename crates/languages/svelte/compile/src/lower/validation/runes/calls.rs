@@ -1,5 +1,6 @@
 //! Upstream's `CallExpression` checks of a rune call.
 
+use oxc_ast::AstKind;
 use oxc_ast::ast::{Argument, CallExpression, Expression};
 
 use super::{Body, Parent, Place, RuneWalk, state_invalid_placement};
@@ -93,10 +94,14 @@ impl RuneWalk<'_> {
             {
                 return state_invalid_placement(rune, span_of(call));
             }
-            "$effect" | "$effect.pre" if !matches!(parent, Parent::Statement(_)) => (
-                "effect_invalid_placement",
-                "`$effect()` can only be used as an expression statement".to_owned(),
-            ),
+            "$effect" | "$effect.pre"
+                if !matches!(parent, Parent::Statement(_) | Parent::LoneExpression) =>
+            {
+                (
+                    "effect_invalid_placement",
+                    "`$effect()` can only be used as an expression statement".to_owned(),
+                )
+            }
             "$inspect.trace" => match parent {
                 Parent::Statement(Some((
                     Body {
@@ -127,27 +132,41 @@ impl RuneWalk<'_> {
         place: Place,
         lowered: bool,
     ) {
-        // Upstream splits a destructured state or derived into one declaration per path; this
-        // port has no `extract_paths` yet.
-        let destructured = matches!(rune, "$state" | "$state.raw" | "$derived" | "$derived.by")
-            && matches!(place.parent, Parent::Initializer { named: false, .. });
+        // Upstream splits a destructured state or derived into one declaration per path.
+        let destructured = match place.parent {
+            Parent::Initializer { named: false, .. } => match rune {
+                // Only a script's rewrite has the names its `tmp`, `$$d` and arrays take.
+                "$state" | "$state.raw" | "$derived" | "$derived.by" => !matches!(
+                    self.frames.first().map(|f| f.kind),
+                    Some(AstKind::Program(_))
+                ),
+                _ => false,
+            },
+            _ => false,
+        };
         let supported = lowered
             && !destructured
             && match rune {
-                "$state" | "$state.raw" | "$derived" | "$derived.by" => !place.in_class,
-                "$props" | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
+                "$state" | "$state.raw" | "$derived" | "$derived.by" | "$props" | "$props.id"
+                | "$bindable" | "$effect.pending" | "$effect.tracking" | "$effect.root"
+                | "$state.eager" | "$state.snapshot" => true,
                 "$host" => self.custom_element,
                 "$effect" | "$effect.pre" => {
-                    matches!(place.parent, Parent::Statement(_)) || self.target == Target::Client
+                    matches!(place.parent, Parent::Statement(_) | Parent::LoneExpression)
+                        || self.target == Target::Client
+                }
+                // Upstream prints these statements as `;;` outside development, which only a
+                // statement list holds as written, and breaks the code it prints for any other
+                // use.
+                "$inspect" | "$inspect().with" | "$inspect.trace" => {
+                    matches!(place.parent, Parent::Statement(_))
                 }
                 _ => false,
             };
         if supported || self.refused.is_some() {
             return;
         }
-        let what = if place.in_class {
-            format!("`{rune}` in a class body")
-        } else if !lowered {
+        let what = if !lowered {
             format!("`{rune}` in an optional chain")
         } else if destructured {
             format!("a destructured `{rune}` declaration")

@@ -5,10 +5,12 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("h1", {});
     (title.toFixed());
   }
 };
-export default __rsvelte_export_component<{ title: string }, {}, "">();
+const StyleError__SvelteComponent_ = __rsvelte_export_component<{ title: string }, {}, "">();
+type StyleError__SvelteComponent_ = ReturnType<typeof StyleError__SvelteComponent_>;
+export default StyleError__SvelteComponent_;

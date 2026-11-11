@@ -14,11 +14,13 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {});
     (label);
     (count);
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const ModuleImports__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type ModuleImports__SvelteComponent_ = ReturnType<typeof ModuleImports__SvelteComponent_>;
+export default ModuleImports__SvelteComponent_;

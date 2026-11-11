@@ -10,9 +10,8 @@
 //! since the preprocessing rewrites text and removes nodes. `Printer` is `printChildren`,
 //! `printElement` and the tag helpers of `print/tag.js`, one function per upstream function.
 //! Script bodies and template expressions go through `oxc_formatter`, each in the root oxc's own
-//! Vue formatter gives it, and oxc's printer prints the document; style bodies go through
-//! `rsvelte_stylesheet_format`. Anything neither covers is an [`Unsupported`] error, never an
-//! approximation.
+//! Vue formatter gives it, style bodies through `oxc_formatter_css`, and oxc's printer prints the
+//! document. Anything neither covers is an [`Unsupported`] error, never an approximation.
 
 use std::borrow::Cow;
 

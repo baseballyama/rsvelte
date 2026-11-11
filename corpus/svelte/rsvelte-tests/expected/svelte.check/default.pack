@@ -7426,22 +7426,6 @@
 === 3 rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_as_expression_strips_assertion_from_setter/e411dff7dcde881b.svelte	json
 []
 
-=== 218 rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_instantiation_strips_from_setter/a57f2e812dcc16aa.svelte	json
-[
-	{
-		"code": 2635,
-		"message": "Type 'any' has no signatures for which the type argument list is applicable.",
-		"start": {
-			"line": 0,
-			"character": 59
-		},
-		"end": {
-			"line": 0,
-			"character": 65
-		}
-	}
-]
-
 === 3 rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_type_assertion_prefix_strips_from_setter/4407b68d90ad0482.svelte	json
 []
 
@@ -8552,22 +8536,6 @@
 		"end": {
 			"line": 0,
 			"character": 5
-		}
-	}
-]
-
-=== 248 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
 		}
 	}
 ]

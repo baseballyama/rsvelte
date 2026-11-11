@@ -10,7 +10,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
 }, {
   title: 'List',
 }, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("section", {
       "class": "list",
@@ -33,4 +33,6 @@ const __rsvelte_public_props0 = __rsvelte_props({
     }
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const FormatCases__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type FormatCases__SvelteComponent_ = ReturnType<typeof FormatCases__SvelteComponent_>;
+export default FormatCases__SvelteComponent_;

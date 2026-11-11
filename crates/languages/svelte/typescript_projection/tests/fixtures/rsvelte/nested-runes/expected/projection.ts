@@ -11,7 +11,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("button", {
       "onclick": measure,
@@ -19,4 +19,6 @@
     (result);
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const NestedRunes__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type NestedRunes__SvelteComponent_ = ReturnType<typeof NestedRunes__SvelteComponent_>;
+export default NestedRunes__SvelteComponent_;

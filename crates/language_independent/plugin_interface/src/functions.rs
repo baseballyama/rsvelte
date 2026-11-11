@@ -66,8 +66,6 @@ impl<C: Contract> Function<C> {
 pub enum FunctionReference {
     /// A function the configuration's own runtime holds, by its handle.
     Runtime { handle: String },
-    /// A symbol of a native library, relative to the configuration file.
-    Native { library: String, symbol: String },
 }
 
 /// Turns a function reference into a function a plugin can call.
@@ -139,7 +137,7 @@ impl TextFunction {
     /// # Errors
     /// `arguments` is not as many as the contract names, or the backend failed.
     pub fn call(&self, arguments: &[&str]) -> Result<String, CallError> {
-        // Native backends size their argument buffers from the contract, so this guards memory.
+        // A backend pairs each argument with the contract's name at the same position.
         let expected = self.contract.arguments.len();
         if arguments.len() != expected {
             return Err(CallError(format!(

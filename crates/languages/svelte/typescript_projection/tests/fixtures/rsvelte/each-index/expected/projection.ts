@@ -7,7 +7,7 @@
 const __rsvelte_public_props0 = __rsvelte_props({
   items: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("ol", {});
     {
@@ -25,4 +25,6 @@ const __rsvelte_public_props0 = __rsvelte_props({
     (items.length);
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const EachIndex__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type EachIndex__SvelteComponent_ = ReturnType<typeof EachIndex__SvelteComponent_>;
+export default EachIndex__SvelteComponent_;

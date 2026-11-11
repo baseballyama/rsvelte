@@ -1,0 +1,1 @@
+error check_unsupported 9:2-9:18 not supported by the type-check projection yet: svelte: elements

@@ -20186,38 +20186,6 @@ export default function E411dff7dcde881b($$anchor) {
 	}
 ]
 
-=== 328 rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_instantiation_strips_from_setter/a57f2e812dcc16aa.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<input/>`);
-
-export default function A57f2e812dcc16aa($$anchor) {
-	let f;
-	var input = root();
-
-	$.remove_input_defaults(input);
-	$.bind_value(input, () => f, ($$value) => f = $$value);
-	$.append($$anchor, input);
-}
-=== 344 rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_instantiation_strips_from_setter/a57f2e812dcc16aa.svelte	warnings.json
-[
-	{
-		"code": "non_reactive_update",
-		"message": "`f` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
-		"start": {
-			"line": 1,
-			"column": 22,
-			"character": 22
-		},
-		"end": {
-			"line": 1,
-			"column": 28,
-			"character": 28
-		}
-	}
-]
-
 === 332 rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_type_assertion_prefix_strips_from_setter/4407b68d90ad0482.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -24541,22 +24509,6 @@ export default function A09dc1b214a34e66($$anchor) {
 		"line": 1,
 		"column": 5,
 		"character": 5
-	}
-}
-
-=== 289 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	error.json
-{
-	"code": "svelte_element_missing_this",
-	"message": "`<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this",
-	"start": {
-		"line": 1,
-		"column": 0,
-		"character": 0
-	},
-	"end": {
-		"line": 1,
-		"column": 0,
-		"character": 0
 	}
 }
 

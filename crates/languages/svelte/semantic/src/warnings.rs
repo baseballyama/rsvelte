@@ -10,7 +10,8 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Component, Script, TemplateNode};
 use rsvelte_typescript_tree::{
-    DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier, Tree,
+    DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
+    ProgramIdentifier, Tree,
 };
 
 use crate::analyze::Analysis;
@@ -321,8 +322,8 @@ pub fn warnings(
     };
     setup::warnings(component, source, runes, options, &mut found);
     script::walk(
-        component,
-        compiler_syntax_tree,
+        &Scripts::of(component),
+        Some(compiler_syntax_tree),
         resolution,
         runes,
         options,
@@ -363,6 +364,87 @@ pub fn warnings(
     out.ignored = ignore::ignored(&found, &regions);
     out.warnings = found.into_iter().map(|(_, warning)| warning).collect();
     out
+}
+
+/// Upstream `analyze_module`'s warnings for a `.svelte.js` or `.svelte.ts` module: its script
+/// visitors, in runes mode, over `program` of `javascript`, and the `svelte-ignore` comments in it.
+#[must_use]
+pub fn module_warnings(
+    javascript: &Tree,
+    program: ProgramIdentifier,
+    resolution: &Resolution,
+    source: &str,
+    options: Options,
+) -> CompileWarnings {
+    let scripts = Scripts {
+        javascript,
+        module: Some(ScriptPart {
+            program,
+            content: Span::new(0, source.len() as u32),
+        }),
+        instance: None,
+        file: true,
+    };
+    let mut found = Found::default();
+    script::walk(
+        &scripts,
+        None,
+        resolution,
+        true,
+        options,
+        &rustc_hash::FxHashMap::default(),
+        &mut found,
+    );
+    let regions = ignore::module_regions(&scripts, source, &mut found);
+    let found = found.finish();
+    CompileWarnings {
+        ignored: ignore::ignored(&found, &regions),
+        warnings: found.into_iter().map(|(_, warning)| warning).collect(),
+        ..CompileWarnings::default()
+    }
+}
+
+/// The scripts the walks visit: a component's module and instance, or a module file's program.
+pub(super) struct Scripts<'a> {
+    pub(super) javascript: &'a Tree,
+    pub(super) module: Option<ScriptPart>,
+    pub(super) instance: Option<ScriptPart>,
+    /// A module file, which upstream analyzes without a component's `ast_type`.
+    pub(super) file: bool,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct ScriptPart {
+    pub(super) program: ProgramIdentifier,
+    /// The text the program covers.
+    pub(super) content: Span,
+}
+
+impl<'a> Scripts<'a> {
+    pub(super) fn of(component: &'a Component) -> Self {
+        let part = |script: &Option<Script>| {
+            script.as_ref().map(|s| ScriptPart {
+                program: s.program,
+                content: s.content,
+            })
+        };
+        Self {
+            javascript: &component.javascript,
+            module: part(&component.module),
+            instance: part(&component.instance),
+            file: false,
+        }
+    }
+
+    /// The module, then the instance, as the compiler walks them.
+    pub(super) fn sections(&self) -> impl Iterator<Item = (Section, ScriptPart)> {
+        [
+            (Section::Module, self.module),
+            (Section::Instance, self.instance),
+        ]
+        .into_iter()
+        .filter_map(|(section, script)| Some((section, script?)))
+    }
 }
 
 /// `<svelte:options tag>`, which Svelte 5's parser rejects.

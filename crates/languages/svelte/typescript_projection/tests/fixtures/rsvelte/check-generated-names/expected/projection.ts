@@ -5,7 +5,7 @@
 
 ;
 
-() => {
+async () => {
   {
     __rsvelte_component(Foo)(__rsvelte_internals(), {
       children: __rsvelte_children,
@@ -18,4 +18,6 @@
     });
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const CheckGeneratedNames__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type CheckGeneratedNames__SvelteComponent_ = ReturnType<typeof CheckGeneratedNames__SvelteComponent_>;
+export default CheckGeneratedNames__SvelteComponent_;

@@ -15,7 +15,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("button", {
       "onclick": () => n++,
@@ -24,4 +24,6 @@
     (f());
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const Effect__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type Effect__SvelteComponent_ = ReturnType<typeof Effect__SvelteComponent_>;
+export default Effect__SvelteComponent_;

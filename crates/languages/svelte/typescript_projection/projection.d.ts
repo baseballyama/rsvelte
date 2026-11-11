@@ -9,8 +9,12 @@ declare function __rsvelte_internals(): Parameters<import('svelte').Component>[0
 declare function __rsvelte_export_component<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings extends keyof Props | ''>(): import('svelte').Component<Props, Exports, Bindings>;
 declare function __rsvelte_props<Required extends Record<string, unknown>, Optional extends Record<string, unknown>, Rest extends boolean>(required: Required, optional: Optional, rest: Rest): Required & Partial<Optional> & (Rest extends true ? Record<string, any> : {});
 declare function __rsvelte_untyped_prop(): any;
-declare function __rsvelte_empty_array(values: unknown[]): any[];
+declare function __rsvelte_array_prop(): any[];
+declare function __rsvelte_record_prop(): Record<string, any>;
+declare function __rsvelte_function_prop(): Function;
 type __rsvelte_no_props = Record<string, never>;
 type __rsvelte_props_with_children<Props> = Props extends __rsvelte_no_props ? any : Props & { children?: any };
 type __rsvelte_store<T> = { subscribe: (run: (value: T) => any, invalidate?: any) => any };
 type __rsvelte_store_value<Store> = Store extends __rsvelte_store<infer T> ? T : Store;
+declare function __rsvelte_get_set<T>(get: (() => T) | null | undefined, set: (value: T) => void): T;
+declare function __rsvelte_ensure_snippet(value: ReturnType<import('svelte').Snippet> | undefined | null): any;

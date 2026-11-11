@@ -7,7 +7,7 @@
 
 ;
 
-() => {
+async () => {
   {
     for (let [, group] of __rsvelte_each(groups)) {
       {
@@ -29,4 +29,6 @@
     }
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const EachNested__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type EachNested__SvelteComponent_ = ReturnType<typeof EachNested__SvelteComponent_>;
+export default EachNested__SvelteComponent_;

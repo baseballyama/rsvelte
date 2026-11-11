@@ -3835,39 +3835,6 @@
 9:49 9:51 no-unused-vars "'nv' is defined but never used."
 9:58 9:65 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
 
-=== 1291 bind_await_3242/await_in_a_plain_bind_expression_is_rejected/5b7624825030f1d5.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:9 2:10 no-unused-vars "'C' is defined but never used."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:7 no-unused-vars "'v' is assigned a value but never used."
-3:6 3:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:9 no-unused-vars "'tag' is assigned a value but never used."
-5:6 5:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:6 6:7 no-unused-vars "'n' is assigned a value but never used."
-6:6 6:7 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:22 9:29 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
-
-=== 1234 bind_await_3242/await_in_a_plain_bind_expression_is_rejected/86fd0d765b228be6.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:7 no-unused-vars "'v' is assigned a value but never used."
-3:6 3:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:9 no-unused-vars "'tag' is assigned a value but never used."
-5:6 5:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:6 6:7 no-unused-vars "'n' is assigned a value but never used."
-6:6 6:7 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:18 9:25 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
-
 === 1304 bind_await_3242/await_in_a_plain_bind_expression_is_rejected/de25216b2125127c.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:9 2:10 no-unused-vars "'C' is defined but never used."
@@ -4195,43 +4162,6 @@
 9:28 9:51 svelte/max-attributes-per-line "'bind:offsetWidth' should be on a new line."
 9:28 9:51 svelte/valid-compile "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression(bind_invalid_expression)"
 
-=== 1366 bind_host_axis_3264/bind_invalid_expression_reaches_every_host/28b186c68a849b9b.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:9 2:10 no-unused-vars "'C' is defined but never used."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:7 no-unused-vars "'v' is assigned a value but never used."
-3:6 3:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:9 no-unused-vars "'tag' is assigned a value but never used."
-5:6 5:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:6 6:8 no-unused-vars "'el' is assigned a value but never used."
-6:6 6:8 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:6 7:7 no-unused-vars "'n' is assigned a value but never used."
-7:6 7:7 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
-9:6 9:29 svelte/valid-compile "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression(bind_invalid_expression)"
-
-=== 1309 bind_host_axis_3264/bind_invalid_expression_reaches_every_host/45dacf5d08378377.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:7 no-unused-vars "'v' is assigned a value but never used."
-3:6 3:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:9 no-unused-vars "'tag' is assigned a value but never used."
-5:6 5:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:6 6:8 no-unused-vars "'el' is assigned a value but never used."
-6:6 6:8 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:6 7:7 no-unused-vars "'n' is assigned a value but never used."
-7:6 7:7 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
-9:4 9:21 svelte/valid-compile "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression(bind_invalid_expression)"
-
 === 1387 bind_host_axis_3264/bind_invalid_expression_reaches_every_host/4bbbb6b133b3e8ae.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:9 2:10 no-unused-vars "'C' is defined but never used."
@@ -4287,25 +4217,6 @@
 7:6 7:7 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
 9:28 9:44 svelte/max-attributes-per-line "'bind:this' should be on a new line."
 9:28 9:44 svelte/valid-compile "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression(bind_invalid_expression)"
-
-=== 1366 bind_host_axis_3264/bind_invalid_expression_reaches_every_host/75e8dee45bf85182.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:9 2:10 no-unused-vars "'C' is defined but never used."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:7 no-unused-vars "'v' is assigned a value but never used."
-3:6 3:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:9 no-unused-vars "'tag' is assigned a value but never used."
-5:6 5:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:6 6:8 no-unused-vars "'el' is assigned a value but never used."
-6:6 6:8 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:6 7:7 no-unused-vars "'n' is assigned a value but never used."
-7:6 7:7 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
-9:8 9:25 svelte/valid-compile "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression(bind_invalid_expression)"
 
 === 1391 bind_host_axis_3264/bind_invalid_expression_reaches_every_host/9b7544cb01233323.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -4979,25 +4890,6 @@
 1:59 1:81 svelte/max-attributes-per-line "'bind:indeterminate' should be on a new line."
 
 === 0 bind_indeterminate_no_type/bind_indeterminate_without_type_compiles/1937c25bfab438e3.svelte	lint.txt
-
-=== 641 bind_invalid_expression_2583/bind_to_a_call_is_rejected_on_both_paths/1051d1cd2fe561c1.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:9 no-unused-vars "'obj' is assigned a value but never used."
-4:6 4:9 svelte/prefer-const "'obj' is never reassigned. Use 'const' instead."
-6:7 6:25 svelte/valid-compile "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression(bind_invalid_expression)"
-
-=== 701 bind_invalid_expression_2583/bind_to_a_call_is_rejected_on_both_paths/f907d6deaab6f964.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:9 2:13 no-unused-vars "'Comp' is defined but never used."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:9 no-unused-vars "'obj' is assigned a value but never used."
-4:6 4:9 svelte/prefer-const "'obj' is never reassigned. Use 'const' instead."
-6:8 6:26 svelte/valid-compile "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression(bind_invalid_expression)"
 
 === 574 bind_invalid_expression_2583/component_bind_this_to_an_assignment_is_rejected/a3c856c6bfa6faac.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5811,27 +5703,6 @@
 10:28 10:52 svelte/max-attributes-per-line "'bind:clientHeight' should be on a new line."
 10:28 10:52 svelte/valid-compile "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression(bind_invalid_expression)"
 
-=== 1549 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/52ef0c597925d42d.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:8 no-unused-vars "'el' is assigned a value but never used."
-3:6 3:8 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:7 no-unused-vars "'v' is assigned a value but never used."
-4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:9 no-unused-vars "'tag' is assigned a value but never used."
-5:6 5:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:6 6:10 no-unused-vars "'tag2' is assigned a value but never used."
-6:6 6:10 svelte/prefer-const "'tag2' is never reassigned. Use 'const' instead."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:6 7:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:6 8:10 no-unused-vars "'rest' is assigned a value but never used."
-8:6 8:10 svelte/prefer-const "'rest' is never reassigned. Use 'const' instead."
-10:4 10:17 svelte/valid-compile "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression(bind_invalid_expression)"
-
 === 1638 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/5efe3a9f2f461cf6.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5963,28 +5834,6 @@
 8:6 8:10 svelte/prefer-const "'rest' is never reassigned. Use 'const' instead."
 10:28 10:54 svelte/max-attributes-per-line "'bind:contentBoxSize' should be on a new line."
 10:28 10:54 svelte/valid-compile "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression(bind_invalid_expression)"
-
-=== 1606 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/b84a585e08aef961.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:9 2:10 no-unused-vars "'C' is defined but never used."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:8 no-unused-vars "'el' is assigned a value but never used."
-3:6 3:8 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:7 no-unused-vars "'v' is assigned a value but never used."
-4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:9 no-unused-vars "'tag' is assigned a value but never used."
-5:6 5:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:6 6:10 no-unused-vars "'tag2' is assigned a value but never used."
-6:6 6:10 svelte/prefer-const "'tag2' is never reassigned. Use 'const' instead."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:6 7:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:6 8:10 no-unused-vars "'rest' is assigned a value but never used."
-8:6 8:10 svelte/prefer-const "'rest' is never reassigned. Use 'const' instead."
-10:6 10:29 svelte/valid-compile "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression(bind_invalid_expression)"
 
 === 1632 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/d257fd21fc060ae0.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

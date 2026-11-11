@@ -1,5 +1,4 @@
-# svelte.compile.warnings: 31984 match
-svelte/networking-toolbox/src/routes/about/legal/+layout.svelte	mismatch
+# svelte.compile.warnings: 31975 match
 svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte	mismatch
 svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/4809229d13f750f6.svelte	mismatch
 svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/7e0bf9a55c019a47.svelte	mismatch
@@ -60,4 +59,3 @@ svelte/rsvelte/pattern/issues/3130-nth-of-in-any-pseudo-class.svelte	unexpected
 svelte/rsvelte/pattern/issues/3175-legacy-derived-server-fold.svelte	unexpected
 svelte/rsvelte/pattern/issues/4115-unresolved-renderer-renders-every-snippet.svelte	mismatch
 svelte/rsvelte/pattern/issues/a-wholly-global-nested-rule-survives-an-unused-parent.svelte	mismatch
-svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/Switch/+page.svelte	mismatch

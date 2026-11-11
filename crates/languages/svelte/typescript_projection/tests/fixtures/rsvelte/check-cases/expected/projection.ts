@@ -7,7 +7,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("button", {
       "type": "button",
@@ -33,4 +33,6 @@
     (label.baz);
   }
 };
-export default __rsvelte_export_component<{ label: string }, {}, "">();
+const CheckCases__SvelteComponent_ = __rsvelte_export_component<{ label: string }, {}, "">();
+type CheckCases__SvelteComponent_ = ReturnType<typeof CheckCases__SvelteComponent_>;
+export default CheckCases__SvelteComponent_;

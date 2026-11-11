@@ -4,10 +4,14 @@ export const answer = 42;
 export function double(n) {
 	return n * 2;
 }
-var root = $.from_html(`<p></p>`);
 export default function Exports($$anchor) {
 	let value = "";
-	var p = root();
-	$.set_style(p, "", {}, { color: value });
-	$.append($$anchor, p);
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+	$.element(node, () => "p", false, ($$element, $$anchor) => {
+		var text = $.text();
+		text.nodeValue = "";
+		$.append($$anchor, text);
+	});
+	$.append($$anchor, fragment);
 }

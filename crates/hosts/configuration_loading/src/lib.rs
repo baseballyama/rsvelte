@@ -1,9 +1,7 @@
 //! Configuration evaluation belongs to hosts, not the kernel; each plugin decodes its own
 //! options through `rsvelte_plugin_interface`.
 
-// Loading native libraries and running processes need an operating system.
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) mod native;
+// Running processes needs an operating system.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod process;
 mod wire;
@@ -12,9 +10,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-#[cfg(target_arch = "wasm32")]
-use rsvelte_plugin_interface::NoFunctions;
-use rsvelte_plugin_interface::{CallError, FunctionResolver};
+use rsvelte_plugin_interface::{
+    CallError, FunctionReference, FunctionResolver, TextContract, TextFunction,
+};
 use serde::Deserialize;
 use serde_json::value::RawValue;
 
@@ -47,15 +45,26 @@ impl Loader for JsonLoader {
         let text = wire::read(&path)?;
         let configuration = serde_json::from_str(&text)
             .map_err(|error| CallError(format!("{}: {error}", path.display())))?;
-        #[cfg(not(target_arch = "wasm32"))]
-        let functions: Arc<dyn FunctionResolver> = Arc::new(native::Resolver::new(
-            path.parent().expect("canonical file has a parent"),
-        ));
-        #[cfg(target_arch = "wasm32")]
-        let functions: Arc<dyn FunctionResolver> = Arc::new(NoFunctions);
         Ok(LoadedConfiguration {
             configuration,
-            functions,
+            functions: Arc::new(NoRuntime),
         })
+    }
+}
+
+/// Resolves no function: JSON holds data, so a function needs a runtime configuration.
+#[derive(Debug)]
+struct NoRuntime;
+
+impl FunctionResolver for NoRuntime {
+    fn resolve(
+        &self,
+        _: &FunctionReference,
+        contract: &'static TextContract,
+    ) -> Result<TextFunction, CallError> {
+        Err(CallError(format!(
+            "`{}` names a function, which needs a runtime configuration loader",
+            contract.identifier
+        )))
     }
 }

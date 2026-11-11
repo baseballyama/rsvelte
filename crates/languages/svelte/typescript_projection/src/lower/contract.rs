@@ -39,6 +39,18 @@ impl Builder<'_> {
                 return Err(Unsupported::at("generic component contracts", name));
             }
             let program = self.component.javascript.get_program(script.program);
+            if let Some(snippets) = self.root_snippets.take() {
+                let after_imports = program
+                    .body
+                    .iter()
+                    .take_while(|s| matches!(s, Statement::ImportDeclaration(_)))
+                    .last()
+                    .map_or(script.content.start_offset, |s| s.span().end);
+                edits.push(Edit {
+                    span: Span::new(after_imports, after_imports),
+                    replacement: Some(snippets),
+                });
+            }
             for statement in &program.body {
                 let Some(declaration) =
                     self.instance_export(statement, &mut exports, &mut edits)?
@@ -148,6 +160,23 @@ impl Builder<'_> {
                     "instance default exports",
                     span(export.span),
                 ));
+            }
+            // svelte2tsx's `handleExportDeclaration`: `export { a, b as c }` exports `a` and `c`.
+            Statement::ExportNamedDeclaration(named) if named.export_kind.is_value() => {
+                for specifier in &named.specifiers {
+                    if specifier.export_kind.is_type() {
+                        continue;
+                    }
+                    let local = self.source(specifier.local.span(), None);
+                    let name = self.source(specifier.exported.span(), None);
+                    let value = self.tree.push(Node::TypeQuery(local));
+                    exports.push(self.tree.push(Node::TypeProperty { name, value }));
+                }
+                edits.push(Edit {
+                    span: span(named.span),
+                    replacement: None,
+                });
+                return Ok(None);
             }
             _ => return Ok(None),
         };
@@ -310,24 +339,33 @@ impl Builder<'_> {
                 // A typed `$bindable(…) as T` is the prop's type as written.
                 return self.source(default.span(), None);
             };
-            if call.type_arguments.is_some() {
-                return self.source(default.span(), None);
-            }
             let Some(fallback) = call.arguments.first().and_then(|a| a.as_expression()) else {
                 return self.untyped_prop();
             };
             default = fallback;
         }
-        let Some(default) = siblings.independent(default) else {
-            return self.untyped_prop();
+        // svelte2tsx's types for a default, which it reads from the syntax alone.
+        let helper = match default {
+            Expression::StringLiteral(_)
+            | Expression::NumericLiteral(_)
+            | Expression::BooleanLiteral(_)
+            | Expression::TSAsExpression(_) => None,
+            Expression::Identifier(identifier) if identifier.name != "undefined" => None,
+            Expression::ArrowFunctionExpression(_) => Some("__rsvelte_function_prop"),
+            Expression::ObjectExpression(_) => Some("__rsvelte_record_prop"),
+            Expression::ArrayExpression(_) => Some("__rsvelte_array_prop"),
+            _ => Some("__rsvelte_untyped_prop"),
         };
-        let value = self.source(default.span(), None);
-        if matches!(default, Expression::ArrayExpression(array) if array.elements.is_empty()) {
-            let callee = self.tree.push(Node::Identifier("__rsvelte_empty_array"));
-            let arguments = self.tree.list(&[value]);
-            self.tree.push(Node::Call { callee, arguments })
-        } else {
-            value
+        match (helper, siblings.independent(default)) {
+            (None, Some(default)) => self.source(default.span(), None),
+            (None, None) => self.untyped_prop(),
+            (Some(helper), _) => {
+                let callee = self.tree.push(Node::Identifier(helper));
+                self.tree.push(Node::Call {
+                    callee,
+                    arguments: Range::default(),
+                })
+            }
         }
     }
 

@@ -1,5 +1,4 @@
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rsvelte_configuration_loading::process::ProcessLoader;
@@ -215,77 +214,4 @@ fn stalled_loaders_time_out_and_broken_frames_fail() {
         let loader = ProcessLoader::new("node".into(), vec![script.to_string_lossy().into_owned()]);
         assert!(loader.load(&config).is_err(), "{name}");
     }
-}
-
-#[cfg(unix)]
-fn native_library(directory: &Directory) -> PathBuf {
-    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/native.c");
-    let library = directory.0.join("functions.so");
-    let output = Command::new("cc")
-        .args(["-shared", "-fPIC", "-o"])
-        .arg(&library)
-        .arg(source)
-        .output()
-        .expect("C compiler for ABI integration tests");
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    library
-}
-
-#[cfg(unix)]
-#[test]
-fn native_functions_keep_the_library_alive_and_validate_contracts() {
-    let directory = Directory::new();
-    native_library(&directory);
-    let loaded = JsonLoader
-        .load(&directory.write("config.json", r#"{"plugins":{}}"#))
-        .expect("JSON");
-    let reference = |symbol: &str| FunctionReference::Native {
-        library: "functions.so".into(),
-        symbol: symbol.into(),
-    };
-    let function = loaded
-        .functions
-        .resolve(&reference("css_hash"), &CONTRACT)
-        .expect("native function");
-    for symbol in [
-        "bad_version",
-        "bad_contract",
-        "bad_size",
-        "not_thread_safe",
-        "null_entry",
-        "missing",
-    ] {
-        assert!(
-            loaded
-                .functions
-                .resolve(&reference(symbol), &CONTRACT)
-                .is_err(),
-            "{symbol}"
-        );
-    }
-    for symbol in ["invalid_utf8", "too_long", "failed"] {
-        let function = loaded
-            .functions
-            .resolve(&reference(symbol), &CONTRACT)
-            .expect("valid descriptor");
-        assert!(function.call(&["a", "b", "c"]).is_err(), "{symbol}");
-    }
-    drop(loaded);
-    std::thread::scope(|scope| {
-        for _ in 0..4 {
-            let function = &function;
-            scope.spawn(move || {
-                assert_eq!(
-                    function
-                        .call(&["é", "file.svelte", "p{}"])
-                        .expect("native call"),
-                    "native-é"
-                );
-            });
-        }
-    });
 }

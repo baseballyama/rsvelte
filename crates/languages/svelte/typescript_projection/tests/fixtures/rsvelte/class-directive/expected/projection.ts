@@ -11,7 +11,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("div", {});
     (active);
@@ -56,4 +56,6 @@
     });
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const ClassDirective__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type ClassDirective__SvelteComponent_ = ReturnType<typeof ClassDirective__SvelteComponent_>;
+export default ClassDirective__SvelteComponent_;

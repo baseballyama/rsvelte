@@ -40,6 +40,7 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
         documents: Documents::WithTypeScriptView,
         tsc,
         stand_in: None,
+        imported: None,
     });
     Ok(())
 }

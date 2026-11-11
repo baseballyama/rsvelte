@@ -27,37 +27,6 @@ fn a_directive_a_component_never_takes_raises_upstreams_error() {
 }
 
 #[test]
-fn each_component_attribute_not_lowered_yet_is_refused_on_both_targets() {
-    for attribute in [
-        "bind:group={c}",
-        "{@attach f}",
-        "on:click={f}",
-        "let:x",
-        "--color=\"red\"",
-        "slot=\"x\"",
-    ] {
-        let source = format!(
-            "<script>import C from './C.svelte'; let c; function f() {{}}</script><C {attribute} />"
-        );
-        for target in [Target::Client, Target::Server] {
-            assert_eq!(
-                compile(&source, target),
-                Err("unsupported".to_owned()),
-                "{source} on {target:?}"
-            );
-        }
-    }
-    let children = "<script>import C from './C.svelte';</script><C children={1}>a</C>";
-    for target in [Target::Client, Target::Server] {
-        assert_eq!(
-            compile(children, target),
-            Err("unsupported".to_owned()),
-            "{target:?}"
-        );
-    }
-}
-
-#[test]
 fn template_errors_come_from_the_template_on_both_targets() {
     let script = "<script>import A from './A.svelte'; let v = $state(1); let el;</script>";
     for (markup, expected) in [
@@ -81,13 +50,9 @@ fn template_errors_come_from_the_template_on_both_targets() {
             "<A>{#if v}<svelte:fragment slot=\"a\">x</svelte:fragment>{/if}</A>",
             Some("svelte_fragment_invalid_placement"),
         ),
-        (
-            "<button is=\"x-b\" class=\"a\">b</button>",
-            Some("unsupported"),
-        ),
-        ("<button is=\"x-b\">b</button>", None),
-        ("<my-el></my-el>", None),
-        ("<my-el a=\"1\"></my-el>", Some("unsupported")),
+        ("<button is=\"x-b\" class=\"a\">b</button>", None),
+        ("<my-el a=\"1\"></my-el>", None),
+        ("<div><my-el a=\"1\"></my-el></div>", None),
     ] {
         let source = format!("{script}{markup}");
         for target in [Target::Client, Target::Server] {
@@ -224,7 +189,7 @@ fn assignment_errors_come_in_document_order_after_the_binding_checks() {
 }
 
 #[test]
-fn a_destructured_rune_is_refused_only_when_upstream_raises_nothing() {
+fn a_destructured_rune_raises_upstreams_error_on_both_targets() {
     for (source, expected) in [
         (
             "<script>let { a } = $derived();</script>",
@@ -233,14 +198,6 @@ fn a_destructured_rune_is_refused_only_when_upstream_raises_nothing() {
         (
             "<script>let { a } = $state({ a: 1 }); const c = 1; c = 2;</script>",
             "constant_assignment",
-        ),
-        (
-            "<script>let { a } = $state({ a: 1 });</script>{a}",
-            "unsupported",
-        ),
-        (
-            "<script>let [a] = $derived.by(() => [1]);</script>{a}",
-            "unsupported",
         ),
     ] {
         for target in [Target::Client, Target::Server] {
@@ -551,11 +508,6 @@ fn a_store_subscription_raises_upstreams_error_where_upstream_does() {
             Some(("global_reference_invalid", (4, 7))),
         ),
         ("<p>{$Foo}</p>".to_owned(), None),
-        // A destructuring assignment needs upstream's per-path assignment.
-        (
-            format!("<script>{store} let b; function f() {{ [$a, b] = [1, 2]; }}</script>"),
-            Some(("unsupported", (94, 110))),
-        ),
         (format!("<script>{store}</script><p>{{$a}}</p>"), None),
     ] {
         for target in [Target::Client, Target::Server] {
@@ -563,6 +515,59 @@ fn a_store_subscription_raises_upstreams_error_where_upstream_does() {
                 compile_at(&source, target).err(),
                 expected.map(|(code, span)| (code.to_owned(), span)),
                 "{source} on {target:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_binding_upstream_rejects_on_its_element_is_refused_on_both_targets() {
+    for element in [
+        "<input bind:checked={x} />",
+        "<input type=\"radio\" bind:checked={x} />",
+        "<input type={t} bind:checked={x} />",
+        "<input type bind:value={x} />",
+        "<input bind:files={x} />",
+        "<div bind:value={x}></div>",
+        "<div bind:innerHTML={x}></div>",
+        "<div contenteditable={t} bind:textContent={x}></div>",
+        "<select multiple={t} bind:value={x}></select>",
+        "<svg bind:offsetWidth={x}></svg>",
+        "<div bind:nope={x}></div>",
+        "<input type=\"radio\" bind:group={() => x, (v) => (x = v)} />",
+        "{#snippet s(y)}<input type=\"radio\" bind:group={y} />{/snippet}",
+    ] {
+        let source = format!("<script>let x = $state(); let t = $state();</script>{element}");
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(
+                compile(&source, target),
+                Err("unsupported".to_owned()),
+                "{source} on {target:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn textarea_content_beside_a_value_is_textarea_invalid_content_on_both_targets() {
+    let script = "<script>let a = 1;</script>\n";
+    for (markup, expected) in [
+        (
+            "<div><textarea value=\"x\">a</textarea></div>",
+            Some((33, 65)),
+        ),
+        // The parser has moved this content into a second `value`.
+        ("<textarea value=\"x\">{a} b</textarea>", Some((28, 64))),
+        ("<textarea>{a} b</textarea>", None),
+    ] {
+        let source = format!("{script}{markup}");
+        for target in [Target::Client, Target::Server] {
+            let actual = compile_at(&source, target).err();
+            let actual = actual.as_ref().map(|(code, span)| (code.as_str(), *span));
+            assert_eq!(
+                actual,
+                expected.map(|span| ("textarea_invalid_content", span)),
+                "{markup} on {target:?}"
             );
         }
     }

@@ -3,6 +3,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::Children;
 
 use super::super::component::{Standalone, standalone};
 use super::{EMPTY_COMMENT, Piece, R, ServerCompilationContext};
+use crate::render_plan::Region;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     pub(super) fn fragment(&mut self, children: Children) -> R<Vec<Statement<'o>>> {
@@ -27,18 +28,27 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         children: Children,
         skipped: fn(&str) -> bool,
     ) -> R<(Vec<Statement<'o>>, Vec<Statement<'o>>)> {
+        let plan = self.plan;
+        self.region_parts(plan.fragment(children), skipped)
+    }
+
+    /// [`Self::fragment_parts`] over a region the plan prepared, such as one slot's.
+    pub(super) fn region_parts(
+        &mut self,
+        region: &Region,
+        skipped: fn(&str) -> bool,
+    ) -> R<(Vec<Statement<'o>>, Vec<Statement<'o>>)> {
         let outer = std::mem::take(&mut self.snippets);
-        let template = self.fragment_template(children, skipped);
+        let template = self.fragment_template(region, skipped);
         let snippets = std::mem::replace(&mut self.snippets, outer);
         Ok((snippets, self.build_template(template?)))
     }
 
     fn fragment_template(
         &mut self,
-        children: Children,
+        cleaned: &Region,
         skipped: fn(&str) -> bool,
     ) -> R<Vec<Piece<'o>>> {
-        let cleaned = self.plan.fragment(children);
         let mut template = Vec::new();
         self.hoisted_elements(&cleaned.hoisted, skipped, &mut template)?;
         if cleaned.text_first {
@@ -48,6 +58,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             self.compiler_syntax_tree,
             self.javascript,
             self.res,
+            self.source_text,
             &cleaned.items,
         ) {
             Some(Standalone::Render(tag)) => self.render_tag(tag, true, &mut template),
@@ -105,6 +116,6 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     fn push_call(&self, strings: &[String], expressions: Vec<Expression<'o>>) -> Statement<'o> {
         let b = self.b;
         let template = b.template(strings.iter().map(String::as_str), expressions);
-        b.stmt(b.call(b.member(b.id("$$renderer"), "push"), [template]))
+        b.statement(b.call(b.member(b.id("$$renderer"), "push"), [template]))
     }
 }

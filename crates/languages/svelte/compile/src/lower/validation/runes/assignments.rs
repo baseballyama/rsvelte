@@ -8,7 +8,7 @@ use rsvelte_svelte_semantic::resolve::BindingKind;
 
 use super::RuneWalk;
 use crate::lower::javascript::member_root;
-use crate::lower::script::bindable_root;
+use crate::lower::script::mutates_signal;
 use crate::lower::{Diagnostic, Resolution, Span, Target, unsupported};
 
 /// A name an assignment or a binding cannot change, as upstream's `validate_assignment` sorts it.
@@ -228,8 +228,7 @@ impl RuneWalk<'_> {
                         })
                 }
                 Written::Member(member) => {
-                    target == Target::Client
-                        && bindable_root(res, accessors, member.object()).is_some()
+                    target == Target::Client && mutates_signal(res, accessors, member.object())
                 }
             };
         });

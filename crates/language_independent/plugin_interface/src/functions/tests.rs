@@ -32,9 +32,10 @@ fn no_functions_names_the_contract() {
 #[test]
 fn a_reference_names_its_backend() {
     let reference: FunctionReference =
-        serde_json::from_str(r#"{"backend":"native","library":"l.so","symbol":"s"}"#)
-            .expect("decodes");
-    assert!(matches!(reference, FunctionReference::Native { .. }));
+        serde_json::from_str(r#"{"backend":"runtime","handle":"h"}"#).expect("decodes");
+    assert!(matches!(reference, FunctionReference::Runtime { .. }));
+    serde_json::from_str::<FunctionReference>(r#"{"backend":"native","library":"l","symbol":"s"}"#)
+        .expect_err("no native backend");
     let unknown =
         serde_json::from_str::<FunctionReference>(r#"{"backend":"runtime","handle":"h","x":1}"#);
     unknown.expect_err("unknown field");

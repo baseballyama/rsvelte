@@ -90,40 +90,7 @@ ASCII CSS identifier. A component without a style makes no call. Client and serv
 cached result. The Svelte callback gets only these three fields; it has no callable `hash`
 helper, which the upstream callback has.
 
-JS callbacks send serialized requests under one process mutex. Native callbacks take borrowed
-UTF-8 input slices and a caller-owned output buffer, without JSON or IPC. Neither has a measured
-latency or cycle advantage.
-
-## Native ABI
-
-JSON can select a native function without starting Node:
-
-```json
-{
-  "plugins": {
-    "svelte.compile": {
-      "cssHash": {
-        "backend": "native",
-        "library": "./hash.so",
-        "symbol": "css_hash"
-      }
-    }
-  }
-}
-```
-
-Library paths start from the config file. The configured symbol returns a descriptor that
-[rsvelte_function.h](include/rsvelte_function.h) defines. [tests/native.c](tests/native.c) is a
-complete example.
-
-The ABI version and the contract version do not follow the plugin's SemVer. At load time the
-host checks the descriptor size, the ABI version, the contract identifier and version, the
-argument count and thread safety. A library must obey the header's memory contract, and the host
-trusts it as executable code. The function must not keep input or output pointers, unwind across
-the boundary or write past the capacity. It returns zero on success and nonzero on failure. Its
-output must be UTF-8 and at most 4096 bytes. Descriptors live in the library. Function handles
-keep the library loaded until the last owner drops them. The native host boundary holds the only
-unsafe Rust.
+JS callbacks send serialized requests under one process mutex.
 
 ## External loader protocol
 
@@ -155,5 +122,4 @@ mise exec -- cargo test -p rsvelte_command_line --test configuration
 cargo test -p rsvelte_svelte_compile --test configuration
 ```
 
-The Node tests need a Node with `.mts` support. On Unix, the native integration tests compile the
-example with `cc`; users only need their prebuilt shared library.
+The Node tests need a Node with `.mts` support.

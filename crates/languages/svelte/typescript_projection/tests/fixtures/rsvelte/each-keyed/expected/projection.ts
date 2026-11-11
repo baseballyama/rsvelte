@@ -7,7 +7,7 @@
 
 ;
 
-() => {
+async () => {
   {
     for (let [, person] of __rsvelte_each(people)) {
       (person.id);
@@ -18,4 +18,6 @@
     }
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const EachKeyed__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type EachKeyed__SvelteComponent_ = ReturnType<typeof EachKeyed__SvelteComponent_>;
+export default EachKeyed__SvelteComponent_;

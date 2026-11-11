@@ -6,10 +6,12 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {});
     (header ? 'with header' : 'no header');
   }
 };
-export default __rsvelte_export_component<{ header?: File }, {}, "">();
+const File__SvelteComponent_ = __rsvelte_export_component<{ header?: File }, {}, "">();
+type File__SvelteComponent_ = ReturnType<typeof File__SvelteComponent_>;
+export default File__SvelteComponent_;

@@ -328,23 +328,9 @@ fn discovery_reports_ambiguity_and_explicit_config_resolves_it() {
     );
 }
 
-#[cfg(unix)]
 #[test]
-fn json_config_calls_a_native_stylesheet_hash_without_node() {
+fn json_config_refuses_a_native_function() {
     let project = Project::new();
-    let source =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../configuration_loading/tests/native.c");
-    let output = Command::new("cc")
-        .args(["-shared", "-fPIC", "-o"])
-        .arg(project.0.join("hash.so"))
-        .arg(source)
-        .output()
-        .expect("C compiler");
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
     project.write(
         "config.json",
         r#"{
@@ -359,10 +345,6 @@ fn json_config_calls_a_native_stylesheet_hash_without_node() {
         "--task",
         "svelte.compile/client",
     ]);
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(String::from_utf8_lossy(&output.stdout).contains("native-Input"));
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("unknown variant `native`"));
 }

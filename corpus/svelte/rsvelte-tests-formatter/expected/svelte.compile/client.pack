@@ -39102,22 +39102,6 @@ export default function _458440f726e6416($$anchor) {
 
 	t($$anchor, () => readonly);
 }
-=== 338 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/23e3372c88392237.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function _3e3372c88392237($$anchor) {
-	let accessor;
-	let declare;
-	let readonly;
-	let type;
-	let value;
-	var fragment = $.comment();
-	var node = $.first_child(fragment);
-
-	$.html(node, () => declare);
-	$.append($$anchor, fragment);
-}
 === 496 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/28b0870e9f3ca7af.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -39215,27 +39199,6 @@ $.delegate(['click']);
 	}
 ]
 
-=== 414 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/3d7569588e5792f5.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function _d7569588e5792f5($$anchor) {
-	let accessor;
-	let declare;
-	let readonly;
-	let type;
-	let value;
-	var fragment = $.comment();
-	var node = $.first_child(fragment);
-
-	$.key(node, () => readonly, ($$anchor) => {
-		var text = $.text('k');
-
-		$.append($$anchor, text);
-	});
-
-	$.append($$anchor, fragment);
-}
 === 487 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/49732682b8c573dc.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -39307,38 +39270,6 @@ export default function _273d81f57781274($$anchor) {
 		});
 	}
 
-	$.append($$anchor, fragment);
-}
-=== 339 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/727de30e9bb96c5e.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function _27de30e9bb96c5e($$anchor) {
-	let accessor;
-	let declare;
-	let readonly;
-	let type;
-	let value;
-	var fragment = $.comment();
-	var node = $.first_child(fragment);
-
-	$.html(node, () => accessor);
-	$.append($$anchor, fragment);
-}
-=== 339 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/75cc15a3aa789b2f.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function _5cc15a3aa789b2f($$anchor) {
-	let accessor;
-	let declare;
-	let readonly;
-	let type;
-	let value;
-	var fragment = $.comment();
-	var node = $.first_child(fragment);
-
-	$.html(node, () => readonly);
 	$.append($$anchor, fragment);
 }
 === 354 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/83ae033e2052e47e.svelte	js
@@ -39416,27 +39347,6 @@ export default function _936d34b90e5077c($$anchor) {
 			if (readonly) $$render(consequent);
 		});
 	}
-
-	$.append($$anchor, fragment);
-}
-=== 414 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/a258eaba81908a4a.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function A258eaba81908a4a($$anchor) {
-	let accessor;
-	let declare;
-	let readonly;
-	let type;
-	let value;
-	var fragment = $.comment();
-	var node = $.first_child(fragment);
-
-	$.key(node, () => accessor, ($$anchor) => {
-		var text = $.text('k');
-
-		$.append($$anchor, text);
-	});
 
 	$.append($$anchor, fragment);
 }
@@ -39595,27 +39505,6 @@ export default function Ef5d86d112d63f01($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 413 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/f1adaa3da9accb80.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function F1adaa3da9accb80($$anchor) {
-	let accessor;
-	let declare;
-	let readonly;
-	let type;
-	let value;
-	var fragment = $.comment();
-	var node = $.first_child(fragment);
-
-	$.key(node, () => declare, ($$anchor) => {
-		var text = $.text('k');
-
-		$.append($$anchor, text);
-	});
-
-	$.append($$anchor, fragment);
-}
 === 486 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/f8e38580f28cfc77.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -39684,142 +39573,6 @@ export default function Ff14a907a86b8623($$anchor) {
 	$.template_effect(() => $.set_attribute(p, 'title', accessor));
 	$.append($$anchor, p);
 }
-=== 2286 wrapper_only_parse_error_fmt_4083/the_pattern_corpus_repro_matches_the_oracle/178ea939271aec05.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-const t = ($$anchor, q = $.noop) => {
-	$.next();
-
-	var text = $.text();
-
-	$.template_effect(() => $.set_text(text, q()));
-	$.append($$anchor, text);
-};
-
-var root = $.from_html(`<p> </p> <p> </p> <p>x</p> <p>e</p> <!> <!> <!> <!> <!> <!> <p> </p> <p> </p> <p> </p>`, 1);
-
-export default function _78ea939271aec05($$anchor) {
-	let accessor;
-	let declare;
-	const s = accessor;
-	var fragment_1 = root();
-	var p = $.first_child(fragment_1);
-	var text_1 = $.only_child(p, true);
-	var p_1 = $.sibling(p, 2);
-	var text_2 = $.only_child(p_1, true);
-	var p_2 = $.sibling(p_1, 2);
-	var p_3 = $.sibling(p_2, 2);
-	var node = $.sibling(p_3, 2);
-
-	{
-		var consequent = ($$anchor) => {
-			var text_3 = $.text('y');
-
-			$.append($$anchor, text_3);
-		};
-
-		$.if(node, ($$render) => {
-			if (accessor) $$render(consequent);
-		});
-	}
-
-	var node_1 = $.sibling(node, 2);
-
-	{
-		var consequent_1 = ($$anchor) => {
-			const c = $.derived(() => accessor);
-			var text_4 = $.text();
-
-			$.template_effect(() => $.set_text(text_4, $.get(c)));
-			$.append($$anchor, text_4);
-		};
-
-		$.if(node_1, ($$render) => {
-			if (1) $$render(consequent_1);
-		});
-	}
-
-	var node_2 = $.sibling(node_1, 2);
-
-	$.each(node_2, 17, () => accessor, $.index, ($$anchor, z) => {
-		$.next();
-
-		var text_5 = $.text();
-
-		$.template_effect(() => $.set_text(text_5, $.get(z)));
-		$.append($$anchor, text_5);
-	});
-
-	var node_3 = $.sibling(node_2, 2);
-
-	$.key(node_3, () => accessor, ($$anchor) => {
-		var text_6 = $.text('k');
-
-		$.append($$anchor, text_6);
-	});
-
-	var node_4 = $.sibling(node_3, 2);
-
-	$.html(node_4, () => accessor);
-
-	var node_5 = $.sibling(node_4, 2);
-
-	t(node_5, () => declare);
-
-	var p_4 = $.sibling(node_5, 2);
-	var text_7 = $.only_child(p_4, true);
-	var p_5 = $.sibling(p_4, 2);
-	var text_8 = $.only_child(p_5, true);
-	var p_6 = $.sibling(p_5, 2);
-	var text_9 = $.only_child(p_6, true);
-
-	$.template_effect(() => {
-		$.set_text(text_1, accessor);
-		$.set_text(text_2, declare);
-		$.set_attribute(p_2, 'title', accessor);
-		$.set_text(text_7, s);
-		$.set_text(text_8, accessor);
-		$.set_text(text_9, (accessor, declare));
-	});
-
-	$.delegated('click', p_3, () => accessor);
-	$.append($$anchor, fragment_1);
-}
-
-$.delegate(['click']);
-=== 851 wrapper_only_parse_error_fmt_4083/the_pattern_corpus_repro_matches_the_oracle/178ea939271aec05.svelte	warnings.json
-[
-	{
-		"code": "a11y_click_events_have_key_events",
-		"message": "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
-		"start": {
-			"line": 10,
-			"column": 0,
-			"character": 222
-		},
-		"end": {
-			"line": 10,
-			"column": 50,
-			"character": 272
-		}
-	},
-	{
-		"code": "a11y_no_noninteractive_element_interactions",
-		"message": "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions",
-		"start": {
-			"line": 10,
-			"column": 0,
-			"character": 222
-		},
-		"end": {
-			"line": 10,
-			"column": 50,
-			"character": 272
-		}
-	}
-]
-
 === 387 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/00b9f98ed10382e1.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';

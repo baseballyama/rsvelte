@@ -110,12 +110,12 @@ FIXTURE_TYPE_CHECKER=tsrs TSRS_FAST=1 cargo test -p rsvelte_svelte_check --test 
 | `languages/svelte/lint`                  | `svelte.lint/default`                       | `findings`         |
 | `languages/svelte/check`                 | `svelte.check/default`                      | `findings`         |
 | `languages/svelte/typescript_projection` | `svelte.typescript_projection/default`      | `projection`       |
-| `languages/svelte/compile_vapor`         | `vuelte.compile/client`, `/server`          | `client`, `server` |
+| `bridges/svelte_to_vue_vapor`            | `vuelte.compile/client`, `/server`          | `client`, `server` |
 | `languages/vue/compile`                  | `vue.compile/default`                       | `compiled`         |
 | `languages/vue/format`                   | `vue.format/default`                        | `formatted`        |
 | `languages/vue/lint`                     | `vue.lint/default`                          | `findings`         |
 | `languages/vue/check`                    | `vue.check/default`                         | `findings`         |
-| `languages/vue/compile_svelte`           | `svue.compile/client`, `/server`            | `client`, `server` |
+| `bridges/vue_to_svelte`                  | `svue.compile/client`, `/server`            | `client`, `server` |
 | `hosts/command_line`                     | `ts.check/default` (registered by the host) | `ts-check`         |
 
 Lint, type checking and TypeScript projection read the compiler's inputs with

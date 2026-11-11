@@ -10,7 +10,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("ul", {});
     {
@@ -36,4 +36,6 @@
     }
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const AttachEach__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type AttachEach__SvelteComponent_ = ReturnType<typeof AttachEach__SvelteComponent_>;
+export default AttachEach__SvelteComponent_;

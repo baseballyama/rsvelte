@@ -3288,17 +3288,6 @@
 7:2 7:29 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 890 lint/no-at-const-tags/15-whitespace-after-brace.svelte	lint.txt
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:2 4:23 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
-4:2 4:7 svelte/valid-compile "Expected a `@` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character(block_unexpected_character)"
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:2 5:22 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:2 7:22 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
-7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
 === 1562 lint/no-at-const-tags/16-nested-hosts.svelte	lint.txt
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:6 4:7 svelte/prefer-const "'p' is never reassigned. Use 'const' instead."
@@ -28466,9 +28455,6 @@ Rule: "no-unused-vars"
 14:3 14:77 svelte/no-unused-class-name "Unused class \"wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"."
 16:3 16:76 svelte/no-unused-class-name "Unused class \"wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"."
 19:13 19:79 svelte/no-unused-class-name "Unused class \"wx-icon-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"."
-
-=== 41 pattern/issues/wrapper-only-parse-error-in-every-host.svelte	lint.txt
-21:20 - - "Parsing error: ',' expected."
 
 === 652 pattern/leading-line-comment-destructure-init.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

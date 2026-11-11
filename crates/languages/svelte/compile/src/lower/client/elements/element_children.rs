@@ -3,6 +3,7 @@ use oxc_ast::ast::{Argument, Expression, Statement};
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     ClientCompilationContext, CompilerNodeIdentifier, Frag, Item, Lists, NodeKind, Prev, R,
+    is_customizable_select,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -25,8 +26,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let use_text_content = items.iter().all(|i| match i {
             Item::Text { .. } => true,
             Item::Expression(e) => !self.an.meta(*e).has_state,
-            Item::Node(_) => false,
+            Item::Node(_) | Item::Comment => false,
         }) && items.iter().any(|i| matches!(i, Item::Expression(_)));
+        let tag = el.name.text(self.source_text).to_ascii_lowercase();
         if use_text_content {
             let (value, _) = self.template_chunk(items, &mut frag.memo, false);
             let empty = matches!(&value, Expression::StringLiteral(s) if s.value.is_empty());
@@ -34,19 +36,32 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 let target = b.member(b.id(node), "textContent");
                 child
                     .initializer
-                    .push(b.stmt(b.assign_member(target, value)));
+                    .push(b.statement(b.assign_member(target, value)));
             }
+        } else if is_customizable_select(compiler_syntax_tree, self.source_text, el) {
+            let namespace = self.plan.namespace(identifier);
+            let content = self.customizable_select(items, node, &tag, namespace, frag)?;
+            child.initializer.push(content);
         } else {
-            let needs_reset = items.iter().any(|i| match i {
-                Item::Text { .. } => false,
-                Item::Expression(_) => true,
-                Item::Node(n) => !self.is_static_element(*n),
-            });
+            // Upstream points the hydration cursor into a `<template>`'s content.
+            let content = el.name.text(self.source_text) == "template";
+            if content {
+                child
+                    .initializer
+                    .push(b.statement(b.runtime("hydrate_template", [b.id(node)])));
+            }
+            let needs_reset = content
+                || items.iter().any(|i| match i {
+                    Item::Text { .. } => false,
+                    Item::Expression(_) | Item::Comment => true,
+                    Item::Node(n) => !self.is_static_element(*n),
+                });
             self.process_children(
                 items,
                 Prev::Call {
                     method: "child",
                     of: node.to_owned(),
+                    content,
                 },
                 true,
                 frag,
@@ -55,7 +70,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             if needs_reset && !self.fold_reset_into_child(&mut child.initializer, node) {
                 child
                     .initializer
-                    .push(b.stmt(b.runtime("reset", [b.id(node)])));
+                    .push(b.statement(b.runtime("reset", [b.id(node)])));
             }
         }
         Ok(child)

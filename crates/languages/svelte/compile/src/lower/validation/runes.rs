@@ -2,14 +2,13 @@
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    AssignmentOperator, AssignmentTarget, BindingPattern, Expression, ForStatementLeft,
+    AssignmentTarget, BindingPattern, Expression, ForStatementLeft, MemberExpression,
     MethodDefinitionKind, Statement, VariableDeclaration, VariableDeclarator,
 };
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 use rsvelte_kernel::performance::stack::grow;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, NodeKind};
-use rsvelte_typescript_compile::strip::is_type_only;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rustc_hash::FxHashMap;
 
@@ -17,10 +16,21 @@ use crate::lower::{CompileInput, Diagnostic, Resolution, Span, Target, span_of};
 
 mod assignments;
 mod calls;
+mod places;
 
 use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
+use places::place_of;
 
 use super::state_invalid_placement;
+use crate::lower::class_fields::{ClassFields, StateField, class_fields, key_name, member_name};
+
+fn state_field_invalid_assignment<T>(span: Span) -> Result<T, Diagnostic> {
+    crate::lower::special::invalid(
+        "state_field_invalid_assignment",
+        "Cannot assign to a state field before its declaration",
+        span,
+    )
+}
 
 /// Where a node sits, as far as upstream's rune checks ask.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -28,9 +38,11 @@ enum Parent {
     Other,
     /// A statement of the instance script's body.
     InstanceBody,
-    /// A declarator of a declaration in the instance script's body.
+    /// A statement of the module script's body, or of a `.svelte.js` module's.
+    ModuleBody,
+    /// A declarator of a declaration in a script's body.
     TopDeclarator,
-    /// A declarator's initializer; `top` at the instance's top level, `named` binding one name,
+    /// A declarator's initializer; `top` at a script's top level, `named` binding one name,
     /// and the rune it calls, named once at the declarator.
     Initializer {
         top: bool,
@@ -44,6 +56,11 @@ enum Parent {
     Body(Body),
     BodyStatement(Body, bool),
     Statement(Option<(Body, bool)>),
+    /// An expression statement that is a loop's or an `if`'s whole body, and its expression.
+    LoneStatement,
+    LoneExpression,
+    /// The callee of an `$inspect(…).with(…)` statement, whose `$inspect(…)` stands in it.
+    InspectWith(Option<(Body, bool)>),
     /// The value of a class field that is neither static nor computed.
     ClassField,
     /// The value of `this.x = …`, a statement of a constructor's body.
@@ -67,7 +84,6 @@ struct Body {
 #[derive(Clone, Copy)]
 struct Place {
     parent: Parent,
-    in_class: bool,
     module: bool,
     /// Upstream evaluates it when the component renders: the instance's top level or a
     /// template expression, outside any function.
@@ -95,6 +111,8 @@ struct RuneWalk<'a> {
     error: Option<Diagnostic>,
     /// The first rune this port does not lower, refused only when upstream raises nothing later.
     refused: Option<Diagnostic>,
+    /// The state fields of the classes the walk is inside, innermost last.
+    classes: Vec<ClassFields>,
 }
 
 /// A template root: an expression, or a `{@const}` declaration.
@@ -105,9 +123,9 @@ enum Root<'a> {
 }
 
 /// Raises upstream's rune placement, rune argument and assignment errors, a `bind:` target's
-/// among them, then refuses a rune call this port does not lower, a state rune in a class body
-/// (class fields are not lowered yet), and on the server an `$effect` that is not a statement of
-/// its own (upstream only drops it as an `ExpressionStatement`).
+/// among them, and its class field errors, then refuses a rune call this port does not lower,
+/// and on the server an `$effect` that is not a statement of its own (upstream only drops it as
+/// an `ExpressionStatement`).
 ///
 /// # Errors
 ///
@@ -121,7 +139,6 @@ pub(in crate::lower) fn check_runes(
     let javascript = input.component.javascript;
     let place = |module, rendering| Place {
         parent: Parent::Other,
-        in_class: false,
         module,
         rendering,
     };
@@ -135,6 +152,7 @@ pub(in crate::lower) fn check_runes(
         frames: Vec::new(),
         error: None,
         refused: None,
+        classes: Vec::new(),
     };
     if let Some(module) = input.component.module {
         walk.root = place(true, false);
@@ -192,6 +210,14 @@ pub(in crate::lower) fn check_runes(
 
 impl<'a> Visit<'a> for RuneWalk<'a> {
     fn enter_node(&mut self, kind: AstKind<'a>) {
+        // Upstream analyzes a class body before what it holds.
+        if let AstKind::ClassBody(body) = kind {
+            let fields = class_fields(self.res, body).unwrap_or_else(|error| {
+                self.error.get_or_insert(error);
+                ClassFields::default()
+            });
+            self.classes.push(fields);
+        }
         let (place, parent) = match self.frames.last() {
             Some(frame) => (place_of(frame, kind), Some(frame.kind)),
             None => (self.root, None),
@@ -207,7 +233,10 @@ impl<'a> Visit<'a> for RuneWalk<'a> {
         self.frames.push(Frame { kind, place, rune });
     }
 
-    fn leave_node(&mut self, _kind: AstKind<'a>) {
+    fn leave_node(&mut self, kind: AstKind<'a>) {
+        if matches!(kind, AstKind::ClassBody(_)) {
+            self.classes.pop();
+        }
         self.frames.pop();
     }
 
@@ -296,17 +325,31 @@ impl<'a> RuneWalk<'a> {
                 check_assignment(fixed_simple(res, &update.argument, true), false, || {
                     span_of(update)
                 })?;
+                self.check_field_assignment(update.argument.as_member_expression(), update.span)?;
             }
             AstKind::AssignmentExpression(assign) => {
                 check_assignment(fixed_target(res, &assign.left, true), false, || {
                     span_of(assign)
                 })?;
+                self.check_field_assignment(assign.left.as_member_expression(), assign.span)?;
+                // Only a script's rewrite has the names its `$$array`s take.
+                let scripted = matches!(
+                    self.frames.first().map(|f| f.kind),
+                    Some(AstKind::Program(_))
+                );
                 if matches!(
                     assign.left,
                     AssignmentTarget::ArrayAssignmentTarget(_)
                         | AssignmentTarget::ObjectAssignmentTarget(_)
-                ) {
+                ) && !scripted
+                {
                     self.check_pattern_assignment(span_of(assign), &assign.left, self.target)?;
+                }
+            }
+            AstKind::PropertyDefinition(p) if p.value.is_some() => {
+                let field = key_name(&p.key).and_then(|name| self.declared_later(&name, p.span));
+                if field.is_some() {
+                    return state_field_invalid_assignment(span_of(p));
                 }
             }
             // Upstream prints any non-plain head as invalid JavaScript, on the server too.
@@ -317,143 +360,50 @@ impl<'a> RuneWalk<'a> {
         Ok(None)
     }
 
+    /// The state field `name` of the innermost class, when a node at `at` other than its
+    /// declaration comes before it.
+    fn declared_later(&self, name: &str, at: oxc_span::Span) -> Option<&StateField> {
+        let field = self.classes.last()?.get(name)?;
+        (field.at != at && at.start < field.at.start).then_some(field)
+    }
+
+    /// Upstream `validate_assignment`: the constructor writes `this.x` before the assignment
+    /// that declares the state field `x`.
+    fn check_field_assignment(
+        &self,
+        target: Option<&MemberExpression<'_>>,
+        at: oxc_span::Span,
+    ) -> Result<(), Diagnostic> {
+        let Some(target) = target else {
+            return Ok(());
+        };
+        if !matches!(target.object(), Expression::ThisExpression(_)) {
+            return Ok(());
+        }
+        let Some(field) = member_name(target).and_then(|name| self.declared_later(&name, at))
+        else {
+            return Ok(());
+        };
+        let function = (self.frames.iter()).rposition(|f| {
+            matches!(
+                f.kind,
+                AstKind::Function(_) | AstKind::ArrowFunctionExpression(_)
+            )
+        });
+        let in_constructor = function.and_then(|i| i.checked_sub(1)).is_some_and(|i| {
+            matches!(self.frames[i].kind,
+                AstKind::MethodDefinition(m) if m.kind == MethodDefinitionKind::Constructor)
+        });
+        if field.constructor && in_constructor {
+            return state_field_invalid_assignment(Span::new(at.start, at.end));
+        }
+        Ok(())
+    }
+
     fn check_head(&self, span: Span, left: &ForStatementLeft<'_>) -> Result<(), Diagnostic> {
         left.as_assignment_target().map_or(Ok(()), |target| {
             self.check_pattern_assignment(span, target, Target::Client)
         })
-    }
-}
-
-/// Where `kind`, a child of `frame`, sits.
-fn place_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Place {
-    let place = frame.place;
-    // Upstream's tree has no parentheses, and no type wrappers once types are erased.
-    if matches!(
-        frame.kind,
-        AstKind::ParenthesizedExpression(_)
-            | AstKind::TSAsExpression(_)
-            | AstKind::TSSatisfiesExpression(_)
-            | AstKind::TSNonNullExpression(_)
-            | AstKind::TSTypeAssertion(_)
-            | AstKind::TSInstantiationExpression(_)
-    ) {
-        return place;
-    }
-    Place {
-        parent: parent_of(frame, kind),
-        in_class: place.in_class || matches!(frame.kind, AstKind::Class(_)),
-        module: place.module,
-        // A class's heritage and computed keys run where the class is defined.
-        rendering: place.rendering
-            && !matches!(
-                frame.kind,
-                AstKind::Function(_) | AstKind::ArrowFunctionExpression(_)
-            ),
-    }
-}
-
-/// Where `kind`, a child of `frame`, sits, given where `frame` sits.
-fn parent_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Parent {
-    let parent = frame.place.parent;
-    let is = |span: oxc_span::Span| kind.span() == span;
-    match (frame.kind, parent) {
-        (AstKind::Program(_), _) if !frame.place.module => Parent::InstanceBody,
-        (AstKind::VariableDeclaration(_), Parent::InstanceBody) => Parent::TopDeclarator,
-        // Upstream asks for the instance scope, which an `export` does not leave.
-        (
-            AstKind::ExportDeclaration(_) | AstKind::ExportNamedDeclaration(_),
-            Parent::InstanceBody,
-        ) => Parent::InstanceBody,
-        (AstKind::VariableDeclarator(d), _) if d.init.as_ref().is_some_and(|i| is(i.span())) => {
-            Parent::Initializer {
-                top: parent == Parent::TopDeclarator,
-                named: matches!(d.id, BindingPattern::BindingIdentifier(_)),
-                rune: frame.rune,
-            }
-        }
-        (AstKind::VariableDeclarator(_), _) if frame.rune == Some("$props") => Parent::Props,
-        (AstKind::ObjectPattern(_), Parent::Props) => Parent::PropsProperty,
-        // A shorthand's key spans its value too, and is a name.
-        (AstKind::BindingProperty(p), Parent::PropsProperty)
-            if is(p.value.span()) && !matches!(kind, AstKind::IdentifierName(_)) =>
-        {
-            Parent::PropsValue
-        }
-        (AstKind::AssignmentPattern(p), Parent::PropsValue) if is(p.right.span()) => {
-            Parent::PropsDefault
-        }
-        (AstKind::MethodDefinition(m), _) if m.kind == MethodDefinitionKind::Constructor => {
-            Parent::Constructor
-        }
-        (AstKind::Function(f), _) if matches!(kind, AstKind::FunctionBody(_)) => {
-            Parent::Body(Body {
-                constructor: parent == Parent::Constructor,
-                generator: f.generator,
-            })
-        }
-        (AstKind::ArrowFunctionExpression(_), _) if matches!(kind, AstKind::FunctionBody(_)) => {
-            Parent::Body(Body {
-                constructor: false,
-                generator: false,
-            })
-        }
-        (AstKind::FunctionBody(body), Parent::Body(function)) => {
-            // Upstream's body starts with its directives, and has no statement types erase.
-            let first = body.directives.is_empty()
-                && (body.statements.iter())
-                    .find(|s| !is_type_only(s))
-                    .is_some_and(|s| is(s.span()));
-            Parent::BodyStatement(function, first)
-        }
-        (AstKind::ExpressionStatement(_), Parent::BodyStatement(body, first)) => {
-            Parent::Statement(Some((body, first)))
-        }
-        (AstKind::ExpressionStatement(_), _) => Parent::Statement(None),
-        (
-            AstKind::AssignmentExpression(assign),
-            Parent::Statement(Some((
-                Body {
-                    constructor: true, ..
-                },
-                _,
-            ))),
-        ) if assign.operator == AssignmentOperator::Assign
-            && is(assign.right.span())
-            && assigns_this_property(&assign.left) =>
-        {
-            Parent::ConstructorAssignment
-        }
-        (AstKind::PropertyDefinition(p), _)
-            if !p.computed && !p.r#static && p.value.as_ref().is_some_and(|v| is(v.span())) =>
-        {
-            Parent::ClassField
-        }
-        _ => Parent::Other,
-    }
-}
-
-/// Upstream's `this.x`, `this.#x` or `this[<literal>]`.
-fn assigns_this_property(target: &AssignmentTarget<'_>) -> bool {
-    match target {
-        AssignmentTarget::StaticMemberExpression(m) => {
-            matches!(m.object, Expression::ThisExpression(_))
-        }
-        AssignmentTarget::PrivateFieldExpression(m) => {
-            matches!(m.object, Expression::ThisExpression(_))
-        }
-        AssignmentTarget::ComputedMemberExpression(m) => {
-            matches!(m.object, Expression::ThisExpression(_))
-                && matches!(
-                    m.expression,
-                    Expression::StringLiteral(_)
-                        | Expression::NumericLiteral(_)
-                        | Expression::BooleanLiteral(_)
-                        | Expression::NullLiteral(_)
-                        | Expression::RegExpLiteral(_)
-                        | Expression::BigIntLiteral(_)
-                )
-        }
-        _ => false,
     }
 }
 
