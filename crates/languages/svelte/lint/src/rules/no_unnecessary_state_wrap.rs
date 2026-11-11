@@ -1,10 +1,10 @@
-use rsvelte_lint_runner::finding::{Fix, Suggestion};
-use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript_semantic::reference_tracker::import_references;
 use oxc_ast::AstKind;
 use oxc_ast::ast::{BindingPattern, Expression};
 use oxc_semantic::{AstNodes, NodeId, SymbolId};
 use oxc_span::GetSpan;
+use rsvelte_lint_runner::finding::{Fix, Suggestion};
+use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_typescript_semantic::reference_tracker::import_references;
 use serde::Deserialize;
 
 use super::javascript::{span, walk};
@@ -96,7 +96,11 @@ impl SvelteRule for NoUnnecessaryStateWrap {
                     continue;
                 };
                 let class = class.name.as_str();
-                if self.0.additional_reactive_classes.iter().any(|c| c == class)
+                if self
+                    .0
+                    .additional_reactive_classes
+                    .iter()
+                    .any(|c| c == class)
                     && let Some(variable) = declared_symbol(nodes, node.id())
                 {
                     report(reporter, call.span, argument.span(), class, variable);

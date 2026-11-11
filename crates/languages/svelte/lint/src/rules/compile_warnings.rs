@@ -2,11 +2,11 @@
 //! `svelte-ignore` comments matched to the nodes they lead, and styles in a language other than
 //! CSS left out. Shared by `valid-compile` and `no-unused-svelte-ignore`.
 
+use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::warnings::{CompileWarnings, code_for_v5};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
-use oxc_span::GetSpan;
 use rsvelte_typescript_tree::ProgramIdentifier;
 
 use crate::rule::File;
@@ -397,11 +397,7 @@ impl Targets<'_> {
             Span::new(span.start, span.end)
         };
         let i = statements.partition_point(|statement| span(statement).end_offset <= at);
-        let Some(here) = statements
-            .get(i)
-            .map(span)
-            .filter(|s| contains(*s, at))
-        else {
+        let Some(here) = statements.get(i).map(span).filter(|s| contains(*s, at)) else {
             return Vec::new();
         };
         let previous_end = i

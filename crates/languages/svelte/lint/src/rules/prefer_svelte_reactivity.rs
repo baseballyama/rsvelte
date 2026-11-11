@@ -1,9 +1,9 @@
-use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript_semantic::reference_tracker::{global_references, property_references};
 use oxc_ast::AstKind;
 use oxc_ast::ast::{ExportDefaultDeclarationKind, IdentifierReference, ModuleExportName};
 use oxc_semantic::NodeId;
 use oxc_span::GetSpan;
+use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_typescript_semantic::reference_tracker::{global_references, property_references};
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rustc_hash::FxHashMap;
 

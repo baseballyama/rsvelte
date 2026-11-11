@@ -1,12 +1,5 @@
 use std::collections::BTreeMap;
 
-use rsvelte_kernel::source::positions::Span;
-use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
-use rsvelte_typescript_semantic::globals::{Global, global};
-use rsvelte_typescript_semantic::reference_tracker::{
-    global_references_matching, import_references, property_references,
-};
 use oxc_ast::AstKind;
 use oxc_ast::ast::Statement;
 use oxc_semantic::{AstNodes, NodeId};
@@ -14,6 +7,13 @@ use oxc_syntax::operator::BinaryOperator::{
     Equality, Inequality, Instanceof, StrictEquality, StrictInequality,
 };
 use oxc_syntax::operator::{LogicalOperator, UnaryOperator};
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
+use rsvelte_typescript_semantic::globals::{Global, global};
+use rsvelte_typescript_semantic::reference_tracker::{
+    global_references_matching, import_references, property_references,
+};
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_semantic::static_value::{StaticValues, Value};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -330,9 +330,8 @@ impl<'a> Guards<'a> {
                     return None;
                 }
                 match (self.values.value(operand)?, operator) {
-                    (Value::Undefined, StrictInequality | Inequality) | (Value::Null, Inequality) => {
-                        self.checker(parent, false)
-                    }
+                    (Value::Undefined, StrictInequality | Inequality)
+                    | (Value::Null, Inequality) => self.checker(parent, false),
                     (Value::Undefined, StrictEquality | Equality) | (Value::Null, Equality) => {
                         self.checker(parent, true)
                     }
@@ -454,12 +453,11 @@ fn jumps_on_every_path(statement: &Statement<'_>) -> bool {
         | Statement::BreakStatement(_)
         | Statement::ContinueStatement(_) => true,
         Statement::BlockStatement(block) => block.body.iter().any(jumps_on_every_path),
-        Statement::IfStatement(statement) => statement
-            .alternate
-            .as_ref()
-            .is_some_and(|alternate| {
+        Statement::IfStatement(statement) => {
+            statement.alternate.as_ref().is_some_and(|alternate| {
                 jumps_on_every_path(alternate) && jumps_on_every_path(&statement.consequent)
-            }),
+            })
+        }
         _ => false,
     }
 }
