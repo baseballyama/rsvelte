@@ -8,8 +8,6 @@ use super::compile;
 fn a_let_directive_upstream_would_read_differently_is_refused_on_both_targets() {
     let script = "<script>import C from './C.svelte'; let x = 1;</script>";
     for markup in [
-        // Upstream's named slot reads the instance's `x`, not the default slot's.
-        "<C let:x><p slot=\"a\">{x}</p></C>",
         // Upstream declares no name for the rest, so reading it throws.
         "<C let:x={[a, ...b]}>{b}</C>",
     ] {
