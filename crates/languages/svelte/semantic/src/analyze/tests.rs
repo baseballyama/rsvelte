@@ -85,3 +85,29 @@ fn a_global_block_scopes_no_element_and_uses_its_rules() {
     assert_eq!(scoped, ["<p"]);
     assert!(analysis.stylesheet_used.iter().all(|&used| used));
 }
+
+#[test]
+fn a_call_in_a_template_default_needs_context() {
+    let needs = |source: &str| {
+        let component = parse(source).expect("parses");
+        let lowered = lower(&component, source);
+        let res = resolve(
+            &component.javascript,
+            component.instance.as_ref().map(|s| s.program),
+            None,
+            &lowered,
+        );
+        let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+        super::analyze(&input, &res).needs_context
+    };
+    let script = "<script>let { f, xs } = $props();</script>";
+    assert!(!needs(&format!(
+        "{script}{{#snippet s(v = 1)}}{{v}}{{/snippet}}{{@render s()}}"
+    )));
+    assert!(needs(&format!(
+        "{script}{{#snippet s(v = f())}}{{v}}{{/snippet}}{{@render s()}}"
+    )));
+    assert!(needs(&format!(
+        "{script}{{#each xs as {{ v = f() }}}}{{v}}{{/each}}"
+    )));
+}
