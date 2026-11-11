@@ -248,3 +248,12 @@
 
 ["svelte/melt-ui/packages/melt/src/lib/utils/selection-state.svelte.ts".skip]
 "svelte.compileModule/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/svelte/packages/svelte/tests/validator/samples/anonymous-declarations/class.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap prints an anonymous `export default class {}` with a trailing `;`, an extra empty statement"
+
+["svelte/threlte/apps/docs/src/examples/extras/instanced-mesh/colors/BallInstance.svelte.ts".skip]
+"svelte.compileModule" = "upstream bug: esrap prints an anonymous `export default class {}` with a trailing `;`, an extra empty statement"
+
+["svelte/threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts".skip]
+"svelte.compileModule/server" = "upstream bug: the server treats a member assignment to a `$viewport` parameter as a mutation of store `viewport`, and emits `$.store_mutate($$store_subs ??= {}, ...)` with `$$store_subs` declared nowhere"
