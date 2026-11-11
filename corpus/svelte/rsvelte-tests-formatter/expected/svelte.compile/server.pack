@@ -17745,19 +17745,6 @@ export default function A852e57af0bcee0a($$renderer) {
 
 	$$renderer.push(`<!--]-->`);
 }
-=== 284 markup_patterns/let_directive_accepts_a_parenthesised_default/b7332d2abdb7af43.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function B7332d2abdb7af43($$renderer) {
-	Component($$renderer, {
-		children: $.invalid_default_snippet,
-		$$slots: {
-			default: ($$renderer, { item: { a: [b = "x"] } }) => {
-				$$renderer.push(`<!---->y`);
-			}
-		}
-	});
-}
 === 266 markup_patterns/let_directive_shorthand_collapses/1c1844527413cb24.svelte	js
 import * as $ from 'svelte/internal/server';
 

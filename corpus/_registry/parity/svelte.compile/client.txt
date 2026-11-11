@@ -1,4 +1,4 @@
-# svelte.compile/client: 32255 match
+# svelte.compile/client: 32248 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_non_literal_default_is_printed_as_source/9f90227e63e25649.svelte	mismatch
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_let_that_opens_a_declaration_keeps_the_parsers_position/0215afc9063b8da6.svelte	mismatch
@@ -2493,7 +2493,6 @@ svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_com
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/4a7ac66f02728a75.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/4c96cc68ff653d6f.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/4d719f4aa66fe45b.svelte	mismatch
-svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/50fc33f9886e22b9.svelte	refused
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/52f10527fe7cd21f.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/5337a4afa615af18.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/534444420fe144a0.svelte	mismatch
@@ -2510,7 +2509,6 @@ svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_com
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/60cfee8c694eb13a.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/6201e286995f5a98.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/62509279ca01baba.svelte	mismatch
-svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/62a7601de6ffb841.svelte	refused
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/63073641d20ff0fe.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/6379b84be95deee1.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/64b2ff26579cedf0.svelte	mismatch
@@ -2546,7 +2544,6 @@ svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_com
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/8c6db6e06fb56d86.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/8df2645b32f26620.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/90393c9fad490b5f.svelte	mismatch
-svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/96d9107ad0229333.svelte	refused
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/97491a8d865b8037.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/976ebc223675775b.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/9808e7c4fe60229c.svelte	mismatch
@@ -2602,7 +2599,6 @@ svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_com
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/de6edbf48ae64ae5.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/deaa0d2fb2c93cec.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/deb07175c5242908.svelte	mismatch
-svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/dfc9d1be067e4ca0.svelte	refused
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/dfdfe53b5e014595.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/e1f0b6bd5379c5a7.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/e60f1cf12cf75386.svelte	mismatch
@@ -3373,7 +3369,6 @@ svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_mat
 svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/fb1ed2d519205548.svelte	mismatch
 svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/ffc51396de525ecc.svelte	mismatch
 svelte/rsvelte-tests-formatter/markup_expressions/bind_directive_expression/c11c4f52b5f250bc.svelte	refused
-svelte/rsvelte-tests-formatter/markup_patterns/let_directive_accepts_a_parenthesised_default/b7332d2abdb7af43.svelte	refused
 svelte/rsvelte-tests-formatter/markup_patterns/let_directive_value_is_formatted_as_an_expression/ac7edb54ecf01f25.svelte	refused
 svelte/rsvelte-tests-formatter/style/scss_syntax_body_does_not_abort_parse/bd49abef40bff38d.svelte	mismatch
 svelte/rsvelte-tests-formatter/style_block/a_tab_indented_body_never_mixes_tabs_into_the_block_indent/1df5e59116f7f0aa.svelte	refused
@@ -3601,7 +3596,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/template/utils/source/tests/m
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/template/utils/source/tests/malformed_openers_are_rejected_before_the_source_scan/a0699eb1fad87d85.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/template/utils/source/tests/malformed_openers_are_rejected_before_the_source_scan/f3d27fbe24cdee35.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/12699ac92d1bbf6a.svelte	unexpected
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/eece04d9f8d08cb1.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/template/utils/source/tests/supports_each_element_handler_shape/4fb8894204d6469a.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_attribute_name_rewrites/only_an_element_typed_node_folds_an_attribute_name/09822505fedc7748.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_attribute_name_rewrites/only_an_element_typed_node_folds_an_attribute_name/0af4d60bc20f4792.svelte	mismatch

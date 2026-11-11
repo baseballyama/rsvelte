@@ -299,8 +299,8 @@
 		"rejected:not-runes-compatible:unexpected_eof": 7
 	},
 	"rsvelte-tests": {
-		"admitted": 2171,
-		"claimed": 2171,
+		"admitted": 2170,
+		"claimed": 2170,
 		"duplicate": 0,
 		"rejected:not-runes-compatible:animation_invalid_placement": 2,
 		"rejected:not-runes-compatible:attribute_empty_shorthand": 1,
@@ -356,14 +356,13 @@
 		"rejected:not-runes-compatible:svelte_options_unknown_attribute": 1,
 		"rejected:not-runes-compatible:svelte_self_invalid_placement": 22,
 		"rejected:not-runes-compatible:tag_invalid_name": 2,
-		"rejected:not-runes-compatible:throw": 1,
 		"rejected:not-runes-compatible:title_illegal_attribute": 1,
 		"rejected:not-runes-compatible:typescript_invalid_feature": 23,
 		"rejected:not-runes-compatible:unexpected_eof": 33
 	},
 	"rsvelte-tests-core-1": {
-		"admitted": 2810,
-		"claimed": 2810,
+		"admitted": 2803,
+		"claimed": 2803,
 		"duplicate": 0,
 		"rejected:module-rejected:experimental_async": 2,
 		"rejected:module-rejected:js_parse_error": 12,
@@ -372,7 +371,7 @@
 		"rejected:not-runes-compatible:attribute_invalid_event_handler": 2,
 		"rejected:not-runes-compatible:attribute_invalid_sequence_expression": 2,
 		"rejected:not-runes-compatible:bind_group_invalid_expression": 6,
-		"rejected:not-runes-compatible:bind_invalid_expression": 27,
+		"rejected:not-runes-compatible:bind_invalid_expression": 20,
 		"rejected:not-runes-compatible:bind_invalid_name": 3,
 		"rejected:not-runes-compatible:bind_invalid_parens": 3,
 		"rejected:not-runes-compatible:bind_invalid_target": 3,
@@ -497,8 +496,8 @@
 		"rejected:not-runes-compatible:unterminated_string_constant": 2
 	},
 	"rsvelte-tests-core-3": {
-		"admitted": 4447,
-		"claimed": 4447,
+		"admitted": 4443,
+		"claimed": 4443,
 		"duplicate": 0,
 		"rejected:module-rejected:dollar_prefix_invalid": 2,
 		"rejected:module-rejected:js_parse_error": 43,
@@ -572,8 +571,8 @@
 		"rejected:not-runes-compatible:void_element_invalid_content": 3
 	},
 	"rsvelte-tests-formatter": {
-		"admitted": 2443,
-		"claimed": 2443,
+		"admitted": 2442,
+		"claimed": 2442,
 		"duplicate": 0,
 		"rejected:not-runes-compatible:animation_invalid_placement": 1,
 		"rejected:not-runes-compatible:bind_invalid_value": 7,

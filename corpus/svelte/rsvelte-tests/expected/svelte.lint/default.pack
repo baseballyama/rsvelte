@@ -7741,9 +7741,6 @@
 1:12 1:13 no-undef "'a' is not defined."
 1:28 1:29 no-undef "'b' is not defined."
 
-=== 40 rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/eece04d9f8d08cb1.svelte	lint.txt
-2:61 - - "Parsing error: ')' expected."
-
 === 208 rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/f8df3a38ca0d4be2.svelte	lint.txt
 1:17 1:21 no-undef "'fade' is not defined."
 1:35 1:36 no-undef "'a' is not defined."

@@ -15501,11 +15501,6 @@ sink(1); // c
 <script lang="ts">let y: any = "s"; let f = (v: any) => v;</script>
 <p>{y satisfies string}</p>
 
-=== 167 template_expression_ts_gate/matches_the_official_compiler/50fc33f9886e22b9.svelte	svelte	runes	neutral
-<script module lang="ts">export const zz: number = 1;</script>
-<script>let y = "s"; let act = () => {}; let flip = () => {};</script>
-<Comp let:v={<string>y}>x</Comp>
-
 === 145 template_expression_ts_gate/matches_the_official_compiler/51ba4d3282d1e7d2.svelte	svelte	runes	neutral
 <script lang="ts">let y: any = "s"; let act = (): any => {}; let flip = (): any => {};</script>
 {#if true}{@const { a = y } = {}}<p>{a}</p>{/if}
@@ -15637,11 +15632,6 @@ sink(1); // c
 === 127 template_expression_ts_gate/matches_the_official_compiler/62509279ca01baba.svelte	svelte	runes	rejected
 <script>let y = "s"; let act = () => {}; let flip = () => {};</script>
 {#each [1] as it}{#if it}<p>{<string>y}</p>{/if}{/each}
-
-=== 169 template_expression_ts_gate/matches_the_official_compiler/62a7601de6ffb841.svelte	svelte	runes	neutral
-<script module lang="ts">export const zz: number = 1;</script>
-<script>let y = "s"; let act = () => {}; let flip = () => {};</script>
-<Comp let:v={y as string}>x</Comp>
 
 === 99 template_expression_ts_gate/matches_the_official_compiler/63073641d20ff0fe.svelte	svelte	runes	rejected
 <script>let y = "s"; let act = () => {}; let flip = () => {};</script>
@@ -16021,10 +16011,6 @@ sink(1); // c
 <script module lang="ts">export const zz: number = 1;</script>
 <script>let y = "s"; let act = () => {}; let flip = () => {};</script>
 <p use:act={y as string}>x</p>
-
-=== 129 template_expression_ts_gate/matches_the_official_compiler/96d9107ad0229333.svelte	svelte	runes	neutral
-<script lang="ts">let y: any = "s"; let act = (): any => {}; let flip = (): any => {};</script>
-<Comp let:v={<string>y}>x</Comp>
 
 === 172 template_expression_ts_gate/matches_the_official_compiler/97491a8d865b8037.svelte	svelte	runes	neutral
 <script module lang="ts">export const zz: number = 1;</script>
@@ -16552,10 +16538,6 @@ sink(1); // c
 === 117 template_expression_ts_gate/matches_the_official_compiler/df948ab9bd25122e.svelte	svelte	runes	neutral
 <script lang="ts">let y: any = "s"; let act = (): any => {}; let flip = (): any => {};</script>
 <p use:act={y}>x</p>
-
-=== 131 template_expression_ts_gate/matches_the_official_compiler/dfc9d1be067e4ca0.svelte	svelte	runes	neutral
-<script lang="ts">let y: any = "s"; let act = (): any => {}; let flip = (): any => {};</script>
-<Comp let:v={y as string}>x</Comp>
 
 === 81 template_expression_ts_gate/matches_the_official_compiler/dfdfe53b5e014595.svelte	svelte	runes	rejected
 <script>let y = "s"; let f = (v) => v;</script>

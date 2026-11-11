@@ -5656,46 +5656,6 @@
 === 3 rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/d32bd0d9c0e1fba3.svelte	json
 []
 
-=== 643 rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/eece04d9f8d08cb1.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 0,
-			"character": 23
-		},
-		"end": {
-			"line": 0,
-			"character": 24
-		}
-	},
-	{
-		"code": 1109,
-		"message": "Expression expected.",
-		"start": {
-			"line": 0,
-			"character": 34
-		},
-		"end": {
-			"line": 0,
-			"character": 35
-		}
-	},
-	{
-		"code": 2809,
-		"message": "Declaration or statement expected. This '=' follows a block of statements, so if you intended to write a destructuring assignment, you might need to wrap the whole assignment in parentheses.",
-		"start": {
-			"line": 0,
-			"character": 34
-		},
-		"end": {
-			"line": 0,
-			"character": 35
-		}
-	}
-]
-
 === 3 rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/f8df3a38ca0d4be2.svelte	json
 []
 

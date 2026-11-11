@@ -21328,19 +21328,6 @@ https://svelte.dev/e/js_parse_error
 
 <p>{y satisfies string}</p>
 
-=== 181 template_expression_ts_gate/matches_the_official_compiler/50fc33f9886e22b9.svelte	svelte
-<script module lang="ts">
-  export const zz: number = 1;
-</script>
-
-<script>
-  let y = "s";
-  let act = () => {};
-  let flip = () => {};
-</script>
-
-<Comp let:v={<string>y}>x</Comp>
-
 === 157 template_expression_ts_gate/matches_the_official_compiler/51ba4d3282d1e7d2.svelte	svelte
 <script lang="ts">
   let y: any = "s";
@@ -21632,19 +21619,6 @@ https://svelte.dev/e/js_parse_error
 > 2 | {#each [1] as it}{#if it}<p>{<string>y}</p>{/if}{/each}
     |                             ^
   3 |
-
-=== 183 template_expression_ts_gate/matches_the_official_compiler/62a7601de6ffb841.svelte	svelte
-<script module lang="ts">
-  export const zz: number = 1;
-</script>
-
-<script>
-  let y = "s";
-  let act = () => {};
-  let flip = () => {};
-</script>
-
-<Comp let:v={y as string}>x</Comp>
 
 === 186 template_expression_ts_gate/matches_the_official_compiler/63073641d20ff0fe.svelte	error.txt
 Unexpected token
@@ -22464,15 +22438,6 @@ https://svelte.dev/e/expected_token
 </script>
 
 <p use:act={y as string}>x</p>
-
-=== 138 template_expression_ts_gate/matches_the_official_compiler/96d9107ad0229333.svelte	svelte
-<script lang="ts">
-  let y: any = "s";
-  let act = (): any => {};
-  let flip = (): any => {};
-</script>
-
-<Comp let:v={<string>y}>x</Comp>
 
 === 184 template_expression_ts_gate/matches_the_official_compiler/97491a8d865b8037.svelte	svelte
 <script module lang="ts">
@@ -23592,15 +23557,6 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 <p use:act={y}>x</p>
-
-=== 140 template_expression_ts_gate/matches_the_official_compiler/dfc9d1be067e4ca0.svelte	svelte
-<script lang="ts">
-  let y: any = "s";
-  let act = (): any => {};
-  let flip = (): any => {};
-</script>
-
-<Comp let:v={y as string}>x</Comp>
 
 === 181 template_expression_ts_gate/matches_the_official_compiler/dfdfe53b5e014595.svelte	error.txt
 Unexpected token

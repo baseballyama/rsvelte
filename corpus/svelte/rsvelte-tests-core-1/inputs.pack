@@ -4339,16 +4339,6 @@ let s = 1;</script>
 	let n = $state(0);
 </script>
 <svelte:element this={tag} bind:this={o?.k}>x</svelte:element>
-=== 215 bind_host_axis_3264/bind_invalid_expression_reaches_every_host/9b7544cb01233323.svelte	svelte	runes	rejected
-<script>
-	import C from './C.svelte';
-	let v = $state('a');
-	let o = $state({ k: 1 });
-	let tag = $state('div');
-	let el = $state(null);
-	let n = $state(0);
-</script>
-<svelte:component this={C} bind:value={o.f()} />
 === 212 bind_host_axis_3264/bind_invalid_expression_reaches_every_host/e890762a5154ddca.svelte	svelte	runes	rejected
 <script>
 	import C from './C.svelte';
@@ -4359,16 +4349,6 @@ let s = 1;</script>
 	let n = $state(0);
 </script>
 {#if n}<svelte:self bind:value={o?.k} />{/if}
-=== 214 bind_host_axis_3264/bind_invalid_expression_reaches_every_host/e9899b368746ecb4.svelte	svelte	runes	rejected
-<script>
-	import C from './C.svelte';
-	let v = $state('a');
-	let o = $state({ k: 1 });
-	let tag = $state('div');
-	let el = $state(null);
-	let n = $state(0);
-</script>
-<svelte:component this={C} bind:value={o?.k} />
 === 213 bind_host_axis_3264/bind_invalid_value_reaches_every_host/4b3a96fd19a246db.svelte	svelte	runes	rejected
 <script>
 	import C from './C.svelte';
@@ -5266,28 +5246,6 @@ let s = 1;</script>
 	let rest = $state({});
 </script>
 <svelte:element this={tag} bind:clientHeight={o?.k}>x</svelte:element>
-=== 251 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/5efe3a9f2f461cf6.svelte	svelte	runes	rejected
-<script>
-	import C from './C.svelte';
-	let el = $state(null);
-	let v = $state('v');
-	let tag = $state('div');
-	let tag2 = $state('span');
-	let o = $state({ k: 1 });
-	let rest = $state({});
-</script>
-<svelte:component this={C} bind:innerWidth={o?.k} />
-=== 248 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/61c480a0c3309e38.svelte	svelte	runes	rejected
-<script>
-	import C from './C.svelte';
-	let el = $state(null);
-	let v = $state('v');
-	let tag = $state('div');
-	let tag2 = $state('span');
-	let o = $state({ k: 1 });
-	let rest = $state({});
-</script>
-<svelte:component this={C} bind:scrollX={o?.k} />
 === 270 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/8246c5b5a12ef67c.svelte	svelte	runes	rejected
 <script>
 	import C from './C.svelte';
@@ -5299,17 +5257,6 @@ let s = 1;</script>
 	let rest = $state({});
 </script>
 <svelte:element this={tag} bind:borderBoxSize={o?.k}>x</svelte:element>
-=== 246 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/ab06da4c108f0694.svelte	svelte	runes	rejected
-<script>
-	import C from './C.svelte';
-	let el = $state(null);
-	let v = $state('v');
-	let tag = $state('div');
-	let tag2 = $state('span');
-	let o = $state({ k: 1 });
-	let rest = $state({});
-</script>
-<svelte:component this={C} bind:value={o?.k} />
 === 268 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/ab386048e35e7333.svelte	svelte	runes	rejected
 <script>
 	import C from './C.svelte';
@@ -5332,17 +5279,6 @@ let s = 1;</script>
 	let rest = $state({});
 </script>
 <svelte:element this={tag} bind:contentBoxSize={o?.k}>x</svelte:element>
-=== 245 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/d257fd21fc060ae0.svelte	svelte	runes	rejected
-<script>
-	import C from './C.svelte';
-	let el = $state(null);
-	let v = $state('v');
-	let tag = $state('div');
-	let tag2 = $state('span');
-	let o = $state({ k: 1 });
-	let rest = $state({});
-</script>
-<svelte:component this={C} bind:this={o?.k} />
 === 268 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/e2f33f28954d8379.svelte	svelte	runes	rejected
 <script>
 	import C from './C.svelte';
@@ -5354,17 +5290,6 @@ let s = 1;</script>
 	let rest = $state({});
 </script>
 <svelte:element this={tag} bind:offsetWidth={o?.k}>x</svelte:element>
-=== 242 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/ff5be44006b581f3.svelte	svelte	runes	rejected
-<script>
-	import C from './C.svelte';
-	let el = $state(null);
-	let v = $state('v');
-	let tag = $state('div');
-	let tag2 = $state('span');
-	let o = $state({ k: 1 });
-	let rest = $state({});
-</script>
-<svelte:component this={C} bind:x={o?.k} />
 === 245 bind_validation_host_product_3264/bind_invalid_value_reaches_every_host/05ce400660b77c81.svelte	svelte	runes	rejected
 <script>
 	import C from './C.svelte';

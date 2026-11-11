@@ -10219,9 +10219,6 @@ https://svelte.dev/e/expected_token
 === 37 rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/d32bd0d9c0e1fba3.svelte	svelte
 <div data={a /* > } ' */ > b}></div>
 
-=== 49 rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/eece04d9f8d08cb1.svelte	svelte
-<Component let:item={a > b ? a : b}></Component>
-
 === 58 rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/f8df3a38ca0d4be2.svelte	svelte
 <div transition:fade={{ duration: a > b ? a : b }}></div>
 

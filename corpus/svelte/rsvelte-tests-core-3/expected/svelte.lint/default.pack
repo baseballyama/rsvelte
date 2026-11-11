@@ -12812,9 +12812,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 1:41 1:42 no-unused-vars "'f' is assigned a value but never used."
 1:41 1:42 svelte/prefer-const "'f' is never reassigned. Use 'const' instead."
 
-=== 40 template_expression_ts_gate/matches_the_official_compiler/50fc33f9886e22b9.svelte	lint.txt
-5:10 - - "Parsing error: ')' expected."
-
 === 571 template_expression_ts_gate/matches_the_official_compiler/51ba4d3282d1e7d2.svelte	lint.txt
 1:1 1:96 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:23 1:29 svelte/prefer-const "'y' is never reassigned. Use 'const' instead."
@@ -13012,9 +13009,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 
 === 80 template_expression_ts_gate/matches_the_official_compiler/62509279ca01baba.svelte	lint.txt
 2:29 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
-
-=== 40 template_expression_ts_gate/matches_the_official_compiler/62a7601de6ffb841.svelte	lint.txt
-5:12 - - "Parsing error: ')' expected."
 
 === 79 template_expression_ts_gate/matches_the_official_compiler/63073641d20ff0fe.svelte	lint.txt
 2:9 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
@@ -13608,9 +13602,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 2:26 2:29 svelte/prefer-const "'act' is never reassigned. Use 'const' instead."
 2:46 2:50 no-unused-vars "'flip' is assigned a value but never used."
 2:46 2:50 svelte/prefer-const "'flip' is never reassigned. Use 'const' instead."
-
-=== 40 template_expression_ts_gate/matches_the_official_compiler/96d9107ad0229333.svelte	lint.txt
-4:10 - - "Parsing error: ')' expected."
 
 === 466 template_expression_ts_gate/matches_the_official_compiler/97491a8d865b8037.svelte	lint.txt
 1:1 1:63 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -14349,9 +14340,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 1:41 1:44 svelte/prefer-const "'act' is never reassigned. Use 'const' instead."
 1:66 1:70 no-unused-vars "'flip' is assigned a value but never used."
 1:66 1:70 svelte/prefer-const "'flip' is never reassigned. Use 'const' instead."
-
-=== 40 template_expression_ts_gate/matches_the_official_compiler/dfc9d1be067e4ca0.svelte	lint.txt
-4:12 - - "Parsing error: ')' expected."
 
 === 80 template_expression_ts_gate/matches_the_official_compiler/dfdfe53b5e014595.svelte	lint.txt
 2:22 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"

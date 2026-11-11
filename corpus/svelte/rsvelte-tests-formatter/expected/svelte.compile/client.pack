@@ -32927,30 +32927,6 @@ export default function A852e57af0bcee0a($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 454 markup_patterns/let_directive_accepts_a_parenthesised_default/b7332d2abdb7af43.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function B7332d2abdb7af43($$anchor) {
-	Component($$anchor, {
-		children: $.invalid_default_snippet,
-		$$slots: {
-			default: ($$anchor, $$slotProps) => {
-				const item = $.derived(() => {
-					let { a: [b = "x"] } = $$slotProps.item;
-
-					return {};
-				});
-
-				$.next();
-
-				var text = $.text('y');
-
-				$.append($$anchor, text);
-			}
-		}
-	});
-}
 === 400 markup_patterns/let_directive_shorthand_collapses/1c1844527413cb24.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';

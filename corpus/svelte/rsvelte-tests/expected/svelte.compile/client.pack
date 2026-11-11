@@ -17462,13 +17462,6 @@ export default function D32bd0d9c0e1fba3($$anchor) {
 	$.set_attribute(div, 'data', a > b);
 	$.append($$anchor, div);
 }
-=== 169 rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/eece04d9f8d08cb1.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function Eece04d9f8d08cb1($$anchor) {
-	Component($$anchor, {});
-}
 === 301 rsvelte_projection/svelte2tsx/template/utils/source/tests/starts_after_every_retained_attribute_kind/f8df3a38ca0d4be2.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';

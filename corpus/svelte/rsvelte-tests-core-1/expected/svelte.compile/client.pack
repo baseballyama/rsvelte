@@ -15312,22 +15312,6 @@ export default function _f0c6bea525c579d($$anchor) {
 	}
 }
 
-=== 300 bind_host_axis_3264/bind_invalid_expression_reaches_every_host/9b7544cb01233323.svelte	error.json
-{
-	"code": "bind_invalid_expression",
-	"message": "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression",
-	"start": {
-		"line": 9,
-		"column": 27,
-		"character": 194
-	},
-	"end": {
-		"line": 9,
-		"column": 45,
-		"character": 212
-	}
-}
-
 === 300 bind_host_axis_3264/bind_invalid_expression_reaches_every_host/e890762a5154ddca.svelte	error.json
 {
 	"code": "bind_invalid_expression",
@@ -15341,22 +15325,6 @@ export default function _f0c6bea525c579d($$anchor) {
 		"line": 9,
 		"column": 37,
 		"character": 204
-	}
-}
-
-=== 300 bind_host_axis_3264/bind_invalid_expression_reaches_every_host/e9899b368746ecb4.svelte	error.json
-{
-	"code": "bind_invalid_expression",
-	"message": "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression",
-	"start": {
-		"line": 9,
-		"column": 27,
-		"character": 194
-	},
-	"end": {
-		"line": 9,
-		"column": 44,
-		"character": 211
 	}
 }
 
@@ -17545,38 +17513,6 @@ export default function _8fb2d04a114f04e($$anchor) {
 	}
 }
 
-=== 302 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/5efe3a9f2f461cf6.svelte	error.json
-{
-	"code": "bind_invalid_expression",
-	"message": "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression",
-	"start": {
-		"line": 10,
-		"column": 27,
-		"character": 226
-	},
-	"end": {
-		"line": 10,
-		"column": 49,
-		"character": 248
-	}
-}
-
-=== 302 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/61c480a0c3309e38.svelte	error.json
-{
-	"code": "bind_invalid_expression",
-	"message": "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression",
-	"start": {
-		"line": 10,
-		"column": 27,
-		"character": 226
-	},
-	"end": {
-		"line": 10,
-		"column": 46,
-		"character": 245
-	}
-}
-
 === 302 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/8246c5b5a12ef67c.svelte	error.json
 {
 	"code": "bind_invalid_expression",
@@ -17590,22 +17526,6 @@ export default function _8fb2d04a114f04e($$anchor) {
 		"line": 10,
 		"column": 52,
 		"character": 251
-	}
-}
-
-=== 302 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/ab06da4c108f0694.svelte	error.json
-{
-	"code": "bind_invalid_expression",
-	"message": "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression",
-	"start": {
-		"line": 10,
-		"column": 27,
-		"character": 226
-	},
-	"end": {
-		"line": 10,
-		"column": 44,
-		"character": 243
 	}
 }
 
@@ -17641,22 +17561,6 @@ export default function _8fb2d04a114f04e($$anchor) {
 	}
 }
 
-=== 302 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/d257fd21fc060ae0.svelte	error.json
-{
-	"code": "bind_invalid_expression",
-	"message": "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression",
-	"start": {
-		"line": 10,
-		"column": 27,
-		"character": 226
-	},
-	"end": {
-		"line": 10,
-		"column": 43,
-		"character": 242
-	}
-}
-
 === 302 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/e2f33f28954d8379.svelte	error.json
 {
 	"code": "bind_invalid_expression",
@@ -17670,22 +17574,6 @@ export default function _8fb2d04a114f04e($$anchor) {
 		"line": 10,
 		"column": 50,
 		"character": 249
-	}
-}
-
-=== 302 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/ff5be44006b581f3.svelte	error.json
-{
-	"code": "bind_invalid_expression",
-	"message": "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression",
-	"start": {
-		"line": 10,
-		"column": 27,
-		"character": 226
-	},
-	"end": {
-		"line": 10,
-		"column": 40,
-		"character": 239
 	}
 }
 

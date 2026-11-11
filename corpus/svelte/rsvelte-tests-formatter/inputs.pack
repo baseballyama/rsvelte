@@ -10624,8 +10624,6 @@ b`}
 {#each users as { name, age=18 }}<li>{name}</li>{/each}
 === 43 markup_patterns/each_simple_identifier_context/a852e57af0bcee0a.svelte	svelte	runes	neutral
 {#each items as item}<li>{item}</li>{/each}
-=== 54 markup_patterns/let_directive_accepts_a_parenthesised_default/b7332d2abdb7af43.svelte	svelte	runes	neutral
-<Component let:item={{ a: [(b = "x")] }}>y</Component>
 === 40 markup_patterns/let_directive_shorthand_collapses/1c1844527413cb24.svelte	svelte	runes	neutral
 <Component let:item={item}>y</Component>
 === 67 markup_patterns/let_directive_value_is_formatted_as_an_expression/ac7edb54ecf01f25.svelte	svelte	runes	neutral

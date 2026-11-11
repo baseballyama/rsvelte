@@ -37426,25 +37426,6 @@ export default function _0db70b207922a6d($$renderer) {
 
 	$$renderer.push(`<p>s</p>`);
 }
-=== 341 template_expression_ts_gate/matches_the_official_compiler/50fc33f9886e22b9.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export const zz = 1;
-
-export default function _0fc33f9886e22b9($$renderer) {
-	let y = "s";
-	let act = () => {};
-	let flip = () => {};
-
-	Comp($$renderer, {
-		children: $.invalid_default_snippet,
-		$$slots: {
-			default: ($$renderer, { v: y }) => {
-				$$renderer.push(`<!---->x`);
-			}
-		}
-	});
-}
 === 352 template_expression_ts_gate/matches_the_official_compiler/51ba4d3282d1e7d2.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -37958,25 +37939,6 @@ export default function _dea9a86f8be3676($$renderer) {
 	}
 }
 
-=== 341 template_expression_ts_gate/matches_the_official_compiler/62a7601de6ffb841.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export const zz = 1;
-
-export default function _2a7601de6ffb841($$renderer) {
-	let y = "s";
-	let act = () => {};
-	let flip = () => {};
-
-	Comp($$renderer, {
-		children: $.invalid_default_snippet,
-		$$slots: {
-			default: ($$renderer, { v: y }) => {
-				$$renderer.push(`<!---->x`);
-			}
-		}
-	});
-}
 === 221 template_expression_ts_gate/matches_the_official_compiler/63073641d20ff0fe.svelte	error.json
 {
 	"code": "js_parse_error",
@@ -39421,23 +39383,6 @@ export default function _6b5bf7b678260d4($$renderer) {
 	let flip = () => {};
 
 	$$renderer.push(`<p>x</p>`);
-}
-=== 319 template_expression_ts_gate/matches_the_official_compiler/96d9107ad0229333.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _6d9107ad0229333($$renderer) {
-	let y = "s";
-	let act = () => {};
-	let flip = () => {};
-
-	Comp($$renderer, {
-		children: $.invalid_default_snippet,
-		$$slots: {
-			default: ($$renderer, { v: y }) => {
-				$$renderer.push(`<!---->x`);
-			}
-		}
-	});
 }
 === 255 template_expression_ts_gate/matches_the_official_compiler/97491a8d865b8037.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -41385,23 +41330,6 @@ export default function Df948ab9bd25122e($$renderer) {
 	let flip = () => {};
 
 	$$renderer.push(`<p>x</p>`);
-}
-=== 319 template_expression_ts_gate/matches_the_official_compiler/dfc9d1be067e4ca0.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Dfc9d1be067e4ca0($$renderer) {
-	let y = "s";
-	let act = () => {};
-	let flip = () => {};
-
-	Comp($$renderer, {
-		children: $.invalid_default_snippet,
-		$$slots: {
-			default: ($$renderer, { v: y }) => {
-				$$renderer.push(`<!---->x`);
-			}
-		}
-	});
 }
 === 223 template_expression_ts_gate/matches_the_official_compiler/dfdfe53b5e014595.svelte	error.json
 {

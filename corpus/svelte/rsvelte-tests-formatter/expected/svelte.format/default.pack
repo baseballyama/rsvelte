@@ -11284,9 +11284,6 @@ b`}
 === 44 markup_patterns/each_simple_identifier_context/a852e57af0bcee0a.svelte	svelte
 {#each items as item}<li>{item}</li>{/each}
 
-=== 55 markup_patterns/let_directive_accepts_a_parenthesised_default/b7332d2abdb7af43.svelte	svelte
-<Component let:item={{ a: [(b = "x")] }}>y</Component>
-
 === 34 markup_patterns/let_directive_shorthand_collapses/1c1844527413cb24.svelte	svelte
 <Component let:item>y</Component>
 

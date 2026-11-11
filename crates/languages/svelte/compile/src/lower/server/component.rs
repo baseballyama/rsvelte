@@ -79,7 +79,6 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             child_snippets(tree, self.javascript, element.children, |snippet| {
                 self.snippet_declaration(snippet)
             })?;
-        let callbacks = self.slot_callbacks(identifier, element)?;
         let default = DefaultSlot::of(
             tree,
             self.javascript,
@@ -87,7 +86,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             element,
             Target::Server,
         );
-        push_children(b, &mut parts, &snippets, callbacks, default);
+        let callbacks = self.slot_callbacks(identifier, element);
+        push_children(b, &mut parts, &snippets, callbacks, default)?;
         let props = props_expression(b, parts, Target::Server);
         let callee = callee(tree, self.javascript, self.res, identifier);
         let function = match callee {
@@ -166,24 +166,24 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             component,
             slot,
         );
-        let mut parameters = vec![b.parameter(b.binding("$$renderer"))];
-        if !lets.is_empty() {
-            let mut properties = Vec::with_capacity(lets.len());
-            for directive in &lets {
-                let (value, shorthand) = match directive.value {
-                    None => (b.binding(directive.prop), true),
-                    Some(Expression::Identifier(name)) => {
-                        (b.binding(&name.name), name.name == directive.prop)
-                    }
-                    Some(value) => (pattern(b, directive, value)?, false),
-                };
-                let key = b.key(directive.prop);
-                properties.push(BindingProperty::new(SPAN, key, value, shorthand, false, b));
-            }
-            let object = BindingPattern::new_object_pattern(SPAN, b.vec(properties), None, b);
-            parameters.push(b.parameter(object));
+        let renderer = b.parameter(b.binding("$$renderer"));
+        if lets.is_empty() {
+            return Ok(b.formal_parameters([renderer]));
         }
-        Ok(b.formal_parameters(parameters))
+        let mut properties = Vec::with_capacity(lets.len());
+        for directive in &lets {
+            let (value, shorthand) = match directive.value {
+                None => (b.binding(directive.prop), true),
+                Some(Expression::Identifier(name)) => {
+                    (b.binding(&name.name), name.name == directive.prop)
+                }
+                Some(value) => (pattern(b, directive, value)?, false),
+            };
+            let key = b.key(directive.prop);
+            properties.push(BindingProperty::new(SPAN, key, value, shorthand, false, b));
+        }
+        let object = BindingPattern::new_object_pattern(SPAN, b.vec(properties), None, b);
+        Ok(b.formal_parameters([renderer, b.parameter(object)]))
     }
 }
 
@@ -193,24 +193,13 @@ impl<'c, 'o> ServerCompilationContext<'c, 'o> {
         &mut self,
         identifier: CompilerNodeIdentifier,
         element: &'o Element,
-    ) -> R<Vec<SlotCallback<'c, 'o>>> {
+    ) -> impl Iterator<Item = R<SlotCallback<'c, 'o>>> {
         let plan = self.plan;
-        let slots = match plan.slots(identifier) {
-            None => vec![(
-                "default",
-                self.fragment_without(element.children, |_| true)?,
-            )],
-            Some(slots) => slots
-                .map(|(name, region)| {
-                    let (mut body, template) = self.region_parts(region, |_| true)?;
-                    body.extend(template);
-                    Ok((name, body))
-                })
-                .collect::<R<Vec<_>>>()?,
-        };
-        slots
-            .into_iter()
-            .map(|(name, body)| Ok((name, self.slot_parameters(element, name)?, body)))
-            .collect()
+        plan.slots(identifier, element.children)
+            .map(move |(name, region)| {
+                let (mut body, template) = self.region_parts(region, |_| true)?;
+                body.extend(template);
+                Ok((name, self.slot_parameters(element, name)?, body))
+            })
     }
 }

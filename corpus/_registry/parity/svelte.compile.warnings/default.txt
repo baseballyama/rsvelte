@@ -1,4 +1,4 @@
-# svelte.compile.warnings: 31975 match
+# svelte.compile.warnings: 31969 match
 svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte	mismatch
 svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/4809229d13f750f6.svelte	mismatch
 svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/7e0bf9a55c019a47.svelte	mismatch

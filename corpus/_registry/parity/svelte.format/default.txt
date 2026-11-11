@@ -1,4 +1,4 @@
-# svelte.format/default: 35579 match
+# svelte.format/default: 35566 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
