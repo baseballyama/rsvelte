@@ -1,10 +1,17 @@
 //! Fresh identifiers for generated code, with upstream's numbering (`p`, `p_1`, …) so that output
 //! matches name for name.
 
+use std::cell::RefCell;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 
+/// Shared by every rewrite of one compile, as upstream's one `ScopeRoot` is: a name is taken
+/// inside a single call, so a rewrite that nests another never holds it.
 #[derive(Debug)]
-pub(super) struct Names {
+pub(super) struct Names(RefCell<Taken>);
+
+#[derive(Debug)]
+struct Taken {
     counters: FxHashMap<Box<str>, u32>,
     /// Upstream `root.conflicts`: every declared name, plus every generated one.
     conflicts: FxHashSet<Box<str>>,
@@ -19,21 +26,21 @@ impl Names {
     ) -> Self {
         let conflicts: FxHashSet<Box<str>> = declared.map(Box::from).collect();
         let references: FxHashSet<Box<str>> = source_reads.map(Box::from).collect();
-        Self {
+        Self(RefCell::new(Taken {
             counters: FxHashMap::default(),
             conflicts,
             references,
-        }
+        }))
     }
 
     /// Upstream `Scope.generate`.
-    pub(super) fn generate(&mut self, preferred: &str) -> String {
+    pub(super) fn generate(&self, preferred: &str) -> String {
         let preferred = crate::identity::sanitize_identifier(preferred);
-        self.allocate(preferred, true)
+        self.0.borrow_mut().allocate(preferred, true)
     }
 
     /// Upstream `ScopeRoot.unique`, used for hoisted names: no leading-digit or keyword check.
-    pub(super) fn unique(&mut self, preferred: &str) -> String {
+    pub(super) fn unique(&self, preferred: &str) -> String {
         let preferred: String = preferred
             .chars()
             .map(|c| {
@@ -44,9 +51,11 @@ impl Names {
                 }
             })
             .collect();
-        self.allocate(preferred, false)
+        self.0.borrow_mut().allocate(preferred, false)
     }
+}
 
+impl Taken {
     fn allocate(&mut self, preferred: String, check_references: bool) -> String {
         let entry = self.counters.entry(preferred.into_boxed_str());
         let mut n = match &entry {

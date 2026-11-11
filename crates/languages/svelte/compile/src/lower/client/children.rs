@@ -29,10 +29,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             if !sequence.is_empty() {
                 self.flush_sequence(&std::mem::take(&mut sequence), &mut st, frag, l);
             }
-            let Item::Node(identifier) = item else {
-                unreachable!("text is part of a sequence")
+            let &Item::Node(identifier) = item else {
+                self.flush_node(&mut st, false, "node", l);
+                frag.tpl.push_comment();
+                continue;
             };
-            let identifier = *identifier;
             if self.is_static_element(identifier) {
                 st.skipped += 1;
                 self.visit(identifier, &st.prev_name(), frag, l)?;
@@ -40,11 +41,16 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 && items.len() == 1
                 && matches!(
                     self.compiler_syntax_tree.node(identifier).kind,
-                    NodeKind::Each(_)
+                    NodeKind::Each(_) | NodeKind::Html { .. }
                 )
             {
                 // Upstream's `is_controlled`: the element is the block's anchor.
-                self.each_block(identifier, &st.prev_name(), true, frag, l)?;
+                let node = st.prev_name();
+                if let NodeKind::Each(_) = self.compiler_syntax_tree.node(identifier).kind {
+                    self.each_block(identifier, &node, true, frag, l)?;
+                } else {
+                    self.markup_tag(identifier, &node, true, frag, l);
+                }
             } else {
                 let name = match &self.compiler_syntax_tree.node(identifier).kind {
                     NodeKind::Element(el) if el.kind == super::ElementKind::Regular => {
@@ -62,7 +68,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if st.skipped > 1 {
             st.skipped -= 1;
             let n = (st.skipped != 1).then(|| b.number(f64::from(st.skipped)));
-            l.initializer.push(b.stmt(b.runtime_some("next", vec![n])));
+            l.initializer
+                .push(b.statement(b.runtime_some("next", vec![n])));
         }
         Ok(())
     }
@@ -71,10 +78,18 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let b = self.b;
         match prev {
             Prev::Identifier(name) => b.id(name),
-            Prev::Call { method, of } => b.runtime_some(
+            Prev::Call {
                 method,
-                vec![Some(b.id(of)), is_text.then(|| b.boolean(true))],
-            ),
+                of,
+                content,
+            } => {
+                let of = if *content {
+                    b.member(b.id(of), "content")
+                } else {
+                    b.id(of)
+                };
+                b.runtime_some(method, vec![Some(of), is_text.then(|| b.boolean(true))])
+            }
         }
     }
 
@@ -93,13 +108,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         Err(b.runtime_some("sibling", vec![Some(p), n, t]))
     }
 
-    fn flush_node(
-        &mut self,
-        st: &mut Walk,
-        is_text: bool,
-        name: &str,
-        l: &mut Lists<'o>,
-    ) -> String {
+    fn flush_node(&self, st: &mut Walk, is_text: bool, name: &str, l: &mut Lists<'o>) -> String {
         let identifier = match self.get_node(st, is_text) {
             Ok(identifier) => identifier,
             Err(expression) => {
@@ -114,7 +123,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     fn flush_sequence(
-        &mut self,
+        &self,
         seq: &[Item<'_>],
         st: &mut Walk,
         frag: &mut Frag<'o>,
@@ -138,10 +147,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let identifier = self.flush_node(st, seq.len() == 1, "text", l);
         let x = b.id(&identifier);
         if has_state {
-            l.update.push(b.stmt(b.runtime("set_text", [x, value])));
+            l.update
+                .push(b.statement(b.runtime("set_text", [x, value])));
         } else {
             let target = b.member(x, "nodeValue");
-            l.initializer.push(b.stmt(b.assign_member(target, value)));
+            l.initializer
+                .push(b.statement(b.assign_member(target, value)));
         }
     }
 
@@ -156,6 +167,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             NodeKind::Element(_) => self.element(identifier, node, frag, l),
             NodeKind::If { .. } => self.if_block(identifier, node, frag, l),
             NodeKind::Each(_) => self.each_block(identifier, node, false, frag, l),
+            NodeKind::Key { .. } => self.key_block(identifier, node, frag, l),
+            NodeKind::Await(_) => self.await_block(identifier, node, frag, l),
+            NodeKind::Html { .. } => {
+                self.markup_tag(identifier, node, false, frag, l);
+                Ok(())
+            }
             NodeKind::Render { .. } => {
                 self.render_tag(identifier, node, frag, l);
                 Ok(())

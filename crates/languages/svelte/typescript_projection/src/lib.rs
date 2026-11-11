@@ -59,14 +59,17 @@ pub(crate) fn write_component_name(path: &str, out: &mut String) {
     out.push_str("__SvelteComponent_");
 }
 
-/// What an import of a component that is not projected reads: a component of any props.
+/// What an import of a component that is not projected reads: a component of any props whose
+/// instance is `any`, since neither its props nor its exports are known.
 ///
-/// The svelte package's `declare module '*.svelte'` declares the same. Its names are the
-/// projection's own, so a module script before it binds none of them.
-pub const STAND_IN: &str = "import { SvelteComponent as __rsvelte_svelte_component } from 'svelte';\n\
-    import { LegacyComponentType as __rsvelte_legacy_component } from 'svelte/legacy';\n\
-    declare const __rsvelte_stand_in: __rsvelte_legacy_component;\n\
-    type __rsvelte_stand_in = __rsvelte_svelte_component;\n\
+/// The props stay a record of `any`, so a callback passed to it reads its parameters as `any`
+/// rather than implicitly. Its name is the projection's own, so a module script before it binds
+/// none of it.
+pub const STAND_IN: &str = "declare const __rsvelte_stand_in: {\n\
+    (internals: any, props: Record<string, any>): any;\n\
+    new (options: any): any;\n\
+    };\n\
+    type __rsvelte_stand_in = any;\n\
     export default __rsvelte_stand_in;\n";
 
 /// [`STAND_IN`] after the component's `<script module>`, so an import of a component that is not

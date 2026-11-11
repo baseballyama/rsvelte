@@ -206,7 +206,7 @@ fn on_mounted<'a>(
         ));
     };
     let hook = rewriter.expression(hook)?;
-    let wrapper = b.arrow_block(b.params([]), [b.stmt(b.call(hook, []))], false);
+    let wrapper = b.arrow_block(b.parameters([]), [b.statement(b.call(hook, []))], false);
     let on_mount = names.helper(Helper::OnMount);
     let c = Expression::new_call_expression(
         call.span,
@@ -280,7 +280,7 @@ fn boolean_prop<'a>(
             BinaryOperator::StrictEquality,
             b.id("undefined"),
         );
-        let set = b.stmt(b.assign_name(&value, d.clone_in(b.allocator())));
+        let set = b.statement(b.assign_name(&value, d.clone_in(b.allocator())));
         body.push(b.if_(test, set, None));
     } else {
         let has = b.binary(b.string(&p.key), BinaryOperator::In, b.id(rest));
@@ -298,7 +298,7 @@ fn boolean_prop<'a>(
         body.push(b.if_(test, b.return_(Some(b.boolean(true))), None));
     }
     body.push(b.return_(Some(b.id(&value))));
-    let getter = b.arrow_block(b.params([]), body, false);
+    let getter = b.arrow_block(b.parameters([]), body, false);
     b.let_(
         &p.var,
         Some(b.call(rune_callee(b, "$derived.by"), [getter])),
@@ -332,10 +332,10 @@ fn fallthrough<'a>(
         .map(|p| p.key.as_str());
     for key in booleans.chain(reserved).chain(hooks) {
         let member = b.computed(b.id(&a), b.string(key));
-        body.push(b.stmt(b.unary(UnaryOperator::Delete, member)));
+        body.push(b.statement(b.unary(UnaryOperator::Delete, member)));
     }
     body.push(b.return_(Some(b.id(&a))));
-    let getter = b.arrow_block(b.params([]), body, false);
+    let getter = b.arrow_block(b.parameters([]), body, false);
     b.let_(
         attributes,
         Some(b.call(rune_callee(b, "$derived.by"), [getter])),

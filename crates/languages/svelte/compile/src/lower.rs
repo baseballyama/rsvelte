@@ -4,26 +4,36 @@
 //! name generation are shared; only the parts where the targets really differ (DOM building on
 //! the client, string pushing on the server) live in `client` and `server`.
 
+mod binding_groups;
+mod bindings;
 mod builder;
+mod class_fields;
 mod client;
 mod component;
+mod const_cycles;
 mod coverage;
 mod custom_element;
+mod debug_tag;
 mod derived;
 mod javascript;
+mod lets;
+mod module;
 mod names;
+mod paths;
 mod prepare;
 mod rest_reads;
 mod script;
 mod server;
+mod slot_element;
 mod snippets;
 mod special;
 mod stores;
 mod template;
 
 pub(crate) use builder::Builder;
+pub(crate) use module::lower_module;
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{BindingIdentifier, Program, Statement};
+use oxc_ast::ast::{Program, Statement};
 use oxc_ast_visit::VisitMut;
 use oxc_semantic::{ReferenceId, SymbolId};
 use oxc_span::{GetSpan, SPAN, SourceType};
@@ -69,7 +79,7 @@ pub fn lower_with_plan<'o>(
 ) -> Result<Program<'o>, Diagnostic> {
     let validated = validate(input, res)?;
     let identity = crate::OutputIdentity::build(&input.component);
-    let stylesheet = if validated.is_custom_element() && target == Target::Client {
+    let stylesheet = if validated.embeds_stylesheet(target) {
         crate::stylesheet::scoped_stylesheet_with_mode(
             &input.component,
             an,
@@ -150,6 +160,7 @@ pub(crate) struct Lowering<'context, 'source> {
 #[derive(Debug)]
 pub(crate) struct ValidatedOptions {
     custom_element: Option<custom_element::CustomElement>,
+    stylesheet_injected: bool,
     /// The references to a rest prop that read `$$props` instead (upstream's `rest_prop` read).
     rest_reads: FxHashSet<ReferenceId>,
     /// The top-level snippets declared beside the component.
@@ -158,9 +169,33 @@ pub(crate) struct ValidatedOptions {
     stores: Vec<String>,
 }
 
+/// Upstream's `const $$css = { hash, code }`, when `target`'s module adds the stylesheet itself.
+fn embedded_stylesheet<'o>(
+    b: &Builder<'o>,
+    facts: &Lowering<'_, 'o>,
+    target: Target,
+) -> Option<Statement<'o>> {
+    let code = facts
+        .stylesheet
+        .filter(|_| facts.validated.embeds_stylesheet(target))?;
+    // A component has a stylesheet hash exactly when it has a stylesheet.
+    let hash = facts.identity.stylesheet_hash.as_deref()?;
+    let hash = b.init("hash", b.string(hash));
+    Some(b.const_("$$css", b.object([hash, b.init("code", b.string(code))])))
+}
+
 impl ValidatedOptions {
-    pub(crate) const fn is_custom_element(&self) -> bool {
-        self.custom_element.is_some()
+    /// Upstream `inject_styles`: no stylesheet file, and the minified stylesheet in the module.
+    pub(crate) const fn injects_stylesheet(&self) -> bool {
+        self.stylesheet_injected || self.custom_element.is_some()
+    }
+
+    /// Whether `target`'s module adds the stylesheet; the server never adds a custom element's.
+    pub(crate) const fn embeds_stylesheet(&self, target: Target) -> bool {
+        match target {
+            Target::Client => self.injects_stylesheet(),
+            Target::Server => self.stylesheet_injected && self.custom_element.is_none(),
+        }
     }
 }
 
@@ -168,21 +203,44 @@ pub(crate) fn validate(
     input: &CompileInput<'_>,
     res: &Resolution,
 ) -> Result<ValidatedOptions, Diagnostic> {
+    validate_erased_by(input, res, Erasure::Svelte)
+}
+
+/// Who erases the types before upstream analyzes the source.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Erasure {
+    /// Upstream's own, which rejects a TypeScript feature that has a runtime meaning.
+    Svelte,
+    /// TypeScript's emit, as a bundler runs it on a `.svelte.ts` module.
+    TypeScript,
+}
+
+pub(crate) fn validate_erased_by(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    erasure: Erasure,
+) -> Result<ValidatedOptions, Diagnostic> {
     // Acorn rejects at parse time what oxc's semantic checker finds after the parser.
     if let Some(error) = res.syntax_error() {
         return Err(error.clone());
     }
-    let custom_element = special::validate(input)?;
+    let special::SvelteOptions {
+        custom_element,
+        stylesheet_injected,
+    } = special::validate(input)?;
     let names = stores::Names::new(input, res);
     validation::check_analysis(input, res, &names, snippets::errors(input, res))?;
     let hoistable = snippets::hoistable(input, res, &names);
     snippets::check_exports(input, res, &hoistable)?;
+    const_cycles::check(input, res)?;
     coverage::check(input, res)?;
-    validation::check_typescript(input)?;
-    check_slots(res)?;
+    if erasure == Erasure::Svelte {
+        validation::check_typescript(input)?;
+    }
     let rest_reads = rest_reads::build(res, custom_element.is_some());
     Ok(ValidatedOptions {
         custom_element,
+        stylesheet_injected,
         rest_reads,
         hoistable,
         stores: names.subscriptions(res),
@@ -192,13 +250,16 @@ pub(crate) fn validate(
 pub(crate) struct Prepared<'c, 'o> {
     names: names::Names,
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
+    binding_groups: binding_groups::BindingGroups,
     /// The module script, imports included. Upstream places it apart from `hoisted`, and the
     /// client and server place it differently.
     module: Vec<Statement<'o>>,
     hoisted: Vec<Statement<'o>>,
     instance: Vec<Statement<'o>>,
+    /// Upstream `analysis.props_id`, which each target declares first in the component.
+    props_id: Option<String>,
     /// The names the instance script exports, in source order.
-    exports: Vec<&'o BindingIdentifier<'o>>,
+    exports: Vec<script::Export<'o>>,
     custom_element: Option<&'c custom_element::CustomElement>,
     /// Upstream `analysis.name`: the component name, renamed if the source declares it.
     component_name: String,
@@ -231,5 +292,4 @@ use template::{
     event_attribute, has_dependency, is_behaviour, is_directive, is_dom_property,
     is_load_error_element, synthetic_value,
 };
-pub(crate) use validation::check_foreign_element;
-use validation::{check_runes, check_slots};
+use validation::{check_runes, uses_slots};

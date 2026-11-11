@@ -18,7 +18,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             value = b.logical(value, LogicalOperator::Coalesce, b.string(""));
         }
         let title = b.member(b.member(b.id("$"), "document"), "title");
-        let statement = b.stmt(b.assign_member(title, value));
+        let statement = b.statement(b.assign_member(title, value));
         let (parameters, sync) = memo.into_effect(b);
         let callback = b.arrow_block(parameters, [statement], false);
         let method = if has_state {
@@ -28,6 +28,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         lists
             .after
-            .push(b.stmt(b.runtime_some(method, vec![Some(callback), sync])));
+            .push(b.statement(b.runtime_some(method, vec![Some(callback), sync])));
     }
 }

@@ -2,8 +2,9 @@ use oxc_ast::ast::{Expression, ObjectPropertyKind};
 
 use super::escaped_text;
 use crate::lower::builder::Runtime;
+use crate::lower::is_custom_element_node;
 use crate::lower::server::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, Piece, ServerCompilationContext,
+    Attribute, AttributeValue, CompilerNodeIdentifier, NodeKind, Piece, ServerCompilationContext,
     capture_event, capture_load_events, event_attribute, is_behaviour, is_directive,
     push_captured_events,
 };
@@ -47,13 +48,16 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         for a in list {
             let raw_name = a.name.text(self.source_text);
             match a.value {
-                AttributeValue::Bind(_) if raw_name == "this" => {
-                    continue;
-                }
                 AttributeValue::Bind(e) => {
-                    let value = self.expression(e);
-                    let name = raw_name.to_ascii_lowercase();
-                    props.push(b.init(&name, value));
+                    // `prepare_element_spread_object` keeps every binding.
+                    let value = if all {
+                        Some((raw_name.to_ascii_lowercase(), self.bound(e)))
+                    } else {
+                        self.bound_value(tag, list, a)
+                    };
+                    if let Some((name, value)) = value {
+                        props.push(b.init(&name, value));
+                    }
                     continue;
                 }
                 AttributeValue::Use { .. } => {
@@ -76,7 +80,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                     continue;
                 }
                 _ if all => {}
-                _ if raw_name == "value" && tag == "select" => continue,
+                _ if raw_name == "value" && matches!(tag, "select" | "textarea") => continue,
                 _ if event_attribute(self.source_text, a).is_some() => {
                     capture_event(&mut events, tag, raw_name);
                     continue;
@@ -86,8 +90,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 }
                 _ => {}
             }
-            let mut name = if self.plan.namespace(identifier) == crate::render_plan::Namespace::Html
-            {
+            let mut name = if self.plan.named(identifier) == crate::render_plan::Namespace::Html {
                 raw_name.to_ascii_lowercase()
             } else {
                 raw_name.to_owned()
@@ -98,7 +101,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             let trim = matches!(name.as_str(), "class" | "style");
             let value = match &a.value {
                 AttributeValue::Static(v) => b.string(&escaped_text(v, trim)),
-                _ => self.attribute_value(a, trim, raw_name == "class"),
+                // `prepare_element_spread_object` writes a class as it is, without `clsx`.
+                _ => self.attribute_value(a, trim, raw_name == "class" && !all),
             };
             props.push(b.init(&name, value));
         }
@@ -115,11 +119,12 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         }
         let object = b.object(props);
         let classes = (!class_directives.is_empty()).then(|| {
-            b.object(
-                class_directives
-                    .iter()
-                    .map(|&(name, e)| b.init(name, self.expression(e))),
-            )
+            b.object(class_directives.iter().map(|&(name, e)| {
+                // Upstream writes `class:x={x}` as the bare name, unread.
+                let bare = matches!(self.javascript.get_expression(e).get_inner_expression(),
+                            Expression::Identifier(id) if id.name == name);
+                b.init(name, if bare { b.id(name) } else { self.expression(e) })
+            }))
         });
         let hash = if self.an.scoped[identifier] {
             self.identity.stylesheet_hash.clone()
@@ -127,15 +132,27 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             None
         };
         let hash = hash.map(|h| b.string(&h));
-        let flags = if self.plan.namespace(identifier) != crate::render_plan::Namespace::Html {
+        let flags = self.spread_flags(identifier, tag);
+        let flags = (flags != 0).then(|| b.number(f64::from(flags)));
+        let styles = self.spread_styles(&style_directives);
+        (vec![Some(object), hash, classes, styles, flags], events)
+    }
+}
+
+impl ServerCompilationContext<'_, '_> {
+    /// Upstream `prepare_element_spread`'s flags.
+    fn spread_flags(&self, identifier: CompilerNodeIdentifier, tag: &str) -> u32 {
+        let tree = self.compiler_syntax_tree;
+        let custom = matches!(&tree.node(identifier).kind,
+            NodeKind::Element(el) if is_custom_element_node(tree, self.source_text, el));
+        if self.plan.named(identifier) != crate::render_plan::Namespace::Html {
             ELEMENT_IS_NAMESPACED | ELEMENT_PRESERVE_ATTRIBUTE_CASE
+        } else if custom {
+            ELEMENT_PRESERVE_ATTRIBUTE_CASE
         } else if tag == "input" {
             ELEMENT_IS_INPUT
         } else {
             0
-        };
-        let flags = (flags != 0).then(|| b.number(f64::from(flags)));
-        let styles = self.spread_styles(&style_directives);
-        (vec![Some(object), hash, classes, styles, flags], events)
+        }
     }
 }

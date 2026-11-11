@@ -12,12 +12,22 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         for item in items {
             match item {
                 Item::Text { .. } | Item::Expression(_) => sequence.push(item),
+                Item::Comment => {
+                    self.flush(&mut sequence, template);
+                    template.push(Piece::Text("<!---->".into()));
+                }
                 Item::Node(identifier) => {
                     self.flush(&mut sequence, template);
                     match self.compiler_syntax_tree.node(*identifier).kind {
                         NodeKind::Element(_) => self.element(*identifier, template)?,
                         NodeKind::If { .. } => self.if_block(*identifier, template)?,
                         NodeKind::Each(_) => self.each_block(*identifier, template)?,
+                        NodeKind::Key { .. } => self.key_block(*identifier, template)?,
+                        NodeKind::Await(_) => self.await_block(*identifier, template)?,
+                        // Upstream `HtmlTag` (server).
+                        NodeKind::Html { expression } => template.push(Piece::Expression(
+                            self.b.runtime("html", [self.expression(expression)]),
+                        )),
                         NodeKind::Render { .. } => self.render_tag(*identifier, false, template),
                         _ => unreachable!("clean_nodes keeps only elements and blocks as nodes"),
                     }
@@ -53,7 +63,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                         quasis.push(String::new());
                     }
                 }
-                Item::Node(_) => unreachable!("sequences hold text and expressions"),
+                Item::Node(_) | Item::Comment => {
+                    unreachable!("sequences hold text and expressions")
+                }
             }
         }
         template.push(Piece::Template(quasis, expressions));

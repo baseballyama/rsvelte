@@ -1,6 +1,6 @@
 import type { Artifact } from '../types.ts';
 
-interface Position {
+export interface Position {
 	line: number;
 	column: number;
 	character: number;
@@ -13,12 +13,23 @@ interface Diagnostic {
 	end?: Position;
 }
 
-const position = (p?: Position) =>
-	p ? { line: p.line, column: p.column, character: p.character } : null;
+/** Where a position of the compiled text is in the source, when the compiler read a derived text. */
+type Locate = (p: Position) => Position;
+
+const position = (p: Position | undefined, locate: Locate) => {
+	if (!p) return null;
+	const { line, column, character } = locate(p);
+	return { line, column, character };
+};
 
 /** Warnings and errors keep what a user sees and drop the rendered frame. */
-function diagnostic(d: Diagnostic) {
-	return { code: d.code, message: d.message, start: position(d.start), end: position(d.end) };
+function diagnostic(d: Diagnostic, locate: Locate) {
+	return {
+		code: d.code,
+		message: d.message,
+		start: position(d.start, locate),
+		end: position(d.end, locate),
+	};
 }
 
 interface CompileLike {
@@ -28,7 +39,10 @@ interface CompileLike {
 }
 
 /** The oracle's output for one variant, as artifacts. A thrown compile error is itself the expected result. */
-export function compileArtifacts(fn: () => CompileLike): Record<string, Artifact> {
+export function compileArtifacts(
+	fn: () => CompileLike,
+	locate: Locate = (p) => p,
+): Record<string, Artifact> {
 	let result: CompileLike;
 	try {
 		result = fn();
@@ -36,7 +50,7 @@ export function compileArtifacts(fn: () => CompileLike): Record<string, Artifact
 		if (!(e as Diagnostic).code) throw e;
 		return {
 			error: {
-				text: JSON.stringify(diagnostic(e as Diagnostic), null, '\t') + '\n',
+				text: JSON.stringify(diagnostic(e as Diagnostic, locate), null, '\t') + '\n',
 				ext: 'error.json',
 				compare: 'json',
 			},
@@ -48,7 +62,12 @@ export function compileArtifacts(fn: () => CompileLike): Record<string, Artifact
 	if (result.css?.code) out.css = { text: result.css.code, ext: 'css', compare: 'text' };
 	if (result.warnings.length) {
 		out.warnings = {
-			text: JSON.stringify(result.warnings.map(diagnostic), null, '\t') + '\n',
+			text:
+				JSON.stringify(
+					result.warnings.map((w) => diagnostic(w, locate)),
+					null,
+					'\t',
+				) + '\n',
 			ext: 'warnings.json',
 			compare: 'json',
 		};

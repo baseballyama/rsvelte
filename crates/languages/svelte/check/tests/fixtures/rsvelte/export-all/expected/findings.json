@@ -1,0 +1,38 @@
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'm' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 22
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'mod' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 15
+		},
+		"end": {
+			"line": 2,
+			"character": 20
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'mod2' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 27
+		}
+	}
+]

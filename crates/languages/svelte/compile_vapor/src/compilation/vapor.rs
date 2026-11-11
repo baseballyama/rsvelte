@@ -80,7 +80,7 @@ fn compile_in(t: &Translation, res: &Resolution, allocator: &Allocator) -> Strin
         let instance = e.call("getCurrentInstance", []);
         let [hash, stylesheet] = e.stylesheet_values();
         let call = b.call(b.id("$$inject_styles"), [instance, hash, stylesheet]);
-        body.push(b.stmt(call));
+        body.push(b.statement(call));
     }
     let result = if t.server {
         e.server_setup(&mut body, &mut fields)
@@ -221,13 +221,13 @@ impl<'a, 'o> Emitter<'a, 'o> {
 
     /// `() => body`.
     fn arrow(&self, body: Expression<'o>) -> Expression<'o> {
-        self.b.arrow(self.b.params([]), body)
+        self.b.arrow(self.b.parameters([]), body)
     }
 
     /// `(() => { statements })()`.
     fn run(&self, statements: Vec<Statement<'o>>, is_async: bool) -> Expression<'o> {
         let b = self.b;
-        b.call(b.arrow_block(b.params([]), statements, is_async), [])
+        b.call(b.arrow_block(b.parameters([]), statements, is_async), [])
     }
 
     fn transition_branch(&self, render: Expression<'o>) -> Expression<'o> {
@@ -299,7 +299,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
             body.effect(order, update, reads);
         } else {
             let effect = self.call("renderEffect", [self.arrow(update)]);
-            body.push(self.b.stmt(effect));
+            body.push(self.b.statement(effect));
         }
     }
 

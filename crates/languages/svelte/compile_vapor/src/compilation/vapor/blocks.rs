@@ -19,7 +19,7 @@ impl<'o> Emitter<'_, 'o> {
             .extend(["VaporFragment", "remove", "queuePostFlushCb"]);
         let mut template = Body::default();
         let nodes = self.list(root, &mut template);
-        let render = self.render_block(template, b.array(nodes), b.params([]));
+        let render = self.render_block(template, b.array(nodes), b.parameters([]));
         b.call(self.transition_branch(render), [])
     }
 
@@ -75,7 +75,7 @@ impl<'o> Emitter<'_, 'o> {
             });
         let mut body = Body::default();
         let node = self.loop_or_node(first, &mut body);
-        let branch = self.render_block(body, node, b.params([]));
+        let branch = self.render_block(body, node, b.parameters([]));
         let branch = self.transition_branch(branch);
         let Some(test) = test else { return branch };
         let test = self.source(test);

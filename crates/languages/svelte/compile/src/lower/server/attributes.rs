@@ -58,8 +58,18 @@ impl<'o> ServerCompilationContext<'_, 'o> {
 
     /// Upstream `build_attribute_value` for text with `{expression}`s: one template literal.
     pub(super) fn interpolated(&self, parts: &[Part], trim: bool) -> Expression<'o> {
+        self.interpolated_after("", parts, trim)
+    }
+
+    /// [`Self::interpolated`], starting with `prefix`.
+    pub(super) fn interpolated_after(
+        &self,
+        prefix: &str,
+        parts: &[Part],
+        trim: bool,
+    ) -> Expression<'o> {
         let b = self.b;
-        let mut quasis = vec![String::new()];
+        let mut quasis = vec![prefix.to_owned()];
         let mut expressions = Vec::new();
         for p in parts {
             match p {

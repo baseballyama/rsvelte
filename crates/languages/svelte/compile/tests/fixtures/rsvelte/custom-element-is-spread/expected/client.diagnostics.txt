@@ -1,0 +1,4 @@
+warning attribute_avoid_is 2:9-2:22 The "is" attribute is not supported cross-browser and should be avoided
+    https://svelte.dev/e/attribute_avoid_is
+warning attribute_avoid_is 3:9-3:22 The "is" attribute is not supported cross-browser and should be avoided
+    https://svelte.dev/e/attribute_avoid_is

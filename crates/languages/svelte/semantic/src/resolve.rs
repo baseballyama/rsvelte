@@ -120,6 +120,27 @@ pub fn resolve(
     module: Option<ProgramIdentifier>,
     compiler_syntax_tree: &CompilerSyntaxTree,
 ) -> Resolution {
+    resolve_scripts(tree, instance, module, compiler_syntax_tree, true)
+}
+
+/// Analyzes a `.svelte.js` or `.svelte.ts` module, `program` of `tree`. Upstream's
+/// `analyze_module` reads a rune name as the rune even beside a binding of its store's name.
+#[must_use]
+pub fn resolve_module(tree: &Tree, program: ProgramIdentifier) -> Resolution {
+    let template =
+        crate::compiler_syntax_tree::CompilerSyntaxTreeBuilder::new(tree.source_text(), 0, 0)
+            .finish(crate::compiler_syntax_tree::Children::default());
+    resolve_scripts(tree, None, Some(program), &template, false)
+}
+
+/// `stores`: whether a `$name` beside a binding `name` subscribes to it, as in a component.
+fn resolve_scripts(
+    tree: &Tree,
+    instance: Option<ProgramIdentifier>,
+    module: Option<ProgramIdentifier>,
+    compiler_syntax_tree: &CompilerSyntaxTree,
+    stores: bool,
+) -> Resolution {
     let mut scopes = FxHashMap::default();
     let mut names = TemplateNames::default();
     let template = walk::Recorded::new(compiler_syntax_tree);
@@ -174,7 +195,11 @@ pub fn resolve(
             instance.map(|p| tree.get_program(p)),
             &template,
         );
-        let subscribed = runes::subscribed(semantic, instance_scope);
+        let subscribed = if stores {
+            runes::subscribed(semantic, instance_scope)
+        } else {
+            Vec::new()
+        };
         let bindings =
             classify::classify(semantic, &subscribed, &counts, compiler_syntax_tree, &names);
         let uses_props =

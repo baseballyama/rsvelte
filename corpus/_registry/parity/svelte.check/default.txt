@@ -1,4 +1,4 @@
-# svelte.check/default: 14427 match
+# svelte.check/default: 14428 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/animotion/src/lib/components/embed.svelte	refused
 svelte/animotion/src/lib/components/notes.svelte	refused
@@ -168,7 +168,6 @@ svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/database
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/save.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/+page.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	refused
-svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/indexes/+page.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/indexes/createIndex.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/settings/displayName.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/delete.svelte	refused

@@ -1,0 +1,1 @@
+error check_unsupported 2:6-2:11 not supported by the type-check projection yet: untyped props object contracts

@@ -6,7 +6,8 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_span::SPAN;
 
-use super::{BindingKind, Names, ScriptRewrite, is_prop_source, should_proxy_read};
+use super::writes::is_prop_source;
+use super::{BindingKind, Names, ScriptRewrite, should_proxy_read};
 use crate::lower::builder::Runtime;
 use crate::lower::javascript::{is_simple_expression, prop_alias};
 
@@ -17,13 +18,19 @@ pub(super) fn server_props_pattern<'o>(
     pattern: &BindingPattern<'_>,
 ) -> BindingPattern<'o> {
     let b = rw.b;
+    // A component that reads `$$slots` declares it, so the pattern takes another name.
+    let slots = if crate::lower::uses_slots(rw.res) {
+        "$$slots_"
+    } else {
+        "$$slots"
+    };
     let hidden = || {
-        ["$$slots", "$$events"].map(|name| {
+        [("$$slots", slots), ("$$events", "$$events")].map(|(key, name)| {
             BindingProperty::new(
                 SPAN,
-                PropertyKey::new_static_identifier(SPAN, name, b),
+                PropertyKey::new_static_identifier(SPAN, key, b),
                 b.binding(name),
-                true,
+                key == name,
                 false,
                 b,
             )
@@ -68,7 +75,7 @@ pub(super) fn lower_client_props<'o>(
     pattern: &BindingPattern<'_>,
     out: &mut Vec<VariableDeclarator<'o>>,
     hoisted: &mut Vec<Statement<'o>>,
-    names: &mut Names,
+    names: &Names,
 ) {
     let (b, res) = (rw.b, rw.res);
     let mut seen: Vec<String> = ["$$slots", "$$events", "$$legacy"]
@@ -142,7 +149,7 @@ pub(super) fn lower_client_props<'o>(
                 {
                     call.unbox().callee
                 }
-                initializer => b.arrow(b.params([]), initializer),
+                initializer => b.arrow(b.parameters([]), initializer),
             }
         });
         let mut arguments = vec![b.id("$$props"), key_argument, b.number(f64::from(flags))];

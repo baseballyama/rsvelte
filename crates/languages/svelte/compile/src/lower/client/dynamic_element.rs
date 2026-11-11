@@ -5,6 +5,7 @@ use super::{
     NodeKind, R, is_behaviour,
 };
 use crate::lower::builder::Runtime;
+use crate::lower::template::DynamicTag;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn dynamic_element(
@@ -21,16 +22,14 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         let attributes = tree.attributes(element.attributes);
         let tag = &tree.attributes[element.this.expect("dynamic tag is validated")];
-        let tag = match &tag.value {
-            AttributeValue::Static(tag) => b.string(tag),
-            value => self.expression(
-                super::super::template::single_expression(value).expect("a validated dynamic tag"),
-            ),
+        let tag = match super::super::template::dynamic_tag(self.source_text, &tag.value) {
+            DynamicTag::Text(tag) => b.string(&tag),
+            DynamicTag::Expression(e) => self.expression(e),
         };
         let get_tag = b.thunk(tag);
         let name = self.names.generate("$$element");
         let mut inner = Lists::default();
-        let directives = self.element_directives(attributes, "svelte:element", &name);
+        let directives = self.element_directives(attributes, "svelte:element", &name, None);
         inner.initializer.extend(directives.initializer);
         let classes: Vec<_> = attributes
             .iter()
@@ -66,7 +65,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     &name,
                     false,
                     &mut inner,
-                )?;
+                );
             }
         }
         if first.is_none() && (!classes.is_empty() || self.an.scoped[identifier]) {
@@ -87,9 +86,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         body.extend(inner.after);
         body.extend(self.fragment(element.children)?);
         let callback = (!body.is_empty())
-            .then(|| b.arrow_block(b.params([name.as_str(), "$$anchor"]), body, false));
+            .then(|| b.arrow_block(b.parameters([name.as_str(), "$$anchor"]), body, false));
         let namespace = self.dynamic_namespace(attributes);
-        let foreign = self.plan.namespace(identifier) != crate::render_plan::Namespace::Html;
+        let foreign = self.plan.named(identifier) != crate::render_plan::Namespace::Html;
         let call = b.runtime_some(
             "element",
             vec![
@@ -101,7 +100,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             ],
         );
         frag.tpl.push_comment();
-        lists.initializer.push(b.stmt(call));
+        lists.initializer.push(b.statement(call));
         Ok(())
     }
 
@@ -115,7 +114,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 super::super::template::single_expression(&a.value)
                     .expect("a namespace expression"),
             );
-            self.b.arrow(self.b.params([]), value)
+            self.b.arrow(self.b.parameters([]), value)
         })
     }
 }

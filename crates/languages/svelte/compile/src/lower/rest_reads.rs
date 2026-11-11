@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::BindingPattern;
-use oxc_semantic::ReferenceId;
+use oxc_semantic::{ReferenceId, SymbolId};
 use rustc_hash::FxHashSet;
 
 use super::javascript::prop_alias;
@@ -23,11 +23,7 @@ pub(super) fn build(res: &Resolution, custom_element: bool) -> FxHashSet<Referen
         if custom_element {
             keys.insert(Cow::Borrowed("$$host"));
         }
-        if let AstKind::VariableDeclarator(declarator) = res.declaration(symbol)
-            && let BindingPattern::ObjectPattern(pattern) = &declarator.id
-        {
-            keys.extend(pattern.properties.iter().map(|p| prop_alias(&p.key)));
-        }
+        keys.extend(pattern_keys(res, symbol));
         for &reference in scoping.get_resolved_reference_ids(symbol) {
             let node = scoping.get_reference(reference).node_id();
             // Upstream erases types first: `(rest as T).name` reads `rest.name`.
@@ -53,6 +49,25 @@ pub(super) fn build(res: &Resolution, custom_element: bool) -> FxHashSet<Referen
         }
     }
     reads
+}
+
+/// Whether `rest.key`, which the transform builds from the rest prop `symbol`, reads `$$props`:
+/// upstream's `exclude_props` holds only the keys the `$props()` pattern names.
+pub(super) fn reads_props(res: &Resolution, symbol: SymbolId, key: &str) -> bool {
+    res.binding(symbol).kind == BindingKind::RestProperty
+        && !pattern_keys(res, symbol).any(|named| named == key)
+}
+
+/// The keys the `$props()` pattern that declares the rest prop `symbol` names.
+fn pattern_keys(res: &Resolution, symbol: SymbolId) -> impl Iterator<Item = Cow<'_, str>> {
+    let properties = match res.declaration(symbol) {
+        AstKind::VariableDeclarator(declarator) => match &declarator.id {
+            BindingPattern::ObjectPattern(pattern) => pattern.properties.as_slice(),
+            _ => &[],
+        },
+        _ => &[],
+    };
+    properties.iter().map(|p| prop_alias(&p.key))
 }
 
 const fn is_typescript_wrapper(kind: AstKind<'_>) -> bool {

@@ -1,12 +1,16 @@
 //! What a component call passes, in upstream `build_component`'s order. The targets differ only
 //! in how they spell each prop, the children callback and the call.
 
-use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, ElementKind, Snippet};
+use oxc_allocator::ArenaBox;
+use oxc_ast::ast::{Expression, FormalParameters, ObjectPropertyKind, PropertyKind, Statement};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Children, Element, ElementKind, MetadataTag, Snippet,
+};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
 use super::javascript::member_root;
 use super::snippets::{is_dynamic_render, render_call};
+use super::template::{is_directive, single_expression};
 use super::{
     Attribute, AttributeValue, BindingKind, Builder, CompilerNodeIdentifier, CompilerSyntaxTree,
     Diagnostic, Item, NodeKind, Resolution, Target,
@@ -20,24 +24,62 @@ pub(super) enum Prop<'t> {
     Spread(ExpressionIdentifier),
     /// `bind:name={target}`: a getter and a setter.
     Bind(&'t Attribute, ExpressionIdentifier),
+    /// `bind:name={get, set}`, whose functions the parent declares.
+    Accessors(&'t Attribute, &'t Expression<'t>, &'t Expression<'t>),
+    /// `--name={value}`: a CSS custom property set around the component, not passed to it.
+    CustomProperty(&'t Attribute),
+    /// `{@attach value}`, which the client passes under a key of its own and the server drops.
+    Attach(ExpressionIdentifier),
 }
 
-/// Values and spreads as written, then bindings, so that a spread cannot overwrite a binding.
-/// `bind:this` is no prop; see [`bind_this`].
+/// Values, spreads and getter-and-setter bindings as written, then the other bindings, so that a
+/// spread cannot overwrite them. `bind:this` is no prop; see [`bind_this`].
 pub(super) fn props<'t>(
     attributes: &'t [Attribute],
     source_text: &'t str,
+    javascript: &'t Tree,
 ) -> impl Iterator<Item = Prop<'t>> {
-    let values = attributes.iter().filter_map(|a| match a.value {
-        AttributeValue::Bind(_) => None,
+    let accessors = |e| match javascript.get_expression(e).get_inner_expression() {
+        Expression::SequenceExpression(s) if let [get, set] = s.expressions.as_slice() => {
+            Some((get, set))
+        }
+        _ => None,
+    };
+    let values = attributes.iter().filter_map(move |a| match a.value {
+        AttributeValue::Bind(e) if a.name.text(source_text) != "this" => {
+            accessors(e).map(|(get, set)| Prop::Accessors(a, get, set))
+        }
+        AttributeValue::Bind(_) | AttributeValue::On { .. } | AttributeValue::Let(_) => None,
         AttributeValue::Spread(e) => Some(Prop::Spread(e)),
+        AttributeValue::Attach(e) => Some(Prop::Attach(e)),
+        _ if a.name.text(source_text).starts_with("--") => Some(Prop::CustomProperty(a)),
         _ => Some(Prop::Value(a)),
     });
-    let bindings = attributes.iter().filter_map(|a| match a.value {
-        AttributeValue::Bind(e) if a.name.text(source_text) != "this" => Some(Prop::Bind(a, e)),
+    let bindings = attributes.iter().filter_map(move |a| match a.value {
+        AttributeValue::Bind(e) if a.name.text(source_text) != "this" && accessors(e).is_none() => {
+            Some(Prop::Bind(a, e))
+        }
         _ => None,
     });
     values.chain(bindings)
+}
+
+/// Upstream's binding to a getter and a setter: `var bind_get = get; var bind_set = set;` in
+/// the parent, read by the prop's accessors.
+pub(super) fn push_accessors<'o>(
+    b: &Builder<'o>,
+    parts: &mut Vec<Entry<'o>>,
+    declarations: &mut Vec<Statement<'o>>,
+    name: &str,
+    (get, set): (Expression<'o>, Expression<'o>),
+    names: &super::names::Names,
+) {
+    let get_id = names.generate("bind_get");
+    let set_id = names.generate("bind_set");
+    declarations.push(b.var(&get_id, get));
+    declarations.push(b.var(&set_id, set));
+    let setter = vec![b.statement(b.call(b.id(&set_id), [b.id("$$value")]))];
+    push_binding(b, parts, name, b.call(b.id(&get_id), []), setter);
 }
 
 /// The target of a component's `bind:this`, which the client binds to the instance.
@@ -62,6 +104,45 @@ pub(super) fn is_dynamic(res: &Resolution, reference: &Expression<'_>) -> bool {
         })
 }
 
+/// What a component element calls.
+#[derive(Clone, Copy)]
+pub(super) enum Callee {
+    /// A name or member chain read once.
+    Static(ExpressionIdentifier),
+    /// A component that may change: a dynamic name, or `<svelte:component this>`.
+    Dynamic(ExpressionIdentifier),
+    /// `<svelte:self>`: the component's own function.
+    OwnFunction,
+}
+
+pub(super) fn callee(
+    compiler_syntax_tree: &CompilerSyntaxTree,
+    javascript: &Tree,
+    res: &Resolution,
+    identifier: CompilerNodeIdentifier,
+) -> Callee {
+    let NodeKind::Element(element) = &compiler_syntax_tree.node(identifier).kind else {
+        unreachable!("a component element")
+    };
+    match element.kind {
+        ElementKind::Metadata(Some(MetadataTag::SelfRef)) => Callee::OwnFunction,
+        ElementKind::Metadata(Some(MetadataTag::Component)) => {
+            let this = element.this.expect("validation checked `this`");
+            let this = &compiler_syntax_tree.attributes[this].value;
+            Callee::Dynamic(single_expression(this).expect("validation checked `this`"))
+        }
+        _ => {
+            let reference = reference(compiler_syntax_tree, identifier);
+            let expression = javascript.get_expression(reference).get_inner_expression();
+            if is_dynamic(res, expression) {
+                Callee::Dynamic(reference)
+            } else {
+                Callee::Static(reference)
+            }
+        }
+    }
+}
+
 /// The component node's reference: its name as an identifier or a member chain.
 pub(super) fn reference(
     compiler_syntax_tree: &CompilerSyntaxTree,
@@ -79,12 +160,13 @@ pub(super) enum Standalone {
     Render(CompilerNodeIdentifier),
 }
 
-/// Upstream `is_standalone`: the static component or render tag that is a fragment's only item
-/// needs no template.
+/// Upstream `is_standalone`: the static component without CSS custom properties, or the render
+/// tag, that is a fragment's only item needs no template.
 pub(super) fn standalone(
     compiler_syntax_tree: &CompilerSyntaxTree,
     javascript: &Tree,
     res: &Resolution,
+    source_text: &str,
     items: &[Item<'_>],
 ) -> Option<Standalone> {
     let &[Item::Node(identifier)] = items else {
@@ -93,6 +175,9 @@ pub(super) fn standalone(
     match &compiler_syntax_tree.node(identifier).kind {
         NodeKind::Element(element)
             if element.kind == ElementKind::Component
+                && !(compiler_syntax_tree.attributes(element.attributes).iter()).any(|a| {
+                    !is_directive(&a.value) && a.name.text(source_text).starts_with("--")
+                })
                 && !is_dynamic(
                     res,
                     javascript
@@ -129,7 +214,7 @@ pub(super) fn push_binding<'o>(
     parts.push(Entry::Property(b.accessor(
         PropertyKind::Set,
         name,
-        b.params(["$$value"]),
+        b.parameters(["$$value"]),
         setter,
     )));
 }
@@ -153,15 +238,56 @@ pub(super) fn child_snippets<'t, 'o>(
     Ok((declarations, names))
 }
 
-/// Each snippet child as a prop of its name, the other children as a callback in the `children`
-/// prop, and `$$slots` so that a `<slot>` in the child renders them; the targets differ only in
-/// the callback's parameters.
+/// A slot's name, its callback's parameters and body.
+pub(super) type SlotCallback<'s, 'o> = (
+    &'s str,
+    ArenaBox<'o, FormalParameters<'o>>,
+    Vec<Statement<'o>>,
+);
+
+/// Where a component's default slot goes.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum DefaultSlot {
+    /// The `children` prop, with `$$slots.default` set so that a `<slot>` renders it.
+    Children,
+    /// `$$slots.default`, because it takes slot props, and a `children` prop that throws.
+    Slot,
+    /// `$$slots.default` beside the `children` prop the component passes itself.
+    BesideChildren,
+}
+
+impl DefaultSlot {
+    pub(super) fn of(
+        tree: &CompilerSyntaxTree,
+        javascript: &Tree,
+        source: &str,
+        component: &Element,
+        target: Target,
+    ) -> Self {
+        let children = tree.attributes(component.attributes).iter().any(|a| {
+            !is_directive(&a.value)
+                && !matches!(a.value, AttributeValue::Spread(_))
+                && a.name.text(source) == "children"
+        });
+        if children {
+            Self::BesideChildren
+        } else if super::lets::default_slot_takes_props(tree, javascript, source, component, target)
+        {
+            Self::Slot
+        } else {
+            Self::Children
+        }
+    }
+}
+
+/// Each snippet child as a prop of its name, the default slot as `default` says, the other slots
+/// in `$$slots`, and `$$slots` so that a `<slot>` in the child renders them all.
 pub(super) fn push_children<'o>(
     b: &Builder<'o>,
     parts: &mut Vec<Entry<'o>>,
     snippets: &[&str],
-    children: Vec<Statement<'o>>,
-    parameters: &[&str],
+    slot_callbacks: Vec<SlotCallback<'_, 'o>>,
+    default: DefaultSlot,
 ) {
     let mut slots = Vec::new();
     for &name in snippets {
@@ -170,10 +296,21 @@ pub(super) fn push_children<'o>(
         let slot = if name == "children" { "default" } else { name };
         slots.push(b.init(slot, b.boolean(true)));
     }
-    if !children.is_empty() {
-        let callback = b.arrow_block(b.params(parameters.iter().copied()), children, false);
-        parts.push(Entry::Property(b.init("children", callback)));
-        slots.push(b.init("default", b.boolean(true)));
+    for (name, parameters, body) in slot_callbacks {
+        if body.is_empty() {
+            continue;
+        }
+        let callback = b.arrow_block(parameters, body, false);
+        if name == "default" && default == DefaultSlot::Children {
+            parts.push(Entry::Property(b.init("children", callback)));
+            slots.push(b.init("default", b.boolean(true)));
+        } else {
+            if name == "default" && default == DefaultSlot::Slot {
+                let throws = b.member(b.id("$"), "invalid_default_snippet");
+                parts.push(Entry::Property(b.init("children", throws)));
+            }
+            slots.push(b.init(name, callback));
+        }
     }
     if !slots.is_empty() {
         parts.push(Entry::Property(b.init("$$slots", b.object(slots))));

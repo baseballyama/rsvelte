@@ -1,9 +1,11 @@
-use oxc_ast::ast::Expression;
+use oxc_ast::ast::{Expression, Statement};
 
+use crate::lower::bindings::needs_special_value;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
-    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, R,
-    event_attribute, is_behaviour, is_directive, normalize_attribute, unsupported,
+    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, Memo,
+    NodeKind, R, event_attribute, is_behaviour, is_custom_element_node, is_directive,
+    normalize_attribute, unsupported,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -25,8 +27,14 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .iter()
             .filter(|a| matches!(a.value, AttributeValue::Style { .. }))
             .collect();
-        let html = self.plan.namespace(identifier) == crate::render_plan::Namespace::Html;
-        for a in attributes {
+        let in_markup = self.plan.named(identifier) == crate::render_plan::Namespace::Html;
+        let defaults = self.defaults(identifier, tag, attributes);
+        let custom_element = self.is_custom_element(identifier);
+        let is = self.template_is(identifier, attributes);
+        for a in attributes
+            .iter()
+            .filter(|&a| !is.is_some_and(|is| std::ptr::eq(is, a)))
+        {
             if is_behaviour(&a.value)
                 || matches!(
                     a.value,
@@ -43,13 +51,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 continue;
             }
             // Upstream `get_attribute_name`: svg and MathML keep the name's case.
-            let attribute_name = if html {
+            let attribute_name = if in_markup {
                 normalize_attribute(raw_name)
             } else {
                 raw_name.to_owned()
             };
             // `select_value` sets these once the options exist.
-            if (matches!(tag, "option" | "select") && raw_name == "value")
+            if (raw_name == "value" && needs_special_value(self.source_text, tag, attributes))
                 || (tag == "select" && attribute_name == "defaultValue")
             {
                 continue;
@@ -59,7 +67,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 AttributeValue::Static(v) => Some(Some(v.to_string())),
                 _ => None,
             };
-            if !crate::lower::cannot_be_set_statically(raw_name)
+            if !custom_element
+                && !crate::lower::cannot_be_set_statically(raw_name)
+                && (attribute_name != "value" || tag != "textarea")
                 && (attribute_name != "class" || class_directives.is_empty())
                 && (attribute_name != "style" || style_directives.is_empty())
                 && let Some(value) = literal
@@ -75,14 +85,17 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     l,
                 );
             } else if attribute_name == "autofocus" {
-                return unsupported("a dynamic `autofocus` attribute", a.span);
+                l.initializer.push(self.autofocus(node, a)?);
             } else if attribute_name == "style" {
-                self.set_style(node, Some(a), &style_directives, &mut frag.memo, l)?;
+                self.set_style(node, Some(a), &style_directives, &mut frag.memo, l);
+            } else if custom_element {
+                l.initializer
+                    .push(self.custom_element_data(node, raw_name, a));
             } else {
                 let (value, has_state) = self.attribute_value(a, &mut frag.memo, false);
-                let s = self
-                    .b
-                    .stmt(self.attribute_update(node, &attribute_name, value));
+                let s =
+                    self.b
+                        .statement(self.attribute_update(node, &attribute_name, value, defaults));
                 if has_state {
                     l.update.push(s);
                 } else {
@@ -95,7 +108,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             !matches!(a.value, AttributeValue::Class(_))
                 && a.name.text(self.source_text).eq_ignore_ascii_case("class")
         });
-        if !has_class && !class_directives.is_empty() {
+        // A custom element takes no attribute from the template, so it sets its scoping class too.
+        if !has_class
+            && (!class_directives.is_empty() || custom_element && self.an.scoped[identifier])
+        {
             self.set_class(identifier, node, None, &class_directives, &mut frag.memo, l);
         } else if !has_class && self.an.scoped[identifier] {
             self.static_attribute(frag, identifier, "class", "class", Some(String::new()));
@@ -105,9 +121,60 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("style")
         });
         if !has_style && !style_directives.is_empty() {
-            self.set_style(node, None, &style_directives, &mut frag.memo, l)?;
+            self.set_style(node, None, &style_directives, &mut frag.memo, l);
         }
         Ok(())
+    }
+
+    fn is_custom_element(&self, identifier: CompilerNodeIdentifier) -> bool {
+        let tree = self.compiler_syntax_tree;
+        matches!(&tree.node(identifier).kind,
+            NodeKind::Element(el) if is_custom_element_node(tree, self.source_text, el))
+    }
+
+    /// Upstream puts a static `is` in the template, where the parser needs it, and nowhere else.
+    pub(in crate::lower::client) fn template_is<'a>(
+        &self,
+        identifier: CompilerNodeIdentifier,
+        attributes: &'a [Attribute],
+    ) -> Option<&'a Attribute> {
+        if self.plan.namespace(identifier) != crate::render_plan::Namespace::Html {
+            return None;
+        }
+        attributes.iter().find(|a| {
+            a.name.text(self.source_text) == "is" && matches!(a.value, AttributeValue::Static(_))
+        })
+    }
+
+    /// Upstream reads an `autofocus` value once, unmemoized, when the element is created.
+    fn autofocus(&self, node: &str, a: &Attribute) -> R<Statement<'o>> {
+        let b = self.b;
+        let value = match &a.value {
+            AttributeValue::Boolean => b.boolean(true),
+            AttributeValue::Static(v) => b.string(v),
+            &(AttributeValue::Expression { expression, .. }
+            | AttributeValue::Shorthand(expression)) => self.expression(expression),
+            _ => return unsupported("an interpolated `autofocus` attribute", a.span),
+        };
+        Ok(b.statement(b.runtime("autofocus", [b.id(node), value])))
+    }
+
+    /// Upstream sets a custom element's attribute as data, each in its own effect, since a
+    /// setter need not be idempotent; the name keeps its case.
+    fn custom_element_data(&self, node: &str, name: &str, a: &Attribute) -> Statement<'o> {
+        let b = self.b;
+        let mut memo = Memo::default();
+        let (value, has_state) = self.attribute_value(a, &mut memo, false);
+        let call = b.runtime(
+            "set_custom_element_data",
+            [b.id(node), b.string(name), value],
+        );
+        if !has_state {
+            return b.statement(call);
+        }
+        let (parameters, values) = memo.into_effect(b);
+        let effect = vec![Some(b.arrow(parameters, call)), values];
+        b.statement(b.runtime_some("template_effect", effect))
     }
 
     fn static_attribute(
@@ -136,11 +203,47 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
     }
 
+    /// Upstream sets a default through the runtime beside the value it would override.
+    fn defaults(
+        &self,
+        identifier: CompilerNodeIdentifier,
+        tag: &str,
+        attributes: &[Attribute],
+    ) -> Defaults {
+        let source_text = self.source_text;
+        let tree = self.compiler_syntax_tree;
+        let attribute = |name| {
+            attributes
+                .iter()
+                .find(|a| !is_directive(&a.value) && a.name.text(source_text) == name)
+        };
+        let content = || {
+            let NodeKind::Element(el) = &tree.node(identifier).kind else {
+                unreachable!("an element")
+            };
+            !tree.children(el.children).is_empty()
+        };
+        Defaults {
+            value: attribute("value").is_some_and(|a| matches!(a.value, AttributeValue::Static(_)))
+                || (tag == "textarea" && content()),
+            checked: attribute("checked")
+                .is_some_and(|a| matches!(a.value, AttributeValue::Boolean)),
+        }
+    }
+
     /// Upstream `build_element_attribute_update`.
-    fn attribute_update(&self, node: &str, name: &str, value: Expression<'o>) -> Expression<'o> {
+    fn attribute_update(
+        &self,
+        node: &str,
+        name: &str,
+        value: Expression<'o>,
+        defaults: Defaults,
+    ) -> Expression<'o> {
         let b = self.b;
         let x = b.id(node);
         match name {
+            "defaultValue" if defaults.value => b.runtime("set_default_value", [x, value]),
+            "defaultChecked" if defaults.checked => b.runtime("set_default_checked", [x, value]),
             "muted" => b.assign_member(b.member(x, "muted"), value),
             "value" => b.runtime("set_value", [x, value]),
             "checked" => b.runtime("set_checked", [x, value]),
@@ -156,4 +259,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
         }
     }
+}
+
+/// Which default upstream sets through the runtime: beside a text `value` (or a `<textarea>`'s
+/// content), and beside a bare `checked`.
+#[derive(Clone, Copy)]
+struct Defaults {
+    value: bool,
+    checked: bool,
 }
