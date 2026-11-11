@@ -57,6 +57,8 @@ impl SvelteRule for NoDomManipulating {
         let component = file.component().expect("a component rule");
         let source = file.source();
         let javascript = &component.javascript;
+        // Analyzed first: until then a node's id is the parser's, not the analysis's.
+        let semantic = file.semantic();
         // The expressions of `bind:this={name}` on HTML elements.
         let mut bound = FxHashSet::default();
         for node in &component.nodes {
@@ -89,7 +91,6 @@ impl SvelteRule for NoDomManipulating {
         if bound.is_empty() {
             return;
         }
-        let semantic = file.semantic();
         let scoping = semantic.scoping();
         let nodes = semantic.nodes();
         let legacy = legacy(file);
@@ -121,13 +122,19 @@ impl SvelteRule for NoDomManipulating {
             let Some(name) = property_name(member_kind) else {
                 continue;
             };
-            let parent = nodes.parent_id(member);
-            if parent == member {
+            // `(foo?.remove)()` calls the chain the member ends.
+            let mut callee = member;
+            let mut parent = nodes.parent_id(member);
+            while parent != callee && matches!(nodes.kind(parent), AstKind::ChainExpression(_)) {
+                callee = parent;
+                parent = nodes.parent_id(parent);
+            }
+            if parent == callee {
                 continue;
             }
             let manipulates = match nodes.kind(parent) {
                 AstKind::CallExpression(call) => {
-                    expression_node(&call.callee) == member && METHODS.contains(&name)
+                    expression_node(&call.callee) == callee && METHODS.contains(&name)
                 }
                 AstKind::AssignmentExpression(assignment) => {
                     assignment.left.span() == member_kind.span() && PROPERTIES.contains(&name)

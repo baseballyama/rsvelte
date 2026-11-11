@@ -55,8 +55,6 @@ impl SvelteRule for NoInnerDeclarations {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         // ESLint's `**/*.cjs` reads a file as CommonJS, a script; every other file is a module.
         let module = Path::new(file.path()).extension() != Some(OsStr::new("cjs"));
-        // TODO(oxc port): the shared rule visits programs only, so it no longer sees the functions
-        // and blocks in template expressions, which upstream checks too.
         rsvelte_typescript_lint::no_inner_declarations(
             file.semantic(),
             &file.programs(),

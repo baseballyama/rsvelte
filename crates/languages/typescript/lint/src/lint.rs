@@ -13,13 +13,63 @@ pub use prefer_const::{PreferConstOptions, ProgramStatements, prefer_const};
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    AssignmentOperator, BindingPattern, Expression, FormalParameters, PropertyKind, Statement,
+    AssignmentOperator, BindingPattern, Expression, FormalParameter, FormalParameters, Program,
+    PropertyKind, Statement, TSTypeName, VariableDeclaration,
 };
+use oxc_ast_visit::Visit;
 use oxc_semantic::{AstNodes, NodeId, ScopeId, Scoping, SymbolId};
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_typescript_semantic::semantic::Semantic;
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
+use rustc_hash::{FxHashMap, FxHashSet};
+
+/// What a rule over syntax walks: a program, or a part a host keeps apart from the programs,
+/// such as a Svelte template's expression.
+enum Root<'a> {
+    Program(&'a Program<'a>),
+    Expression(&'a Expression<'a>),
+    Pattern(&'a FormalParameter<'a>),
+    Parameters(&'a FormalParameters<'a>),
+    Declaration(&'a VariableDeclaration<'a>),
+}
+
+impl<'a> Root<'a> {
+    fn start(&self) -> u32 {
+        match self {
+            Self::Program(program) => program.span.start,
+            Self::Expression(expression) => expression.span().start,
+            Self::Pattern(pattern) => pattern.span.start,
+            Self::Parameters(parameters) => parameters.span.start,
+            Self::Declaration(declaration) => declaration.span.start,
+        }
+    }
+
+    fn visit(&self, visitor: &mut impl Visit<'a>) {
+        match self {
+            Self::Program(program) => visitor.visit_program(program),
+            Self::Expression(expression) => visitor.visit_expression(expression),
+            Self::Pattern(pattern) => visitor.visit_formal_parameter(pattern),
+            Self::Parameters(parameters) => visitor.visit_formal_parameters(parameters),
+            Self::Declaration(declaration) => visitor.visit_variable_declaration(declaration),
+        }
+    }
+}
+
+/// `programs` and every part of `tree` outside the programs, in source order.
+fn roots<'a>(tree: &'a Tree, programs: &[ProgramIdentifier]) -> Vec<Root<'a>> {
+    let mut roots: Vec<Root<'a>> = programs
+        .iter()
+        .map(|&program| Root::Program(tree.get_program(program)))
+        .chain(tree.expressions().map(|(_, e)| Root::Expression(e)))
+        .chain(tree.patterns().map(|(_, p)| Root::Pattern(p)))
+        .chain(tree.parameters().map(|(_, p)| Root::Parameters(p)))
+        .chain(tree.declarations().map(|(_, d)| Root::Declaration(d)))
+        .collect();
+    roots.sort_by_key(Root::start);
+    roots
+}
 
 /// A reference as `ESLint`'s scope analysis records it: oxc's, and the write a declaration's
 /// initializer, a `for…in`/`for…of` head or a parameter's default makes at the declared name.
@@ -38,6 +88,11 @@ struct Facts<'s> {
     nodes: &'s AstNodes<'s>,
     /// The declaring identifier of each symbol.
     identifiers: Vec<Option<NodeId>>,
+    /// The later declaring identifiers of a redeclared symbol (`var a = 1; var a = 2;`).
+    redeclared: FxHashMap<SymbolId, Vec<NodeId>>,
+    /// What the left of a qualified type name (`A` of `A.B`) names. typescript-eslint takes any
+    /// symbol of that name, where oxc takes only a namespace.
+    qualified: FxHashSet<SymbolId>,
 }
 
 impl<'s> Facts<'s> {
@@ -45,17 +100,38 @@ impl<'s> Facts<'s> {
         let scoping = semantic.scoping();
         let nodes = semantic.nodes();
         let mut identifiers = vec![None; scoping.symbols_len()];
+        let mut redeclared: FxHashMap<SymbolId, Vec<NodeId>> = FxHashMap::default();
+        let mut qualified = FxHashSet::default();
         for node in nodes.iter() {
-            if let AstKind::BindingIdentifier(identifier) = node.kind()
-                && let Some(symbol) = identifier.symbol_id.get()
-            {
-                identifiers[symbol.index()].get_or_insert_with(|| node.id());
+            match node.kind() {
+                AstKind::BindingIdentifier(identifier) => {
+                    if let Some(symbol) = identifier.symbol_id.get() {
+                        match identifiers[symbol.index()] {
+                            None => identifiers[symbol.index()] = Some(node.id()),
+                            Some(_) => redeclared.entry(symbol).or_default().push(node.id()),
+                        }
+                    }
+                }
+                AstKind::TSQualifiedName(name) => {
+                    if let TSTypeName::IdentifierReference(left) = &name.left
+                        && left
+                            .reference_id
+                            .get()
+                            .and_then(|r| scoping.get_reference(r).symbol_id())
+                            .is_none()
+                    {
+                        qualified.extend(scoping.find_binding(node.scope_id(), left.name));
+                    }
+                }
+                _ => {}
             }
         }
         Self {
             scoping,
             nodes,
             identifiers,
+            redeclared,
+            qualified,
         }
     }
 
@@ -123,16 +199,17 @@ impl<'s> Facts<'s> {
                     }
                 }),
         );
-        if let Some(identifier) = self.identifiers[symbol.index()]
-            && self.written_where_declared(identifier)
-        {
-            out.push(Use {
-                node: identifier,
-                span: self.span(identifier),
-                read: false,
-                write: true,
-                scope: self.nodes.get_node(identifier).scope_id(),
-            });
+        let later = self.redeclared.get(&symbol).map_or(&[][..], Vec::as_slice);
+        for &identifier in self.identifiers[symbol.index()].iter().chain(later) {
+            if self.written_where_declared(identifier) {
+                out.push(Use {
+                    node: identifier,
+                    span: self.span(identifier),
+                    read: false,
+                    write: true,
+                    scope: self.nodes.get_node(identifier).scope_id(),
+                });
+            }
         }
         out.sort_by_key(|u| u.span.start);
     }
@@ -389,7 +466,7 @@ fn is_used(f: &Facts<'_>, symbol: SymbolId, declaration: NodeId, uses: &[Use]) -
             let flags = f.scoping.get_reference(id).flags();
             flags.is_type() || flags.is_value_as_type()
         });
-    if typed {
+    if typed || f.qualified.contains(&symbol) {
         return true;
     }
     let function = function_definition(f, declaration);

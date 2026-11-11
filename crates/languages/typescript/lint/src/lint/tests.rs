@@ -202,6 +202,23 @@ const UNUSED: &[(&str, &[&str])] = &[
         &["'this' is defined but never used.@12-24"],
     ),
     ("let o2 = {}; o2.a = 1;", &[]),
+    (
+        "if (t) { var fn = function () {}; } if (t) { var fn = function expr() {}; }",
+        &["'fn' is assigned a value but never used.@49-51"],
+    ),
+    (
+        "var v = 1; var v = 2;",
+        &["'v' is assigned a value but never used.@15-16"],
+    ),
+    (
+        "var w = 1; var w;",
+        &["'w' is assigned a value but never used.@4-5"],
+    ),
+    (
+        "const a = 1; interface A { Abc: typeof a } interface Abc { foo: A.Abc } let x: Abc; x;",
+        &[],
+    ),
+    ("interface B {} let y: B.C; y;", &[]),
 ];
 
 #[test]

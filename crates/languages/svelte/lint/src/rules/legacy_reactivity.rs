@@ -5,7 +5,8 @@ use oxc_ast::ast::Expression;
 use oxc_semantic::NodeId;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::legacy::Legacy;
-use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Component, Part};
+use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part};
+use rsvelte_typescript_semantic::semantic::Semantic;
 use rustc_hash::FxHashMap;
 
 use crate::computation::LegacyReactivity;
@@ -16,13 +17,17 @@ pub(super) fn legacy<'a>(file: &File<'a>) -> &'a Legacy {
     file.context.get::<LegacyReactivity>()
 }
 
-/// The node by which the analysis knows `expression`.
+/// The node by which the analysis knows `expression`. Valid once the document is analyzed
+/// (`File::semantic`): before that, the id is the parser's own numbering.
 pub(super) fn expression_node(expression: &Expression<'_>) -> NodeId {
     AstKind::from_expression(expression).node_id()
 }
 
 /// The expression of each `bind:` directive, written out or shorthand, with the directive's span.
-pub(super) fn bindings(component: &Component) -> FxHashMap<NodeId, Span> {
+pub(super) fn bindings(file: &File<'_>) -> FxHashMap<NodeId, Span> {
+    let component = file.component().expect("a component's bindings");
+    // Analyzed first, so that the ids are the analysis's.
+    let _analyzed: &Semantic = file.semantic();
     let javascript = &component.javascript;
     component
         .attributes
