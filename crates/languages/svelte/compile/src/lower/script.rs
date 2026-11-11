@@ -24,7 +24,6 @@ use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::{ReferenceId, SymbolId};
 use oxc_span::Span;
 use oxc_syntax::scope::ScopeFlags;
-pub(super) use patterns::is_async;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_compile::strip::is_type_only;

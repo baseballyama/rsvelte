@@ -1,16 +1,14 @@
 //! Upstream's `validate_assignment`, and the pattern assignments this port does not lower.
 
 use oxc_ast::ast::{
-    AssignmentTarget, AssignmentTargetMaybeDefault, AssignmentTargetProperty,
-    AssignmentTargetPropertyIdentifier, AssignmentTargetWithDefault, Expression,
+    AssignmentTarget, AssignmentTargetMaybeDefault, AssignmentTargetProperty, Expression,
     IdentifierReference, MemberExpression, SimpleAssignmentTarget,
 };
-use oxc_ast_visit::{Visit, walk};
 use rsvelte_svelte_semantic::resolve::BindingKind;
 
 use super::RuneWalk;
 use crate::lower::javascript::member_root;
-use crate::lower::script::{is_async, mutates_signal};
+use crate::lower::script::mutates_signal;
 use crate::lower::{Diagnostic, Resolution, Span, Target, unsupported};
 
 /// A name an assignment or a binding cannot change, as upstream's `validate_assignment` sorts it.
@@ -242,25 +240,4 @@ impl RuneWalk<'_> {
             span,
         )
     }
-}
-
-/// Whether a default of `pattern` awaits, which upstream's fallback awaits around the call.
-pub(super) fn awaits_in_default(pattern: &AssignmentTarget<'_>) -> bool {
-    struct Finds(bool);
-    impl<'a> Visit<'a> for Finds {
-        fn visit_assignment_target_with_default(&mut self, it: &AssignmentTargetWithDefault<'a>) {
-            self.0 |= is_async(&it.init);
-            walk::walk_assignment_target_with_default(self, it);
-        }
-
-        fn visit_assignment_target_property_identifier(
-            &mut self,
-            it: &AssignmentTargetPropertyIdentifier<'a>,
-        ) {
-            self.0 |= it.init.as_ref().is_some_and(is_async);
-        }
-    }
-    let mut finds = Finds(false);
-    finds.visit_assignment_target(pattern);
-    finds.0
 }

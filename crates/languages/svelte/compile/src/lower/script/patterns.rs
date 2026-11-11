@@ -311,6 +311,34 @@ fn fallback<'o>(
     if is_simple_expression(&fallback) {
         return b.runtime("fallback", [value, fallback]);
     }
+    if let Expression::AwaitExpression(awaited) = &fallback
+        && is_simple_expression(&awaited.argument)
+    {
+        let Expression::AwaitExpression(awaited) = fallback else {
+            unreachable!()
+        };
+        let call = b.runtime("fallback", [value, awaited.unbox().argument]);
+        return Expression::new_await_expression(oxc_span::SPAN, call, b);
+    }
+    if is_async(&fallback) {
+        // Upstream's arrow drops the `async` of `async () => await x` when `x` does not await.
+        let thunk = match fallback {
+            Expression::AwaitExpression(awaited) if !is_async(&awaited.argument) => {
+                b.arrow(b.params([]), awaited.unbox().argument)
+            }
+            fallback => Expression::new_arrow_function_expression(
+                oxc_span::SPAN,
+                true,
+                None,
+                b.params([]),
+                None,
+                oxc_ast::ast::ArrowFunctionBody::from(fallback),
+                b,
+            ),
+        };
+        let call = b.runtime("fallback", [value, thunk, b.boolean(true)]);
+        return Expression::new_await_expression(oxc_span::SPAN, call, b);
+    }
     let thunk = match fallback {
         Expression::CallExpression(call)
             if call.arguments.is_empty()
@@ -325,7 +353,7 @@ fn fallback<'o>(
 }
 
 /// Upstream `is_expression_async`: an `await` outside any function `e` holds.
-pub(in crate::lower) fn is_async(e: &Expression<'_>) -> bool {
+fn is_async(e: &Expression<'_>) -> bool {
     #[derive(Default)]
     struct Finds(bool);
     impl<'a> Visit<'a> for Finds {
