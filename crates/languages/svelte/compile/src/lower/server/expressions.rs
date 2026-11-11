@@ -7,7 +7,7 @@ use rsvelte_typescript_tree::{ExpressionIdentifier, ParametersIdentifier};
 use super::{ScriptRewrite, ServerCompilationContext, Target};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
-    const fn rewrite(&self) -> ScriptRewrite<'_, 'o> {
+    pub(super) const fn rewrite(&self) -> ScriptRewrite<'_, 'o> {
         ScriptRewrite {
             b: self.b,
             target: Target::Server,
@@ -15,6 +15,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             rest_reads: None,
             res: self.res,
             template: None,
+            shadows: None,
         }
     }
 

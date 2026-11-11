@@ -6,6 +6,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::ElementKind;
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
 use super::javascript::member_root;
+use super::snippets::{is_dynamic_render, render_call};
 use super::{
     Attribute, AttributeValue, BindingKind, Builder, CompilerNodeIdentifier, CompilerSyntaxTree,
     Item, NodeKind, Resolution, Target,
@@ -55,9 +56,9 @@ pub(super) fn reference(
         .expect("a component name parses to a reference")
 }
 
-/// Upstream `is_standalone`: the static component that is a fragment's only item needs no
-/// template; it renders at the block's anchor.
-pub(super) fn standalone_component(
+/// Upstream `is_standalone`: the static component or render tag that is a fragment's only item
+/// needs no template; it renders at the block's anchor.
+pub(super) fn standalone(
     compiler_syntax_tree: &CompilerSyntaxTree,
     javascript: &Tree,
     res: &Resolution,
@@ -66,14 +67,20 @@ pub(super) fn standalone_component(
     let &[Item::Node(identifier)] = items else {
         return None;
     };
-    (matches!(&compiler_syntax_tree.node(identifier).kind, NodeKind::Element(element) if element.kind == ElementKind::Component)
-        && !is_dynamic(
+    let standalone = match &compiler_syntax_tree.node(identifier).kind {
+        NodeKind::Element(element) if element.kind == ElementKind::Component => !is_dynamic(
             res,
             javascript
                 .get_expression(reference(compiler_syntax_tree, identifier))
                 .get_inner_expression(),
-        ))
-    .then_some(identifier)
+        ),
+        &NodeKind::Render { expression } => {
+            let (call, _) = render_call(javascript.get_expression(expression));
+            !is_dynamic_render(res, call)
+        }
+        _ => false,
+    };
+    standalone.then_some(identifier)
 }
 
 pub(super) enum Entry<'o> {
@@ -99,21 +106,31 @@ pub(super) fn push_binding<'o>(
     )));
 }
 
-/// The children as a callback in the `children` prop, and `$$slots.default` so that a `<slot>` in
-/// the child renders it; the targets differ only in the callback's parameters.
+/// Each snippet child as a prop of its name, the other children as a callback in the `children`
+/// prop, and `$$slots` so that a `<slot>` in the child renders them; the targets differ only in
+/// the callback's parameters.
 pub(super) fn push_children<'o>(
     b: &Builder<'o>,
     parts: &mut Vec<Entry<'o>>,
+    snippets: &[&str],
     children: Vec<Statement<'o>>,
     parameters: &[&str],
 ) {
-    if children.is_empty() {
-        return;
+    let mut slots = Vec::new();
+    for &name in snippets {
+        parts.push(Entry::Property(b.init(name, b.id(name))));
+        // So that a component that still renders slots finds the snippet.
+        let slot = if name == "children" { "default" } else { name };
+        slots.push(b.init(slot, b.boolean(true)));
     }
-    let callback = b.arrow_block(b.params(parameters.iter().copied()), children, false);
-    parts.push(Entry::Property(b.init("children", callback)));
-    let slots = b.object([b.init("default", b.boolean(true))]);
-    parts.push(Entry::Property(b.init("$$slots", slots)));
+    if !children.is_empty() {
+        let callback = b.arrow_block(b.params(parameters.iter().copied()), children, false);
+        parts.push(Entry::Property(b.init("children", callback)));
+        slots.push(b.init("default", b.boolean(true)));
+    }
+    if !slots.is_empty() {
+        parts.push(Entry::Property(b.init("$$slots", b.object(slots))));
+    }
 }
 
 /// One object, or `$.spread_props` over the runs of properties and the spreads between them.

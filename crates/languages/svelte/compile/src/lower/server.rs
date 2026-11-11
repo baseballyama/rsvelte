@@ -14,6 +14,7 @@ mod elements {
 mod events;
 mod expressions;
 mod fragments;
+mod snippets;
 mod special;
 
 use std::borrow::Cow;
@@ -23,6 +24,7 @@ use oxc_ast::ast::{
     BindingIdentifier, ExportDefaultDeclarationKind, Expression, ImportDeclarationSpecifier,
     ImportOrExportKind, Statement, StringLiteral, UnaryOperator, VariableDeclarationKind,
 };
+use oxc_semantic::SymbolId;
 use oxc_span::SPAN;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_markup_syntax::decode_attribute;
@@ -34,7 +36,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte_syntax::parse::is_void;
 use rsvelte_typescript_tree::Tree;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::names::Names;
 use super::script::ScriptRewrite;
@@ -82,6 +84,11 @@ struct ServerCompilationContext<'c, 'o> {
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
     plan: &'c RenderPlan,
     identity: &'c crate::OutputIdentity,
+    /// The snippets the block being lowered declares (upstream `state.init`).
+    snippets: Vec<Statement<'o>>,
+    /// Top-level snippets that read only module-level names, declared beside the component.
+    hoisted_snippets: Vec<Statement<'o>>,
+    hoistable: FxHashSet<SymbolId>,
 }
 
 pub(super) fn lower_prepared<'c, 'o>(
@@ -118,6 +125,9 @@ pub(super) fn lower_prepared<'c, 'o>(
         each_index,
         plan,
         identity,
+        snippets: Vec::new(),
+        hoisted_snippets: Vec::new(),
+        hoistable: super::snippets::hoistable(input, res),
     };
     let mut template = sx.fragment(input.component.compiler_syntax_tree.root)?;
     if uses_component_bindings(input) {
@@ -157,6 +167,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         b,
     )];
     program.extend(hoisted);
+    program.append(&mut sx.hoisted_snippets);
     program.extend(module);
     program.push(Statement::new_export_default_declaration(
         SPAN,
@@ -209,6 +220,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     /// Renders the template until no child binding changes a value (`$$settled`).
     fn settle(&self, template: Vec<Statement<'o>>) -> Vec<Statement<'o>> {
         let b = self.b;
+        // The snippets stay outside, where the component's own names can read them.
+        let (mut snippets, template): (Vec<_>, Vec<_>) = template
+            .into_iter()
+            .partition(|statement| matches!(statement, Statement::FunctionDeclaration(_)));
         let render_inner =
             b.function_declaration("$$render_inner", b.params(["$$renderer"]), template, false);
         let copy = b.call(b.member(b.id("$$renderer"), "copy"), []);
@@ -224,7 +239,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             b.member(b.id("$$renderer"), "subsume"),
             [b.id("$$inner_renderer")],
         );
-        vec![
+        snippets.extend([
             b.declare(
                 VariableDeclarationKind::Let,
                 "$$settled",
@@ -234,7 +249,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             render_inner,
             do_while,
             b.stmt(subsume),
-        ]
+        ]);
+        snippets
     }
 }
 

@@ -13,9 +13,22 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         lists: &mut Lists<'o>,
     ) -> R<()> {
         for &identifier in identifiers {
-            self.special_element(identifier, "", frag, lists)?;
+            self.hoisted_element(identifier, frag, lists)?;
         }
         Ok(())
+    }
+
+    /// A node `clean_nodes` hoists: a snippet, or a special element with no place in the markup.
+    pub(super) fn hoisted_element(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        frag: &mut Frag<'o>,
+        lists: &mut Lists<'o>,
+    ) -> R<()> {
+        if let NodeKind::Snippet(_) = self.compiler_syntax_tree.node(identifier).kind {
+            return self.snippet(identifier);
+        }
+        self.special_element(identifier, "", frag, lists)
     }
 
     pub(super) fn special_element(

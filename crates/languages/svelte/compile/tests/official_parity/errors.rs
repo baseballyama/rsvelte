@@ -2,7 +2,7 @@
 
 use rsvelte_svelte_compile::Target;
 
-use super::compile;
+use super::{compile, compile_at};
 
 #[test]
 fn a_directive_a_component_never_takes_raises_upstreams_error() {
@@ -319,6 +319,69 @@ fn a_semantic_syntax_error_fails_the_compile_on_both_targets() {
         for target in [Target::Client, Target::Server] {
             let code = compile(source, target).err();
             assert!(code.is_some(), "{source} on {target:?} compiled");
+        }
+    }
+}
+
+#[test]
+fn a_snippet_or_render_tag_raises_upstreams_error_where_upstream_does() {
+    let props = "<script>let { a, xs, call } = $props();</script>";
+    let component = "<script>import C from './C.svelte'; let v = $state(1);</script>";
+    for (source, expected) in [
+        (
+            format!("{props}{{@render a(...xs)}}"),
+            Some(("render_tag_invalid_spread_argument", (59, 64))),
+        ),
+        (
+            format!("{props}{{@render a.call(null)}}"),
+            Some(("render_tag_invalid_call_expression", (48, 70))),
+        ),
+        (
+            format!("{props}{{@render a?.apply(null, [])}}"),
+            Some(("render_tag_invalid_call_expression", (48, 76))),
+        ),
+        (
+            format!("{props}{{@render a[call]()}}"),
+            Some(("render_tag_invalid_call_expression", (48, 67))),
+        ),
+        (format!("{props}{{@render a[\"call\"]()}}"), None),
+        (
+            "<script>let x = 1;</script>{#snippet x()}a{/snippet}".to_owned(),
+            Some(("declaration_duplicate", (37, 38))),
+        ),
+        (
+            "<script>import x from './x.js';</script>{#snippet x()}a{/snippet}".to_owned(),
+            None,
+        ),
+        (
+            "<script lang=\"ts\">type x = number;</script>{#snippet x()}a{/snippet}".to_owned(),
+            None,
+        ),
+        (
+            format!("{component}<C foo={{1}}>{{#snippet foo()}}a{{/snippet}}</C>"),
+            Some(("snippet_shadowing_prop", (74, 101))),
+        ),
+        (
+            format!("{component}<C bind:foo={{v}}>{{#snippet foo()}}a{{/snippet}}</C>"),
+            Some(("snippet_shadowing_prop", (79, 106))),
+        ),
+        (
+            format!("{component}<C>{{#snippet children()}}a{{/snippet}}text</C>"),
+            Some(("snippet_conflict", (66, 98))),
+        ),
+        (
+            format!("{component}<C>{{#snippet children()}}a{{/snippet}} <!-- c --> </C>"),
+            None,
+        ),
+        (
+            "{#snippet a(...xs)}a{/snippet}".to_owned(),
+            Some(("snippet_invalid_rest_parameter", (12, 17))),
+        ),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            let actual = compile_at(&source, target).err();
+            let actual = actual.as_ref().map(|(code, span)| (code.as_str(), *span));
+            assert_eq!(actual, expected, "{source} on {target:?}");
         }
     }
 }

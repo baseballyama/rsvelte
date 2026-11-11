@@ -155,6 +155,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             NodeKind::Element(_) => self.element(identifier, node, frag, l),
             NodeKind::If { .. } => self.if_block(identifier, node, frag, l),
             NodeKind::Each(_) => self.each_block(identifier, node, false, frag, l),
+            NodeKind::Render { .. } => {
+                self.render_tag(identifier, node, frag, l);
+                Ok(())
+            }
             _ => unreachable!("clean_nodes keeps only elements and blocks as nodes"),
         }
     }

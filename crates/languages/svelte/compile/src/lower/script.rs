@@ -33,6 +33,9 @@ pub(super) struct ScriptRewrite<'r, 'o> {
     /// How the client reads the names the template declares, for those in scope (upstream's
     /// per-block `transform`, keyed by symbol instead of by name).
     pub template: Option<&'r FxHashMap<SymbolId, Read>>,
+    /// A nested snippet and the outer name it shadows: the client's `transform` is keyed by name,
+    /// so a read of the snippet is a read of that name.
+    pub shadows: Option<&'r FxHashMap<SymbolId, SymbolId>>,
 }
 
 /// How a name the template declares is read on the client.
@@ -84,6 +87,9 @@ impl<'o> ScriptRewrite<'_, 'o> {
             return Some(b.id("$$props"));
         }
         let symbol = self.res.symbol(identifier)?;
+        let symbol = (self.shadows.and_then(|m| m.get(&symbol)))
+            .copied()
+            .unwrap_or(symbol);
         let info = self.res.binding(symbol);
         let x = || b.id_at(&identifier.name, identifier.span);
         match (self.target, info.kind) {

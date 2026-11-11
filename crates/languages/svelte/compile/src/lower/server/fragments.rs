@@ -5,41 +5,60 @@ use super::{EMPTY_COMMENT, NodeKind, Piece, R, ServerCompilationContext};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     pub(super) fn fragment(&mut self, children: Children) -> R<Vec<Statement<'o>>> {
-        self.fragment_with_snippets(children, true)
+        self.fragment_without(children, |_| false)
     }
 
-    pub(super) fn fragment_with_snippets(
+    /// Upstream `Fragment` over the children but the snippets named so that `skipped` holds,
+    /// which the caller declares: the snippets come first (upstream `state.init`).
+    pub(super) fn fragment_without(
         &mut self,
         children: Children,
-        include_snippets: bool,
+        skipped: fn(&str) -> bool,
     ) -> R<Vec<Statement<'o>>> {
+        let outer = std::mem::take(&mut self.snippets);
+        let template = self.fragment_template(children, skipped);
+        let mut snippets = std::mem::replace(&mut self.snippets, outer);
+        snippets.extend(self.build_template(template?));
+        Ok(snippets)
+    }
+
+    fn fragment_template(
+        &mut self,
+        children: Children,
+        skipped: fn(&str) -> bool,
+    ) -> R<Vec<Piece<'o>>> {
         let cleaned = self.plan.fragment(children);
         let mut template = Vec::new();
-        for &identifier in &cleaned.hoisted {
-            if !include_snippets
-                && matches!(
-                    self.compiler_syntax_tree.node(identifier).kind,
-                    NodeKind::Snippet(_)
-                )
-            {
-                continue;
-            }
-            self.special_element(identifier, &mut template)?;
-        }
+        let hoisted: Vec<_> = (cleaned.hoisted.iter().copied())
+            .filter(
+                |&identifier| match &self.compiler_syntax_tree.node(identifier).kind {
+                    NodeKind::Snippet(snippet) => !skipped(self.snippet_name(snippet)),
+                    _ => true,
+                },
+            )
+            .collect();
+        self.hoisted_elements(&hoisted, &mut template)?;
         if cleaned.text_first {
             template.push(Piece::Text(EMPTY_COMMENT.into()));
         }
-        if let Some(component) = super::super::component::standalone_component(
+        match super::super::component::standalone(
             self.compiler_syntax_tree,
             self.javascript,
             self.res,
             &cleaned.items,
         ) {
-            self.component(component, true, &mut template)?;
-        } else {
-            self.process_children(&cleaned.items, &mut template)?;
+            Some(standalone)
+                if matches!(
+                    self.compiler_syntax_tree.node(standalone).kind,
+                    NodeKind::Render { .. }
+                ) =>
+            {
+                self.render_tag(standalone, true, &mut template);
+            }
+            Some(standalone) => self.component(standalone, true, &mut template)?,
+            None => self.process_children(&cleaned.items, &mut template)?,
         }
-        Ok(self.build_template(template))
+        Ok(template)
     }
 
     /// Upstream `build_template`: adjacent pieces fold into one `$$renderer.push(`…`)`.

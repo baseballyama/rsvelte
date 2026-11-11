@@ -1,4 +1,4 @@
-use oxc_ast::ast::{Expression, Statement};
+use oxc_ast::ast::Expression;
 
 use super::super::component::{
     Entry, Prop, is_dynamic, props, props_expression, push_binding, push_children, reference,
@@ -38,19 +38,33 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         for prop in props(tree.attributes(element.attributes)) {
             self.push_prop(prop, &mut memo, &mut parts);
         }
-        let children = self.fragment(element.children)?;
-        push_children(b, &mut parts, children, &["$$anchor", "$$slotProps"]);
+        // Upstream declares the snippet children in a block, so that they can be props without
+        // clashing with the parent's names.
+        let mut statements = Vec::new();
+        let mut snippets = Vec::new();
+        for &child in tree.children(element.children) {
+            if let NodeKind::Snippet(snippet) = &tree.node(child).kind {
+                statements.push(self.snippet_declaration(snippet)?);
+                snippets.push(self.snippet_name(snippet));
+            }
+        }
+        let children = self.fragment_without(element.children, |_| true)?;
+        push_children(
+            b,
+            &mut parts,
+            &snippets,
+            children,
+            &["$$anchor", "$$slotProps"],
+        );
         let props = props_expression(b, parts, Target::Client);
-        let mut statements: Vec<Statement<'o>> = (memo.entries.into_iter())
-            .map(|m| {
-                let source = self
-                    .javascript
-                    .get_expression(m.source)
-                    .get_inner_expression();
-                let thunk = callback(b, self.res, Some(source), m.value, Created::Template);
-                b.let_(&m.name, Some(b.runtime("derived", [thunk])))
-            })
-            .collect();
+        statements.extend(memo.entries.into_iter().map(|m| {
+            let source = self
+                .javascript
+                .get_expression(m.source)
+                .get_inner_expression();
+            let thunk = callback(b, self.res, Some(source), m.value, Created::Template);
+            b.let_(&m.name, Some(b.runtime("derived", [thunk])))
+        }));
         let call = if let Some(intermediate) = intermediate {
             let inner = b.stmt(b.call(b.id(&intermediate), [b.id("$$anchor"), props]));
             let render = b.arrow_block(b.params(["$$anchor", &intermediate]), [inner], false);

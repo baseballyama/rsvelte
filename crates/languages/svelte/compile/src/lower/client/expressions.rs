@@ -33,6 +33,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             rest_reads: rest_reads.then_some(self.rest_reads),
             res: self.res,
             template: Some(&self.reads),
+            shadows: Some(&self.shadows),
         }
     }
 

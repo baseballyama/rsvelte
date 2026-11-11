@@ -11,7 +11,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         template: &mut Vec<Piece<'o>>,
     ) -> R<()> {
         for &identifier in identifiers {
-            self.special_element(identifier, template)?;
+            if let NodeKind::Snippet(_) = self.compiler_syntax_tree.node(identifier).kind {
+                self.snippet(identifier)?;
+            } else {
+                self.special_element(identifier, template)?;
+            }
         }
         Ok(())
     }
