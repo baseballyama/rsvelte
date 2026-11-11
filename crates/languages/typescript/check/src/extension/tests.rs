@@ -36,7 +36,10 @@ fn a_relative_program_and_tsconfig_are_relative_to_the_options() {
     let scratch = Scratch::new("relative");
     let got = checker(
         &scratch.0,
-        r#"{ "command": ["node_modules/.bin/tsrs", "launcher.js"], "tsconfig": "app/tsconfig.json" }"#,
+        concat!(
+            r#"{ "command": ["node_modules/.bin/tsrs", "launcher.js"], "#,
+            r#""tsconfig": "app/tsconfig.json" }"#,
+        ),
     )
     .unwrap()
     .unwrap();
