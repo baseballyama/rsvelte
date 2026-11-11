@@ -4,10 +4,20 @@ export const answer = 42;
 export function double(n) {
 	return n * 2;
 }
-var root = $.from_html(`<enhanced:img src="./a.png"></enhanced:img>`);
-export default function Exports($$anchor) {
+var rest_excludes = new Set([
+	"$$slots",
+	"$$events",
+	"$$legacy"
+]);
+var root = $.from_html(`<p> </p>`);
+export default function Exports($$anchor, $$props) {
+	$.push($$props, true);
 	let value = "";
-	var enhanced_img = root();
-	$.set_attribute(enhanced_img, "alt", value);
-	$.append($$anchor, enhanced_img);
+	const props = $.rest_props($$props, rest_excludes);
+	var p = root();
+	$.set_attribute(p, "title", value);
+	var text = $.only_child(p, true);
+	$.template_effect(() => $.set_text(text, $$props.a));
+	$.append($$anchor, p);
+	$.pop();
 }

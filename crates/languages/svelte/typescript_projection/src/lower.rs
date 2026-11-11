@@ -139,7 +139,7 @@ fn is_element(tag: &str) -> bool {
             | "svelte:fragment"
             | "svelte:element"
             | "svelte:boundary"
-    ) || (tag.starts_with(|c: char| c.is_ascii_lowercase()) && !tag.contains(':'))
+    ) || (tag.starts_with(|c: char| c.is_ascii_lowercase()) && !tag.starts_with("svelte:"))
 }
 
 /// The document position of an oxc node.
