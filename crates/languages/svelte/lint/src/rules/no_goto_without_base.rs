@@ -1,9 +1,9 @@
-use rsvelte_lint_runner::rule::Reporter;
 use oxc_ast::ast::Expression;
+use rsvelte_lint_runner::rule::Reporter;
 
 use super::kit_navigation::{Navigation, Script, first_argument, has_scheme, leading_expression};
-use super::nodes::span;
 use super::kit_route::{BASE_VERSIONS, runs_for};
+use super::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

@@ -5,7 +5,6 @@
 use rsvelte_kernel::source::positions::{LineColumn, LineIndex, Span};
 use rsvelte_lint_runner::finding::Finding;
 use rsvelte_svelte_syntax::syntax_tree::{Component, Script, TemplateNode};
-
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::Pattern;

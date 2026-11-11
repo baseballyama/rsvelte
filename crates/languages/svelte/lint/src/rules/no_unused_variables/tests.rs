@@ -223,3 +223,48 @@ fn the_scripts_share_their_top_level_names() {
         [("'v' is assigned a value but never used.".to_owned(), 2)]
     );
 }
+
+#[test]
+fn a_store_subscription_reads_the_store() {
+    let store = "<script>import { writable } from 'svelte/store';";
+    assert_eq!(
+        unused(&format!(
+            "{store} const count = writable(0); const unused = writable(0);\
+             </script>\n<p>{{$count}}</p>"
+        )),
+        ["'unused' is assigned a value but never used."]
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} const count = writable(0); function f() {{ $count = 1; }} f();</script>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} const obj = writable({{ a: 1 }}); function f() {{ $obj.a++; }} f();</script>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} const action = writable(() => {{}});</script>\n<p use:$action></p>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(
+            "<script module>import { writable } from 'svelte/store'; const count = writable(0);\
+             </script>\n<script>console.log($count);</script>"
+        ),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>import { page } from '$app/stores';</script>\n{$page.url}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>let state = 1; let x = $state(0); console.log(x);</script>"),
+        ["'state' is assigned a value but never used."]
+    );
+}

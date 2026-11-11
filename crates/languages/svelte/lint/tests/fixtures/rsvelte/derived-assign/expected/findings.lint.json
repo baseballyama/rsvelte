@@ -1,0 +1,32 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"svelte/button-has-type"
+	],
+	"findings": [
+		{
+			"rule": "no-unused-vars",
+			"message": "'f' is defined but never used.",
+			"start": {
+				"line": 5,
+				"column": 11
+			},
+			"end": {
+				"line": 5,
+				"column": 12
+			}
+		},
+		{
+			"rule": "svelte/button-has-type",
+			"message": "Missing an explicit type attribute for button.",
+			"start": {
+				"line": 11,
+				"column": 1
+			},
+			"end": {
+				"line": 11,
+				"column": 34
+			}
+		}
+	]
+}
