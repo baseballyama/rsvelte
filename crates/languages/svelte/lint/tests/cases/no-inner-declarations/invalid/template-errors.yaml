@@ -1,0 +1,4 @@
+- message: Move function declaration to function body root.
+  line: 4
+  column: 4
+  suggestions: null
