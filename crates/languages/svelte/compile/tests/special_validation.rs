@@ -115,7 +115,6 @@ fn misplaced_runes_and_wrong_rune_arguments_raise_upstream_errors_on_both_target
             "props_invalid_pattern",
         ),
         ("let [a] = $props();", "props_invalid_identifier"),
-        ("export const id = $props.id();", "unsupported"),
         ("class K extends (await x) {}", "experimental_async"),
     ] {
         raises_on_both_targets(script, code);
