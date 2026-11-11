@@ -1,8 +1,7 @@
 //! Running rules over a document and putting their findings in `ESLint`'s order.
 
-use rsvelte_kernel::performance::measurement;
-
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::performance::measurement;
 
 use crate::finding::Finding;
 use crate::rule::{Reporter, Rule};

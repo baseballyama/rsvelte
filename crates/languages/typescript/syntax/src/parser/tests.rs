@@ -276,6 +276,7 @@ fn comparison_chains_are_read_in_linear_time() {
     let source_text = format!("x = a{};", " < a".repeat(n));
     let started = std::time::Instant::now();
     assert_eq!(error_on_a_small_stack(source_text, true), None);
-    // Looking for the `>` that closes type arguments after each `<` from scratch takes minutes here.
+    // Looking for the `>` that closes type arguments after each `<` from scratch takes minutes
+    // here.
     assert!(started.elapsed().as_secs() < 2, "{:?}", started.elapsed());
 }

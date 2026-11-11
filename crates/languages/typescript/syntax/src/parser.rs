@@ -9,9 +9,9 @@
 //!
 //! Anything outside the subset is a [`ParseError`], never a panic.
 
-use rsvelte_kernel::source::positions::Span;
 use std::cell::RefCell;
 
+use rsvelte_kernel::source::positions::Span;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::lexer::{LexedToken, Lexer, LexicalError, T, decode_string};
