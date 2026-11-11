@@ -1,6 +1,6 @@
 use super::{
-    CAN_CACHE, Cg, Cid, DirectiveName, Exit, Helper, Lit, NOT_CONSTANT, Nid, Node, NodeIdentifier,
-    R, Transform, Unsupported,
+    CAN_CACHE, Cg, Cid, DirectiveName, Exit, ExpressionIdentifier, Helper, Lit, NOT_CONSTANT, Nid,
+    Node, R, Transform, Unsupported,
 };
 
 impl Transform<'_> {
@@ -13,12 +13,12 @@ impl Transform<'_> {
         el: Nid,
         parent: Option<Nid>,
         name: DirectiveName,
-        raw: NodeIdentifier,
+        raw: Option<ExpressionIdentifier>,
     ) -> R<Option<(Nid, Exit)>> {
         let parent = parent.expect("an element has a parent");
         let condition = match name {
             DirectiveName::Else => None,
-            _ => Some(self.process_expression(raw, false)?),
+            _ => Some(self.process_expression(raw.expect("only v-else has no value"), false)?),
         };
         let branch = self.push(Node::Branch {
             condition,

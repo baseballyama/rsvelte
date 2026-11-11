@@ -1,8 +1,9 @@
 use super::{
-    BindingType, Cg, Cid, DirectiveName, Exp, Helper, Kind, Lit, NOT_CONSTANT, Nid, Node,
-    NodeIdentifier, Property, PropertyIdentifier, PropertyKind, R, Transform, Unsupported,
+    BindingType, Cg, Cid, DirectiveName, Exp, Expression, ExpressionIdentifier, Helper, Lit,
+    NOT_CONSTANT, Nid, Node, Property, PropertyIdentifier, PropertyKind, R, Transform, Unsupported,
     camelize, collect_identifiers, is_keyboard_event, resolve_modifiers, to_handler_key,
 };
+use crate::compile::document_span;
 
 impl Transform<'_> {
     /// The directive transforms `buildProps` runs: the property, and the runtime directive.
@@ -10,11 +11,12 @@ impl Transform<'_> {
         &mut self,
         dir: DirectiveName,
         arg: String,
-        raw: NodeIdentifier,
+        raw: Option<ExpressionIdentifier>,
         exp: Option<Exp>,
         identifier: PropertyIdentifier,
         model_runtime: Option<Helper>,
     ) -> R<(String, Cid, Option<Cid>)> {
+        let value = || raw.expect("only v-else has no value, and it is removed");
         Ok(match dir {
             DirectiveName::Bind => {
                 let exp = exp.expect("transformExpression processed it");
@@ -30,13 +32,14 @@ impl Transform<'_> {
                     .iter()
                     .map(|m| m.text(self.source_text))
                     .collect();
-                let (key, value) = self.transform_on(&arg, raw, &modifiers)?;
-                (key, value, None)
+                let (key, handler) = self.transform_on(&arg, value(), &modifiers)?;
+                (key, handler, None)
             }
             DirectiveName::Model => {
                 let exp = exp.expect("transformExpression processed it");
                 let runtime = model_runtime.expect("an element v-model has a runtime");
-                let (update, arguments) = self.transform_model(raw, exp, identifier, runtime)?;
+                let (update, arguments) =
+                    self.transform_model(value(), exp, identifier, runtime)?;
                 ("onUpdate:modelValue".to_owned(), update, Some(arguments))
             }
             _ => unreachable!("structural directives are removed"),
@@ -123,16 +126,18 @@ impl Transform<'_> {
     /// (`buildDirectiveArgs`). The target is a ref or a member expression.
     pub(super) fn transform_model(
         &mut self,
-        raw: NodeIdentifier,
+        raw: ExpressionIdentifier,
         exp: Exp,
         identifier: PropertyIdentifier,
         runtime: Helper,
     ) -> R<(Cid, Cid)> {
-        let source_location = self.javascript.source_location(raw);
-        let is_ref = match self.javascript.kind(raw) {
-            Kind::Identifier(_) => {
-                let local = self.reference(raw, false).is_some_and(|r| r.local);
-                if local || self.binding_type(raw) != Some(BindingType::SetupRef) {
+        let expression = self.javascript.get_expression(raw);
+        let source_location = document_span(oxc_span::GetSpan::span(expression));
+        let is_ref = match expression {
+            Expression::Identifier(identifier) => {
+                let name = identifier.name.as_str();
+                let local = self.reference(identifier.reference_id(), name, false).local;
+                if local || self.binding_type(name) != Some(BindingType::SetupRef) {
                     return Err(Unsupported::at(
                         "a v-model target that is not a ref or a member expression",
                         source_location,
@@ -140,9 +145,7 @@ impl Transform<'_> {
                 }
                 true
             }
-            Kind::Member {
-                optional: false, ..
-            } => false,
+            e if e.as_member_expression().is_some_and(|m| !m.optional()) => false,
             _ => {
                 return Err(Unsupported::at(
                     "a v-model target that is not a ref or a member expression",
@@ -185,18 +188,20 @@ impl Transform<'_> {
     pub(super) fn transform_on(
         &mut self,
         arg: &str,
-        raw: NodeIdentifier,
+        raw: ExpressionIdentifier,
         modifiers: &[&str],
     ) -> R<(String, Cid)> {
         let mut key = to_handler_key(&camelize(arg));
-        let is_member = match self.javascript.kind(raw) {
-            Kind::Member { .. } => true,
-            Kind::Identifier(_) => self.javascript.name(raw) != "undefined",
-            _ => false,
+        let expression = self.javascript.get_expression(raw);
+        // compiler-core `isMemberExpressionNode`, which counts an optional member too.
+        let is_member = match rsvelte_vue_semantic::resolve::unwrap_typescript(expression) {
+            Expression::Identifier(identifier) => identifier.name != "undefined",
+            Expression::ChainExpression(chain) => chain.expression.is_member_expression(),
+            e => e.is_member_expression(),
         };
         let is_fn = matches!(
-            self.javascript.kind(raw),
-            Kind::Arrow { .. } | Kind::Function { .. }
+            expression,
+            Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_)
         );
         let inline = !(is_member || is_fn);
         let exp = self.process_expression(raw, inline)?;
@@ -252,12 +257,15 @@ impl Transform<'_> {
     }
 
     /// `hasScopeRef`: the expression reads a `v-for` alias.
-    pub(super) fn has_scope_ref(&self, e: NodeIdentifier) -> bool {
+    pub(super) fn has_scope_ref(&self, e: ExpressionIdentifier) -> bool {
         let mut identifiers = Vec::new();
-        collect_identifiers(self.javascript, e, None, &mut identifiers);
-        identifiers
-            .iter()
-            .any(|&(identifier, _)| self.references.get(&identifier).is_some_and(|r| r.host))
+        collect_identifiers(self.javascript.get_expression(e), &mut identifiers);
+        identifiers.iter().any(|identifier| {
+            identifier
+                .reference
+                .and_then(|r| self.res.symbol_of(r))
+                .is_some_and(|s| self.res.is_alias(s))
+        })
     }
 
     pub(super) fn cache(&mut self, value: Cid) -> Cid {

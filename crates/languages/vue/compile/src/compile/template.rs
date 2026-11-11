@@ -1,4 +1,4 @@
-//! compiler-core for the templates the parser reads, building an [`SyntaxTree`] instead of text.
+//! compiler-core for the templates the parser reads, building an oxc tree instead of text.
 //!
 //! It reads the template's HIR ([`rsvelte_vue_semantic::compiler_syntax_tree`]), which is
 //! `baseParse`'s tree. What is ported: the node transforms of `getBaseTransformPreset` in upstream
@@ -10,21 +10,15 @@
 //! insertion-ordered map: which helpers the import names, and in which order, falls out of exactly
 //! when each transform adds and removes one.
 
+use oxc_ast::ast::Expression;
+use oxc_semantic::ReferenceId;
 use rsvelte_kernel::diagnostics::Unsupported;
-use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_typescript_compile::copy::{Rewrite, Verbatim, copy};
-use rsvelte_typescript_semantic::scope::{DeclarationKind, ScopeIdentifier};
-use rsvelte_typescript_syntax::operators::{
-    AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator,
-};
-use rsvelte_typescript_syntax::syntax_tree::flag;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_tree::{ExpressionIdentifier, ParametersIdentifier, Tree};
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind, PropertyIdentifier, PropertyKind, TagType,
 };
 use rsvelte_vue_semantic::resolve::{BindingType, Resolution};
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
-use rustc_hash::FxHashMap;
 
 type R<T> = Result<T, Unsupported>;
 
@@ -104,7 +98,7 @@ type Cid = usize;
 /// A template expression after `processExpression`.
 #[derive(Clone, Copy, Debug)]
 struct Exp {
-    node: NodeIdentifier,
+    node: ExpressionIdentifier,
     /// For a compound expression, the lowest of its identifiers' (what `getConstantType` reads).
     const_type: u8,
     /// Upstream returns a `COMPOUND_EXPRESSION` (a non-trivial expression naming an identifier),
@@ -124,7 +118,9 @@ enum Property {
     Dir {
         name: DirectiveName,
         arg: String,
-        raw: NodeIdentifier,
+        /// `None` only for `v-else`: [`Transform::parse_props`] refuses another directive
+        /// without a value.
+        raw: Option<ExpressionIdentifier>,
         exp: Option<Exp>,
         identifier: PropertyIdentifier,
     },
@@ -153,7 +149,7 @@ enum Node {
     },
     For {
         source: Exp,
-        parameters: Vec<NodeIdentifier>,
+        parameters: ParametersIdentifier,
         children: Vec<Nid>,
         codegen: Option<Cid>,
     },
@@ -228,7 +224,7 @@ enum Cg {
         is_ref: bool,
     },
     Function {
-        parameters: Vec<NodeIdentifier>,
+        parameters: ParametersIdentifier,
         returns: Cid,
     },
     Conditional {
@@ -251,27 +247,16 @@ enum Cg {
 struct RefInfo {
     /// Declared inside the template (a `v-for` alias, a nested function's parameter).
     local: bool,
-    /// A `v-for` alias: what `hasScopeRef` looks for.
-    host: bool,
     write: bool,
 }
 
-fn reference_table(res: &Resolution) -> FxHashMap<NodeIdentifier, RefInfo> {
-    res.sem
-        .references
-        .iter()
-        .map(|r| {
-            let b = r.binding.map(|b| &res.sem.bindings[b]);
-            (
-                r.node,
-                RefInfo {
-                    local: b.is_some_and(|b| b.scope != ScopeIdentifier::ROOT),
-                    host: b.is_some_and(|b| b.kind == DeclarationKind::Host),
-                    write: r.write,
-                },
-            )
-        })
-        .collect()
+fn ref_info(res: &Resolution, reference: ReferenceId) -> RefInfo {
+    let r = res.scoping().get_reference(reference);
+    let symbol = r.symbol_id();
+    RefInfo {
+        local: symbol.is_some_and(|s| res.scoping().symbol_scope_id(s) != res.root_scope()),
+        write: r.is_write(),
+    }
 }
 
 /// A compiled template, ready for [`Compiled::generate`].
@@ -285,7 +270,7 @@ pub(crate) struct Compiled {
 }
 
 struct Transform<'a> {
-    javascript: &'a SyntaxTree,
+    javascript: &'a Tree,
     compiler_syntax_tree: &'a CompilerSyntaxTree,
     source_text: &'a str,
     res: &'a Resolution,
@@ -296,7 +281,6 @@ struct Transform<'a> {
     helpers: Vec<(Helper, u32)>,
     hoists: Vec<Cid>,
     cached: usize,
-    references: FxHashMap<NodeIdentifier, RefInfo>,
     /// `context.scopes.vFor`: the `v-for`s being traversed.
     v_for: u32,
 }
@@ -305,7 +289,7 @@ struct Transform<'a> {
 ///
 /// [`Unsupported`] for a template construct the port does not cover.
 pub(crate) fn transform(
-    javascript: &SyntaxTree,
+    javascript: &Tree,
     compiler_syntax_tree: &CompilerSyntaxTree,
     source_text: &str,
     res: &Resolution,
@@ -322,7 +306,6 @@ pub(crate) fn transform(
         helpers: Vec::new(),
         hoists: Vec::new(),
         cached: 0,
-        references: reference_table(res),
         v_for: 0,
     };
     let children = t.parse_children(compiler_syntax_tree.root())?;
@@ -409,7 +392,7 @@ enum PropertyView {
     Dir(
         DirectiveName,
         String,
-        NodeIdentifier,
+        Option<ExpressionIdentifier>,
         Option<Exp>,
         PropertyIdentifier,
     ),
@@ -455,5 +438,5 @@ mod traverse;
 mod generate;
 use generate::is_object_bind;
 use rsvelte_vue_semantic::expressions::{
-    camelize, can_prefix, collect_identifiers, is_simple_identifier, to_handler_key,
+    Parent, camelize, can_prefix, collect_identifiers, is_simple_identifier, to_handler_key,
 };

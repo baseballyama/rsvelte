@@ -1,98 +1,100 @@
-use super::{
-    AssignmentOperator, BinaryOperator, Cg, Cid, Compiled, DirectiveName, Exp, ExpRewrite,
-    FxHashMap, Helper, Lit, LogicalOperator, Nid, Node, NodeIdentifier, PropertyView, RefInfo,
-    Resolution, SourceLocation, SyntaxTree, UnaryOperator, VChildren, Verbatim, copy, flag,
-    is_simple_identifier, reference_table,
-};
+use oxc_allocator::{CloneIn, GetAllocator};
+use oxc_ast::ast::{BinaryOperator, LogicalOperator, Statement, UnaryOperator};
+use oxc_ast_visit::VisitMut;
+use rsvelte_typescript_compile::build::Builder;
 
-pub(super) struct Gen<'a> {
+use super::{
+    Cg, Cid, Compiled, DirectiveName, Exp, ExpRewrite, Expression, Helper, Lit, Nid, Node,
+    PropertyView, Resolution, Tree, VChildren, is_simple_identifier,
+};
+use crate::compile::out;
+
+pub(super) struct Gen<'a, 'b, 'o> {
     t: &'a Compiled,
-    javascript: &'a SyntaxTree,
+    javascript: &'a Tree,
     res: &'a Resolution,
-    references: FxHashMap<NodeIdentifier, RefInfo>,
     inline: bool,
-    to: &'a mut SyntaxTree,
+    b: &'b Builder<'o>,
 }
 
 impl Compiled {
     /// `generate` for a module: the preamble (`genModulePreamble`: the helper import and the
     /// hoists) and the expression the render function returns.
-    pub(crate) fn generate(
+    pub(crate) fn generate<'o>(
         &self,
-        javascript: &SyntaxTree,
+        javascript: &Tree,
         res: &Resolution,
         inline: bool,
-        to: &mut SyntaxTree,
-    ) -> (Vec<NodeIdentifier>, NodeIdentifier) {
+        b: &Builder<'o>,
+    ) -> (Vec<Statement<'o>>, Expression<'o>) {
         let mut g = Gen {
             t: self,
             javascript,
             res,
-            references: reference_table(res),
             inline,
-            to,
+            b,
         };
         let mut preamble = Vec::new();
         if !self.helpers.is_empty() {
-            let specs: Vec<NodeIdentifier> = self
+            let specifiers = self
                 .helpers
                 .iter()
-                .map(|h| {
-                    let imported = g.to.identifier(h.name());
-                    let local = g.to.identifier(&format!("_{}", h.name()));
-                    g.to.import_named(imported, local, false, SourceLocation::SYNTHETIC)
-                })
-                .collect();
-            let source = g.to.write_string("vue");
-            preamble.push(g.to.import(&specs, source, false, SourceLocation::SYNTHETIC));
+                .map(|h| (h.name(), out::name(b, &format!("_{}", h.name()))));
+            preamble.push(out::import(b, specifiers, "vue"));
         }
         for (i, &h) in self.hoists.iter().enumerate() {
             let value = g.cg(h);
-            let name = g.to.identifier(&format!("_hoisted_{}", i + 1));
-            preamble.push(g.to.let_(flag::CONST, name, Some(value)));
+            preamble.push(b.const_(&format!("_hoisted_{}", i + 1), value));
         }
-        let ret = match self.root_codegen {
-            Some(c) => g.cg(c),
-            None => g.to.null(SourceLocation::SYNTHETIC),
-        };
+        let ret = self.root_codegen.map_or_else(|| b.null(), |c| g.cg(c));
         (preamble, ret)
     }
 }
 
-impl Gen<'_> {
-    fn helper(&mut self, h: Helper) -> NodeIdentifier {
-        self.to.identifier(&format!("_{}", h.name()))
+impl<'o> Gen<'_, '_, 'o> {
+    fn helper(&self, h: Helper) -> Expression<'o> {
+        self.b.id(&format!("_{}", h.name()))
     }
 
-    fn exp(&mut self, e: Exp) -> NodeIdentifier {
-        let mut rw = ExpRewrite {
+    /// The input expression, copied into the output with its names rewritten.
+    fn exp(&self, e: Exp) -> Expression<'o> {
+        let mut copied = self
+            .javascript
+            .get_expression(e.node)
+            .clone_in_with_semantic_ids(self.b.allocator());
+        ExpRewrite {
             res: self.res,
-            references: &self.references,
+            b: self.b,
             inline: self.inline,
             event_local: e.event_local,
-        };
-        copy(self.javascript, self.to, &mut rw, e.node)
+        }
+        .visit_expression(&mut copied);
+        copied
+    }
+
+    /// The input expression as written.
+    fn verbatim(&self, e: Exp) -> Expression<'o> {
+        self.javascript
+            .get_expression(e.node)
+            .clone_in(self.b.allocator())
     }
 
     /// `genNode` for a template node.
-    fn node(&mut self, n: Nid) -> NodeIdentifier {
+    fn node(&mut self, n: Nid) -> Expression<'o> {
+        let b = self.b;
         match &self.t.tree[n] {
-            Node::Text(t) => self.to.write_string(t),
+            Node::Text(t) => b.string(t),
             Node::Interpolation(e) => {
                 let x = self.exp(*e);
-                let callee = self.helper(Helper::ToDisplayString);
-                self.to.call0(callee, &[x])
+                b.call(self.helper(Helper::ToDisplayString), [x])
             }
             Node::Compound(list) => {
-                let mut acc: Option<NodeIdentifier> = None;
+                let mut acc: Option<Expression<'o>> = None;
                 for &c in list {
                     let x = self.node(c);
                     acc = Some(match acc {
                         None => x,
-                        Some(l) => {
-                            self.to
-                                .binary(BinaryOperator::Add, l, x, SourceLocation::SYNTHETIC)
-                        }
+                        Some(l) => b.binary(l, BinaryOperator::Addition, x),
                     });
                 }
                 acc.expect("a compound has children")
@@ -106,7 +108,8 @@ impl Gen<'_> {
     }
 
     #[expect(clippy::too_many_lines, reason = "one arm per codegen node")]
-    fn cg(&mut self, c: Cid) -> NodeIdentifier {
+    fn cg(&mut self, c: Cid) -> Expression<'o> {
+        let b = self.b;
         match &self.t.cg[c] {
             Cg::VNode {
                 tag,
@@ -122,144 +125,111 @@ impl Gen<'_> {
                 let (props, patch_flag, dynamic_props) = (*props, *patch_flag, *dynamic_props);
                 let directives = *directives;
                 let (is_block, disable_tracking) = (*is_block, *disable_tracking);
-                let tag = match tag {
-                    Some(t) => self.to.write_string(t),
-                    None => self.helper(Helper::Fragment),
-                };
-                let mut arguments: Vec<Option<NodeIdentifier>> = vec![Some(tag)];
+                let tag = tag
+                    .as_ref()
+                    .map_or_else(|| self.helper(Helper::Fragment), |t| b.string(t));
+                let mut arguments: Vec<Option<Expression<'o>>> = vec![Some(tag)];
                 arguments.push(props.map(|p| self.cg(p)));
-                arguments.push(children.as_ref().map(|ch| match ch {
-                    VChildren::Node(n) => self.node(*n),
-                    VChildren::List(list) => self.node_array(list),
-                    VChildren::Cg(c) => self.cg(*c),
+                let children = children.clone();
+                arguments.push(children.map(|ch| match ch {
+                    VChildren::Node(n) => self.node(n),
+                    VChildren::List(list) => self.node_array(&list),
+                    VChildren::Cg(c) => self.cg(c),
                 }));
                 arguments.push(patch_flag.map(|f| self.flag(f)));
                 arguments.push(dynamic_props.map(|d| self.cg(d)));
                 while arguments.last().is_some_and(Option::is_none) {
                     arguments.pop();
                 }
-                let arguments: Vec<NodeIdentifier> = arguments
+                let arguments: Vec<Expression<'o>> = arguments
                     .into_iter()
-                    .map(|a| a.unwrap_or_else(|| self.to.null(SourceLocation::SYNTHETIC)))
+                    .map(|a| a.unwrap_or_else(|| b.null()))
                     .collect();
                 let callee = self.helper(if is_block {
                     Helper::CreateElementBlock
                 } else {
                     Helper::CreateElementVNode
                 });
-                let mut call = self.to.call0(callee, &arguments);
+                let mut call = b.call(callee, arguments);
                 if is_block {
-                    let open = self.helper(Helper::OpenBlock);
-                    let open_arguments = if disable_tracking {
-                        vec![self.to.write_boolean(true, SourceLocation::SYNTHETIC)]
-                    } else {
-                        Vec::new()
-                    };
-                    let open = self.to.call0(open, &open_arguments);
-                    call = self.to.seq(&[open, call], SourceLocation::SYNTHETIC);
+                    let open_arguments = disable_tracking.then(|| b.boolean(true));
+                    let open = b.call(self.helper(Helper::OpenBlock), open_arguments);
+                    call = b.sequence([open, call]);
                 }
                 let Some(d) = directives else {
                     return call;
                 };
                 let list = self.cg(d);
-                let callee = self.helper(Helper::WithDirectives);
-                self.to.call0(callee, &[call, list])
+                b.call(self.helper(Helper::WithDirectives), [call, list])
             }
             Cg::Call { callee, arguments } => {
-                let arguments: Vec<NodeIdentifier> =
-                    arguments.iter().map(|&a| self.cg(a)).collect();
-                let callee = self.helper(*callee);
-                self.to.call0(callee, &arguments)
+                let callee = *callee;
+                let arguments: Vec<Expression<'o>> =
+                    arguments.clone().into_iter().map(|a| self.cg(a)).collect();
+                b.call(self.helper(callee), arguments)
             }
             Cg::Object(list) => {
-                let props: Vec<NodeIdentifier> = list
-                    .iter()
+                let properties: Vec<_> = list
+                    .clone()
+                    .into_iter()
                     .map(|(k, v)| {
-                        let key = if is_simple_identifier(k) {
-                            self.to.identifier(k)
+                        let key = if is_simple_identifier(&k) {
+                            b.key(&k)
                         } else {
-                            self.to.write_string(k)
+                            oxc_ast::ast::PropertyKey::from(b.string(&k))
                         };
-                        let value = self.cg(*v);
-                        self.to.property(key, value, 0, SourceLocation::SYNTHETIC)
+                        let value = self.cg(v);
+                        b.property(key, value, false)
                     })
                     .collect();
-                self.to.object(&props, SourceLocation::SYNTHETIC)
+                b.object(properties)
             }
-            Cg::NodeArray(list) => self.node_array(list),
+            Cg::NodeArray(list) => {
+                let list = list.clone();
+                self.node_array(&list)
+            }
             Cg::Array(list) => {
-                let items: Vec<NodeIdentifier> = list.iter().map(|&c| self.cg(c)).collect();
-                self.to.array(&items, SourceLocation::SYNTHETIC)
+                let items: Vec<Expression<'o>> =
+                    list.clone().into_iter().map(|c| self.cg(c)).collect();
+                b.array(items)
             }
             &Cg::Helper(h) => self.helper(h),
-            Cg::PropertyNames(names) => {
-                let items: Vec<NodeIdentifier> =
-                    names.iter().map(|n| self.to.write_string(n)).collect();
-                self.to.array(&items, SourceLocation::SYNTHETIC)
-            }
+            Cg::PropertyNames(names) => b.array(names.iter().map(|n| b.string(n))),
             Cg::Lit { lit, .. } => match lit {
-                Lit::String(s) => self.to.write_string(s),
-                Lit::Number(v) => self.to.write_number(*v, SourceLocation::SYNTHETIC),
-                Lit::Boolean(b) => self.to.write_boolean(*b, SourceLocation::SYNTHETIC),
-                Lit::Undefined => {
-                    let zero = self.to.write_number(0.0, SourceLocation::SYNTHETIC);
-                    self.to
-                        .unary(UnaryOperator::Void, zero, SourceLocation::SYNTHETIC)
-                }
+                Lit::String(s) => b.string(s),
+                Lit::Number(v) => b.number(*v),
+                Lit::Boolean(v) => b.boolean(*v),
+                Lit::Undefined => b.void0(),
             },
             Cg::Exp(e) => self.exp(*e),
             &Cg::Handler { exp, inline } => {
                 if inline {
-                    let body = self.exp(exp);
-                    let p = self.to.identifier("$event");
-                    return self
-                        .to
-                        .arrow(&[p], body, true, false, SourceLocation::SYNTHETIC);
+                    return b.arrow(b.params(["$event"]), self.exp(exp));
                 }
-                let a = self.exp(exp);
-                let f = self.exp(exp);
-                let arguments = self.to.identifier("args");
-                let spread = self.to.spread(arguments, SourceLocation::SYNTHETIC);
-                let call = self.to.call0(f, &[spread]);
-                let body =
-                    self.to
-                        .logical(LogicalOperator::And, a, call, SourceLocation::SYNTHETIC);
-                let arguments = self.to.identifier("args");
-                let rest = self.to.rest(arguments, SourceLocation::SYNTHETIC);
-                self.to
-                    .arrow(&[rest], body, true, false, SourceLocation::SYNTHETIC)
+                let call = out::spread_call(b, self.exp(exp), b.id("args"));
+                let body = b.logical(self.exp(exp), LogicalOperator::And, call);
+                out::rest_arrow(b, "args", body)
             }
             &Cg::ModelUpdate { target, is_ref } => {
                 let lhs = if is_ref {
-                    let x = copy(self.javascript, self.to, &mut Verbatim, target.node);
-                    self.to.dot(x, "value")
+                    b.member(self.verbatim(target), "value")
                 } else {
                     self.exp(target)
                 };
-                let event = self.to.identifier("$event");
-                let body = self.to.assign(
-                    AssignmentOperator::Assign,
-                    lhs,
-                    event,
-                    SourceLocation::SYNTHETIC,
-                );
-                let p = self.to.identifier("$event");
-                self.to
-                    .arrow(&[p], body, true, false, SourceLocation::SYNTHETIC)
+                let body = b.assign_member(lhs, b.id("$event"));
+                b.arrow(b.params(["$event"]), body)
             }
-            Cg::Function {
+            &Cg::Function {
                 parameters,
                 returns,
             } => {
-                let ps: Vec<NodeIdentifier> = parameters
-                    .iter()
-                    .map(|&p| copy(self.javascript, self.to, &mut Verbatim, p))
-                    .collect();
-                let r = self.cg(*returns);
-                let ret = self.to.return_(Some(r), SourceLocation::SYNTHETIC);
-                let body = self.to.block(&[ret], SourceLocation::SYNTHETIC);
-                self.to
-                    .arrow(&ps, body, false, false, SourceLocation::SYNTHETIC)
+                let mut parameters = self
+                    .javascript
+                    .get_parameters(parameters)
+                    .clone_in(b.allocator());
+                parameters.kind = oxc_ast::ast::FormalParameterKind::ArrowFormalParameters;
+                let r = self.cg(returns);
+                b.arrow_block(b.alloc(parameters), [b.return_(Some(r))], false)
             }
             &Cg::Conditional {
                 test,
@@ -269,7 +239,7 @@ impl Gen<'_> {
                 let t = self.exp(test);
                 let c = self.cg(consequent);
                 let a = self.cg(alternate);
-                self.to.cond(t, c, a, SourceLocation::SYNTHETIC)
+                Expression::new_conditional_expression(oxc_span::SPAN, t, c, a, b)
             }
             &Cg::Cache {
                 index,
@@ -277,46 +247,29 @@ impl Gen<'_> {
                 spread,
             } => {
                 #[expect(clippy::cast_precision_loss, reason = "a cache slot")]
-                let slot = |to: &mut SyntaxTree| {
-                    let cache = to.identifier("_cache");
-                    let i = to.write_number(index as f64, SourceLocation::SYNTHETIC);
-                    to.member(cache, i, true, false, SourceLocation::SYNTHETIC)
-                };
-                let read = slot(self.to);
+                let slot = || b.computed(b.id("_cache"), b.number(index as f64));
                 let v = self.cg(value);
-                let target = slot(self.to);
-                let assign = self.to.assign(
-                    AssignmentOperator::Assign,
-                    target,
-                    v,
-                    SourceLocation::SYNTHETIC,
-                );
-                let cached =
-                    self.to
-                        .logical(LogicalOperator::Or, read, assign, SourceLocation::SYNTHETIC);
-                if !spread {
-                    return cached;
+                let cached = b.logical(slot(), LogicalOperator::Or, b.assign_member(slot(), v));
+                if spread {
+                    out::spread_array(b, cached)
+                } else {
+                    cached
                 }
-                let s = self.to.spread(cached, SourceLocation::SYNTHETIC);
-                self.to.array(&[s], SourceLocation::SYNTHETIC)
             }
-            Cg::Hoisted(i) => self.to.identifier(&format!("_hoisted_{i}")),
+            Cg::Hoisted(i) => b.id(&format!("_hoisted_{i}")),
             Cg::Node(n) => self.node(*n),
         }
     }
 
-    fn node_array(&mut self, list: &[Nid]) -> NodeIdentifier {
-        let items: Vec<NodeIdentifier> = list.iter().map(|&n| self.node(n)).collect();
-        self.to.array(&items, SourceLocation::SYNTHETIC)
+    fn node_array(&mut self, list: &[Nid]) -> Expression<'o> {
+        let items: Vec<Expression<'o>> = list.iter().map(|&n| self.node(n)).collect();
+        self.b.array(items)
     }
 
-    fn flag(&mut self, f: i32) -> NodeIdentifier {
-        let n = self
-            .to
-            .write_number(f64::from(f.abs()), SourceLocation::SYNTHETIC);
+    fn flag(&self, f: i32) -> Expression<'o> {
+        let n = self.b.number(f64::from(f.abs()));
         if f < 0 {
-            self.to
-                .unary(UnaryOperator::Neg, n, SourceLocation::SYNTHETIC)
+            self.b.unary(UnaryOperator::UnaryNegation, n)
         } else {
             n
         }
