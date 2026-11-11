@@ -1,0 +1,14 @@
+[
+	{
+		"code": 2322,
+		"message": "Type 'number' is not assignable to type 'string'.",
+		"start": {
+			"line": 4,
+			"character": 7
+		},
+		"end": {
+			"line": 4,
+			"character": 12
+		}
+	}
+]
