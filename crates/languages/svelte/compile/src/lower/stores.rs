@@ -116,9 +116,10 @@ impl<'r> Names<'r> {
             if !declared && name[1..].starts_with(|c: char| c.is_ascii_lowercase()) {
                 return global_reference_invalid(name, span(references[0]));
             }
+            // A module script's rune call stays the rune, as upstream's `get_rune` of its parent.
             let in_module = references.iter().find(|&&r| {
                 let start = res.reference_span(r).start;
-                module.is_some_and(|m| m.start < start && start < m.end)
+                module.is_some_and(|m| m.start < start && start < m.end) && !res.calls_rune(r)
             });
             if let Some(&r) = in_module {
                 return super::special::invalid(

@@ -12,7 +12,7 @@ mod template;
 
 pub(super) fn classify<'a>(
     semantic: &'a Semantic,
-    subscribed: &[&str],
+    subscribed: &runes::Subscriptions,
     counts: &Counts,
     compiler_syntax_tree: &CompilerSyntaxTree,
     names: &TemplateNames,
@@ -62,7 +62,7 @@ pub(super) fn initializer(semantic: &Semantic, symbol: SymbolId) -> Option<&Expr
 
 fn classify_declarator<'a>(
     semantic: &Semantic,
-    subscribed: &[&str],
+    subscribed: &runes::Subscriptions,
     declarator: &'a VariableDeclarator<'a>,
     out: &mut [BindingInformation<'a>],
 ) {

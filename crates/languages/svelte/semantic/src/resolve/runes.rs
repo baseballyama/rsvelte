@@ -112,11 +112,48 @@ pub fn lowers<'a>(e: &'a Expression<'a>) -> bool {
     lowered(e).is_some()
 }
 
+/// Upstream analysis's synthetic store subscriptions among the rune names, which it declares in
+/// the instance's scope: a module script's rune call stays the rune.
+#[derive(Default)]
+pub(super) struct Subscriptions {
+    names: Vec<&'static str>,
+    /// The instance script's scope when a module script is beside it: only code below it, not
+    /// the module's, sees a subscription.
+    instance: Option<ScopeId>,
+    module: bool,
+}
+
+impl Subscriptions {
+    pub(super) fn contains(&self, name: &str) -> bool {
+        self.names.contains(&name)
+    }
+
+    /// Whether the subscription `root` names hides the rune: not in the module script, whose
+    /// scope is the instance's parent.
+    fn shadows(&self, semantic: &Semantic, root: &IdentifierReference<'_>) -> bool {
+        if !self.contains(root.name.as_str()) {
+            return false;
+        }
+        if !self.module {
+            return true;
+        }
+        let (Some(instance), Some(reference)) = (self.instance, root.reference_id.get()) else {
+            return false;
+        };
+        let node = semantic.scoping().get_reference(reference).node_id();
+        let scope = semantic.nodes().get_node(node).scope_id();
+        semantic
+            .scoping()
+            .scope_ancestors(scope)
+            .any(|s| s == instance)
+    }
+}
+
 /// Upstream `get_rune`: the rune the call `call` names, when the callee's root names neither a
-/// binding nor a store subscription in `subscribed`.
+/// binding nor a store subscription it reaches.
 pub(super) fn named_in_scope<'a>(
     semantic: &Semantic,
-    subscribed: &[&str],
+    subscribed: &Subscriptions,
     call: &'a CallExpression<'a>,
 ) -> Option<&'static str> {
     let (rune, root) = named(call)?;
@@ -125,14 +162,14 @@ pub(super) fn named_in_scope<'a>(
         .get()
         .and_then(|reference| semantic.scoping().get_reference(reference).symbol_id())
         .is_some();
-    (!bound && !subscribed.contains(&root.name.as_str())).then_some(rune)
+    (!bound && !subscribed.shadows(semantic, root)).then_some(rune)
 }
 
 /// [`named_in_scope`] of an expression that is a call, inside an optional chain too: the rune
 /// upstream's visitors of a call see.
 pub(super) fn named_in_scope_anywhere<'a>(
     semantic: &Semantic,
-    subscribed: &[&str],
+    subscribed: &Subscriptions,
     e: &'a Expression<'a>,
 ) -> Option<&'static str> {
     match without_typescript(e) {
@@ -148,7 +185,7 @@ pub(super) fn named_in_scope_anywhere<'a>(
 /// [`named_in_scope`] of a call that lowers as a rune, with its first argument.
 pub(super) fn rune<'a>(
     semantic: &Semantic,
-    subscribed: &[&str],
+    subscribed: &Subscriptions,
     e: &'a Expression<'a>,
 ) -> Option<(&'static str, Option<&'a Expression<'a>>)> {
     let call = lowered(e)?;
@@ -161,9 +198,14 @@ pub(super) fn rune<'a>(
 /// Upstream analysis's synthetic store subscriptions among the rune names: `$name` subscribes to
 /// a store when `name` is bound in the instance's scope or the module's, unless that binding is
 /// itself a rune's (a `$props()` one only for `props`) or `derived` from `svelte/store`.
-pub(super) fn subscribed(semantic: &Semantic, instance: ScopeId) -> Vec<&'static str> {
+pub(super) fn subscribed(
+    semantic: &Semantic,
+    instance: ScopeId,
+    instance_program: Option<ScopeId>,
+    module: bool,
+) -> Subscriptions {
     let scoping = semantic.scoping();
-    RUNE_ROOTS
+    let names = RUNE_ROOTS
         .iter()
         .copied()
         .filter(|&name| {
@@ -177,7 +219,7 @@ pub(super) fn subscribed(semantic: &Semantic, instance: ScopeId) -> Vec<&'static
                 AstKind::VariableDeclarator(d) => d
                     .init
                     .as_ref()
-                    .and_then(|init| rune(semantic, &[], init))
+                    .and_then(|init| rune(semantic, &Subscriptions::default(), init))
                     .map(|(initial, _)| initial),
                 _ => None,
             };
@@ -197,5 +239,10 @@ pub(super) fn subscribed(semantic: &Semantic, instance: ScopeId) -> Vec<&'static
             (initial.is_none() || (store != "props" && initial == Some("$props")))
                 && !(name == "$derived" && from_svelte_store())
         })
-        .collect()
+        .collect();
+    Subscriptions {
+        names,
+        instance: instance_program,
+        module,
+    }
 }

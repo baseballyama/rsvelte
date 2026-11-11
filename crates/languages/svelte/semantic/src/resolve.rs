@@ -95,7 +95,7 @@ struct Facts<'a> {
     /// The instance calls `$props()` (upstream `needs_props`).
     uses_props: bool,
     /// The rune names that subscribe to a store instead, such as `$state` beside a `state`.
-    subscribed: Vec<&'static str>,
+    subscribed: runes::Subscriptions,
     scopes: FxHashMap<TemplateScope, ScopeId>,
     names: TemplateNames,
     instance_scope: ScopeId,
@@ -196,9 +196,10 @@ fn resolve_scripts(
             &template,
         );
         let subscribed = if stores {
-            runes::subscribed(semantic, instance_scope)
+            let instance_program = instance.and_then(|p| tree.get_program(p).scope_id.get());
+            runes::subscribed(semantic, instance_scope, instance_program, module.is_some())
         } else {
-            Vec::new()
+            runes::Subscriptions::default()
         };
         let bindings =
             classify::classify(semantic, &subscribed, &counts, compiler_syntax_tree, &names);
@@ -353,6 +354,22 @@ impl Resolution {
         self.semantic().nodes().kind(node).span()
     }
 
+    /// Whether `reference` is the callee of a call to the rune it names, which upstream's
+    /// `get_rune` of the reference's parent reads.
+    #[must_use]
+    pub fn calls_rune(&self, reference: ReferenceId) -> bool {
+        let nodes = self.semantic().nodes();
+        let node = self.scoping().get_reference(reference).node_id();
+        let AstKind::IdentifierReference(identifier) = nodes.kind(node) else {
+            return false;
+        };
+        matches!(
+            nodes.parent_kind(node),
+            AstKind::CallExpression(call)
+                if matches!(&call.callee, Expression::Identifier(callee) if callee.span == identifier.span)
+        ) && RUNES.contains(&identifier.name.as_str())
+    }
+
     /// The scope the reference `reference` is in.
     #[must_use]
     pub fn reference_scope(&self, reference: ReferenceId) -> ScopeId {
@@ -468,7 +485,7 @@ impl Resolution {
     pub fn is_store_subscription(&self, name: &str) -> bool {
         name.strip_prefix('$')
             .is_some_and(|store| !store.is_empty() && !store.starts_with('$'))
-            && (!RUNES.contains(&name) || self.0.borrow_dependent().subscribed.contains(&name))
+            && (!RUNES.contains(&name) || self.0.borrow_dependent().subscribed.contains(name))
     }
 
     /// Upstream `is_state_source`: in runes mode a `$state` needs a signal only if it is
@@ -538,7 +555,11 @@ fn proxyable(res: Option<&Resolution>, e: &Expression<'_>) -> bool {
     }
 }
 
-fn has_props_rune(semantic: &Semantic, subscribed: &[&str], program: &Program<'_>) -> bool {
+fn has_props_rune(
+    semantic: &Semantic,
+    subscribed: &runes::Subscriptions,
+    program: &Program<'_>,
+) -> bool {
     use oxc_ast::ast::Statement;
     program.body.iter().any(|statement| match statement {
         Statement::VariableDeclaration(declaration) => declaration.declarations.iter().any(|d| {
