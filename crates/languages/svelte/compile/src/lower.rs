@@ -175,7 +175,7 @@ pub(crate) fn validate(
     let custom_element = special::validate(input)?;
     let names = stores::Names::new(input, res);
     validation::check_analysis(input, res, &names, snippets::errors(input, res))?;
-    let hoistable = snippets::hoistable(input, res);
+    let hoistable = snippets::hoistable(input, res, &names);
     snippets::check_exports(input, res, &hoistable)?;
     coverage::check(input, res)?;
     validation::check_typescript(input)?;

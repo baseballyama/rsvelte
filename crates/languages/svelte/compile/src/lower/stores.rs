@@ -4,11 +4,17 @@
 use oxc_ast::ast::Ident;
 use oxc_semantic::ReferenceId;
 
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, ElementKind, MetadataTag, NodeKind,
+};
+use rustc_hash::FxHashSet;
+
 use super::validation::unbound;
-use super::{CompileInput, Diagnostic, Resolution, Span};
+use super::{CompileInput, Diagnostic, Resolution, Span, span_of};
 
 /// The `$name`s no binding declares, each with its references, in upstream's order: the module
-/// script's, the instance script's, then the template's, each in document order.
+/// script's, the instance script's, then the template's, each in the order upstream's scope walk
+/// meets them.
 pub(super) struct Names<'r> {
     names: Vec<(&'r str, Vec<ReferenceId>)>,
 }
@@ -19,18 +25,18 @@ impl<'r> Names<'r> {
         let program = |p| javascript.get_program(p).span;
         let module = input.component.module.map(program);
         let instance = input.component.instance.map(program);
+        let walk = TemplateWalk::new(input);
         let order = |r: ReferenceId| {
             let start = res.reference_span(r).start;
             let inside =
                 |s: Option<oxc_span::Span>| s.is_some_and(|s| s.start <= start && start < s.end);
-            let section = if inside(module) {
-                0
+            if inside(module) {
+                (0, 0, start, start)
             } else if inside(instance) {
-                1
+                (1, 0, start, start)
             } else {
-                2
-            };
-            (section, start)
+                walk.order(start)
+            }
         };
         let dollar = |name: &str| {
             name.starts_with('$') && !matches!(name, "$$props" | "$$restProps" | "$$slots")
@@ -52,6 +58,16 @@ impl<'r> Names<'r> {
             .filter(|(name, _)| res.is_store_subscription(name))
             .map(|&(name, _)| name.to_owned())
             .collect()
+    }
+
+    /// The references of the store subscriptions.
+    pub(super) fn subscription_references(
+        &self,
+        res: &Resolution,
+    ) -> impl Iterator<Item = ReferenceId> {
+        (self.names.iter())
+            .filter(move |(name, _)| res.is_store_subscription(name))
+            .flat_map(|(_, references)| references.iter().copied())
     }
 
     /// Upstream's errors for a `$name` as it declares the subscriptions.
@@ -112,6 +128,69 @@ impl<'r> Names<'r> {
             }
         }
         Ok(())
+    }
+}
+
+/// Where upstream's template scope walk meets a reference, by its start. It references a
+/// directive's name as it meets the directive, and every other name after the walk, in walk order,
+/// which visits an `{#each}`'s fallback after its collection and a `<svelte:element>`'s `this`
+/// after its children.
+struct TemplateWalk {
+    directives: FxHashSet<u32>,
+    /// A reference in `start..end` is met at `at`.
+    moved: Vec<(u32, u32, u32)>,
+}
+
+impl TemplateWalk {
+    fn new(input: &CompileInput<'_>) -> Self {
+        let tree = input.component.compiler_syntax_tree;
+        let span = |e| span_of(input.component.javascript.get_expression(e));
+        let mut walk = Self {
+            directives: FxHashSet::default(),
+            moved: Vec::new(),
+        };
+        for node in &tree.nodes {
+            match &node.kind {
+                NodeKind::Element(element) => {
+                    for a in tree.attributes(element.attributes) {
+                        if let AttributeValue::Use { action: name, .. }
+                        | AttributeValue::Transition { function: name, .. }
+                        | AttributeValue::Animate { function: name, .. } = a.value
+                        {
+                            walk.directives.insert(span(name).start_offset);
+                        }
+                    }
+                    let dynamic = element.kind == ElementKind::Metadata(Some(MetadataTag::Element));
+                    if let Some(this) = element.this.filter(|_| dynamic) {
+                        let this = tree.attributes[this].span;
+                        walk.moved
+                            .push((this.start_offset, this.end_offset, node.span.end_offset));
+                    }
+                }
+                NodeKind::Each(each) => {
+                    let fallback = each
+                        .fallback
+                        .and_then(|f| tree.children(f).first().copied());
+                    if let Some(first) = fallback {
+                        let start = tree.node(first).span.start_offset;
+                        let at = span(each.collection).end_offset;
+                        walk.moved.push((start, node.span.end_offset, at));
+                    }
+                }
+                _ => {}
+            }
+        }
+        walk
+    }
+
+    fn order(&self, start: u32) -> (u8, u8, u32, u32) {
+        if self.directives.contains(&start) {
+            return (2, 0, start, start);
+        }
+        let at = (self.moved.iter())
+            .find(|&&(from, to, _)| from <= start && start < to)
+            .map_or(start, |&(_, _, at)| at);
+        (2, 1, at, start)
     }
 }
 

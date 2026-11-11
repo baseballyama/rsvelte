@@ -6,6 +6,7 @@ use oxc_ast::ast::{
 };
 use rsvelte_svelte_semantic::resolve::BindingKind;
 
+use crate::lower::javascript::member_root;
 use crate::lower::script::bindable_root;
 use crate::lower::{Diagnostic, Resolution, Span, Target, unsupported};
 
@@ -210,9 +211,14 @@ impl RuneWalk<'_> {
         target: Target,
     ) -> Result<(), Diagnostic> {
         let (res, accessors) = (self.res, self.custom_element);
+        let store = |name: &IdentifierReference<'_>| {
+            res.symbol(name).is_none() && res.is_store_subscription(&name.name)
+        };
         let mut transformed = false;
         for_each_written(pattern, &mut |written| {
             transformed |= match written {
+                Written::Name(name) if store(name) => true,
+                Written::Member(member) if member_root(member.object()).is_some_and(store) => true,
                 Written::Name(name) => {
                     res.symbol(name)
                         .is_some_and(|symbol| match res.binding(symbol).kind {
@@ -232,7 +238,7 @@ impl RuneWalk<'_> {
             return Ok(());
         }
         unsupported(
-            "an assignment to state, a prop or a derived in a pattern",
+            "an assignment to state, a prop, a derived or a store in a pattern",
             span,
         )
     }
