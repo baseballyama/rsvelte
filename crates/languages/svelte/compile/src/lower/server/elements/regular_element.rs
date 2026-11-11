@@ -21,7 +21,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         if matches!(tag.as_str(), "script" | "style" | "textarea" | "template") {
             return unsupported(&format!("`<{tag}>`"), el.name);
         }
-        if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
+        if is_customizable_select(compiler_syntax_tree, self.source_text, el) {
             return unsupported(&format!("rich content in `<{tag}>`"), el.name);
         }
         let namespace = self.plan.namespace(identifier);

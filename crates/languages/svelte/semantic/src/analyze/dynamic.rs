@@ -63,7 +63,11 @@ pub(super) fn mark_dynamic(
                 body(s.body, out);
             }
             NodeKind::Element(el) => {
-                let own = body(el.children, out);
+                // Upstream hydrates a select's rich content, and `<selectedcontent>`, by hand.
+                let hydrated = compiler_syntax_tree.is_customizable_select(el, source_text)
+                    || (el.kind == compiler_syntax_tree::ElementKind::Regular
+                        && el.name.text(source_text) == "selectedcontent");
+                let own = body(el.children, out) || hydrated;
                 any |= el.kind != compiler_syntax_tree::ElementKind::Regular;
                 // Upstream sets a custom element's attributes at runtime, as its properties.
                 any |= compiler_syntax_tree.is_custom_element(el, source_text)

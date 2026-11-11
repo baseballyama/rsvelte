@@ -232,3 +232,38 @@ fn a_rune_call_around_state_is_a_call_as_any_other() {
         ]
     );
 }
+
+#[test]
+fn a_select_s_rich_content_makes_it_and_its_parent_dynamic() {
+    // Whether the element's own children are dynamic, and whether its parent's are.
+    let dynamic = |source: &str, tag: &str| {
+        let component = parse(source).expect("parses");
+        let lowered = lower(&component, source);
+        let res = resolve(&component.javascript, None, None, &lowered);
+        let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+        let analysis = super::analyze(&input, &res);
+        let find = |name: &str| {
+            lowered
+                .nodes
+                .iter_enumerated()
+                .find(|(_, node)| {
+                    matches!(&node.kind, NodeKind::Element(el) if el.name.text(source) == name)
+                })
+                .expect("the element")
+                .0
+        };
+        (analysis.dynamic[find(tag)], analysis.dynamic[find("div")])
+    };
+    let rich = "<div><select><option><strong>Bold</strong></option></select></div>";
+    assert_eq!(dynamic(rich, "option"), (true, true));
+    // `mark_subtree_dynamic` marks each enclosing fragment, the select's own included.
+    assert_eq!(dynamic(rich, "select"), (true, true));
+    let boundary = "<div><select><svelte:boundary><p>a</p></svelte:boundary></select></div>";
+    assert_eq!(dynamic(boundary, "select"), (true, true));
+    let selected = "<div><selectedcontent></selectedcontent></div>";
+    assert_eq!(dynamic(selected, "selectedcontent"), (true, true));
+    // Plain options and their text are not rich.
+    let plain = "<div><select><optgroup><option>a</option></optgroup></select></div>";
+    assert_eq!(dynamic(plain, "select"), (false, false));
+    assert_eq!(dynamic(plain, "option"), (false, false));
+}

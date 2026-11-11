@@ -3,10 +3,7 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_syntax::scope::ScopeFlags;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{
-    Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
-    NodeKind, Resolution,
-};
+use super::{Attribute, AttributeValue, CompilerSyntaxTree, Element, NodeKind, Resolution};
 
 pub const DOM_BOOLEAN_ATTRIBUTES: &[&str] = &[
     "allowfullscreen",
@@ -163,61 +160,9 @@ pub(super) fn synthetic_value(
 pub fn is_customizable_select(
     compiler_syntax_tree: &CompilerSyntaxTree,
     source_text: &str,
-    tag: &str,
     el: &Element,
 ) -> bool {
-    fn descendants(
-        compiler_syntax_tree: &CompilerSyntaxTree,
-        source_text: &str,
-        list: Children,
-        out: &mut Vec<CompilerNodeIdentifier>,
-    ) {
-        for &identifier in compiler_syntax_tree.children(list) {
-            match &compiler_syntax_tree.node(identifier).kind {
-                NodeKind::Comment { .. }
-                | NodeKind::Expression { .. }
-                | NodeKind::Snippet(_)
-                | NodeKind::Debug { .. }
-                | NodeKind::Const { .. }
-                | NodeKind::Declaration { .. } => {}
-                kind @ NodeKind::Text { .. } => {
-                    if !kind.is_blank_text(source_text) {
-                        out.push(identifier);
-                    }
-                }
-                NodeKind::If { .. }
-                | NodeKind::Each(_)
-                | NodeKind::Key { .. }
-                | NodeKind::Await(_) => {
-                    for c in compiler_syntax_tree.child_lists(identifier) {
-                        descendants(compiler_syntax_tree, source_text, c, out);
-                    }
-                }
-                NodeKind::Element(_) | NodeKind::Render { .. } | NodeKind::Html { .. } => {
-                    out.push(identifier);
-                }
-            }
-        }
-    }
-    if !matches!(tag, "select" | "optgroup" | "option") {
-        return false;
-    }
-    let mut found = Vec::new();
-    descendants(compiler_syntax_tree, source_text, el.children, &mut found);
-    found.iter().any(
-        |&identifier| match &compiler_syntax_tree.node(identifier).kind {
-            NodeKind::Element(child) => {
-                let name = child.name.text(source_text);
-                match tag {
-                    "select" => name != "option" && name != "optgroup",
-                    "optgroup" => name != "option",
-                    _ => true,
-                }
-            }
-            NodeKind::Text { .. } => tag != "option",
-            _ => true,
-        },
-    )
+    compiler_syntax_tree.is_customizable_select(el, source_text)
 }
 
 /// Upstream `is_load_error_element`.

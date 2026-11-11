@@ -30,7 +30,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if self.an.scoped[identifier] && custom_element {
             return unsupported("a scoped custom element", el.name);
         }
-        if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
+        if is_customizable_select(compiler_syntax_tree, self.source_text, el) {
             return unsupported(&format!("rich content in `<{tag}>`"), el.name);
         }
         let namespace = self.plan.namespace(identifier);
