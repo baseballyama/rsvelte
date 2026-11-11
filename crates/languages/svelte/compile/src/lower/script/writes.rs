@@ -41,10 +41,10 @@ impl<'o> ScriptRewrite<'_, 'o> {
             return None;
         };
         let b = self.b;
-        if self.target != Target::Client {
-            return self.assign_derived_on_server(it);
-        }
         let AssignmentTarget::AssignmentTargetIdentifier(target) = &assignment.left else {
+            if self.target != Target::Client {
+                return None;
+            }
             let member = assignment.left.as_member_expression()?;
             let prop = bindable_root(self.res, self.accessors, member.object())
                 .map(|root| b.id_at(&root.name, root.span))?;
@@ -53,10 +53,15 @@ impl<'o> ScriptRewrite<'_, 'o> {
         };
         let symbol = self.res.symbol(target)?;
         let info = self.res.binding(symbol);
-        let state = self.res.is_state_source(symbol)
-            || matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
-        let prop = is_prop_source(self.res, self.accessors, symbol);
-        if !state && !prop {
+        let derived = matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
+        // A prop, and the server's derived, are functions that a call with a value writes.
+        let called = if self.target == Target::Client {
+            is_prop_source(self.res, self.accessors, symbol)
+        } else {
+            derived
+        };
+        let state = self.target == Target::Client && (self.res.is_state_source(symbol) || derived);
+        if !state && !called {
             return None;
         }
         let operator = assignment.operator;
@@ -82,7 +87,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
             None => None,
         };
         let value = assignment_value(b, operator, current, value);
-        if prop {
+        if called {
             return Some(b.call(x, [value]));
         }
         let mut arguments = vec![x, value];
@@ -97,34 +102,6 @@ impl<'o> ScriptRewrite<'_, 'o> {
             ));
         }
         Some(set)
-    }
-
-    /// The server keeps a derived as a function, which takes the value written.
-    fn assign_derived_on_server(&mut self, it: &mut Expression<'o>) -> Option<Expression<'o>> {
-        let b = self.b;
-        let Expression::AssignmentExpression(assignment) = it else {
-            return None;
-        };
-        let AssignmentTarget::AssignmentTargetIdentifier(target) = &assignment.left else {
-            return None;
-        };
-        let symbol = self.res.symbol(target)?;
-        if !matches!(
-            self.res.binding(symbol).kind,
-            BindingKind::Derived | BindingKind::DerivedBy
-        ) {
-            return None;
-        }
-        let operator = assignment.operator;
-        let x = b.id_at(&target.name, target.span);
-        let current = (operator != AssignmentOperator::Assign).then(|| self.read(target));
-        let mut value = assignment.right.take_in(b);
-        self.visit_expression(&mut value);
-        let current = match current {
-            Some(current) => Some(current?),
-            None => None,
-        };
-        Some(b.call(x, [assignment_value(b, operator, current, value)]))
     }
 
     pub(super) fn update(&mut self, it: &mut Expression<'o>) -> Option<Expression<'o>> {
