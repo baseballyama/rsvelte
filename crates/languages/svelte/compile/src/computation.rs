@@ -40,12 +40,7 @@ impl Artifact for ScopedStylesheet {
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let an = context.get::<Analyzed>().as_ref()?;
-        let mode = if context
-            .get::<Validated>()
-            .as_ref()
-            .ok()?
-            .is_custom_element()
-        {
+        let mode = if context.get::<Validated>().as_ref().ok()?.injects_css() {
             rsvelte_stylesheet_compile::scope::RenderMode::Minify
         } else {
             rsvelte_stylesheet_compile::scope::RenderMode::Preserve

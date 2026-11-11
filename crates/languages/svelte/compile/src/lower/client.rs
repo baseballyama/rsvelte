@@ -257,7 +257,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     };
     let template = context.fragment(input.component.compiler_syntax_tree.root)?;
 
-    let stylesheet = context.custom_element_stylesheet(facts.stylesheet);
+    let stylesheet = super::embedded_stylesheet(b, &facts, Target::Client);
     let mut returned = context.export_properties(&exports);
     returned.extend(context.custom_element_exports());
     let func = context.component_function(
