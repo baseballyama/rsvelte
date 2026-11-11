@@ -1,5 +1,6 @@
 use std::cell::{Cell, RefCell};
 
+use oxc_ast::ast::Program;
 use oxc_semantic::{Host, HostVisitor, ScopeFlags, ScopeId};
 use rsvelte_typescript_tree::Tree;
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, LoopExpression};
@@ -9,9 +10,11 @@ use crate::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind, PropertyKind,
 };
 
-/// The template, evaluated inside the script's top-level scope.
+/// The setup script, when a module script is the root program, and the template, evaluated inside
+/// the setup script's top-level scope.
 pub(super) struct TemplateHost<'t, 'a> {
     pub(super) tree: &'a Tree,
+    pub(super) nested_setup: Option<&'a Program<'a>>,
     pub(super) compiler_syntax_tree: Option<&'t CompilerSyntaxTree>,
     /// The scopes the `v-for` elements opened, once the builder has visited the template.
     pub(super) for_scopes: RefCell<FxHashMap<CompilerNodeIdentifier, ScopeId>>,
@@ -19,14 +22,20 @@ pub(super) struct TemplateHost<'t, 'a> {
 
 impl<'a> Host<'a> for TemplateHost<'_, 'a> {
     fn visit(&self, visitor: &mut HostVisitor<'_, 'a>) {
-        let Some(compiler_syntax_tree) = self.compiler_syntax_tree else {
-            return;
-        };
-        rsvelte_kernel::performance::stack::grow(|| {
-            for &n in compiler_syntax_tree.root() {
-                self.node(compiler_syntax_tree, n, visitor);
-            }
-        });
+        if let Some(setup) = self.nested_setup {
+            visitor.enter_scope(ScopeFlags::Function, &setup.scope_id);
+            visitor.visit_statements(&setup.body);
+        }
+        if let Some(compiler_syntax_tree) = self.compiler_syntax_tree {
+            rsvelte_kernel::performance::stack::grow(|| {
+                for &n in compiler_syntax_tree.root() {
+                    self.node(compiler_syntax_tree, n, visitor);
+                }
+            });
+        }
+        if self.nested_setup.is_some() {
+            visitor.leave_scope();
+        }
     }
 }
 

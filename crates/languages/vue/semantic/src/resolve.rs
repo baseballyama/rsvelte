@@ -60,6 +60,8 @@ pub struct DefineProps<'a> {
 pub struct Resolution {
     semantic: Semantic,
     program: ProgramIdentifier,
+    /// The setup program's scope: the root, or a function inside the module's.
+    root_scope: ScopeId,
     /// compileScript's `bindingMetadata`: by name, as the template compiler looks names up.
     bindings: FxHashMap<Box<str>, BindingType>,
     define_props: Option<DefinePropsAt>,
@@ -90,8 +92,8 @@ impl Resolution {
 
     /// The script's top-level scope, where the template's names resolve.
     #[must_use]
-    pub fn root_scope(&self) -> ScopeId {
-        self.scoping().root_scope_id()
+    pub const fn root_scope(&self) -> ScopeId {
+        self.root_scope
     }
 
     /// The symbol `reference` resolves to; `None` for a global.
@@ -138,12 +140,20 @@ impl Resolution {
     }
 }
 
-/// `program` is the script's program (or an empty one); `compiler_syntax_tree` is the template,
-/// `None` without one.
+/// Resolves the setup script's `program` (or an empty one) and the template.
+///
+/// `module` is a plain `<script>`'s program, whose names the setup script sees, as compileScript
+/// inlines setup into a function of that module. `compiler_syntax_tree` is `None` without a
+/// template.
+///
+/// # Panics
+///
+/// Never: the builder gives every program it visits a scope.
 #[must_use]
 pub fn resolve(
     tree: &Tree,
     program: ProgramIdentifier,
+    module: Option<ProgramIdentifier>,
     compiler_syntax_tree: Option<&CompilerSyntaxTree>,
 ) -> Resolution {
     let mut for_scopes = FxHashMap::default();
@@ -151,16 +161,24 @@ pub fn resolve(
         let host = host::TemplateHost {
             tree,
             compiler_syntax_tree,
+            nested_setup: module.map(|_| tree.get_program(program)),
             for_scopes: RefCell::new(FxHashMap::default()),
         };
-        let built = builder.build_with_host(tree.get_program(program), &host);
+        let root = tree.get_program(module.unwrap_or(program));
+        let built = builder.build_with_host(root, &host);
         for_scopes = host.for_scopes.take();
         built
     });
-    let (bindings, define_props) = binding_metadata(semantic.tree().get_program(program));
+    let setup = semantic.tree().get_program(program);
+    let (bindings, define_props) = binding_metadata(setup);
+    let root_scope = setup
+        .scope_id
+        .get()
+        .expect("the builder gave the setup program a scope");
     Resolution {
         semantic,
         program,
+        root_scope,
         bindings,
         define_props,
         for_scopes,

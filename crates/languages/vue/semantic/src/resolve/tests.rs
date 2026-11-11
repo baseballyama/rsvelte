@@ -7,7 +7,7 @@ use crate::expressions::{Parent, collect_identifiers};
 fn resolved(source_text: &str) -> (SingleFileComponent, CompilerSyntaxTree, Resolution) {
     let c = rsvelte_vue_syntax::parse::parse(source_text).expect("parses");
     let compiler_syntax_tree = lower(&c, source_text).expect("has a template");
-    let resolution = resolve(&c.javascript, c.program, Some(&compiler_syntax_tree));
+    let resolution = resolve(&c.javascript, c.program, None, Some(&compiler_syntax_tree));
     (c, compiler_syntax_tree, resolution)
 }
 
@@ -99,4 +99,35 @@ fn identifiers_say_what_holds_them() {
             ("c", Parent::Accessed),
         ]
     );
+}
+
+#[test]
+fn a_module_script_encloses_the_setup_script() {
+    let source = "const m = 1;\nlet s = m;\n";
+    let (tree, (setup, module)) = Tree::build(source, |builder| {
+        let module = builder.program(
+            rsvelte_kernel::source::positions::Span::new(0, 12),
+            oxc_span::SourceType::mjs(),
+        )?;
+        let setup = builder.program(
+            rsvelte_kernel::source::positions::Span::new(13, 23),
+            oxc_span::SourceType::mjs(),
+        )?;
+        Ok((setup, module))
+    })
+    .expect("parses");
+    let r = resolve(&tree, setup, Some(module), None);
+    let scoping = r.scoping();
+    let m = scoping
+        .find_binding(scoping.root_scope_id(), "m".into())
+        .expect("in the module");
+    let s = scoping
+        .get_bindings(r.root_scope())
+        .get("s")
+        .copied()
+        .expect("in setup");
+    assert_ne!(r.root_scope(), scoping.root_scope_id());
+    assert_eq!(scoping.symbol_scope_id(s), r.root_scope());
+    assert_eq!(scoping.get_resolved_references(m).count(), 1);
+    assert_eq!(r.binding_type("s"), Some(BindingType::SetupLet));
 }
