@@ -137,3 +137,6 @@
 
 ["svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/avatar/svelte/filter.svelte".skip]
 "svelte.compile" = "upstream bug: an `<svg>` beside a component makes the component's children svg, which drops the HTML whitespace between their components"
+
+["svelte/runed/sites/docs/src/lib/components/demos/scroll-state.svelte".skip]
+"svelte.compile/client" = "upstream bug: an element that holds a {#snippet} shares its parent's memoizer, so the parent's template_effect also takes the values the element's own effect memoized, as parameters it never reads"
