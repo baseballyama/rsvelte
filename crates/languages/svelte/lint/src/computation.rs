@@ -127,7 +127,7 @@ impl Facet for SvelteKit {
 /// The on-disk name of the file a component or a runes module shares its name with.
 ///
 /// `Foo.svelte` and `Foo.svelte.ts` share one. A host that has its own view of the files can
-/// provide it; without a provider, [`SameNamedFileOnDisk`] reads the process's file system. Only
+/// provide it; without a provider, `SameNamedFileOnDisk` reads the process's file system. Only
 /// `svelte/no-conflicting-module-names` asks.
 #[derive(Debug)]
 pub struct SameNamedFile;

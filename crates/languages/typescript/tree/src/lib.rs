@@ -103,7 +103,7 @@ identifier!(
     ParametersIdentifier
 );
 identifier!(
-    /// A variable declaration kept by [`Builder::declaration`].
+    /// A variable declaration kept by [`Builder::keep_declaration`].
     DeclarationIdentifier
 );
 

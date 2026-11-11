@@ -23,7 +23,7 @@ fn options() -> CodegenOptions {
     }
 }
 
-/// [`print`], with a point mapping wherever the printer maps a node back into
+/// [`print()`], with a point mapping wherever the printer maps a node back into
 /// `program.source_text`, which `lines` indexes by `\n`.
 #[must_use]
 pub fn print_mapped(program: &Program<'_>, lines: &LineIndex) -> Emitter {

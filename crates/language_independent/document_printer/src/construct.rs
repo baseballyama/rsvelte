@@ -271,7 +271,7 @@ impl LayoutInstructions {
         })
     }
 
-    /// [`Self::flat_only`] with both flags of [`Node::FlatOnly`] chosen.
+    /// [`Self::flat_only`] with both flags of `Node::FlatOnly` chosen.
     pub fn flat_only_with(
         &mut self,
         d: LayoutInstructionIdentifier,
