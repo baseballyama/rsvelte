@@ -17,6 +17,9 @@
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::Mutex;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering::Relaxed;
 
 use rsvelte_kernel::computation::pipeline::{self, RunOptions, Sharing};
 use rsvelte_kernel::computation::registry::Registry;
@@ -115,6 +118,7 @@ struct Measured {
     totals: Option<measurement::GlobalMeasurements>,
     phases: Vec<measurement::PhaseMeasurements>,
     output_bytes: usize,
+    diagnostics: usize,
     /// (document path, panic message) of the last round.
     panicked: Vec<(String, String)>,
 }
@@ -127,45 +131,63 @@ fn measure(reg: &Registry, docs: &[Document], tasks: &[&str], rounds: usize) -> 
         threads: Some(1),
     };
     let mut totals = None;
-    let mut output_bytes = 0usize;
-    let mut panicked = Vec::new();
+    let mut counted = Counted::default();
     for round in 0..rounds {
         let last = round + 1 == rounds;
         if last {
             measurement::reset();
             measurement::track_global(true);
         }
+        let round_counted = Counted::default();
         // `main` has checked the task identifiers.
-        let mut results = pipeline::run(reg, docs, &run).expect("known task ids");
+        pipeline::run_each(reg, docs, &run, &|i, result| round_counted.add(i, result))
+            .expect("known task ids");
         if last {
-            output_bytes = results
-                .iter()
-                .flat_map(|r| &r.outputs)
-                .flat_map(|(_, o)| &o.files)
-                .map(|f| f.text.len())
-                .sum();
-            // Moved, not copied, while the counters run: a run without panics allocates nothing.
-            let panics: Vec<(usize, String)> = results
-                .iter_mut()
-                .enumerate()
-                .filter_map(|(i, r)| Some((i, r.panic.take()?)))
-                .collect();
-            drop(results);
             measurement::track_global(false);
             totals = Some(measurement::global());
-            panicked = panics
-                .into_iter()
-                .map(|(i, message)| (docs[i].path.clone(), message))
-                .collect();
+            counted = round_counted;
         }
     }
+    let panicked = counted
+        .panicked
+        .into_inner()
+        .expect("no panics under the lock")
+        .into_iter()
+        .map(|(i, message)| (docs[i].path.clone(), message))
+        .collect();
     let mut phases = measurement::snapshot();
     phases.sort_unstable_by_key(|p| p.name);
     Measured {
         totals,
         phases,
-        output_bytes,
+        output_bytes: counted.output_bytes.into_inner(),
+        diagnostics: counted.diagnostics.into_inner(),
         panicked,
+    }
+}
+
+/// What a round's results add up to, counted as each result arrives and then dropped, as
+/// `rsvelte corpus` writes each one out: the peak is then the working set a user's run holds.
+#[derive(Default)]
+struct Counted {
+    output_bytes: AtomicUsize,
+    diagnostics: AtomicUsize,
+    /// (document index, panic message); taken from the result, so a run without panics
+    /// allocates nothing here.
+    panicked: Mutex<Vec<(usize, String)>>,
+}
+
+impl Counted {
+    fn add(&self, i: usize, mut result: pipeline::DocumentResult) {
+        let outputs = result.outputs.iter().map(|(_, o)| o);
+        let bytes = outputs.clone().flat_map(|o| &o.files).map(|f| f.text.len());
+        self.output_bytes.fetch_add(bytes.sum(), Relaxed);
+        let diagnostics = outputs.map(|o| o.diagnostics.len()).sum();
+        self.diagnostics.fetch_add(diagnostics, Relaxed);
+        if let Some(message) = result.panic.take() {
+            let mut panicked = self.panicked.lock().expect("no panics under the lock");
+            panicked.push((i, message));
+        }
     }
 }
 
@@ -193,6 +215,8 @@ fn report(
         .write_number(docs.iter().map(|d| d.text.len()).sum::<usize>())
         .key("output_bytes")
         .write_number(m.output_bytes)
+        .key("diagnostics")
+        .write_number(m.diagnostics)
         .key("panicked")
         .begin_array();
     for (path, message) in &m.panicked {

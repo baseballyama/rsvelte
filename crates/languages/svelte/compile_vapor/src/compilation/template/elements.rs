@@ -15,20 +15,23 @@ const LOAD_ERROR_ELEMENTS: &[&str] = &[
     "body", "embed", "iframe", "img", "link", "object", "script", "style", "track",
 ];
 
-/// A `<textarea>`'s `value` of text and expressions, which Svelte renders as its content.
+/// A `<textarea>`'s `value` of text and expressions, or of one quoted expression, which Svelte
+/// renders as its content.
 pub(super) fn textarea_value<'a>(
     tag: &str,
     attributes: &'a [Attribute],
     source_text: &str,
-) -> Option<&'a [Part]> {
+) -> Option<&'a AttributeValue> {
     if tag != "textarea" {
         return None;
     }
-    attributes.iter().find_map(|a| match &a.value {
-        AttributeValue::Interpolated(parts) if a.name.text(source_text) == "value" => {
-            Some(&**parts)
-        }
-        _ => None,
+    attributes.iter().find_map(|a| {
+        (a.name.text(source_text) == "value"
+            && matches!(
+                a.value,
+                AttributeValue::Interpolated(_) | AttributeValue::Expression { quoted: true, .. }
+            ))
+        .then_some(&a.value)
     })
 }
 
@@ -123,8 +126,8 @@ impl<'t> Template<'_, '_, 't> {
                     .iter()
                     .any(|attribute| attribute.name.text(source_text) == "multiple"),
             )?
-        } else if let Some(parts) = textarea_value(tag, attributes, source_text) {
-            self.textarea_content(parts, v, node.span)
+        } else if let Some(value) = textarea_value(tag, attributes, source_text) {
+            self.textarea_content(value, v, node.span)
         } else {
             let preserve = preserve_whitespace || tag == "pre" || tag == "textarea";
             self.list(
@@ -142,11 +145,23 @@ impl<'t> Template<'_, '_, 't> {
     /// A `<textarea>`'s `value` of text and expressions as its content.
     fn textarea_content(
         &mut self,
-        parts: &[Part],
+        value: &AttributeValue,
         v: vue::CompilerNodeIdentifier,
         at: Span,
     ) -> vue::Children {
         let source_text = self.i.source_text;
+        let one;
+        let parts = match value {
+            AttributeValue::Interpolated(parts) => &**parts,
+            &AttributeValue::Expression { expression, .. } => {
+                one = [Part::Expression {
+                    expression,
+                    span: at,
+                }];
+                &one[..]
+            }
+            _ => unreachable!("textarea_value is text and expressions"),
+        };
         let items: Vec<Item<'_>> = parts
             .iter()
             .map(|part| match *part {
