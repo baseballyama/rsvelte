@@ -5,11 +5,10 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{Element, Modifiers};
 use rsvelte_svelte_semantic::evaluate::Evaluator;
 
 use super::super::component::{
-    Callee, Entry, Prop, bind_this, callee, child_snippets, props, props_expression,
+    Callee, DefaultSlot, Entry, Prop, bind_this, callee, child_snippets, props, props_expression,
     push_accessors, push_binding, push_children,
 };
 use super::super::derived::{Created, callback};
-use super::super::lets::default_slot_takes_props;
 use super::{
     AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
     Memo, NodeKind, Part, R, Target,
@@ -80,18 +79,18 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         {
             body.splice(0..0, std::mem::take(&mut lets));
         }
-        let takes_props = default_slot_takes_props(
+        let callbacks = slots
+            .into_iter()
+            .map(|(name, body)| (name, b.params(["$$anchor", "$$slotProps"]), body))
+            .collect();
+        let default = DefaultSlot::of(
             tree,
             self.javascript,
             self.source_text,
             element,
             Target::Client,
         );
-        let callbacks = slots
-            .into_iter()
-            .map(|(name, body)| (name, b.params(["$$anchor", "$$slotProps"]), body))
-            .collect();
-        push_children(b, &mut parts, &snippets, callbacks, takes_props);
+        push_children(b, &mut parts, &snippets, callbacks, default);
         let props = props_expression(b, parts, Target::Client);
         statements.extend(self.memo_deriveds(memo));
         // Upstream mounts a component with CSS custom properties in an element that holds them.

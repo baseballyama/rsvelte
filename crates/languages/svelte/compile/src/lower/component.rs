@@ -3,7 +3,9 @@
 
 use oxc_allocator::ArenaBox;
 use oxc_ast::ast::{Expression, FormalParameters, ObjectPropertyKind, PropertyKind, Statement};
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, ElementKind, MetadataTag, Snippet};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Children, Element, ElementKind, MetadataTag, Snippet,
+};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
 use super::javascript::member_root;
@@ -243,15 +245,49 @@ pub(super) type SlotCallback<'s, 'o> = (
     Vec<Statement<'o>>,
 );
 
-/// Each snippet child as a prop of its name, the default slot as a callback in the `children`
-/// prop, the other slots in `$$slots`, and `$$slots` so that a `<slot>` in the child renders them
-/// all. A default slot that takes slot props goes in `$$slots` too, and `children` throws.
+/// Where a component's default slot goes.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum DefaultSlot {
+    /// The `children` prop, with `$$slots.default` set so that a `<slot>` renders it.
+    Children,
+    /// `$$slots.default`, because it takes slot props, and a `children` prop that throws.
+    Slot,
+    /// `$$slots.default` beside the `children` prop the component passes itself.
+    BesideChildren,
+}
+
+impl DefaultSlot {
+    pub(super) fn of(
+        tree: &CompilerSyntaxTree,
+        javascript: &Tree,
+        source: &str,
+        component: &Element,
+        target: Target,
+    ) -> Self {
+        let children = tree.attributes(component.attributes).iter().any(|a| {
+            !is_directive(&a.value)
+                && !matches!(a.value, AttributeValue::Spread(_))
+                && a.name.text(source) == "children"
+        });
+        if children {
+            Self::BesideChildren
+        } else if super::lets::default_slot_takes_props(tree, javascript, source, component, target)
+        {
+            Self::Slot
+        } else {
+            Self::Children
+        }
+    }
+}
+
+/// Each snippet child as a prop of its name, the default slot as `default` says, the other slots
+/// in `$$slots`, and `$$slots` so that a `<slot>` in the child renders them all.
 pub(super) fn push_children<'o>(
     b: &Builder<'o>,
     parts: &mut Vec<Entry<'o>>,
     snippets: &[&str],
     slot_callbacks: Vec<SlotCallback<'_, 'o>>,
-    default_takes_props: bool,
+    default: DefaultSlot,
 ) {
     let mut slots = Vec::new();
     for &name in snippets {
@@ -265,11 +301,11 @@ pub(super) fn push_children<'o>(
             continue;
         }
         let callback = b.arrow_block(parameters, body, false);
-        if name == "default" && !default_takes_props {
+        if name == "default" && default == DefaultSlot::Children {
             parts.push(Entry::Property(b.init("children", callback)));
             slots.push(b.init("default", b.boolean(true)));
         } else {
-            if name == "default" {
+            if name == "default" && default == DefaultSlot::Slot {
                 let throws = b.member(b.id("$"), "invalid_default_snippet");
                 parts.push(Entry::Property(b.init("children", throws)));
             }
