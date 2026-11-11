@@ -53,6 +53,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     ) {
         let b = self.b;
         let mut event_name = &raw_name[2..];
+        // Upstream decides delegation on the name with its `capture` suffix.
+        let delegated = allow_delegation && DELEGATED_EVENTS.contains(&event_name);
         let capture = if event_name.ends_with("capture")
             && event_name != "gotpointercapture"
             && event_name != "lostpointercapture"
@@ -63,7 +65,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             false
         };
         let handler_expression = self.event_handler(handler, l);
-        let delegated = allow_delegation && DELEGATED_EVENTS.contains(&event_name);
         if delegated && !self.events.iter().any(|e| e == event_name) {
             self.events.push(event_name.to_owned());
         }
@@ -119,7 +120,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 let mut h = built;
                 if meta.has_call {
                     let identifier = self.names.generate("event_handler");
-                    let derived = b.runtime("derived", [b.arrow(b.params([]), h)]);
+                    let derived = b.runtime("derived", [b.thunk(h)]);
                     l.initializer.push(b.var(&identifier, derived));
                     h = b.runtime("get", [b.id(&identifier)]);
                 }
@@ -129,13 +130,14 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
     }
 
+    /// Upstream `OnDirective`: the `$.event` call, which the caller places.
     pub(super) fn event_directive(
         &mut self,
         attribute: &Attribute,
         target: &str,
         global: bool,
         lists: &mut Lists<'o>,
-    ) {
+    ) -> Expression<'o> {
         let b = self.b;
         let AttributeValue::On { handler, modifiers } = attribute.value else {
             unreachable!("an event directive")
@@ -179,15 +181,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         } else {
             None
         };
-        let call = b.runtime_some(
+        b.runtime_some(
             "event",
             vec![Some(name), Some(target), Some(handler), capture, passive],
-        );
-        if global {
-            lists.initializer.push(b.stmt(call));
-        } else {
-            lists.after.push(b.stmt(call));
-        }
+        )
     }
 
     fn global_event_target(&self, node: &str) -> Expression<'o> {

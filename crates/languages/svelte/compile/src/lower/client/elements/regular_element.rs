@@ -65,7 +65,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let load_error_events = attribute_list.iter().any(|a| {
             !is_directive(&a.value) && matches!(a.name.text(self.source_text), "onload" | "onerror")
         });
-        if is_load_error_element(&tag) && (has_spread || load_error_events) {
+        let has_use = attribute_list
+            .iter()
+            .any(|a| matches!(a.value, AttributeValue::Use { .. }));
+        if is_load_error_element(&tag) && (has_spread || has_use || load_error_events) {
             let b = self.b;
             l.after
                 .push(b.stmt(b.runtime("replay_events", [b.id(node)])));

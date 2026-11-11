@@ -3,7 +3,7 @@ use oxc_ast::ast::Expression;
 
 use super::{
     Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists,
-    NodeKind, R,
+    NodeKind, R, is_behaviour,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -38,13 +38,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .collect();
         let mut element_frag = Frag::default();
         let mut actual = attributes.iter().filter(|a| {
-            !matches!(
-                a.value,
-                AttributeValue::Bind(_)
-                    | AttributeValue::Attach(_)
-                    | AttributeValue::Class(_)
-                    | AttributeValue::On { .. }
-            )
+            !is_behaviour(&a.value)
+                && !matches!(a.value, AttributeValue::Bind(_) | AttributeValue::Class(_))
         });
         let first = actual.next();
         if let Some(attribute) = first {

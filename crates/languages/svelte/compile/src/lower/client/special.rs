@@ -69,7 +69,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 };
                 for attribute in tree.attributes(element.attributes) {
                     if matches!(attribute.value, AttributeValue::On { .. }) {
-                        self.event_directive(attribute, target, true, lists);
+                        let call = self.event_directive(attribute, target, true, lists);
+                        lists.initializer.push(self.b.stmt(call));
                     } else if let Some(handler) = event_attribute(self.source_text, attribute) {
                         self.event_on(
                             attribute.name.text(self.source_text),

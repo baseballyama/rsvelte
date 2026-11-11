@@ -3,7 +3,7 @@ use oxc_ast::ast::{Expression, PropertyKey};
 
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo,
-    event_attribute, normalize_attribute,
+    event_attribute, is_behaviour, normalize_attribute,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -24,9 +24,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut class_directives = Vec::new();
         for a in attributes {
             match a.value {
-                AttributeValue::Bind(_) | AttributeValue::Attach(_) | AttributeValue::On { .. } => {
-                    continue;
-                }
+                _ if is_behaviour(&a.value) => continue,
+                AttributeValue::Bind(_) => continue,
                 AttributeValue::Class(_) => {
                     class_directives.push(a);
                     continue;

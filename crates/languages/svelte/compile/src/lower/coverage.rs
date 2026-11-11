@@ -85,11 +85,15 @@ fn check_element(
             check_component_attribute(a)?;
         }
         let what = match a.value {
-            AttributeValue::On { .. } if !component && el.kind != ElementKind::Regular => continue,
+            AttributeValue::On { .. }
+            | AttributeValue::Use { .. }
+            | AttributeValue::Transition { .. }
+            | AttributeValue::Animate { .. }
+                if !component =>
+            {
+                continue;
+            }
             AttributeValue::On { .. } => "an `on:` directive",
-            AttributeValue::Use { .. } => "a `use:` directive",
-            AttributeValue::Transition { .. } => "a transition",
-            AttributeValue::Animate { .. } => "an `animate:` directive",
             AttributeValue::Style { .. } => "a `style:` directive",
             AttributeValue::Let(_) => "a `let:` directive",
             _ if !component => {
