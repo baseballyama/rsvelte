@@ -1,4 +1,4 @@
-# svelte.check/default: 8178 match
+# svelte.check/default: 8252 match
 svelte/animotion/src/lib/components/action.svelte	mismatch
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -202,7 +202,6 @@ svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/database
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/save.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/+page.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	refused
-svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/header.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/indexes/+page.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/indexes/createIndex.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/settings/+page.svelte	refused
@@ -221,7 +220,6 @@ svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/database
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/requiredArrayCheckboxes.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/createColumn.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/export/+page.svelte	refused
-svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/header.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/indexes/+page.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/cell/edit.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/columns/columnForm.svelte	refused
@@ -298,11 +296,6 @@ svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/api-keys/[key]/header.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/api-keys/create/+page.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/api-keys/scopes.svelte	refused
-svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/components/ClaudeIcon.svelte	mismatch
-svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/components/CodexIcon.svelte	mismatch
-svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/components/CursorIcon.svelte	mismatch
-svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/components/CursorIconLarge.svelte	mismatch
-svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/components/VSCodeIcon.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/dev-keys/+page.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/dev-keys/[key]/+page@project-[region]-[project].svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/dev-keys/[key]/header.svelte	refused
@@ -315,7 +308,6 @@ svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/flutterWindows.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/header.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/web.svelte	refused
-svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/components/NoFrameworkIcon.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createAndroid.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createApple.svelte	refused
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createFlutter.svelte	refused
@@ -1827,17 +1819,8 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/n
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/reactive-component-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-class-directives01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-class-directives01-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-i18n-output.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-if-block01-output.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-test01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-test01-output.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/import01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/ts/ts-test01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-output.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/ts/ts-unused-in-script-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/ts/type-only-import01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/ts/type-only-import02-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/svelte5-typescript/+page.svelte	mismatch
 svelte/flare/src/lib/components/AiSettingsView.svelte	refused
 svelte/flare/src/lib/components/AppList.svelte	mismatch
@@ -3029,7 +3012,6 @@ svelte/joy-of-code/src/lib/ui/header/search/search.svelte	refused
 svelte/joy-of-code/src/lib/ui/heading.svelte	refused
 svelte/joy-of-code/src/lib/ui/newsletter.svelte	refused
 svelte/joy-of-code/src/lib/ui/posts.svelte	refused
-svelte/joy-of-code/src/routes/+error.svelte	mismatch
 svelte/joy-of-code/src/routes/+layout.svelte	refused
 svelte/joy-of-code/src/routes/+page.svelte	refused
 svelte/joy-of-code/src/routes/[slug]/+page.svelte	refused
@@ -3157,7 +3139,6 @@ svelte/kampsy-ui/src/routes/tooltip/+page.svelte	refused
 svelte/kener/src/lib/components/BadgesMenu.svelte	refused
 svelte/kener/src/lib/components/CopyButton.svelte	refused
 svelte/kener/src/lib/components/EmbedMenu.svelte	refused
-svelte/kener/src/lib/components/EventsCard.svelte	mismatch
 svelte/kener/src/lib/components/GroupMonitorPopover.svelte	refused
 svelte/kener/src/lib/components/IncidentItem.svelte	refused
 svelte/kener/src/lib/components/IncidentMonitorList.svelte	mismatch
@@ -3557,9 +3538,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots-usage/input.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-bind/input.svelte	refused
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-control-flow/input.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-undefined/input.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-uninitialized/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-wrong-usage/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-enhance-types/input.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bind-union/input.svelte	refused
@@ -3627,7 +3605,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent2.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-references-ignore-generated.svelte	refused
-svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/hover/hover-$store.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/performance.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/preferences/code-action-outside-root.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/preferences/module-specifier-js.svelte	mismatch
@@ -3637,8 +3614,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles
 svelte/language-tools/packages/svelte-check/test-error/Index.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/emitDts/samples/typescript-runes-generics.v5/src/TestRunes.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/emitDts/samples/typescript/src/Interfaces.svelte	mismatch
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/$store-assign/input.svelte	mismatch
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/$store-prop-init/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/component-slot-$$slot-interface/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/component-slot-$$slot-type/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/import-leading-comment/input.svelte	mismatch
@@ -3648,17 +3623,14 @@ svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/snippet-module
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/svelte-self-forward-event/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatcher-typed-non-literal/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-generics.v5/input.svelte	refused
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-5.v5/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-12.v5/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-3.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-4.v5/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-5.v5/input.svelte	mismatch
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-6.v5/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-8.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-9.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-with-slot.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-type-assertion/input.svelte	mismatch
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/typeof-$store/input.svelte	mismatch
 svelte/layerchart/docs/src/content/guides/scales/DomainRangeChart.svelte	refused
 svelte/layerchart/docs/src/content/guides/scales/ResizableRect.svelte	refused
 svelte/layerchart/docs/src/content/guides/styles/color-schemes.svelte	refused
@@ -4444,7 +4416,6 @@ svelte/layerchart/docs/src/routes/docs/examples/+page.svelte	refused
 svelte/layerchart/docs/src/routes/docs/getting-started/+layout.svelte	refused
 svelte/layerchart/docs/src/routes/docs/guides/[...name]/+layout.svelte	refused
 svelte/layerchart/docs/src/routes/docs/playground/+page.svelte	refused
-svelte/layerchart/docs/src/routes/docs/playground/CodeEditor.svelte	mismatch
 svelte/layerchart/docs/src/routes/docs/playground/FileTree/FileTree.svelte	refused
 svelte/layerchart/docs/src/routes/docs/playground/FileTree/TreeView/TreeView.svelte	refused
 svelte/layerchart/docs/src/routes/docs/playground/FileTree/TreeView/TreeViewNode.svelte	refused
@@ -5755,7 +5726,6 @@ svelte/originui-svelte/src/lib/demo/layout/header.svelte	mismatch
 svelte/originui-svelte/src/lib/demo/page-grid.svelte	refused
 svelte/originui-svelte/src/lib/demo/page-header.svelte	refused
 svelte/originui-svelte/src/lib/demo/share-button.svelte	refused
-svelte/originui-svelte/src/lib/demo/theme-toggle.svelte	mismatch
 svelte/originui-svelte/src/lib/demo/ui/dialog/dialog-content.svelte	refused
 svelte/originui-svelte/src/lib/demo/ui/dialog/dialog-description.svelte	refused
 svelte/originui-svelte/src/lib/demo/ui/dialog/dialog-footer.svelte	refused
@@ -5786,7 +5756,6 @@ svelte/originui-svelte/src/routes/+layout.svelte	refused
 svelte/originui-svelte/src/routes/+page.svelte	refused
 svelte/primo/src/lib/builder/Primo.svelte	refused
 svelte/primo/src/lib/builder/components/ComponentPreview.svelte	refused
-svelte/primo/src/lib/builder/components/Content.svelte	mismatch
 svelte/primo/src/lib/builder/components/Fields/EntryContent.svelte	refused
 svelte/primo/src/lib/builder/components/Fields/FieldItem.svelte	refused
 svelte/primo/src/lib/builder/components/Fields/FieldsContent.svelte	mismatch
@@ -5805,12 +5774,10 @@ svelte/primo/src/lib/builder/field-types/ImageField.svelte	refused
 svelte/primo/src/lib/builder/field-types/Link.svelte	refused
 svelte/primo/src/lib/builder/field-types/Markdown.svelte	refused
 svelte/primo/src/lib/builder/field-types/PageField.svelte	refused
-svelte/primo/src/lib/builder/field-types/PageFieldField.svelte	mismatch
 svelte/primo/src/lib/builder/field-types/RepeaterField.svelte	refused
 svelte/primo/src/lib/builder/field-types/RepeaterFieldItem.svelte	refused
 svelte/primo/src/lib/builder/field-types/RichText.svelte	refused
 svelte/primo/src/lib/builder/field-types/SelectField.svelte	refused
-svelte/primo/src/lib/builder/field-types/SiteField.svelte	mismatch
 svelte/primo/src/lib/builder/field-types/TextField.svelte	mismatch
 svelte/primo/src/lib/builder/views/editor/Layout/ComponentNode.svelte	refused
 svelte/primo/src/lib/builder/views/editor/Page.svelte	refused
@@ -8867,7 +8834,6 @@ svelte/svelte-canvas/src/lib/components/Canvas.svelte	refused
 svelte/svelte-canvas/src/routes/_components/Code.svelte	refused
 svelte/svelte-canvas/src/routes/_components/Example.svelte	refused
 svelte/svelte-canvas/src/routes/_components/Layout.svelte	refused
-svelte/svelte-canvas/src/routes/_components/NavMenu.svelte	mismatch
 svelte/svelte-chartjs/src/Bar.svelte	refused
 svelte/svelte-chartjs/src/Bubble.svelte	refused
 svelte/svelte-chartjs/src/Chart.svelte	refused
@@ -8879,8 +8845,6 @@ svelte/svelte-chartjs/src/Radar.svelte	refused
 svelte/svelte-chartjs/src/Scatter.svelte	refused
 svelte/svelte-codemirror-editor/src/routes/+layout.svelte	refused
 svelte/svelte-codemirror-editor/src/routes/+page.svelte	refused
-svelte/svelte-command-palette/src/components/Navbar.svelte	mismatch
-svelte/svelte-command-palette/src/components/Sidebar.svelte	mismatch
 svelte/svelte-command-palette/src/lib/components/CommandPalette.svelte	refused
 svelte/svelte-command-palette/src/lib/components/KeyboardButton.svelte	refused
 svelte/svelte-command-palette/src/lib/components/Portal.svelte	refused
@@ -9190,11 +9154,8 @@ svelte/svelte-eslint-parser/tests/fixtures/integrations/snippet-scope/ts-snippet
 svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/$derived-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/await-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/await-with-same-id-input.svelte	refused
-svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/i18n-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/integrations/type-info-tests/plugin-issue254-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/await04-input.svelte	refused
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/i18n-test-input.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/i18n-test-type-output.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/attach-ts-02-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/attach04-ts-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/docs/runes/11-1-$inspect-ts-input.svelte	refused
@@ -9425,7 +9386,6 @@ svelte/svelte-inspect-value/packages/svelte/src/routes/+layout.svelte	refused
 svelte/svelte-lexical/demos/playground-lite/src/InsertImageDialog.svelte	refused
 svelte/svelte-lexical/demos/playground-lite/src/RichTextComposer.svelte	refused
 svelte/svelte-lexical/demos/playground-lite/src/ToolbarPlayground.svelte	refused
-svelte/svelte-lexical/demos/playground-lite/src/settings/Settings.svelte	mismatch
 svelte/svelte-lexical/demos/playground/src/RichTextComposer.svelte	refused
 svelte/svelte-lexical/demos/playground/src/ToolbarPlayground.svelte	refused
 svelte/svelte-lexical/demos/playground/src/settings/Settings.svelte	mismatch
@@ -9435,7 +9395,6 @@ svelte/svelte-lexical/demos/qalam/src/lib/InsertImageDialog.svelte	refused
 svelte/svelte-lexical/demos/qalam/src/lib/Settings.svelte	refused
 svelte/svelte-lexical/demos/qalam/src/lib/Sidebar.svelte	refused
 svelte/svelte-lexical/demos/qalam/src/lib/Toolbar.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/actionbar/ReadonlyButton.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPicker.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDialog.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDropDown.svelte	refused
@@ -9461,16 +9420,12 @@ svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/BlockFo
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/NumberDropDrownItem.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/ParagraphDropDownItem.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/QuoteDropDrownItem.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/BoldButton.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/CodeLanguageDropDown.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/CodeThemeShikiDropDown.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/DropDownAlign.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/DropDownBackColorPicker.svelte	mismatch
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/DropDownTextColorPicker.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/FontFamilyDropDown.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/FontSizeDropDown.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/FontSizeEntry.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/FormatCodeButton.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertBlueskyDropDownItem.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertColumnLayoutDropDownItem.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertDropDown.svelte	refused
@@ -9479,20 +9434,12 @@ svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/InsertD
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertTableDropDownItem.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertTweetDropDownItem.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertYoutubeDropDownItem.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/InsertLink.svelte	mismatch
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/ItalicButton.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/ClearFormattingDropDownItem.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/MoreStylesDropDown.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/StrikethroughDropDownItem.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/SubscriptDropDownItem.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/SuperscriptDropDownItem.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/RedoButton.svelte	mismatch
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/ShortcutsPlugin.svelte	mismatch
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/StateStoreRichTextUpdator.svelte	mismatch
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/StrikethroughButton.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/Toolbar.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/UnderlineButton.svelte	mismatch
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/UndoButton.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertBlueskyDialog.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertColumnsDialog.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageDialog.svelte	refused
@@ -9507,7 +9454,6 @@ svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/NestedComposer.svelte
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/BlockWithAlignableContents.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuItem.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuPlugin.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/HorizontalRuleComponent.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Image/ImageComponent.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Image/ImagePlugin.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Image/ImageResizer.svelte	mismatch
@@ -9515,7 +9461,6 @@ svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/PlaceHolder.s
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenu.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenuPlugin.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableHoverActionPlugin.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeView.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/bluesky/BlueskyPostComponent.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditor.svelte	refused
@@ -10208,7 +10153,6 @@ svelte/svelte-ux/packages/svelte-ux/src/docs/Layout.svelte	mismatch
 svelte/svelte-ux/packages/svelte-ux/src/lib/components/ThemeInit.svelte	refused
 svelte/svelte-ux/packages/svelte-ux/src/lib/components/TogglePanel.svelte	mismatch
 svelte/svelte-ux/packages/svelte-ux/src/routes/+page.svelte	refused
-svelte/svelte-ux/packages/svelte-ux/src/routes/_NavMenu.svelte	mismatch
 svelte/svelte-ux/packages/svelte-ux/src/routes/changelog/+page.svelte	refused
 svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/AppBar/+page.svelte	refused
 svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/Avatar/+page.svelte	refused
@@ -10281,11 +10225,9 @@ svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/TreeList/+page.sv
 svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/TweenedValue/+page.svelte	refused
 svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/YearList/+page.svelte	refused
 svelte/svelte-virtuallists/src/comp/Button.svelte	refused
-svelte/svelte-virtuallists/src/comp/Contents.svelte	mismatch
 svelte/svelte-virtuallists/src/comp/Highlighted.svelte	refused
 svelte/svelte-virtuallists/src/comp/PrerenderedArea.svelte	refused
 svelte/svelte-virtuallists/src/comp/RTLToggle.svelte	refused
-svelte/svelte-virtuallists/src/comp/Ripple.svelte	mismatch
 svelte/svelte-virtuallists/src/comp/TextAreaAutosize.svelte	refused
 svelte/svelte-virtuallists/src/routes/+layout.svelte	refused
 svelte/svelte-virtuallists/src/routes/examples/events/+page.svelte	mismatch
@@ -10332,22 +10274,18 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-block-effect-que
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-hydration-binding/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/event-attribute-after-spread-2/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/inspect-exception/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/name-clash-hoisting/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-error-boundary-preserve-on-error/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/snippet-argument-call-expression/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/snippet-argument-multiple/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/snippet-argument/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/store-increment-decrement/main.svelte	mismatch
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/store-update-on-destroy/Test.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/store-update-on-destroy/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript-as-expression/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript-non-null-expression/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript/main.svelte	refused
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/css-injected-options-nested/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/select-value-component/main.svelte	refused
-svelte/svelte/packages/svelte/tests/server-side-rendering/samples/store-init-props/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte	mismatch
 svelte/svelte/packages/svelte/tests/types/bindings.svelte	refused
 svelte/svelte/playgrounds/sandbox/scripts/main.template.svelte	refused
@@ -10652,10 +10590,8 @@ svelte/syntaxfm-website/src/lib/search/Search.svelte	mismatch
 svelte/syntaxfm-website/src/lib/search/SearchBox.svelte	refused
 svelte/syntaxfm-website/src/lib/search/SearchResultList.svelte	refused
 svelte/syntaxfm-website/src/lib/search/SearchResults.svelte	refused
-svelte/syntaxfm-website/src/lib/share/HairButton.svelte	mismatch
 svelte/syntaxfm-website/src/lib/share/ShareActions.svelte	refused
 svelte/syntaxfm-website/src/lib/share/ShareWindow.svelte	refused
-svelte/syntaxfm-website/src/lib/transcript/Transcript.svelte	mismatch
 svelte/syntaxfm-website/src/params/ThemeMaker.svelte	refused
 svelte/syntaxfm-website/src/routes/(blank)/+layout.svelte	refused
 svelte/syntaxfm-website/src/routes/(blank)/embed/[show_number]/+page.svelte	refused
@@ -10715,7 +10651,6 @@ svelte/threlte/apps/docs/src/components/Hero/HeroWrapper.svelte	refused
 svelte/threlte/apps/docs/src/components/Hero/Intro/Intro.svelte	refused
 svelte/threlte/apps/docs/src/components/Hero/Intro/TheatreTextBox.svelte	refused
 svelte/threlte/apps/docs/src/components/Hero/KeyboardControls.svelte	refused
-svelte/threlte/apps/docs/src/components/Hero/PostProcessing.svelte	mismatch
 svelte/threlte/apps/docs/src/components/Hero/Reveal.svelte	refused
 svelte/threlte/apps/docs/src/components/Hero/Scene.svelte	refused
 svelte/threlte/apps/docs/src/components/Hero/ScrollSheet.svelte	refused
@@ -10965,7 +10900,6 @@ svelte/threlte/apps/docs/src/examples/geometry/random-placement/basic-random/ass
 svelte/threlte/apps/docs/src/examples/geometry/random-placement/basic-random/assets/bush.svelte	refused
 svelte/threlte/apps/docs/src/examples/geometry/random-placement/basic-random/assets/rock.svelte	refused
 svelte/threlte/apps/docs/src/examples/geometry/random-placement/basic-random/assets/tree.svelte	refused
-svelte/threlte/apps/docs/src/examples/geometry/random-placement/poisson-random/Random.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/geometry/random-placement/poisson-random/assets/bush.svelte	refused
 svelte/threlte/apps/docs/src/examples/geometry/random-placement/variable-poisson-random/Scene.svelte	refused
 svelte/threlte/apps/docs/src/examples/geometry/random-placement/variable-poisson-random/assets/bush.svelte	refused
@@ -10976,7 +10910,6 @@ svelte/threlte/apps/docs/src/examples/geometry/terrain/Scene.svelte	refused
 svelte/threlte/apps/docs/src/examples/gltf/skinned-meshes/Robot.svelte	refused
 svelte/threlte/apps/docs/src/examples/instancing/instanced-sprite-mania/App.svelte	refused
 svelte/threlte/apps/docs/src/examples/instancing/instanced-sprite-mania/Scene.svelte	refused
-svelte/threlte/apps/docs/src/examples/instancing/instanced-sprite-mania/behaviours/FlyingBehaviour.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/instancing/instanced-sprite-mania/behaviours/FlyingBehaviourHook.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/instancing/instanced-sprite-mania/sprites/DudeSprites.svelte	refused
 svelte/threlte/apps/docs/src/examples/instancing/instanced-sprite-mania/sprites/FlyerSprites.svelte	refused
@@ -10995,7 +10928,6 @@ svelte/threlte/apps/docs/src/examples/misc/gaussian-splatting/Scene.svelte	refus
 svelte/threlte/apps/docs/src/examples/misc/gaussian-splatting/Splat/Splat.svelte	refused
 svelte/threlte/apps/docs/src/examples/plugins/lookAt/Scene.svelte	refused
 svelte/threlte/apps/docs/src/examples/postprocessing/outline/App.svelte	refused
-svelte/threlte/apps/docs/src/examples/postprocessing/outline/CustomRenderer.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/postprocessing/outline/Scene.svelte	refused
 svelte/threlte/apps/docs/src/examples/postprocessing/screen-quad/App.svelte	refused
 svelte/threlte/apps/docs/src/examples/postprocessing/screen-quad/Scene.svelte	refused
@@ -11105,7 +11037,6 @@ svelte/threlte/apps/docs/src/examples/theatre/sheet-object/App.svelte	refused
 svelte/threlte/apps/docs/src/examples/theatre/sheet-object/Scene.svelte	refused
 svelte/threlte/apps/docs/src/examples/theatre/use-sequence/App.svelte	refused
 svelte/threlte/apps/docs/src/examples/theatre/use-sequence/Feather.svelte	refused
-svelte/threlte/apps/docs/src/examples/theatre/use-sequence/Scene.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/tutorials/animating-a-spaceship/Scene.svelte	refused
 svelte/threlte/apps/docs/src/examples/tutorials/animating-a-spaceship/Stars.svelte	refused
 svelte/threlte/apps/docs/src/examples/tutorials/animating-a-spaceship/models/spaceship.svelte	refused
@@ -11180,7 +11111,6 @@ svelte/threlte/packages/extras/src/lib/components/Edges/Edges.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/FakeGlowMaterial/FakeGlowMaterial.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/Float/Float.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/GLTF/GLTF.svelte	refused
-svelte/threlte/packages/extras/src/lib/components/Gizmo/Gizmo.svelte	mismatch
 svelte/threlte/packages/extras/src/lib/components/GradientTexture/linear/LinearGradientTexture.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/GradientTexture/radial/RadialGradientTexture.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/Grid/Grid.svelte	refused
@@ -11198,7 +11128,6 @@ svelte/threlte/packages/extras/src/lib/components/Mask/Mask.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/MeshDiscardMaterial/MeshDiscardMaterial.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/MeshLine/MeshLineGeometry.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/MeshLine/MeshLineMaterial.svelte	refused
-svelte/threlte/packages/extras/src/lib/components/MeshRefractionMaterial/MeshRefractionMaterial.svelte	mismatch
 svelte/threlte/packages/extras/src/lib/components/Outlines/Outlines.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/PointsMaterial/PointsMaterial.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/Resize/Resize.svelte	refused
@@ -11213,8 +11142,6 @@ svelte/threlte/packages/extras/src/lib/components/Text3DGeometry/Text3DGeometry.
 svelte/threlte/packages/extras/src/lib/components/UvMaterial/UvMaterial.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/View/InnerView.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/View/View.svelte	refused
-svelte/threlte/packages/extras/src/lib/components/Wireframe/Wireframe.svelte	mismatch
-svelte/threlte/packages/extras/src/lib/components/Wobble/Wobble.svelte	mismatch
 svelte/threlte/packages/extras/src/lib/components/controls/OrbitControls/OrbitControls.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/controls/TrackballControls/TrackballControls.svelte	refused
 svelte/threlte/packages/extras/src/lib/components/controls/TransformControls/TransformControls.svelte	refused
@@ -11226,7 +11153,6 @@ svelte/threlte/packages/extras/src/lib/components/portals/PortalTarget.svelte	re
 svelte/threlte/packages/extras/src/lib/interactivity/__tests__/__fixtures__/PropagationScene.svelte	refused
 svelte/threlte/packages/extras/src/lib/suspense/Suspense.svelte	refused
 svelte/threlte/packages/extras/src/routes/+page.svelte	refused
-svelte/threlte/packages/extras/src/routes/MountedGamepad.svelte	mismatch
 svelte/threlte/packages/extras/src/routes/Scene.svelte	refused
 svelte/threlte/packages/flex/src/lib/Box/Box.svelte	refused
 svelte/threlte/packages/flex/src/lib/Flex/Flex.svelte	refused
