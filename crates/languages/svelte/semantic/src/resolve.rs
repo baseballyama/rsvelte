@@ -121,6 +121,7 @@ pub fn resolve(
 ) -> Resolution {
     let mut scopes = FxHashMap::default();
     let mut names = TemplateNames::default();
+    let template = walk::Recorded::new(compiler_syntax_tree);
     let semantic = Semantic::build(tree.clone(), |tree, builder| {
         let allocator = tree.allocator();
         let template_names = host::Names::new(tree, allocator, compiler_syntax_tree);
@@ -132,7 +133,7 @@ pub fn resolve(
         };
         let host = host::ComponentHost {
             tree,
-            compiler_syntax_tree,
+            template: &template,
             nested_instance,
             names: &template_names,
             scopes: RefCell::new(FxHashMap::default()),
@@ -146,7 +147,7 @@ pub fn resolve(
                 &mut built,
             );
         }
-        counts::mark_bound_writes(tree, compiler_syntax_tree, built.semantic.scoping_mut());
+        counts::mark_bound_writes(tree, &template, built.semantic.scoping_mut());
         scopes = host.scopes.take();
         names = template_names.symbols();
         built
@@ -162,7 +163,7 @@ pub fn resolve(
         let instance_scope = instance
             .and_then(|p| tree.get_program(p).scope_id.get())
             .unwrap_or_else(|| scoping.root_scope_id());
-        let counts = counts::count(tree, scoping, &programs, compiler_syntax_tree);
+        let counts = counts::count(tree, scoping, &programs, &template);
         let subscribed = runes::subscribed(semantic, instance_scope);
         let bindings =
             classify::classify(semantic, &subscribed, &counts, compiler_syntax_tree, &names);

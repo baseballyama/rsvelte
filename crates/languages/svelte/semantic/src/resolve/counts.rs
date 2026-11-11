@@ -5,8 +5,7 @@ use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier, Tree,
 };
 
-use super::walk::{Roots, TemplateName, TemplateScope, walk as walk_template};
-use crate::compiler_syntax_tree::CompilerSyntaxTree;
+use super::walk::{Recorded, Roots, TemplateName, TemplateScope};
 use crate::typescript::without_typescript;
 
 /// Per symbol: how often it is read, assigned after its declaration, and assigned through a member
@@ -19,11 +18,7 @@ pub struct Counts {
 }
 
 /// Marks what `bind:` assigns as written, which the builder saw as a read only.
-pub(super) fn mark_bound_writes(
-    tree: &Tree,
-    compiler_syntax_tree: &CompilerSyntaxTree,
-    scoping: &mut Scoping,
-) {
+pub(super) fn mark_bound_writes(tree: &Tree, template: &Recorded, scoping: &mut Scoping) {
     struct Bound<'s> {
         tree: &'s Tree,
         scoping: &'s mut Scoping,
@@ -47,18 +42,14 @@ pub(super) fn mark_bound_writes(
         fn enter(&mut self, _: TemplateScope) {}
         fn leave(&mut self) {}
     }
-    walk_template(
-        compiler_syntax_tree,
-        compiler_syntax_tree.root,
-        &mut Bound { tree, scoping },
-    );
+    template.replay(&mut Bound { tree, scoping });
 }
 
 pub(super) fn count(
     tree: &Tree,
     scoping: &Scoping,
     programs: &[&Program<'_>],
-    compiler_syntax_tree: &CompilerSyntaxTree,
+    template: &Recorded,
 ) -> Counts {
     let symbols = scoping.symbols_len();
     let mut counts = Counts {
@@ -80,11 +71,7 @@ pub(super) fn count(
     for program in programs {
         mutations.visit_program(program);
     }
-    walk_template(
-        compiler_syntax_tree,
-        compiler_syntax_tree.root,
-        &mut mutations,
-    );
+    template.replay(&mut mutations);
     counts
 }
 
