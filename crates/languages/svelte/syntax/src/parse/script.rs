@@ -144,6 +144,17 @@ impl Parser<'_, '_> {
         Ok(Span::new(start_offset as u32, (start_offset + len) as u32))
     }
 
+    /// `</style`, and the `>` after it if there is one: upstream reads the rest as the template's.
+    fn close_style(&mut self) {
+        self.eat_token(TokenType::EndTagOpen, 2);
+        self.eat_token(TokenType::TagName, "style".len());
+        let whitespace = super::whitespace::whitespace_len(self.rest());
+        if self.rest().as_bytes().get(whitespace) == Some(&b'>') {
+            self.skip_ws();
+            self.eat_token(TokenType::TagEnd, 1);
+        }
+    }
+
     fn close_raw(&mut self, tag: &str) {
         self.eat_token(TokenType::EndTagOpen, 2);
         self.eat_token(TokenType::TagName, tag.len());
@@ -202,7 +213,25 @@ impl Parser<'_, '_> {
     }
 
     fn style(&mut self, start_offset: usize, attributes: Vec<TagAttributes>) -> ParseResult<()> {
-        let content = self.raw_text("style")?;
+        // The sheet ends at the first `</style` between its rules, as upstream reads it; one that
+        // does not parse ends at the first closing tag, so the rest of the component still parses.
+        // Svelte parses the template without its trailing whitespace, so an open sheet ends there.
+        let sheet = rsvelte_stylesheet_syntax::parse_until(
+            self.source_text.trim_end_matches(is_ecmascript_whitespace),
+            self.position as u32,
+            "</style",
+        )
+        .map_err(|e| Diagnostic::error("css_parse_error", e.message, e.span));
+        let content = match &sheet {
+            Ok(sheet)
+                if self.source_text[sheet.content.end_offset as usize..].starts_with("</style") =>
+            {
+                self.position = sheet.content.end_offset as usize;
+                sheet.content
+            }
+            Ok(_) => return self.err("`<style>` was left open"),
+            Err(_) => self.raw_text("style")?,
+        };
         if self.component.style.is_some() {
             return Self::err_at(
                 content,
@@ -210,9 +239,7 @@ impl Parser<'_, '_> {
             );
         }
         self.component.tokens.push(TokenType::Stylesheet, content);
-        self.close_raw("style");
-        let sheet = rsvelte_stylesheet_syntax::parse(self.source_text, content)
-            .map_err(|e| Diagnostic::error("css_parse_error", e.message, e.span));
+        self.close_style();
         self.component.style = Some(Style {
             span: Span::new(start_offset as u32, self.position as u32),
             attributes,
