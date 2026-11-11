@@ -28,7 +28,7 @@ impl Printer<'_, '_, '_> {
         let mut hoisted = Vec::new();
         for script in c.module.iter().chain(&c.instance) {
             let comments = self.leading_comments(&mut root, script.span.start_offset);
-            let body = if self.ignores(&comments) {
+            let body = if self.ignores(&comments) || self.unsupported(&script.attributes) {
                 self.preformatted(script.content)
             } else {
                 self.refuse_script_language(&script.attributes)?;
@@ -40,14 +40,9 @@ impl Printer<'_, '_, '_> {
         }
         if let Some(style) = &c.style {
             let comments = self.leading_comments(&mut root, style.span.start_offset);
-            let body = if self.ignores(&comments) {
-                // The task formats only a component whose style sheet parsed.
-                if style.sheet.is_err() {
-                    return Err(Unsupported::at(
-                        "a style sheet that does not parse",
-                        style.content,
-                    ));
-                }
+            // The plugin takes the body out before Svelte parses, so Svelte's CSS errors do not
+            // reach it.
+            let body = if self.ignores(&comments) || self.unsupported(&style.attributes) {
                 self.preformatted(style.content)
             } else {
                 self.style_body(style)?
@@ -294,6 +289,30 @@ impl Printer<'_, '_, '_> {
             .collect()
     }
 
+    /// The plugin's `getLangAttribute`: `lang`, else `type`, without a `text/` prefix, with the
+    /// attribute's name.
+    fn language(&self, attributes: &[TagAttributes]) -> Option<(Span, &str)> {
+        let value = |name: &str| {
+            attributes
+                .iter()
+                .find(|(n, _)| n.text(self.source_text) == name)
+                .and_then(|&(n, v)| Some((n, v?.text(self.source_text))))
+                .filter(|(_, v)| !v.is_empty())
+        };
+        let (at, language) = value("lang").or_else(|| value("type"))?;
+        Some((at, language.strip_prefix("text/").unwrap_or(language)))
+    }
+
+    /// The plugin's `isNodeSupportedLanguage`: it keeps the body of these as it is.
+    fn unsupported(&self, attributes: &[TagAttributes]) -> bool {
+        self.language(attributes).is_some_and(|(_, language)| {
+            matches!(
+                language,
+                "coffee" | "coffeescript" | "styl" | "stylus" | "sass"
+            )
+        })
+    }
+
     /// `embedTag` keeps the body as it is when the comment right above is `prettier-ignore`.
     fn ignores(&self, comments: &[(Span, bool)]) -> bool {
         comments.last().is_some_and(|&(data, _)| {
@@ -484,17 +503,9 @@ impl Printer<'_, '_, '_> {
     /// The plugin's `getLangAttribute` names a language other than JavaScript or TypeScript: JSON
     /// goes to Prettier's JSON printer, and any other body the plugin keeps when it does not parse.
     fn refuse_script_language(&self, attributes: &[TagAttributes]) -> R<()> {
-        let value = |name: &str| {
-            attributes
-                .iter()
-                .find(|(n, _)| n.text(self.source_text) == name)
-                .and_then(|&(n, v)| v.map(|v| (n, v.text(self.source_text))))
-                .filter(|(_, v)| !v.is_empty())
-        };
-        let Some((at, lang)) = value("lang").or_else(|| value("type")) else {
+        let Some((at, lang)) = self.language(attributes) else {
             return Ok(());
         };
-        let lang = lang.strip_prefix("text/").unwrap_or(lang);
         if matches!(
             lang,
             "ts" | "typescript" | "js" | "javascript" | "module" | "application/javascript"
@@ -555,26 +566,14 @@ impl Printer<'_, '_, '_> {
         &mut self,
         style: &rsvelte_svelte_syntax::syntax_tree::Style,
     ) -> R<LayoutInstructionIdentifier> {
-        // The plugin's `getLangAttribute`: `lang`, else `type`, without a `text/` prefix.
-        let language = ["lang", "type"].iter().find_map(|&name| {
-            style
-                .attributes
-                .iter()
-                .find(|(n, _)| n.text(self.source_text) == name)
-                .and_then(|&(n, v)| Some((n, v?.text(self.source_text))))
-                .filter(|(_, value)| !value.is_empty())
-        });
-        // Prettier formats any other language, such as `postcss`, with its CSS parser.
-        if let Some((n, language)) = language
-            && matches!(
-                language.strip_prefix("text/").unwrap_or(language),
-                "less" | "scss" | "sass" | "styl" | "stylus"
-            )
-        {
-            return Err(Unsupported::at("a Less, Sass or Stylus style", n));
-        }
-        // The task formats only a component whose style sheet parsed.
-        if style.sheet.is_err() {
+        // The plugin's `embedStyle`: any language but Less and SCSS, such as `postcss`, is CSS.
+        let variant = match self.language(&style.attributes) {
+            Some((_, "less")) => oxc_formatter_css::CssVariant::Less,
+            Some((_, "scss")) => oxc_formatter_css::CssVariant::Scss,
+            _ => oxc_formatter_css::CssVariant::Css,
+        };
+        // Where Svelte's parser fails, Prettier's CSS parser may fail too and keep the body.
+        if variant == oxc_formatter_css::CssVariant::Css && style.sheet.is_err() {
             return Err(Unsupported::at(
                 "a style sheet that does not parse",
                 style.content,
@@ -596,6 +595,7 @@ impl Printer<'_, '_, '_> {
             line_width: core.line_width,
             line_ending: core.line_ending,
             single_quote: self.options.single_quote.into(),
+            variant,
             ..oxc_formatter_css::CssFormatOptions::default()
         };
         #[expect(
