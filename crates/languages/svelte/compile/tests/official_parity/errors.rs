@@ -567,3 +567,29 @@ fn a_store_subscription_raises_upstreams_error_where_upstream_does() {
         }
     }
 }
+
+#[test]
+fn a_binding_upstream_rejects_on_its_element_is_refused_on_both_targets() {
+    for element in [
+        "<input bind:checked={x} />",
+        "<input type=\"radio\" bind:checked={x} />",
+        "<input type={t} bind:checked={x} />",
+        "<input type bind:value={x} />",
+        "<input bind:files={x} />",
+        "<div bind:value={x}></div>",
+        "<div bind:innerHTML={x}></div>",
+        "<div contenteditable={t} bind:textContent={x}></div>",
+        "<select multiple={t} bind:value={x}></select>",
+        "<svg bind:offsetWidth={x}></svg>",
+        "<div bind:nope={x}></div>",
+    ] {
+        let source = format!("<script>let x = $state(); let t = $state();</script>{element}");
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(
+                compile(&source, target),
+                Err("unsupported".to_owned()),
+                "{source} on {target:?}"
+            );
+        }
+    }
+}

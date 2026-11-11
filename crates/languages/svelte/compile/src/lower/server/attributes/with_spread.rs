@@ -47,13 +47,16 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         for a in list {
             let raw_name = a.name.text(self.source_text);
             match a.value {
-                AttributeValue::Bind(_) if raw_name == "this" => {
-                    continue;
-                }
                 AttributeValue::Bind(e) => {
-                    let value = self.expression(e);
-                    let name = raw_name.to_ascii_lowercase();
-                    props.push(b.init(&name, value));
+                    // `prepare_element_spread_object` keeps every binding.
+                    let value = if all {
+                        Some(self.bound(e))
+                    } else {
+                        self.bound_value(tag, list, a)
+                    };
+                    if let Some(value) = value {
+                        props.push(b.init(&raw_name.to_ascii_lowercase(), value));
+                    }
                     continue;
                 }
                 AttributeValue::Use { .. } => {

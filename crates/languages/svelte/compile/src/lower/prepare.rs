@@ -77,12 +77,17 @@ pub(super) fn prepare<'c, 'o>(
         )?,
         None => Vec::new(),
     };
+    let props_id = input
+        .component
+        .instance
+        .and_then(|program| script::props_id(javascript.get_program(program), res));
     Ok(Prepared {
         names,
         each_index,
         module,
         hoisted,
         instance,
+        props_id,
         exports,
         custom_element,
         component_name,

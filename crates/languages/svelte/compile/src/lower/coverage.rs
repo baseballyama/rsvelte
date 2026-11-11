@@ -7,6 +7,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
+use super::bindings::{Lowering, attribute_value, property_of};
 use super::javascript::member_root;
 use super::{
     Attribute, AttributeValue, BindingKind, CompileInput, Diagnostic, Element, NodeKind,
@@ -112,18 +113,22 @@ fn check_element(
                 }
             }
             AttributeValue::Bind(target) if name == "this" => {
-                check_bind_this(input, res, a, target)?;
+                check_target(input, res, a, target)?;
                 continue;
             }
             AttributeValue::Bind(_) if name == "group" => "`bind:group` on a component",
             AttributeValue::Bind(target)
-                if !is_bindable(input, res, target, true) && !rejected(input, res, target) =>
+                if is_accessors(input, target) && !rejected(input, res, target) =>
             {
-                "a component binding to anything but a `let`, `$state`, a prop or a member"
+                "a component binding to a getter and a setter"
+            }
+            AttributeValue::Bind(target) => {
+                check_target(input, res, a, target)?;
+                continue;
             }
             AttributeValue::Attach(_) => "an attachment on a component",
             AttributeValue::Class(_) => "a `class:` directive on a component",
-            AttributeValue::Bind(_) | AttributeValue::Spread(_) => continue,
+            AttributeValue::Spread(_) => continue,
             _ if name.starts_with("--") => "a CSS custom property on a component",
             _ if name == "slot" => "a `slot` attribute",
             _ if name == "children" && has_content(input, el) => {
@@ -145,14 +150,9 @@ fn has_content(input: &CompileInput<'_>, el: &Element) -> bool {
     })
 }
 
-/// `$state` or a member of an `{#each}` item; a component also takes a `let`, a prop, or a
-/// member of any declared name.
-fn is_bindable(
-    input: &CompileInput<'_>,
-    res: &Resolution,
-    target: ExpressionIdentifier,
-    component: bool,
-) -> bool {
+/// Upstream's `bind_invalid_value` takes more: this is `$state`, a prop, a `let`, a store,
+/// or a member of a declared name or of `$state`.
+fn is_bindable(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIdentifier) -> bool {
     let target = input
         .component
         .javascript
@@ -167,10 +167,10 @@ fn is_bindable(
         return res.is_store_subscription(&root.name);
     };
     match res.binding(symbol).kind {
-        BindingKind::State | BindingKind::RawState => true,
-        BindingKind::Each => member,
-        _ if !component => false,
-        BindingKind::Property | BindingKind::BindableProperty => true,
+        BindingKind::State
+        | BindingKind::RawState
+        | BindingKind::Property
+        | BindingKind::BindableProperty => true,
         BindingKind::Normal => {
             member
                 || matches!(
@@ -180,6 +180,36 @@ fn is_bindable(
         }
         _ => member,
     }
+}
+
+fn is_accessors(input: &CompileInput<'_>, target: ExpressionIdentifier) -> bool {
+    matches!(
+        input
+            .component
+            .javascript
+            .get_expression(target)
+            .get_inner_expression(),
+        Expression::SequenceExpression(_)
+    )
+}
+
+/// A target that [`is_bindable`] takes, a getter and a setter, or one validation rejects.
+fn check_target(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    a: &Attribute,
+    target: ExpressionIdentifier,
+) -> Result<(), Diagnostic> {
+    if !is_accessors(input, target)
+        && !is_bindable(input, res, target)
+        && !rejected(input, res, target)
+    {
+        return unsupported(
+            "a binding to anything but a `let`, `$state`, a prop or a member",
+            a.span,
+        );
+    }
+    Ok(())
 }
 
 /// Upstream's `component_invalid_directive`, which the refusals below would hide.
@@ -203,32 +233,8 @@ fn rejected(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIdenti
     super::validation::rejects_binding(res, input.component.javascript.get_expression(target))
 }
 
-/// Upstream's `bind:this` takes what a component binding takes, on an element or a component.
-fn check_bind_this(
-    input: &CompileInput<'_>,
-    res: &Resolution,
-    a: &Attribute,
-    target: ExpressionIdentifier,
-) -> Result<(), Diagnostic> {
-    let accessors = matches!(
-        input
-            .component
-            .javascript
-            .get_expression(target)
-            .get_inner_expression(),
-        Expression::SequenceExpression(_)
-    );
-    if !accessors && !is_bindable(input, res, target, true) && !rejected(input, res, target) {
-        return unsupported(
-            "a `bind:this` to anything but a `let`, `$state`, a prop or a member",
-            a.span,
-        );
-    }
-    Ok(())
-}
-
 /// A supported property on a supported element, as upstream's `binding_properties` names it,
-/// with no `value`, `checked` or `group` beside it.
+/// with no `value` or `checked` attribute or `group` beside it.
 fn check_element_binding(
     input: &CompileInput<'_>,
     res: &Resolution,
@@ -240,13 +246,18 @@ fn check_element_binding(
     let source_text = input.component.source_text;
     let property = a.name.text(source_text);
     if property == "this" {
-        return check_bind_this(input, res, a, target);
+        return check_target(input, res, a, target);
     }
     if !supported_binding(source_text, tag, attributes, property) {
         return unsupported(&format!("`bind:{property}` on this `<{tag}>`"), a.span);
     }
     let beside = attributes.iter().any(|o| {
-        !std::ptr::eq(o, a) && matches!(o.name.text(source_text), "value" | "checked" | "group")
+        !std::ptr::eq(o, a)
+            && match o.name.text(source_text) {
+                "value" | "checked" => !super::is_directive(&o.value),
+                "group" => true,
+                _ => false,
+            }
     });
     if beside {
         return unsupported(
@@ -254,47 +265,61 @@ fn check_element_binding(
             a.span,
         );
     }
-    if !is_bindable(input, res, target, false) && !rejected(input, res, target) {
-        return unsupported(
-            "a binding to anything but `$state` or a member of `$state` or of an `{#each}` item",
-            a.span,
-        );
-    }
-    Ok(())
+    check_target(input, res, a, target)
 }
 
-/// Upstream `binding_properties` that this port lowers, by element.
-///
-/// `bind:value` on `<input>` (not a checkbox, radio or file input) and `bind:checked` on a
-/// checkbox, with the `type` written as static text; `bind:value` on a `<select>` whose
-/// `multiple` is static.
+/// A `bind:` property that upstream's `BindDirective` analysis accepts on `tag`; this port
+/// raises none of the errors it would.
 fn supported_binding(
     source_text: &str,
     tag: &str,
     attributes: &[Attribute],
     property: &str,
 ) -> bool {
-    if tag != "input" && tag != "select" {
+    let Some(p) = property_of(property) else {
+        return false;
+    };
+    // Upstream checks `svelte:element` against each property's elements too.
+    if tag == "svelte:element" || p.elements.is_some_and(|e| !e.contains(&tag)) {
         return false;
     }
-    // Upstream rejects a `multiple` that is not static on a bound `<select>`.
-    let static_multiple = attributes.iter().all(|a| {
-        a.name.text(source_text) != "multiple"
-            || matches!(a.value, AttributeValue::Boolean | AttributeValue::Static(_))
-    });
-    let mut ty = Some("text");
-    for a in attributes {
-        if a.name.text(source_text) == "type" && !matches!(a.value, AttributeValue::Bind(_)) {
-            ty = match &a.value {
-                AttributeValue::Static(v) => Some(&**v),
-                _ => None,
-            };
+    if p.lowering == Lowering::Group {
+        return false;
+    }
+    if tag == "input" {
+        // Upstream takes only `bind:value` beside a `type` not written as text.
+        let ty = match attribute_value(source_text, attributes, "type") {
+            None => None,
+            Some(AttributeValue::Static(ty)) => Some(&**ty),
+            Some(AttributeValue::Boolean) => return false,
+            Some(_) => return property == "value",
+        };
+        let wanted = match property {
+            "checked" => Some("checkbox"),
+            "files" => Some("file"),
+            _ => ty,
+        };
+        if ty != wanted {
+            return false;
         }
     }
-    match (property, ty) {
-        ("value", Some(t)) if tag == "input" => !matches!(t, "checkbox" | "radio" | "file"),
-        ("value", _) => tag == "select" && static_multiple,
-        ("checked", Some(t)) => tag == "input" && t == "checkbox",
-        _ => false,
+    if tag == "select"
+        && attribute_value(source_text, attributes, "multiple")
+            .is_some_and(|m| !matches!(m, AttributeValue::Boolean | AttributeValue::Static(_)))
+    {
+        return false;
     }
+    if property == "offsetWidth" && rsvelte_svelte_syntax::names::is_svg(tag) {
+        return false;
+    }
+    if p.lowering == Lowering::ContentEditable {
+        let editable = attribute_value(source_text, attributes, "contenteditable");
+        if !matches!(
+            editable,
+            Some(AttributeValue::Boolean | AttributeValue::Static(_))
+        ) {
+            return false;
+        }
+    }
+    true
 }
