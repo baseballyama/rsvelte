@@ -190,7 +190,7 @@ impl Template<'_> {
                 ..
             } => {
                 let kind = element_kind(node, self.source).expect("an element");
-                if kind == ElementKind::Html {
+                if kind == ElementKind::Markup {
                     self.occurrences.insert(identifier, occurrences);
                     self.types
                         .entry(name.text(self.source))

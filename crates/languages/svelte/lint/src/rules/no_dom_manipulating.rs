@@ -7,7 +7,7 @@ use rsvelte_svelte_semantic::legacy::Variable;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
 use rustc_hash::FxHashSet;
 
-use super::legacy_reactivity::{expression_node, is_html_element, legacy, property_name};
+use super::legacy_reactivity::{expression_node, is_markup_element, legacy, property_name};
 use super::nodes::span;
 use super::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
@@ -68,7 +68,7 @@ impl SvelteRule for NoDomManipulating {
             else {
                 continue;
             };
-            if !is_html_element(name.text(source)) {
+            if !is_markup_element(name.text(source)) {
                 continue;
             }
             for attribute in component.attributes(*attributes) {

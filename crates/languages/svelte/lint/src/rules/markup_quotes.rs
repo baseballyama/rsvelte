@@ -60,30 +60,30 @@ struct Dynamic {
     #[serde(default)]
     quoted: bool,
     #[serde(default, rename = "avoidInvalidUnquotedInHTML")]
-    avoid_invalid_unquoted_in_html: bool,
+    avoid_invalid_unquoted_in_markup: bool,
 }
 
 fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
     let options: Options = options.single()?;
-    Ok(Box::new(HtmlQuotes {
+    Ok(Box::new(MarkupQuotes {
         prefer: options.prefer,
         dynamic: if options.dynamic.quoted {
             options.prefer
         } else {
             Quote::Unquoted
         },
-        avoid_invalid_unquoted: options.dynamic.avoid_invalid_unquoted_in_html,
+        avoid_invalid_unquoted: options.dynamic.avoid_invalid_unquoted_in_markup,
     }))
 }
 
 #[derive(Debug)]
-struct HtmlQuotes {
+struct MarkupQuotes {
     prefer: Quote,
     dynamic: Quote,
     avoid_invalid_unquoted: bool,
 }
 
-impl SvelteRule for HtmlQuotes {
+impl SvelteRule for MarkupQuotes {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let source = file.source();
@@ -142,7 +142,7 @@ impl Value {
     }
 }
 
-impl HtmlQuotes {
+impl MarkupQuotes {
     /// The quote this attribute's value should have and its value, or `None` when it has none to
     /// check.
     fn template_value(

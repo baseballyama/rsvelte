@@ -14,7 +14,7 @@ use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::FxHashMap;
 
 use super::javascript::walk;
-use super::legacy_reactivity::is_html_element;
+use super::legacy_reactivity::is_markup_element;
 use super::nodes::span;
 use super::svelte_store::store_calls;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
@@ -229,7 +229,7 @@ impl Check<'_, '_, '_> {
                     name, attributes, ..
                 } => {
                     let name = name.text(source);
-                    let accepts = !is_html_element(name);
+                    let accepts = !is_markup_element(name);
                     let special = matches!(name, "svelte:component" | "svelte:element");
                     for attribute in component.attributes(attributes) {
                         self.attribute(component, attribute, accepts, special);

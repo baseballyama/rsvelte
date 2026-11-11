@@ -11,13 +11,13 @@ pub(super) static RULE: RuleDefinition = RuleDefinition {
 
 fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
     options.none()?;
-    Ok(Box::new(NoAtHtmlTags))
+    Ok(Box::new(NoAtMarkupTags))
 }
 
 #[derive(Debug)]
-struct NoAtHtmlTags;
+struct NoAtMarkupTags;
 
-impl SvelteRule for NoAtHtmlTags {
+impl SvelteRule for NoAtMarkupTags {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         for node in &component.nodes {

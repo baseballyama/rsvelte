@@ -42,7 +42,7 @@ fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
     if self_closing.is_some_and(|s| s.singleline.is_none() && s.multiline.is_none()) {
         return Err("`selfClosingTag` needs a property".to_owned());
     }
-    Ok(Box::new(HtmlClosingBracketNewLine {
+    Ok(Box::new(MarkupClosingBracketNewLine {
         lines: [singleline, multiline],
         self_closing: [
             self_closing
@@ -55,12 +55,12 @@ fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
 
 /// The expected line breaks: single-line, then multiline.
 #[derive(Debug)]
-struct HtmlClosingBracketNewLine {
+struct MarkupClosingBracketNewLine {
     lines: [Value; 2],
     self_closing: [Value; 2],
 }
 
-impl SvelteRule for HtmlClosingBracketNewLine {
+impl SvelteRule for MarkupClosingBracketNewLine {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let tokens = &component.tokens;

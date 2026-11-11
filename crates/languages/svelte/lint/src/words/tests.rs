@@ -1,4 +1,4 @@
-use super::{is_js_space, words};
+use super::{is_javascript_space, words};
 
 fn texts(text: &str) -> Vec<&str> {
     words(text, 10)
@@ -22,6 +22,6 @@ fn keeps_a_trailing_word() {
 
 #[test]
 fn next_line_is_not_javascript_space() {
-    assert!(!is_js_space('\u{85}'));
+    assert!(!is_javascript_space('\u{85}'));
     assert_eq!(texts("a\u{85}b"), ["a\u{85}b"]);
 }
