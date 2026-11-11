@@ -21,6 +21,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if el.kind != ElementKind::Regular {
             return self.special_element(identifier, node, frag, l);
         }
+        let mut lets = self.let_directives(identifier, el)?;
+        l.lets.append(&mut lets);
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
         if matches!(tag.as_str(), "script" | "template") {
             return unsupported(&format!("`<{tag}>`"), el.name);
@@ -126,6 +128,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let (snippets, child) =
             self.collecting_snippets(|context| context.element_children(identifier, node, frag));
         let mut child = child?;
+        // A slot's element may hold `{@const}`s, which upstream declares with the fragment's.
+        l.consts.append(&mut child.consts);
         if snippets.is_empty() {
             if self.an.dynamic[identifier] {
                 l.initializer.append(&mut child.initializer);

@@ -14,6 +14,7 @@ mod coverage;
 mod custom_element;
 mod derived;
 mod javascript;
+mod lets;
 mod names;
 mod paths;
 mod prepare;

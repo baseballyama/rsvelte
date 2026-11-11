@@ -11,6 +11,8 @@ mod derived;
 mod errors;
 #[path = "official_parity/exports.rs"]
 mod exports;
+#[path = "official_parity/lets.rs"]
+mod lets;
 
 /// The output, or the code of the diagnostic that refuses the source.
 fn compile(source: &str, target: Target) -> Result<String, String> {

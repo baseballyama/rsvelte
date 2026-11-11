@@ -17,6 +17,7 @@ mod expressions;
 mod fragments;
 mod global_bindings;
 mod html_tag;
+mod lets;
 mod slot_element;
 mod snippets;
 mod special;
@@ -134,7 +135,9 @@ impl<'o> Memo<'o> {
 
 #[derive(Default)]
 struct Lists<'o> {
-    /// Upstream `state.consts`, which open the fragment.
+    /// Upstream `state.let_directives`, which open the fragment.
+    lets: Vec<Statement<'o>>,
+    /// Upstream `state.consts`, which follow them.
     consts: Vec<Statement<'o>>,
     initializer: Vec<Statement<'o>>,
     update: Vec<Statement<'o>>,

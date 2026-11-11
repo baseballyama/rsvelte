@@ -1,7 +1,8 @@
 //! What a component call passes, in upstream `build_component`'s order. The targets differ only
 //! in how they spell each prop, the children callback and the call.
 
-use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
+use oxc_allocator::ArenaBox;
+use oxc_ast::ast::{Expression, FormalParameters, ObjectPropertyKind, PropertyKind, Statement};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, ElementKind, MetadataTag, Snippet};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
@@ -42,7 +43,7 @@ pub(super) fn props<'t>(
         AttributeValue::Bind(e) if a.name.text(source_text) != "this" => {
             accessors(e).map(|(get, set)| Prop::Accessors(a, get, set))
         }
-        AttributeValue::Bind(_) | AttributeValue::On { .. } => None,
+        AttributeValue::Bind(_) | AttributeValue::On { .. } | AttributeValue::Let(_) => None,
         AttributeValue::Spread(e) => Some(Prop::Spread(e)),
         _ => Some(Prop::Value(a)),
     });
@@ -225,15 +226,22 @@ pub(super) fn child_snippets<'t, 'o>(
     Ok((declarations, names))
 }
 
+/// A slot's name, its callback's parameters and body.
+pub(super) type SlotCallback<'s, 'o> = (
+    &'s str,
+    ArenaBox<'o, FormalParameters<'o>>,
+    Vec<Statement<'o>>,
+);
+
 /// Each snippet child as a prop of its name, the default slot as a callback in the `children`
 /// prop, the other slots in `$$slots`, and `$$slots` so that a `<slot>` in the child renders them
-/// all; the targets differ only in the callbacks' parameters.
+/// all. A default slot that takes slot props goes in `$$slots` too, and `children` throws.
 pub(super) fn push_children<'o>(
     b: &Builder<'o>,
     parts: &mut Vec<Entry<'o>>,
     snippets: &[&str],
-    slot_bodies: Vec<(&str, Vec<Statement<'o>>)>,
-    parameters: &[&str],
+    slot_callbacks: Vec<SlotCallback<'_, 'o>>,
+    default_takes_props: bool,
 ) {
     let mut slots = Vec::new();
     for &name in snippets {
@@ -242,15 +250,19 @@ pub(super) fn push_children<'o>(
         let slot = if name == "children" { "default" } else { name };
         slots.push(b.init(slot, b.boolean(true)));
     }
-    for (name, body) in slot_bodies {
+    for (name, parameters, body) in slot_callbacks {
         if body.is_empty() {
             continue;
         }
-        let callback = b.arrow_block(b.params(parameters.iter().copied()), body, false);
-        if name == "default" {
+        let callback = b.arrow_block(parameters, body, false);
+        if name == "default" && !default_takes_props {
             parts.push(Entry::Property(b.init("children", callback)));
             slots.push(b.init("default", b.boolean(true)));
         } else {
+            if name == "default" {
+                let throws = b.member(b.id("$"), "invalid_default_snippet");
+                parts.push(Entry::Property(b.init("children", throws)));
+            }
             slots.push(b.init(name, callback));
         }
     }
