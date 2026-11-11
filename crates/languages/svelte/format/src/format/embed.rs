@@ -24,24 +24,39 @@ impl Printer<'_, '_, '_> {
         {
             self.refuse_unembedded(span)?;
         }
+        let mut root = c.children(c.root).to_vec();
         let mut hoisted = Vec::new();
         for script in c.module.iter().chain(&c.instance) {
-            self.refuse_script_language(&script.attributes)?;
-            let body = self.script_body(script.content)?;
+            let comments = self.leading_comments(&mut root, script.span.start_offset);
+            let body = if self.ignores(&comments) || self.unsupported(&script.attributes) {
+                self.preformatted(script.content)
+            } else {
+                self.refuse_script_language(&script.attributes)?;
+                self.script_body(script.content)?
+            };
             let tag = self.embed_tag("script", &script.attributes, body);
+            let tag = self.with_comments(&comments, tag);
             hoisted.push((SortPart::Scripts, script.span, tag));
         }
         if let Some(style) = &c.style {
-            let body = self.style_body(style)?;
+            let comments = self.leading_comments(&mut root, style.span.start_offset);
+            // The plugin takes the body out before Svelte parses, so Svelte's CSS errors do not
+            // reach it.
+            let body = if self.ignores(&comments) || self.unsupported(&style.attributes) {
+                self.preformatted(style.content)
+            } else {
+                self.style_body(style)?
+            };
             let tag = self.embed_tag("style", &style.attributes, body);
+            let tag = self.with_comments(&comments, tag);
             hoisted.push((SortPart::Styles, style.span, tag));
         }
         let pragma = self.options.insert_pragma && !super::has_pragma(self.source_text);
         let Some(order) = self.options.svelte_sort_order.0 else {
-            let markup = self.in_source_order(&hoisted)?;
+            let markup = self.in_source_order(&root, &hoisted)?;
             return Ok(self.with_pragma(pragma, markup));
         };
-        let (options, root) = self.svelte_options()?;
+        let (options, root) = self.svelte_options(root)?;
         let root: Vec<Child> = root.into_iter().map(Child::Node).collect();
         let root = self.merged_root(&root);
         let markup = self.fragment(&root)?;
@@ -87,13 +102,13 @@ impl Printer<'_, '_, '_> {
     /// drops a part that finds no such place and repeats one that finds two, so those are refused.
     fn in_source_order(
         &mut self,
+        root: &[TemplateNodeIdentifier],
         hoisted: &[(SortPart, Span, LayoutInstructionIdentifier)],
     ) -> R<LayoutInstructionIdentifier> {
         let c = self.c;
         let end = self.source_text.len() as u32;
         // The plugin parses the trimmed source, where whitespace alone at either end is no node.
-        let mut children: Vec<(Child, Span)> = c
-            .children(c.root)
+        let mut children: Vec<(Child, Span)> = root
             .iter()
             .filter(|&&n| {
                 let span = c.node(n).span();
@@ -184,12 +199,12 @@ impl Printer<'_, '_, '_> {
     /// the root's children without them.
     fn svelte_options(
         &mut self,
+        mut root: Vec<TemplateNodeIdentifier>,
     ) -> R<(
         Option<LayoutInstructionIdentifier>,
         Vec<TemplateNodeIdentifier>,
     )> {
         let c = self.c;
-        let mut root = c.children(c.root).to_vec();
         let Some(at) = root
             .iter()
             .position(|&n| self.element_name(n) == Some("svelte:options"))
@@ -228,8 +243,133 @@ impl Printer<'_, '_, '_> {
         Ok((Some(doc), root))
     }
 
-    /// The plugin moves HTML comments right before a `<script>`/`<style>` along with it, and keeps
-    /// `<!-- #endregion -->` below it; neither is ported.
+    /// `removeAndGetLeadingComments`: the comments right above the root part that starts at
+    /// `start`, in source order, each with whether an empty line follows it. They and the
+    /// whitespace after each leave `root`; the whitespace above the first stays.
+    fn leading_comments(
+        &self,
+        root: &mut Vec<TemplateNodeIdentifier>,
+        start: u32,
+    ) -> Vec<(Span, bool)> {
+        let c = self.c;
+        let mut comments = Vec::new();
+        let mut after: Vec<Option<TemplateNodeIdentifier>> = Vec::new();
+        let mut at = start;
+        while let Some(&previous) = root.iter().find(|&&n| c.node(n).span().end_offset == at) {
+            if let TemplateNode::Comment { data, .. } = *c.node(previous)
+                && !matches!(
+                    data.text(self.source_text)
+                        .trim_matches(is_ecmascript_whitespace),
+                    "prettier-ignore-start" | "prettier-ignore-end"
+                )
+            {
+                comments.push((previous, data));
+                if comments.len() != after.len() {
+                    after.push(None);
+                }
+            } else if self.is_text(previous) && only_ws(self.raw(previous)) {
+                after.push(Some(previous));
+            } else {
+                break;
+            }
+            at = c.node(previous).span().start_offset;
+        }
+        after.truncate(comments.len());
+        root.retain(|n| {
+            !comments.iter().any(|&(comment, _)| comment == *n) && !after.contains(&Some(*n))
+        });
+        comments
+            .iter()
+            .zip(&after)
+            .rev()
+            .map(|(&(_, data), text)| {
+                let empty_line = text.is_some_and(|t| self.raw(t).split('\n').count() > 2);
+                (data, empty_line)
+            })
+            .collect()
+    }
+
+    /// The plugin's `getLangAttribute`: `lang`, else `type`, without a `text/` prefix, with the
+    /// attribute's name.
+    fn language(&self, attributes: &[TagAttributes]) -> Option<(Span, &str)> {
+        let value = |name: &str| {
+            attributes
+                .iter()
+                .find(|(n, _)| n.text(self.source_text) == name)
+                .and_then(|&(n, v)| Some((n, v?.text(self.source_text))))
+                .filter(|(_, v)| !v.is_empty())
+        };
+        let (at, language) = value("lang").or_else(|| value("type"))?;
+        Some((at, language.strip_prefix("text/").unwrap_or(language)))
+    }
+
+    /// The plugin's `isNodeSupportedLanguage`: it keeps the body of these as it is.
+    fn unsupported(&self, attributes: &[TagAttributes]) -> bool {
+        self.language(attributes).is_some_and(|(_, language)| {
+            matches!(
+                language,
+                "coffee" | "coffeescript" | "styl" | "stylus" | "sass"
+            )
+        })
+    }
+
+    /// `embedTag` keeps the body as it is when the comment right above is `prettier-ignore`.
+    fn ignores(&self, comments: &[(Span, bool)]) -> bool {
+        comments.last().is_some_and(|&(data, _)| {
+            data.text(self.source_text)
+                .trim_matches(is_ecmascript_whitespace)
+                == "prettier-ignore"
+        })
+    }
+
+    /// `preformattedBody`: the text without its first and last line break, on a literal line.
+    fn preformatted(&mut self, content: Span) -> LayoutInstructionIdentifier {
+        self.embedder.kept.push(content);
+        let text = content.text(self.source_text);
+        if text.is_empty() {
+            return self.d().nil();
+        }
+        let blank = |c: char| matches!(c, '\t' | '\x0C' | '\r' | ' ');
+        let start = text
+            .find(|c: char| !blank(c))
+            .filter(|&i| text[i..].starts_with('\n'))
+            .map_or(0, |i| i + 1);
+        let text = &text[start..];
+        let end = text
+            .rfind(|c: char| !blank(c))
+            .filter(|&i| text[i..].starts_with('\n'))
+            .unwrap_or(text.len());
+        let mut parts = vec![self.d().literalline()];
+        for (i, line) in text[..end].split('\n').enumerate() {
+            if i > 0 {
+                parts.push(self.d().literalline());
+            }
+            parts.push(self.d().text(line.strip_suffix('\r').unwrap_or(line)));
+        }
+        parts.push(self.d().hardline());
+        self.cat(&parts)
+    }
+
+    /// `embedTag`'s moved comments, each on its own line above the tag.
+    fn with_comments(
+        &mut self,
+        comments: &[(Span, bool)],
+        tag: LayoutInstructionIdentifier,
+    ) -> LayoutInstructionIdentifier {
+        let mut parts = Vec::new();
+        for &(data, empty_line) in comments {
+            let text = format!("<!--{}-->", data.text(self.source_text));
+            parts.push(self.d().text(&text));
+            parts.push(self.d().hardline());
+            if empty_line {
+                parts.push(self.d().hardline());
+            }
+        }
+        parts.push(tag);
+        self.cat(&parts)
+    }
+
+    /// The plugin keeps `<!-- #endregion -->` below a `<script>`/`<style>`; that is not ported.
     pub(super) fn refuse_moved_comments(&self) -> R<()> {
         let hoisted: Vec<Span> = self
             .c
@@ -253,21 +393,14 @@ impl Printer<'_, '_, '_> {
             let data = data
                 .text(self.source_text)
                 .trim_matches(is_ecmascript_whitespace);
-            if data.starts_with("prettier-ignore") {
-                return Err(Unsupported::at("prettier-ignore comments", span));
-            }
             for h in &hoisted {
-                let before = span.end_offset <= h.start_offset
-                    && only_ws(
-                        &self.source_text[span.end_offset as usize..h.start_offset as usize],
-                    );
                 let after = h.end_offset <= span.start_offset
                     && only_ws(
                         &self.source_text[h.end_offset as usize..span.start_offset as usize],
                     );
-                if before || (after && data.to_ascii_lowercase().contains("endregion")) {
+                if after && data.to_ascii_lowercase().contains("endregion") {
                     return Err(Unsupported::at(
-                        "comments attached to <script> or <style>",
+                        "`<!-- #endregion -->` after <script> or <style>",
                         span,
                     ));
                 }
@@ -370,17 +503,9 @@ impl Printer<'_, '_, '_> {
     /// The plugin's `getLangAttribute` names a language other than JavaScript or TypeScript: JSON
     /// goes to Prettier's JSON printer, and any other body the plugin keeps when it does not parse.
     fn refuse_script_language(&self, attributes: &[TagAttributes]) -> R<()> {
-        let value = |name: &str| {
-            attributes
-                .iter()
-                .find(|(n, _)| n.text(self.source_text) == name)
-                .and_then(|&(n, v)| v.map(|v| (n, v.text(self.source_text))))
-                .filter(|(_, v)| !v.is_empty())
-        };
-        let Some((at, lang)) = value("lang").or_else(|| value("type")) else {
+        let Some((at, lang)) = self.language(attributes) else {
             return Ok(());
         };
-        let lang = lang.strip_prefix("text/").unwrap_or(lang);
         if matches!(
             lang,
             "ts" | "typescript" | "js" | "javascript" | "module" | "application/javascript"
@@ -441,14 +566,14 @@ impl Printer<'_, '_, '_> {
         &mut self,
         style: &rsvelte_svelte_syntax::syntax_tree::Style,
     ) -> R<LayoutInstructionIdentifier> {
-        if let Some((n, _)) = style.attributes.iter().find(|(n, v)| {
-            matches!(n.text(self.source_text), "lang" | "type")
-                && v.is_some_and(|v| v.text(self.source_text) != "css")
-        }) {
-            return Err(Unsupported::at("a style language other than CSS", *n));
-        }
-        // The task formats only a component whose style sheet parsed.
-        if style.sheet.is_err() {
+        // The plugin's `embedStyle`: any language but Less and SCSS, such as `postcss`, is CSS.
+        let variant = match self.language(&style.attributes) {
+            Some((_, "less")) => oxc_formatter_css::CssVariant::Less,
+            Some((_, "scss")) => oxc_formatter_css::CssVariant::Scss,
+            _ => oxc_formatter_css::CssVariant::Css,
+        };
+        // Where Svelte's parser fails, Prettier's CSS parser may fail too and keep the body.
+        if variant == oxc_formatter_css::CssVariant::Css && style.sheet.is_err() {
             return Err(Unsupported::at(
                 "a style sheet that does not parse",
                 style.content,
@@ -470,6 +595,7 @@ impl Printer<'_, '_, '_> {
             line_width: core.line_width,
             line_ending: core.line_ending,
             single_quote: self.options.single_quote.into(),
+            variant,
             ..oxc_formatter_css::CssFormatOptions::default()
         };
         #[expect(

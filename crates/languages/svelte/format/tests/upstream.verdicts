@@ -45,7 +45,7 @@ pass	printer/class.html
 pass	printer/comment-at-end.html
 pass	printer/comment.html
 pass	printer/comments-above-html-block.html
-refused	printer/comments-multiple-above-blocks.html	comments attached to <script> or <style>
+pass	printer/comments-multiple-above-blocks.html
 pass	printer/component-style-script-tagname.html
 pass	printer/component.html
 pass	printer/const.html
@@ -130,10 +130,10 @@ pass	printer/pre-element-with-code-element.html
 pass	printer/pre-element.html
 refused	printer/prettier-ignore-nested.html	prettier-ignore comments
 refused	printer/prettier-ignore-range.html	prettier-ignore comments
-refused	printer/prettier-ignore-script.html	prettier-ignore comments
-refused	printer/prettier-ignore-style.html	prettier-ignore comments
+pass	printer/prettier-ignore-script.html
+pass	printer/prettier-ignore-style.html
 pass	printer/raw-mustaches.html
-refused	printer/region-markers.html	comments attached to <script> or <style>
+refused	printer/region-markers.html	`<!-- #endregion -->` after <script> or <style>
 pass	printer/require-pragma-missing.html
 pass	printer/s-after-style-tag.html
 pass	printer/script-and-module.html
@@ -163,7 +163,7 @@ pass	printer/sort-order-markup-scripts-styles-options.html
 pass	printer/sort-order-markup-styles-options-scripts.html
 pass	printer/sort-order-markup-styles-scripts-options.html
 pass	printer/sort-order-none.html
-refused	printer/sort-order-none2.html	comments attached to <script> or <style>
+pass	printer/sort-order-none2.html
 pass	printer/sort-order-none3.html
 pass	printer/sort-order-options-markup-scripts-styles.html
 pass	printer/sort-order-options-markup-styles-scripts.html
@@ -184,12 +184,12 @@ pass	printer/style-directive.html
 pass	printer/style-inside-comment.html
 refused	printer/style-inside-element.html	<script> or <style> inside an element
 pass	printer/style-inside-script.html
-refused	printer/style-lang-less.html	a style language other than CSS
-refused	printer/style-lang-scss.html	a style language other than CSS
-refused	printer/style-script-commented-out.html	comments attached to <script> or <style>
-refused	printer/style-scripts-snipping-spans.html	a style language other than CSS
-refused	printer/style-type-less.html	a style language other than CSS
-refused	printer/style-type-scss.html	a style language other than CSS
+pass	printer/style-lang-less.html
+pass	printer/style-lang-scss.html
+pass	printer/style-script-commented-out.html
+pass	printer/style-scripts-snipping-spans.html
+pass	printer/style-type-less.html
+pass	printer/style-type-scss.html
 pass	printer/style-unclosed-inside-script.html
 pass	printer/style-with-attributes.html
 pass	printer/style.html
@@ -241,7 +241,7 @@ pass	formatting/attributes-bracket-same-line
 pass	formatting/attributes-class
 pass	formatting/attributes-newline
 pass	formatting/attributes-no-newline
-refused	formatting/attributes-without-quotes	a style language other than CSS
+refused	formatting/attributes-without-quotes	<script> or <style> inside an element
 pass	formatting/block-element-break-children
 pass	formatting/block-element-break-long
 pass	formatting/block-element-break-long-whitespace
@@ -284,12 +284,12 @@ refused	formatting/prettier-ignore-range-1	prettier-ignore comments
 refused	formatting/prettier-ignore-range-2	prettier-ignore comments
 refused	formatting/prettier-ignore-range-wrong	prettier-ignore comments
 refused	formatting/prettier-ignore-ranges-and-lines	prettier-ignore comments
-refused	formatting/region-markers	comments attached to <script> or <style>
+refused	formatting/region-markers	`<!-- #endregion -->` after <script> or <style>
 pass	formatting/require-pragma-present
 pass	formatting/script-only-extra-whitespace
-refused	formatting/script-style-tags-multiple-nested	comments attached to <script> or <style>
+refused	formatting/script-style-tags-multiple-nested	<script> or <style> inside an element
 pass	formatting/scripts-styles-empty-handling
-refused	formatting/scripts-styles-text-handling	comments attached to <script> or <style>
+pass	formatting/scripts-styles-text-handling
 pass	formatting/single-attribute-per-line
 pass	formatting/style-directive
 pass	formatting/svelte-await-block-break
@@ -297,7 +297,7 @@ pass	formatting/svelte-each-block-break
 pass	formatting/svelte-if-block-break
 pass	formatting/svelte-key-block-break
 fail	formatting/syntax-error
-refused	formatting/top-level-comments	comments attached to <script> or <style>
+pass	formatting/top-level-comments
 pass	formatting/trim-leading-whitespace
 pass	formatting/trim-line-breaks-elements
 pass	formatting/trim-line-breaks-text

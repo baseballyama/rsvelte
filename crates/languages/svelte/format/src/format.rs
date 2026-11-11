@@ -75,7 +75,6 @@ pub(crate) fn format(
             "an emoji sequence, which Prettier measures as one character",
         ));
     }
-    refuse_template_comments(c)?;
     refuse_rejected_tags(c, source_text)?;
     if let Some(rejected) = rejected {
         return Err(Unsupported::at("code a module rejects", rejected.span));
@@ -93,6 +92,7 @@ pub(crate) fn format(
             embedding: Embedding::new(&allocator, core),
             typescript: is_typescript(c, source_text),
             options: javascript_options(options, core),
+            kept: Vec::new(),
         },
         text: vec![None; c.nodes.len()],
         in_pre: false,
@@ -102,6 +102,7 @@ pub(crate) fn format(
         buffers: Vec::new(),
     };
     let root = f.top_level()?;
+    refuse_lost_comments(c, &f.embedder.kept)?;
     let embedding = f.embedder.embedding;
     let printed =
         embedding
@@ -201,16 +202,10 @@ fn has_pragma(text: &str) -> bool {
     })
 }
 
-/// Any JavaScript comment outside the scripts: the template printer does not place them yet, so
-/// one in an expression, a directive (`bind:value={/* a */ b}`) or between a tag's attributes
-/// (`<A // b={1}>`, only a token) would be lost.
-fn refuse_template_comments(c: &Component) -> R<()> {
-    let scripts: Vec<Span> = c
-        .module
-        .iter()
-        .chain(&c.instance)
-        .map(|s| s.content)
-        .collect();
+/// A JavaScript comment outside the code the output keeps as text, which the template printer
+/// does not place: around an expression (`{/* a */ b}`) or between a tag's attributes
+/// (`<A // b={1}>`, only a token), it would be lost.
+fn refuse_lost_comments(c: &Component, kept: &[Span]) -> R<()> {
     let mut comments = c
         .tokens
         .iter()
@@ -218,7 +213,7 @@ fn refuse_template_comments(c: &Component) -> R<()> {
         .map(|t| t.span);
     comments
         .find(|comment| {
-            !scripts.iter().any(|s| {
+            !kept.iter().any(|s| {
                 s.start_offset <= comment.start_offset && comment.end_offset <= s.end_offset
             })
         })
