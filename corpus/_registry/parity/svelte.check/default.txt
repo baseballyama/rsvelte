@@ -1,4 +1,4 @@
-# svelte.check/default: 33303 match
+# svelte.check/default: 33334 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/animotion/src/lib/components/slides.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
@@ -102,7 +102,6 @@ svelte/flowbite-svelte/src/lib/device-mockups/DeviceMockup.svelte	mismatch
 svelte/flowbite-svelte/src/lib/drawer/Drawer.svelte	refused
 svelte/flowbite-svelte/src/routes/admin-dashboard/(no-sidebar)/+layout.svelte	mismatch
 svelte/flowbite-svelte/src/routes/blocks/utils/Paging.svelte	mismatch
-svelte/flowbite-svelte/src/routes/docs-examples/typography/image/Enhanced.svelte	refused
 svelte/flowbite-svelte/src/routes/landing/CTA.svelte	mismatch
 svelte/flowbite-svelte/src/routes/landing/Contributors.svelte	mismatch
 svelte/flowbite-svelte/src/routes/landing/DesignFigma.svelte	mismatch
@@ -192,35 +191,7 @@ svelte/layerchart/packages/layerchart/src/lib/components/charts/__fixtures__/Arc
 svelte/layerchart/packages/layerchart/src/lib/components/geo/GeoRaster/GeoRaster.svelte	mismatch
 svelte/melt-ui/docs/src/components/motion.svelte	mismatch
 svelte/melt-ui/packages/melt/src/lib/builders/tests/SpatialMenuDisabledTest.svelte	mismatch
-svelte/originui-svelte/src/lib/components/avatars/avatar-11.svelte	refused
-svelte/originui-svelte/src/lib/components/avatars/avatar-12.svelte	refused
-svelte/originui-svelte/src/lib/components/avatars/avatar-13.svelte	refused
-svelte/originui-svelte/src/lib/components/avatars/avatar-14.svelte	refused
-svelte/originui-svelte/src/lib/components/avatars/avatar-15.svelte	refused
-svelte/originui-svelte/src/lib/components/avatars/avatar-16.svelte	refused
-svelte/originui-svelte/src/lib/components/avatars/avatar-17.svelte	refused
-svelte/originui-svelte/src/lib/components/avatars/avatar-18.svelte	refused
-svelte/originui-svelte/src/lib/components/avatars/avatar-19.svelte	refused
-svelte/originui-svelte/src/lib/components/avatars/avatar-20.svelte	refused
-svelte/originui-svelte/src/lib/components/avatars/avatar-21.svelte	refused
-svelte/originui-svelte/src/lib/components/avatars/avatar-22.svelte	refused
-svelte/originui-svelte/src/lib/components/avatars/avatar-23.svelte	refused
-svelte/originui-svelte/src/lib/components/buttons/button-17.svelte	refused
-svelte/originui-svelte/src/lib/components/buttons/button-18.svelte	refused
-svelte/originui-svelte/src/lib/components/dropdowns/dropdown-11.svelte	refused
-svelte/originui-svelte/src/lib/components/popovers/popover-03.svelte	refused
-svelte/originui-svelte/src/lib/components/radios/radio-18.svelte	refused
-svelte/originui-svelte/src/lib/components/selects/select-38.svelte	refused
-svelte/originui-svelte/src/lib/components/selects/select-40.svelte	refused
 svelte/originui-svelte/src/lib/components/tables/table-16.svelte	refused
-svelte/originui-svelte/src/lib/components/timelines/timeline-07.svelte	refused
-svelte/originui-svelte/src/lib/components/timelines/timeline-10.svelte	refused
-svelte/originui-svelte/src/lib/components/tooltips/tooltip-06.svelte	refused
-svelte/originui-svelte/src/lib/components/tooltips/tooltip-10.svelte	refused
-svelte/originui-svelte/src/lib/components/tooltips/tooltip-11.svelte	refused
-svelte/originui-svelte/src/lib/components/tooltips/tooltip-12.svelte	refused
-svelte/originui-svelte/src/lib/demo/category-card.svelte	refused
-svelte/originui-svelte/src/lib/demo/layout/footer.svelte	refused
 svelte/primo/src/lib/builder/Primo.svelte	mismatch
 svelte/primo/src/lib/builder/components/ComponentPreview.svelte	mismatch
 svelte/primo/src/lib/builder/components/Fields/FieldItem.svelte	mismatch
@@ -3418,7 +3389,6 @@ svelte/rsvelte/pattern/matrix/ts-declarations/export-let-typed.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/install-cards.svelte	mismatch
 svelte/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table-drag-handle.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table.svelte	refused
-svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/+page.svelte	refused
 svelte/svelte-commerce/src/routes/(my)/my/orders/[id]/+page.svelte	mismatch
 svelte/svelte-commerce/src/routes/(www)/order-tracking/+page.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/attach04-ts-input.svelte	refused
@@ -3523,7 +3493,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-inh
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte	refused
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/css-injected-options-nested/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte	mismatch
-svelte/sveltekit/packages/enhanced-img/test/Input.svelte	refused
 svelte/sveltekit/packages/kit/src/runtime/components/root.svelte	mismatch
 svelte/sveltekit/packages/kit/test/apps/async/src/routes/+page.svelte	mismatch
 svelte/sveltepress/packages/theme-default/src/components/Navbar.svelte	mismatch

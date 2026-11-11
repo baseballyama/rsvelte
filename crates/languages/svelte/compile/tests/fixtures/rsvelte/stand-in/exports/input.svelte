@@ -8,6 +8,7 @@
 
 <script lang="ts">
 	let value = $state('');
+	const props = $props();
 </script>
 
-<enhanced:img src="./a.png" alt={value} />
+<p title={value}>{props.a}</p>

@@ -3,7 +3,10 @@ export const answer = 42;
 export function double(n) {
 	return n * 2;
 }
-export default function Exports($$renderer) {
-	let value = "";
-	$$renderer.push(`<enhanced:img src="./a.png"${$.attr("alt", value)}></enhanced:img>`);
+export default function Exports($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let value = "";
+		const { $$slots, $$events, ...props } = $$props;
+		$$renderer.push(`<p${$.attr("title", value)}>${$.escape(props.a)}</p>`);
+	});
 }
