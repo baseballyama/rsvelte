@@ -24,11 +24,12 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let NodeKind::Each(each) = &compiler_syntax_tree.node(identifier).kind else {
             unreachable!()
         };
-        let mut context = javascript
-            .get_pattern(each.context.expect("the parser requires `as`"))
-            .pattern
-            .clone_in_with_semantic_ids(b.allocator());
-        self.rewrite().visit_binding_pattern(&mut context);
+        let context = each.context.map(|c| {
+            let mut context =
+                (javascript.get_pattern(c).pattern).clone_in_with_semantic_ids(b.allocator());
+            self.rewrite().visit_binding_pattern(&mut context);
+            context
+        });
         let collection = self.expression(each.collection);
         let named = each.index.map(|i| {
             javascript
@@ -45,11 +46,15 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let array_id = self.names.unique("each_array");
         let array_declaration = b.const_(&array_id, b.runtime("ensure_array_like", [collection]));
 
-        let element = b.computed(b.id(&array_id), b.id(&index));
-        let mut body = vec![b.declaration(
-            VariableDeclarationKind::Let,
-            [b.declarator(context, Some(element))],
-        )];
+        let mut body: Vec<_> = (context.into_iter())
+            .map(|context| {
+                let element = b.computed(b.id(&array_id), b.id(&index));
+                b.declaration(
+                    VariableDeclarationKind::Let,
+                    [b.declarator(context, Some(element))],
+                )
+            })
+            .collect();
         if let Some(i) = named
             && i.name.as_str() != index
         {

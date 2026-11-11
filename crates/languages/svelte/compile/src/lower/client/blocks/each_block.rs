@@ -60,11 +60,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let NodeKind::Each(each) = &compiler_syntax_tree.node(identifier).kind else {
             unreachable!()
         };
-        let context = each.context.expect("the parser requires `as`");
-        let pattern = &javascript.get_pattern(context).pattern;
+        let pattern = each.context.map(|c| &javascript.get_pattern(c).pattern);
         let (item, destructured) = match pattern {
-            BindingPattern::BindingIdentifier(item) => (Some(&**item), None),
-            pattern => (None, Some(pattern)),
+            Some(BindingPattern::BindingIdentifier(item)) => (Some(&**item), None),
+            pattern => (None, pattern),
         };
         let keyed = each.keyed(javascript);
         if let Some(pattern) = destructured {
@@ -104,6 +103,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .chain(destructured_names.iter().map(|&(symbol, _)| symbol))
             .collect();
         let key_function = if keyed {
+            let pattern = pattern.expect("a key follows `as`");
             self.key_function(each, pattern, &symbols, &index_name, index_use.key)
         } else {
             b.member(b.id("$"), "index")
@@ -278,10 +278,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 .insert(symbol, Read::get_if(flags & EACH_INDEX_REACTIVE != 0));
         }
         let outer = self.scope;
-        self.scope = self
-            .res
-            .template_scope(TemplateScope::Each(identifier))
-            .expect("an `{#each}` context opens a scope");
+        // A block that declares no name opens no scope.
+        if let Some(scope) = self.res.template_scope(TemplateScope::Each(identifier)) {
+            self.scope = scope;
+        }
         let mut declarations = Vec::new();
         if let Some(pattern) = destructured {
             self.destructure(pattern, flags & EACH_ITEM_REACTIVE != 0, &mut declarations);
