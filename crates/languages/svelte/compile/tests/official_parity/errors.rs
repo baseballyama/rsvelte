@@ -30,7 +30,6 @@ fn a_directive_a_component_never_takes_raises_upstreams_error() {
 fn each_component_attribute_not_lowered_yet_is_refused_on_both_targets() {
     for attribute in [
         "{@attach f}",
-        "on:click={f}",
         "let:x",
         "--color=\"red\"",
         "slot=\"x\"",

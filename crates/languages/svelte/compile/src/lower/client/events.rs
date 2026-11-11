@@ -142,14 +142,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let AttributeValue::On { handler, modifiers } = attribute.value else {
             unreachable!("an event directive")
         };
-        let mut handler = if let Some(handler) = handler {
-            self.event_handler(handler, lists)
-        } else {
-            self.needs_props = true;
-            let call = b.member(b.member(b.id("$"), "bubble_event"), "call");
-            let call = b.call(call, [b.this(), b.id("$$props"), b.id("$$arg")]);
-            b.function_expression(None, b.params(["$$arg"]), [b.stmt(call)], false)
-        };
+        let mut handler = self.directive_handler(handler, lists);
         for (modifier, method) in [
             (Modifiers::STOP_PROPAGATION, "stopPropagation"),
             (
@@ -185,6 +178,23 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             "event",
             vec![Some(name), Some(target), Some(handler), capture, passive],
         )
+    }
+
+    /// Upstream `build_event_handler` of an `on:` directive, which re-dispatches the event to the
+    /// component's own listeners when it has no handler.
+    pub(super) fn directive_handler(
+        &mut self,
+        handler: Option<ExpressionIdentifier>,
+        lists: &mut Lists<'o>,
+    ) -> Expression<'o> {
+        if let Some(handler) = handler {
+            return self.event_handler(handler, lists);
+        }
+        let b = self.b;
+        self.needs_props = true;
+        let call = b.member(b.member(b.id("$"), "bubble_event"), "call");
+        let call = b.call(call, [b.this(), b.id("$$props"), b.id("$$arg")]);
+        b.function_expression(None, b.params(["$$arg"]), [b.stmt(call)], false)
     }
 
     fn global_event_target(&self, node: &str) -> Expression<'o> {

@@ -1,4 +1,5 @@
 use oxc_ast::ast::{Expression, PropertyKind, Statement};
+use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
 
 use super::super::component::{
     Callee, Entry, Prop, bind_this, callee, child_snippets, props, props_expression,
@@ -46,6 +47,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         ) {
             self.push_prop(prop, &mut memo, &mut parts, &mut accessors);
         }
+        self.push_events(
+            tree.attributes(element.attributes),
+            &mut parts,
+            &mut accessors,
+        );
         let (mut statements, snippets) =
             child_snippets(tree, self.javascript, element.children, |snippet| {
                 self.snippet_declaration(snippet)
@@ -89,6 +95,46 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             b.block(statements)
         });
         Ok(())
+    }
+
+    /// Upstream's `$$events`: each `on:` handler by event name, in the order the names first
+    /// appear, an array where a name has several.
+    fn push_events(
+        &mut self,
+        attributes: &[super::Attribute],
+        parts: &mut Vec<Entry<'o>>,
+        declarations: &mut Vec<Statement<'o>>,
+    ) {
+        let b = self.b;
+        let mut events: Vec<(&str, Vec<Expression<'o>>)> = Vec::new();
+        for attribute in attributes {
+            let AttributeValue::On { handler, modifiers } = attribute.value else {
+                continue;
+            };
+            let mut lists = Lists::default();
+            let mut handler = self.directive_handler(handler, &mut lists);
+            declarations.append(&mut lists.initializer);
+            if modifiers.contains(Modifiers::ONCE) {
+                handler = b.runtime("once", [handler]);
+            }
+            let name = attribute.name.text(self.source_text);
+            match events.iter_mut().find(|(n, _)| *n == name) {
+                Some((_, handlers)) => handlers.push(handler),
+                None => events.push((name, vec![handler])),
+            }
+        }
+        if events.is_empty() {
+            return;
+        }
+        let properties = events.into_iter().map(|(name, mut handlers)| {
+            let value = if handlers.len() == 1 {
+                handlers.pop().expect("one handler")
+            } else {
+                b.array(handlers)
+            };
+            b.init(name, value)
+        });
+        parts.push(Entry::Property(b.init("$$events", b.object(properties))));
     }
 
     /// Upstream `Memoizer.deriveds`: `let $0 = $.derived(() => value)` for each memoized value.
