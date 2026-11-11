@@ -333,6 +333,13 @@ impl<'a> Builder<'a> {
         identifier
     }
 
+    /// Keeps a program built in [`Builder::ast`]'s arena, such as one a compiler writes.
+    pub fn keep_program(&mut self, program: Program<'a>) -> ProgramIdentifier {
+        let identifier = ProgramIdentifier::at(self.programs.len());
+        self.programs.push(program);
+        identifier
+    }
+
     pub fn keep_pattern(&mut self, pattern: FormalParameter<'a>) -> PatternIdentifier {
         let identifier = PatternIdentifier::at(self.patterns.len());
         self.patterns.push(pattern);

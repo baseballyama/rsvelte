@@ -131,3 +131,26 @@ fn a_declaration_tag_reads_one_statement() {
     .expect("parses");
     assert_eq!((end, declarators), (26, 2));
 }
+
+#[test]
+fn a_built_program_is_kept_beside_the_parsed_ones() {
+    let (tree, (parsed, built)) = Tree::build(COMPONENT, |builder| {
+        let parsed = builder.program(Span::new(18, 44), SourceType::ts())?;
+        let ast = builder.ast();
+        let program = oxc_ast::ast::Program::new(
+            oxc_span::Span::new(0, 0),
+            SourceType::mjs(),
+            COMPONENT,
+            [],
+            None,
+            [],
+            [],
+            &ast,
+        );
+        Ok((parsed, builder.keep_program(program)))
+    })
+    .expect("parses");
+    assert_ne!(parsed, built);
+    assert_eq!(tree.get_program(parsed).body.len(), 1);
+    assert!(tree.get_program(built).body.is_empty());
+}
