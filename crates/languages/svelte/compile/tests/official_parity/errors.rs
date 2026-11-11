@@ -300,6 +300,28 @@ fn a_reserved_or_legacy_name_raises_upstreams_error_on_both_targets() {
         ),
         ("<script>const f = ($p) => $p;</script>", None),
         ("{#each [1] as $x}{$x}{/each}", None),
+        // The name of a function expression is at the depth of the function around it.
+        (
+            "<script>function g() { const f = function $x() {}; }</script>",
+            None,
+        ),
+        (
+            "<script>function g() { class $C {} }</script>",
+            Some("dollar_prefix_invalid"),
+        ),
+        (
+            "<script lang=\"ts\">import type { $T } from './t';</script>",
+            None,
+        ),
+        // Upstream erases a `declare`d `$a`, so `{$a}` subscribes to a store named `a`.
+        (
+            "<script lang=\"ts\">declare const $a: string;</script>{$a}",
+            Some("global_reference_invalid"),
+        ),
+        (
+            "<script lang=\"ts\">import { writable } from 'svelte/store'; const a = writable(1); declare const $a: number;</script>{$a}",
+            Some("unsupported"),
+        ),
     ] {
         for target in [Target::Client, Target::Server] {
             assert_eq!(
@@ -450,6 +472,10 @@ fn a_snippet_name_raises_upstreams_error_where_upstream_does_in_its_order() {
             Some(("snippet_invalid_export", (24, 25))),
         ),
         ("<script module>export { s };</script>{#snippet s()}<p>x</p>{/snippet}".to_owned(), None),
+        (
+            "<script module>export { s };</script><div>{#snippet s()}x{/snippet}</div>".to_owned(),
+            Some(("snippet_invalid_export", (24, 25))),
+        ),
         (
             "{#snippet s(x)}<input bind:value={x} />{/snippet}".to_owned(),
             Some(("snippet_parameter_assignment", (22, 36))),
