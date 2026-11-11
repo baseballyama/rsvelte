@@ -1,0 +1,32 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"svelte/button-has-type"
+	],
+	"findings": [
+		{
+			"rule": "no-unused-vars",
+			"message": "'obj' is assigned a value but never used.",
+			"start": {
+				"line": 18,
+				"column": 6
+			},
+			"end": {
+				"line": 18,
+				"column": 9
+			}
+		},
+		{
+			"rule": "svelte/button-has-type",
+			"message": "Missing an explicit type attribute for button.",
+			"start": {
+				"line": 20,
+				"column": 1
+			},
+			"end": {
+				"line": 20,
+				"column": 33
+			}
+		}
+	]
+}
