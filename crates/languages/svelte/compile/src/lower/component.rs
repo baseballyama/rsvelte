@@ -20,24 +20,56 @@ pub(super) enum Prop<'t> {
     Spread(ExpressionIdentifier),
     /// `bind:name={target}`: a getter and a setter.
     Bind(&'t Attribute, ExpressionIdentifier),
+    /// `bind:name={get, set}`, whose functions the parent declares.
+    Accessors(&'t Attribute, &'t Expression<'t>, &'t Expression<'t>),
 }
 
-/// Values and spreads as written, then bindings, so that a spread cannot overwrite a binding.
-/// `bind:this` is no prop; see [`bind_this`].
+/// Values, spreads and getter-and-setter bindings as written, then the other bindings, so that a
+/// spread cannot overwrite them. `bind:this` is no prop; see [`bind_this`].
 pub(super) fn props<'t>(
     attributes: &'t [Attribute],
     source_text: &'t str,
+    javascript: &'t Tree,
 ) -> impl Iterator<Item = Prop<'t>> {
-    let values = attributes.iter().filter_map(|a| match a.value {
+    let accessors = |e| match javascript.get_expression(e).get_inner_expression() {
+        Expression::SequenceExpression(s) if let [get, set] = s.expressions.as_slice() => {
+            Some((get, set))
+        }
+        _ => None,
+    };
+    let values = attributes.iter().filter_map(move |a| match a.value {
+        AttributeValue::Bind(e) if a.name.text(source_text) != "this" => {
+            accessors(e).map(|(get, set)| Prop::Accessors(a, get, set))
+        }
         AttributeValue::Bind(_) => None,
         AttributeValue::Spread(e) => Some(Prop::Spread(e)),
         _ => Some(Prop::Value(a)),
     });
-    let bindings = attributes.iter().filter_map(|a| match a.value {
-        AttributeValue::Bind(e) if a.name.text(source_text) != "this" => Some(Prop::Bind(a, e)),
+    let bindings = attributes.iter().filter_map(move |a| match a.value {
+        AttributeValue::Bind(e) if a.name.text(source_text) != "this" && accessors(e).is_none() => {
+            Some(Prop::Bind(a, e))
+        }
         _ => None,
     });
     values.chain(bindings)
+}
+
+/// Upstream's binding to a getter and a setter: `var bind_get = get; var bind_set = set;` in
+/// the parent, read by the prop's accessors.
+pub(super) fn push_accessors<'o>(
+    b: &Builder<'o>,
+    parts: &mut Vec<Entry<'o>>,
+    declarations: &mut Vec<Statement<'o>>,
+    name: &str,
+    (get, set): (Expression<'o>, Expression<'o>),
+    names: &mut super::names::Names,
+) {
+    let get_id = names.generate("bind_get");
+    let set_id = names.generate("bind_set");
+    declarations.push(b.var(&get_id, get));
+    declarations.push(b.var(&set_id, set));
+    let setter = vec![b.stmt(b.call(b.id(&set_id), [b.id("$$value")]))];
+    push_binding(b, parts, name, b.call(b.id(&get_id), []), setter);
 }
 
 /// The target of a component's `bind:this`, which the client binds to the instance.

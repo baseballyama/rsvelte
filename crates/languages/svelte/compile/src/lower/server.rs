@@ -142,7 +142,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     let (mut snippets, template) =
         sx.fragment_parts(input.component.compiler_syntax_tree.root, |_| false)?;
     if uses_component_bindings(input) {
-        sx.settle(template, &mut snippets);
+        snippets = sx.settle(snippets, template);
     } else {
         snippets.extend(template);
     }
@@ -244,9 +244,19 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     }
 
     /// Renders the template until no child binding changes a value (`$$settled`), after the
-    /// snippets, which stay outside where the component's own names can read them.
-    fn settle(&self, template: Vec<Statement<'o>>, snippets: &mut Vec<Statement<'o>>) {
+    /// snippets, which stay outside where the component's own names can read them. A binding's
+    /// accessors, declared beside the snippets, go inside.
+    fn settle(
+        &self,
+        declarations: Vec<Statement<'o>>,
+        template: Vec<Statement<'o>>,
+    ) -> Vec<Statement<'o>> {
         let b = self.b;
+        let (mut snippets, mut inner): (Vec<_>, Vec<_>) = declarations
+            .into_iter()
+            .partition(|s| matches!(s, Statement::FunctionDeclaration(_)));
+        inner.extend(template);
+        let template = inner;
         let render_inner =
             b.function_declaration("$$render_inner", b.params(["$$renderer"]), template, false);
         let copy = b.call(b.member(b.id("$$renderer"), "copy"), []);
@@ -273,6 +283,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             do_while,
             b.stmt(subsume),
         ]);
+        snippets
     }
 }
 

@@ -134,11 +134,6 @@ fn check_element(
                 check_target(input, res, a, target)?;
                 continue;
             }
-            AttributeValue::Bind(target)
-                if is_accessors(input, target) && !rejected(input, res, target) =>
-            {
-                "a component binding to a getter and a setter"
-            }
             AttributeValue::Bind(target) => {
                 check_target(input, res, a, target)?;
                 continue;

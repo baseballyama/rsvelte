@@ -1,8 +1,8 @@
-use oxc_ast::ast::{Expression, PropertyKind};
+use oxc_ast::ast::{Expression, PropertyKind, Statement};
 
 use super::super::component::{
-    Entry, Prop, bind_this, child_snippets, is_dynamic, props, props_expression, push_binding,
-    push_children, reference,
+    Entry, Prop, bind_this, child_snippets, is_dynamic, props, props_expression, push_accessors,
+    push_binding, push_children, reference,
 };
 use super::super::derived::{Created, callback};
 use super::{
@@ -37,8 +37,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         .then(|| self.names.generate(element.name.text(self.source_text)));
         let mut memo = Memo::derived();
         let mut parts = Vec::new();
-        for prop in props(tree.attributes(element.attributes), self.source_text) {
-            self.push_prop(prop, &mut memo, &mut parts);
+        let mut accessors = Vec::new();
+        for prop in props(
+            tree.attributes(element.attributes),
+            self.source_text,
+            self.javascript,
+        ) {
+            self.push_prop(prop, &mut memo, &mut parts, &mut accessors);
         }
         let (mut statements, snippets) =
             child_snippets(tree, self.javascript, element.children, |snippet| {
@@ -79,6 +84,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if !standalone {
             frag.tpl.push_comment();
         }
+        lists.initializer.append(&mut accessors);
         lists.initializer.push(if statements.len() == 1 {
             statements.pop().expect("one statement")
         } else {
@@ -88,9 +94,20 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     /// A prop as a property or a spread; memoized values become deriveds in `memo`.
-    fn push_prop(&self, prop: Prop<'_>, memo: &mut Memo<'o>, parts: &mut Vec<Entry<'o>>) {
+    fn push_prop(
+        &mut self,
+        prop: Prop<'_>,
+        memo: &mut Memo<'o>,
+        parts: &mut Vec<Entry<'o>>,
+        accessors: &mut Vec<Statement<'o>>,
+    ) {
         let b = self.b;
         match prop {
+            Prop::Accessors(a, get, set) => {
+                let functions = (self.rewrite(get, true), self.rewrite(set, true));
+                let name = a.name.text(self.source_text);
+                push_accessors(b, parts, accessors, name, functions, &mut self.names);
+            }
             Prop::Value(a) => {
                 let if_state = self.wraps_in_derived(&a.value);
                 let (value, has_state) = self.attribute_value(a, memo, if_state);

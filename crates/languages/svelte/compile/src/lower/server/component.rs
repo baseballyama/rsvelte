@@ -1,6 +1,6 @@
 use super::super::component::{
-    Entry, Prop, child_snippets, is_dynamic, props, props_expression, push_binding, push_children,
-    reference,
+    Entry, Prop, child_snippets, is_dynamic, props, props_expression, push_accessors, push_binding,
+    push_children, reference,
 };
 use super::{
     BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind,
@@ -22,8 +22,28 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             unreachable!("a component element")
         };
         let mut parts = Vec::new();
-        for prop in props(tree.attributes(element.attributes), self.source_text) {
+        for prop in props(
+            tree.attributes(element.attributes),
+            self.source_text,
+            self.javascript,
+        ) {
             match prop {
+                Prop::Accessors(a, get, set) => {
+                    let mut rewrite = self.rewrite();
+                    let functions = (rewrite.expression(get), rewrite.expression(set));
+                    let name = a.name.text(self.source_text);
+                    // Upstream declares them first in the fragment, with the snippets.
+                    let mut declarations = Vec::new();
+                    push_accessors(
+                        b,
+                        &mut parts,
+                        &mut declarations,
+                        name,
+                        functions,
+                        &mut self.names,
+                    );
+                    self.snippets.append(&mut declarations);
+                }
                 Prop::Value(a) => {
                     let value = self.attribute_value(a, false, false);
                     let name = a.name.text(self.source_text);
