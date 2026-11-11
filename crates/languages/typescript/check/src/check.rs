@@ -226,6 +226,18 @@ pub struct Check {
 /// A document the run does not check but other documents may import.
 struct StandIn {
     path: String,
+    text: String,
+}
+
+/// What an import of a document reads when the document is not checked, such as its
+/// module-level exports. `None`, or no provider: the [`Check`]'s `stand_in`.
+#[derive(Debug)]
+pub struct TypeScriptStandIn;
+
+impl Facet for TypeScriptStandIn {
+    type Output = Option<String>;
+
+    const NAME: &'static str = "ts.stand_in";
 }
 
 /// Which documents a [`Check`] checks.
@@ -309,7 +321,7 @@ impl FinishTask for Check {
                 }
                 Err(part) => {
                     let s = part.downcast::<StandIn>().expect("parts are this task's");
-                    stand_ins.push((s.path, self.stand_in.expect("only with a stand-in")));
+                    stand_ins.push((s.path, s.text));
                 }
             }
         }
@@ -335,9 +347,14 @@ impl FinishTask for Check {
 
 impl Check {
     fn stand_in(&self, context: &DocumentContext<'_>) -> Option<Part> {
-        self.stand_in.and(self.tsc.as_ref())?;
+        let fallback = self.stand_in.filter(|_| self.tsc.is_some())?;
+        let text = context
+            .facet::<TypeScriptStandIn>()
+            .and_then(Clone::clone)
+            .unwrap_or_else(|| fallback.to_owned());
         Some(Box::new(StandIn {
             path: context.document.path.clone(),
+            text,
         }))
     }
 }
@@ -355,7 +372,7 @@ fn check_projected(
     tsc: &Tsc,
     env: &TypeScriptEnv,
     mut docs: Vec<Prepared>,
-    stand_ins: Vec<(String, &'static str)>,
+    stand_ins: Vec<(String, String)>,
     outs: Vec<&mut TaskOutput>,
 ) {
     let req = CheckRequest {

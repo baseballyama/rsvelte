@@ -41,10 +41,10 @@ impl CheckRequest {
     pub(super) fn stand_ins<'a>(
         &'a self,
         root: &'a Path,
-    ) -> impl Iterator<Item = (PathBuf, &'static str)> + 'a {
+    ) -> impl Iterator<Item = (PathBuf, &'a str)> + 'a {
         self.stand_ins
             .iter()
-            .map(move |(path, text)| (normalized(&root.join(path)), *text))
+            .map(move |(path, text)| (normalized(&root.join(path)), text.as_str()))
     }
 
     pub(super) fn write_mapper_config(
