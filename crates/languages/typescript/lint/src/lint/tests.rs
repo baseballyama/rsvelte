@@ -28,7 +28,7 @@ impl Rule<Semantic> for NoUnusedVariables {
     }
 
     fn check(&self, context: &Semantic, reporter: &mut Reporter<'_>) {
-        super::no_unused_variables(context, |_| true, |_| &[], reporter);
+        super::no_unused_variables(context, |_| true, |_| &[], |_| None, reporter);
     }
 }
 

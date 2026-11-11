@@ -68,6 +68,7 @@ impl<'a> Rule<RuleContext<'a>> for NoUnusedVariables {
             context.res.semantic(),
             |symbol| !aliases.contains(&symbol),
             |_| &[],
+            |_| None,
             reporter,
         );
     }
