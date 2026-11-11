@@ -261,7 +261,8 @@ impl SurfaceBuilder<'_> {
 
 /// Upstream's `value` of a `<textarea>` whose content is more than one text: the content as an
 /// attribute's parts, without the newline that starts it, which the browser drops from the content
-/// but not from a value. `origin` is past the element's own attributes.
+/// but not from a value. One expression is the quoted `value="{e}"`, as the attribute parser reads
+/// it. `origin` is past the element's own attributes.
 fn textarea_value(
     c: &Component,
     source_text: &str,
@@ -302,7 +303,13 @@ fn textarea_value(
             text: "value".into(),
             span,
         },
-        value: AttributeValue::Interpolated(parts),
+        value: match *parts {
+            [Part::Expression { expression, .. }] => AttributeValue::Expression {
+                expression,
+                quoted: true,
+            },
+            _ => AttributeValue::Interpolated(parts),
+        },
         span,
         owner,
         origin,
