@@ -76,7 +76,7 @@ fn template_errors_come_from_the_template_on_both_targets() {
         ),
         ("<button is=\"x-b\" class=\"a\">b</button>", None),
         ("<my-el a=\"1\"></my-el>", None),
-        ("<div><my-el a=\"1\"></my-el></div>", Some("unsupported")),
+        ("<div><my-el a=\"1\"></my-el></div>", None),
     ] {
         let source = format!("{script}{markup}");
         for target in [Target::Client, Target::Server] {
