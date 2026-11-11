@@ -1,4 +1,4 @@
-# svelte.check/default: 12211 match
+# svelte.check/default: 12236 match
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
 svelte/animotion/src/lib/components/notes.svelte	refused
@@ -1548,7 +1548,6 @@ svelte/flowbite-svelte/src/lib/toolbar/Toolbar.svelte	refused
 svelte/flowbite-svelte/src/lib/toolbar/ToolbarButton.svelte	refused
 svelte/flowbite-svelte/src/lib/toolbar/ToolbarGroup.svelte	refused
 svelte/flowbite-svelte/src/lib/tooltip/Tooltip.svelte	refused
-svelte/flowbite-svelte/src/lib/tour/Tour.svelte	mismatch
 svelte/flowbite-svelte/src/lib/typography/a/A.svelte	refused
 svelte/flowbite-svelte/src/lib/typography/blockquote/Blockquote.svelte	refused
 svelte/flowbite-svelte/src/lib/typography/descriptionlist/DescriptionList.svelte	refused
@@ -1642,7 +1641,6 @@ svelte/flowbite-svelte/src/routes/builder/table/+page.svelte	refused
 svelte/flowbite-svelte/src/routes/builder/toast/+page.svelte	refused
 svelte/flowbite-svelte/src/routes/builder/toggle/+page.svelte	refused
 svelte/flowbite-svelte/src/routes/builder/tooltip/+page.svelte	refused
-svelte/flowbite-svelte/src/routes/builder/utils/DynamicCodeBlockHighlight.svelte	mismatch
 svelte/flowbite-svelte/src/routes/builder/utils/DynamicCodeBlockStyle.svelte	refused
 svelte/flowbite-svelte/src/routes/builder/utils/H1.svelte	refused
 svelte/flowbite-svelte/src/routes/builder/utils/H2.svelte	refused
@@ -1804,7 +1802,6 @@ svelte/flowbite-svelte/src/routes/docs-examples/typography/image/Alignments.svel
 svelte/flowbite-svelte/src/routes/docs-examples/typography/image/Effects.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/typography/image/Enhanced.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/typography/image/Sizes.svelte	refused
-svelte/flowbite-svelte/src/routes/docs-examples/utilities/close-button/Default.svelte	mismatch
 svelte/flowbite-svelte/src/routes/docs/+layout.svelte	refused
 svelte/flowbite-svelte/src/routes/docs/examples/snapshot-example/+page.svelte	refused
 svelte/flowbite-svelte/src/routes/docs/plugins/examples/datatable/Callback.svelte	refused
@@ -1845,7 +1842,6 @@ svelte/flowbite-svelte/src/routes/docs/plugins/examples/wysiwyg/UndoRedo.svelte	
 svelte/flowbite-svelte/src/routes/docs/plugins/examples/wysiwyg/Youtube.svelte	refused
 svelte/flowbite-svelte/src/routes/icons/+layout.svelte	refused
 svelte/flowbite-svelte/src/routes/illustrations/+layout.svelte	refused
-svelte/flowbite-svelte/src/routes/illustrations/utils/DynamicCodeBlockHighlight.svelte	mismatch
 svelte/flowbite-svelte/src/routes/illustrations/utils/IllustPage.svelte	refused
 svelte/flowbite-svelte/src/routes/landing/CTA.svelte	mismatch
 svelte/flowbite-svelte/src/routes/landing/Contributors.svelte	mismatch
@@ -1988,7 +1984,6 @@ svelte/kampsy-ui/src/lib/modal/subtitle.svelte	refused
 svelte/kampsy-ui/src/lib/modal/title.svelte	refused
 svelte/kampsy-ui/src/lib/note/note.svelte	refused
 svelte/kampsy-ui/src/lib/pagination/pagination.svelte	refused
-svelte/kampsy-ui/src/lib/progress/progress.svelte	mismatch
 svelte/kampsy-ui/src/lib/projectBanner/banner.svelte	refused
 svelte/kampsy-ui/src/lib/select/content.svelte	refused
 svelte/kampsy-ui/src/lib/select/item.svelte	refused
@@ -2343,7 +2338,6 @@ svelte/kite-public/src/lib/components/OnboardingModal.svelte	refused
 svelte/kite-public/src/lib/components/ReportButton.svelte	refused
 svelte/kite-public/src/lib/components/Select.svelte	refused
 svelte/kite-public/src/lib/components/Settings.svelte	refused
-svelte/kite-public/src/lib/components/SourceOverlay.svelte	mismatch
 svelte/kite-public/src/lib/components/StoryList.svelte	refused
 svelte/kite-public/src/lib/components/TemporaryCategoryTooltip.svelte	refused
 svelte/kite-public/src/lib/components/TimeTravel.svelte	refused
@@ -2357,7 +2351,6 @@ svelte/kite-public/src/lib/components/nfl/NFLScores.svelte	refused
 svelte/kite-public/src/lib/components/nhl/NHLScores.svelte	refused
 svelte/kite-public/src/lib/components/onthisday/OnThisDayEventTimeline.svelte	refused
 svelte/kite-public/src/lib/components/onthisday/OnThisDayPeopleCarousel.svelte	refused
-svelte/kite-public/src/lib/components/search/SearchInput.svelte	mismatch
 svelte/kite-public/src/lib/components/search/SearchModal.svelte	refused
 svelte/kite-public/src/lib/components/search/SearchResults.svelte	refused
 svelte/kite-public/src/lib/components/settings/ContributeCategoryModal.svelte	refused
@@ -2366,11 +2359,9 @@ svelte/kite-public/src/lib/components/settings/SettingsCategories.svelte	refused
 svelte/kite-public/src/lib/components/settings/SettingsContentFilter.svelte	refused
 svelte/kite-public/src/lib/components/settings/SettingsFilters.svelte	refused
 svelte/kite-public/src/lib/components/settings/SettingsGeneral.svelte	refused
-svelte/kite-public/src/lib/components/settings/SettingsImagePreloading.svelte	mismatch
 svelte/kite-public/src/lib/components/settings/SettingsSections.svelte	refused
 svelte/kite-public/src/lib/components/settings/SettingsStories.svelte	refused
 svelte/kite-public/src/lib/components/settings/snippets/SectionsList.svelte	refused
-svelte/kite-public/src/lib/components/settings/snippets/StoryCountSlider.svelte	mismatch
 svelte/kite-public/src/lib/components/story/CitationText.svelte	refused
 svelte/kite-public/src/lib/components/story/CitationTooltip.svelte	refused
 svelte/kite-public/src/lib/components/story/SectionWrapper.svelte	refused
@@ -3599,7 +3590,6 @@ svelte/primo/src/lib/builder/components/Fields/PageFieldField.svelte	refused
 svelte/primo/src/lib/builder/components/Fields/PageListField.svelte	refused
 svelte/primo/src/lib/builder/components/Fields/SelectField.svelte	refused
 svelte/primo/src/lib/builder/components/Fields/SiteFieldField.svelte	refused
-svelte/primo/src/lib/builder/components/ImageEditorOverlay.svelte	mismatch
 svelte/primo/src/lib/builder/components/Sidebar/PageType_Sidebar.svelte	refused
 svelte/primo/src/lib/builder/components/Sidebar/Page_Sidebar.svelte	refused
 svelte/primo/src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte	refused
@@ -3631,7 +3621,6 @@ svelte/primo/src/lib/builder/views/modal/SitePages/SitePages.svelte	refused
 svelte/primo/src/lib/components/BlockPickerPanel.svelte	refused
 svelte/primo/src/lib/components/ConnectDomain.svelte	refused
 svelte/primo/src/lib/components/CreateSite.svelte	refused
-svelte/primo/src/lib/components/DropZone.svelte	mismatch
 svelte/primo/src/lib/components/Masonry.svelte	refused
 svelte/primo/src/lib/components/SitePreview.svelte	refused
 svelte/primo/src/lib/components/SymbolButton.svelte	refused
@@ -5250,13 +5239,11 @@ svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/
 svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/tree-view/svelte/collapse-expand.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/tree-view/svelte/lazy-loading.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/tree-view/svelte/multiple-selection.svelte	refused
-svelte/skeleton/sites/skeleton.dev/src/components/examples/guides/cookbook/chat/svelte/default.svelte	mismatch
 svelte/skeleton/sites/skeleton.dev/src/components/examples/guides/cookbook/clipboard/svelte/input.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/examples/guides/cookbook/floating-ui-attachments/popover.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/examples/guides/cookbook/floating-ui-attachments/tooltip.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/examples/integrations/code-block/svelte/code-block.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/examples/tailwind-utilities/masks/default.svelte	refused
-svelte/skeleton/sites/skeleton.dev/src/components/landing-page/component-grid.svelte	mismatch
 svelte/skeleton/sites/skeleton.dev/src/components/ui/header/drawer.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/ui/header/plus.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/ui/header/search.svelte	refused
@@ -5271,7 +5258,6 @@ svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Controls/
 svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsCore.svelte	refused
 svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsEdges.svelte	refused
 svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsTypography.svelte	refused
-svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/generator/ExampleChart/ExampleChart.svelte	mismatch
 svelte/skeleton/sites/themes.skeleton.dev/src/routes/(app)/+layout.svelte	refused
 svelte/skeleton/sites/themes.skeleton.dev/src/routes/(generator)/themes/create/+layout.svelte	refused
 svelte/skeleton/sites/themes.skeleton.dev/src/routes/(generator)/themes/create/+page.svelte	refused
@@ -5432,8 +5418,6 @@ svelte/svelte-bits/src/lib/components/docs/preview/PreviewColorPicker.svelte	ref
 svelte/svelte-bits/src/lib/components/docs/preview/PreviewSlider.svelte	refused
 svelte/svelte-bits/src/lib/components/docs/preview/TabsLayout.svelte	refused
 svelte/svelte-bits/src/lib/components/landing/Features/AITerminal.svelte	refused
-svelte/svelte-bits/src/lib/components/landing/Hero/ColorValue.svelte	mismatch
-svelte/svelte-bits/src/lib/components/landing/Hero/EditableValue.svelte	mismatch
 svelte/svelte-bits/src/lib/components/landing/LiveDemo/DemoPlaceholder.svelte	refused
 svelte/svelte-bits/src/lib/components/landing/Navbar/Navbar.svelte	refused
 svelte/svelte-bits/src/lib/components/library/Animations/AnimatedContent/AnimatedContent.svelte	refused
@@ -5455,13 +5439,10 @@ svelte/svelte-bits/src/lib/components/library/Backgrounds/Waves/Waves.svelte	ref
 svelte/svelte-bits/src/lib/components/library/Components/AnimatedList/AnimatedList.svelte	refused
 svelte/svelte-bits/src/lib/components/library/Components/BorderGlow/BorderGlow.svelte	refused
 svelte/svelte-bits/src/lib/components/library/Components/BubbleMenu/BubbleMenu.svelte	refused
-svelte/svelte-bits/src/lib/components/library/Components/CardNav/CardNav.svelte	mismatch
 svelte/svelte-bits/src/lib/components/library/Components/CardSwap/CardSwap.svelte	refused
 svelte/svelte-bits/src/lib/components/library/Components/Carousel/Carousel.svelte	refused
-svelte/svelte-bits/src/lib/components/library/Components/ChromaGrid/ChromaGrid.svelte	mismatch
 svelte/svelte-bits/src/lib/components/library/Components/DecayCard/DecayCard.svelte	refused
 svelte/svelte-bits/src/lib/components/library/Components/Dock/Dock.svelte	refused
-svelte/svelte-bits/src/lib/components/library/Components/DomeGallery/DomeGallery.svelte	mismatch
 svelte/svelte-bits/src/lib/components/library/Components/ElasticSlider/ElasticSlider.svelte	refused
 svelte/svelte-bits/src/lib/components/library/Components/Folder/Folder.svelte	refused
 svelte/svelte-bits/src/lib/components/library/Components/GlassIcons/GlassIcons.svelte	refused
@@ -5538,7 +5519,6 @@ svelte/svelte-commerce/src/lib/components/nav/ms-search-renderer.svelte	refused
 svelte/svelte-commerce/src/lib/components/nav/ms-search.svelte	refused
 svelte/svelte-commerce/src/lib/components/nav/nav.svelte	refused
 svelte/svelte-commerce/src/lib/components/order/order-timeline.svelte	refused
-svelte/svelte-commerce/src/lib/components/page-blocks/blocks/banner-block.svelte	mismatch
 svelte/svelte-commerce/src/lib/components/page-blocks/blocks/rich-text-block.svelte	refused
 svelte/svelte-commerce/src/lib/components/product-catalogue/desktop-filter.svelte	refused
 svelte/svelte-commerce/src/lib/components/product-catalogue/listing-grid.svelte	refused
@@ -5700,7 +5680,6 @@ svelte/svelte-commerce/src/lib/theme/lime/ui/ll-heading.svelte	refused
 svelte/svelte-commerce/src/lib/theme/sections/banner.svelte	refused
 svelte/svelte-commerce/src/lib/theme/sections/newsletter.svelte	refused
 svelte/svelte-commerce/src/lib/theme/sections/tile-grid.svelte	refused
-svelte/svelte-commerce/src/lib/theme/wine/WineHomepage.svelte	mismatch
 svelte/svelte-commerce/src/routes/(legal)/+layout.svelte	refused
 svelte/svelte-commerce/src/routes/(legal)/about-us/+page.svelte	refused
 svelte/svelte-commerce/src/routes/(legal)/blog/[slug]/+page.svelte	refused
@@ -6016,7 +5995,6 @@ svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/ComponentPick
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuPlugin.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Image/ImageComponent.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Image/ImagePlugin.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Image/ImageResizer.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/PlaceHolder.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenuPlugin.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte	mismatch
@@ -6408,7 +6386,6 @@ svelte/svelte-material-ui/packages/site/src/routes/demo/textfield/_Suffixed.svel
 svelte/svelte-material-ui/packages/site/src/routes/demo/textfield/_Textarea.svelte	refused
 svelte/svelte-material-ui/packages/site/src/routes/demo/textfield/_TextareaCharacterCount.svelte	refused
 svelte/svelte-material-ui/packages/site/src/routes/demo/tooltip/+page.svelte	refused
-svelte/svelte-material-ui/packages/site/src/routes/demo/tooltip/_Rich.svelte	mismatch
 svelte/svelte-material-ui/packages/site/src/routes/demo/tooltip/_Simple.svelte	refused
 svelte/svelte-material-ui/packages/site/src/routes/demo/top-app-bar/+page.svelte	refused
 svelte/svelte-material-ui/packages/site/src/routes/demo/top-app-bar/_Static.svelte	refused
@@ -6516,7 +6493,6 @@ svelte/svelte-sites/sites/hn.svelte.dev/src/routes/+error.svelte	refused
 svelte/svelte-sites/sites/hn.svelte.dev/src/routes/+layout.svelte	refused
 svelte/svelte-sites/sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/+page.svelte	refused
 svelte/svelte-sites/sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.svelte	refused
-svelte/svelte-sites/sites/hn.svelte.dev/src/routes/item/[id=numeric]/Comment.svelte	mismatch
 svelte/svelte-sites/sites/hn.svelte.dev/src/routes/user/[name]/+page.svelte	refused
 svelte/svelte-sonner/src/components/TestWithProps.svelte	refused
 svelte/svelte-sonner/src/components/Types.svelte	mismatch
@@ -6696,7 +6672,6 @@ svelte/sveltepress/packages/meilisearch/src/Search.svelte	refused
 svelte/sveltepress/packages/theme-blog/src/components/GlobalLayout.svelte	refused
 svelte/sveltepress/packages/theme-blog/src/components/PageLayout.svelte	refused
 svelte/sveltepress/packages/theme-blog/src/components/PostLayout.svelte	refused
-svelte/sveltepress/packages/theme-blog/src/components/ReadingProgress.svelte	mismatch
 svelte/sveltepress/packages/theme-blog/src/components/SearchModal.svelte	refused
 svelte/sveltepress/packages/theme-blog/src/components/Sidebar.svelte	refused
 svelte/sveltepress/packages/theme-default/src/components/Navbar.svelte	refused

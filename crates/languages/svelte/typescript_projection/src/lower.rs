@@ -1,3 +1,4 @@
+mod attribute;
 mod children;
 mod contract;
 
@@ -7,7 +8,7 @@ use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{
-    Attribute, AttributeKind, AttributeValue, Component, Part, Range, TemplateNode,
+    AttributeKind, AttributeValue, Component, Part, Range, TemplateNode,
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
@@ -275,7 +276,7 @@ impl Builder<'_> {
                     return Err(Unsupported::at("component directives", attribute.span));
                 }
                 _ => {
-                    let property = self.attribute(attribute);
+                    let property = self.attribute(attribute, is_component);
                     self.scratch.push(property);
                 }
             }
@@ -404,52 +405,6 @@ impl Builder<'_> {
         }
         let prefix = self.tree.push(Node::Identifier(prefix));
         self.tree.push(Node::GeneratedIdentifier { prefix, index })
-    }
-
-    fn attribute(&mut self, attribute: &Attribute) -> NodeIdentifier {
-        let parts = match attribute.value {
-            AttributeValue::True => &[][..],
-            AttributeValue::Parts(range) => self.component.parts(range),
-        };
-        let value = match (attribute.value, parts) {
-            (AttributeValue::True, _) => self.tree.push(Node::Boolean),
-            (_, [Part::Expression { expression, span }]) => {
-                self.expression_source(*expression, Some(span.end_offset - 1))
-            }
-            _ => {
-                let template = parts
-                    .iter()
-                    .any(|part| matches!(part, Part::Expression { .. }));
-                let start = self.scratch.len();
-                self.scratch.reserve(parts.len());
-                for part in parts {
-                    let value = match *part {
-                        Part::Text(span) => self.tree.push(Node::Text(span)),
-                        Part::Expression { expression, span } => {
-                            self.expression_source(expression, Some(span.end_offset - 1))
-                        }
-                    };
-                    self.scratch.push(value);
-                }
-                let parts = self.finish_list(start);
-                self.tree.push(Node::String { parts, template })
-            }
-        };
-        let node = match attribute.kind {
-            AttributeKind::Spread => Node::Spread(value),
-            AttributeKind::Attach => Node::ComputedProperty {
-                key: self.attachment_key(),
-                value,
-            },
-            _ if attribute.shorthand => Node::Shorthand(value),
-            _ => Node::Property {
-                name: attribute.name,
-                value,
-                end: (!matches!(attribute.value, AttributeValue::True))
-                    .then_some(attribute.name.end_offset),
-            },
-        };
-        self.tree.push(node)
     }
 
     fn element_callee(&mut self) -> NodeIdentifier {

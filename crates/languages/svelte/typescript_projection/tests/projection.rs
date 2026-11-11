@@ -373,3 +373,17 @@ fn a_component_s_snippets_are_props_after_its_attributes_as_svelte2tsx_passes_th
         "{#snippet s()}{/snippet}"
     );
 }
+
+#[test]
+fn an_element_s_number_only_attribute_is_a_number_as_svelte2tsx_writes_it() {
+    let source = "<div tabindex=\"-1\" aria-valuemin=\"0\" title=\"1\" rows=\"x\"></div>";
+    let (_, output) = project(source);
+    for text in [
+        "tabindex: -1,",
+        "\"aria-valuemin\": 0,",
+        "title: \"1\",",
+        "rows: \"x\",",
+    ] {
+        assert!(output.out.contains(text), "{text}\n{}", output.out);
+    }
+}
