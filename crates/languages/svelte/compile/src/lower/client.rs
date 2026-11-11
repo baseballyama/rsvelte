@@ -12,6 +12,7 @@ mod directives;
 mod dynamic_element;
 mod elements;
 mod events;
+mod exports;
 mod expressions;
 mod fragments;
 mod global_bindings;
@@ -42,7 +43,6 @@ use rsvelte_svelte_syntax::parse::is_void;
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::javascript::export_properties;
 use super::names::Names;
 use super::script::{Read, ScriptRewrite};
 use super::{
@@ -246,7 +246,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     let template = context.fragment(input.component.compiler_syntax_tree.root)?;
 
     let stylesheet = context.custom_element_stylesheet(facts.stylesheet);
-    let mut returned: Vec<_> = export_properties(b, &exports).collect();
+    let mut returned = context.export_properties(&exports);
     returned.extend(context.custom_element_exports());
     let func = context.component_function(
         instance,

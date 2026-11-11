@@ -4,15 +4,17 @@
 //! reference and symbol ids, so each identifier still resolves through [`Resolution`].
 
 mod declarators;
+mod exports;
 mod props;
 mod stores;
 mod writes;
 
+pub(super) use exports::Export;
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::ast::{
-    Argument, BindingIdentifier, Declaration, Expression, IdentifierReference, ImportDeclaration,
-    ObjectProperty, Program, Statement, SwitchCase, VariableDeclaration, VariableDeclarationKind,
-    VariableDeclarator, WithClause, WithClauseKeyword,
+    Argument, Declaration, Expression, IdentifierReference, ImportDeclaration, ObjectProperty,
+    Program, Statement, SwitchCase, VariableDeclaration, VariableDeclarator, WithClause,
+    WithClauseKeyword,
 };
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::{ReferenceId, SymbolId};
@@ -342,52 +344,8 @@ pub(super) fn should_proxy_read(res: &Resolution, e: &Expression<'_>) -> bool {
 
 /// Which script is lowered; the instance's exports are collected while it is.
 pub(super) enum ScriptContext<'e, 't> {
-    Instance {
-        exports: &'e mut Vec<&'t BindingIdentifier<'t>>,
-    },
+    Instance { exports: &'e mut Vec<Export<'t>> },
     Module,
-}
-
-/// Pushes the names an instance export gives the component's exports, when it is one this port
-/// lowers: a `const` of plain names, or a named function. Upstream raises an error for an exported
-/// `let`, and reads an exported signal or class through accessors.
-fn check_export<'t>(
-    res: &Resolution,
-    statement: &Statement<'t>,
-    declaration: &'t Declaration<'t>,
-    exports: &mut Vec<&'t BindingIdentifier<'t>>,
-) -> Result<(), Diagnostic> {
-    let start = exports.len();
-    let named = match declaration {
-        Declaration::VariableDeclaration(d) if d.kind == VariableDeclarationKind::Const => d
-            .declarations
-            .iter()
-            .all(|d| match d.id.get_binding_identifier() {
-                Some(identifier) if d.id.is_binding_identifier() => {
-                    exports.push(identifier);
-                    true
-                }
-                _ => false,
-            }),
-        Declaration::FunctionDeclaration(f) => f.id.as_ref().is_some_and(|name| {
-            exports.push(name);
-            true
-        }),
-        _ => false,
-    };
-    let plain = named
-        && exports[start..].iter().all(|name| {
-            name.symbol_id.get().is_some_and(|symbol| {
-                matches!(
-                    res.binding(symbol).kind,
-                    BindingKind::Normal | BindingKind::RestProperty
-                )
-            })
-        });
-    if plain {
-        return Ok(());
-    }
-    unsupported("this export from the instance script", span_of(statement))
 }
 
 /// Upstream `analysis.props_id`: the name `const id = $props.id()` declares.
@@ -435,7 +393,7 @@ pub(super) fn lower_script<'t, 'o>(
             Statement::ExportDeclaration(export)
                 if let ScriptContext::Instance { exports } = &mut context =>
             {
-                check_export(rw.res, statement, &export.declaration, exports)?;
+                exports::check_declaration(rw.res, statement, &export.declaration, exports)?;
                 match &export.declaration {
                     Declaration::VariableDeclaration(d) => {
                         lower_declaration(rw, d, true, &mut out, hoisted, names);
@@ -448,11 +406,15 @@ pub(super) fn lower_script<'t, 'o>(
                     }
                 }
             }
+            Statement::ExportNamedDeclaration(export)
+                if let ScriptContext::Instance { exports } = &mut context =>
+            {
+                exports::check_specifiers(rw.res, export, exports)?;
+            }
             Statement::ImportDeclaration(_) => hoisted.push(rw.statement(statement)),
             // Upstream turns these into the component's exports; copying them would put an
             // `export` inside the component function.
             Statement::ExportDefaultDeclaration(_)
-            | Statement::ExportNamedDeclaration(_)
             | Statement::ExportFromDeclaration(_)
             | Statement::ExportAllDeclaration(_)
                 if instance =>

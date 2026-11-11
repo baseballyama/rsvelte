@@ -25,7 +25,7 @@ mod template;
 
 pub(crate) use builder::Builder;
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{BindingIdentifier, Program, Statement};
+use oxc_ast::ast::{Program, Statement};
 use oxc_ast_visit::VisitMut;
 use oxc_semantic::{ReferenceId, SymbolId};
 use oxc_span::{GetSpan, SPAN, SourceType};
@@ -203,7 +203,7 @@ pub(crate) struct Prepared<'c, 'o> {
     /// Upstream `analysis.props_id`, which each target declares first in the component.
     props_id: Option<String>,
     /// The names the instance script exports, in source order.
-    exports: Vec<&'o BindingIdentifier<'o>>,
+    exports: Vec<script::Export<'o>>,
     custom_element: Option<&'c custom_element::CustomElement>,
     /// Upstream `analysis.name`: the component name, renamed if the source declares it.
     component_name: String,

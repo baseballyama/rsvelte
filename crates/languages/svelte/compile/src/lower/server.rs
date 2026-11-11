@@ -208,7 +208,7 @@ pub(super) fn lower_prepared<'c, 'o>(
 fn bind_props<'o>(
     b: &Builder<'o>,
     res: &Resolution,
-    exports: &[&BindingIdentifier<'_>],
+    exports: &[super::script::Export<'_>],
 ) -> Option<Statement<'o>> {
     let scoping = res.scoping();
     let instance = res.instance_scope();
