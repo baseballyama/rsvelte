@@ -41,6 +41,84 @@ const NUMBER_ONLY: &[&str] = &[
     "tabindex",
 ];
 
+/// The names in svelte2tsx's `svgAttributes` that have an uppercase letter, which it keeps as
+/// they are. Sorted for the binary search.
+const SVG_CAMEL_CASE: &[&str] = &[
+    "allowReorder",
+    "attributeName",
+    "attributeType",
+    "autoReverse",
+    "baseFrequency",
+    "baseProfile",
+    "calcMode",
+    "clipPathUnits",
+    "contentScriptType",
+    "contentStyleType",
+    "diffuseConstant",
+    "edgeMode",
+    "externalResourcesRequired",
+    "filterRes",
+    "filterUnits",
+    "glyphRef",
+    "gradientTransform",
+    "gradientUnits",
+    "kernelMatrix",
+    "kernelUnitLength",
+    "keyPoints",
+    "keySplines",
+    "keyTimes",
+    "lengthAdjust",
+    "limitingConeAngle",
+    "markerHeight",
+    "markerUnits",
+    "markerWidth",
+    "maskContentUnits",
+    "maskUnits",
+    "numOctaves",
+    "pathLength",
+    "patternContentUnits",
+    "patternTransform",
+    "patternUnits",
+    "pointsAtX",
+    "pointsAtY",
+    "pointsAtZ",
+    "preserveAlpha",
+    "preserveAspectRatio",
+    "primitiveUnits",
+    "refX",
+    "refY",
+    "repeatCount",
+    "repeatDur",
+    "requiredExtensions",
+    "requiredFeatures",
+    "specularConstant",
+    "specularExponent",
+    "spreadMethod",
+    "startOffset",
+    "stdDeviation",
+    "stitchTiles",
+    "surfaceScale",
+    "systemLanguage",
+    "tableValues",
+    "targetX",
+    "targetY",
+    "textLength",
+    "viewBox",
+    "viewTarget",
+    "xChannelSelector",
+    "yChannelSelector",
+    "zoomAndPan",
+];
+
+/// Whether svelte2tsx lowercases the name of an element's attribute to match its intrinsic
+/// element types: a name with an uppercase letter that is neither an svg one nor an event's.
+fn lowercased(name: &str, custom_element: bool) -> bool {
+    !custom_element
+        && name.chars().any(char::is_uppercase)
+        && !name.starts_with("on")
+        && SVG_CAMEL_CASE.binary_search(&name).is_err()
+}
+
 fn is_number_only(name: &str) -> bool {
     NUMBER_ONLY.iter().any(|n| n.eq_ignore_ascii_case(name))
 }
@@ -85,6 +163,7 @@ impl Builder<'_> {
         &mut self,
         attribute: &Attribute,
         is_component: bool,
+        custom_element: bool,
     ) -> NodeIdentifier {
         let parts = match attribute.value {
             AttributeValue::True => &[][..],
@@ -134,6 +213,8 @@ impl Builder<'_> {
             _ if attribute.shorthand => Node::Shorthand(value),
             _ => Node::Property {
                 name: attribute.name,
+                lowercase: !is_component
+                    && lowercased(attribute.name.text(self.source), custom_element),
                 value,
                 end: (!matches!(attribute.value, AttributeValue::True))
                     .then_some(attribute.name.end_offset),

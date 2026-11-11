@@ -248,6 +248,14 @@ impl Builder<'_> {
                 name,
             ));
         }
+        // svelte2tsx's `isCustomElement` for a tag without a dash: an `is` with one.
+        let custom_element = !is_component
+            && self.component.attributes(attributes).iter().any(|a| {
+                a.name.text(self.source) == "is"
+                    && matches!(a.value, AttributeValue::Parts(parts)
+                        if matches!(self.component.parts(parts).first(),
+                            Some(Part::Text(text)) if text.text(self.source).contains('-')))
+            });
         let start = self.scratch.len();
         self.scratch.reserve(attributes.len as usize + 1);
         if is_component
@@ -276,7 +284,7 @@ impl Builder<'_> {
                     return Err(Unsupported::at("component directives", attribute.span));
                 }
                 _ => {
-                    let property = self.attribute(attribute, is_component);
+                    let property = self.attribute(attribute, is_component, custom_element);
                     self.scratch.push(property);
                 }
             }

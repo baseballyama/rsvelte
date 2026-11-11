@@ -85,6 +85,8 @@ pub enum Node {
     },
     Property {
         name: Span,
+        /// svelte2tsx writes the name in lowercase.
+        lowercase: bool,
         value: NodeIdentifier,
         end: Option<u32>,
     },
