@@ -21,6 +21,9 @@ pub(super) trait Destructure<'a, 'o> {
     /// Declares `$.to_array(…)`, which upstream calls an insert, and returns how a path reads it.
     fn array(&mut self, value: Expression<'o>) -> Expression<'o>;
 
+    /// Called once `binding`'s path is read, as upstream gives a name its transform only then.
+    fn bound(&mut self, _binding: &'a BindingIdentifier<'a>, _default: bool) {}
+
     /// Whether `object.key` reads `$$props` instead, as upstream reads a rest prop's member.
     fn reads_props(&self, _object: &Expression<'o>, _key: &str) -> bool {
         false
@@ -50,11 +53,14 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
         paths: &mut Vec<Path<'a, 'o>>,
     ) {
         match pattern {
-            BindingPattern::BindingIdentifier(binding) => paths.push(Path {
-                binding,
-                value,
-                default,
-            }),
+            BindingPattern::BindingIdentifier(binding) => {
+                self.hooks.bound(binding, default);
+                paths.push(Path {
+                    binding,
+                    value,
+                    default,
+                });
+            }
             BindingPattern::ObjectPattern(object) => {
                 self.object(
                     &object.properties,

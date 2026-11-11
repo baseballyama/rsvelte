@@ -33,7 +33,8 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             | NodeKind::Each(_)
             | NodeKind::Debug { .. }
             | NodeKind::Html { .. }
-            | NodeKind::Render { .. } => None,
+            | NodeKind::Render { .. }
+            | NodeKind::Const { .. } => None,
             // Upstream renders `<select>` and `<option>` content apart, which is not lowered.
             NodeKind::Declaration { .. } => node.parent.and_then(|p| match &tree.node(p).kind {
                 NodeKind::Element(el)
@@ -59,18 +60,8 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             }
             NodeKind::Element(el) => {
                 check_element(input, res, el)?;
-                // A component's snippet that reads a `{@const}` beside it is not lowered.
-                let has = |f: fn(&NodeKind) -> bool| {
-                    tree.children(el.children)
-                        .iter()
-                        .any(|&c| f(&tree.node(c).kind))
-                };
-                (has(|k| matches!(k, NodeKind::Const { .. }))
-                    && el.kind != ElementKind::Metadata(Some(MetadataTag::Boundary))
-                    && has(|k| matches!(k, NodeKind::Snippet(_))))
-                .then_some("a `{@const}` beside a snippet")
+                None
             }
-            &NodeKind::Const { declaration } => const_tag(input, res, declaration),
         };
         if let Some(what) = what {
             return unsupported(what, node.span);
@@ -397,40 +388,4 @@ fn supported_binding(
         }
     }
     true
-}
-
-/// The `{@const}` tags this port does not lower: one that reads a later tag with no cycle, which
-/// upstream's runes mode reads before that tag declares it.
-fn const_tag(
-    input: &CompileInput<'_>,
-    res: &Resolution,
-    declaration: rsvelte_typescript_tree::DeclarationIdentifier,
-) -> Option<&'static str> {
-    struct Later<'r> {
-        res: &'r Resolution,
-        start: u32,
-        found: bool,
-    }
-    impl<'a> oxc_ast_visit::Visit<'a> for Later<'_> {
-        fn visit_identifier_reference(&mut self, it: &oxc_ast::ast::IdentifierReference<'a>) {
-            if let Some(symbol) = self.res.symbol(it) {
-                self.found |= self.res.binding(symbol).kind == BindingKind::Template
-                    && self.res.scoping().symbol_span(symbol).start > self.start;
-            }
-        }
-    }
-    let d = &input
-        .component
-        .javascript
-        .get_declaration(declaration)
-        .declarations[0];
-    let mut later = Later {
-        res,
-        start: d.span.start,
-        found: false,
-    };
-    if let Some(init) = &d.init {
-        oxc_ast_visit::Visit::visit_expression(&mut later, init);
-    }
-    later.found.then_some("a `{@const}` that reads a later one")
 }

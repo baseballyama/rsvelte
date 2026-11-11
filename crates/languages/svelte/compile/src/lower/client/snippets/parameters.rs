@@ -28,13 +28,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             saved_reads: Vec::with_capacity(parameters.len()),
         };
         for parameter in parameters {
-            let default = parameter.initializer.is_some();
-            self.parameter_reads(&parameter.pattern, default, &mut result.saved_reads);
+            self.parameter_reads(&parameter.pattern, &mut result.saved_reads);
         }
         for (index, parameter) in parameters.iter().enumerate() {
             if let (BindingPattern::BindingIdentifier(name), None) =
                 (&parameter.pattern, &parameter.initializer)
             {
+                self.reads.insert(name.symbol_id(), Read::Call);
                 let noop = b.member(b.id("$"), "noop");
                 result.arguments.push(b.default_parameter(&name.name, noop));
                 continue;
@@ -71,39 +71,17 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         result
     }
 
+    /// Reads every name a parameter binds as it is, until its path is read.
     fn parameter_reads(
         &mut self,
         pattern: &BindingPattern<'_>,
-        default: bool,
         saved: &mut Vec<(SymbolId, Option<Read>)>,
     ) {
-        match pattern {
-            BindingPattern::BindingIdentifier(identifier) => {
-                let symbol = identifier.symbol_id.get().expect("a parameter binding");
-                self.scope = self.res.scoping().symbol_scope_id(symbol);
-                let read = if default { Read::Get } else { Read::Call };
-                saved.push((symbol, self.reads.insert(symbol, read)));
-            }
-            BindingPattern::ObjectPattern(object) => {
-                for property in &object.properties {
-                    self.parameter_reads(&property.value, default, saved);
-                }
-                if let Some(rest) = &object.rest {
-                    self.parameter_reads(&rest.argument, default, saved);
-                }
-            }
-            BindingPattern::ArrayPattern(array) => {
-                for element in array.elements.iter().flatten() {
-                    self.parameter_reads(element, default, saved);
-                }
-                if let Some(rest) = &array.rest {
-                    self.parameter_reads(&rest.argument, default, saved);
-                }
-            }
-            BindingPattern::AssignmentPattern(assignment) => {
-                self.parameter_reads(&assignment.left, true, saved);
-            }
-        }
+        crate::lower::paths::bound_names(pattern, false, &mut |binding, _| {
+            let symbol = binding.symbol_id();
+            self.scope = self.res.scoping().symbol_scope_id(symbol);
+            saved.push((symbol, self.reads.insert(symbol, Read::Plain)));
+        });
     }
 }
 
@@ -117,6 +95,11 @@ pub(in crate::lower::client) struct Hooks<'c, 'x, 'o> {
 impl<'o> Destructure<'o, 'o> for Hooks<'_, '_, 'o> {
     fn rewrite(&mut self, e: &'o Expression<'o>) -> Expression<'o> {
         self.cx.rewrite(e, true)
+    }
+
+    fn bound(&mut self, binding: &'o oxc_ast::ast::BindingIdentifier<'o>, default: bool) {
+        let read = if default { Read::Get } else { Read::Call };
+        self.cx.reads.insert(binding.symbol_id(), read);
     }
 
     fn array(&mut self, value: Expression<'o>) -> Expression<'o> {
