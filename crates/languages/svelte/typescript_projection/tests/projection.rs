@@ -404,7 +404,8 @@ fn a_slot_s_attributes_are_its_props_and_not_an_element_s() {
 
 #[test]
 fn a_component_s_slots_type_check_against_its_slots_interface() {
-    let source = "<script lang=\"ts\">interface $$Slots { row: { a: number } }</script><slot name=\"row\" a={1} />";
+    let source = "<script lang=\"ts\">interface $$Slots { row: { a: number } }</script><slot \
+        name=\"row\" a={1} />";
     let (_, output) = project(source);
     assert!(
         output
