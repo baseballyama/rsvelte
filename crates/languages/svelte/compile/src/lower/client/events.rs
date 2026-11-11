@@ -89,11 +89,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
     }
 
-    fn event_handler(
-        &mut self,
-        handler: ExpressionIdentifier,
-        l: &mut Lists<'o>,
-    ) -> Expression<'o> {
+    fn event_handler(&self, handler: ExpressionIdentifier, l: &mut Lists<'o>) -> Expression<'o> {
         let b = self.b;
         let meta = self.an.meta(handler);
         let built = self.expression(handler);

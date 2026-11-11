@@ -14,7 +14,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     /// group: the value goes to the hidden `__value` once the children exist, then a `<select>`
     /// picks its option.
     pub(super) fn select_value(
-        &mut self,
+        &self,
         el: &Element,
         tag: &str,
         attributes: &[Attribute],
@@ -70,7 +70,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
 
     /// Upstream `build_element_special_value_attribute`.
     fn special_value(
-        &mut self,
+        &self,
         tag: &str,
         node: &str,
         (value, has_state): (Expression<'o>, bool),

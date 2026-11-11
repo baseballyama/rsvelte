@@ -50,7 +50,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                         &mut declarations,
                         name,
                         functions,
-                        &mut self.names,
+                        &self.names,
                     );
                     self.snippets.append(&mut declarations);
                 }

@@ -107,13 +107,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         Err(b.runtime_some("sibling", vec![Some(p), n, t]))
     }
 
-    fn flush_node(
-        &mut self,
-        st: &mut Walk,
-        is_text: bool,
-        name: &str,
-        l: &mut Lists<'o>,
-    ) -> String {
+    fn flush_node(&self, st: &mut Walk, is_text: bool, name: &str, l: &mut Lists<'o>) -> String {
         let identifier = match self.get_node(st, is_text) {
             Ok(identifier) => identifier,
             Err(expression) => {
@@ -128,7 +122,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     fn flush_sequence(
-        &mut self,
+        &self,
         seq: &[Item<'_>],
         st: &mut Walk,
         frag: &mut Frag<'o>,

@@ -1,5 +1,6 @@
 //! Upstream's `CallExpression` checks of a rune call.
 
+use oxc_ast::AstKind;
 use oxc_ast::ast::{Argument, CallExpression, Expression};
 
 use super::{Body, Parent, Place, RuneWalk, Snapshot, state_invalid_placement};
@@ -129,12 +130,13 @@ impl RuneWalk<'_> {
     ) {
         // Upstream splits a destructured state or derived into one declaration per path.
         let destructured = match place.parent {
-            Parent::Initializer {
-                named: false, top, ..
-            } => match rune {
+            Parent::Initializer { named: false, .. } => match rune {
                 "$state" | "$state.raw" => true,
-                // Only the instance's top level has the names its `$$d` and arrays take.
-                "$derived" | "$derived.by" => !top,
+                // Only a script's rewrite has the names its `$$d` and arrays take.
+                "$derived" | "$derived.by" => !matches!(
+                    self.frames.first().map(|f| f.kind),
+                    Some(AstKind::Program(_))
+                ),
                 _ => false,
             },
             _ => false,

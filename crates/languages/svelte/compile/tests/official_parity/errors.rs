@@ -227,10 +227,6 @@ fn a_destructured_rune_is_refused_only_when_upstream_raises_nothing() {
             "<script>let { a } = $state({ a: 1 });</script>{a}",
             "unsupported",
         ),
-        (
-            "<script>function f() { let [a] = $derived.by(() => [1]); return a; }</script>",
-            "unsupported",
-        ),
     ] {
         for target in [Target::Client, Target::Server] {
             let outcome = compile(source, target).err();

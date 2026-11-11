@@ -40,6 +40,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             invalidates: Some(&self.invalidates),
             primitive: false,
             classes: crate::lower::script::Classes::default(),
+            names: None,
         }
     }
 
