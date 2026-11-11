@@ -6,11 +6,19 @@ use rsvelte_svelte_syntax::syntax_tree::Range;
 
 use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree};
 
+/// [`emit_named`] for a component without a file, which svelte2tsx names `$$Component`.
 #[must_use]
 pub fn emit(tree: &SyntaxTree, source: &str) -> Emitter {
+    emit_named(tree, source, "")
+}
+
+/// The projection of the component at `path`, whose name its default export declares.
+#[must_use]
+pub fn emit_named(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
     let mut printer = Printer {
         tree,
         source,
+        path,
         output: Emitter::new(),
         indent: 0,
     };
@@ -22,6 +30,7 @@ pub fn emit(tree: &SyntaxTree, source: &str) -> Emitter {
 struct Printer<'a> {
     tree: &'a SyntaxTree,
     source: &'a str,
+    path: &'a str,
     output: Emitter,
     indent: usize,
 }
@@ -261,11 +270,29 @@ impl Printer<'_> {
                 self.output.push(";\n");
             }
             Node::ExportDefault(value) => {
-                self.output.push("export default ");
+                // svelte2tsx's runes component: a type of the same name lets an import name the
+                // instance's type.
+                self.output.push("const ");
+                self.component_name();
+                self.output.push(" = ");
                 self.node(value);
+                self.output.push(";\ntype ");
+                self.component_name();
+                self.output.push(" = ReturnType<typeof ");
+                self.component_name();
+                self.output.push(">;\nexport default ");
+                self.component_name();
                 self.output.push(";\n");
             }
             _ => unreachable!("ordinary nodes are printed by node"),
+        }
+    }
+
+    fn component_name(&mut self) {
+        if self.path.is_empty() {
+            self.output.push("$$Component");
+        } else {
+            crate::write_component_name(self.path, &mut self.output.out);
         }
     }
 

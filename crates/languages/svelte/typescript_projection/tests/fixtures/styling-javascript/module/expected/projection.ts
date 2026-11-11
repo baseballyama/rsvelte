@@ -12,4 +12,6 @@ const local=get();
     });
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const Module__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type Module__SvelteComponent_ = ReturnType<typeof Module__SvelteComponent_>;
+export default Module__SvelteComponent_;

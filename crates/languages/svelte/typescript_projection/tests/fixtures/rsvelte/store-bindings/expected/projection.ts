@@ -61,4 +61,6 @@
     });
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const StoreBindings__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type StoreBindings__SvelteComponent_ = ReturnType<typeof StoreBindings__SvelteComponent_>;
+export default StoreBindings__SvelteComponent_;

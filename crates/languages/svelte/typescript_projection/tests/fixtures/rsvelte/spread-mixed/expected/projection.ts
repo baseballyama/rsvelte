@@ -55,4 +55,6 @@ const __rsvelte_public_props0 = __rsvelte_props({
     });
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const SpreadMixed__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type SpreadMixed__SvelteComponent_ = ReturnType<typeof SpreadMixed__SvelteComponent_>;
+export default SpreadMixed__SvelteComponent_;

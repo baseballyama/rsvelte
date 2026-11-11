@@ -38,4 +38,6 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
     (text);
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const SpreadClassLast__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type SpreadClassLast__SvelteComponent_ = ReturnType<typeof SpreadClassLast__SvelteComponent_>;
+export default SpreadClassLast__SvelteComponent_;

@@ -21,4 +21,6 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
     (config.open);
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "items" | "config">();
+const BindableProxy__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "items" | "config">();
+type BindableProxy__SvelteComponent_ = ReturnType<typeof BindableProxy__SvelteComponent_>;
+export default BindableProxy__SvelteComponent_;
