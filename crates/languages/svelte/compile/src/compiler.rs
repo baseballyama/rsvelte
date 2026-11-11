@@ -109,17 +109,30 @@ pub fn compile(source: &str, options: &CompileOptions) -> Result<CompileResult, 
 ///
 /// # Errors
 ///
-/// Always, for now: this port does not compile modules yet.
+/// The first [`Diagnostic`]: what the official compiler rejects, or what this port does not
+/// handle yet.
 pub fn compile_module(
     source: &str,
     options: &ModuleCompileOptions,
 ) -> Result<CompileResult, Diagnostic> {
-    document(&options.filename, source)?;
-    Err(Diagnostic::error(
-        "svelte.compile_module.unsupported",
-        "compiling a module is not supported yet",
-        Span::new(0, 0),
-    ))
+    let document = document(&options.filename, source)?;
+    let lines = rsvelte_kernel::source::positions::LineIndex::new(source);
+    // The official one reads JavaScript whatever the name says.
+    let javascript = crate::module::compiled(
+        &document,
+        oxc_span::SourceType::mjs(),
+        options.generate,
+        Some(&lines),
+    )?;
+    let map = javascript.source_map(&lines, &options.filename);
+    Ok(CompileResult {
+        js: JavaScript {
+            code: javascript.out,
+            map,
+        },
+        css: None,
+        warnings: Vec::new(),
+    })
 }
 
 fn document(filename: &str, source: &str) -> Result<Document, Diagnostic> {

@@ -287,7 +287,7 @@ pub(super) fn lower_prepared<'c, 'o>(
 }
 
 /// `import 'source'`, or `import * as namespace from 'source'`.
-fn import<'o>(b: &Builder<'o>, namespace: Option<&str>, source: &str) -> Statement<'o> {
+pub(super) fn import<'o>(b: &Builder<'o>, namespace: Option<&str>, source: &str) -> Statement<'o> {
     let specifiers = namespace.map(|n| {
         b.vec([ImportDeclarationSpecifier::new_import_namespace_specifier(
             SPAN,

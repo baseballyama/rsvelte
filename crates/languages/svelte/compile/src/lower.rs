@@ -15,6 +15,7 @@ mod custom_element;
 mod derived;
 mod javascript;
 mod lets;
+mod module;
 mod names;
 mod paths;
 mod prepare;
@@ -28,6 +29,7 @@ mod stores;
 mod template;
 
 pub(crate) use builder::Builder;
+pub(crate) use module::lower_module;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Program, Statement};
 use oxc_ast_visit::VisitMut;

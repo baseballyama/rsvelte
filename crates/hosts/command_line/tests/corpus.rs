@@ -152,8 +152,8 @@ fn main() -> ExitCode {
             "svelte.compile/client",
             "warnings.json",
         )
-        .not_implemented("svelte.compileModule/client")
-        .not_implemented("svelte.compileModule/server")
+        .compare("svelte.compileModule/client")
+        .compare("svelte.compileModule/server")
         .compare("svelte.format/default")
         .compare("svelte.lint/default")
         .compare("svelte.check/default")

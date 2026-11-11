@@ -377,8 +377,12 @@ pub(super) fn should_proxy_read(res: &Resolution, e: &Expression<'_>) -> bool {
 
 /// Which script is lowered; the instance's exports are collected while it is.
 pub(super) enum ScriptContext<'e, 't> {
-    Instance { exports: &'e mut Vec<Export<'t>> },
+    Instance {
+        exports: &'e mut Vec<Export<'t>>,
+    },
     Module,
+    /// A `.svelte.js` module, which keeps its imports where they are.
+    File,
 }
 
 /// Upstream `analysis.props_id`: the name `const id = $props.id()` declares.
@@ -420,6 +424,9 @@ pub(super) fn lower_script<'t, 'o>(
     for statement in &program.body {
         // Upstream erases the types before it analyzes the component.
         if is_type_only(statement) {
+            if matches!(context, ScriptContext::File) {
+                out.extend(kept_by_typescript(rw, statement));
+            }
             continue;
         }
         match statement {
@@ -444,6 +451,9 @@ pub(super) fn lower_script<'t, 'o>(
             {
                 exports::check_specifiers(rw.res, export, exports)?;
             }
+            Statement::ImportDeclaration(_) if matches!(context, ScriptContext::File) => {
+                out.push(rw.statement(statement));
+            }
             Statement::ImportDeclaration(_) => hoisted.push(rw.statement(statement)),
             // Upstream drops a re-export of everything, which names nothing the component can
             // export.
@@ -465,6 +475,31 @@ pub(super) fn lower_script<'t, 'o>(
         }
     }
     Ok(out)
+}
+
+/// What TypeScript's emit keeps of a module's statement that names only types: an import for its
+/// side effects, and an export as `export {}`.
+fn kept_by_typescript<'o>(
+    rw: &mut ScriptRewrite<'_, 'o>,
+    statement: &Statement<'_>,
+) -> Option<Statement<'o>> {
+    match statement {
+        Statement::ImportDeclaration(d) if !d.import_kind.is_type() => {
+            let mut kept = rw.statement(statement);
+            if let Statement::ImportDeclaration(d) = &mut kept {
+                d.specifiers = None;
+            }
+            Some(kept)
+        }
+        Statement::ExportNamedDeclaration(d) if !d.export_kind.is_type() => {
+            let mut kept = rw.statement(statement);
+            if let Statement::ExportNamedDeclaration(d) = &mut kept {
+                d.specifiers.clear();
+            }
+            Some(kept)
+        }
+        _ => None,
+    }
 }
 
 /// A top-level declaration. Upstream's instance gives each declarator its own declaration.

@@ -39,6 +39,12 @@ pub fn register(registry: &mut Registry) {
         .task(Compile {
             target: Target::Server,
         })
+        .task(crate::CompileModule {
+            target: Target::Client,
+        })
+        .task(crate::CompileModule {
+            target: Target::Server,
+        })
         .task(crate::Warn);
 }
 
