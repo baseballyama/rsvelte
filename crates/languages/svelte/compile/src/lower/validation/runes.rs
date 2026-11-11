@@ -16,6 +16,7 @@ use crate::lower::{CompileInput, Diagnostic, Resolution, Span, Target, span_of};
 
 mod assignments;
 mod calls;
+mod exports;
 mod places;
 
 use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
@@ -247,6 +248,12 @@ impl<'a> Visit<'a> for RuneWalk<'a> {
     fn leave_node(&mut self, kind: AstKind<'a>) {
         if matches!(kind, AstKind::ClassBody(_)) {
             self.classes.pop();
+        }
+        if let AstKind::ExportDeclaration(export) = kind
+            && self.error.is_none()
+            && let Err(error) = self.check_export(export)
+        {
+            self.error = Some(error);
         }
         self.frames.pop();
     }
