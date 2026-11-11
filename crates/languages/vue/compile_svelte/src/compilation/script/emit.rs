@@ -1,7 +1,15 @@
+use oxc_allocator::{CloneIn, GetAllocator};
+use oxc_ast::ast::{
+    Argument, BinaryOperator, BindingProperty, BindingRestElement, LogicalOperator,
+    VariableDeclarator,
+};
+use oxc_span::SPAN;
+use rsvelte_typescript_compile::build::Builder;
+
 use super::{
-    BinaryOperator, Class, FxHashMap, Helper, Info, Kind, LogicalOperator, Names, NodeIdentifier,
-    Prop, R, Rewriter, SingleFileComponent, SourceLocation, SyntaxTree, UnaryOperator, copy, flag,
-    fresh, span_of, unsupported, vue_call,
+    BindingPattern, Class, Expression, FxHashMap, GetSpan, Helper, Info, Names, Prop, R, Rewriter,
+    SingleFileComponent, Statement, UnaryOperator, VariableDeclarationKind, fresh, is_type_only,
+    span_of, unsupported, unwrap_typescript, vue_call,
 };
 
 /// The instance script.
@@ -9,252 +17,248 @@ use super::{
 /// # Errors
 ///
 /// A refusal for what the script does that svue does not translate.
-pub(crate) fn emit(
+pub(crate) fn emit<'a>(
     sfc: &SingleFileComponent,
     info: &Info<'_>,
     attributes: Option<&str>,
-    to: &mut SyntaxTree,
-    names: &mut Names,
-) -> R<Vec<NodeIdentifier>> {
-    let from = &sfc.javascript;
-    let mut out = props_declarations(info, attributes, to, names);
-    let Kind::Program(body) = from.kind(sfc.program) else {
-        unreachable!("a script parses to a program")
-    };
+    b: &Builder<'a>,
+    names: &mut Names<'_>,
+) -> R<Vec<Statement<'a>>> {
+    let program = info.from.get_program(sfc.program);
+    let mut out = props_declarations(info, attributes, b, names);
+    let define_props = info.resolution.define_props();
     let aliases = FxHashMap::default();
-    let mut rewriter = Rewriter::new(info, false, &aliases);
-    for &statement in body {
-        match from.kind(statement) {
-            Kind::Import { .. } | Kind::TypeScriptDeclaration => {}
-            _ if info
-                .resolution
-                .define_props
-                .is_some_and(|p| p.statement == statement) =>
-            {
-                let Kind::VariableDeclaration { declarations, .. } = from.kind(statement) else {
-                    continue;
-                };
-                if declarations.len() > 1 {
+    let mut rewriter = Rewriter::new(info, b, false, &aliases);
+    for statement in &program.body {
+        match statement {
+            Statement::ImportDeclaration(_) => {}
+            s if is_type_only(s) => {}
+            s if define_props.is_some_and(|p| std::ptr::eq(p.statement, s)) => {
+                if let Statement::VariableDeclaration(d) = s
+                    && d.declarations.len() > 1
+                {
                     return Err(unsupported(
                         "`defineProps` declared beside other variables",
-                        span_of(from, statement),
+                        span_of(d.span),
                     ));
                 }
             }
-            Kind::ExpressionStatement(e)
-                if vue_call(from, &info.class, info.resolution, e) == Some("onMounted") =>
+            Statement::ExpressionStatement(s)
+                if vue_call(&info.class, info.resolution, &s.expression) == Some("onMounted") =>
             {
-                out.push(on_mounted(info, &mut rewriter, e, to, names)?);
+                out.push(on_mounted(&mut rewriter, &s.expression, b, names)?);
             }
-            Kind::VariableDeclaration { kind, declarations } => {
-                let mut lowered = Vec::with_capacity(declarations.len());
+            Statement::VariableDeclaration(d) => {
+                let mut lowered = Vec::with_capacity(d.declarations.len());
                 let mut runes = false;
-                for &d in declarations {
-                    let (l, rune) = declarator(info, &mut rewriter, d, to)?;
+                for declarator in &d.declarations {
+                    let (l, rune) = lower_declarator(info, &mut rewriter, declarator, b)?;
                     runes |= rune;
                     lowered.push(l);
                 }
-                let kind = if runes { flag::LET } else { kind };
-                out.push(to.var_declaration(kind, &lowered, from.source_location(statement)));
+                let kind = if runes {
+                    VariableDeclarationKind::Let
+                } else {
+                    d.kind
+                };
+                out.push(Statement::new_variable_declaration(
+                    d.span,
+                    kind,
+                    b.vec(lowered),
+                    false,
+                    b,
+                ));
             }
-            _ => out.push(rewriter.copy(to, statement)?),
+            s => out.push(rewriter.statement(s)?),
         }
     }
     Ok(out)
 }
 
 /// One declarator; `true` when it became a rune declaration, which Svelte declares with `let`.
-pub(super) fn declarator(
+fn lower_declarator<'a>(
     info: &Info<'_>,
-    rewriter: &mut Rewriter<'_>,
-    d: NodeIdentifier,
-    to: &mut SyntaxTree,
-) -> R<(NodeIdentifier, bool)> {
-    let from = info.from;
-    let Kind::Declarator {
-        identifier,
-        initializer: Some(initializer),
-    } = from.kind(d)
+    rewriter: &mut Rewriter<'_, '_, 'a>,
+    d: &VariableDeclarator<'_>,
+    b: &Builder<'a>,
+) -> R<(VariableDeclarator<'a>, bool)> {
+    let (BindingPattern::BindingIdentifier(identifier), Some(initializer)) = (&d.id, &d.init)
     else {
-        return Ok((rewriter.copy(to, d)?, false));
+        return Ok((rewriter.declarator(d)?, false));
     };
-    let class = match from.kind(identifier) {
-        Kind::Identifier(_) => info.class_of(identifier),
-        _ => None,
-    };
+    let class = identifier
+        .symbol_id
+        .get()
+        .and_then(|s| info.class.get(&s).copied());
     let Some(class) = class else {
-        return Ok((rewriter.copy(to, d)?, false));
+        return Ok((rewriter.declarator(d)?, false));
     };
-    let Kind::Call { arguments, .. } = from.kind(initializer) else {
+    let Expression::CallExpression(call) = unwrap_typescript(initializer) else {
         unreachable!("classified declarations call a Vue API")
     };
-    let arg = match arguments {
+    let argument = match call.arguments.as_slice() {
         [] => None,
-        &[a] => Some(a),
+        [a] => Some(a),
         _ => {
             return Err(unsupported(
                 "more than one argument",
-                span_of(from, initializer),
+                span_of(initializer.span()),
             ));
         }
     };
+    let value = argument.and_then(Argument::as_expression);
     let (rune, value) = match class {
         Class::Ref => {
-            if let Some(a) = arg
-                && !fresh(info, a)
+            if let Some(a) = argument
+                && !value.is_some_and(|v| fresh(info, v))
             {
                 return Err(unsupported(
                     "`ref` of a value created elsewhere (Vue's `reactive` and Svelte's `$state` \
                      proxy different objects; only literals and primitive props are translated)",
-                    span_of(from, a),
+                    span_of(a.span()),
                 ));
             }
-            ("$state", arg)
+            ("$state", value)
         }
-        Class::Reactive => match arg {
-            Some(a)
-                if matches!(from.kind(a), Kind::Object(_) | Kind::Array(_)) && fresh(info, a) =>
+        Class::Reactive => match value {
+            Some(v)
+                if matches!(
+                    unwrap_typescript(v),
+                    Expression::ObjectExpression(_) | Expression::ArrayExpression(_)
+                ) && fresh(info, v) =>
             {
-                ("$state", Some(a))
+                ("$state", Some(v))
             }
             _ => {
                 return Err(unsupported(
                     "`reactive` of anything but an object or array literal",
-                    span_of(from, initializer),
+                    span_of(initializer.span()),
                 ));
             }
         },
-        Class::Computed => match arg {
-            Some(a)
-                if matches!(
-                    from.kind(a),
-                    Kind::Arrow { parameters: [], .. }
-                        | Kind::Function {
-                            parameters: [],
-                            declaration: false,
-                            ..
-                        }
-                ) =>
-            {
-                ("$derived.by", Some(a))
-            }
+        Class::Computed => match value {
+            Some(v) if is_getter(unwrap_typescript(v)) => ("$derived.by", Some(v)),
             _ => {
                 return Err(unsupported(
                     "`computed` of anything but a getter function without parameters",
-                    span_of(from, initializer),
+                    span_of(initializer.span()),
                 ));
             }
         },
         Class::Props | Class::Vue(_) => unreachable!("not a declaration emit translates"),
     };
-    let callee = rune_callee(to, rune);
-    let value: Vec<NodeIdentifier> = value
-        .map(|v| rewriter.copy(to, v))
-        .transpose()?
-        .into_iter()
-        .collect();
-    let call = to.call(callee, &value, false, from.source_location(initializer));
-    let target = to.ident(from.name(identifier), from.source_location(identifier));
+    let value = value.map(|v| rewriter.expression(v)).transpose()?;
+    let call = Expression::new_call_expression(
+        initializer.span(),
+        rune_callee(b, rune),
+        None,
+        b.vec(value.map(Argument::from)),
+        false,
+        b,
+    );
+    let target = b.binding_at(identifier.name.as_str(), identifier.span);
     Ok((
-        to.declarator(target, Some(call), from.source_location(d)),
+        VariableDeclarator::new(d.span, target, None, Some(call), false, b),
         true,
     ))
 }
 
-pub(super) fn rune_callee(to: &mut SyntaxTree, rune: &str) -> NodeIdentifier {
+/// A function literal without parameters.
+fn is_getter(e: &Expression<'_>) -> bool {
+    match e {
+        Expression::ArrowFunctionExpression(f) => f.params.is_empty(),
+        Expression::FunctionExpression(f) => f.params.is_empty(),
+        _ => false,
+    }
+}
+
+fn rune_callee<'a>(b: &Builder<'a>, rune: &str) -> Expression<'a> {
     match rune.split_once('.') {
-        Some((object, property)) => {
-            let o = to.identifier(object);
-            to.dot(o, property)
-        }
-        None => to.identifier(rune),
+        Some((object, property)) => b.member(b.id(object), property),
+        None => b.id(rune),
     }
 }
 
 /// `onMounted(fn)` → `onMount(() => { fn(); })`: Svelte's `onMount` treats a returned function as
 /// a teardown, Vue's `onMounted` ignores what the hook returns.
-pub(super) fn on_mounted(
-    info: &Info<'_>,
-    rewriter: &mut Rewriter<'_>,
-    call: NodeIdentifier,
-    to: &mut SyntaxTree,
-    names: &mut Names,
-) -> R<NodeIdentifier> {
-    let from = info.from;
-    let Kind::Call { arguments, .. } = from.kind(call) else {
-        unreachable!("a call")
+fn on_mounted<'a>(
+    rewriter: &mut Rewriter<'_, '_, 'a>,
+    e: &Expression<'_>,
+    b: &Builder<'a>,
+    names: &mut Names<'_>,
+) -> R<Statement<'a>> {
+    let Expression::CallExpression(call) = unwrap_typescript(e) else {
+        unreachable!("`vue_call` found a call")
     };
-    let hook = match arguments {
-        &[h] if matches!(
-            from.kind(h),
-            Kind::Arrow { .. }
-                | Kind::Function {
-                    declaration: false,
-                    ..
-                }
-        ) =>
-        {
-            h
-        }
-        _ => {
-            return Err(unsupported(
-                "`onMounted` with anything but a function literal",
-                span_of(from, call),
-            ));
-        }
+    let hook = match call.arguments.as_slice() {
+        [h] => h.as_expression().filter(|h| {
+            matches!(
+                h,
+                Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_)
+            )
+        }),
+        _ => None,
     };
-    let hook = rewriter.copy(to, hook)?;
-    let invoke = to.call0(hook, &[]);
-    let statement = to.expression_statement(invoke);
-    let block = to.block(&[statement], SourceLocation::SYNTHETIC);
-    let wrapper = to.arrow(&[], block, false, false, SourceLocation::SYNTHETIC);
-    let on_mount = names.helper(from, Helper::OnMount);
-    let callee = to.identifier(&on_mount);
-    let c = to.call(callee, &[wrapper], false, from.source_location(call));
-    Ok(to.expression_statement_at(c, from.source_location(call)))
+    let Some(hook) = hook else {
+        return Err(unsupported(
+            "`onMounted` with anything but a function literal",
+            span_of(call.span),
+        ));
+    };
+    let hook = rewriter.expression(hook)?;
+    let wrapper = b.arrow_block(b.params([]), [b.stmt(b.call(hook, []))], false);
+    let on_mount = names.helper(Helper::OnMount);
+    let c = Expression::new_call_expression(
+        call.span,
+        b.id(&on_mount),
+        None,
+        b.vec([Argument::from(wrapper)]),
+        false,
+        b,
+    );
+    Ok(Statement::new_expression_statement(call.span, c, b))
 }
 
 /// `let { a = 1, b, ...rest } = $props()`, then each `Boolean` prop resolved from `rest`, then the
 /// attributes that fall through.
-pub(super) fn props_declarations(
+fn props_declarations<'a>(
     info: &Info<'_>,
     attributes: Option<&str>,
-    to: &mut SyntaxTree,
-    names: &mut Names,
-) -> Vec<NodeIdentifier> {
-    let from = info.from;
+    b: &Builder<'a>,
+    names: &mut Names<'_>,
+) -> Vec<Statement<'a>> {
     let mut out = Vec::new();
-    let booleans: Vec<&Prop> = info.props.iter().filter(|p| p.boolean.is_some()).collect();
+    let booleans: Vec<&Prop<'_>> = info.props.iter().filter(|p| p.boolean.is_some()).collect();
     if info.props.is_empty() && attributes.is_none() {
         return out;
     }
-    let rest = (!booleans.is_empty() || attributes.is_some()).then(|| names.fresh(from, "rest"));
-    let mut pattern = Vec::new();
-    for p in info.props.iter().filter(|p| p.boolean.is_none()) {
-        let key = to.identifier(&p.key);
-        let local = to.identifier(&p.var);
-        let value = p.default.map_or(local, |d| {
-            let d = copy(from, to, &mut rsvelte_typescript_compile::copy::Verbatim, d);
-            to.assign_pat(local, d, SourceLocation::SYNTHETIC)
-        });
-        let shorthand = p.key == p.var && p.default.is_none();
-        let flags = if shorthand { flag::SHORTHAND } else { 0 };
-        pattern.push(to.property(key, value, flags, SourceLocation::SYNTHETIC));
-    }
-    if let Some(r) = &rest {
-        let r = to.identifier(r);
-        pattern.push(to.rest(r, SourceLocation::SYNTHETIC));
-    }
-    let pattern = to.object_pat(&pattern, SourceLocation::SYNTHETIC);
-    let props = to.identifier("$props");
-    let call = to.call0(props, &[]);
-    out.push(to.let_(flag::LET, pattern, Some(call)));
-    let rest = rest.as_deref().unwrap_or_default();
-    for p in &booleans {
-        out.push(boolean_prop(info, p, rest, to, names));
-    }
-    if let Some(attributes) = attributes {
-        out.push(fallthrough(info, rest, attributes, to, names));
+    let rest = (!booleans.is_empty() || attributes.is_some()).then(|| names.fresh("rest"));
+    let properties = info.props.iter().filter(|p| p.boolean.is_none()).map(|p| {
+        let local = b.binding(&p.var);
+        let value = match p.default {
+            Some(d) => {
+                BindingPattern::new_assignment_pattern(SPAN, local, d.clone_in(b.allocator()), b)
+            }
+            None => local,
+        };
+        BindingProperty::new(SPAN, b.key(&p.key), value, p.key == p.var, false, b)
+    });
+    let properties = b.vec(properties);
+    let rest_element = rest
+        .as_deref()
+        .map(|r| BindingRestElement::boxed(SPAN, b.binding(r), b));
+    let pattern = BindingPattern::new_object_pattern(SPAN, properties, rest_element, b);
+    out.push(b.declaration(
+        VariableDeclarationKind::Let,
+        [b.declarator(pattern, Some(b.call(b.id("$props"), [])))],
+    ));
+    if let Some(rest) = &rest {
+        for p in &booleans {
+            out.push(boolean_prop(p, rest, b, names));
+        }
+        if let Some(attributes) = attributes {
+            out.push(fallthrough(info, rest, attributes, b, names));
+        }
     }
     out
 }
@@ -262,104 +266,56 @@ pub(super) fn props_declarations(
 /// runtime-core `resolvePropValue` for a `Boolean` prop: the default when the value is
 /// `undefined`, then `false` when it is absent with no default, else `true` for `''` or the key
 /// itself when `Boolean` comes before `String` in its types.
-pub(super) fn boolean_prop(
-    info: &Info<'_>,
-    p: &Prop,
+fn boolean_prop<'a>(
+    p: &Prop<'_>,
     rest: &str,
-    to: &mut SyntaxTree,
-    names: &mut Names,
-) -> NodeIdentifier {
-    let from = info.from;
-    let cast_true = p.boolean.unwrap_or_default();
-    let value = names.fresh(from, "value");
-    let mut body = Vec::new();
-    let read = {
-        let r = to.identifier(rest);
-        to.dot(r, &p.key)
-    };
-    let v = to.identifier(&value);
-    body.push(to.let_(flag::LET, v, Some(read)));
+    b: &Builder<'a>,
+    names: &mut Names<'_>,
+) -> Statement<'a> {
+    let value = names.fresh("value");
+    let mut body = vec![b.let_(&value, Some(b.member(b.id(rest), &p.key)))];
     if let Some(d) = p.default {
-        let v = to.identifier(&value);
-        let undefined = to.identifier("undefined");
-        let test = to.binary(
-            BinaryOperator::StrictEq,
-            v,
-            undefined,
-            SourceLocation::SYNTHETIC,
+        let test = b.binary(
+            b.id(&value),
+            BinaryOperator::StrictEquality,
+            b.id("undefined"),
         );
-        let v = to.identifier(&value);
-        let d = copy(from, to, &mut rsvelte_typescript_compile::copy::Verbatim, d);
-        let set = to.assign(
-            rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
-            v,
-            d,
-            SourceLocation::SYNTHETIC,
-        );
-        let set = to.expression_statement(set);
-        body.push(to.if_(test, set, None, SourceLocation::SYNTHETIC));
+        let set = b.stmt(b.assign_name(&value, d.clone_in(b.allocator())));
+        body.push(b.if_(test, set, None));
     } else {
-        let key = to.write_string(&p.key);
-        let r = to.identifier(rest);
-        let has = to.binary(BinaryOperator::In, key, r, SourceLocation::SYNTHETIC);
-        let absent = to.unary(UnaryOperator::Not, has, SourceLocation::SYNTHETIC);
-        let f = to.write_boolean(false, SourceLocation::SYNTHETIC);
-        let early = to.return_(Some(f), SourceLocation::SYNTHETIC);
-        body.push(to.if_(absent, early, None, SourceLocation::SYNTHETIC));
+        let has = b.binary(b.string(&p.key), BinaryOperator::In, b.id(rest));
+        let absent = b.unary(UnaryOperator::LogicalNot, has);
+        body.push(b.if_(absent, b.return_(Some(b.boolean(false))), None));
     }
-    if cast_true {
-        let v = to.identifier(&value);
-        let empty = to.write_string("");
-        let is_empty = to.binary(
-            BinaryOperator::StrictEq,
-            v,
-            empty,
-            SourceLocation::SYNTHETIC,
+    if p.boolean == Some(true) {
+        let is_empty = b.binary(b.id(&value), BinaryOperator::StrictEquality, b.string(""));
+        let is_key = b.binary(
+            b.id(&value),
+            BinaryOperator::StrictEquality,
+            b.string(&p.key),
         );
-        let v = to.identifier(&value);
-        let key = to.write_string(&p.key);
-        let is_key = to.binary(BinaryOperator::StrictEq, v, key, SourceLocation::SYNTHETIC);
-        let test = to.logical(
-            LogicalOperator::Or,
-            is_empty,
-            is_key,
-            SourceLocation::SYNTHETIC,
-        );
-        let t = to.write_boolean(true, SourceLocation::SYNTHETIC);
-        let early = to.return_(Some(t), SourceLocation::SYNTHETIC);
-        body.push(to.if_(test, early, None, SourceLocation::SYNTHETIC));
+        let test = b.logical(is_empty, LogicalOperator::Or, is_key);
+        body.push(b.if_(test, b.return_(Some(b.boolean(true))), None));
     }
-    let v = to.identifier(&value);
-    body.push(to.return_(Some(v), SourceLocation::SYNTHETIC));
-    let block = to.block(&body, SourceLocation::SYNTHETIC);
-    let getter = to.arrow(&[], block, false, false, SourceLocation::SYNTHETIC);
-    let callee = rune_callee(to, "$derived.by");
-    let call = to.call0(callee, &[getter]);
-    let target = to.identifier(&p.var);
-    to.let_(flag::LET, target, Some(call))
+    body.push(b.return_(Some(b.id(&value))));
+    let getter = b.arrow_block(b.params([]), body, false);
+    b.let_(
+        &p.var,
+        Some(b.call(rune_callee(b, "$derived.by"), [getter])),
+    )
 }
 
-#[expect(
-    clippy::many_single_char_names,
-    reason = "builds JavaScript one node at a time"
-)]
 /// runtime-core's `attrs`: what the parent passes that is not a declared prop nor reserved
 /// (`isReservedProp`).
-pub(super) fn fallthrough(
+fn fallthrough<'a>(
     info: &Info<'_>,
     rest: &str,
     attributes: &str,
-    to: &mut SyntaxTree,
-    names: &mut Names,
-) -> NodeIdentifier {
-    let from = info.from;
-    let a = names.fresh(from, "fallthrough");
-    let mut body = Vec::new();
-    let r = to.identifier(rest);
-    let spread = to.spread(r, SourceLocation::SYNTHETIC);
-    let object = to.object(&[spread], SourceLocation::SYNTHETIC);
-    let target = to.identifier(&a);
-    body.push(to.let_(flag::CONST, target, Some(object)));
+    b: &Builder<'a>,
+    names: &mut Names<'_>,
+) -> Statement<'a> {
+    let a = names.fresh("fallthrough");
+    let mut body = vec![b.const_(&a, b.object([b.spread_property(b.id(rest))]))];
     let reserved = ["", "key", "ref", "ref_for", "ref_key"];
     let hooks = [
         "onVnodeBeforeMount",
@@ -375,18 +331,13 @@ pub(super) fn fallthrough(
         .filter(|p| p.boolean.is_some())
         .map(|p| p.key.as_str());
     for key in booleans.chain(reserved).chain(hooks) {
-        let o = to.identifier(&a);
-        let k = to.write_string(key);
-        let m = to.member(o, k, true, false, SourceLocation::SYNTHETIC);
-        let del = to.unary(UnaryOperator::Delete, m, SourceLocation::SYNTHETIC);
-        body.push(to.expression_statement(del));
+        let member = b.computed(b.id(&a), b.string(key));
+        body.push(b.stmt(b.unary(UnaryOperator::Delete, member)));
     }
-    let o = to.identifier(&a);
-    body.push(to.return_(Some(o), SourceLocation::SYNTHETIC));
-    let block = to.block(&body, SourceLocation::SYNTHETIC);
-    let getter = to.arrow(&[], block, false, false, SourceLocation::SYNTHETIC);
-    let callee = rune_callee(to, "$derived.by");
-    let call = to.call0(callee, &[getter]);
-    let target = to.identifier(attributes);
-    to.let_(flag::LET, target, Some(call))
+    body.push(b.return_(Some(b.id(&a))));
+    let getter = b.arrow_block(b.params([]), body, false);
+    b.let_(
+        attributes,
+        Some(b.call(rune_callee(b, "$derived.by"), [getter])),
+    )
 }

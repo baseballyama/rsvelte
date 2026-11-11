@@ -58,6 +58,12 @@ fn refusal(source_text: &str) -> String {
     client
 }
 
+/// Whether `javascript` contains `code`, whatever the printer's line breaks and indentation.
+fn contains_code(javascript: &str, code: &str) -> bool {
+    let squash = |s: &str| s.split_whitespace().collect::<String>();
+    squash(javascript).contains(&squash(code))
+}
+
 fn imports(javascript: &str) -> Vec<&str> {
     javascript
         .lines()
@@ -124,7 +130,7 @@ fn a_boolean_prop_is_cast_as_runtime_core_does() {
                <template><p>{{ String(props.flag) }}</p><p></p></template>\n";
     let [client, server] = both(source_text);
     for javascript in [&client, &server] {
-        assert!(javascript.contains("'flag' in"), "{javascript}");
+        assert!(javascript.contains("\"flag\" in"), "{javascript}");
     }
 }
 
@@ -134,15 +140,18 @@ fn fallthrough_spreads_and_client_v_model_attaches() {
                        <template><span class=\"own\">{{ label }}</span></template>\n";
     let [client, server] = both(fallthrough);
     assert!(
-        client.contains("$.attribute_effect(span, ($0) => ({ ...$.get(attrs), class: $0 })"),
+        contains_code(
+            &client,
+            "$.attribute_effect(span, ($0) => ({ ...$.get(attrs), class: $0 })"
+        ),
         "{client}"
     );
     assert!(
-        client.contains("normalizeClass(['own', $.get(attrs).class])"),
+        contains_code(&client, "normalizeClass([\"own\", $.get(attrs).class])"),
         "{client}"
     );
     assert!(
-        server.contains("$.attributes({ ...attrs(), class:"),
+        contains_code(&server, "$.attributes({ ...attrs(), class:"),
         "{server}"
     );
     // Without a class of its own the root has a class attribute only when the attributes do.
@@ -150,9 +159,10 @@ fn fallthrough_spreads_and_client_v_model_attaches() {
                  <template><span>{{ label }}</span></template>\n";
     let [_, server] = both(plain);
     assert!(
-        server.contains(
-            "$.attributes({ ...'class' in attrs() ? { ...attrs(), class: \
-                         normalizeClass([attrs().class]) } : attrs() })"
+        contains_code(
+            &server,
+            "$.attributes({ ...\"class\" in attrs() ? { ...attrs(), class: \
+             normalizeClass([attrs().class]) } : attrs() })"
         ),
         "{server}"
     );
@@ -160,10 +170,10 @@ fn fallthrough_spreads_and_client_v_model_attaches() {
                  <template><input v-model.trim=\"t\"><p></p></template>\n";
     let [client, server] = both(model);
     assert!(
-        client.contains("$.attach(input, () => vmodel(vModelText,"),
+        contains_code(&client, "$.attach(input, () => vmodel(vModelText,"),
         "{client}"
     );
-    assert!(client.contains("{ trim: true }"), "{client}");
+    assert!(contains_code(&client, "{ trim: true }"), "{client}");
     assert!(!server.contains("vModelText"), "{server}");
     assert!(server.contains("value"), "{server}");
 }

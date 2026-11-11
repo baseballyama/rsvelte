@@ -1,8 +1,10 @@
+use oxc_ast::ast::{BindingIdentifier, BindingPattern};
+
 use super::{
-    Branch, CompilerNodeIdentifier, CompilerSyntaxTree, Directive, DirectiveExpression,
-    DirectiveName, Each, Element, Helper, Kind, NodeIdentifier, NodeKind, Property, PropertyKind,
-    R, SourceLocation, Span, SvelteNodeIdentifier, SvelteNodeKind, T, TagType, directive,
-    directives, expression_of, span_of, svelte, unsupported,
+    Argument, Branch, CompilerNodeIdentifier, CompilerSyntaxTree, Directive, DirectiveExpression,
+    DirectiveName, Each, Element, Expression, Helper, NodeKind, Property, PropertyKind, R, Span,
+    SvelteNodeIdentifier, SvelteNodeKind, T, TagType, directive, directives, expression_of,
+    output_span, span_of, svelte, unsupported,
 };
 
 /// The `:key` of a `v-for` element.
@@ -25,7 +27,7 @@ fn directive_key<'h>(
         })
 }
 
-impl T<'_, '_> {
+impl T<'_, '_, '_, '_> {
     pub(super) fn list(
         &mut self,
         child_nodes: &[CompilerNodeIdentifier],
@@ -41,10 +43,10 @@ impl T<'_, '_> {
             match &node.kind {
                 NodeKind::Text(t) => {
                     let kind = svelte::spelled_text(t.raw, t.text(source_text).into());
-                    out.push(self.b.node(kind, node.span, parent, origin));
+                    out.push(self.hir.node(kind, node.span, parent, origin));
                 }
                 &NodeKind::Comment { data } => {
-                    out.push(self.b.node(
+                    out.push(self.hir.node(
                         SvelteNodeKind::Comment { data },
                         node.span,
                         parent,
@@ -54,11 +56,16 @@ impl T<'_, '_> {
                 &NodeKind::Interpolation { expression } => {
                     let e = self.expression(expression)?;
                     let callee = self.helper(Helper::ToDisplayString);
-                    let call = self
-                        .to
-                        .call(callee, &[e], false, SourceLocation::from(node.span));
-                    let call = self.root_expression(call);
-                    out.push(self.b.node(
+                    let call = Expression::new_call_expression(
+                        output_span(node.span),
+                        callee,
+                        None,
+                        self.b.vec([Argument::from(e)]),
+                        false,
+                        self.b,
+                    );
+                    let call = self.keep(call);
+                    out.push(self.hir.node(
                         SvelteNodeKind::Expression { expression: call },
                         node.span,
                         parent,
@@ -135,7 +142,7 @@ impl T<'_, '_> {
             data: Span::default(),
         };
         let identifier = self
-            .b
+            .hir
             .node(placeholder, span, parent, vue_tree.origin[chain[0]]);
         let mut branches = Vec::new();
         let mut otherwise = None;
@@ -158,10 +165,10 @@ impl T<'_, '_> {
             } else {
                 let e = expression_of(d, p.span)?;
                 let e = self.expression(e)?;
-                Some(self.root_expression(e))
+                Some(self.keep(e))
             };
             let body = self.fragment_body(k, Some(identifier))?;
-            let body = self.b.children(&body);
+            let body = self.hir.children(&body);
             match test {
                 Some(test) => branches.push(Branch {
                     test,
@@ -171,8 +178,8 @@ impl T<'_, '_> {
                 None => otherwise = Some(body),
             }
         }
-        let branches = self.b.branches(branches);
-        self.b.set_kind(
+        let branches = self.hir.branches(branches);
+        self.hir.set_kind(
             identifier,
             SvelteNodeKind::If {
                 branches,
@@ -238,86 +245,82 @@ impl T<'_, '_> {
     /// `v-for`: an `{#each}` over `renderList`, which iterates arrays, strings, numbers and objects
     /// as Vue does. One alias is the block's context; with more, the context is an entry array
     /// the aliases are read from.
-    #[expect(clippy::too_many_lines, reason = "one arm per alias shape Vue reads")]
     pub(super) fn each(
         &mut self,
-        at: CompilerNodeIdentifier,
+        at_node: CompilerNodeIdentifier,
         prop: &Property,
         dir: &Directive,
         parent: Option<SvelteNodeIdentifier>,
     ) -> R<SvelteNodeIdentifier> {
-        let (vue_tree, from) = (self.vue_tree, self.info.from);
-        let node = vue_tree.node(at);
+        let (vue_tree, info) = (self.vue_tree, self.info);
+        let node = vue_tree.node(at_node);
         let DirectiveExpression::For(f) = &dir.exp else {
             return Err(unsupported("a `v-for` without a value", prop.span));
         };
         if !dir.modifiers.is_empty() {
             return Err(unsupported("a `v-for` modifier", prop.span));
         }
+        let parameters = info.from.get_parameters(f.parameters);
         // `renderList` passes value, key and index; Vue leaves a fourth alias undefined.
-        if !(1..=3).contains(&f.parameters.len()) {
+        let count = parameters.items.len() + usize::from(parameters.rest.is_some());
+        if !(1..=3).contains(&count) {
             return Err(unsupported(
                 "a `v-for` with no alias or more than three",
                 prop.span,
             ));
         }
-        for &param in &f.parameters {
-            if !matches!(from.kind(param), Kind::Identifier(_)) {
+        let destructuring = |span| unsupported("a destructuring `v-for` alias", span_of(span));
+        let mut aliases: Vec<&BindingIdentifier<'_>> = Vec::with_capacity(count);
+        for parameter in &parameters.items {
+            let BindingPattern::BindingIdentifier(identifier) = &parameter.pattern else {
+                return Err(destructuring(parameter.span));
+            };
+            if parameter.initializer.is_some() {
+                return Err(destructuring(parameter.span));
+            }
+            if identifier
+                .symbol_id
+                .get()
+                .is_some_and(|s| info.is_written(s))
+            {
                 return Err(unsupported(
-                    "a destructuring `v-for` alias",
-                    span_of(from, param),
+                    "a write to a `v-for` alias",
+                    span_of(parameter.span),
                 ));
             }
-            if let Some(b) = self.info.resolution.sem.binding_of(param) {
-                let binding = &self.info.resolution.sem.bindings[b];
-                if binding.writes > 0 {
-                    return Err(unsupported(
-                        "a write to a `v-for` alias",
-                        span_of(from, param),
-                    ));
-                }
-            }
+            aliases.push(identifier);
+        }
+        if let Some(rest) = &parameters.rest {
+            return Err(destructuring(rest.span));
         }
         let source = self.expression(f.source)?;
-        let count = f.parameters.len();
-        let parameters: Vec<String> = (0..count)
-            .map(|i| self.names.fresh(from, ["value", "key", "index"][i]))
+        let names: Vec<String> = ["value", "key", "index"][..count]
+            .iter()
+            .map(|base| self.names.fresh(base))
             .collect();
-        let param_ids: Vec<NodeIdentifier> =
-            parameters.iter().map(|p| self.to.identifier(p)).collect();
-        let body = if count <= 1 {
-            self.to.identifier(&parameters[0])
-        } else {
-            let items: Vec<NodeIdentifier> =
-                parameters.iter().map(|p| self.to.identifier(p)).collect();
-            self.to.array(&items, SourceLocation::SYNTHETIC)
+        let b = self.b;
+        let body = match names.as_slice() {
+            [only] => b.id(only),
+            _ => b.array(names.iter().map(|n| b.id(n))),
         };
-        let item = self
-            .to
-            .arrow(&param_ids, body, true, false, SourceLocation::SYNTHETIC);
+        let item = b.arrow(b.params(names.iter().map(String::as_str)), body);
         let render_list = self.helper(Helper::RenderList);
-        let collection = self.to.call(
-            render_list,
-            &[source, item],
-            false,
-            SourceLocation::SYNTHETIC,
-        );
-        let collection = self.root_expression(collection);
+        let collection = b.call(render_list, [source, item]);
+        let collection = self.keep(collection);
         let outer = self.aliases.clone();
+        let first = aliases[0];
         let context = if count == 1 {
-            self.to.ident(
-                from.name(f.parameters[0]),
-                from.source_location(f.parameters[0]),
-            )
+            b.binding_at(first.name.as_str(), first.span)
         } else {
-            let entry = self.names.fresh(from, "entry");
-            for (i, &param) in f.parameters.iter().enumerate() {
-                if let Some(b) = self.info.resolution.sem.binding_of(param) {
-                    self.aliases.insert(b, (entry.clone(), i as u32));
+            let entry = self.names.fresh("entry");
+            for (i, alias) in aliases.iter().enumerate() {
+                if let Some(s) = alias.symbol_id.get() {
+                    self.aliases.insert(s, (entry.clone(), i as u32));
                 }
             }
-            self.to.ident(&entry, from.source_location(f.parameters[0]))
+            b.binding_at(&entry, first.span)
         };
+        let context = self.tree.keep_pattern(b.parameter(context));
         let NodeKind::Element(el) = &node.kind else {
             unreachable!("called on elements")
         };
@@ -325,25 +328,25 @@ impl T<'_, '_> {
             Some((kp, kd)) => {
                 let key = expression_of(kd, kp.span)?;
                 let key = self.expression(key)?;
-                self.root_expression(key)
+                Some(self.keep(key))
             }
-            None => NodeIdentifier::NONE,
+            None => None,
         };
         let placeholder = SvelteNodeKind::Comment {
             data: Span::default(),
         };
         let identifier = self
-            .b
-            .node(placeholder, node.span, parent, vue_tree.origin[at]);
-        let body = self.fragment_body(at, Some(identifier))?;
-        let body = self.b.children(&body);
+            .hir
+            .node(placeholder, node.span, parent, vue_tree.origin[at_node]);
+        let body = self.fragment_body(at_node, Some(identifier))?;
+        let body = self.hir.children(&body);
         self.aliases = outer;
-        self.b.set_kind(
+        self.hir.set_kind(
             identifier,
             SvelteNodeKind::Each(Each {
                 collection,
-                context,
-                index: NodeIdentifier::NONE,
+                context: Some(context),
+                index: None,
                 key,
                 body,
                 fallback: None,

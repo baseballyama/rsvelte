@@ -1,8 +1,7 @@
 use super::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, Directive, DirectiveName, Kind,
-    NodeIdentifier, NodeKind, Property, PropertyKind, R, Span, SvelteElement, SvelteNodeIdentifier,
-    SvelteNodeKind, T, TagType, Target, directive, expression_of, is_boolean_attribute, svelte,
-    unsupported,
+    Attribute, AttributeValue, CompilerNodeIdentifier, Directive, DirectiveName, Expression,
+    NodeKind, Property, PropertyKind, R, Span, SvelteElement, SvelteNodeIdentifier, SvelteNodeKind,
+    T, TagType, Target, directive, expression_of, is_boolean_attribute, svelte, unsupported,
 };
 
 /// Whether Vue's runtime leaves the attribute as written: runtime-dom's `shouldSetAsProp` sets
@@ -33,7 +32,7 @@ fn check_name(name: &str, span: Span) -> R<()> {
     Ok(())
 }
 
-impl T<'_, '_> {
+impl T<'_, '_, '_, '_> {
     #[expect(
         clippy::too_many_lines,
         reason = "one arm per attribute shape Vue reads"
@@ -73,8 +72,8 @@ impl T<'_, '_> {
         }
         let fallthrough = self.roots.contains(&k).then_some(self.attributes).flatten();
         let start_tag = node.span;
-        let kind = self.b.element_kind(tag, parent);
-        let identifier = self.b.node(
+        let kind = self.hir.element_kind(tag, parent);
+        let identifier = self.hir.node(
             SvelteNodeKind::Comment {
                 data: Span::default(),
             },
@@ -84,7 +83,7 @@ impl T<'_, '_> {
         );
         let props = vue_tree.props(el.props);
         let mut attributes: Vec<Attribute> = Vec::new();
-        let mut class: Vec<NodeIdentifier> = Vec::new();
+        let mut class: Vec<Expression<'_>> = Vec::new();
         let mut class_at: Option<(usize, Span, u32)> = None;
         let mut model: Option<(&Property, &Directive)> = None;
         let mut events: Vec<String> = Vec::new();
@@ -126,8 +125,7 @@ impl T<'_, '_> {
                     }
                     match n_text {
                         "class" => {
-                            let v = self.to.write_string(value_text.unwrap_or_default());
-                            class.push(v);
+                            class.push(self.b.string(value_text.unwrap_or_default()));
                             class_at = Some((attributes.len(), p.span, p.origin));
                             continue;
                         }
@@ -144,8 +142,7 @@ impl T<'_, '_> {
                             ));
                         }
                         "value" if tag == "input" => {
-                            let v = self.to.write_string(value_text.unwrap_or_default());
-                            let v = self.root_expression(v);
+                            let v = self.keep(self.b.string(value_text.unwrap_or_default()));
                             attributes.push(attribute(
                                 svelte::Name::Source(n.span()),
                                 AttributeValue::Expression {
@@ -252,7 +249,7 @@ impl T<'_, '_> {
                         } else {
                             v
                         };
-                        let v = self.root_expression(v);
+                        let v = self.keep(v);
                         attributes.push(attribute(
                             svelte::Name::Spelled {
                                 text: arg.into(),
@@ -270,7 +267,7 @@ impl T<'_, '_> {
                         if events.contains(&event) {
                             return Err(unsupported("two listeners for one event", p.span));
                         }
-                        let handler = self.root_expression(handler);
+                        let handler = self.keep(handler);
                         attributes.push(attribute(
                             svelte::Name::Spelled {
                                 text: format!("on{event}").into(),
@@ -331,15 +328,17 @@ impl T<'_, '_> {
                 node.span,
             )?);
         }
-        if fallthrough.is_some()
-            || class.len() > 1
-            || class
-                .iter()
-                .any(|&c| !matches!(self.to.kind(c), Kind::String))
-        {
-            self.dynamic_class(&mut attributes, &class, class_at, fallthrough, identifier);
-        } else if let (Some(&c), Some((at, span, origin))) = (class.first(), class_at) {
-            let v = self.to.str_value(c, source_text).into();
+        // One string literal, and nothing to merge it with, is a static class.
+        let static_class: Option<Box<str>> = match class.as_slice() {
+            [Expression::StringLiteral(s)] if fallthrough.is_none() => {
+                s.value.as_str().map(Into::into)
+            }
+            _ => None,
+        };
+        if let Some(v) = static_class {
+            let Some((at, span, origin)) = class_at else {
+                unreachable!("a class records where it was written")
+            };
             attributes.insert(
                 at,
                 Attribute {
@@ -353,9 +352,11 @@ impl T<'_, '_> {
                     origin,
                 },
             );
+        } else if fallthrough.is_some() || !class.is_empty() {
+            self.dynamic_class(&mut attributes, class, class_at, fallthrough, identifier);
         }
-        let attributes = self.b.attributes(attributes);
-        self.b.set_kind(
+        let attributes = self.hir.attributes(attributes);
+        self.hir.set_kind(
             identifier,
             SvelteNodeKind::Element(SvelteElement {
                 name,
@@ -376,8 +377,8 @@ impl T<'_, '_> {
         };
         let children = self.list(child_nodes, Some(identifier));
         self.select_model = outer;
-        let children = self.b.children(&children?);
-        self.b.set_element_children(identifier, children);
+        let children = self.hir.children(&children?);
+        self.hir.set_element_children(identifier, children);
         Ok(identifier)
     }
 }

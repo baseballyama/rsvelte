@@ -1,6 +1,11 @@
-use super::{
-    Info, Names, R, Resolution, SourceLocation, SyntaxTree, Target, Translation, unsupported,
-};
+use oxc_ast::ast::Program;
+use oxc_ast_visit::VisitMut;
+use oxc_span::{SPAN, SourceType};
+use rsvelte_typescript_compile::build::Builder;
+use rsvelte_typescript_compile::strip::Strip;
+use rsvelte_typescript_tree::Tree;
+
+use super::{Info, Names, R, Resolution, Target, Translation, span_of, unsupported};
 
 /// The whole translation: the script first, as the template reads what it declares.
 pub(crate) fn translate(
@@ -17,35 +22,62 @@ pub(crate) fn translate(
             style.span,
         ));
     }
-    if let Some(t) = from.typescript_runtime.first() {
+    let script = from.get_program(sfc.program);
+    if sfc.typescript
+        && let Some((_, span)) = rsvelte_typescript_compile::features::first_runtime_feature(script)
+    {
         return Err(unsupported(
             "a TypeScript construct with a runtime value",
-            t.span,
+            span_of(span),
         ));
     }
-    let mut names = Names::default();
-    let (class, props) = crate::script::classify(sfc, resolution, source_text, &mut names)?;
-    let info = Info::new(from, source_text, resolution, target, class, props);
-    let mut to = SyntaxTree::new();
+    let mut names = Names::new(sfc, compiler_syntax_tree);
+    let (class, props) = crate::script::classify(sfc, resolution, &mut names)?;
+    let info = Info {
+        from,
+        source_text,
+        resolution,
+        target,
+        typescript: sfc.typescript,
+        class,
+        props,
+        top: crate::script::top_level(script),
+    };
     let roots = compiler_syntax_tree.map_or_else(Vec::new, crate::template::fallthrough_targets);
-    let attributes = (!roots.is_empty()).then(|| names.fresh(from, "attrs"));
-    let template = crate::template::translate(
-        &info,
-        compiler_syntax_tree,
-        &roots,
-        attributes.as_deref(),
-        &mut to,
-        &mut names,
-    )?;
-    let body = crate::script::emit(sfc, &info, attributes.as_deref(), &mut to, &mut names)?;
-    let mut statements = names.imports(&mut to);
-    statements.extend(template.hoisted);
-    statements.extend(body);
-    let program = to.program(&statements, SourceLocation::SYNTHETIC);
+    let attributes = (!roots.is_empty()).then(|| names.fresh("attrs"));
+    let (javascript, (program, compiler_syntax_tree)) = Tree::build(source_text, |tree| {
+        let b = Builder::new(tree.allocator());
+        let template = crate::template::translate(
+            &info,
+            compiler_syntax_tree,
+            &roots,
+            attributes.as_deref(),
+            tree,
+            &b,
+            &mut names,
+        )?;
+        let body = crate::script::emit(sfc, &info, attributes.as_deref(), &b, &mut names)?;
+        let mut statements = names.imports(&b);
+        statements.extend(template.hoisted);
+        statements.extend(body);
+        let mut program = Program::new(
+            SPAN,
+            SourceType::mjs(),
+            tree.source_text(),
+            [],
+            None,
+            [],
+            b.vec(statements),
+            &b,
+        );
+        if info.typescript {
+            Strip::new(tree.allocator()).visit_program(&mut program);
+        }
+        Ok((tree.keep_program(program), template.compiler_syntax_tree))
+    })?;
     Ok(Translation {
-        javascript: to,
+        javascript,
         program,
-        compiler_syntax_tree: template.compiler_syntax_tree,
-        template_expressions: template.expressions,
+        compiler_syntax_tree,
     })
 }

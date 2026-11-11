@@ -1,62 +1,56 @@
 use super::{
-    Attribute, AttributeValue, BinaryOperator, DeclarationKind, Directive, Helper, Kind,
-    NodeIdentifier, Property, R, Rewriter, SourceLocation, Span, SvelteNodeIdentifier, T, Target,
-    expression_of, include_boolean_attribute, renderable, span_of, svelte, unsupported,
+    Attribute, AttributeValue, BinaryOperator, Declared, Directive, Expression, GetSpan, Helper,
+    Property, R, Rewriter, Span, SvelteNodeIdentifier, T, Target, conditional, expression_of,
+    include_boolean_attribute, renderable, span_of, svelte, unsupported,
 };
 
-impl T<'_, '_> {
+impl<'a> T<'_, '_, '_, 'a> {
+    /// `normalizeClass([…items])`.
+    fn normalize_class(&mut self, items: Vec<Expression<'a>>) -> Expression<'a> {
+        let list = self.b.array(items);
+        let callee = self.helper(Helper::NormalizeClass);
+        self.b.call(callee, [list])
+    }
+
     /// `class={normalizeClass([…own, attrs.class])}`, at the own class's position or last.
     pub(super) fn dynamic_class(
         &mut self,
         attributes: &mut Vec<Attribute>,
-        class: &[NodeIdentifier],
+        class: Vec<Expression<'a>>,
         at: Option<(usize, Span, u32)>,
         fallthrough: Option<&str>,
         owner: SvelteNodeIdentifier,
     ) {
-        let normalize = |t: &mut Self, items: &[NodeIdentifier]| {
-            let list = t.to.array(items, SourceLocation::SYNTHETIC);
-            let callee = t.helper(Helper::NormalizeClass);
-            t.to.call0(callee, &[list])
-        };
-        let own = match class {
+        let b = self.b;
+        let own = match class.as_slice() {
             [] => None,
-            &[only] if matches!(self.to.kind(only), Kind::String) => Some(only),
-            _ => Some(normalize(self, class)),
+            [only @ Expression::StringLiteral(_)] => Some(self.copy(only)),
+            _ => {
+                let items = class.iter().map(|c| self.copy(c)).collect();
+                Some(self.normalize_class(items))
+            }
         };
         let value = match fallthrough {
             None => own,
             Some(a) => {
                 // runtime-core `mergeProps` merges the class only when the attributes carry one,
                 // and Vue renders a `class` attribute exactly when the props have the key.
-                let key = self.to.write_string("class");
-                let o = self.to.identifier(a);
-                let has = self
-                    .to
-                    .binary(BinaryOperator::In, key, o, SourceLocation::SYNTHETIC);
-                let mut items = class.to_vec();
-                let o = self.to.identifier(a);
-                items.push(self.to.dot(o, "class"));
-                let merged = normalize(self, &items);
+                let has = b.binary(b.string("class"), BinaryOperator::In, b.id(a));
+                let mut items = class;
+                items.push(b.member(b.id(a), "class"));
+                let merged = self.normalize_class(items);
                 let (spread, value) = if let Some(own) = own {
-                    let value = self.to.cond(has, merged, own, SourceLocation::SYNTHETIC);
-                    (self.to.identifier(a), Some(value))
+                    (b.id(a), Some(conditional(b, has, merged, own)))
                 } else {
                     // `{...attrs}` with its class normalized: a class attribute after a spread
                     // always renders, even for `undefined`.
-                    let o = self.to.identifier(a);
-                    let rest = self.to.spread(o, SourceLocation::SYNTHETIC);
-                    let key = self.to.identifier("class");
-                    let class = self.to.property(key, merged, 0, SourceLocation::SYNTHETIC);
-                    let with_class = self.to.object(&[rest, class], SourceLocation::SYNTHETIC);
-                    let plain = self.to.identifier(a);
-                    (
-                        self.to
-                            .cond(has, with_class, plain, SourceLocation::SYNTHETIC),
-                        None,
-                    )
+                    let with_class = b.object([
+                        b.spread_property(b.id(a)),
+                        b.property(b.key("class"), merged, false),
+                    ]);
+                    (conditional(b, has, with_class, b.id(a)), None)
                 };
-                let spread = self.root_expression(spread);
+                let spread = self.keep(spread);
                 attributes.push(Attribute {
                     name: svelte::Name::Spelled {
                         text: "".into(),
@@ -73,7 +67,7 @@ impl T<'_, '_> {
         let Some(value) = value else {
             return;
         };
-        let value = self.root_expression(value);
+        let value = self.keep(value);
         let (index, span, origin) = match at {
             Some(at) if fallthrough.is_none() => at,
             Some((_, span, origin)) => (attributes.len(), span, origin),
@@ -99,44 +93,42 @@ impl T<'_, '_> {
 
     /// runtime-dom `patchDOMProp` for a boolean property, and server-renderer's
     /// `includeBooleanAttr`: present for any truthy value and for `''`.
-    pub(super) fn boolean_value(&mut self, v: NodeIdentifier) -> NodeIdentifier {
+    pub(super) fn boolean_value(&mut self, v: Expression<'a>) -> Expression<'a> {
         let callee = if self.info.target == Target::Server {
             self.helper(Helper::SsrIncludeBooleanAttribute)
         } else {
             let name = if let Some(name) = &self.boolean_attribute {
                 name.clone()
             } else {
-                let name = self.names.fresh(self.info.from, "includeBooleanAttr");
-                let declaration =
-                    include_boolean_attribute(self.to, &name, self.names, self.info.from);
+                let name = self.names.fresh("includeBooleanAttr");
+                let declaration = include_boolean_attribute(self.b, &name, self.names);
                 self.hoisted.push(declaration);
                 self.boolean_attribute = Some(name.clone());
                 name
             };
-            self.to.identifier(&name)
+            self.b.id(&name)
         };
-        self.to.call0(callee, &[v])
+        self.b.call(callee, [v])
     }
 
     /// server-renderer `isRenderableAttrValue`: Vue renders only strings, numbers and booleans.
-    pub(super) fn renderable_value(&mut self, v: NodeIdentifier) -> NodeIdentifier {
+    pub(super) fn renderable_value(&mut self, v: Expression<'a>) -> Expression<'a> {
         let name = if let Some(name) = &self.renderable {
             name.clone()
         } else {
-            let name = self.names.fresh(self.info.from, "renderable");
-            let declaration = renderable(self.to, &name, self.names, self.info.from);
+            let name = self.names.fresh("renderable");
+            let declaration = renderable(self.b, &name, self.names);
             self.hoisted.push(declaration);
             self.renderable = Some(name.clone());
             name
         };
-        let callee = self.to.identifier(&name);
-        self.to.call0(callee, &[v])
+        self.b.call(self.b.id(&name), [v])
     }
 
     /// `@event.modifiers="handler"`, as compiler-core `transformOn` and compiler-dom's
     /// `resolveModifiers` build it.
-    pub(super) fn handler(&mut self, p: &Property, d: &Directive) -> R<(String, NodeIdentifier)> {
-        let (source_text, from) = (self.source_text, self.info.from);
+    pub(super) fn handler(&mut self, p: &Property, d: &Directive) -> R<(String, Expression<'a>)> {
+        let (source_text, info) = (self.source_text, self.info);
         let event = d
             .arg
             .as_ref()
@@ -150,52 +142,50 @@ impl T<'_, '_> {
             ));
         }
         let e = expression_of(d, p.span)?;
-        let mut handler = match from.kind(e) {
-            Kind::Arrow { .. } => self.expression(e)?,
-            Kind::Function { .. } => {
+        let written = info.from.get_expression(e);
+        let mut handler = match written {
+            Expression::ArrowFunctionExpression(_) => self.expression(e)?,
+            Expression::FunctionExpression(f) => {
                 return Err(unsupported(
                     "a `function` expression as a handler (its `this` differs)",
-                    span_of(from, e),
+                    span_of(f.span),
                 ));
             }
-            Kind::Identifier(_) => {
-                let function = self.info.resolution.sem.binding_of(e).is_some_and(|b| {
-                    let binding = &self.info.resolution.sem.bindings[b];
-                    binding.scope == rsvelte_typescript_semantic::scope::ScopeIdentifier::ROOT
-                        && (binding.kind == DeclarationKind::Function
-                            || (binding.kind == DeclarationKind::Const
-                                && binding.initializer(from).is_some_and(|i| {
+            Expression::Identifier(identifier) => {
+                let function = info.symbol(identifier).is_some_and(|s| {
+                    info.top.get(&s).is_some_and(|top| {
+                        top.declared == Declared::Function
+                            || (top.declared == Declared::Const
+                                && top.initializer.is_some_and(|i| {
                                     matches!(
-                                        from.kind(i),
-                                        Kind::Arrow { .. } | Kind::Function { .. }
+                                        i,
+                                        Expression::ArrowFunctionExpression(_)
+                                            | Expression::FunctionExpression(_)
                                     )
-                                })))
+                                }))
+                    })
                 });
                 if !function {
                     return Err(unsupported(
                         "a handler named by something other than a function the script declares",
-                        span_of(from, e),
+                        span_of(identifier.span),
                     ));
                 }
                 self.expression(e)?
             }
-            Kind::Member { .. } => {
+            written if written.is_member_expression() => {
                 return Err(unsupported(
                     "a member expression as a handler",
-                    span_of(from, e),
+                    span_of(written.span()),
                 ));
             }
             _ => {
-                let event_param = self.names.fresh(from, "event");
-                let aliases = std::mem::take(&mut self.aliases);
-                let mut rewriter = Rewriter::new(self.info, true, &aliases);
-                rewriter.event = Some(&event_param);
-                let body = rewriter.copy(self.to, e);
-                self.aliases = aliases;
-                let body = body?;
-                let param = self.to.identifier(&event_param);
-                self.to
-                    .arrow(&[param], body, true, false, SourceLocation::SYNTHETIC)
+                let event_parameter = self.names.fresh("event");
+                let mut rewriter = Rewriter::new(info, self.b, true, &self.aliases);
+                rewriter.event = Some(&event_parameter);
+                let body = rewriter.expression(written)?;
+                self.b
+                    .arrow(self.b.params([event_parameter.as_str()]), body)
             }
         };
         let mut non_key = Vec::new();
@@ -217,16 +207,13 @@ impl T<'_, '_> {
         }
         if !non_key.is_empty() {
             let callee = self.helper(Helper::WithModifiers);
-            let list: Vec<NodeIdentifier> =
-                non_key.iter().map(|m| self.to.write_string(m)).collect();
-            let list = self.to.array(&list, SourceLocation::SYNTHETIC);
-            handler = self.to.call0(callee, &[handler, list]);
+            let list = self.b.array(non_key.iter().map(|m| self.b.string(m)));
+            handler = self.b.call(callee, [handler, list]);
         }
         if !keys.is_empty() && matches!(event, "keyup" | "keydown" | "keypress") {
             let callee = self.helper(Helper::WithKeys);
-            let list: Vec<NodeIdentifier> = keys.iter().map(|m| self.to.write_string(m)).collect();
-            let list = self.to.array(&list, SourceLocation::SYNTHETIC);
-            handler = self.to.call0(callee, &[handler, list]);
+            let list = self.b.array(keys.iter().map(|m| self.b.string(m)));
+            handler = self.b.call(callee, [handler, list]);
         }
         Ok((event.to_owned(), handler))
     }

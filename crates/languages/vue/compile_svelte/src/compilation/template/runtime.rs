@@ -1,79 +1,74 @@
-use super::{
-    AssignmentOperator, BinaryOperator, LogicalOperator, Names, NodeIdentifier, SourceLocation,
-    SyntaxTree, UnaryOperator, flag,
+use oxc_ast::ast::{
+    ForStatementInit, UpdateOperator, VariableDeclaration, VariableDeclarationKind,
 };
 
-pub(super) fn function_declaration(
-    to: &mut SyntaxTree,
-    name: &str,
-    parameters: &[&str],
-    body: &[NodeIdentifier],
-) -> NodeIdentifier {
-    let name = to.identifier(name);
-    let parameters: Vec<NodeIdentifier> = parameters.iter().map(|p| to.identifier(p)).collect();
-    let block = to.block(body, SourceLocation::SYNTHETIC);
-    to.function(
-        true,
-        Some(name),
-        &parameters,
-        block,
-        false,
-        SourceLocation::SYNTHETIC,
-    )
-}
+use super::{
+    BinaryOperator, Builder, Expression, LogicalOperator, Names, SPAN, SimpleAssignmentTarget,
+    Statement, UnaryOperator, conditional,
+};
 
 /// `function includeBooleanAttr(value) { return !!value || value === ''; }`
-pub(super) fn include_boolean_attribute(
-    to: &mut SyntaxTree,
+pub(super) fn include_boolean_attribute<'a>(
+    b: &Builder<'a>,
     name: &str,
-    names: &mut Names,
-    from: &SyntaxTree,
-) -> NodeIdentifier {
-    let v = names.fresh(from, "value");
-    let a = to.identifier(&v);
-    let not = to.unary(UnaryOperator::Not, a, SourceLocation::SYNTHETIC);
-    let not = to.unary(UnaryOperator::Not, not, SourceLocation::SYNTHETIC);
-    let a = to.identifier(&v);
-    let empty = to.write_string("");
-    let eq = to.binary(
-        BinaryOperator::StrictEq,
-        a,
-        empty,
-        SourceLocation::SYNTHETIC,
+    names: &mut Names<'_>,
+) -> Statement<'a> {
+    let v = names.fresh("value");
+    let truthy = b.unary(
+        UnaryOperator::LogicalNot,
+        b.unary(UnaryOperator::LogicalNot, b.id(&v)),
     );
-    let or = to.logical(LogicalOperator::Or, not, eq, SourceLocation::SYNTHETIC);
-    let ret = to.return_(Some(or), SourceLocation::SYNTHETIC);
-    function_declaration(to, name, &[&v], &[ret])
+    let empty = b.binary(b.id(&v), BinaryOperator::StrictEquality, b.string(""));
+    let or = b.logical(truthy, LogicalOperator::Or, empty);
+    b.function_declaration(name, b.params([v.as_str()]), [b.return_(Some(or))], false)
 }
 
 /// `function renderable(value) { return typeof value === 'string' || … ? value : undefined; }`
-pub(super) fn renderable(
-    to: &mut SyntaxTree,
-    name: &str,
-    names: &mut Names,
-    from: &SyntaxTree,
-) -> NodeIdentifier {
-    let v = names.fresh(from, "value");
-    let mut test = None;
-    for ty in ["string", "number", "boolean"] {
-        let a = to.identifier(&v);
-        let t = to.unary(UnaryOperator::TypeOf, a, SourceLocation::SYNTHETIC);
-        let s = to.write_string(ty);
-        let eq = to.binary(BinaryOperator::StrictEq, t, s, SourceLocation::SYNTHETIC);
-        test = Some(test.map_or(eq, |l| {
-            to.logical(LogicalOperator::Or, l, eq, SourceLocation::SYNTHETIC)
-        }));
-    }
-    let a = to.identifier(&v);
-    let undefined = to.identifier("undefined");
-    let c = to.cond(
-        test.expect("three types"),
-        a,
-        undefined,
-        SourceLocation::SYNTHETIC,
+pub(super) fn renderable<'a>(b: &Builder<'a>, name: &str, names: &mut Names<'_>) -> Statement<'a> {
+    let v = names.fresh("value");
+    let is = |ty: &str| {
+        b.binary(
+            b.unary(UnaryOperator::Typeof, b.id(&v)),
+            BinaryOperator::StrictEquality,
+            b.string(ty),
+        )
+    };
+    let test = b.logical(
+        b.logical(is("string"), LogicalOperator::Or, is("number")),
+        LogicalOperator::Or,
+        is("boolean"),
     );
-    let ret = to.return_(Some(c), SourceLocation::SYNTHETIC);
-    function_declaration(to, name, &[&v], &[ret])
+    let c = conditional(b, test, b.id(&v), b.id("undefined"));
+    b.function_declaration(name, b.params([v.as_str()]), [b.return_(Some(c))], false)
+}
+
+/// `for (let i = 0; i < length; i++) body`.
+fn counted_for<'a>(
+    b: &Builder<'a>,
+    i: &str,
+    length: Expression<'a>,
+    body: Statement<'a>,
+) -> Statement<'a> {
+    let declarator = b.declarator(b.binding(i), Some(b.number(0.0)));
+    let init = VariableDeclaration::boxed(
+        SPAN,
+        VariableDeclarationKind::Let,
+        b.vec([declarator]),
+        false,
+        b,
+    );
+    let test = b.binary(b.id(i), BinaryOperator::LessThan, length);
+    let target = SimpleAssignmentTarget::new_assignment_target_identifier(SPAN, b.str(i), b);
+    let update =
+        Expression::new_update_expression(SPAN, UpdateOperator::Increment, false, target, b);
+    Statement::new_for_statement(
+        SPAN,
+        Some(ForStatementInit::VariableDeclaration(init)),
+        Some(test),
+        Some(update),
+        body,
+        b,
+    )
 }
 
 /// Vue's directive hooks, run on a Svelte element:
@@ -104,8 +99,10 @@ pub(super) fn renderable(
 ///   if (Array.isArray(value)) for (let i = 0; i < value.length; i++) traverse(value[i], seen);
 ///   else if (value instanceof Set || value instanceof Map)
 ///     value.forEach((v) => traverse(v, seen));
-///   else if (Object.prototype.toString.call(value) === '[object Object]')
-///     for (const key of Object.keys(value)) traverse(value[key], seen);
+///   else if (Object.prototype.toString.call(value) === '[object Object]') {
+///     const keys = Object.keys(value);
+///     for (let i = 0; i < keys.length; i++) traverse(value[keys[i]], seen);
+///   }
 /// }
 /// ```
 ///
@@ -115,307 +112,158 @@ pub(super) fn renderable(
 /// tracking paused.
 #[expect(
     clippy::too_many_lines,
-    clippy::many_single_char_names,
     reason = "builds one helper, one node at a time"
 )]
-pub(super) fn vmodel(
-    to: &mut SyntaxTree,
+pub(super) fn vmodel<'a>(
+    b: &Builder<'a>,
     name: &str,
     untrack: &str,
-    names: &mut Names,
-    from: &SyntaxTree,
-) -> Vec<NodeIdentifier> {
-    let bindings = names.fresh(from, "vmodelBindings");
-    let traverse = names.fresh(from, "traverse");
-    let n = |names: &mut Names, base: &str| names.fresh(from, base);
+    names: &mut Names<'_>,
+) -> Vec<Statement<'a>> {
+    let bindings = names.fresh("vmodelBindings");
+    let traverse = names.fresh("traverse");
     let (dir, value, modifiers, props) = (
-        n(names, "dir"),
-        n(names, "value"),
-        n(names, "modifiers"),
-        n(names, "props"),
+        names.fresh("dir"),
+        names.fresh("value"),
+        names.fresh("modifiers"),
+        names.fresh("props"),
     );
-    let (el, vnode, binding) = (n(names, "el"), n(names, "vnode"), n(names, "binding"));
-    let (seen, item, i) = (n(names, "seen"), n(names, "item"), n(names, "i"));
-    let identifier = |to: &mut SyntaxTree, s: &str| to.identifier(s);
-    let statement = |to: &mut SyntaxTree, e: NodeIdentifier| to.expression_statement(e);
-    let hook = |to: &mut SyntaxTree, hook: &str| {
-        let d = to.identifier(&dir);
-        let h = to.identifier(hook);
-        let callee = to.member(d, h, false, false, SourceLocation::SYNTHETIC);
-        let arguments = [
-            to.identifier(&el),
-            to.identifier(&binding),
-            to.identifier(&vnode),
-        ];
-        let call = to.call(callee, &arguments, true, SourceLocation::SYNTHETIC);
-        to.expression_statement(call)
+    let (el, vnode, binding) = (
+        names.fresh("el"),
+        names.fresh("vnode"),
+        names.fresh("binding"),
+    );
+    let (seen, item, i) = (names.fresh("seen"), names.fresh("item"), names.fresh("i"));
+    let keys = names.fresh("keys");
+    let hook = |hook: &str| {
+        let callee = b.member(b.id(&dir), hook);
+        b.stmt(b.optional_call(callee, [b.id(&el), b.id(&binding), b.id(&vnode)]))
     };
-    let set_prop = |to: &mut SyntaxTree, object: &str, prop: &str, value: NodeIdentifier| {
-        let o = to.identifier(object);
-        let target = to.dot(o, prop);
-        let a = to.assign(
-            AssignmentOperator::Assign,
-            target,
-            value,
-            SourceLocation::SYNTHETIC,
-        );
-        to.expression_statement(a)
+    let set_property = |object: &str, property: &str, value: Expression<'a>| {
+        b.stmt(b.assign_member(b.member(b.id(object), property), value))
     };
 
-    let weak_map = identifier(to, "WeakMap");
-    let new_map = to.new_(weak_map, &[], SourceLocation::SYNTHETIC);
-    let b = identifier(to, &bindings);
-    let bindings_declaration = to.let_(flag::CONST, b, Some(new_map));
+    let bindings_declaration = b.const_(&bindings, b.new_(b.id("WeakMap"), []));
 
     // The hooks.
-    let mut inner = Vec::new();
-    let props_ref = identifier(to, &props);
-    let props_key = identifier(to, "props");
-    let vnode_props = to.property(props_key, props_ref, 0, SourceLocation::SYNTHETIC);
-    let vnode_obj = to.object(&[vnode_props], SourceLocation::SYNTHETIC);
-    let vn = identifier(to, &vnode);
-    inner.push(to.let_(flag::CONST, vn, Some(vnode_obj)));
-    let b = identifier(to, &bindings);
-    let get = to.dot(b, "get");
-    let e = identifier(to, &el);
-    let get = to.call0(get, &[e]);
-    let bn = identifier(to, &binding);
-    inner.push(to.let_(flag::LET, bn, Some(get)));
-    let bn = identifier(to, &binding);
-    let undefined = identifier(to, "undefined");
-    let test = to.binary(
-        BinaryOperator::StrictEq,
-        bn,
-        undefined,
-        SourceLocation::SYNTHETIC,
+    let vnode_object = b.object([b.init("props", b.id(&props))]);
+    let created = b.block([
+        b.stmt(b.assign_name(
+            &binding,
+            b.object([
+                b.init("value", b.id(&value)),
+                b.init("oldValue", b.id("undefined")),
+                b.init("modifiers", b.id(&modifiers)),
+            ]),
+        )),
+        b.stmt(b.call(
+            b.member(b.id(&bindings), "set"),
+            [b.id(&el), b.id(&binding)],
+        )),
+        hook("created"),
+        hook("mounted"),
+    ]);
+    let updated = b.block([
+        set_property(&binding, "oldValue", b.member(b.id(&binding), "value")),
+        set_property(&binding, "value", b.id(&value)),
+        hook("beforeUpdate"),
+        hook("updated"),
+    ]);
+    let is_new = b.binary(
+        b.id(&binding),
+        BinaryOperator::StrictEquality,
+        b.id("undefined"),
     );
-    let mut created = Vec::new();
-    let fields: Vec<NodeIdentifier> = [
-        ("value", value.as_str()),
-        ("oldValue", "undefined"),
-        ("modifiers", modifiers.as_str()),
-    ]
-    .iter()
-    .map(|&(k, v)| {
-        let key = to.identifier(k);
-        let val = to.identifier(v);
-        to.property(key, val, 0, SourceLocation::SYNTHETIC)
-    })
-    .collect();
-    let obj = to.object(&fields, SourceLocation::SYNTHETIC);
-    let bn = identifier(to, &binding);
-    let a = to.assign(
-        AssignmentOperator::Assign,
-        bn,
-        obj,
-        SourceLocation::SYNTHETIC,
+    let inner = [
+        b.const_(&vnode, vnode_object),
+        b.let_(
+            &binding,
+            Some(b.call(b.member(b.id(&bindings), "get"), [b.id(&el)])),
+        ),
+        b.if_(is_new, created, Some(updated)),
+    ];
+    let untracked = b.arrow_block(b.params([]), inner, false);
+    let attachment = b.arrow(b.params([el.as_str()]), b.call(b.id(untrack), [untracked]));
+    let body = [
+        b.if_(
+            b.member(b.id(&dir), "deep"),
+            b.stmt(b.call(b.id(&traverse), [b.id(&value)])),
+            None,
+        ),
+        b.return_(Some(attachment)),
+    ];
+    let vmodel = b.function_declaration(
+        name,
+        b.params([
+            dir.as_str(),
+            value.as_str(),
+            modifiers.as_str(),
+            props.as_str(),
+        ]),
+        body,
+        false,
     );
-    created.push(statement(to, a));
-    let b = identifier(to, &bindings);
-    let set = to.dot(b, "set");
-    let arguments = [identifier(to, &el), identifier(to, &binding)];
-    let set = to.call0(set, &arguments);
-    created.push(statement(to, set));
-    created.push(hook(to, "created"));
-    created.push(hook(to, "mounted"));
-    let created = to.block(&created, SourceLocation::SYNTHETIC);
-    let mut updated = Vec::new();
-    let bn = identifier(to, &binding);
-    let old = to.dot(bn, "value");
-    updated.push(set_prop(to, &binding, "oldValue", old));
-    let v = identifier(to, &value);
-    updated.push(set_prop(to, &binding, "value", v));
-    updated.push(hook(to, "beforeUpdate"));
-    updated.push(hook(to, "updated"));
-    let updated = to.block(&updated, SourceLocation::SYNTHETIC);
-    inner.push(to.if_(test, created, Some(updated), SourceLocation::SYNTHETIC));
-    let inner = to.block(&inner, SourceLocation::SYNTHETIC);
-    let untracked = to.arrow(&[], inner, false, false, SourceLocation::SYNTHETIC);
-    let u = identifier(to, untrack);
-    let call = to.call0(u, &[untracked]);
-    let e = identifier(to, &el);
-    let attachment = to.arrow(&[e], call, true, false, SourceLocation::SYNTHETIC);
-    let mut body = Vec::new();
-    let d = identifier(to, &dir);
-    let deep = to.dot(d, "deep");
-    let t = identifier(to, &traverse);
-    let v = identifier(to, &value);
-    let call = to.call0(t, &[v]);
-    let call = statement(to, call);
-    body.push(to.if_(deep, call, None, SourceLocation::SYNTHETIC));
-    body.push(to.return_(Some(attachment), SourceLocation::SYNTHETIC));
-    let vmodel = function_declaration(to, name, &[&dir, &value, &modifiers, &props], &body);
 
     // traverse(value, seen = new Set())
-    let mut body = Vec::new();
-    let v = identifier(to, &value);
-    let ty = to.unary(UnaryOperator::TypeOf, v, SourceLocation::SYNTHETIC);
-    let object = to.write_string("object");
-    let not_object = to.binary(
-        BinaryOperator::StrictNotEq,
-        ty,
-        object,
-        SourceLocation::SYNTHETIC,
+    let recurse =
+        |argument: Expression<'a>| b.stmt(b.call(b.id(&traverse), [argument, b.id(&seen)]));
+    let not_object = b.binary(
+        b.unary(UnaryOperator::Typeof, b.id(&value)),
+        BinaryOperator::StrictInequality,
+        b.string("object"),
     );
-    let v = identifier(to, &value);
-    let null = to.null(SourceLocation::SYNTHETIC);
-    let is_null = to.binary(BinaryOperator::StrictEq, v, null, SourceLocation::SYNTHETIC);
-    let s = identifier(to, &seen);
-    let has = to.dot(s, "has");
-    let v = identifier(to, &value);
-    let has = to.call0(has, &[v]);
-    let test = to.logical(
+    let is_null = b.binary(b.id(&value), BinaryOperator::StrictEquality, b.null());
+    let has = b.call(b.member(b.id(&seen), "has"), [b.id(&value)]);
+    let skip = b.logical(
+        b.logical(not_object, LogicalOperator::Or, is_null),
         LogicalOperator::Or,
-        not_object,
-        is_null,
-        SourceLocation::SYNTHETIC,
+        has,
     );
-    let test = to.logical(LogicalOperator::Or, test, has, SourceLocation::SYNTHETIC);
-    let ret = to.return_(None, SourceLocation::SYNTHETIC);
-    body.push(to.if_(test, ret, None, SourceLocation::SYNTHETIC));
-    let s = identifier(to, &seen);
-    let add = to.dot(s, "add");
-    let v = identifier(to, &value);
-    let add = to.call0(add, &[v]);
-    body.push(statement(to, add));
-    let recurse = |to: &mut SyntaxTree, arg: NodeIdentifier| {
-        let t = to.identifier(&traverse);
-        let s = to.identifier(&seen);
-        let call = to.call0(t, &[arg, s]);
-        to.expression_statement(call)
-    };
-    // for (let i = 0; i < value.length; i++) traverse(value[i], seen);
-    let i0 = identifier(to, &i);
-    let zero = to.write_number(0.0, SourceLocation::SYNTHETIC);
-    let initializer = to.let_(flag::LET, i0, Some(zero));
-    let iv = identifier(to, &i);
-    let v = identifier(to, &value);
-    let len = to.dot(v, "length");
-    let lt = to.binary(BinaryOperator::Lt, iv, len, SourceLocation::SYNTHETIC);
-    let iv = identifier(to, &i);
-    let inc = to.update(
-        rsvelte_typescript_syntax::operators::UpdateOperator::Inc,
-        false,
-        iv,
-        SourceLocation::SYNTHETIC,
+    let for_array = counted_for(
+        b,
+        &i,
+        b.member(b.id(&value), "length"),
+        recurse(b.computed(b.id(&value), b.id(&i))),
     );
-    let v = identifier(to, &value);
-    let iv = identifier(to, &i);
-    let at = to.member(v, iv, true, false, SourceLocation::SYNTHETIC);
-    let each_index = recurse(to, at);
-    let for_array = to.for_(
-        Some(initializer),
-        Some(lt),
-        Some(inc),
-        each_index,
-        SourceLocation::SYNTHETIC,
+    let is_array = b.call(b.member(b.id("Array"), "isArray"), [b.id(&value)]);
+    let each_item = b.arrow(
+        b.params([item.as_str()]),
+        b.call(b.id(&traverse), [b.id(&item), b.id(&seen)]),
     );
-    let array = identifier(to, "Array");
-    let is_array = to.dot(array, "isArray");
-    let v = identifier(to, &value);
-    let is_array = to.call0(is_array, &[v]);
-    // value.forEach((item) => traverse(item, seen));
-    let v = identifier(to, &value);
-    let for_each = to.dot(v, "forEach");
-    let it = identifier(to, &item);
-    let t = identifier(to, &traverse);
-    let s = identifier(to, &seen);
-    let it2 = identifier(to, &item);
-    let rec = to.call0(t, &[it2, s]);
-    let cb = to.arrow(&[it], rec, true, false, SourceLocation::SYNTHETIC);
-    let for_each = to.call0(for_each, &[cb]);
-    let for_each = statement(to, for_each);
-    let mut collection = None;
-    for class in ["Set", "Map"] {
-        let v = identifier(to, &value);
-        let c = identifier(to, class);
-        let is_instance = to.binary(BinaryOperator::InstanceOf, v, c, SourceLocation::SYNTHETIC);
-        collection = Some(collection.map_or(is_instance, |l| {
-            to.logical(
-                LogicalOperator::Or,
-                l,
-                is_instance,
-                SourceLocation::SYNTHETIC,
-            )
-        }));
-    }
-    // for (const key in value) traverse(value[key], seen) — as a `for` over `Object.keys`, the
-    // statement forms this tree has.
-    let keys = n(names, "keys");
-    let object = identifier(to, "Object");
-    let object_keys = to.dot(object, "keys");
-    let v = identifier(to, &value);
-    let all_keys = to.call0(object_keys, &[v]);
-    let k = identifier(to, &keys);
-    let keys_declaration = to.let_(flag::CONST, k, Some(all_keys));
-    let i0 = identifier(to, &i);
-    let zero = to.write_number(0.0, SourceLocation::SYNTHETIC);
-    let initializer = to.let_(flag::LET, i0, Some(zero));
-    let iv = identifier(to, &i);
-    let k = identifier(to, &keys);
-    let len = to.dot(k, "length");
-    let lt = to.binary(BinaryOperator::Lt, iv, len, SourceLocation::SYNTHETIC);
-    let iv = identifier(to, &i);
-    let inc = to.update(
-        rsvelte_typescript_syntax::operators::UpdateOperator::Inc,
-        false,
-        iv,
-        SourceLocation::SYNTHETIC,
+    let for_each = b.stmt(b.call(b.member(b.id(&value), "forEach"), [each_item]));
+    let instance = |class: &str| b.binary(b.id(&value), BinaryOperator::Instanceof, b.id(class));
+    let collection = b.logical(instance("Set"), LogicalOperator::Or, instance("Map"));
+    // `for (const key in value)` would visit inherited keys: a `for` over `Object.keys`.
+    let keys_declaration = b.const_(
+        &keys,
+        b.call(b.member(b.id("Object"), "keys"), [b.id(&value)]),
     );
-    let v = identifier(to, &value);
-    let k = identifier(to, &keys);
-    let iv = identifier(to, &i);
-    let key_at = to.member(k, iv, true, false, SourceLocation::SYNTHETIC);
-    let at = to.member(v, key_at, true, false, SourceLocation::SYNTHETIC);
-    let each_key = recurse(to, at);
-    let for_keys = to.for_(
-        Some(initializer),
-        Some(lt),
-        Some(inc),
-        each_key,
-        SourceLocation::SYNTHETIC,
+    let for_keys = counted_for(
+        b,
+        &i,
+        b.member(b.id(&keys), "length"),
+        recurse(b.computed(b.id(&value), b.computed(b.id(&keys), b.id(&i)))),
     );
-    let object_body = to.block(&[keys_declaration, for_keys], SourceLocation::SYNTHETIC);
-    let object = identifier(to, "Object");
-    let proto = to.dot(object, "prototype");
-    let to_string = to.dot(proto, "toString");
-    let call = to.dot(to_string, "call");
-    let v = identifier(to, &value);
-    let tag = to.call0(call, &[v]);
-    let plain = to.write_string("[object Object]");
-    let is_plain = to.binary(
-        BinaryOperator::StrictEq,
-        tag,
-        plain,
-        SourceLocation::SYNTHETIC,
+    let to_string = b.member(
+        b.member(b.member(b.id("Object"), "prototype"), "toString"),
+        "call",
     );
-    let object_branch = to.if_(is_plain, object_body, None, SourceLocation::SYNTHETIC);
-    let collection_branch = to.if_(
-        collection.expect("two classes"),
-        for_each,
-        Some(object_branch),
-        SourceLocation::SYNTHETIC,
+    let is_plain = b.binary(
+        b.call(to_string, [b.id(&value)]),
+        BinaryOperator::StrictEquality,
+        b.string("[object Object]"),
     );
-    body.push(to.if_(
-        is_array,
-        for_array,
-        Some(collection_branch),
-        SourceLocation::SYNTHETIC,
-    ));
-    let s = identifier(to, &seen);
-    let set = identifier(to, "Set");
-    let new_set = to.new_(set, &[], SourceLocation::SYNTHETIC);
-    let seen_param = to.assign_pat(s, new_set, SourceLocation::SYNTHETIC);
-    let tn = identifier(to, &traverse);
-    let vp = identifier(to, &value);
-    let block = to.block(&body, SourceLocation::SYNTHETIC);
-    let traverse_declaration = to.function(
-        true,
-        Some(tn),
-        &[vp, seen_param],
-        block,
-        false,
-        SourceLocation::SYNTHETIC,
-    );
+    let object_branch = b.if_(is_plain, b.block([keys_declaration, for_keys]), None);
+    let collection_branch = b.if_(collection, for_each, Some(object_branch));
+    let body = [
+        b.if_(skip, b.return_(None), None),
+        b.stmt(b.call(b.member(b.id(&seen), "add"), [b.id(&value)])),
+        b.if_(is_array, for_array, Some(collection_branch)),
+    ];
+    let parameters = b.formal_parameters([
+        b.parameter(b.binding(&value)),
+        b.default_parameter(&seen, b.new_(b.id("Set"), [])),
+    ]);
+    let traverse_declaration = b.function_declaration(&traverse, parameters, body, false);
     vec![bindings_declaration, vmodel, traverse_declaration]
 }

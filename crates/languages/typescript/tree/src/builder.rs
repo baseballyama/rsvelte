@@ -87,6 +87,12 @@ impl<'a> Builder<'a> {
         AstBuilder::new(self.allocator)
     }
 
+    /// The arena, for a host that copies nodes into it or builds them with its own constructors.
+    #[must_use]
+    pub const fn allocator(&self) -> &'a Allocator {
+        self.allocator
+    }
+
     /// The tokens and comments of the part read last, in document order.
     #[must_use]
     pub fn recorded(&self) -> &[Recorded] {
