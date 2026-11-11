@@ -146,10 +146,14 @@ impl Tree {
         parse: impl for<'a> FnOnce(&mut Builder<'a>) -> Result<T, Diagnostic>,
     ) -> Result<(Self, T), Diagnostic> {
         let mut output = None;
-        let cell = Cell::try_new(scratch::take(), |allocator| {
+        let cell = Cell::try_new_or_recover(scratch::take(), |allocator| {
             let mut builder = Builder::new(allocator, allocator.alloc_str(source_text));
             output = Some(parse(&mut builder)?);
             Ok::<_, Diagnostic>(builder.finish())
+        })
+        .map_err(|(allocator, error)| {
+            scratch::give_back(allocator);
+            error
         })?;
         Ok((
             Self(Rc::new(Kept(Some(cell)))),
