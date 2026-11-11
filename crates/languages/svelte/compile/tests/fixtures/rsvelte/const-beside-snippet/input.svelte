@@ -14,9 +14,3 @@
 		{foo}
 	{/snippet}
 </Component>
-<Component>
-	{@const bar = 'bar'}
-	{#snippet prop()}
-		{bar}
-	{/snippet}
-</Component>
