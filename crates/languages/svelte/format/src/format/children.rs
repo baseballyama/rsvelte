@@ -236,8 +236,10 @@ impl Printer<'_, '_, '_> {
             }
             _ => false,
         };
+        // The plugin embeds a `<script>` or `<style>` element, which `print` never sees.
         if !(self.ignore.next || (self.ignore.range && !range_end()))
             || self.is_empty_text(identifier)
+            || matches!(self.element_name(identifier), Some("script" | "style"))
         {
             return false;
         }
