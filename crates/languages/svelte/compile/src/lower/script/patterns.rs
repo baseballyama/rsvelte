@@ -192,7 +192,7 @@ fn each_direct<'o>(statement: &mut Statement<'o>, f: &mut impl FnMut(&mut Expres
 struct Extract<'b, 'r, 'o> {
     b: &'b Builder<'o>,
     res: &'r Resolution,
-    names: &'r Names,
+    names: &'r Names<'r>,
     inserts: Vec<(String, Expression<'o>)>,
     paths: Vec<(AssignmentTarget<'o>, Expression<'o>)>,
 }

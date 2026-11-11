@@ -58,7 +58,7 @@ pub(super) struct ScriptRewrite<'r, 'o> {
     pub classes: Classes,
     /// The names a script takes for what it declares, such as a nested destructured derived's;
     /// a template's rewrite declares none.
-    pub names: Option<&'r Names>,
+    pub names: Option<&'r Names<'r>>,
 }
 
 /// How a name the template declares is read on the client.
@@ -434,7 +434,7 @@ pub(super) fn lower_script<'t, 'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
     program: &'t Program<'t>,
     hoisted: &mut Vec<Statement<'o>>,
-    names: &Names,
+    names: &Names<'_>,
     mut context: ScriptContext<'_, 't>,
 ) -> Result<Vec<Statement<'o>>, Diagnostic> {
     let instance = matches!(context, ScriptContext::Instance { .. });
@@ -523,7 +523,7 @@ pub(super) fn lower_script<'t, 'o>(
 pub(super) fn lower_declaration_tag<'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
     declaration: &VariableDeclaration<'_>,
-    names: &Names,
+    names: &Names<'_>,
 ) -> Vec<Statement<'o>> {
     let mut out = Vec::with_capacity(1);
     let mut hoisted = Vec::new();
@@ -538,7 +538,7 @@ fn lower_declaration<'o>(
     split: bool,
     out: &mut Vec<Statement<'o>>,
     hoisted: &mut Vec<Statement<'o>>,
-    names: &Names,
+    names: &Names<'_>,
 ) {
     let b = rw.b;
     let mut lowered = Vec::with_capacity(declaration.declarations.len());
@@ -559,7 +559,7 @@ fn lower_declarator<'o>(
     d: &VariableDeclarator<'_>,
     out: &mut Vec<VariableDeclarator<'o>>,
     hoisted: &mut Vec<Statement<'o>>,
-    names: &Names,
+    names: &Names<'_>,
 ) {
     let rune = d
         .init

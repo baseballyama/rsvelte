@@ -286,8 +286,13 @@ pub fn component_name(filename: &str) -> String {
 
 /// `[^a-zA-Z0-9_$]` → `_`, and a leading digit → `_` (upstream `scope.generate`).
 #[must_use]
-pub fn sanitize_identifier(name: &str) -> String {
-    sanitize_chars(name.chars(), name.len())
+pub fn sanitize_identifier(name: &str) -> Cow<'_, str> {
+    let valid = |c: char| c.is_ascii_alphanumeric() || c == '_' || c == '$';
+    if name.chars().all(valid) && !name.starts_with(|c: char| c.is_ascii_digit()) {
+        Cow::Borrowed(name)
+    } else {
+        Cow::Owned(sanitize_chars(name.chars(), name.len()))
+    }
 }
 
 fn sanitize_chars(chars: impl Iterator<Item = char>, capacity: usize) -> String {

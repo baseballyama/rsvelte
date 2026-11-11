@@ -104,7 +104,7 @@ pub(super) fn lower_destructured_state<'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
     d: &VariableDeclarator<'_>,
     out: &mut Vec<VariableDeclarator<'o>>,
-    names: &Names,
+    names: &Names<'_>,
 ) {
     let b = rw.b;
     let init = d.init.as_ref().expect("a rune initialises the declarator");
@@ -220,7 +220,7 @@ pub(super) fn lower_destructured_derived<'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
     d: &VariableDeclarator<'_>,
     out: &mut Vec<VariableDeclarator<'o>>,
-    names: &Names,
+    names: &Names<'_>,
 ) {
     let b = rw.b;
     let init = d.init.as_ref().expect("a rune initialises the declarator");
@@ -276,7 +276,7 @@ pub(super) fn lower_destructured_derived<'o>(
 /// A destructured derived keeps each array in a derived of its own.
 struct Hooks<'w, 'r, 'o> {
     rw: &'w mut ScriptRewrite<'r, 'o>,
-    names: &'w Names,
+    names: &'w Names<'w>,
     array: &'static str,
     out: &'w mut Vec<VariableDeclarator<'o>>,
     /// The name `$derived` reads when it is the value destructured.
