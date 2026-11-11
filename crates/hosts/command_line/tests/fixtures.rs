@@ -34,6 +34,7 @@ fn main() -> ExitCode {
         documents: rsvelte_typescript_check::Documents::WithTypeScriptView,
         tsc: Some(tsc),
         stand_in: None,
+        imported: None,
     });
     rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
         .snapshot("ts.check/default", "ts-check")

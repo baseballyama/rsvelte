@@ -59,6 +59,30 @@ impl Printer<'_, '_, '_> {
         Some(self.embedding.keep(self.docs, ir.ir))
     }
 
+    /// A `<style>` body, as `textToDoc` returns it (no trailing line).
+    pub(super) fn style(&mut self, content: Span) -> R<LayoutInstructionIdentifier> {
+        let text = content.text(self.source_text);
+        if text.trim_ascii().is_empty() {
+            return Ok(self.d().nil());
+        }
+        let text = normalize_newlines(text, ['\r']);
+        let core = super::core_options();
+        let options = oxc_formatter_css::CssFormatOptions {
+            indent_style: core.indent_style,
+            indent_width: core.indent_width,
+            line_width: core.line_width,
+            line_ending: core.line_ending,
+            ..oxc_formatter_css::CssFormatOptions::default()
+        };
+        #[expect(
+            clippy::map_err_ignore,
+            reason = "oxc's diagnostic points into the sheet, not the component"
+        )]
+        let ir = oxc_formatter_css::format_to_ir(self.embedding.session(), &text, options, None)
+            .map_err(|_| Unsupported::at("CSS that oxc's formatter does not format", content))?;
+        Ok(self.embedding.keep(self.docs, ir.ir))
+    }
+
     /// A `<script setup>` body, as `textToDoc` returns it (no trailing line).
     pub(super) fn script(&mut self, content: Span) -> R<LayoutInstructionIdentifier> {
         let root = JsRoot::Program {

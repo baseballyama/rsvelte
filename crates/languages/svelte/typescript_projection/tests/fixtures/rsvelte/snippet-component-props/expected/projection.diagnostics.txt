@@ -1,1 +1,0 @@
-error check_unsupported 4:28-4:55 not supported by the type-check projection yet: special tags

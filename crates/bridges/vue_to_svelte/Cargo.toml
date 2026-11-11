@@ -1,5 +1,5 @@
 [package]
-name = "rsvelte_vue_compile_svelte"
+name = "rsvelte_vue_to_svelte"
 description = "A .vue component, with Vue's meaning, compiled for the Svelte runtime"
 version = "0.0.0"
 edition.workspace = true

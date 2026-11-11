@@ -1,5 +1,5 @@
 [package]
-name = "rsvelte_svelte_compile_vapor"
+name = "rsvelte_svelte_to_vue_vapor"
 description = "Svelte components with Svelte's meaning, compiled for the Vue Vapor runtime"
 version = "0.0.0"
 edition.workspace = true

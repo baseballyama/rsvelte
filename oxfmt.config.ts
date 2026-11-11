@@ -15,7 +15,7 @@ export default defineConfig({
 		'tools/oracle/behaviour/tests/**',
 		'apps/site/src/lib/data/**',
 		// Text that a compiler embeds in its output byte for byte (include_str!).
-		'crates/languages/svelte/compile_vapor/src/compilation/**/*.js',
+		'crates/bridges/svelte_to_vue_vapor/src/compilation/**/*.js',
 		'crates/languages/svelte/typescript_projection/projection.d.ts',
 		'**/vendor/**',
 		// A skill copied from another project, kept as published.

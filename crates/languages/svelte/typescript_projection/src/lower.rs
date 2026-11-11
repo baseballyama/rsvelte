@@ -141,7 +141,8 @@ impl Builder<'_> {
     fn node(&mut self, identifier: u32) -> Result<Option<NodeIdentifier>> {
         let node = match *self.component.node(identifier) {
             TemplateNode::Text { .. } | TemplateNode::Comment { .. } => return Ok(None),
-            TemplateNode::Expression { expression, span } => {
+            TemplateNode::Expression { expression, span }
+            | TemplateNode::Html { expression, span } => {
                 let at = self.expression(expression).span();
                 Node::Expression(source_expression(at, Some(span.end_offset - 1)))
             }
@@ -219,16 +220,47 @@ impl Builder<'_> {
                 let declaration = self.source(at, None);
                 Node::Statement(declaration)
             }
-            TemplateNode::Key { span, .. }
-            | TemplateNode::Await { span, .. }
-            | TemplateNode::Snippet { span, .. } => return Err(Unsupported::at("blocks", span)),
-            TemplateNode::Render { span, .. }
-            | TemplateNode::Html { span, .. }
-            | TemplateNode::Debug { span, .. } => {
-                return Err(Unsupported::at("special tags", span));
+            TemplateNode::Key { .. } | TemplateNode::Render { .. } | TemplateNode::Debug { .. } => {
+                self.tag(identifier)?
+            }
+            TemplateNode::Await { span, .. } | TemplateNode::Snippet { span, .. } => {
+                return Err(Unsupported::at("blocks", span));
             }
         };
         Ok(Some(self.tree.push(node)))
+    }
+
+    /// `{#key}`, `{@render}` and `{@debug}`, as svelte2tsx writes them.
+    fn tag(&mut self, identifier: u32) -> Result<Node> {
+        Ok(match *self.component.node(identifier) {
+            TemplateNode::Key {
+                expression, body, ..
+            } => {
+                let start = self.scratch.len();
+                let value = source_expression(self.expression(expression).span(), None);
+                self.scratch.push(self.tree.push(Node::Expression(value)));
+                self.append_children(body)?;
+                let body = self.finish_list(start);
+                Node::Block { body }
+            }
+            TemplateNode::Render { expression, .. } => {
+                let callee = self.tree.push(Node::Identifier("__rsvelte_ensure_snippet"));
+                let value = self.expression_source(expression, None);
+                let arguments = self.tree.list(&[value]);
+                let call = self.tree.push(Node::Call { callee, arguments });
+                Node::Statement(call)
+            }
+            TemplateNode::Debug { identifiers, .. } => {
+                let start = self.scratch.len();
+                for &identifier in self.component.debug_identifiers(identifiers) {
+                    let value = source_expression(self.expression(identifier).span(), None);
+                    self.scratch.push(self.tree.push(Node::Expression(value)));
+                }
+                let body = self.finish_list(start);
+                Node::Block { body }
+            }
+            _ => unreachable!("only tags reach here"),
+        })
     }
 
     fn element(

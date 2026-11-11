@@ -143,7 +143,7 @@
 <Figure label="図 1.2 · crate の役割と依存の向き">
 	<div class="overflow-x-auto px-4 py-5">
 		<ol class="flex min-w-[640px] items-stretch gap-2 font-mono text-[12.5px] tracking-normal">
-			{#each [['rsvelte_command_line · rsvelte_kernel_browser', 'ホスト：コマンドラインとブラウザ'], ['rsvelte_svelte_compile · rsvelte_vue_lint · rsvelte_vue_compile_svelte ほか', '言語の機能：コンパイル、整形、コード検査、型検査、言語間の変換'], ['rsvelte_svelte_syntax · rsvelte_vue_semantic ほか／rsvelte_plugin_interface ほか', '言語の構文と意味解析と、言語を知らない部品'], ['rsvelte_kernel', '言語を知らない']] as [name, role], i (name)}
+			{#each [['rsvelte_command_line · rsvelte_kernel_browser', 'ホスト：コマンドラインとブラウザ'], ['rsvelte_svelte_compile · rsvelte_vue_lint · rsvelte_vue_to_svelte ほか', '言語の機能：コンパイル、整形、コード検査、型検査、言語間の変換'], ['rsvelte_svelte_syntax · rsvelte_vue_semantic ほか／rsvelte_plugin_interface ほか', '言語の構文と意味解析と、言語を知らない部品'], ['rsvelte_kernel', '言語を知らない']] as [name, role], i (name)}
 				<li class="flex flex-1 items-center gap-2">
 					<div
 						class={[
@@ -411,14 +411,14 @@
 		二つのプラグインを組み合わせて、一方の言語のコンポーネントをもう一方のランタイムで動かす翻訳もあります。svue
 		は、<code>.vue</code>
 		のコンポーネントを Svelte のコンパイラでコンパイルし、Svelte のランタイムで動かします。crate は
-		<code>rsvelte_vue_compile_svelte</code> です。意味は Vue のままです。Vue
-		のパーサと名前解決、Svelte のコンパイラはそのまま使います。自分で持つのは、Vue の構文木を Svelte
-		の runes のスクリプトと、コンパイル用に整理した構文木へ翻訳する部分だけです（<a
+		<code>rsvelte_vue_to_svelte</code> です。意味は Vue のままです。Vue のパーサと名前解決、Svelte
+		のコンパイラはそのまま使います。自分で持つのは、Vue の構文木を Svelte の runes
+		のスクリプトと、コンパイル用に整理した構文木へ翻訳する部分だけです（<a
 			href="/learn/kernel/layers#svue">05 章</a
 		>）。
 	</p>
 	<p>
-		vuelte（<code>rsvelte_svelte_compile_vapor</code>）は逆向きです。<code>.svelte</code>
+		vuelte（<code>rsvelte_svelte_to_vue_vapor</code>）は逆向きです。<code>.svelte</code>
 		のコンポーネントを、Vue Vapor 向けにコンパイルします。Vue Vapor は、仮想 DOM を使わない Vue のランタイムです。意味は
 		Svelte のままです（<a href="/learn/kernel/layers#vuelte">05 章</a>）。
 	</p>
