@@ -32,7 +32,6 @@ fn plugin_declarations_cover_the_registered_languages_and_tasks() {
         "typescript.format",
         "typescript.lint",
         "typescript.semantic",
-        "typescript.syntax",
         "typescript.tree",
         "vue.check",
         "vue.compile",
