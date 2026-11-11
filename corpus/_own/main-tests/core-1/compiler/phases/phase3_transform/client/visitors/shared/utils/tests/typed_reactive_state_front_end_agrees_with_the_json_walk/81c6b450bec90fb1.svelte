@@ -1,0 +1,1 @@
+<Test a={unknown.foo} />

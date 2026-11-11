@@ -1,0 +1,1 @@
+<style>p { colr: red; }</style><img>

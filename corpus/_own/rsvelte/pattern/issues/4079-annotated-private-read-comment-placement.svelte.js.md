@@ -1,0 +1,5 @@
+# `4079-annotated-private-read-comment-placement.svelte.js`
+
+**Issue:** [#4079](https://github.com/baseballyama/rsvelte/issues/4079)
+
+A JSDoc cast around a private class-field read — `/** @type {T} */ (this.#x)`, the spelling JSDoc-typed code uses everywhere. Upstream wraps the field NODE, so the comment leading it prints inside the generated `$.get(...)`; rsvelte spliced `$.get(` at the field's own offset, leaving the comment outside where esrap's `ReturnStatement` rule then parenthesised the whole statement. acorn elides the source parens and oxc keeps them, so the comment leads the `ParenthesizedExpression` rather than the field and the widening has to start at the group. `read_annotated_chain` is the control that says how far: there the parenthesised read is the object of `.toString()`, the comment belongs to that chain, and official keeps it outside — widening over the group there is a regression the other rows cannot see. `read_plain` and `read_plain_local` are the comment-free and not-rewritten controls, and `read_line_comment` pins the line-comment spelling, whose flush breaks across lines rather than staying inline.

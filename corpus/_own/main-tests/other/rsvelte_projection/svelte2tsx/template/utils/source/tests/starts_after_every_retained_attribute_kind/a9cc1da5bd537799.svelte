@@ -1,0 +1,1 @@
+<div use:action={a > b ? left : right}></div>

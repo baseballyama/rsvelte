@@ -1,0 +1,1 @@
+{@const { key: eval } = value}

@@ -1,0 +1,8 @@
+{
+	"description": "SvelteKit hooks written as `export function` declarations (TS) — the one form the port already matches. Baseline arm of the #1886 matrix: all four hook names (handle / handleError / handleFetch / reroute) must type their destructured parameter with no annotation from the author.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		1886
+	]
+}

@@ -1,0 +1,8 @@
+{
+	"description": "Sibling workspace package reached ONLY through a tsconfig `paths` alias — no node_modules entry, no dependency declaration, no exports barrel. Covers #1883 (the aliased import falls back to the ambient `declare module \"*.svelte\"`, so `<script module>` named exports are reported missing).",
+	"workspace": "pkg-a",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		1883
+	]
+}

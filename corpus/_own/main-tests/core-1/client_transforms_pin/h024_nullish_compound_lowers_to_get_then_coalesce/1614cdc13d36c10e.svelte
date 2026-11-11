@@ -1,0 +1,1 @@
+<script>let x = $state(null); function f(){ x ??= 5; }</script>{x}

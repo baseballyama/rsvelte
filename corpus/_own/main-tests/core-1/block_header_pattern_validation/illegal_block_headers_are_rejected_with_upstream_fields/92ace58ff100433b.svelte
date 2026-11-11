@@ -1,0 +1,1 @@
+{#each  as v}{v}{/each}

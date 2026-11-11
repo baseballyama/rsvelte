@@ -1,0 +1,1 @@
+<div>no final newline</div>  

@@ -1,0 +1,1 @@
+<div title={{ a = 1 }}></div>

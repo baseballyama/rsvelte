@@ -1,0 +1,1 @@
+<script>import Child from "./C.svelte";</script><Child a={1}>{#snippet foo()}body{/snippet}</Child>

@@ -1,0 +1,1 @@
+<script>let props = $state({});</script><Widget>{@const { ...rest } = props}<Inner {...rest} /></Widget>

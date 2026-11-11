@@ -1,0 +1,1 @@
+<script lang="ts">function f<T>(x: T){}</script>

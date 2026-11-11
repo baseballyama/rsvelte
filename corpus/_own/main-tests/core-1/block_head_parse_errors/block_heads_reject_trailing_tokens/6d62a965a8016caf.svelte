@@ -1,0 +1,1 @@
+{#each a b c as x}y{/each}

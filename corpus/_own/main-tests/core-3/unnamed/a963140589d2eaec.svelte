@@ -1,0 +1,1 @@
+<a href="/">hi</a><style>a{a{a{a{a{a{a{a{color:red;}}}}}}}}</style>

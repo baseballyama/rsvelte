@@ -1,0 +1,1 @@
+<script>let c = $state('red'); let d = $state('1px');</script><div style:color={c} style:padding|important={d}></div>

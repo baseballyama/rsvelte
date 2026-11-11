@@ -1,0 +1,1 @@
+<script lang="ts">const K = "k"; interface W { [K]?: number }</script>

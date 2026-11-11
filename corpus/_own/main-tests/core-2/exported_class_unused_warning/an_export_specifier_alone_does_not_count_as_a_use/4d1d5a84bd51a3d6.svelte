@@ -1,0 +1,1 @@
+<script>class K {} export { K as C };</script>

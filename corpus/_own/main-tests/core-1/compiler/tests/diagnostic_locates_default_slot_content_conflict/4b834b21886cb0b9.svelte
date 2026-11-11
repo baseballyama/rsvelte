@@ -1,0 +1,1 @@
+<Component><div slot="default" /><p>implicit</p></Component>

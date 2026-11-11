@@ -1,0 +1,1 @@
+{#key k}{@const x = 1}<p>{x}</p>{#key k2}{@const x = 2}<p>{x}</p>{/key}{/key}

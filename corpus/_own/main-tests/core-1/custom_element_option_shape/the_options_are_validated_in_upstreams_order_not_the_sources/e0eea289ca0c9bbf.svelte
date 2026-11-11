@@ -1,0 +1,1 @@
+<svelte:options customElement={{ props: { a: 1 }, tag: 123 }} />

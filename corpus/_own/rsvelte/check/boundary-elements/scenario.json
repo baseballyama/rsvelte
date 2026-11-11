@@ -1,0 +1,8 @@
+{
+	"description": "`<svelte:boundary onerror>` plus every element `svelte/elements` gained after the vendored svelte-jsx-v4 shim snapshot (`svelte:boundary`, `search`). Covers #1889 — the shim hand-enumerates IntrinsicElements, so post-snapshot tags fall back to `any` or are rejected outright. No aliases, no cross-package involvement.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		1889
+	]
+}

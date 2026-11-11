@@ -1,0 +1,1 @@
+<script lang="ts">interface Foo { a: number } type Bar = string; export let v: number;</script><p>{v}</p>

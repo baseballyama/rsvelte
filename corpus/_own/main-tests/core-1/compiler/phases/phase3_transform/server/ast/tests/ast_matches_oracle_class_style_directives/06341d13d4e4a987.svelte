@@ -1,0 +1,1 @@
+<script>let a = $state(true); let b = $state(false);</script><div class:foo={a} class:bar={b}></div>

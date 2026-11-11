@@ -1,0 +1,1 @@
+<script>let value;</script><p>{value}</p>

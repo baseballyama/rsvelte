@@ -1,0 +1,1 @@
+<script>const attachment = make_attachment();</script><div {@attach attachment}></div>

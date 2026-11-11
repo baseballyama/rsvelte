@@ -1,0 +1,1 @@
+<style>.box:not(.y) { color: red }</style>

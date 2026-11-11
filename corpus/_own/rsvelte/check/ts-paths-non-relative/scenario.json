@@ -1,0 +1,7 @@
+{
+	"description": "A tsconfig whose `paths` substitution is non-relative (`src/lib/*`, no leading `./`) while `baseUrl` is unset: TypeScript warns TS5090 on the offending value, but the overlay restates `paths` with absolute targets, so the check has to be replayed against the user's own config (#2061). The second entry pins the other half of that replay — a `${configDir}` template is substituted before validation, so it must NOT warn, and it has to expand to the user's project directory rather than the overlay's cache dir (the same goes for `include`).",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		2061
+	]
+}

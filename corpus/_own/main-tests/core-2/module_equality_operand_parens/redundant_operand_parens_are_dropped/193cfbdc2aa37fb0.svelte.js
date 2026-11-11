@@ -1,0 +1,1 @@
+export const a1 = ((a)) === b;

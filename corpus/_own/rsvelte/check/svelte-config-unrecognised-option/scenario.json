@@ -1,0 +1,5 @@
+{
+	"description": "An option key the compiler does not know. Upstream forwards the whole `compilerOptions` object to `svelte.compile`, which throws `options_unrecognised` before parsing, so every checked component reports it and reports none of its own warnings. Paired with `svelte-config-recognised-option`, whose project is byte-identical apart from the key name.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json"
+}

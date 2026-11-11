@@ -1,0 +1,5 @@
+# `named-function-expression-shadows-its-own-name.svelte`
+
+**Issue:** shadow probe
+
+`const f = function v() { … }` binds `v` inside its own body, and **three** ports answered otherwise — `server/ast/read_wrap.rs` never put the id in its frame, `client/ast_state_transform.rs` had a comment saying named function expressions "bind only in their own scope, so they are excluded" and then never declared the name in that scope either, and the template walker's `LocalScope` collected parameters and block declarations but not the id. So `typeof v` came out `v()` on the server and `$.get(v)` on the client, and a shadowed **prop** came out `$$props.w`. The instance script and a template event handler are separate ports of the client half, which is why the repro carries both; `unshadowed()` reads `v` and `w` from inside a named function expression whose name collides with neither, as the positive control. Ablated one hunk at a time: 2 / 4 / 2 divergent lines. 0 of 34,728 corpus entries move on any of the four targets.

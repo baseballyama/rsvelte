@@ -1,0 +1,1 @@
+<select><optgroup label="g"><option>a<option>b</select>

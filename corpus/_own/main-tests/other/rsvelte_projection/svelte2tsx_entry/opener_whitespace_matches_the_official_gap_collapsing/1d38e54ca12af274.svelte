@@ -1,0 +1,1 @@
+<svelte:element this={"div"} use:action>c</svelte:element>

@@ -1,0 +1,1 @@
+<main><script>console.log('nested')</script></main>

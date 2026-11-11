@@ -1,0 +1,1 @@
+{#each [1] as n}{#if n}a{/if}{/each}

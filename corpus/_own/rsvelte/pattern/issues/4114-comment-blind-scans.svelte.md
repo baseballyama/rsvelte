@@ -1,0 +1,5 @@
+# `4114-comment-blind-scans.svelte`
+
+**Issue:** [#4114](https://github.com/baseballyama/rsvelte/issues/4114)
+
+The three `svelte2tsx` scans that read raw bytes where upstream reads a parse tree, in one file: a `<script>` inside an HTML comment (recovered as an orphan script, its body injected ahead of the imports in a component with no real script), a `dispatch(…)` inside a `//`, `/* */` or JSDoc comment and inside a string literal (collected as a component event), and a `$name` inside a template expression's template literal (collected as a store subscription). Every one has a live control beside it — `fire()` dispatching `'real'`, `$count` a real store, `ghost` a real local — because an over-collection and an under-collection are opposite directions of one check. The template-expression `//` spelling is deliberately absent: it carries an unrelated comment-placement divergence in `compile()` output, which this file must not, so that axis is pinned by `crates/rsvelte_projection/tests/comment_blind_scans.rs` instead

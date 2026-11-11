@@ -1,0 +1,1 @@
+const o = { set m(v){ super.toString(); } };

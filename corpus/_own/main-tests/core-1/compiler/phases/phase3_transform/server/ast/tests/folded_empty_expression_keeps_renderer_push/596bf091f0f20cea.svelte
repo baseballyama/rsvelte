@@ -1,0 +1,1 @@
+{#if true}{@const c = String()}{c}{/if}

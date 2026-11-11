@@ -1,0 +1,5 @@
+# `class-field-continued-after-a-binary-operator.svelte.js`
+
+**Issue:** [#4771](https://github.com/baseballyama/rsvelte/issues/4771)
+
+The server class-field transform (`transform_class_fields_server`) is line-based, and it treated a plain field as multi-line only when its brackets were unbalanced or the next line began with `?`. So in a class that also has a rune field, a field whose initializer breaks after `=` or at a binary or logical operator, which is the shape prettier gives a long bit-flag union, was cut into one member per physical line with `;` appended: `static ALL =;`, unparseable. Whether a field continues is a property of the grammar, so the transform now parses the class body once and takes every member's last line from its span (methods included, since a method whose parameter list wraps reaches the same branch), keeping the line heuristics only for a body that does not parse on its own. The client output was already right. The rows are a field broken after `=`, one broken at `&&`, a control that fits on one line, and a method whose parameters wrap, which the line heuristics already got right.

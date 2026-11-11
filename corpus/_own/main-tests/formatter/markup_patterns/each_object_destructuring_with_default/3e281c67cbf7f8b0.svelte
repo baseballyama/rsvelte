@@ -1,0 +1,1 @@
+{#each users as { name, age=18 }}<li>{name}</li>{/each}

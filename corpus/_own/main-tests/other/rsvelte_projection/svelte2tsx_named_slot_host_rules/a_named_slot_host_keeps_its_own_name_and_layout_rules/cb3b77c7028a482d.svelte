@@ -1,0 +1,2 @@
+<script lang="ts">import C from './C.svelte'; import D from './D.svelte'; export let b: any;</script>
+<C><my-el slot="s" someProp="0" /></C>

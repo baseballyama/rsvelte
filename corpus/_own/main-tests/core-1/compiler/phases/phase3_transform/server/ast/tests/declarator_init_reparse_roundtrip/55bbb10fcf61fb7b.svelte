@@ -1,0 +1,1 @@
+<script>let r = $state(0); let n = foo();</script><p>x</p>

@@ -1,0 +1,1 @@
+<script>let props = $state();</script><div {...props}></div>

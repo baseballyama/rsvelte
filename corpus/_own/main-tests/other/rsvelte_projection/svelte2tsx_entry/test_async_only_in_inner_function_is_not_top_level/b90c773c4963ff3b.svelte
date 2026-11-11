@@ -1,0 +1,1 @@
+<script>async function c(a) { return await Promise.resolve(a); }</script>{c(1)}

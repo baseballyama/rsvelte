@@ -1,0 +1,1 @@
+{#await p}a{:then { b, c }}x{/await}

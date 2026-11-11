@@ -1,0 +1,1 @@
+<script>import x from "../shared.js";</script><p>{x}</p>

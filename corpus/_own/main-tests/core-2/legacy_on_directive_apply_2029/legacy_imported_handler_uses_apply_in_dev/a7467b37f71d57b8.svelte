@@ -1,0 +1,1 @@
+<script>import { f } from './h.js';</script><button on:click={f}>go</button>

@@ -1,0 +1,1 @@
+{#each ['a', 'b'] as const as tab (tab)}<span>{tab}</span>{/each}

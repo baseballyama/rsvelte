@@ -1,0 +1,1 @@
+<svelte:element this={'div'} style:color={await p}></svelte:element>

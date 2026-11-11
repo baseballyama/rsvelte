@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"paths": {
+			"$lib/*": [
+				"../src/lib/*"
+			]
+		}
+	},
+	"include": [
+		"./ambient.d.ts",
+		"../src/**/*.ts",
+		"../src/**/*.svelte"
+	]
+}

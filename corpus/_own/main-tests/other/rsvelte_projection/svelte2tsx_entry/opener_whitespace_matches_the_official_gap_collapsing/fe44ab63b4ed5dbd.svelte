@@ -1,0 +1,1 @@
+<Foo on:click={h} />

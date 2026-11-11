@@ -1,0 +1,1 @@
+<svelte:head><meta name="x" content="y"></svelte:head>

@@ -1,0 +1,1 @@
+<script>void x;</script>

@@ -1,0 +1,1 @@
+{#await p then [a, b, c]}<p>{a}{b}{c}</p>{/await}

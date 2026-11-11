@@ -1,0 +1,1 @@
+<div style:background="green" style="background: red">x</div>

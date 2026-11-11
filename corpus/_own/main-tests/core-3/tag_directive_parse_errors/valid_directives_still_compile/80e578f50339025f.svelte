@@ -1,0 +1,1 @@
+<div><span {@attach a}></span></div>

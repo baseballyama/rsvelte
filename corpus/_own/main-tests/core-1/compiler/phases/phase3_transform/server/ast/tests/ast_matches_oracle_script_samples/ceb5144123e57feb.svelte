@@ -1,0 +1,1 @@
+<script>class C { d = $derived.by(() => 2); }</script><p>x</p>

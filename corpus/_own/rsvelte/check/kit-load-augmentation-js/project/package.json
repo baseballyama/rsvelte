@@ -1,0 +1,9 @@
+{
+	"name": "check-fixture-kit-load-augmentation-js",
+	"private": true,
+	"type": "module",
+	"devDependencies": {
+		"@sveltejs/kit": "*",
+		"svelte": "*"
+	}
+}

@@ -1,0 +1,1 @@
+<div transition:fade={{ duration: a > b ? a : b }}></div>

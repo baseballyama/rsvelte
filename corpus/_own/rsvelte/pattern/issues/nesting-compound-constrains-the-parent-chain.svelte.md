@@ -1,0 +1,5 @@
+# `nesting-compound-constrains-the-parent-chain.svelte`
+
+**Issue:** css-prune probe
+
+`&` stands for whatever the enclosing rule matched, but the REST of its compound still constrains, so a constraint no element satisfies kills the chain and every rule nested inside it. `is_parent_chain_unused` answered a `NestingSelector` with a bare `return true`, so `.host { &.no-such-class { .under-class { … } } }` kept `.under-class` alive where official prunes it. The fix reads PAST the `&` and lets the compound's own class/id/type selectors reach the existing per-element conjunctive match, which keeps the `has_dynamic_*` guards and the DOM structure check that an early return would skip. The `&:hover` row is the control for not over-pruning (a pseudo-class constrains nothing here), and `&[data-present='yes']` is the other direction — a constraint the host DOES satisfy must keep its nested rule. **This file no longer discriminates for that arm**: it matches official even with the arm restored to `return true`, because another path now reaches the verdict first. What guards the arm is the corpus warning ratchet, where four `css_unused_selector` entries move.

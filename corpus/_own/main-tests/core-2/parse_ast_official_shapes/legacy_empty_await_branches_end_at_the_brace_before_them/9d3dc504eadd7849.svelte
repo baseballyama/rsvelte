@@ -1,0 +1,1 @@
+{#await p}{:then}{:catch}{/await}

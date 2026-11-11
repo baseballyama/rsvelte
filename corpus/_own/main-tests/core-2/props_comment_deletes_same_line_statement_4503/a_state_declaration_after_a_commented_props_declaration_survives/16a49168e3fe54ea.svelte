@@ -1,0 +1,1 @@
+<script>let { a } = /* c */ $props(); let s = $state(0);</script><i>{a}{s}</i>

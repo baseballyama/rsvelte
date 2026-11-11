@@ -1,0 +1,5 @@
+{
+	"description": "Control for `svelte-config-unrecognised-option`: same sources, the key spelled as the option that exists. The component's own `css_unused_selector` warning and its TypeScript error both have to survive here \u2014 the TypeScript one has to survive in BOTH scenarios, since an options error does not stop the projection.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json"
+}

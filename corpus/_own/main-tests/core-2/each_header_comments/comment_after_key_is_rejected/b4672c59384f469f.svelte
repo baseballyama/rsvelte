@@ -1,0 +1,1 @@
+{#each [1] as x (x) /* c */}<i>{x}</i>{/each}

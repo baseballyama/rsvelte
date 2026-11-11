@@ -1,0 +1,1 @@
+<Component use:action />

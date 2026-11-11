@@ -1,0 +1,9 @@
+<element
+	data-a="1"
+	data-b="2"
+>
+	text
+</element>
+<options
+	data-c="3"
+/>

@@ -1,0 +1,1 @@
+{#key a b c}x{/key}

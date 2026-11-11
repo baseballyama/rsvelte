@@ -1,0 +1,1 @@
+<style>li:nth-child(2n) { color: red }</style>

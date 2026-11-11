@@ -1,0 +1,8 @@
+{
+	"description": "pnpm workspace sibling reached through a node_modules symlink — the discovery path #805 added. Two arms: `barrel.svelte` goes through the package `exports` barrel (the shape #782/#805 fixed, and the only cross-package shape that already worked — it must stay green), `deep.svelte` deep-imports the component through the bare package specifier instead.",
+	"workspace": "pkg-a",
+	"tsconfig": "tsconfig.json",
+	"links": {
+		"pkg-a/node_modules/libs": "../../pkg-libs"
+	}
+}

@@ -1,0 +1,1 @@
+<div><script lang="ts"></script></div><script>let x: number = 1; interface A {}</script><p>{x}</p>

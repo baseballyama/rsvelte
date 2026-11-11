@@ -1,0 +1,2 @@
+{@render
+foo()}

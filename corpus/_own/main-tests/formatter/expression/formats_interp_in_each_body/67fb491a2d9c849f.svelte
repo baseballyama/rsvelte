@@ -1,0 +1,1 @@
+{#each items as item}<li>{ item.name }</li>{/each}

@@ -1,0 +1,1 @@
+<script>let a = $state(0); let b = $state(1);</script>{@debug a, b}

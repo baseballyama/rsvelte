@@ -1,0 +1,1 @@
+<p class="a"></p><p class="b"></p><style>.a + .b{color:red}</style>

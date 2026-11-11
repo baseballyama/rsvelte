@@ -1,0 +1,1 @@
+<script lang="ts">let c: number = $state(0); let d: number = $derived(c * 2);</script><p>{d}</p>

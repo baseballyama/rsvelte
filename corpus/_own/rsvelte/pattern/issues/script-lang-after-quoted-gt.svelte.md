@@ -1,0 +1,5 @@
+# `script-lang-after-quoted-gt.svelte`
+
+**Issue:** [#4750](https://github.com/baseballyama/rsvelte/issues/4750)
+
+`detect_typescript_mode` stopped scanning a `<script ...>` tag at the first `>`, quoted or not, so a `generics="T extends Record<string, unknown>"` written before `lang="ts"` left TypeScript mode off and the typed arrow parameter in the `{@const}` was a `js_parse_error`. The detection is now a port of upstream's `regex_lang_attribute` with its preference order (the `[^>]*` alternative first, then the attribute walk whose quoted values may contain `>`), and the first `<script>` the regex matches decides, as upstream's `do … while` loop does. A 400,000-input differential against the regex itself is 0 mismatches; disabling the attribute walk makes it 1,105. Re-running the regex at every `<script` is quadratic over a run of failing candidates (upstream's own regex times out on 20 KB of them), so the port memoises the answers that do not depend on the candidate and stays linear: ~20 ms per MB on the worst shape found. Over 23,119 real-world `.svelte` files carrying `lang=`, 4 change verdict and none changes output.

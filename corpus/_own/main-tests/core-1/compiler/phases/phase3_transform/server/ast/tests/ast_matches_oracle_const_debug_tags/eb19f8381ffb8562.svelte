@@ -1,0 +1,1 @@
+{#if true}{@const x = 2 + 3}<p>{x}</p>{/if}

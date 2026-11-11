@@ -1,0 +1,1 @@
+<button onclick="handler">click</button>

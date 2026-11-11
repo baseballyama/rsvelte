@@ -1,0 +1,5 @@
+{
+	"description": "`compilerOptions.customElement` reaches the TSX projection through the `accessors ?? customElement` expression upstream's `DocumentSnapshot.ts` builds, so a `let` prop becomes readable off the component instance. Paired with `svelte-config-accessors-off`, whose project is byte-identical apart from the `customElement` value.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json"
+}

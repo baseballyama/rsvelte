@@ -1,0 +1,1 @@
+<script lang="ts"></script>{#each arr as const as item}{item}{/each}

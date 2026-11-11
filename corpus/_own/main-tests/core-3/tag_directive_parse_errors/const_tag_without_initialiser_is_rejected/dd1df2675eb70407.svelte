@@ -1,0 +1,1 @@
+{#if true}{@const a = 1, b = 2}x{/if}

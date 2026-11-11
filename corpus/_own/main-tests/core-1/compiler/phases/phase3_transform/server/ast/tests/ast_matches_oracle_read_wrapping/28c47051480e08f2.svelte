@@ -1,0 +1,1 @@
+<script>let { x } = $props(); let a = $derived(x); let b = $derived(a + 1);</script><p>{b}</p>

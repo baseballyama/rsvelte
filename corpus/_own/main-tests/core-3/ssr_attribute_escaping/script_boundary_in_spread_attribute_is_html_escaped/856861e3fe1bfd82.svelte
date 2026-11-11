@@ -1,0 +1,1 @@
+<input value="</script><x>" {...rest} />

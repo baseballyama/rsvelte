@@ -1,0 +1,7 @@
+{
+	"description": "TypeScript 7 native compiler via `--tsgo`, which is the only way either checker reaches TS 7 (sveltejs/language-tools#3073). The oracle installs it under the `@typescript/native` npm alias next to a TS 6 `typescript`, so `node_modules/.bin/tsc` is ambiguous by construction — resolving the compiler through the package directory is exactly what this scenario pins down. `discoverCompiler` lets rsvelte-check do its own lookup instead of being handed the oracle's TS 6 `tsc`.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json",
+	"args": ["--tsgo"],
+	"discoverCompiler": true
+}

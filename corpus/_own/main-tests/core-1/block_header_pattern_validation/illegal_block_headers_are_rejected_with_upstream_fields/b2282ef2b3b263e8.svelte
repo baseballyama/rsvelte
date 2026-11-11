@@ -1,0 +1,1 @@
+{#await p then a.b}{a}{/await}

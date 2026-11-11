@@ -1,0 +1,1 @@
+export class Outer { a = $state(1); inner = class Inner { c = $state(2); e = $derived(this.c * 3); }; }

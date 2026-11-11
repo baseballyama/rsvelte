@@ -1,0 +1,1 @@
+<svelte:self data-value=">"></svelte:self>

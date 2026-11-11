@@ -1,0 +1,1 @@
+<script lang="ts">const x = 'chips' as const;</script>{x} {'fish' as const}

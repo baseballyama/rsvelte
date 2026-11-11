@@ -1,0 +1,1 @@
+<nav><a href="/" aria-current={$state.eager(pathname) === '/' ? 'page' : null}>home</a></nav>

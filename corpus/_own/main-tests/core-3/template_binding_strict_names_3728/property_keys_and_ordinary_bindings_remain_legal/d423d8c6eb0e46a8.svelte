@@ -1,0 +1,1 @@
+{#each [1] as value, index}{value}{index}{/each}

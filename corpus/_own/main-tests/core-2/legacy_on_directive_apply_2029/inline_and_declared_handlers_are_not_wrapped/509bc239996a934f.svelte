@@ -1,0 +1,1 @@
+<script>function f() {}</script><button on:click={f}>go</button>

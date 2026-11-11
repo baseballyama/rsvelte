@@ -1,0 +1,1 @@
+<button on:click="handler"></button>

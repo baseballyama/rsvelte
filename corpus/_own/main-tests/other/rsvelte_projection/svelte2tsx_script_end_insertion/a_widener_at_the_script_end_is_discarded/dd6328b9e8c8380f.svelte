@@ -1,0 +1,1 @@
+<script lang="ts">export let a: number, answer: number</script>

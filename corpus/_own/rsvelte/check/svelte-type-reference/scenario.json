@@ -1,0 +1,8 @@
+{
+	"description": "A snippet handed to a component prop typed `Snippet`, in a project that also pulls in a dependency whose shipped declarations open with `/// <reference types=\"svelte\" />` (`@sveltejs/kit`). Covers #2211: that reference resolved past the blanked copy of svelte's declarations to the original, so every ambient svelte module was declared twice and `Snippet`'s `unique symbol` brand no longer matched itself — TS2322 on the prop, with nothing wrong in the project.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		2211
+	]
+}

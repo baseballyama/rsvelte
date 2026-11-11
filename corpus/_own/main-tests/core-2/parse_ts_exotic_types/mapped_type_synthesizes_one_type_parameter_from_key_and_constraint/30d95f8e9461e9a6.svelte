@@ -1,0 +1,1 @@
+<script lang="ts">type M = { [K in "a"]: number };</script>
