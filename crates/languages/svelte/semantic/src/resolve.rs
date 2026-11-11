@@ -22,6 +22,7 @@ use crate::compiler_syntax_tree::{
 mod classify;
 mod counts;
 mod host;
+mod imports;
 mod runes;
 mod walk;
 
@@ -146,6 +147,9 @@ pub fn resolve(
                 compiler_syntax_tree,
                 &mut built,
             );
+        }
+        if let Some(instance) = nested_instance {
+            imports::hoist(instance, built.semantic.scoping_mut());
         }
         counts::mark_bound_writes(tree, &template, built.semantic.scoping_mut());
         scopes = host.scopes.take();

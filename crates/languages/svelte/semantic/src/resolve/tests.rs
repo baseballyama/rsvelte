@@ -302,3 +302,18 @@ fn an_instance_export_specifier_reassigns_and_a_module_one_does_not() {
     assert!(res.is_prop_source(prop));
     assert!(!res.binding(handler).is_function);
 }
+
+#[test]
+fn the_module_script_sees_the_instance_imports_and_no_other_instance_binding() {
+    // Upstream's `Scope.declare` puts every import in the outermost scope.
+    let source = "<script module>const c = imported(); const d = local;</script>\
+                  <script>import { imported } from './x'; let local = 1;</script>";
+    let res = analyze(source);
+    let imported = symbol(&res, source, "imported }");
+    assert_eq!(
+        res.scoping().symbol_scope_id(imported),
+        res.scoping().root_scope_id()
+    );
+    let names: Vec<&str> = res.unresolved_names().collect();
+    assert_eq!(names, ["local"]);
+}
