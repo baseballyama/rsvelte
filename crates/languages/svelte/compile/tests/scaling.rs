@@ -28,41 +28,41 @@ fn allocations(script: &str) -> u64 {
     thread_allocations().0 - before
 }
 
-/// Parses, analyzes and, for [`Stage::Compile`], compiles `source` on a worker's 2 MiB stack.
-/// The analysis is not `Send`, so every stage runs on that one stack.
+/// Parses, analyzes and, for [`Stage::Compile`], compiles `source` on a worker's 2 MiB stack,
+/// inside the room the pipeline gives a document of its length. The analysis is not `Send`, so
+/// every stage runs there.
 fn on_a_small_stack(source: &str, stage: Stage) {
     let source = source.to_owned();
     std::thread::Builder::new()
         .stack_size(2 << 20)
         .spawn(move || {
-            let component = rsvelte_svelte_syntax::parse::parse(&source).expect("parses");
-            let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, &source);
-            let input = CompileInput::from(rsvelte_svelte_semantic::svelte_input(
-                &component,
-                &tree,
-                &source,
-                "App.svelte",
-            ));
-            let resolution = rsvelte_svelte_semantic::resolve::resolve(
-                &component.javascript,
-                component.instance.as_ref().map(|s| s.program),
-                component.module.as_ref().map(|s| s.program),
-                &tree,
-            );
-            let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
-            if stage == Stage::Compile {
-                rsvelte_svelte_compile::compile_input(
-                    &input,
-                    &resolution,
-                    &analysis,
-                    Target::Client,
-                )
-                .expect("compiles");
-            }
+            rsvelte_kernel::performance::stack::for_text(source.len(), || stages(&source, stage));
         })
         .expect("spawns")
         .join()
-        .expect("runs within a 2 MiB stack");
+        .expect("runs within the stack the pipeline gives it");
+}
+
+fn stages(source: &str, stage: Stage) {
+    let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
+    let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
+    let input = CompileInput::from(rsvelte_svelte_semantic::svelte_input(
+        &component,
+        &tree,
+        source,
+        "App.svelte",
+    ));
+    let resolution = rsvelte_svelte_semantic::resolve::resolve(
+        &component.javascript,
+        component.instance.as_ref().map(|s| s.program),
+        component.module.as_ref().map(|s| s.program),
+        &tree,
+    );
+    let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
+    if stage == Stage::Compile {
+        rsvelte_svelte_compile::compile_input(&input, &resolution, &analysis, Target::Client)
+            .expect("compiles");
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -86,6 +86,13 @@ fn long_chains_analyze_on_a_small_stack() {
         );
         on_a_small_stack(&format!("<script>{chain};</script>"), Stage::Analyze);
     }
+}
+
+/// Twice as deep as what a 2 MiB stack alone fits: it passes only through the pipeline's room.
+#[test]
+fn a_deeper_chain_analyzes_in_the_room_its_length_gives() {
+    let chain = format!("a{}", ".b".repeat(2 * LINKS));
+    on_a_small_stack(&format!("<script>{chain};</script>"), Stage::Analyze);
 }
 
 #[test]
