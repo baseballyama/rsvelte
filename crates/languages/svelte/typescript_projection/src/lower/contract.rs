@@ -310,24 +310,33 @@ impl Builder<'_> {
                 // A typed `$bindable(…) as T` is the prop's type as written.
                 return self.source(default.span(), None);
             };
-            if call.type_arguments.is_some() {
-                return self.source(default.span(), None);
-            }
             let Some(fallback) = call.arguments.first().and_then(|a| a.as_expression()) else {
                 return self.untyped_prop();
             };
             default = fallback;
         }
-        let Some(default) = siblings.independent(default) else {
-            return self.untyped_prop();
+        // svelte2tsx's types for a default, which it reads from the syntax alone.
+        let helper = match default {
+            Expression::StringLiteral(_)
+            | Expression::NumericLiteral(_)
+            | Expression::BooleanLiteral(_)
+            | Expression::TSAsExpression(_) => None,
+            Expression::Identifier(identifier) if identifier.name != "undefined" => None,
+            Expression::ArrowFunctionExpression(_) => Some("__rsvelte_function_prop"),
+            Expression::ObjectExpression(_) => Some("__rsvelte_record_prop"),
+            Expression::ArrayExpression(_) => Some("__rsvelte_array_prop"),
+            _ => Some("__rsvelte_untyped_prop"),
         };
-        let value = self.source(default.span(), None);
-        if matches!(default, Expression::ArrayExpression(array) if array.elements.is_empty()) {
-            let callee = self.tree.push(Node::Identifier("__rsvelte_empty_array"));
-            let arguments = self.tree.list(&[value]);
-            self.tree.push(Node::Call { callee, arguments })
-        } else {
-            value
+        match (helper, siblings.independent(default)) {
+            (None, Some(default)) => self.source(default.span(), None),
+            (None, None) => self.untyped_prop(),
+            (Some(helper), _) => {
+                let callee = self.tree.push(Node::Identifier(helper));
+                self.tree.push(Node::Call {
+                    callee,
+                    arguments: Range::default(),
+                })
+            }
         }
     }
 
