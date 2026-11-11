@@ -1,3 +1,4 @@
+mod customizable_select;
 mod element_children;
 mod input_defaults;
 mod regular_element;

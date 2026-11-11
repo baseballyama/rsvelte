@@ -29,8 +29,19 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if self.an.scoped[identifier] && custom_element {
             return unsupported("a scoped custom element", el.name);
         }
+        // Upstream marks rich select content and its ancestors dynamic, which the analysis does not
+        // yet.
         if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
-            return unsupported(&format!("rich content in `<{tag}>`"), el.name);
+            let mut at = Some(identifier);
+            while let Some(current) = at {
+                let ancestor = compiler_syntax_tree.node(current);
+                if matches!(&ancestor.kind, NodeKind::Element(a) if a.kind == ElementKind::Regular)
+                    && !self.an.dynamic[current]
+                {
+                    return unsupported("rich select content in a static subtree", el.name);
+                }
+                at = ancestor.parent;
+            }
         }
         let is_html = self.is_html(identifier);
         let tag = if is_html {

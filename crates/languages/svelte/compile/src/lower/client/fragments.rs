@@ -11,7 +11,7 @@ use super::{
 use crate::lower::builder::Runtime;
 use crate::render_plan::Region;
 
-const TEMPLATE_FRAGMENT: u32 = 1;
+pub(super) const TEMPLATE_FRAGMENT: u32 = 1;
 
 const TEMPLATE_USE_IMPORT_NODE: u32 = 2;
 
@@ -228,7 +228,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
 
     /// Upstream `transform_template`: hoists `var root = $.from_html(…)` (shared by identical
     /// templates) and returns the callee that builds the fragment.
-    fn transform_template(
+    pub(super) fn transform_template(
         &mut self,
         tpl: &Template,
         namespace: crate::render_plan::Namespace,

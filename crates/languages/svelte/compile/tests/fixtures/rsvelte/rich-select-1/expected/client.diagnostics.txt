@@ -1,0 +1,1 @@
+error unsupported 4:3-4:9 rich select content in a static subtree is not supported yet
