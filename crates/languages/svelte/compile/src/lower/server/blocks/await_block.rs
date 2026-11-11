@@ -23,7 +23,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             Some(pending) => self.fragment(pending)?,
             None => Vec::new(),
         };
-        let pending = b.arrow_block(b.params([]), pending, false);
+        let pending = b.arrow_block(b.parameters([]), pending, false);
         let then = match block.then() {
             Some(then) => self.fragment(then)?,
             None => Vec::new(),
@@ -40,7 +40,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         }
         let then = b.arrow_block(b.formal_parameters(parameters), then, false);
         let call = b.runtime("await", [b.id("$$renderer"), promise, pending, then]);
-        template.push(Piece::Statement(b.stmt(call)));
+        template.push(Piece::Statement(b.statement(call)));
         template.push(Piece::Text(BLOCK_CLOSE.into()));
         Ok(())
     }

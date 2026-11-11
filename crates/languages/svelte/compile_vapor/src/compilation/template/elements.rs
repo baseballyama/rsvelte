@@ -59,7 +59,7 @@ impl<'t> Template<'_, '_, 't> {
             .namespaces
             .as_ref()
             .expect("translation uses a checked plan")
-            .get(identifier);
+            .named(identifier);
         let scope = self.i.analysis.scoped[identifier]
             .then_some(self.stylesheet_hash)
             .flatten();
@@ -415,12 +415,12 @@ impl<'t> Template<'_, '_, 't> {
         }
         let mut body = Vec::new();
         if !steps.mounted.is_empty() {
-            let block = b.block(steps.mounted.into_iter().map(|s| b.stmt(s)));
+            let block = b.block(steps.mounted.into_iter().map(|s| b.statement(s)));
             let test = b.binary(b.id("$$el"), BinaryOperator::StrictInequality, b.null());
             body.push(b.if_(test, block, None));
         }
-        body.extend(steps.this.into_iter().map(|s| b.stmt(s)));
-        Some(b.arrow_block(b.params(["$$el"]), body, false))
+        body.extend(steps.this.into_iter().map(|s| b.statement(s)));
+        Some(b.arrow_block(b.parameters(["$$el"]), body, false))
     }
 }
 

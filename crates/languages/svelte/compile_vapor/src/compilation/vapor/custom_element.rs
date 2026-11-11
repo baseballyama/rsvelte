@@ -49,13 +49,13 @@ impl<'o> Emitter<'_, 'o> {
             [b.id("$$component"), b.object(fields)],
         );
         let property = || b.member(b.id("$$component"), "element");
-        module.push(b.stmt(b.assign_member(property(), element)));
+        module.push(b.statement(b.assign_member(property(), element)));
         if let Some(tag) = &options.tag {
             let call = b.call(
                 b.member(b.id("customElements"), "define"),
                 [b.string(tag), property()],
             );
-            module.push(b.stmt(call));
+            module.push(b.statement(call));
         }
         b.id("$$component")
     }

@@ -102,7 +102,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("style")
         });
         if !has_style && !style_directives.is_empty() {
-            let call = self.attr_style(&style_directives, self.b.string(""));
+            let call = self.attribute_style(&style_directives, self.b.string(""));
             template.push(Piece::Expression(call));
         }
         push_captured_events(template, &events);
@@ -134,7 +134,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         }
         let call = match name {
             "class" => self.attribute_class(class_directives, value, hash),
-            "style" => self.attr_style(style_directives, value),
+            "style" => self.attribute_style(style_directives, value),
             _ => {
                 let mut arguments = vec![b.string(name), value];
                 if is_boolean_attribute(name) {

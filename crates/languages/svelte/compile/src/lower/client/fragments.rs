@@ -146,7 +146,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut body = std::mem::take(&mut l.lets);
         body.append(&mut l.consts);
         if cleaned.text_first {
-            body.push(b.stmt(b.runtime("next", [])));
+            body.push(b.statement(b.runtime("next", [])));
         }
         body.append(&mut l.initializer);
         if !l.update.is_empty() {
@@ -201,7 +201,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
 
     fn append(&self, identifier: &str) -> Statement<'o> {
         let b = self.b;
-        b.stmt(b.runtime("append", [b.id("$$anchor"), b.id(identifier)]))
+        b.statement(b.runtime("append", [b.id("$$anchor"), b.id(identifier)]))
     }
 
     /// Upstream `build_render_statement`.
@@ -221,7 +221,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         let mut arguments = vec![Some(callback)];
         arguments.push(values);
-        b.stmt(b.runtime_some("template_effect", arguments))
+        b.statement(b.runtime_some("template_effect", arguments))
     }
 
     /// Upstream `transform_template`: hoists `var root = $.from_html(…)` (shared by identical

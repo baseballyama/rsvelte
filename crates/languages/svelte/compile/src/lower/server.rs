@@ -128,9 +128,9 @@ fn wrap_body<'o>(
         body.insert(0, b.const_(id, b.runtime("props_id", [b.id("$$renderer")])));
     }
     if an.needs_context {
-        let callback = b.arrow_block(b.params(["$$renderer"]), body, false);
+        let callback = b.arrow_block(b.parameters(["$$renderer"]), body, false);
         let call = b.call(b.member(b.id("$$renderer"), "component"), [callback]);
-        body = vec![b.stmt(call)];
+        body = vec![b.statement(call)];
     }
     if uses_slots(res) {
         let slots = b.runtime("sanitize_slots", [b.id("$$props")]);
@@ -192,7 +192,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     let mut template = snippets;
     let stores = !facts.validated.stores.is_empty();
     if stores {
-        let unsubscribe = b.stmt(b.runtime("unsubscribe_stores", [b.id("$$store_subs")]));
+        let unsubscribe = b.statement(b.runtime("unsubscribe_stores", [b.id("$$store_subs")]));
         template.push(b.if_(b.id("$$store_subs"), unsubscribe, None));
     }
 
@@ -210,14 +210,14 @@ pub(super) fn lower_prepared<'c, 'o>(
             b.member(b.member(b.id("$$renderer"), "global"), "css"),
             "add",
         );
-        body.insert(0, b.stmt(b.call(add, [b.id("$$css")])));
+        body.insert(0, b.statement(b.call(add, [b.id("$$css")])));
     }
     let mut parameters = vec!["$$renderer"];
     if takes_props(an, res, !exports.is_empty(), input) {
         parameters.push("$$props");
     }
     let Statement::FunctionDeclaration(function) =
-        b.function_declaration(&component_name, b.params(parameters), body, false)
+        b.function_declaration(&component_name, b.parameters(parameters), body, false)
     else {
         unreachable!("a function declaration")
     };
@@ -277,7 +277,7 @@ fn bind_props<'o>(
         return None;
     }
     let call = b.runtime("bind_props", [b.id("$$props"), b.object(bound)]);
-    Some(b.stmt(call))
+    Some(b.statement(call))
 }
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -285,7 +285,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     /// its neighbours.
     pub(super) fn push_literal(&self, text: &str) -> Statement<'o> {
         let b = self.b;
-        b.stmt(b.call(b.member(b.id("$$renderer"), "push"), [b.string(text)]))
+        b.statement(b.call(b.member(b.id("$$renderer"), "push"), [b.string(text)]))
     }
 
     /// Renders the template until no child binding changes a value (`$$settled`), after the
@@ -302,14 +302,18 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             .partition(|s| matches!(s, Statement::FunctionDeclaration(_)));
         inner.extend(template);
         let template = inner;
-        let render_inner =
-            b.function_declaration("$$render_inner", b.params(["$$renderer"]), template, false);
+        let render_inner = b.function_declaration(
+            "$$render_inner",
+            b.parameters(["$$renderer"]),
+            template,
+            false,
+        );
         let copy = b.call(b.member(b.id("$$renderer"), "copy"), []);
         let render = b.call(b.id("$$render_inner"), [b.id("$$inner_renderer")]);
         let loop_body = b.block([
             set_settled(b, true),
-            b.stmt(b.assign_name("$$inner_renderer", copy)),
-            b.stmt(render),
+            b.statement(b.assign_name("$$inner_renderer", copy)),
+            b.statement(render),
         ]);
         let unsettled = b.unary(UnaryOperator::LogicalNot, b.id("$$settled"));
         let do_while = Statement::new_do_while_statement(SPAN, loop_body, unsettled, b);
@@ -326,7 +330,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             b.declare(VariableDeclarationKind::Let, "$$inner_renderer", None),
             render_inner,
             do_while,
-            b.stmt(subsume),
+            b.statement(subsume),
         ]);
         snippets
     }
@@ -334,7 +338,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
 
 /// `$$settled = value;`: a child binding that writes a value makes the render run again.
 fn set_settled<'o>(b: &Builder<'o>, value: bool) -> Statement<'o> {
-    b.stmt(b.assign_name("$$settled", b.boolean(value)))
+    b.statement(b.assign_name("$$settled", b.boolean(value)))
 }
 
 /// Upstream `analysis.uses_component_bindings`.

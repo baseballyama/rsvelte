@@ -51,8 +51,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             body.push(self.render_statement(&mut content, lists.update));
         }
         body.append(&mut lists.after);
-        body.push(b.stmt(b.runtime("append", [b.id(&anchor), b.id(&fragment)])));
-        let callback = b.arrow_block(b.params([]), body, false);
-        Ok(b.stmt(b.runtime("customizable_select", [b.id(node), callback])))
+        body.push(b.statement(b.runtime("append", [b.id(&anchor), b.id(&fragment)])));
+        let callback = b.arrow_block(b.parameters([]), body, false);
+        Ok(b.statement(b.runtime("customizable_select", [b.id(node), callback])))
     }
 }

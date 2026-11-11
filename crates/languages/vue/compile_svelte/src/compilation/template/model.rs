@@ -103,7 +103,7 @@ impl<'a> T<'_, '_, '_, 'a> {
             AssignmentTarget::from(target),
             b.id(&parameter),
         );
-        let assigner = b.arrow(b.params([parameter.as_str()]), assign);
+        let assigner = b.arrow(b.parameters([parameter.as_str()]), assign);
         let mut props = vec![b.property(b.key("onUpdate:modelValue"), assigner, false)];
         for (name, text) in [("type", ty), ("value", value)] {
             if let Some(text) = text {

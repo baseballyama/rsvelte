@@ -49,7 +49,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         });
         if let Some(a) = default_value {
             let (value, has_state) = self.attribute_value(a, &mut frag.memo, false);
-            let s = b.stmt(b.runtime("set_default_select_value", [b.id(node), value]));
+            let s = b.statement(b.runtime("set_default_select_value", [b.id(node), value]));
             if has_state {
                 l.update.push(s);
             } else {
@@ -64,7 +64,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         });
         if default_value.is_some() || dynamic_value || bound {
             l.initializer
-                .push(b.stmt(b.runtime("init_select", [b.id(node)])));
+                .push(b.statement(b.runtime("init_select", [b.id(node)])));
         }
     }
 
@@ -102,7 +102,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             } else {
                 set_value(assignment)
             };
-            b.stmt(e)
+            b.statement(e)
         };
         if has_state {
             let identifier = self.names.generate(&format!("{node}_value"));

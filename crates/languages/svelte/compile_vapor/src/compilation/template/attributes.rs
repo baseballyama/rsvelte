@@ -15,7 +15,7 @@ use crate::compilation::string_key;
 impl<'t> Template<'_, '_, 't> {
     /// `() => value`.
     pub(super) fn getter(&self, value: Expression<'t>) -> Expression<'t> {
-        self.b.arrow(self.b.params([]), value)
+        self.b.arrow(self.b.parameters([]), value)
     }
 
     /// The key a directive's runtime state is stored under: where it is written.

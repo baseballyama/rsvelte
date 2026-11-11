@@ -63,7 +63,7 @@ impl<'t> Template<'_, '_, 't> {
     /// `($$value) => target = $$value`.
     pub(super) fn setter(&mut self, target: ExpressionIdentifier) -> Expression<'t> {
         let assignment = self.binding_write(target, self.b.id("$$value"));
-        self.b.arrow(self.b.params(["$$value"]), assignment)
+        self.b.arrow(self.b.parameters(["$$value"]), assignment)
     }
 
     pub(super) fn binding(
@@ -262,7 +262,7 @@ impl<'t> Template<'_, '_, 't> {
             let value = b.member(b.member(b.id("$$event"), "currentTarget"), "value");
             let value = self.call("$$number", [value]);
             let assignment = self.binding_write(target, value);
-            b.arrow(b.params(["$$event"]), assignment)
+            b.arrow(b.parameters(["$$event"]), assignment)
         } else {
             self.assign_from_event(target, "value")
         };
@@ -317,10 +317,10 @@ impl<'t> Template<'_, '_, 't> {
         self.helpers.insert(Helper::Option);
         let value = self.call("$$option", [b.member(b.id("$$e"), "currentTarget")]);
         let assign = self.binding_write(target, value);
-        let handler = b.arrow(b.params(["$$e"]), assign);
+        let handler = b.arrow(b.parameters(["$$e"]), assign);
         props.push(self.listener("change", a, handler));
         let set_body = self.binding_write(target, b.id("$$v"));
-        let set = b.arrow(b.params(["$$v"]), set_body);
+        let set = b.arrow(b.parameters(["$$v"]), set_body);
         let current = self.binding_read(target);
         let call = self.call("$$select", [b.id("$$el"), current, set]);
         steps.mounted.push(call);
@@ -372,6 +372,6 @@ impl<'t> Template<'_, '_, 't> {
         let b = self.b;
         let value = b.member(b.member(b.id("$$e"), "currentTarget"), property);
         let assign = self.binding_write(target, value);
-        b.arrow(b.params(["$$e"]), assign)
+        b.arrow(b.parameters(["$$e"]), assign)
     }
 }

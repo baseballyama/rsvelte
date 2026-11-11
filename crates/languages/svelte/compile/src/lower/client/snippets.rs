@@ -126,7 +126,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 b.call(callee, list)
             }
         };
-        statements.push(b.stmt(call));
+        statements.push(b.statement(call));
         lists.initializer.push(if statements.len() == 1 {
             statements.pop().expect("one statement")
         } else {

@@ -110,7 +110,7 @@ fn typescript_emit<'o>(
         ));
     }
     if !source.body.iter().any(Statement::is_module_declaration) {
-        out.body.insert(0, b.stmt(b.string("use strict")));
+        out.body.insert(0, b.statement(b.string("use strict")));
     }
     Ok(())
 }

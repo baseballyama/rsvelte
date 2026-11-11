@@ -105,7 +105,7 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
             {
                 self.hooks.rewrite(&call.callee)
             }
-            fallback => b.arrow(b.params([]), self.hooks.rewrite(fallback)),
+            fallback => b.arrow(b.parameters([]), self.hooks.rewrite(fallback)),
         };
         b.runtime("fallback", [value, thunk, b.boolean(true)])
     }

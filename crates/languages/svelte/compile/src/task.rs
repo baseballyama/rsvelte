@@ -120,7 +120,7 @@ pub(crate) fn compiled<'a>(
         })
     })?;
     let validated = context.get::<Validated>().as_ref().map_err(Clone::clone)?;
-    let stylesheet = if validated.injects_css() {
+    let stylesheet = if validated.injects_stylesheet() {
         None
     } else {
         context.get::<ScopedStylesheet>().as_deref()
@@ -209,7 +209,7 @@ pub fn compile_input(
                 )
             },
         )?;
-    let stylesheet = if validated.embeds_css(target) {
+    let stylesheet = if validated.embeds_stylesheet(target) {
         crate::stylesheet::scoped_stylesheet_with_mode(
             &input.component,
             an,

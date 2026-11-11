@@ -197,7 +197,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
             (Target::Server, "$effect.tracking") => return Some(b.boolean(false)),
             // Upstream's server keeps no effect, so the root's cleanup does nothing.
             (Target::Server, "$effect.root") => {
-                return Some(b.arrow_block(b.params(std::iter::empty()), [], false));
+                return Some(b.arrow_block(b.parameters(std::iter::empty()), [], false));
             }
             (Target::Client, "$effect.root") => "effect_root",
             (target, "$state.eager") => {

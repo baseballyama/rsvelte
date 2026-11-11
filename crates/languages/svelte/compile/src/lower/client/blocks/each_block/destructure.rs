@@ -39,7 +39,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             b,
             res: self.res,
             hooks: Hooks {
-                cx: self,
+                context: self,
                 declarations,
             },
         };

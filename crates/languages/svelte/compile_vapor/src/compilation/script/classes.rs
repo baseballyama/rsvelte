@@ -211,11 +211,11 @@ fn accessors<'t>(
     output: &mut Vec<ClassElement<'t>>,
 ) {
     let value = || b.member(this_member(b, hidden), "value");
-    let getter = b.function_expression(None, b.params([]), [b.return_(Some(value()))], false);
+    let getter = b.function_expression(None, b.parameters([]), [b.return_(Some(value()))], false);
     let setter = b.function_expression(
         None,
-        b.params(["$$value"]),
-        [b.stmt(b.assign_member(value(), b.id("$$value")))],
+        b.parameters(["$$value"]),
+        [b.statement(b.assign_member(value(), b.id("$$value")))],
         false,
     );
     for (function, kind) in [

@@ -27,7 +27,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .iter()
             .filter(|a| matches!(a.value, AttributeValue::Style { .. }))
             .collect();
-        let html = self.plan.named(identifier) == crate::render_plan::Namespace::Html;
+        let in_markup = self.plan.named(identifier) == crate::render_plan::Namespace::Html;
         let defaults = self.defaults(identifier, tag, attributes);
         let custom_element = self.is_custom_element(identifier);
         let is = self.template_is(identifier, attributes);
@@ -51,7 +51,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 continue;
             }
             // Upstream `get_attribute_name`: svg and MathML keep the name's case.
-            let attribute_name = if html {
+            let attribute_name = if in_markup {
                 normalize_attribute(raw_name)
             } else {
                 raw_name.to_owned()
@@ -93,9 +93,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     .push(self.custom_element_data(node, raw_name, a));
             } else {
                 let (value, has_state) = self.attribute_value(a, &mut frag.memo, false);
-                let s = self
-                    .b
-                    .stmt(self.attribute_update(node, &attribute_name, value, defaults));
+                let s =
+                    self.b
+                        .statement(self.attribute_update(node, &attribute_name, value, defaults));
                 if has_state {
                     l.update.push(s);
                 } else {
@@ -156,7 +156,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             | AttributeValue::Shorthand(expression)) => self.expression(expression),
             _ => return unsupported("an interpolated `autofocus` attribute", a.span),
         };
-        Ok(b.stmt(b.runtime("autofocus", [b.id(node), value])))
+        Ok(b.statement(b.runtime("autofocus", [b.id(node), value])))
     }
 
     /// Upstream sets a custom element's attribute as data, each in its own effect, since a
@@ -170,11 +170,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             [b.id(node), b.string(name), value],
         );
         if !has_state {
-            return b.stmt(call);
+            return b.statement(call);
         }
         let (parameters, values) = memo.into_effect(b);
         let effect = vec![Some(b.arrow(parameters, call)), values];
-        b.stmt(b.runtime_some("template_effect", effect))
+        b.statement(b.runtime_some("template_effect", effect))
     }
 
     fn static_attribute(

@@ -23,15 +23,15 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         self.element_attributes(identifier, "svelte:element", attributes, &mut pieces);
         let statements = self.build_template(pieces);
         let attributes =
-            (!statements.is_empty()).then(|| b.arrow_block(b.params([]), statements, false));
+            (!statements.is_empty()).then(|| b.arrow_block(b.parameters([]), statements, false));
         let statements = self.fragment(element.children)?;
         let children =
-            (!statements.is_empty()).then(|| b.arrow_block(b.params([]), statements, false));
+            (!statements.is_empty()).then(|| b.arrow_block(b.parameters([]), statements, false));
         let call = b.runtime_some(
             "element",
             vec![Some(b.id("$$renderer")), Some(tag), attributes, children],
         );
-        template.push(Piece::Statement(b.stmt(call)));
+        template.push(Piece::Statement(b.statement(call)));
         Ok(())
     }
 }

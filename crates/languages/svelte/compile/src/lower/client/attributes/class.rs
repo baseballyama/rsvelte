@@ -102,7 +102,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             unreachable!("classes belong to elements")
         };
         let markup_namespace =
-            element.kind == super::super::ElementKind::Regular && self.is_html(identifier);
+            element.kind == super::super::ElementKind::Regular && self.is_markup(identifier);
         let is_markup = b.number(f64::from(u8::from(markup_namespace)));
         let mut set_class = b.runtime_some(
             "set_class",
@@ -118,7 +118,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if let Some(name) = previous_id {
             set_class = b.assign_name(&name, set_class);
         }
-        let s = b.stmt(set_class);
+        let s = b.statement(set_class);
         if has_state {
             l.update.push(s);
         } else {

@@ -116,6 +116,6 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     fn push_call(&self, strings: &[String], expressions: Vec<Expression<'o>>) -> Statement<'o> {
         let b = self.b;
         let template = b.template(strings.iter().map(String::as_str), expressions);
-        b.stmt(b.call(b.member(b.id("$$renderer"), "push"), [template]))
+        b.statement(b.call(b.member(b.id("$$renderer"), "push"), [template]))
     }
 }

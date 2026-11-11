@@ -153,7 +153,7 @@ fn head<'t>(
     let uses = Uses::new(res, plan);
     body.extend(imports(b, plan, helpers, &uses, server));
     let options = b.object([b.init("inheritAttrs", b.boolean(false))]);
-    body.push(b.stmt(b.call(b.id("defineOptions"), [options])));
+    body.push(b.statement(b.call(b.id("defineOptions"), [options])));
     if let Some(props) = &plan.props {
         let mut entries: Vec<_> = props
             .iter()
@@ -178,7 +178,7 @@ fn head<'t>(
             "$$useHost"
         };
         body.push(b.const_("$$host_value", b.call(b.id(host), [])));
-        body.push(b.const_("$$host", b.arrow(b.params([]), b.id("$$host_value"))));
+        body.push(b.const_("$$host", b.arrow(b.parameters([]), b.id("$$host_value"))));
     }
     if uses.prop_cells {
         body.push(prelude::marker(b, include_str!("props.js")));
@@ -186,8 +186,8 @@ fn head<'t>(
     }
     if plan.rest.is_some() {
         body.push(prelude::marker(b, include_str!("rest.js")));
-        let attrs = b.call(b.id("$$rest_props"), [b.call(b.id("$$useAttrs"), [])]);
-        body.push(b.const_("$$attrs", attrs));
+        let attributes = b.call(b.id("$$rest_props"), [b.call(b.id("$$useAttrs"), [])]);
+        body.push(b.const_("$$attrs", attributes));
     }
     body.extend(helpers::declarations(helpers, b));
     if plan.async_values && server {
@@ -230,7 +230,10 @@ fn imported_names<'t>(rw: &ScriptRewrite<'_, 't>, plan: &Plan, body: &mut Vec<St
         for &(imported, symbol) in &plan.lifecycle {
             let value = if imported == "onDestroy" && server {
                 let push = b.member(b.id("$$destroy"), "push");
-                b.arrow(b.params(["$$callback"]), b.call(push, [b.id("$$callback")]))
+                b.arrow(
+                    b.parameters(["$$callback"]),
+                    b.call(push, [b.id("$$callback")]),
+                )
             } else {
                 b.id(match imported {
                     "onMount" if server => "$$on_mount_server",

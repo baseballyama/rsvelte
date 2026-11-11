@@ -41,32 +41,32 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     // An action may add listeners first, so the events wait for it.
                     if has_use {
                         let effect = b.runtime("effect", [b.thunk(call)]);
-                        directives.initializer.push(b.stmt(effect));
+                        directives.initializer.push(b.statement(effect));
                     } else {
-                        directives.after.push(b.stmt(call));
+                        directives.after.push(b.statement(call));
                     }
                 }
                 AttributeValue::Bind(expression) if a.name.text(self.source_text) == "this" => {
                     let call = self.bind_this(expression, b.id(node), tag != "svelte:element");
-                    directives.initializer.push(b.stmt(call));
+                    directives.initializer.push(b.statement(call));
                 }
                 AttributeValue::Bind(_) => {
                     let call = self.binding(a, attributes, tag, node);
                     // Upstream defers a binding beside an action, as it does an event.
                     if has_use {
                         let effect = b.runtime("effect", [b.thunk(call)]);
-                        directives.initializer.push(b.stmt(effect));
+                        directives.initializer.push(b.statement(effect));
                     } else {
-                        directives.after.push(b.stmt(call));
+                        directives.after.push(b.statement(call));
                     }
                 }
                 AttributeValue::Attach(e) => {
                     let call = self.attach(e, node);
-                    directives.initializer.push(b.stmt(call));
+                    directives.initializer.push(b.statement(call));
                 }
                 AttributeValue::Use { action, argument } => {
                     let call = self.action(action, argument, node);
-                    directives.initializer.push(b.stmt(call));
+                    directives.initializer.push(b.statement(call));
                 }
                 AttributeValue::Transition {
                     function,
@@ -93,7 +93,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     arguments.extend(argument.map(|e| b.thunk(self.expression(e))));
                     directives
                         .after
-                        .push(b.stmt(b.runtime("transition", arguments)));
+                        .push(b.statement(b.runtime("transition", arguments)));
                 }
                 AttributeValue::Animate { function, argument } => {
                     let argument =
@@ -102,7 +102,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                         "animation",
                         [b.id(node), b.thunk(self.expression(function)), argument],
                     );
-                    directives.after.push(b.stmt(call));
+                    directives.after.push(b.statement(call));
                 }
                 _ => {}
             }
@@ -123,7 +123,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             parameters.push("$$action_arg");
         }
         let call = b.optional_call(self.expression(action), parameters.iter().map(|&p| b.id(p)));
-        let mut arguments = vec![b.id(node), b.arrow(b.params(parameters), call)];
+        let mut arguments = vec![b.id(node), b.arrow(b.parameters(parameters), call)];
         arguments.extend(argument.map(|e| b.thunk(self.expression(e))));
         b.runtime("action", arguments)
     }
@@ -211,9 +211,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 let AttributeValue::Bind(target) = attribute.value else {
                     unreachable!("a binding")
                 };
-                let read = b.stmt(self.expression(expression));
+                let read = b.statement(self.expression(expression));
                 let current = b.return_(Some(self.expression(target)));
-                b.arrow_block(b.params([]), [read, current], false)
+                b.arrow_block(b.parameters([]), [read, current], false)
             }
             _ => get,
         };

@@ -149,7 +149,7 @@ pub(super) fn lower_client_props<'o>(
                 {
                     call.unbox().callee
                 }
-                initializer => b.arrow(b.params([]), initializer),
+                initializer => b.arrow(b.parameters([]), initializer),
             }
         });
         let mut arguments = vec![b.id("$$props"), key_argument, b.number(f64::from(flags))];

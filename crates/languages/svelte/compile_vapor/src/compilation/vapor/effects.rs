@@ -47,8 +47,8 @@ impl<'o> Body<'o> {
     /// is last already stays as written.
     pub(super) fn finish(mut self, b: &Builder<'o>) -> Vec<Statement<'o>> {
         let effect = |body| {
-            let callback = b.arrow_block(b.params([]), body, false);
-            b.stmt(b.call(b.id("$$v_renderEffect"), [callback]))
+            let callback = b.arrow_block(b.parameters([]), body, false);
+            b.statement(b.call(b.id("$$v_renderEffect"), [callback]))
         };
         match self.updates.len() {
             0 => return self.statements,
@@ -56,9 +56,9 @@ impl<'o> Body<'o> {
                 && self.updates[0].at == self.statements.len() =>
             {
                 let update = self.updates.pop().expect("one update");
-                let callback = b.arrow(b.params([]), update.expression);
+                let callback = b.arrow(b.parameters([]), update.expression);
                 self.statements
-                    .push(b.stmt(b.call(b.id("$$v_renderEffect"), [callback])));
+                    .push(b.statement(b.call(b.id("$$v_renderEffect"), [callback])));
                 return self.statements;
             }
             _ => {}
@@ -69,14 +69,14 @@ impl<'o> Body<'o> {
         for update in &self.updates {
             for read in &update.reads {
                 if seen.insert(read.as_str()) {
-                    reads.push(b.stmt(b.member(b.id(read), "value")));
+                    reads.push(b.statement(b.member(b.id(read), "value")));
                 }
             }
         }
         reads.extend(
             self.updates
                 .into_iter()
-                .map(|update| b.stmt(update.expression)),
+                .map(|update| b.statement(update.expression)),
         );
         self.statements.push(effect(reads));
         self.statements

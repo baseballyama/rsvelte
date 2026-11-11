@@ -46,7 +46,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                             b.object(names.iter().map(|&name| b.init(name, b.id(name)))),
                         )),
                     ];
-                    let derived = b.runtime("derived", [b.arrow_block(b.params([]), body, false)]);
+                    let derived =
+                        b.runtime("derived", [b.arrow_block(b.parameters([]), body, false)]);
                     statements.push(b.const_(&object, derived));
                     for name in names {
                         let symbol = self.let_symbol(scope, name);

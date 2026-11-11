@@ -11,7 +11,7 @@ use super::{
 pub(super) struct SvelteOptions {
     pub(super) custom_element: Option<super::custom_element::CustomElement>,
     /// `css="injected"`: the component adds its stylesheet when it renders.
-    pub(super) css_injected: bool,
+    pub(super) stylesheet_injected: bool,
 }
 
 pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagnostic> {
@@ -233,7 +233,7 @@ fn validate_options(
         }
         if name == "css" && crate::input::static_string(input, &attribute.value) == Some("injected")
         {
-            options.css_injected = true;
+            options.stylesheet_injected = true;
             continue;
         }
         if name == "namespace"

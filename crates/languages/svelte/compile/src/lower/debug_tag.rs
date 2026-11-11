@@ -21,5 +21,5 @@ pub(super) fn debug_tag<'o>(
     });
     let object = b.object(properties);
     let log = b.call(b.member(b.id("console"), "log"), [object]);
-    [b.stmt(log), Statement::new_debugger_statement(SPAN, b)]
+    [b.statement(log), Statement::new_debugger_statement(SPAN, b)]
 }

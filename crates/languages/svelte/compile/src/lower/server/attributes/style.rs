@@ -8,7 +8,7 @@ use crate::lower::server::{Attribute, AttributeValue, ServerCompilationContext};
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_attr_style`: `$.attr_style(value, { name: value })`, the important ones in a
     /// second object.
-    pub(in crate::lower::server) fn attr_style(
+    pub(in crate::lower::server) fn attribute_style(
         &self,
         directives: &[&Attribute],
         value: Expression<'o>,

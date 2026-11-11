@@ -22,7 +22,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let body = self.fragment(body)?;
         let render = self.anchor_arrow(body);
         l.initializer
-            .push(b.stmt(b.runtime("key", [b.id(node), key, render])));
+            .push(b.statement(b.runtime("key", [b.id(node), key, render])));
         Ok(())
     }
 }

@@ -39,13 +39,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             let key = prop_alias(binding.prop_key.expect("a property key"));
             let read = b.return_(Some(b.call(b.id(name), [])));
-            properties.push(b.accessor(PropertyKind::Get, &key, b.params([]), [read]));
+            properties.push(b.accessor(PropertyKind::Get, &key, b.parameters([]), [read]));
             let parameter = binding.initial.map_or_else(
                 || b.parameter(b.binding("$$value")),
                 |initial| b.default_parameter("$$value", initial.clone_in(b.allocator())),
             );
-            let call = b.stmt(b.call(b.id(name), [b.id("$$value")]));
-            let flush = b.stmt(b.runtime("flush", []));
+            let call = b.statement(b.call(b.id(name), [b.id("$$value")]));
+            let flush = b.statement(b.runtime("flush", []));
             properties.push(b.accessor(
                 PropertyKind::Set,
                 &key,
@@ -95,7 +95,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             None => create,
         };
-        Some(b.stmt(call))
+        Some(b.statement(call))
     }
 
     fn custom_element_properties(

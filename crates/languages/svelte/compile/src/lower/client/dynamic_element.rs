@@ -86,7 +86,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         body.extend(inner.after);
         body.extend(self.fragment(element.children)?);
         let callback = (!body.is_empty())
-            .then(|| b.arrow_block(b.params([name.as_str(), "$$anchor"]), body, false));
+            .then(|| b.arrow_block(b.parameters([name.as_str(), "$$anchor"]), body, false));
         let namespace = self.dynamic_namespace(attributes);
         let foreign = self.plan.named(identifier) != crate::render_plan::Namespace::Html;
         let call = b.runtime_some(
@@ -100,7 +100,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             ],
         );
         frag.tpl.push_comment();
-        lists.initializer.push(b.stmt(call));
+        lists.initializer.push(b.statement(call));
         Ok(())
     }
 
@@ -114,7 +114,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 super::super::template::single_expression(&a.value)
                     .expect("a namespace expression"),
             );
-            self.b.arrow(self.b.params([]), value)
+            self.b.arrow(self.b.parameters([]), value)
         })
     }
 }

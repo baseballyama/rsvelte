@@ -185,7 +185,7 @@ impl<'a> T<'_, '_, '_, 'a> {
                 rewriter.event = Some(&event_parameter);
                 let body = rewriter.expression(written)?;
                 self.b
-                    .arrow(self.b.params([event_parameter.as_str()]), body)
+                    .arrow(self.b.parameters([event_parameter.as_str()]), body)
             }
         };
         let mut non_key = Vec::new();

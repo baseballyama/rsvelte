@@ -35,7 +35,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         let b = self.b;
         l.initializer
-            .push(b.stmt(b.runtime("remove_input_defaults", [b.id(node)])));
+            .push(b.statement(b.runtime("remove_input_defaults", [b.id(node)])));
         false
     }
 
@@ -62,7 +62,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if has_spread || bound || reset {
             let b = self.b;
             l.initializer
-                .push(b.stmt(b.runtime("remove_textarea_child", [b.id(node)])));
+                .push(b.statement(b.runtime("remove_textarea_child", [b.id(node)])));
         }
     }
 }

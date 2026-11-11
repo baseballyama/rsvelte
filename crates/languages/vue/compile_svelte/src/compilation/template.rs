@@ -135,11 +135,11 @@ pub(crate) fn translate<'a>(
     b: &Builder<'a>,
     names: &mut Names<'_>,
 ) -> R<Template<'a>> {
-    let mut hir = CompilerSyntaxTreeBuilder::new(info.source_text, 0, 0);
+    let mut builder = CompilerSyntaxTreeBuilder::new(info.source_text, 0, 0);
     let Some(vue_tree) = compiler_syntax_tree else {
-        let root = hir.children(&[]);
+        let root = builder.children(&[]);
         return Ok(Template {
-            compiler_syntax_tree: hir.finish(root),
+            compiler_syntax_tree: builder.finish(root),
             hoisted: Vec::new(),
         });
     };
@@ -150,7 +150,7 @@ pub(crate) fn translate<'a>(
         tree,
         b,
         names,
-        hir,
+        builder,
         aliases: FxHashMap::default(),
         roots,
         attributes,
@@ -161,10 +161,12 @@ pub(crate) fn translate<'a>(
         renderable: None,
     };
     let root = t.list(vue_tree.root(), None)?;
-    let root = t.hir.children(&root);
-    let T { hir, hoisted, .. } = t;
+    let root = t.builder.children(&root);
+    let T {
+        builder, hoisted, ..
+    } = t;
     Ok(Template {
-        compiler_syntax_tree: hir.finish(root),
+        compiler_syntax_tree: builder.finish(root),
         hoisted,
     })
 }
@@ -176,7 +178,7 @@ struct T<'t, 'v, 'n, 'a> {
     tree: &'t mut rsvelte_typescript_tree::Builder<'a>,
     b: &'t Builder<'a>,
     names: &'t mut Names<'n>,
-    hir: CompilerSyntaxTreeBuilder<'v>,
+    builder: CompilerSyntaxTreeBuilder<'v>,
     /// The aliases of the enclosing `v-for`s with more than one: read through their block's entry.
     aliases: FxHashMap<SymbolId, (String, u32)>,
     roots: &'t [CompilerNodeIdentifier],

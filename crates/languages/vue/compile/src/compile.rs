@@ -115,7 +115,7 @@ pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) ->
             body.extend(preamble);
             body.push(b.function_declaration(
                 "_sfc_render",
-                b.params(["_ctx", "_cache"]),
+                b.parameters(["_ctx", "_cache"]),
                 [b.return_(Some(ret))],
                 false,
             ));

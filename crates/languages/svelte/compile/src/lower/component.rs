@@ -27,7 +27,7 @@ pub(super) enum Prop<'t> {
     /// `bind:name={get, set}`, whose functions the parent declares.
     Accessors(&'t Attribute, &'t Expression<'t>, &'t Expression<'t>),
     /// `--name={value}`: a CSS custom property set around the component, not passed to it.
-    CssProperty(&'t Attribute),
+    CustomProperty(&'t Attribute),
     /// `{@attach value}`, which the client passes under a key of its own and the server drops.
     Attach(ExpressionIdentifier),
 }
@@ -52,7 +52,7 @@ pub(super) fn props<'t>(
         AttributeValue::Bind(_) | AttributeValue::On { .. } | AttributeValue::Let(_) => None,
         AttributeValue::Spread(e) => Some(Prop::Spread(e)),
         AttributeValue::Attach(e) => Some(Prop::Attach(e)),
-        _ if a.name.text(source_text).starts_with("--") => Some(Prop::CssProperty(a)),
+        _ if a.name.text(source_text).starts_with("--") => Some(Prop::CustomProperty(a)),
         _ => Some(Prop::Value(a)),
     });
     let bindings = attributes.iter().filter_map(move |a| match a.value {
@@ -78,7 +78,7 @@ pub(super) fn push_accessors<'o>(
     let set_id = names.generate("bind_set");
     declarations.push(b.var(&get_id, get));
     declarations.push(b.var(&set_id, set));
-    let setter = vec![b.stmt(b.call(b.id(&set_id), [b.id("$$value")]))];
+    let setter = vec![b.statement(b.call(b.id(&set_id), [b.id("$$value")]))];
     push_binding(b, parts, name, b.call(b.id(&get_id), []), setter);
 }
 
@@ -214,7 +214,7 @@ pub(super) fn push_binding<'o>(
     parts.push(Entry::Property(b.accessor(
         PropertyKind::Set,
         name,
-        b.params(["$$value"]),
+        b.parameters(["$$value"]),
         setter,
     )));
 }

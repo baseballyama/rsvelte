@@ -53,7 +53,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         match element.kind {
             ElementKind::Metadata(Some(MetadataTag::Head)) => {
                 let body = self.fragment(element.children)?;
-                let callback = b.arrow_block(b.params(["$$renderer"]), body, false);
+                let callback = b.arrow_block(b.parameters(["$$renderer"]), body, false);
                 let hash = b.string(
                     self.identity
                         .head_hash
@@ -61,7 +61,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                         .expect("a head has an identity"),
                 );
                 let call = b.runtime("head", [hash, b.id("$$renderer"), callback]);
-                template.push(Piece::Statement(b.stmt(call)));
+                template.push(Piece::Statement(b.statement(call)));
             }
             ElementKind::Title => {
                 let plan = self.plan;
@@ -69,9 +69,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 self.process_children(&plan.fragment(element.children).items, &mut pieces)?;
                 pieces.push(Piece::Text("</title>".into()));
                 let body = self.build_template(pieces);
-                let callback = b.arrow_block(b.params(["$$renderer"]), body, false);
+                let callback = b.arrow_block(b.parameters(["$$renderer"]), body, false);
                 let call = b.call(b.member(b.id("$$renderer"), "title"), [callback]);
-                template.push(Piece::Statement(b.stmt(call)));
+                template.push(Piece::Statement(b.statement(call)));
             }
             ElementKind::Metadata(Some(
                 MetadataTag::Window

@@ -49,7 +49,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 if let NodeKind::Each(_) = self.compiler_syntax_tree.node(identifier).kind {
                     self.each_block(identifier, &node, true, frag, l)?;
                 } else {
-                    self.html_tag(identifier, &node, true, frag, l);
+                    self.markup_tag(identifier, &node, true, frag, l);
                 }
             } else {
                 let name = match &self.compiler_syntax_tree.node(identifier).kind {
@@ -68,7 +68,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if st.skipped > 1 {
             st.skipped -= 1;
             let n = (st.skipped != 1).then(|| b.number(f64::from(st.skipped)));
-            l.initializer.push(b.stmt(b.runtime_some("next", vec![n])));
+            l.initializer
+                .push(b.statement(b.runtime_some("next", vec![n])));
         }
         Ok(())
     }
@@ -146,10 +147,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let identifier = self.flush_node(st, seq.len() == 1, "text", l);
         let x = b.id(&identifier);
         if has_state {
-            l.update.push(b.stmt(b.runtime("set_text", [x, value])));
+            l.update
+                .push(b.statement(b.runtime("set_text", [x, value])));
         } else {
             let target = b.member(x, "nodeValue");
-            l.initializer.push(b.stmt(b.assign_member(target, value)));
+            l.initializer
+                .push(b.statement(b.assign_member(target, value)));
         }
     }
 
@@ -167,7 +170,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             NodeKind::Key { .. } => self.key_block(identifier, node, frag, l),
             NodeKind::Await(_) => self.await_block(identifier, node, frag, l),
             NodeKind::Html { .. } => {
-                self.html_tag(identifier, node, false, frag, l);
+                self.markup_tag(identifier, node, false, frag, l);
                 Ok(())
             }
             NodeKind::Render { .. } => {

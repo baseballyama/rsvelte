@@ -9,9 +9,9 @@ use super::{
 };
 
 impl ClientCompilationContext<'_, '_> {
-    /// Upstream `is_html` of an element: it stands in html and is no `<svg>`, so its tag and
+    /// Upstream `is_markup` of an element: it stands in html and is no `<svg>`, so its tag and
     /// attribute names are lowercased.
-    pub(super) fn is_html(&self, identifier: CompilerNodeIdentifier) -> bool {
+    pub(super) fn is_markup(&self, identifier: CompilerNodeIdentifier) -> bool {
         let NodeKind::Element(el) = &self.compiler_syntax_tree.node(identifier).kind else {
             return false;
         };

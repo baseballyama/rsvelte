@@ -66,13 +66,13 @@ impl<'o> Emitter<'_, 'o> {
         let document = || b.id("document");
         let node = match self.namespace(identifier) {
             Namespace::Html => {
-                let html = b.call(b.member(document(), "createElement"), [b.id(&tag)]);
+                let markup = b.call(b.member(document(), "createElement"), [b.id(&tag)]);
                 let svg = b.call(
                     b.member(document(), "createElementNS"),
                     [b.string(SVG), b.id(&tag)],
                 );
                 let test = b.binary(b.id(&tag), BinaryOperator::StrictEquality, b.string("svg"));
-                Expression::new_conditional_expression(SPAN, test, svg, html, b)
+                Expression::new_conditional_expression(SPAN, test, svg, markup, b)
             }
             namespace => {
                 let uri = if namespace == Namespace::Svg {
@@ -136,7 +136,7 @@ impl<'o> Emitter<'_, 'o> {
                             b.string(value),
                         ],
                     );
-                    body.push(b.stmt(set));
+                    body.push(b.statement(set));
                 }
             }
             b.id(node)
@@ -170,7 +170,7 @@ impl<'o> Emitter<'_, 'o> {
                 self.copy_output(&node)
             };
             let insert = self.call("insert", [b.array(children), parent]);
-            body.push(b.stmt(insert));
+            body.push(b.statement(insert));
         }
         let previous_order = self.attribute_effect_order.replace(attribute_order);
         self.element_directives(el, &node, namespace, body);
@@ -194,7 +194,7 @@ impl<'o> Emitter<'_, 'o> {
                 let assignment = b.assign_member(b.member(b.id("document"), "title"), value);
                 let callback = self.tracked_callback(self.arrow(assignment));
                 let effect = self.call("watchPostEffect", [callback]);
-                body.push(b.stmt(effect));
+                body.push(b.statement(effect));
                 b.array([])
             }
             "$$Scope" => self.scope(identifier, false),
@@ -215,10 +215,10 @@ impl<'o> Emitter<'_, 'o> {
                 let nodes = b.array(nodes);
                 let head = || b.member(b.id("document"), "head");
                 let insert = self.call("insert", [self.copy_output(&nodes), head()]);
-                body.push(b.stmt(insert));
+                body.push(b.statement(insert));
                 let cleanup = self.call("remove", [nodes, head()]);
                 let dispose = self.call("onScopeDispose", [self.arrow(cleanup)]);
-                body.push(b.stmt(dispose));
+                body.push(b.statement(dispose));
                 b.array([])
             }
             _ => return None,
@@ -258,7 +258,7 @@ impl<'o> Emitter<'_, 'o> {
                     self.effect(call, dom, body);
                     let cleanup = self.arrow(b.call(b.id(&callback), [b.null()]));
                     let dispose = self.call("onScopeDispose", [cleanup]);
-                    body.push(b.stmt(dispose));
+                    body.push(b.statement(dispose));
                 }
                 (DirectiveName::Bind, Some(arg)) => {
                     let value = self.render_expression(self.source(expression), body);
@@ -267,7 +267,7 @@ impl<'o> Emitter<'_, 'o> {
                 (DirectiveName::On, Some(event)) => {
                     let handler = self.expression(self.source(expression));
                     let call = self.call("on", [self.copy_output(node), b.string(event), handler]);
-                    body.push(b.stmt(call));
+                    body.push(b.statement(call));
                 }
                 _ => {}
             }

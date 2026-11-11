@@ -47,7 +47,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 b,
                 res: self.res,
                 hooks: Hooks {
-                    cx: self,
+                    context: self,
                     declarations: &mut result.declarations,
                 },
             };
@@ -88,23 +88,23 @@ impl<'o> ClientCompilationContext<'_, 'o> {
 /// A snippet or an `{#each}` keeps an array its pattern destructures in a `var` derived, read
 /// with `$.get`.
 pub(in crate::lower::client) struct Hooks<'c, 'x, 'o> {
-    pub(in crate::lower::client) cx: &'c mut ClientCompilationContext<'x, 'o>,
+    pub(in crate::lower::client) context: &'c mut ClientCompilationContext<'x, 'o>,
     pub(in crate::lower::client) declarations: &'c mut Vec<Statement<'o>>,
 }
 
 impl<'o> Destructure<'o, 'o> for Hooks<'_, '_, 'o> {
     fn rewrite(&mut self, e: &'o Expression<'o>) -> Expression<'o> {
-        self.cx.rewrite(e, true)
+        self.context.rewrite(e, true)
     }
 
     fn bound(&mut self, binding: &'o oxc_ast::ast::BindingIdentifier<'o>, default: bool) {
         let read = if default { Read::Get } else { Read::Call };
-        self.cx.reads.insert(binding.symbol_id(), read);
+        self.context.reads.insert(binding.symbol_id(), read);
     }
 
     fn array(&mut self, value: Expression<'o>) -> Expression<'o> {
-        let b = self.cx.b;
-        let name = self.cx.names.generate("$$array");
+        let b = self.context.b;
+        let name = self.context.names.generate("$$array");
         let derived = b.runtime("derived", [b.thunk(value)]);
         (self.declarations).push(b.declare(VariableDeclarationKind::Var, &name, Some(derived)));
         b.runtime("get", [b.id(&name)])
