@@ -1,7 +1,7 @@
 use oxc_ast::ast::Statement;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
 
-use super::super::snippets::{render_arguments, render_call, snippet_name};
+use super::super::snippets::{Place, place, render_arguments, render_call, snippet_name};
 use super::{CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind, Piece, R, ServerCompilationContext};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -13,12 +13,13 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             unreachable!("a snippet node")
         };
         let declaration = self.snippet_declaration(snippet)?;
-        let hoisted = node.parent.is_none()
-            && self
-                .res
-                .snippet(identifier)
-                .is_some_and(|symbol| self.hoistable.contains(&symbol));
-        if hoisted {
+        let place = place(
+            self.compiler_syntax_tree,
+            self.res,
+            self.hoistable,
+            identifier,
+        );
+        if place == Place::Module {
             self.hoisted_snippets.push(declaration);
         } else {
             self.snippets.push(declaration);

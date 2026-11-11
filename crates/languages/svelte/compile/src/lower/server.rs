@@ -89,7 +89,7 @@ struct ServerCompilationContext<'c, 'o> {
     snippets: Vec<Statement<'o>>,
     /// Top-level snippets that read only module-level names, declared beside the component.
     hoisted_snippets: Vec<Statement<'o>>,
-    hoistable: FxHashSet<SymbolId>,
+    hoistable: &'c FxHashSet<SymbolId>,
 }
 
 pub(super) fn lower_prepared<'c, 'o>(
@@ -128,7 +128,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         identity,
         snippets: Vec::new(),
         hoisted_snippets: Vec::new(),
-        hoistable: super::snippets::hoistable(input, res),
+        hoistable: &facts.validated.hoistable,
     };
     let mut template = sx.fragment(input.component.compiler_syntax_tree.root)?;
     if uses_component_bindings(input) {

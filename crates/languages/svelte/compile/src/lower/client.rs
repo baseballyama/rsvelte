@@ -169,7 +169,8 @@ struct ClientCompilationContext<'c, 'o> {
     module_snippets: Vec<Statement<'o>>,
     /// The other top-level snippets, declared before the instance script.
     instance_snippets: Vec<Statement<'o>>,
-    hoistable: FxHashSet<SymbolId>,
+    hoistable: &'c FxHashSet<SymbolId>,
+    /// The snippets a component holds, read as the outer name each shadows.
     shadows: FxHashMap<SymbolId, SymbolId>,
 }
 
@@ -219,8 +220,8 @@ pub(super) fn lower_prepared<'c, 'o>(
         snippets: Vec::new(),
         module_snippets: Vec::new(),
         instance_snippets: Vec::new(),
-        hoistable: super::snippets::hoistable(input, res),
-        shadows: super::snippets::shadows(input, res),
+        hoistable: &facts.validated.hoistable,
+        shadows: super::snippets::component_child_shadows(input, res),
     };
     let template = context.fragment(input.component.compiler_syntax_tree.root)?;
 

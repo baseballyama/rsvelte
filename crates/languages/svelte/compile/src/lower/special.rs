@@ -212,11 +212,15 @@ fn validate_options(
 }
 
 pub(super) fn invalid<T>(code: &'static str, message: &str, span: Span) -> Result<T, Diagnostic> {
-    Err(Diagnostic::error(
+    Err(error(code, message, span))
+}
+
+pub(super) fn error(code: &'static str, message: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
         code,
         format!("{message}\nhttps://svelte.dev/e/{code}"),
         span,
-    ))
+    )
 }
 
 #[derive(Clone, Copy)]

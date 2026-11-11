@@ -3,6 +3,7 @@ use oxc_ast::ast::Ident;
 use oxc_semantic::SymbolId;
 use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
+use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
 use rsvelte_svelte_syntax::names::{is_mathml, is_svg};
 use rsvelte_typescript_compile::features::{Feature, first_runtime_feature};
 use rsvelte_typescript_tree::ProgramIdentifier;
@@ -31,15 +32,30 @@ pub(crate) fn check_foreign_element(source_text: &str, name: Span) -> Result<(),
     Ok(())
 }
 
-/// Upstream's name errors in runes mode, in its order: `validate_identifier_name` where the scope
-/// declares a name, `$$props` and `$$restProps`, then `validate_identifier_name` where the
-/// analysis walk meets a declaration.
+/// Upstream's analysis errors in its order: `validate_identifier_name` where the scope declares a
+/// name, then the template's scopes, `$$props` and `$$restProps`, then `validate_identifier_name`
+/// where the analysis walk meets a declaration, then the template's walk. `template` holds the
+/// template's errors that the walk over elements does not find.
 ///
 /// # Errors
 ///
-/// `dollar_binding_invalid`, `dollar_prefix_invalid`, `legacy_props_invalid` or
-/// `legacy_rest_props_invalid` at the first such name.
-pub(super) fn check_names(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
+/// The first such error.
+pub(super) fn check_analysis(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    mut template: Vec<(Raised, Diagnostic)>,
+) -> Result<(), Diagnostic> {
+    if let Err(error) = markup::check(input) {
+        let raised = Raised {
+            phase: Phase::Walk,
+            section: Section::Template,
+            at: error.span.start_offset,
+        };
+        template.push((raised, error));
+    }
+    template.sort_by_key(|&(raised, _)| raised);
+    let mut template = template.into_iter().peekable();
+    let scopes = template.next_if(|(raised, _)| raised.phase == Phase::Scopes);
     let scoping = res.scoping();
     // TypeScript erases types and type-only imports before upstream builds its scopes.
     let erased = SymbolFlags::TypeAlias
@@ -55,10 +71,11 @@ pub(super) fn check_names(input: &CompileInput<'_>, res: &Resolution) -> Result<
             scoping.symbol_name(s).starts_with('$') && !scoping.symbol_flags(s).intersects(erased)
         })
         .peekable();
-    if reserved.peek().is_none() {
-        return check_legacy_props(res);
-    }
-    let unchecked = unchecked_symbols(input, res);
+    let unchecked = if reserved.peek().is_none() {
+        FxHashSet::default()
+    } else {
+        unchecked_symbols(input, res)
+    };
     let reserved: Vec<(SymbolId, Script)> = reserved
         .filter(|&s| !unchecked.contains(&s) && !names_class_expression(res, s))
         .filter_map(|s| Some((s, script_of(input, res, s)?)))
@@ -72,6 +89,9 @@ pub(super) fn check_names(input: &CompileInput<'_>, res: &Resolution) -> Result<
     {
         return reserved_name(res, s);
     }
+    if let Some((_, error)) = scopes {
+        return Err(error);
+    }
     check_legacy_props(res)?;
     if let Some(&(s, _)) = reserved
         .iter()
@@ -79,7 +99,7 @@ pub(super) fn check_names(input: &CompileInput<'_>, res: &Resolution) -> Result<
     {
         return reserved_name(res, s);
     }
-    Ok(())
+    template.next().map_or(Ok(()), |(_, error)| Err(error))
 }
 
 /// The script that declares a name; the template's names are never checked.

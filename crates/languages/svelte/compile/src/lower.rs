@@ -23,7 +23,7 @@ mod template;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{BindingIdentifier, Program, Statement};
 use oxc_ast_visit::VisitMut;
-use oxc_semantic::ReferenceId;
+use oxc_semantic::{ReferenceId, SymbolId};
 use oxc_span::{GetSpan, SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
@@ -151,6 +151,8 @@ pub(crate) struct ValidatedOptions {
     custom_element: Option<custom_element::CustomElement>,
     /// The references to a rest prop that read `$$props` instead (upstream's `rest_prop` read).
     rest_reads: FxHashSet<ReferenceId>,
+    /// The top-level snippets declared beside the component.
+    hoistable: FxHashSet<SymbolId>,
 }
 
 impl ValidatedOptions {
@@ -167,10 +169,10 @@ pub(crate) fn validate(
     if let Some(error) = res.syntax_error() {
         return Err(error.clone());
     }
-    snippets::validate(input, res)?;
     let custom_element = special::validate(input)?;
-    validation::check_names(input, res)?;
-    validation::markup::check(input)?;
+    validation::check_analysis(input, res, snippets::errors(input, res))?;
+    let hoistable = snippets::hoistable(input, res);
+    snippets::check_exports(input, res, &hoistable)?;
     coverage::check(input, res)?;
     validation::check_typescript(input)?;
     check_stores(input, res)?;
@@ -178,6 +180,7 @@ pub(crate) fn validate(
     Ok(ValidatedOptions {
         custom_element,
         rest_reads,
+        hoistable,
     })
 }
 
