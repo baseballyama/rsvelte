@@ -5,14 +5,13 @@ mod custom_element;
 mod props;
 mod rewrite;
 mod rune_values;
+use oxc_ast::ast::{Declaration, Program, Statement};
+use oxc_span::SPAN;
 use props::prop_declarations;
 pub(crate) use props::prop_member;
 pub(crate) use rewrite::{ScriptRewrite, property_target};
-pub(crate) use rune_values::{async_arrow, rune_value, tracked};
-
-use oxc_ast::ast::{Declaration, Program, Statement};
-use oxc_span::SPAN;
 use rsvelte_typescript_compile::build::Builder;
+pub(crate) use rune_values::{async_arrow, rune_value, tracked};
 
 use super::{BindingKind, Plan, Resolution};
 use crate::compilation::{import, statements};

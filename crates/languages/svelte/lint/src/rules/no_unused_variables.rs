@@ -34,12 +34,15 @@ impl SvelteRule for NoUnusedVariables {
 }
 
 /// The core rule, without the names `svelte-eslint-parser` marks used: `$bindable()` props,
-/// snippets passed to a component, and one of two top-level names the scripts share.
+/// subscribed stores, snippets passed to a component, and one of two top-level names the scripts
+/// share.
 fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let mut skipped = FxHashSet::default();
-    if runes(file) != Some(false) {
+    let runes = runes(file) != Some(false);
+    if runes {
         bindable_props(file, &mut skipped);
     }
+    subscribed_stores(file, runes, &mut skipped);
     component_snippets(file, &mut skipped);
     shared_names(file, &mut skipped);
     rsvelte_typescript_lint::no_unused_variables(
@@ -112,6 +115,41 @@ fn bindable_names<'a>(pattern: &BindingPattern<'a>, out: &mut impl FnMut(&Bindin
         }
     }
 }
+
+/// An unresolved `$name` reads the top-level `name` it subscribes to, in either script.
+fn subscribed_stores(file: &File<'_>, runes: bool, out: &mut FxHashSet<SymbolId>) {
+    let Some(resolution) = file.resolution() else {
+        return;
+    };
+    let scoping = resolution.scoping();
+    let scopes = [resolution.instance_scope(), scoping.root_scope_id()];
+    for name in resolution.unresolved_names() {
+        let Some(store) = name.strip_prefix('$') else {
+            continue;
+        };
+        if SVELTE_GLOBALS.contains(&name) || (runes && RUNE_GLOBALS.contains(&name)) {
+            continue;
+        }
+        out.extend(
+            scopes
+                .iter()
+                .filter_map(|&scope| scoping.get_binding(scope, store.into())),
+        );
+    }
+}
+
+/// `svelte-eslint-parser`'s globals, which subscribe to nothing.
+const SVELTE_GLOBALS: [&str; 3] = ["$$slots", "$$props", "$$restProps"];
+/// Its globals outside legacy mode.
+const RUNE_GLOBALS: [&str; 7] = [
+    "$state",
+    "$derived",
+    "$effect",
+    "$props",
+    "$bindable",
+    "$inspect",
+    "$host",
+];
 
 /// A `{#snippet}` directly inside a component, `<svelte:component>` or `<svelte:boundary>` is a
 /// prop of it.

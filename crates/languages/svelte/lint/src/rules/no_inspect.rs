@@ -29,8 +29,12 @@ impl SvelteRule for NoInspect {
         let mut last = None;
         walk(file, |node| {
             let (name, at) = match node.kind() {
-                AstKind::IdentifierReference(identifier) => (identifier.name.as_str(), identifier.span),
-                AstKind::BindingIdentifier(identifier) => (identifier.name.as_str(), identifier.span),
+                AstKind::IdentifierReference(identifier) => {
+                    (identifier.name.as_str(), identifier.span)
+                }
+                AstKind::BindingIdentifier(identifier) => {
+                    (identifier.name.as_str(), identifier.span)
+                }
                 AstKind::IdentifierName(identifier) => (identifier.name.as_str(), identifier.span),
                 AstKind::LabelIdentifier(identifier) => (identifier.name.as_str(), identifier.span),
                 _ => return,

@@ -11,6 +11,18 @@ pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> 
         ShiftRight as Shr, ShiftRightZeroFill as UShr, StrictEquality as StrictEq,
         StrictInequality as StrictNotEq, Subtraction as Sub,
     };
+    if matches!(a, Value::RegExp { .. }) || matches!(b, Value::RegExp { .. }) {
+        let both = matches!(a, Value::RegExp { .. }) && matches!(b, Value::RegExp { .. });
+        // Objects compare by identity; anywhere else an object is its string.
+        return match op {
+            StrictEq => Some(Value::Boolean(a == b)),
+            StrictNotEq => Some(Value::Boolean(a != b)),
+            Eq if both => Some(Value::Boolean(a == b)),
+            NotEq if both => Some(Value::Boolean(a != b)),
+            In | InstanceOf => None,
+            _ => binary(op, &a.primitive(), &b.primitive()),
+        };
+    }
     if matches!(a, Value::BigInt(_)) || matches!(b, Value::BigInt(_)) {
         return bigint::binary(op, a, b);
     }
@@ -105,7 +117,7 @@ pub(super) fn unary(op: UnaryOperator, a: &Value) -> Value {
                 Value::String(_) => "string",
                 Value::Number(_) => "number",
                 Value::Boolean(_) => "boolean",
-                Value::Null => "object",
+                Value::Null | Value::RegExp { .. } => "object",
                 Value::Undefined => "undefined",
                 _ => unreachable!("known values only"),
             }

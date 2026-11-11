@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use rsvelte_lint_runner::rule::Reporter;
 use oxc_ast::ast::{BindingIdentifier, BindingPattern, Declaration, Statement};
+use rsvelte_lint_runner::rule::Reporter;
 
-use super::nodes::span;
 use super::kit_route::route_file;
+use super::nodes::span;
 use crate::LintSettings;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 

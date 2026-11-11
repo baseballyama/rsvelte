@@ -6,11 +6,10 @@ use oxc_ast::ast::{
 };
 use rsvelte_svelte_semantic::resolve::BindingKind;
 
+use super::RuneWalk;
 use crate::lower::javascript::member_root;
 use crate::lower::script::bindable_root;
 use crate::lower::{Diagnostic, Resolution, Span, Target, unsupported};
-
-use super::RuneWalk;
 
 /// A name an assignment or a binding cannot change, as upstream's `validate_assignment` sorts it.
 #[derive(Clone, Copy, PartialEq, Eq)]

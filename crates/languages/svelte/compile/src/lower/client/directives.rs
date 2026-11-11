@@ -1,12 +1,11 @@
-use crate::lower::builder::Runtime;
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::Expression;
-use rsvelte_typescript_tree::ExpressionIdentifier;
-
 use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{Attribute, AttributeValue, ClientCompilationContext, Lists};
 use crate::lower::bindings::{Lowering, property_of};
+use crate::lower::builder::Runtime;
 
 const TRANSITION_IN: u32 = 1;
 const TRANSITION_OUT: u32 = 1 << 1;

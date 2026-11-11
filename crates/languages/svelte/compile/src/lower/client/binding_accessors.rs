@@ -1,4 +1,3 @@
-use crate::lower::builder::Runtime;
 use oxc_ast::ast::{
     BindingIdentifier, ChainElement, Expression, IdentifierName, IdentifierReference,
 };
@@ -11,6 +10,7 @@ use rustc_hash::FxHashSet;
 
 use super::{ClientCompilationContext, Read, ScriptRewrite};
 use crate::lower::BindingKind;
+use crate::lower::builder::Runtime;
 use crate::lower::script::mutated_bindable_prop;
 
 impl<'o> ClientCompilationContext<'_, 'o> {

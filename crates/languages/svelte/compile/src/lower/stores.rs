@@ -3,7 +3,6 @@
 
 use oxc_ast::ast::Ident;
 use oxc_semantic::ReferenceId;
-
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, ElementKind, MetadataTag, NodeKind,
 };

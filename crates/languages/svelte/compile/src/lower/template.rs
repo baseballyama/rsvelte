@@ -79,8 +79,11 @@ pub(super) fn has_dependency(res: &Resolution, e: &Expression<'_>) -> bool {
         fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
             self.found |= self.res.symbol(it).is_some() || self.res.is_store_subscription(&it.name);
         }
+
         fn visit_function(&mut self, _: &Function<'a>, _: ScopeFlags) {}
+
         fn visit_arrow_function_expression(&mut self, _: &ArrowFunctionExpression<'a>) {}
+
         fn visit_expression(&mut self, it: &Expression<'a>) {
             if !self.found {
                 walk::walk_expression(self, it);

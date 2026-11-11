@@ -1,10 +1,10 @@
-use rsvelte_lint_runner::finding::{Fix, Suggestion};
-use rsvelte_lint_runner::rule::{Report, Reporter};
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
     Argument, AssignmentOperator, AssignmentTarget, CallExpression, Expression, FunctionBody,
     IdentifierReference, Statement,
 };
+use rsvelte_lint_runner::finding::{Fix, Suggestion};
+use rsvelte_lint_runner::rule::{Report, Reporter};
 
 use super::javascript::walk;
 use super::nodes::{is_named, span, text};

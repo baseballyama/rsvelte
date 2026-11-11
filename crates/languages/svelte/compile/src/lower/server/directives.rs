@@ -1,9 +1,9 @@
-use crate::lower::builder::Runtime;
 use oxc_ast::ast::Expression;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{Attribute, AttributeValue, ServerCompilationContext, is_boolean_attribute};
 use crate::lower::bindings::{Lowering, attribute_value, property_of};
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use crate::lower::builder::Runtime;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_element_attributes` (server): the value a binding renders as the

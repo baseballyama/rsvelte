@@ -1,11 +1,10 @@
-use rsvelte_lint_runner::rule::Reporter;
 use oxc_ast::AstKind;
 use oxc_ast::ast::Expression;
 use oxc_semantic::AstNodes;
 use oxc_syntax::operator::{LogicalOperator, UnaryOperator};
+use rsvelte_lint_runner::rule::Reporter;
 
 use super::nodes::span;
-
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 use crate::types::TypeFacts;
 
@@ -41,7 +40,9 @@ fn check(nodes: &AstNodes<'_>, types: &TypeFacts, reporter: &mut Reporter<'_>) {
         let mut is_not_argument = false;
         loop {
             match node {
-                Expression::UnaryExpression(unary) if unary.operator == UnaryOperator::LogicalNot => {
+                Expression::UnaryExpression(unary)
+                    if unary.operator == UnaryOperator::LogicalNot =>
+                {
                     node = &unary.argument;
                     is_not_argument = true;
                 }
@@ -70,7 +71,9 @@ fn check(nodes: &AstNodes<'_>, types: &TypeFacts, reporter: &mut Reporter<'_>) {
         match node.kind() {
             AstKind::IfStatement(statement) => condition(&statement.test, reporter),
             AstKind::ConditionalExpression(expression) => condition(&expression.test, reporter),
-            AstKind::LogicalExpression(logical) if logical.operator == LogicalOperator::Coalesce => {
+            AstKind::LogicalExpression(logical)
+                if logical.operator == LogicalOperator::Coalesce =>
+            {
                 let left = &logical.left;
                 if let Some(nullish) = types.get(left.node_id()).nullish() {
                     report(
@@ -96,4 +99,3 @@ fn check(nodes: &AstNodes<'_>, types: &TypeFacts, reporter: &mut Reporter<'_>) {
         }
     }
 }
-

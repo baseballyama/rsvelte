@@ -1,10 +1,10 @@
-use crate::lower::builder::Runtime;
 use oxc_ast::ast::Expression;
 
 use super::{
     Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists,
     NodeKind, R, is_behaviour,
 };
+use crate::lower::builder::Runtime;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn dynamic_element(

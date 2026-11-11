@@ -10,13 +10,12 @@ mod placement;
 
 use placement::Ancestors;
 
-use crate::render_plan::is_template_whitespace;
-
 use super::super::special::invalid;
 use super::super::{
     AttributeValue, Children, CompileInput, CompilerNodeIdentifier, Diagnostic, Element, NodeKind,
     is_custom_element_node, is_directive,
 };
+use crate::render_plan::is_template_whitespace;
 
 /// The nearest component, `<svelte:element>` or custom element above a node, which decides where a
 /// `slot` attribute may go.

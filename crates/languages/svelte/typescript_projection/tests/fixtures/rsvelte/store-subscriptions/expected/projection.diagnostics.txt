@@ -1,0 +1,1 @@
+error check_unsupported 12:8-12:27 not supported by the type-check projection yet: bind: directives

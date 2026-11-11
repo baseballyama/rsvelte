@@ -173,7 +173,8 @@ pub(super) fn javascript_config(path: &Path, root: &Path) -> Option<SvelteConfig
         | "valid-compile/invalid/svelte-config-warning-filter/_config.cjs" => {
             drop_missing_attribute()
         }
-        // `onwarn(warning, handler) { handler({ ...warning, message: warning.message, code: 'foo' }); }`
+        // `onwarn(warning, handler) { handler({ ...warning, message: warning.message, code: 'foo'
+        // }); }`
         "valid-compile/invalid/svelte-config-custom-warn/_config.cjs" => {
             Some(WarningHandler(Arc::new(|warning: Warning| {
                 Some(Warning {

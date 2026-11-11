@@ -21,7 +21,6 @@ mod template;
 mod template_chunk;
 mod title;
 
-use crate::lower::builder::Runtime;
 use oxc_allocator::ArenaBox;
 use oxc_ast::ast::{
     Expression, FormalParameters, ImportDeclarationSpecifier, ImportOrExportKind, Statement,
@@ -49,6 +48,7 @@ use super::{
     has_dependency, is_behaviour, is_custom_element_node, is_customizable_select, is_directive,
     is_load_error_element, needs_clsx, synthetic_value, unsupported,
 };
+use crate::lower::builder::Runtime;
 use crate::render_plan::RenderPlan;
 
 const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];
@@ -202,6 +202,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         exports,
         custom_element,
         component_name,
+        props_id,
     } = prepared;
     let mut context = ClientCompilationContext {
         b,
@@ -236,7 +237,13 @@ pub(super) fn lower_prepared<'c, 'o>(
     let stylesheet = context.custom_element_stylesheet(facts.stylesheet);
     let mut returned: Vec<_> = export_properties(b, &exports).collect();
     returned.extend(context.custom_element_exports());
-    let func = context.component_function(instance, template, returned, stylesheet.is_some());
+    let func = context.component_function(
+        instance,
+        template,
+        returned,
+        stylesheet.is_some(),
+        props_id.as_deref(),
+    );
     let registration = context.custom_element_registration(&exports);
 
     let mut program = Vec::new();
@@ -315,6 +322,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         template: Vec<Statement<'o>>,
         exports: Vec<oxc_ast::ast::ObjectPropertyKind<'o>>,
         stylesheet: bool,
+        props_id: Option<&str>,
     ) -> Statement<'o> {
         let b = self.b;
         let has_exports = !exports.is_empty();
@@ -349,6 +357,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             if has_exports {
                 body.push(b.return_(Some(b.id("$$pop"))));
             }
+        }
+        if let Some(id) = props_id {
+            body.insert(0, b.const_(id, b.runtime("props_id", [])));
         }
         let mut parameters = vec!["$$anchor"];
         if self.res.uses_props() || needs_context || self.needs_props {

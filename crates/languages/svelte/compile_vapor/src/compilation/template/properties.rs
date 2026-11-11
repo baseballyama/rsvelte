@@ -34,6 +34,7 @@ pub(super) fn reads_this(body: &FunctionBody<'_>) -> bool {
         fn visit_this_expression(&mut self, _: &oxc_ast::ast::ThisExpression) {
             self.0 = true;
         }
+
         fn visit_function(&mut self, _: &oxc_ast::ast::Function<'a>, _: ScopeFlags) {}
     }
     let mut v = This(false);
