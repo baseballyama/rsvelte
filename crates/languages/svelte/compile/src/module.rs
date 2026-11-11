@@ -20,9 +20,12 @@ use rsvelte_typescript_tree::Tree;
 use crate::lower::{self, CompileInput, Target};
 use crate::warnings::OPTIONS;
 
-/// A module `compileModule` reads; a `.svelte.ts` one is read with its types.
+/// A module `compileModule` reads; a `.svelte.ts` one is read with its types. A declaration file
+/// only describes a module, and nothing compiles it at runtime.
 fn matches(document: &Document) -> bool {
-    document.path.ends_with(".svelte.js") || document.path.ends_with(".svelte.ts")
+    let path = &document.path;
+    (path.ends_with(".svelte.js") || path.ends_with(".svelte.ts"))
+        && !path.ends_with(".d.svelte.ts")
 }
 
 #[derive(Debug)]

@@ -201,3 +201,15 @@ fn a_module_reads_a_rune_beside_a_binding_of_its_store_name() {
     );
     assert!(compiled.contains("$.effect_root(() => {})"), "{compiled}");
 }
+
+#[test]
+fn a_declaration_file_is_no_module_to_compile() {
+    let mut registry = Registry::new();
+    crate::register(&mut registry);
+    let task = CompileModule {
+        target: Target::Client,
+    };
+    let applies = |path| task.applies(&registry.document(path, "export {};\n").expect("small"));
+    assert!(applies("a.svelte.ts"));
+    assert!(!applies("a.d.svelte.ts"));
+}

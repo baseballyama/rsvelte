@@ -49,7 +49,10 @@ const task: Task = {
 		{ id: 'client', options: { generate: 'client' } },
 		{ id: 'server', options: { generate: 'server' } },
 	],
-	appliesTo: (unit) => unit.lang === 'svelte-module-js' || unit.lang === 'svelte-module-ts',
+	// A declaration file (`x.d.svelte.ts`) only describes a module; nothing compiles it at runtime.
+	appliesTo: (unit) =>
+		(unit.lang === 'svelte-module-js' || unit.lang === 'svelte-module-ts') &&
+		!unit.path.endsWith('.d.svelte.ts'),
 	run: (unit, src, variant) => {
 		const compile = (js: string) => compileModule(js, { filename: unit.path, ...variant.options });
 		if (unit.lang !== 'svelte-module-ts') return compileArtifacts(() => compile(src));
