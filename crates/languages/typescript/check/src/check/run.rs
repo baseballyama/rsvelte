@@ -26,7 +26,7 @@ pub(crate) struct CheckRequest {
     /// Existing files the checker reads with this text instead.
     pub replaced: Vec<(PathBuf, String)>,
     /// Documents the run does not check, by path, with what an import of each one reads.
-    pub stand_ins: Vec<(String, &'static str)>,
+    pub stand_ins: Vec<(String, String)>,
     /// `compilerOptions.paths` entries: module specifier → file.
     pub paths: Vec<(&'static str, PathBuf)>,
 }

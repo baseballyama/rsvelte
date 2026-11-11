@@ -65,6 +65,9 @@ pub(super) fn mark_dynamic(
             NodeKind::Element(el) => {
                 let own = body(el.children, out);
                 any |= el.kind != compiler_syntax_tree::ElementKind::Regular;
+                // Upstream sets a custom element's attributes at runtime, as its properties.
+                any |= compiler_syntax_tree.is_custom_element(el, source_text)
+                    && !compiler_syntax_tree.attributes(el.attributes).is_empty();
                 out[identifier] = own;
                 any |= own;
                 for a in compiler_syntax_tree.attributes(el.attributes) {

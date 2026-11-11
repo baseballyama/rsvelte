@@ -162,7 +162,7 @@ impl Builder<'_> {
     pub(super) fn attribute(
         &mut self,
         attribute: &Attribute,
-        is_component: bool,
+        intrinsic: bool,
         custom_element: bool,
     ) -> NodeIdentifier {
         let parts = match attribute.value {
@@ -172,7 +172,7 @@ impl Builder<'_> {
         let value = match (attribute.value, parts) {
             (AttributeValue::True, _) => self.tree.push(Node::Boolean),
             (_, &[Part::Text(text)])
-                if !is_component
+                if intrinsic
                     && attribute.kind == AttributeKind::Attribute
                     && is_number_only(attribute.name.text(self.source))
                     && is_number(text.text(self.source)) =>
@@ -213,7 +213,7 @@ impl Builder<'_> {
             _ if attribute.shorthand => Node::Shorthand(value),
             _ => Node::Property {
                 name: attribute.name,
-                lowercase: !is_component
+                lowercase: intrinsic
                     && lowercased(attribute.name.text(self.source), custom_element),
                 value,
                 end: (!matches!(attribute.value, AttributeValue::True))

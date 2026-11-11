@@ -2,6 +2,7 @@ type __rsvelte_each_value<T> = 0 extends (1 & T) ? T : T extends ArrayLike<infer
 declare function __rsvelte_each<T extends ArrayLike<unknown> | Iterable<unknown>>(values: T | null | undefined): Iterable<readonly [number, __rsvelte_each_value<T>]>;
 declare function __rsvelte_component<C extends ((internals: Parameters<import('svelte').Component>[0], props: never) => unknown) | null | undefined>(component: C): NonNullable<C>;
 declare const __rsvelte_children: () => any;
+declare function __rsvelte_slots<Slots = Record<string, Record<string, any>>>(): <Name extends keyof Slots>(name: Name, attributes: Slots[Name]) => void;
 declare const __rsvelte_snippet_return: any;
 declare function __rsvelte_component_props<C extends (internals: any, props: any) => unknown>(component: C): Parameters<C>[1] & Record<string, any>;
 declare function __rsvelte_internals(): Parameters<import('svelte').Component>[0];
