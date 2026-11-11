@@ -1192,6 +1192,7 @@ dependencies = [
 name = "rsvelte_svelte_compile"
 version = "0.0.0"
 dependencies = [
+ "libc",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",
