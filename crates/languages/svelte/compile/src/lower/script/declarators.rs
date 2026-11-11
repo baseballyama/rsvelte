@@ -42,34 +42,63 @@ pub(super) fn lower_value_declarator<'o>(
     );
     rw.visit_expression(&mut value);
     walk_mut::walk_binding_pattern(rw, &mut d.id);
-    d.init = Some(match rune {
+    let signal = (d.id.get_binding_identifier())
+        .and_then(|identifier| identifier.symbol_id.get())
+        .is_some_and(|symbol| rw.res.is_state_source(symbol));
+    let lowering = Lowering {
+        proxy,
+        signal,
+        keeps,
+    };
+    d.init = Some(rune_value(rw, rune, Some(value), lowering));
+    true
+}
+
+/// How a declaration lowers its state or derived rune.
+#[derive(Clone, Copy)]
+pub(super) struct Lowering {
+    /// `$state` makes a deep proxy of its value.
+    pub proxy: bool,
+    /// The client keeps the state in a signal, not as its plain value.
+    pub signal: bool,
+    /// `$derived(f())` may pass `f` itself.
+    pub keeps: bool,
+}
+
+/// Upstream's value of `$state`, `$state.raw`, `$derived` or `$derived.by` where it declares a
+/// variable or a class field; `value` is the argument, already rewritten.
+pub(super) fn rune_value<'o>(
+    rw: &ScriptRewrite<'_, 'o>,
+    rune: &str,
+    value: Option<Expression<'o>>,
+    lowering: Lowering,
+) -> Expression<'o> {
+    let b = rw.b;
+    match rune {
         "$state" | "$state.raw" if rw.target == Target::Client => {
-            if proxy {
-                value = b.runtime("proxy", [value]);
-            }
-            let source =
-                d.id.get_binding_identifier()
-                    .and_then(|identifier| identifier.symbol_id.get())
-                    .is_some_and(|symbol| rw.res.is_state_source(symbol));
-            if source {
-                b.runtime("state", [value])
+            let value = if lowering.proxy {
+                value.map(|v| b.runtime("proxy", [v]))
             } else {
                 value
+            };
+            match value {
+                Some(value) if !lowering.signal => value,
+                value => b.runtime("state", value),
             }
         }
-        "$state" | "$state.raw" => value,
+        "$state" | "$state.raw" => value.unwrap_or_else(|| b.void0()),
         "$derived" => {
+            let value = value.expect("validation keeps a derived's argument");
             let callback = b.arrow(b.params([]), value);
-            let callback = if keeps {
+            let callback = if lowering.keeps {
                 super::super::builder::unthunk(callback)
             } else {
                 callback
             };
             b.runtime("derived", [callback])
         }
-        _ => b.runtime("derived", [value]),
-    });
-    true
+        _ => b.runtime("derived", value),
+    }
 }
 
 /// Upstream's destructured `$derived`: one derived of the whole value, unless it is a name
