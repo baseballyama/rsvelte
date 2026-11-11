@@ -1,5 +1,6 @@
 mod attribute;
 mod binding;
+mod call;
 mod children;
 mod contract;
 mod directive;
@@ -330,6 +331,10 @@ impl Builder<'_> {
                     let event = self.component_event(attribute)?;
                     directives.events.push(event);
                 }
+                AttributeKind::Let if is_component && !self.has_slot(attributes) => {
+                    let property = self.component_let(attribute)?;
+                    directives.lets.push(property);
+                }
                 AttributeKind::Use
                 | AttributeKind::Transition { .. }
                 | AttributeKind::Animate
@@ -368,7 +373,7 @@ impl Builder<'_> {
                 component,
                 properties,
                 snippets,
-                !directives.events.is_empty(),
+                !directives.events.is_empty() || !directives.lets.is_empty(),
             )
         } else if slot {
             (self.slot_call(attributes, properties)?, None)
@@ -378,16 +383,16 @@ impl Builder<'_> {
                 None,
             )
         };
-        self.after_call(call, named, bindings, snippets, &directives);
+        let lets = self.after_call(call, named, bindings, snippets, &directives);
         self.directives = directives;
         self.class_expressions(attributes);
-        self.element_children(children, is_component)?;
+        self.element_children(children, is_component, lets)?;
         let body = self.finish_list(start);
         Ok(self.tree.push(Node::Block { body }))
     }
 
     /// The call with what svelte2tsx writes around it: actions before, then bindings, directive
-    /// checks, a component's events and the names of its snippet props.
+    /// checks, a component's events, the names of its snippet props and its `let:` bindings.
     fn after_call(
         &mut self,
         call: NodeIdentifier,
@@ -395,11 +400,11 @@ impl Builder<'_> {
         bindings: Vec<binding::Binding>,
         snippets: Range,
         directives: &directive::Directives,
-    ) {
+    ) -> Option<usize> {
         self.scratch.extend_from_slice(&directives.actions);
         self.bound_call(call, bindings);
         self.scratch.extend_from_slice(&directives.checks);
-        let Some(component) = named else { return };
+        let component = named?;
         self.component_events(component, &directives.events);
         if snippets.len != 0 {
             let declaration = self.tree.push(Node::SnippetNames {
@@ -408,6 +413,9 @@ impl Builder<'_> {
             });
             self.scratch.push(declaration);
         }
+        let lets = self.scratch.len();
+        self.component_lets(component, &directives.lets);
+        (self.scratch.len() > lets).then_some(lets)
     }
 
     /// The expressions of `class:` directives, which svelte2tsx checks after the call.
@@ -423,123 +431,23 @@ impl Builder<'_> {
         }
     }
 
-    /// An element's children; a component's snippets are already its props.
     /// A component's snippets are its props; an element's come first.
-    fn element_children(&mut self, children: Range, is_component: bool) -> Result<()> {
+    /// svelte2tsx's block of a component's `let:` bindings, from `lets`, holds its children.
+    fn element_children(
+        &mut self,
+        children: Range,
+        is_component: bool,
+        lets: Option<usize>,
+    ) -> Result<()> {
         if !is_component {
             self.append_matching(children, true)?;
         }
-        self.append_matching(children, false)
-    }
-
-    /// `__rsvelte_component(C)(internals, properties)`, with the name it gives the component when
-    /// the snippets' names are declared from its props or its events are checked.
-    fn component_call(
-        &mut self,
-        component: ExpressionIdentifier,
-        properties: NodeIdentifier,
-        snippets: Range,
-        events: bool,
-    ) -> (NodeIdentifier, Option<NodeIdentifier>) {
-        let component = self.expression_source(component, None);
-        let callee = self.tree.push(Node::Identifier("__rsvelte_component"));
-        let arguments = self.tree.list(&[component]);
-        let mut callee = self.tree.push(Node::Call { callee, arguments });
-        let named = (snippets.len != 0 || events).then(|| {
-            let name = self.component_name();
-            let value = callee;
-            self.scratch
-                .push(self.tree.push(Node::Const { name, value }));
-            name
-        });
-        if let Some(name) = named {
-            callee = name;
+        self.append_matching(children, false)?;
+        if let Some(lets) = lets {
+            let body = self.finish_list(lets);
+            self.scratch.push(self.tree.push(Node::Block { body }));
         }
-        let internals = self.tree.push(Node::Identifier("__rsvelte_internals"));
-        let internals = self.tree.push(Node::Call {
-            callee: internals,
-            arguments: Range::default(),
-        });
-        let arguments = self.tree.list(&[internals, properties]);
-        (self.tree.push(Node::Call { callee, arguments }), named)
-    }
-
-    /// `svelteHTML.createElement("name", properties)`, with the attributes its actions add
-    /// between them.
-    fn element_call(
-        &mut self,
-        name: Span,
-        actions: &[NodeIdentifier],
-        properties: NodeIdentifier,
-    ) -> NodeIdentifier {
-        let enhancers = (!actions.is_empty()).then(|| {
-            let callee = self.tree.push(Node::Identifier("__sveltets_2_union"));
-            let arguments = self.tree.list(actions);
-            self.tree.push(Node::Call { callee, arguments })
-        });
-        let name = self.tree.push(Node::Text(name));
-        let parts = self.tree.list(&[name]);
-        let name = self.tree.push(Node::String {
-            parts,
-            template: false,
-        });
-        let arguments = match enhancers {
-            Some(enhancers) => self.tree.list(&[name, enhancers, properties]),
-            None => self.tree.list(&[name, properties]),
-        };
-        let callee = self.element_callee();
-        self.tree.push(Node::Call { callee, arguments })
-    }
-
-    /// svelte2tsx's `isCustomElement` for a tag without a dash: an `is` with a dash in it.
-    fn has_custom_is(&self, attributes: Range) -> bool {
-        self.component.attributes(attributes).iter().any(|a| {
-            a.name.text(self.source) == "is"
-                && matches!(a.value, AttributeValue::Parts(parts)
-                        if matches!(self.component.parts(parts).first(),
-                            Some(Part::Text(text)) if text.text(self.source).contains('-')))
-        })
-    }
-
-    /// svelte2tsx's `__sveltets_createSlot(name, { … })`, which checks the attributes against
-    /// the component's `$$Slots` when it declares one.
-    fn slot_call(
-        &mut self,
-        attributes: Range,
-        properties: NodeIdentifier,
-    ) -> Result<NodeIdentifier> {
-        let named = self
-            .component
-            .attributes(attributes)
-            .iter()
-            .find(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "name");
-        let name = match named.map(|a| (a, a.value)) {
-            None => self.tree.push(Node::StringLiteral("default")),
-            Some((a, AttributeValue::Parts(parts))) => match self.component.parts(parts) {
-                &[Part::Text(text)] => {
-                    let text = self.tree.push(Node::Text(text));
-                    let parts = self.tree.list(&[text]);
-                    self.tree.push(Node::String {
-                        parts,
-                        template: false,
-                    })
-                }
-                _ => return Err(Unsupported::at("dynamic slot names", a.span)),
-            },
-            Some((a, AttributeValue::True)) => {
-                return Err(Unsupported::at("dynamic slot names", a.span));
-            }
-        };
-        let mut callee = self.tree.push(Node::Identifier("__rsvelte_slots"));
-        if self.declares("$$Slots") {
-            let slots = self.tree.push(Node::Identifier("$$Slots"));
-            let arguments = self.tree.list(&[slots]);
-            callee = self.tree.push(Node::TypeArguments { callee, arguments });
-        }
-        let arguments = self.tree.list(&[]);
-        let callee = self.tree.push(Node::Call { callee, arguments });
-        let arguments = self.tree.list(&[name, properties]);
-        Ok(self.tree.push(Node::Call { callee, arguments }))
+        Ok(())
     }
 
     /// Whether the component binds `name`, a type included.

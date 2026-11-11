@@ -17,6 +17,8 @@ pub(super) struct Directives {
     pub(super) checks: Vec<NodeIdentifier>,
     /// The arguments of a component's `$on` calls.
     pub(super) events: Vec<Range>,
+    /// The properties of the pattern that a component's `let:` directives destructure.
+    pub(super) lets: Vec<NodeIdentifier>,
 }
 
 impl Directives {
@@ -25,6 +27,7 @@ impl Directives {
         self.action_names.clear();
         self.checks.clear();
         self.events.clear();
+        self.lets.clear();
     }
 }
 
@@ -81,15 +84,64 @@ impl Builder<'_> {
         Ok(self.tree.list(&[name, handler]))
     }
 
-    /// `__rsvelte_events(component).$on(name, handler);` for each event.
+    /// `name` or `name: pattern` for `let:name={pattern}` on a component.
+    pub(super) fn component_let(&mut self, attribute: &Attribute) -> Result<NodeIdentifier> {
+        let unsupported = || Unsupported::at("directives", attribute.span);
+        let name = attribute
+            .directive_name(&self.component.modifiers)
+            .ok_or_else(unsupported)?;
+        let pattern = match attribute.value {
+            AttributeValue::True => None,
+            AttributeValue::Parts(parts) => match self.component.parts(parts) {
+                [] => None,
+                &[Part::Expression { expression, .. }] => {
+                    Some(self.expression_source(expression, None))
+                }
+                _ => return Err(unsupported()),
+            },
+        };
+        let Some(value) = pattern else {
+            let value = self.tree.push(Node::Source(SourceExpression {
+                span: name,
+                end: name.end_offset,
+            }));
+            return Ok(self.tree.push(Node::Shorthand(value)));
+        };
+        Ok(self.tree.push(Node::Property {
+            name,
+            lowercase: false,
+            value,
+            end: None,
+        }))
+    }
+
+    /// svelte2tsx's `const { … } = component.$$slot_def.default;` for a component's `let:`.
+    pub(super) fn component_lets(&mut self, component: NodeIdentifier, lets: &[NodeIdentifier]) {
+        if lets.is_empty() {
+            return;
+        }
+        let properties = self.tree.list(lets);
+        let name = self.tree.push(Node::Object { properties });
+        let object = self.instance(component);
+        let property = self.tree.push(Node::Identifier("$$slot_def"));
+        let object = self.tree.push(Node::Member { object, property });
+        let property = self.tree.push(Node::Identifier("default"));
+        let value = self.tree.push(Node::Member { object, property });
+        self.scratch
+            .push(self.tree.push(Node::Const { name, value }));
+    }
+
+    /// `__rsvelte_instance(component)`: the instance svelte2tsx constructs.
+    fn instance(&mut self, component: NodeIdentifier) -> NodeIdentifier {
+        let callee = self.tree.push(Node::Identifier("__rsvelte_instance"));
+        let arguments = self.tree.list(&[component]);
+        self.tree.push(Node::Call { callee, arguments })
+    }
+
+    /// `__rsvelte_instance(component).$on(name, handler);` for each event.
     pub(super) fn component_events(&mut self, component: NodeIdentifier, events: &[Range]) {
         for &arguments in events {
-            let callee = self.tree.push(Node::Identifier("__rsvelte_events"));
-            let object = self.tree.list(&[component]);
-            let object = self.tree.push(Node::Call {
-                callee,
-                arguments: object,
-            });
+            let object = self.instance(component);
             let property = self.tree.push(Node::Identifier("$on"));
             let callee = self.tree.push(Node::Member { object, property });
             let call = self.tree.push(Node::Call { callee, arguments });
