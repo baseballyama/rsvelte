@@ -39,6 +39,14 @@ pub(super) fn analyze(
         false,
         &mut analysis.stylesheet_used,
     );
+    let in_global_blocks = external::in_global_blocks(
+        input.source_text,
+        &sheet.rules,
+        sheet.selector_count as usize,
+    );
+    for (used, &inside) in analysis.stylesheet_used.iter_mut().zip(&in_global_blocks) {
+        *used |= inside;
+    }
     let facts = Facts {
         input,
         resolution,
@@ -51,6 +59,9 @@ pub(super) fn analyze(
     let mut duplicates = Duplicates::default();
     let elements_scoped = &mut analysis.scoped;
     sheet.visit_selectors(|selector| {
+        if in_global_blocks[selector.id as usize] {
+            return;
+        }
         duplicates.match_once(
             selector,
             input.source_text,
