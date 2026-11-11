@@ -42,7 +42,7 @@ pub(super) fn props<'t>(
         AttributeValue::Bind(e) if a.name.text(source_text) != "this" => {
             accessors(e).map(|(get, set)| Prop::Accessors(a, get, set))
         }
-        AttributeValue::Bind(_) => None,
+        AttributeValue::Bind(_) | AttributeValue::On { .. } => None,
         AttributeValue::Spread(e) => Some(Prop::Spread(e)),
         _ => Some(Prop::Value(a)),
     });

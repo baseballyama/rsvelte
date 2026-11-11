@@ -129,7 +129,6 @@ fn check_element(
             {
                 continue;
             }
-            AttributeValue::On { .. } => "an `on:` directive",
             AttributeValue::Style { .. } if matches!(&a.value, AttributeValue::Style { value, .. } if matches!(**value, StyleValue::Empty)) => {
                 "a `style:` directive without a value"
             }
