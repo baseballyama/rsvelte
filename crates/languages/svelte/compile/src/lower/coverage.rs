@@ -17,9 +17,6 @@ use super::{
 pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
-    let ignores_html_changes = tree.nodes.iter().any(|node| {
-        matches!(node.kind, NodeKind::Comment { data } if data.text(source).contains("hydration_html_changed"))
-    });
     let renders = tree
         .nodes
         .iter()
@@ -35,6 +32,7 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             | NodeKind::Await(_)
             | NodeKind::Each(_)
             | NodeKind::Debug { .. }
+            | NodeKind::Html { .. }
             | NodeKind::Render { .. } => None,
             // Upstream renders `<select>` and `<option>` content apart, which is not lowered.
             NodeKind::Declaration { .. } => node.parent.and_then(|p| match &tree.node(p).kind {
@@ -45,8 +43,6 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
                 }
                 _ => None,
             }),
-            // Upstream passes a `svelte-ignore hydration_html_changed` on to `$.html`.
-            NodeKind::Html { .. } => ignores_html_changes.then_some("an ignored `{@html}` change"),
             // Upstream's `slot_snippet_conflict`.
             NodeKind::Element(el) if el.kind == ElementKind::Slot && renders => {
                 Some("a `<slot>` beside a `{@render}` tag")
