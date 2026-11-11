@@ -3,7 +3,7 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{Argument, CallExpression, Expression};
 
-use super::{Body, Parent, Place, RuneWalk, Snapshot, state_invalid_placement};
+use super::{Body, Parent, Place, RuneWalk, state_invalid_placement};
 use crate::lower::{Diagnostic, Target, span_of, unsupported};
 
 impl RuneWalk<'_> {
@@ -149,8 +149,7 @@ impl RuneWalk<'_> {
             && match rune {
                 "$state" | "$state.raw" | "$derived" | "$derived.by" | "$props" | "$props.id"
                 | "$bindable" | "$effect.pending" | "$effect.tracking" | "$effect.root"
-                | "$state.eager" => true,
-                "$state.snapshot" => self.snapshot == Snapshot::Lowered,
+                | "$state.eager" | "$state.snapshot" => true,
                 "$host" => self.custom_element,
                 "$effect" | "$effect.pre" => {
                     matches!(place.parent, Parent::Statement(_) | Parent::LoneExpression)
