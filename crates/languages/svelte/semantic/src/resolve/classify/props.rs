@@ -5,7 +5,7 @@ use super::super::{BindingInformation, BindingKind, runes};
 
 pub(super) fn classify_props<'a>(
     semantic: &Semantic,
-    subscribed: &[&str],
+    subscribed: &runes::Subscriptions,
     pattern: &'a BindingPattern<'a>,
     out: &mut [BindingInformation<'a>],
 ) {

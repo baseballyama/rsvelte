@@ -1,0 +1,4 @@
+warning store_rune_conflict 5:14-5:20 It looks like you're using the `$state` rune, but there is a local binding called `state`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `state` to avoid the ambiguity
+    https://svelte.dev/e/store_rune_conflict
+warning non_reactive_update 5:6-5:11 `count` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+    https://svelte.dev/e/non_reactive_update

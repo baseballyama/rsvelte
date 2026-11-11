@@ -1,0 +1,2 @@
+error store_invalid_subscription 3:12-3:18 Cannot reference store value inside `<script module>`
+    https://svelte.dev/e/store_invalid_subscription

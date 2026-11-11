@@ -21,7 +21,8 @@ struct Bucket {
 
 pub(super) struct Candidates<'a> {
     tree: &'a CompilerSyntaxTree,
-    /// The nodes inside `<svelte:head>`, which no selector matches (upstream `is_inside_svelte_head`).
+    /// The nodes inside `<svelte:head>`, which no selector matches (upstream
+    /// `is_inside_svelte_head`).
     in_head: IndexVector<CompilerNodeIdentifier, bool>,
     has_compound_classes: bool,
     dom: OnceCell<DomCandidates>,
