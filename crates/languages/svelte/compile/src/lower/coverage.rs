@@ -422,9 +422,6 @@ fn const_tag(
         .javascript
         .get_declaration(declaration)
         .declarations[0];
-    if !matches!(d.id, oxc_ast::ast::BindingPattern::BindingIdentifier(_)) {
-        return Some("a destructured `{@const}` tag");
-    }
     let mut later = Later {
         res,
         start: d.span.start,
