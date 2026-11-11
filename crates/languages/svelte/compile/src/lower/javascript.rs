@@ -34,8 +34,9 @@ pub(crate) fn string_value(value: JSStr<'_>) -> Cow<'_, str> {
         .map_or_else(|| Cow::Owned(value.display().to_string()), Cow::Borrowed)
 }
 
+/// Upstream's `is_simple_expression`, on the expression with its types erased.
 pub(crate) fn is_simple_expression(e: &Expression<'_>) -> bool {
-    match e {
+    match e.get_inner_expression() {
         Expression::StringLiteral(_)
         | Expression::RegExpLiteral(_)
         | Expression::NumericLiteral(_)
