@@ -38,6 +38,7 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         documents: Documents::Matching(rsvelte_svelte_syntax::matches),
         tsc: config.check.as_ref().map(|c| c.tsc.clone()),
         stand_in: Some(rsvelte_svelte_typescript_projection::STAND_IN),
+        imported: Some(is_script),
     });
     let env = config
         .check
@@ -50,6 +51,13 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         let component = context.get::<Parsed>().as_ref().ok()?;
         rsvelte_svelte_typescript_projection::stand_in(component, &context.document.text)
     });
+}
+
+/// A script a component may import, such as a `.svelte.ts` module.
+fn is_script(document: &rsvelte_kernel::source::document::Document) -> bool {
+    [".ts", ".mts", ".cts", ".js", ".mjs", ".cjs"]
+        .iter()
+        .any(|extension| document.path.ends_with(extension))
 }
 
 /// What svelte-check adds to the project: its JSX shim and the svelte package's types.

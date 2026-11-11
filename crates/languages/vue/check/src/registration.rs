@@ -39,6 +39,7 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         documents: Documents::Matching(rsvelte_vue_syntax::matches),
         tsc: config.check.as_ref().map(|c| c.tsc.clone()),
         stand_in: None,
+        imported: None,
     });
     let env = config
         .check
