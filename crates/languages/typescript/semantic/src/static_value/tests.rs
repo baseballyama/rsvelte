@@ -1,29 +1,22 @@
-use rsvelte_kernel::source::positions::Span;
+use oxc_ast::ast::Statement;
+use oxc_span::SourceType;
+use rsvelte_kernel::source::document::Document;
+use rsvelte_typescript_tree::Tree;
 
 use super::{StaticValues, Value};
-use crate::scope::analyze;
-use rsvelte_typescript_syntax::parser::parse_program;
-use rsvelte_typescript_syntax::syntax_tree::{Kind, SyntaxTree};
+use crate::semantic::Semantic;
 
 /// The value of the last statement of `source_text`, an expression, with scopes resolved.
 fn value(source_text: &str) -> Option<Value> {
-    let mut tree = SyntaxTree::new();
-    let program = parse_program(
-        &mut tree,
-        source_text,
-        Span::new(0, source_text.len() as u32),
-        true,
-    )
-    .expect("the test input parses");
-    let semantic = analyze(&tree, program, &[]);
-    let Kind::Program(statements) = tree.kind(program) else {
-        unreachable!("a program")
-    };
-    let Some(Kind::ExpressionStatement(expression)) = statements.last().map(|&s| tree.kind(s))
+    let document = Document::new("a.ts".to_owned(), source_text.to_owned()).expect("small");
+    let (tree, program) = Tree::program(&document, SourceType::ts()).expect("parses");
+    let semantic = Semantic::program(tree, program);
+    let Some(Statement::ExpressionStatement(statement)) =
+        semantic.tree().get_program(program).body.last()
     else {
         panic!("the last statement is an expression")
     };
-    StaticValues::new(&tree, source_text, Some(&semantic)).value(expression)
+    StaticValues::new(&semantic).value(&statement.expression)
 }
 
 #[expect(
@@ -181,6 +174,11 @@ fn optional_chains_short_circuit_on_nullish() {
         value("const o = null; o.a"),
         None,
         "reading a member of null throws"
+    );
+    assert_eq!(
+        value("const o = null; (o?.a).b"),
+        None,
+        "a parenthesized chain ends, so `.b` reads a member of undefined"
     );
 }
 
