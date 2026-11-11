@@ -225,3 +225,28 @@ fn a_cast_global_needs_no_context() {
         assert_eq!(analysis.needs_context, needs, "{script}");
     }
 }
+
+#[test]
+fn a_state_argument_proxies_by_the_value_inside_its_types() {
+    let source = "<script lang=\"ts\">\n\
+                  let count = $state(0);\n\
+                  const next: number = count + 1;\n\
+                  const one = 1 as number;\n\
+                  let a = $state(next! as number);\n\
+                  let b = $state(one);\n\
+                  let c = $state({} as Record<string, number>);\n\
+                  </script>";
+    let res = analyze(source);
+    let proxies = |name| {
+        let Some(oxc_ast::ast::Expression::CallExpression(call)) =
+            res.initializer(symbol(&res, source, name))
+        else {
+            panic!("`{name}` is a rune call")
+        };
+        let argument = call.arguments[0].as_expression().expect("an expression");
+        res.should_proxy(argument)
+    };
+    assert!(!proxies("a ="));
+    assert!(!proxies("b ="));
+    assert!(proxies("c ="));
+}

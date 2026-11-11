@@ -453,7 +453,8 @@ impl Resolution {
 
 /// `res` is `None` for a binding's initial value, which upstream checks without a scope.
 fn proxyable(res: Option<&Resolution>, e: &Expression<'_>) -> bool {
-    match e {
+    // Upstream asks after the types are erased.
+    match crate::typescript::without_typescript(e) {
         Expression::StringLiteral(_)
         | Expression::RegExpLiteral(_)
         | Expression::BigIntLiteral(_)
