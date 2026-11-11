@@ -33,18 +33,18 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             return unsupported("a destructuring `{#each}` context", span_of(context));
         };
         let collection = self.expression(each.collection);
-        let index = each.index.map_or_else(
-            || self.each_index[&identifier].clone(),
-            |i| {
-                javascript
-                    .get_pattern(i)
-                    .pattern
-                    .get_binding_identifier()
-                    .expect("an `{#each}` index is an identifier")
-                    .name
-                    .to_string()
-            },
-        );
+        let named = each.index.map(|i| {
+            javascript
+                .get_pattern(i)
+                .pattern
+                .get_binding_identifier()
+                .expect("an `{#each}` index is an identifier")
+        });
+        // A group reads the index by a name of its own, which the body declares as the index.
+        let index = match named {
+            Some(i) if !self.group_each.contains(&identifier) => i.name.to_string(),
+            _ => self.each_index[&identifier].clone(),
+        };
         let array_id = self.names.unique("each_array");
         let array_declaration = b.const_(&array_id, b.runtime("ensure_array_like", [collection]));
 
@@ -53,6 +53,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             VariableDeclarationKind::Let,
             [b.declarator(b.binding_at(&item.name, item.span), Some(element))],
         )];
+        if let Some(i) = named
+            && i.name.as_str() != index
+        {
+            body.push(b.let_(&i.name, Some(b.id(&index))));
+        }
         body.extend(self.fragment(each.body)?);
 
         let for_loop = self.each_loop(&index, &array_id, body);

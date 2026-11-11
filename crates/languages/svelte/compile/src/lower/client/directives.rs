@@ -3,8 +3,8 @@ use oxc_ast::ast::Expression;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{Attribute, AttributeValue, ClientCompilationContext, Lists};
-use crate::lower::bindings::{Lowering, property_of};
+use super::{Attribute, AttributeValue, ClientCompilationContext, Lists, NodeKind};
+use crate::lower::bindings::{Lowering, attribute_value, property_of};
 use crate::lower::builder::Runtime;
 
 const TRANSITION_IN: u32 = 1;
@@ -43,7 +43,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     directives.initializer.push(b.stmt(call));
                 }
                 AttributeValue::Bind(_) => {
-                    let call = self.binding(a, tag, node);
+                    let call = self.binding(a, attributes, tag, node);
                     // Upstream defers a binding beside an action, as it does an event.
                     if has_use {
                         let effect = b.runtime("effect", [b.thunk(call)]);
@@ -121,7 +121,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     /// Upstream `BindDirective` (client, non-dev) for the bindings coverage admits.
-    fn binding(&self, attribute: &Attribute, tag: &str, node: &str) -> Expression<'o> {
+    fn binding(
+        &self,
+        attribute: &Attribute,
+        attributes: &[Attribute],
+        tag: &str,
+        node: &str,
+    ) -> Expression<'o> {
         let AttributeValue::Bind(target) = attribute.value else {
             unreachable!("called on bindings")
         };
@@ -156,8 +162,63 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             Lowering::ContentEditable => {
                 accessors("bind_content_editable", vec![b.string(name), node])
             }
-            Lowering::Group | Lowering::This => unreachable!("lowered on their own"),
+            Lowering::Group => self.bind_group(attribute, attributes, tag, node, get, set),
+            Lowering::This => unreachable!("lowered on its own"),
         }
+    }
+
+    /// Upstream's `$.bind_group(group, indexes, node, get, set)`. The getter also reads a
+    /// dynamic `value`, so that the group updates when it changes.
+    fn bind_group(
+        &self,
+        attribute: &Attribute,
+        attributes: &[Attribute],
+        tag: &str,
+        node: Expression<'o>,
+        get: Expression<'o>,
+        set: Expression<'o>,
+    ) -> Expression<'o> {
+        let b = self.b;
+        let tree = self.compiler_syntax_tree;
+        let (group, blocks) = &self.binding_groups.of[&attribute.span.start_offset];
+        let indexes = blocks.iter().map(|&block| {
+            let NodeKind::Each(each) = &tree.node(block).kind else {
+                unreachable!("a group's blocks are `{{#each}}` blocks")
+            };
+            let index = b.id(&self.each_index[&block]);
+            if each.keyed(self.javascript) && each.index.is_some() {
+                b.runtime("get", [index])
+            } else {
+                index
+            }
+        });
+        let value = (tag != "svelte:element")
+            .then(|| attribute_value(self.source_text, attributes, "value"))
+            .flatten();
+        let get = match value {
+            Some(
+                &(AttributeValue::Expression { expression, .. }
+                | AttributeValue::Shorthand(expression)),
+            ) => {
+                let AttributeValue::Bind(target) = attribute.value else {
+                    unreachable!("a binding")
+                };
+                let read = b.stmt(self.expression(expression));
+                let current = b.return_(Some(self.expression(target)));
+                b.arrow_block(b.params([]), [read, current], false)
+            }
+            _ => get,
+        };
+        b.runtime(
+            "bind_group",
+            [
+                b.id(&self.binding_groups.names[*group]),
+                b.array(indexes),
+                node,
+                get,
+                set,
+            ],
+        )
     }
 
     /// Upstream `AttachTag` (client).

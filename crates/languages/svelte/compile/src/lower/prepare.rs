@@ -38,6 +38,13 @@ pub(super) fn prepare<'c, 'o>(
         .map(|(name, _)| name.as_str());
     let mut names = names::Names::new(declared, referenced);
     let each_index = each_index_names(input.component.compiler_syntax_tree, &mut names);
+    let binding_groups = super::binding_groups::binding_groups(
+        input.component.compiler_syntax_tree,
+        javascript,
+        input.component.source_text,
+        res,
+        &mut names,
+    );
     let component_name = names.generate(&facts.identity.name);
     let mut module = Vec::new();
     let mut hoisted = Vec::new();
@@ -84,6 +91,7 @@ pub(super) fn prepare<'c, 'o>(
     Ok(Prepared {
         names,
         each_index,
+        binding_groups,
         module,
         hoisted,
         instance,

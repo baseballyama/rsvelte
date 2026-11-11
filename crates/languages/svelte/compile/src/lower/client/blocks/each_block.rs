@@ -81,13 +81,19 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let collection_id = self
             .shadows_outer_name(identifier, each)
             .then(|| self.names.unique("$$array"));
-        let index_name = index.map_or_else(
-            || self.each_index[&identifier].clone(),
-            |i| i.name.as_str().to_owned(),
-        );
-        let index_use = self.index_use(each, bindings);
+        // A group reads the index by a name of its own, which the body declares as the index.
+        let grouped = self.binding_groups.each.contains(&identifier);
+        let index_name = match index {
+            Some(i) if !grouped => i.name.as_str().to_owned(),
+            _ => self.each_index[&identifier].clone(),
+        };
+        let mut index_use = self.index_use(each, bindings);
+        index_use.body |= grouped;
 
-        let body = self.each_body(each, identifier, bindings, flags)?;
+        let mut body = self.each_body(each, identifier, bindings, flags)?;
+        if grouped && let Some(i) = index {
+            body.insert(0, b.let_(&i.name, Some(b.id(&index_name))));
+        }
         let key_function = if keyed {
             self.key_function(each, context, bindings, &index_name, index_use.key)
         } else {

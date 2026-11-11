@@ -124,7 +124,6 @@ fn check_element(
                 check_target(input, res, a, target)?;
                 continue;
             }
-            AttributeValue::Bind(_) if name == "group" => "`bind:group` on a component",
             AttributeValue::Bind(target)
                 if is_accessors(input, target) && !rejected(input, res, target) =>
             {
@@ -289,10 +288,15 @@ fn check_element_binding(
     if !supported_binding(source_text, tag, attributes, property) {
         return unsupported(&format!("`bind:{property}` on this `<{tag}>`"), a.span);
     }
+    // A group or a checkbox keeps its `value` apart, as `__value`.
+    let keeps_value = matches!(property, "group" | "checked");
     let beside = attributes.iter().any(|o| {
         !std::ptr::eq(o, a)
             && match o.name.text(source_text) {
-                "value" | "checked" => !super::is_directive(&o.value),
+                "value" if !super::is_directive(&o.value) => {
+                    !keeps_value || matches!(o.value, AttributeValue::Interpolated(_))
+                }
+                "checked" => !super::is_directive(&o.value),
                 "group" => true,
                 _ => false,
             }
@@ -302,6 +306,16 @@ fn check_element_binding(
             "a binding beside a `value`, `checked` or `group` attribute",
             a.span,
         );
+    }
+    if property == "group" {
+        let source = input.component.javascript.get_expression(target);
+        let snippet = member_root(source.get_inner_expression())
+            .and_then(|root| res.symbol(root))
+            .is_some_and(|symbol| res.binding(symbol).kind == BindingKind::Snippet);
+        // Upstream rejects a group of a getter and a setter, or of a snippet's parameter.
+        if is_accessors(input, target) || snippet {
+            return unsupported("this `bind:group` target", a.span);
+        }
     }
     check_target(input, res, a, target)
 }
@@ -319,9 +333,6 @@ fn supported_binding(
     };
     // Upstream checks `svelte:element` against each property's elements too.
     if tag == "svelte:element" || p.elements.is_some_and(|e| !e.contains(&tag)) {
-        return false;
-    }
-    if p.lowering == Lowering::Group {
         return false;
     }
     if tag == "input" {

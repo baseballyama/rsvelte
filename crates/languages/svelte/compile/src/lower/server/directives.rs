@@ -1,4 +1,4 @@
-use oxc_ast::ast::Expression;
+use oxc_ast::ast::{BinaryOperator, Expression};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{
@@ -8,14 +8,14 @@ use crate::lower::bindings::{Lowering, attribute_value, property_of};
 use crate::lower::builder::Runtime;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
-    /// Upstream `build_element_attributes` (server): the value a binding renders as the
-    /// attribute it names, or `None` when it renders nothing.
+    /// Upstream `build_element_attributes` (server): the attribute a binding renders, by name
+    /// and value, or `None` when it renders nothing.
     pub(super) fn bound_value(
         &self,
         tag: &str,
         attributes: &[Attribute],
         a: &Attribute,
-    ) -> Option<Expression<'o>> {
+    ) -> Option<(String, Expression<'o>)> {
         let AttributeValue::Bind(e) = a.value else {
             unreachable!("called on bindings")
         };
@@ -34,7 +34,36 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         if skipped {
             return None;
         }
-        Some(self.bound(e))
+        if name == "group" {
+            return self
+                .group_checked(attributes, e)
+                .map(|c| ("checked".to_owned(), c));
+        }
+        Some((name.to_ascii_lowercase(), self.bound(e)))
+    }
+
+    /// A group checks the input whose `value` it holds: one of a checkbox group's values, or a
+    /// radio group's value.
+    fn group_checked(
+        &self,
+        attributes: &[Attribute],
+        e: ExpressionIdentifier,
+    ) -> Option<Expression<'o>> {
+        let b = self.b;
+        let value = attributes
+            .iter()
+            .find(|a| !is_directive(&a.value) && a.name.text(self.source_text) == "value")?;
+        let value = self.attribute_value(value, false, false);
+        let checkbox = matches!(
+            attribute_value(self.source_text, attributes, "type"),
+            Some(AttributeValue::Static(t)) if &**t == "checkbox"
+        );
+        let target = self.expression(e);
+        Some(if checkbox {
+            b.call(b.member(target, "includes"), [value])
+        } else {
+            b.binary(target, BinaryOperator::StrictEquality, value)
+        })
     }
 
     /// Upstream's `content`: the body a content binding renders in place of the children; the
@@ -96,8 +125,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         a: &Attribute,
     ) -> Option<Expression<'o>> {
         let b = self.b;
-        let value = self.bound_value(tag, attributes, a)?;
-        let name = a.name.text(self.source_text).to_ascii_lowercase();
+        let (name, value) = self.bound_value(tag, attributes, a)?;
         let mut arguments = vec![b.string(&name), value];
         if is_boolean_attribute(&name) {
             arguments.push(b.boolean(true));

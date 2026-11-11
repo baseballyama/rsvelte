@@ -2,6 +2,7 @@ use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{BinaryOperator, Expression, LogicalOperator, VariableDeclarationKind};
 use rsvelte_svelte_semantic::evaluate::Evaluator;
 
+use crate::lower::bindings::needs_special_value;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, Element, Frag, Lists, is_directive,
@@ -9,8 +10,9 @@ use crate::lower::client::{
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
-    /// The tail of upstream `RegularElement` for `<option>` and `<select>`: the value goes to the
-    /// hidden `__value` once the children exist, then a `<select>` picks its option.
+    /// The tail of upstream `RegularElement` for `<option>`, `<select>` and a bound checkbox or
+    /// group: the value goes to the hidden `__value` once the children exist, then a `<select>`
+    /// picks its option.
     pub(super) fn select_value(
         &mut self,
         el: &Element,
@@ -21,10 +23,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         l: &mut Lists<'o>,
     ) {
         let b = self.b;
-        if !matches!(tag, "option" | "select") {
+        let source_text = self.source_text;
+        if !needs_special_value(source_text, tag, attributes) {
             return;
         }
-        let source_text = self.source_text;
         let value_attribute = attributes
             .iter()
             .find(|a| !is_directive(&a.value) && a.name.text(source_text) == "value");

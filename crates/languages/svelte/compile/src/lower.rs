@@ -4,6 +4,7 @@
 //! name generation are shared; only the parts where the targets really differ (DOM building on
 //! the client, string pushing on the server) live in `client` and `server`.
 
+mod binding_groups;
 mod bindings;
 mod builder;
 mod client;
@@ -193,6 +194,7 @@ pub(crate) fn validate(
 pub(crate) struct Prepared<'c, 'o> {
     names: names::Names,
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
+    binding_groups: binding_groups::BindingGroups,
     /// The module script, imports included. Upstream places it apart from `hoisted`, and the
     /// client and server place it differently.
     module: Vec<Statement<'o>>,

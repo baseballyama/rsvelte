@@ -29,7 +29,6 @@ fn a_directive_a_component_never_takes_raises_upstreams_error() {
 #[test]
 fn each_component_attribute_not_lowered_yet_is_refused_on_both_targets() {
     for attribute in [
-        "bind:group={c}",
         "{@attach f}",
         "on:click={f}",
         "let:x",
@@ -582,6 +581,8 @@ fn a_binding_upstream_rejects_on_its_element_is_refused_on_both_targets() {
         "<select multiple={t} bind:value={x}></select>",
         "<svg bind:offsetWidth={x}></svg>",
         "<div bind:nope={x}></div>",
+        "<input type=\"radio\" bind:group={() => x, (v) => (x = v)} />",
+        "{#snippet s(y)}<input type=\"radio\" bind:group={y} />{/snippet}",
     ] {
         let source = format!("<script>let x = $state(); let t = $state();</script>{element}");
         for target in [Target::Client, Target::Server] {

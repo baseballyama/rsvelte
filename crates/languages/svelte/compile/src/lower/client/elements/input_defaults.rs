@@ -1,3 +1,4 @@
+use crate::lower::bindings::binds;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, Lists, is_directive,
@@ -21,7 +22,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     a.value,
                     AttributeValue::Static(_) | AttributeValue::Class(_)
                 )
-        });
+        }) || binds(source_text, attributes, "group");
         let has_default_value = attributes.iter().any(|a| {
             !is_directive(&a.value)
                 && matches!(a.name.text(source_text), "defaultValue" | "defaultChecked")

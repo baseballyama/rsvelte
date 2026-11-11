@@ -156,6 +156,7 @@ struct ClientCompilationContext<'c, 'o> {
     /// How the template's names in scope are read.
     reads: FxHashMap<SymbolId, Read>,
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
+    binding_groups: super::binding_groups::BindingGroups,
     /// Where a name of a tree this lowering built resolves when it is evaluated: the innermost
     /// `{#each}` or snippet scope.
     scope: ScopeId,
@@ -197,6 +198,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     let Prepared {
         names,
         each_index,
+        binding_groups,
         module,
         hoisted,
         instance,
@@ -218,6 +220,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         events: Vec::new(),
         reads: FxHashMap::default(),
         each_index,
+        binding_groups,
         scope: res.instance_scope(),
         plan,
         identity,
@@ -338,6 +341,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let stores = self.store_setup();
         let cleanup = !stores.is_empty();
         body.extend(stores);
+        for group in &self.binding_groups.names {
+            body.push(b.const_(group, b.array([])));
+        }
         body.append(&mut self.instance_snippets);
         body.extend(instance);
         if has_exports {

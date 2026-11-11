@@ -1,5 +1,6 @@
 use oxc_ast::ast::Expression;
 
+use crate::lower::bindings::needs_special_value;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists,
@@ -50,7 +51,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 raw_name.to_owned()
             };
             // `select_value` sets these once the options exist.
-            if (matches!(tag, "option" | "select") && raw_name == "value")
+            if (raw_name == "value" && needs_special_value(self.source_text, tag, attributes))
                 || (tag == "select" && attribute_name == "defaultValue")
             {
                 continue;

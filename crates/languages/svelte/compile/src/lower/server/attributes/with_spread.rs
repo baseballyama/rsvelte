@@ -50,12 +50,12 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 AttributeValue::Bind(e) => {
                     // `prepare_element_spread_object` keeps every binding.
                     let value = if all {
-                        Some(self.bound(e))
+                        Some((raw_name.to_ascii_lowercase(), self.bound(e)))
                     } else {
                         self.bound_value(tag, list, a)
                     };
-                    if let Some(value) = value {
-                        props.push(b.init(&raw_name.to_ascii_lowercase(), value));
+                    if let Some((name, value)) = value {
+                        props.push(b.init(&name, value));
                     }
                     continue;
                 }

@@ -96,3 +96,18 @@ pub(super) fn attribute_value<'a>(
         .find(|a| !super::is_directive(&a.value) && a.name.text(source_text) == name)
         .map(|a| &a.value)
 }
+
+/// Whether an element binds `name`.
+pub(super) fn binds(source_text: &str, attributes: &[Attribute], name: &str) -> bool {
+    attributes
+        .iter()
+        .any(|a| matches!(a.value, AttributeValue::Bind(_)) && a.name.text(source_text) == name)
+}
+
+/// Upstream's `needs_special_value_handling`: the element's `value` goes to the hidden
+/// `__value` after its children.
+pub(super) fn needs_special_value(source_text: &str, tag: &str, attributes: &[Attribute]) -> bool {
+    matches!(tag, "option" | "select")
+        || binds(source_text, attributes, "group")
+        || binds(source_text, attributes, "checked")
+}

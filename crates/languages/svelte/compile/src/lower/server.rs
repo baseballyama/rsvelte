@@ -83,6 +83,8 @@ struct ServerCompilationContext<'c, 'o> {
     an: &'c Analysis,
     names: Names,
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
+    /// The `{#each}` blocks that pass their index to a `bind:group`.
+    group_each: FxHashSet<CompilerNodeIdentifier>,
     plan: &'c RenderPlan,
     identity: &'c crate::OutputIdentity,
     /// The snippets the block being lowered declares (upstream `state.init`).
@@ -110,6 +112,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     let Prepared {
         names,
         each_index,
+        binding_groups,
         module,
         hoisted,
         instance,
@@ -127,6 +130,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         an,
         names,
         each_index,
+        group_each: binding_groups.each,
         plan,
         identity,
         snippets: Vec::new(),
