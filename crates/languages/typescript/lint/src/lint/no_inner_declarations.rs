@@ -110,7 +110,10 @@ impl<'a> Visit<'a> for Visitor<'_, '_, '_> {
             )),
             AstKind::ArrowFunctionExpression(arrow) => Some((
                 strict
-                    || matches!(&arrow.body, ArrowFunctionBody::FunctionBody(b) if has_use_strict(&b.directives)),
+                    || matches!(
+                        &arrow.body,
+                        ArrowFunctionBody::FunctionBody(b) if has_use_strict(&b.directives)
+                    ),
                 "function body",
                 arrow.node_id.get(),
             )),

@@ -15,6 +15,8 @@
 
 ["svelte/svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte".skip]
 "svelte.compile" = "upstream bug: acorn-typescript accepts a parameter with both `?` and an initializer, which TypeScript rejects (TS1015)"
+"svelte.format" = "upstream bug: acorn-typescript accepts a parameter with both `?` and an initializer, which TypeScript rejects (TS1015)"
+"svelte.lint" = "upstream bug: acorn-typescript accepts a parameter with both `?` and an initializer, which TypeScript rejects (TS1015)"
 
 ["svelte/svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte".skip]
 "svelte.compile/client" = "svelte 5.57.3 emits invalid JS here (duplicate declaration of `foo`); the sample expects a compile error"
@@ -38,6 +40,21 @@
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/gitlight/src/routes/+page.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/sites/create-site/finish/(components)/check.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/kite-public/src/lib/components/Header.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/networking-toolbox/src/lib/components/tools/IPv6SolicitedNode.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/primo/src/lib/builder/views/modal/SitePages/SitePages.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/shadcn-svelte-extras/src/lib/components/ui/chat/loading-dots.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte".skip]
