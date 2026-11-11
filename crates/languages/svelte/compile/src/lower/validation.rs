@@ -11,7 +11,7 @@ use rustc_hash::FxHashSet;
 pub(super) mod markup;
 mod runes;
 
-pub(super) use runes::check_runes;
+pub(super) use runes::{check_runes, rejects_binding};
 
 use super::{CompileInput, Diagnostic, Resolution, Span, unsupported};
 

@@ -133,8 +133,7 @@ fn a_constant_cannot_be_assigned_or_bound_whatever_declares_it() {
             "</script><input bind:value={r} />",
             Some("constant_binding"),
         ),
-        // A binding this port does not lower is refused before upstream's error is raised.
-        ("</script><input bind:value={x} />", Some("unsupported")),
+        ("</script><input bind:value={x} />", Some("constant_binding")),
         (
             "function f() { s = 1; }</script>",
             Some("constant_assignment"),
@@ -161,7 +160,7 @@ fn a_constant_cannot_be_assigned_or_bound_whatever_declares_it() {
         ),
         (
             "</script>{#each items as item}<input bind:value={item} />{/each}",
-            Some("unsupported"),
+            Some("each_item_invalid_assignment"),
         ),
         (
             "</script>{#each items as item}<button onclick={() => item++}>{item}</button>{/each}",
@@ -376,6 +375,10 @@ fn a_snippet_or_render_tag_raises_upstreams_error_where_upstream_does() {
         (
             "{#snippet a(...xs)}a{/snippet}".to_owned(),
             Some(("snippet_invalid_rest_parameter", (12, 17))),
+        ),
+        (
+            "{#snippet s(x)}<input bind:value={x} />{/snippet}".to_owned(),
+            Some(("snippet_parameter_assignment", (22, 36))),
         ),
     ] {
         for target in [Target::Client, Target::Server] {
