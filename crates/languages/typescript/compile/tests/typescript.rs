@@ -55,7 +55,8 @@ fn types_are_erased() {
         ("const g = <T,>(a: T): T => a;", "const g = (a) => a;"),
         ("let y!: number;", "let y;"),
         (
-            "class A<T> extends B<T> implements C { declare x: T; y?: T; private z = 1; m(): void {} n(): void; [k: string]: any }",
+            "class A<T> extends B<T> implements C { declare x: T; y?: T; private z = 1; m(): void \
+                {} n(): void; [k: string]: any }",
             "class A extends B { y; z = 1; m() {} }",
         ),
         (

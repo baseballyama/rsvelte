@@ -75,7 +75,12 @@ impl<'t> Template<'_, '_, 't> {
             "value" => {
                 let numeric = attributes.iter().any(|attribute| {
                     attribute.name.text(source_text) == "type"
-                        && matches!(&attribute.value, AttributeValue::Static(value) if matches!(value.as_ref(), "number" | "range"))
+                        && match &attribute.value {
+                            AttributeValue::Static(value) => {
+                                matches!(value.as_ref(), "number" | "range")
+                            }
+                            _ => false,
+                        }
                 });
                 let value = if numeric {
                     self.call("$$number", [b.member(element(), "defaultValue")])
