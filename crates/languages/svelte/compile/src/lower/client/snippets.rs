@@ -3,6 +3,7 @@ mod parameters;
 use oxc_ast::ast::Statement;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
 
+use super::super::derived::{Created, callback};
 use super::super::snippets::{is_dynamic_render, render_arguments, render_call, snippet_name};
 use super::{ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R};
 
@@ -72,8 +73,22 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         frag.tpl.push_comment();
         let (call, optional) = render_call(self.javascript.get_expression(expression));
-        let arguments =
-            render_arguments(call).map(|argument| b.thunk(self.rewrite(argument, true)));
+        // Upstream memoizes an argument that calls a function, so each read does not call it.
+        let mut statements = Vec::new();
+        let metadata = self.an.render_arguments(expression);
+        let mut arguments = Vec::with_capacity(call.arguments.len());
+        for (index, argument) in render_arguments(call).enumerate() {
+            let value = self.rewrite(argument, true);
+            let value = if metadata[index].has_call {
+                let name = format!("${}", statements.len());
+                let value = callback(b, self.res, Some(argument), value, Created::Template);
+                statements.push(b.let_(&name, Some(b.runtime("derived", [value]))));
+                b.runtime("get", [b.id(&name)])
+            } else {
+                value
+            };
+            arguments.push(b.thunk(value));
+        }
         let callee = self.rewrite(call.callee.get_inner_expression(), true);
         let anchor = b.id(node);
         let call = if is_dynamic_render(self.res, call) {
@@ -97,6 +112,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 b.call(callee, list)
             }
         };
-        lists.initializer.push(b.stmt(call));
+        statements.push(b.stmt(call));
+        lists.initializer.push(if statements.len() == 1 {
+            statements.pop().expect("one statement")
+        } else {
+            b.block(statements)
+        });
     }
 }

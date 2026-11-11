@@ -2,7 +2,6 @@
 //! target meets it.
 
 use oxc_ast::ast::{Expression, VariableDeclarationKind};
-use oxc_ast_visit::Visit;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, ElementKind, MetadataTag,
 };
@@ -22,7 +21,8 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             | NodeKind::Comment { .. }
             | NodeKind::Expression { .. }
             | NodeKind::If { .. }
-            | NodeKind::Snippet(_) => None,
+            | NodeKind::Snippet(_)
+            | NodeKind::Render { .. } => None,
             NodeKind::Each(each) => each
                 .context
                 .is_none()
@@ -33,14 +33,6 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             }
             NodeKind::Key { .. } => Some("a `{#key}` block"),
             NodeKind::Await(_) => Some("an `{#await}` block"),
-            &NodeKind::Render { expression } => {
-                let (call, _) = super::snippets::render_call(
-                    input.component.javascript.get_expression(expression),
-                );
-                super::snippets::render_arguments(call)
-                    .any(may_call)
-                    .then_some("a `{@render}` argument that calls a function")
-            }
             NodeKind::Html { .. } => Some("an `{@html}` tag"),
             NodeKind::Const { .. } => Some("a `{@const}` tag"),
             NodeKind::Debug { .. } => Some("a `{@debug}` tag"),
@@ -272,32 +264,4 @@ fn supported_binding(
         ("checked", Some(t)) => tag == "input" && t == "checkbox",
         _ => false,
     }
-}
-
-/// Whether `argument` may be a call upstream memoizes, which needs the argument's own metadata.
-fn may_call(argument: &Expression<'_>) -> bool {
-    struct Calls(bool);
-    impl<'a> Visit<'a> for Calls {
-        fn visit_call_expression(&mut self, _: &oxc_ast::ast::CallExpression<'a>) {
-            self.0 = true;
-        }
-        fn visit_tagged_template_expression(
-            &mut self,
-            _: &oxc_ast::ast::TaggedTemplateExpression<'a>,
-        ) {
-            self.0 = true;
-        }
-        fn visit_spread_element(&mut self, _: &oxc_ast::ast::SpreadElement<'a>) {
-            self.0 = true;
-        }
-        fn visit_function(&mut self, _: &oxc_ast::ast::Function<'a>, _: oxc_semantic::ScopeFlags) {}
-        fn visit_arrow_function_expression(
-            &mut self,
-            _: &oxc_ast::ast::ArrowFunctionExpression<'a>,
-        ) {
-        }
-    }
-    let mut calls = Calls(false);
-    calls.visit_expression(argument);
-    calls.0
 }

@@ -2,7 +2,6 @@ import "svelte/internal/disclose-version";
 import * as $ from "svelte/internal/client";
 var root = $.from_html(`<!> <div><!></div> <!>`, 1);
 export default function Render_dynamic($$anchor, $$props) {
-	$.push($$props, true);
 	var fragment = root();
 	var node = $.first_child(fragment);
 	$.snippet(node, () => $$props.header);
@@ -18,5 +17,4 @@ export default function Render_dynamic($$anchor, $$props) {
 		$.append($$anchor, fragment_1);
 	});
 	$.append($$anchor, fragment);
-	$.pop();
 }
