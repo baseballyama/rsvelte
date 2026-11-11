@@ -1,5 +1,5 @@
 use oxc_ast::ast::{BindingIdentifier, Expression, Statement};
-use oxc_semantic::SymbolId;
+use oxc_semantic::{SymbolFlags, SymbolId};
 use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, Each, ElementKind, MetadataTag,
@@ -196,7 +196,14 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         (scopes.into_iter().flatten())
             .flat_map(|scope| scoping.get_bindings(scope).keys())
-            .any(|&name| scoping.find_binding(outer, name).is_some())
+            // Upstream erases the types first, so a type-only name shadows nothing.
+            .any(|&name| {
+                scoping.find_binding(outer, name).is_some_and(|symbol| {
+                    scoping
+                        .symbol_flags(symbol)
+                        .intersects(SymbolFlags::Value | SymbolFlags::Import)
+                })
+            })
     }
 
     fn index_use(&self, each: &Each, bindings: EachBindings) -> IndexUse {
