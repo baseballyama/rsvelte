@@ -66,6 +66,10 @@
 ["svelte/threlte/apps/docs/src/components/Hero/Intro/Intro.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
+["svelte/networking-toolbox/src/routes/about/legal/+layout.svelte".skip]
+"svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+"svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
+
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang01-input.svelte".skip]
 "svelte.compile" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
 "svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment before `<style>` reports its codes 4 bytes early, as upstream leaves out the length of `<!--`"
