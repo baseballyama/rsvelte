@@ -239,3 +239,23 @@ fn a_typed_each_context_drops_its_annotation_as_svelte2tsx_does() {
     );
     assert!(!output.out.contains(": string"), "{}", output.out);
 }
+
+#[test]
+fn a_prop_default_that_reads_a_sibling_infers_no_cycle() {
+    let source =
+        "<script lang=\"ts\">let { a, b = 5, c = b, d = a, e = a.length } = $props();</script>";
+    let (_, output) = project(source);
+    let props = &output.out[output
+        .out
+        .find("const __rsvelte_public_props0")
+        .expect("the props are inferred")..];
+    // From svelte2tsx: `c?: typeof b`, and `any` for a default that reads a prop another way.
+    for expected in [
+        "b: 5,",
+        "c: 5,",
+        "d: __rsvelte_untyped_prop(),",
+        "e: __rsvelte_untyped_prop(),",
+    ] {
+        assert!(props.contains(expected), "{expected}\n{}", output.out);
+    }
+}
