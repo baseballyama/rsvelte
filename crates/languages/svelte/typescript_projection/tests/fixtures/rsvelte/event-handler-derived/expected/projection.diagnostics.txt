@@ -1,0 +1,1 @@
+error check_unsupported 7:9-7:26 not supported by the type-check projection yet: directives
