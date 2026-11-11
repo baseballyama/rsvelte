@@ -1,9 +1,9 @@
 //! The TypeScript that has a runtime value, which erasing types cannot compile.
 
 use oxc_ast::ast::{
-    AccessorProperty, Decorator, MethodDefinition, MethodDefinitionKind, Program, Statement,
-    TSEnumDeclaration, TSExportAssignment, TSImportEqualsDeclaration, TSNamespaceDeclaration,
-    TSNamespaceDeclarationBody,
+    AccessorProperty, Decorator, ExportDeclaration, MethodDefinition, MethodDefinitionKind,
+    Program, Statement, TSEnumDeclaration, TSExportAssignment, TSImportEqualsDeclaration,
+    TSNamespaceDeclaration, TSNamespaceDeclarationBody,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::Span;
@@ -40,6 +40,13 @@ impl<'a> Visit<'a> for Finder {
     fn visit_statement(&mut self, it: &Statement<'a>) {
         if self.0.is_none() {
             walk::walk_statement(self, it);
+        }
+    }
+
+    // acorn-typescript reads `export declare …` as an export of types, which upstream erases.
+    fn visit_export_declaration(&mut self, it: &ExportDeclaration<'a>) {
+        if !it.declaration.declare() {
+            walk::walk_export_declaration(self, it);
         }
     }
 
