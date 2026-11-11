@@ -203,7 +203,15 @@ pub(super) fn lower_prepared<'c, 'o>(
     body.extend(instance);
     body.extend(template);
     body.extend(bind_props(b, res, &exports));
-    let body = wrap_body(b, an, res, props_id.as_deref(), body);
+    let stylesheet = super::embedded_stylesheet(b, &facts, Target::Server);
+    let mut body = wrap_body(b, an, res, props_id.as_deref(), body);
+    if stylesheet.is_some() {
+        let add = b.member(
+            b.member(b.member(b.id("$$renderer"), "global"), "css"),
+            "add",
+        );
+        body.insert(0, b.stmt(b.call(add, [b.id("$$css")])));
+    }
     let mut parameters = vec!["$$renderer"];
     if takes_props(an, res, !exports.is_empty(), input) {
         parameters.push("$$props");
@@ -231,6 +239,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     program.extend(hoisted);
     program.append(&mut sx.hoisted_snippets);
     program.extend(module);
+    program.extend(stylesheet);
     program.push(Statement::new_export_default_declaration(
         SPAN,
         ExportDefaultDeclarationKind::FunctionDeclaration(function),

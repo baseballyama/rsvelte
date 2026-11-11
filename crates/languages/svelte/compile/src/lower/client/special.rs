@@ -37,6 +37,22 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 lists.consts.extend(lowered);
                 return Ok(());
             }
+            NodeKind::Debug { identifiers } => {
+                let b = self.b;
+                let tree = self.compiler_syntax_tree;
+                let body = crate::lower::debug_tag::debug_tag(
+                    b,
+                    tree,
+                    self.javascript,
+                    identifiers,
+                    |e| b.runtime("snapshot", [self.expression(e)]),
+                );
+                let effect = b.arrow_block(b.params([]), body, false);
+                lists
+                    .initializer
+                    .push(b.stmt(b.runtime("template_effect", [effect])));
+                return Ok(());
+            }
             _ => {}
         }
         self.special_element(identifier, "", frag, lists)
@@ -89,6 +105,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                             false,
                             lists,
                         );
+                    } else if let AttributeValue::Use { action, argument } = attribute.value {
+                        let call = self.action(action, argument, target);
+                        lists.initializer.push(b.stmt(call));
+                    } else if let AttributeValue::Attach(e) = attribute.value {
+                        lists.initializer.push(b.stmt(self.attach(e, target)));
                     } else if matches!(attribute.value, AttributeValue::Bind(_)) {
                         self.global_binding(attribute, tag, lists);
                     }

@@ -14,25 +14,6 @@ use crate::lower::javascript::prop_alias;
 use crate::lower::slot_element::slot_names;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
-    pub(super) fn custom_element_stylesheet(
-        &self,
-        stylesheet: Option<&str>,
-    ) -> Option<Statement<'o>> {
-        self.custom_element?;
-        let stylesheet = stylesheet?;
-        let b = self.b;
-        let hash = b.init("hash", b.string(Self::stylesheet_hash(self.identity)));
-        let code = b.init("code", b.string(stylesheet));
-        Some(b.const_("$$css", b.object([hash, code])))
-    }
-
-    fn stylesheet_hash(identity: &crate::OutputIdentity) -> &str {
-        identity
-            .stylesheet_hash
-            .as_deref()
-            .expect("a stylesheet hash")
-    }
-
     /// The props the instance declares, in declaration order.
     fn props(&self) -> impl Iterator<Item = SymbolId> {
         let res = self.res;

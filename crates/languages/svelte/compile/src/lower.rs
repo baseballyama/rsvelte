@@ -12,6 +12,7 @@ mod client;
 mod component;
 mod coverage;
 mod custom_element;
+mod debug_tag;
 mod derived;
 mod javascript;
 mod lets;
@@ -77,7 +78,7 @@ pub fn lower_with_plan<'o>(
 ) -> Result<Program<'o>, Diagnostic> {
     let validated = validate(input, res)?;
     let identity = crate::OutputIdentity::build(&input.component);
-    let stylesheet = if validated.is_custom_element() && target == Target::Client {
+    let stylesheet = if validated.embeds_css(target) {
         crate::stylesheet::scoped_stylesheet_with_mode(
             &input.component,
             an,
@@ -108,7 +109,6 @@ pub(crate) fn lower_with_facts<'o>(
     target: Target,
     allocator: &'o Allocator,
 ) -> Result<Program<'o>, Diagnostic> {
-    coverage::check_static_custom_elements(facts.input, facts.an)?;
     let b = Builder::new(allocator);
     let prepared = prepare::prepare(facts, target, &b)?;
     let body = match target {
@@ -159,6 +159,7 @@ pub(crate) struct Lowering<'context, 'source> {
 #[derive(Debug)]
 pub(crate) struct ValidatedOptions {
     custom_element: Option<custom_element::CustomElement>,
+    css_injected: bool,
     /// The references to a rest prop that read `$$props` instead (upstream's `rest_prop` read).
     rest_reads: FxHashSet<ReferenceId>,
     /// The top-level snippets declared beside the component.
@@ -167,9 +168,33 @@ pub(crate) struct ValidatedOptions {
     stores: Vec<String>,
 }
 
+/// Upstream's `const $$css = { hash, code }`, when `target`'s module adds the stylesheet itself.
+fn embedded_stylesheet<'o>(
+    b: &Builder<'o>,
+    facts: &Lowering<'_, 'o>,
+    target: Target,
+) -> Option<Statement<'o>> {
+    let code = facts
+        .stylesheet
+        .filter(|_| facts.validated.embeds_css(target))?;
+    // A component has a stylesheet hash exactly when it has a stylesheet.
+    let hash = facts.identity.stylesheet_hash.as_deref()?;
+    let hash = b.init("hash", b.string(hash));
+    Some(b.const_("$$css", b.object([hash, b.init("code", b.string(code))])))
+}
+
 impl ValidatedOptions {
-    pub(crate) const fn is_custom_element(&self) -> bool {
-        self.custom_element.is_some()
+    /// Upstream `inject_styles`: no stylesheet file, and the minified stylesheet in the module.
+    pub(crate) const fn injects_css(&self) -> bool {
+        self.css_injected || self.custom_element.is_some()
+    }
+
+    /// Whether `target`'s module adds the stylesheet; the server never adds a custom element's.
+    pub(crate) const fn embeds_css(&self, target: Target) -> bool {
+        match target {
+            Target::Client => self.injects_css(),
+            Target::Server => self.css_injected && self.custom_element.is_none(),
+        }
     }
 }
 
@@ -198,7 +223,10 @@ pub(crate) fn validate_erased_by(
     if let Some(error) = res.syntax_error() {
         return Err(error.clone());
     }
-    let custom_element = special::validate(input)?;
+    let special::SvelteOptions {
+        custom_element,
+        css_injected,
+    } = special::validate(input)?;
     let names = stores::Names::new(input, res);
     validation::check_analysis(input, res, &names, snippets::errors(input, res))?;
     let hoistable = snippets::hoistable(input, res, &names);
@@ -210,6 +238,7 @@ pub(crate) fn validate_erased_by(
     let rest_reads = rest_reads::build(res, custom_element.is_some());
     Ok(ValidatedOptions {
         custom_element,
+        css_injected,
         rest_reads,
         hoistable,
         stores: names.subscriptions(res),

@@ -26,6 +26,8 @@ pub(super) enum Prop<'t> {
     Accessors(&'t Attribute, &'t Expression<'t>, &'t Expression<'t>),
     /// `--name={value}`: a CSS custom property set around the component, not passed to it.
     CssProperty(&'t Attribute),
+    /// `{@attach value}`, which the client passes under a key of its own and the server drops.
+    Attach(ExpressionIdentifier),
 }
 
 /// Values, spreads and getter-and-setter bindings as written, then the other bindings, so that a
@@ -47,6 +49,7 @@ pub(super) fn props<'t>(
         }
         AttributeValue::Bind(_) | AttributeValue::On { .. } | AttributeValue::Let(_) => None,
         AttributeValue::Spread(e) => Some(Prop::Spread(e)),
+        AttributeValue::Attach(e) => Some(Prop::Attach(e)),
         _ if a.name.text(source_text).starts_with("--") => Some(Prop::CssProperty(a)),
         _ => Some(Prop::Value(a)),
     });

@@ -27,19 +27,7 @@ fn a_directive_a_component_never_takes_raises_upstreams_error() {
 }
 
 #[test]
-fn each_component_attribute_not_lowered_yet_is_refused_on_both_targets() {
-    for attribute in ["{@attach f}"] {
-        let source = format!(
-            "<script>import C from './C.svelte'; let c; function f() {{}}</script><C {attribute} />"
-        );
-        for target in [Target::Client, Target::Server] {
-            assert_eq!(
-                compile(&source, target),
-                Err("unsupported".to_owned()),
-                "{source} on {target:?}"
-            );
-        }
-    }
+fn a_children_prop_beside_children_is_refused_on_both_targets() {
     let children = "<script>import C from './C.svelte';</script><C children={1}>a</C>";
     for target in [Target::Client, Target::Server] {
         assert_eq!(

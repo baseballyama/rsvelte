@@ -23,6 +23,17 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                     let lowered = self.declaration_tag(declaration);
                     self.snippets.extend(lowered);
                 }
+                &NodeKind::Debug { identifiers } => {
+                    let (b, tree) = (self.b, self.compiler_syntax_tree);
+                    let body = crate::lower::debug_tag::debug_tag(
+                        b,
+                        tree,
+                        self.javascript,
+                        identifiers,
+                        |e| self.expression(e),
+                    );
+                    template.extend(body.map(Piece::Statement));
+                }
                 _ => self.special_element(identifier, template)?,
             }
         }
