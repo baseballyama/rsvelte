@@ -1,5 +1,6 @@
 mod each_block;
 mod if_block;
+mod key_block;
 
 use oxc_ast::ast::{Argument, Expression, Statement};
 use rsvelte_typescript_compile::build::sanitize_template_string;

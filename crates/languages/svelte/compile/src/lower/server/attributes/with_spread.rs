@@ -118,11 +118,12 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         }
         let object = b.object(props);
         let classes = (!class_directives.is_empty()).then(|| {
-            b.object(
-                class_directives
-                    .iter()
-                    .map(|&(name, e)| b.init(name, self.expression(e))),
-            )
+            b.object(class_directives.iter().map(|&(name, e)| {
+                // Upstream writes `class:x={x}` as the bare name, unread.
+                let bare = matches!(self.javascript.get_expression(e).get_inner_expression(),
+                            Expression::Identifier(id) if id.name == name);
+                b.init(name, if bare { b.id(name) } else { self.expression(e) })
+            }))
         });
         let hash = if self.an.scoped[identifier] {
             self.identity.stylesheet_hash.clone()

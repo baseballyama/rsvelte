@@ -18,6 +18,11 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                         NodeKind::Element(_) => self.element(*identifier, template)?,
                         NodeKind::If { .. } => self.if_block(*identifier, template)?,
                         NodeKind::Each(_) => self.each_block(*identifier, template)?,
+                        NodeKind::Key { .. } => self.key_block(*identifier, template)?,
+                        // Upstream `HtmlTag` (server).
+                        NodeKind::Html { expression } => template.push(Piece::Expression(
+                            self.b.runtime("html", [self.expression(expression)]),
+                        )),
                         NodeKind::Render { .. } => self.render_tag(*identifier, false, template),
                         _ => unreachable!("clean_nodes keeps only elements and blocks as nodes"),
                     }
