@@ -1,3 +1,4 @@
+use crate::lower::builder::Runtime;
 use oxc_ast::ast::{Expression, ObjectPropertyKind};
 
 use super::escaped_text;

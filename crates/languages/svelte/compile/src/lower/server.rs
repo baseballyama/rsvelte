@@ -17,6 +17,7 @@ mod fragments;
 mod snippets;
 mod special;
 
+use crate::lower::builder::Runtime;
 use std::borrow::Cow;
 
 use events::{capture_event, push_captured_events};

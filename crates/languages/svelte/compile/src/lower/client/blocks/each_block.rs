@@ -1,3 +1,4 @@
+use crate::lower::builder::Runtime;
 use oxc_ast::ast::{BindingIdentifier, Expression, Statement};
 use oxc_semantic::SymbolId;
 use oxc_span::GetSpan;

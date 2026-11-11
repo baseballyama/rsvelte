@@ -6,6 +6,7 @@
 mod declarators;
 mod props;
 
+use crate::lower::builder::Runtime;
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::ast::{
     Argument, AssignmentOperator, AssignmentTarget, BindingIdentifier, Declaration, Expression,
