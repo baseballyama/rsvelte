@@ -32,6 +32,8 @@ pub fn no_unused_variables<'r>(
         match f.kind(declaration) {
             // A function expression's own name.
             AstKind::Function(function) if function.is_expression() => continue,
+            // A class expression's own name, which `ESLint` keeps in the class's scope.
+            AstKind::Class(class) if class.is_expression() => continue,
             AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_)
                 if is_setter_parameter(&f, declaration)
                     || (is_plain_parameter(&f, symbol, declaration)
