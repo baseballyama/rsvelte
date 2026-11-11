@@ -78,6 +78,16 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         l.initializer.append(&mut directives.initializer);
         l.after.append(&mut directives.after);
+        if attribute_list.iter().any(|a| {
+            !is_directive(&a.value)
+                && !matches!(a.value, AttributeValue::Spread(_))
+                && a.name.text(self.source_text) == "dir"
+        }) {
+            // Chromium keeps an `auto` direction after the text changes unless it is set again.
+            let b = self.b;
+            let dir = || b.member(b.id(node), "dir");
+            l.update.push(b.stmt(b.assign_member(dir(), dir())));
+        }
         if !has_spread {
             self.select_value(el, &tag, attribute_list, node, frag, l);
         }
