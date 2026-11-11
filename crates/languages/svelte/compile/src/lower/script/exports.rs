@@ -7,6 +7,7 @@ use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 
+use super::super::paths::bound_names;
 use super::super::{span_of, unsupported};
 
 /// One of upstream's `analysis.exports`: the local `name`, exported as `alias`.
@@ -17,8 +18,8 @@ pub(in crate::lower) struct Export<'t> {
 }
 
 /// Pushes the names an exported declaration gives the component's exports, when it is one this
-/// port lowers: a `const` of plain names, or a named function. Upstream raises an error for an
-/// exported `let`, and reads an exported signal or class through accessors.
+/// port lowers: a `const`, a named function or a class. Upstream raises an error for an exported
+/// `let`, and reads an exported signal through accessors.
 pub(super) fn check_declaration<'t>(
     res: &Resolution,
     statement: &Statement<'t>,
@@ -34,17 +35,17 @@ pub(super) fn check_declaration<'t>(
         });
     };
     let named = match declaration {
-        Declaration::VariableDeclaration(d) if d.kind == VariableDeclarationKind::Const => d
-            .declarations
-            .iter()
-            .all(|d| match d.id.get_binding_identifier() {
-                Some(identifier) if d.id.is_binding_identifier() => {
-                    push(identifier);
-                    true
-                }
-                _ => false,
-            }),
+        Declaration::VariableDeclaration(d) if d.kind == VariableDeclarationKind::Const => {
+            for declarator in &d.declarations {
+                bound_names(&declarator.id, false, &mut |name, _| push(name));
+            }
+            true
+        }
         Declaration::FunctionDeclaration(f) => f.id.as_ref().is_some_and(|name| {
+            push(name);
+            true
+        }),
+        Declaration::ClassDeclaration(c) => c.id.as_ref().is_some_and(|name| {
             push(name);
             true
         }),
