@@ -162,6 +162,12 @@
 ["svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block-shadowed/input.svelte".skip]
 "svelte.compile/client" = "upstream bug: a `{:catch}` branch shares its parent's transforms, so its error's `$.get` read leaks by name to the blocks after it"
 
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte".skip]
+"svelte.compile" = "upstream bug: a rule nested in a `:global(...)` rule gives the scoping class to every ancestor of the elements it matches, although no selector needs it"
+
+["svelte/layerchart/docs/src/routes/+page.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
 ["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte".skip]
 "svelte.compile" = "upstream bug: an `<svg>` beside a component makes the component's children svg, which drops the HTML whitespace between their components"
 
