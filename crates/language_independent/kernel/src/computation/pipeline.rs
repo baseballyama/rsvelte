@@ -75,50 +75,52 @@ fn run_document(
     sharing: Sharing,
 ) -> DocumentResult {
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let shared = std::cell::OnceCell::new();
-        let shared = || shared.get_or_init(|| DocumentContext::new(document, reg.artifacts()));
-        let isolated = || DocumentContext::new(document, reg.artifacts());
-        let mut outputs = Vec::new();
-        let mut parts = Vec::new();
-        for task in tasks.iter().filter(|t| t.applies(document)) {
-            let own;
-            let context = match sharing {
-                Sharing::Shared => shared(),
-                Sharing::Isolated => {
-                    own = isolated();
-                    &own
+        crate::performance::stack::for_text(document.text.len(), || {
+            let shared = std::cell::OnceCell::new();
+            let shared = || shared.get_or_init(|| DocumentContext::new(document, reg.artifacts()));
+            let isolated = || DocumentContext::new(document, reg.artifacts());
+            let mut outputs = Vec::new();
+            let mut parts = Vec::new();
+            for task in tasks.iter().filter(|t| t.applies(document)) {
+                let own;
+                let context = match sharing {
+                    Sharing::Shared => shared(),
+                    Sharing::Isolated => {
+                        own = isolated();
+                        &own
+                    }
+                };
+                let mut out = TaskOutput::default();
+                {
+                    let _p = measurement::phase(task.identifier());
+                    task.run(context, &mut out);
                 }
-            };
-            let mut out = TaskOutput::default();
-            {
-                let _p = measurement::phase(task.identifier());
-                task.run(context, &mut out);
+                outputs.push((task.identifier(), out));
             }
-            outputs.push((task.identifier(), out));
-        }
-        for (k, task) in finish_tasks.iter().enumerate() {
-            if !task.applies(document, reg.artifacts()) {
-                continue;
-            }
-            let own;
-            let context = match sharing {
-                Sharing::Shared => shared(),
-                Sharing::Isolated => {
-                    own = isolated();
-                    &own
+            for (k, task) in finish_tasks.iter().enumerate() {
+                if !task.applies(document, reg.artifacts()) {
+                    continue;
                 }
-            };
-            let mut out = TaskOutput::default();
-            let part = {
-                let _p = measurement::phase(task.identifier());
-                task.prepare(context, &mut out)
-            };
-            if let Some(part) = part {
-                parts.push((k, outputs.len(), part));
+                let own;
+                let context = match sharing {
+                    Sharing::Shared => shared(),
+                    Sharing::Isolated => {
+                        own = isolated();
+                        &own
+                    }
+                };
+                let mut out = TaskOutput::default();
+                let part = {
+                    let _p = measurement::phase(task.identifier());
+                    task.prepare(context, &mut out)
+                };
+                if let Some(part) = part {
+                    parts.push((k, outputs.len(), part));
+                }
+                outputs.push((task.identifier(), out));
             }
-            outputs.push((task.identifier(), out));
-        }
-        (outputs, parts)
+            (outputs, parts)
+        })
     }));
     match result {
         Ok((outputs, parts)) => DocumentResult {
