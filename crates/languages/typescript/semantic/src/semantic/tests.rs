@@ -39,3 +39,13 @@ fn the_trees_nodes_carry_the_analysis() {
         sum.span
     );
 }
+
+#[test]
+fn a_dropped_analysis_gives_its_scoping_arena_back() {
+    let document = Document::new("a.ts".to_owned(), "let a = 1;".to_owned()).expect("small");
+    let (tree, program) = Tree::program(&document, SourceType::ts()).expect("parses");
+    drop(Semantic::program(tree, program));
+
+    // A new arena has no capacity.
+    assert!(super::SCOPINGS.take().capacity() > 0);
+}

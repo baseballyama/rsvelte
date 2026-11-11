@@ -17,7 +17,7 @@ use rsvelte_kernel::source::document::Document;
 mod builder;
 pub use builder::{Builder, Recorded, syntax_error};
 
-mod scratch;
+pub mod scratch;
 pub use scratch::with_scratch_arena;
 
 mod cell {
@@ -57,7 +57,7 @@ impl std::ops::Deref for Kept {
 impl Drop for Kept {
     fn drop(&mut self) {
         if let Some(cell) = self.0.take() {
-            scratch::give_back(cell.into_owner());
+            scratch::TREES.give_back(cell.into_owner());
         }
     }
 }
@@ -146,13 +146,13 @@ impl Tree {
         parse: impl for<'a> FnOnce(&mut Builder<'a>) -> Result<T, Diagnostic>,
     ) -> Result<(Self, T), Diagnostic> {
         let mut output = None;
-        let cell = Cell::try_new_or_recover(scratch::take(), |allocator| {
+        let cell = Cell::try_new_or_recover(scratch::TREES.take(), |allocator| {
             let mut builder = Builder::new(allocator, allocator.alloc_str(source_text));
             output = Some(parse(&mut builder)?);
             Ok::<_, Diagnostic>(builder.finish())
         })
         .map_err(|(allocator, error)| {
-            scratch::give_back(allocator);
+            scratch::TREES.give_back(allocator);
             error
         })?;
         Ok((
