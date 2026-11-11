@@ -84,15 +84,11 @@ impl Printer<'_, '_, '_> {
             .directive_name(&comp.modifiers)
             .map(|n| n.text(source_text));
         // `value={value}`: an identifier named like the attribute or directive, without a type.
-        let typed = lone.is_some_and(|e| self.typescript.wraps(e));
         let named_like = |n: &str| {
-            !typed
-                && lone.is_some_and(|e| {
-                    matches!(
-                        comp.javascript.kind(e),
-                        rsvelte_typescript_syntax::Kind::Identifier(_)
-                    ) && comp.javascript.name(e) == n
-                })
+            lone.is_some_and(|e| {
+                matches!(comp.javascript.get_expression(e),
+                    oxc_ast::ast::Expression::Identifier(identifier) if identifier.name == n)
+            })
         };
         match a.kind {
             AttributeKind::Attach | AttributeKind::Spread => {
@@ -131,9 +127,8 @@ impl Printer<'_, '_, '_> {
                 let property = directive.expect("a directive has a name");
                 // `class:foo-bar` alone: Svelte makes an identifier of the whole name.
                 let written_short = lone.is_some_and(|e| {
-                    comp.javascript.source_location(e).span().is_some_and(|s| {
-                        a.name.start_offset <= s.start_offset && s.end_offset <= a.name.end_offset
-                    })
+                    let s = self.javascript_span(e);
+                    a.name.start_offset <= s.start_offset && s.end_offset <= a.name.end_offset
                 });
                 if shorthand && (named_like(property) || written_short) {
                     return Ok(self.d().text(name));
@@ -191,7 +186,7 @@ impl Printer<'_, '_, '_> {
         &mut self,
         a: &Attribute,
         name: &str,
-        lone: Option<rsvelte_typescript_syntax::NodeIdentifier>,
+        lone: Option<rsvelte_typescript_tree::ExpressionIdentifier>,
     ) -> R<LayoutInstructionIdentifier> {
         let n = self.d().text(name);
         if matches!(a.value, AttributeValue::True) {

@@ -203,12 +203,7 @@ pub(super) fn prop(source_text: &str, a: &syntax_tree::Attribute, origin: u32) -
             exp: match &d.exp {
                 DirectiveExpression::None => DirectiveExpression::None,
                 DirectiveExpression::Expression(e) => DirectiveExpression::Expression(*e),
-                DirectiveExpression::For(f) => {
-                    DirectiveExpression::For(syntax_tree::LoopExpression {
-                        parameters: f.parameters.clone(),
-                        source: f.source,
-                    })
-                }
+                DirectiveExpression::For(f) => DirectiveExpression::For(*f),
             },
         }),
     };
@@ -245,4 +240,4 @@ pub(super) fn condense(s: &str) -> String {
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(size_of::<super::Node>() == 64, "`Node` is 64 bytes");
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(size_of::<Property>() == 104, "`Property` is 104 bytes");
+const _: () = assert!(size_of::<Property>() == 80, "`Property` is 80 bytes");

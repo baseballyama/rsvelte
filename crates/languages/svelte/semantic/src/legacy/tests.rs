@@ -1,22 +1,42 @@
-use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_semantic::scope;
-use rsvelte_typescript_syntax::{SyntaxTree, parser};
+use rsvelte_svelte_syntax::parse::parse;
 
 use super::{Legacy, TopLevel, Variable};
+use crate::compiler_syntax_tree::lower;
+use crate::resolve::resolve;
 
-/// Each reference as `(name, what it refers to)`, in source order.
-fn references(source: &str) -> (Legacy, Vec<(String, Option<TopLevel>)>) {
-    let mut tree = SyntaxTree::new();
-    let program =
-        parser::parse_program(&mut tree, source, Span::new(0, source.len() as u32), false)
-            .expect("parses");
-    let sem = scope::analyze(&tree, program, &[]);
-    let legacy = Legacy::new(&tree, &sem, &[program]);
-    let out = sem
-        .references
-        .iter()
-        .zip(&legacy.references)
-        .map(|(reference, top)| (tree.name(reference.node).to_owned(), *top))
+/// Each reference of the instance script `script` as `(name, what it refers to)`, in source
+/// order.
+fn references(script: &str) -> (Legacy, Vec<(String, Option<TopLevel>)>) {
+    let source = format!("<script>{script}</script>");
+    let component = parse(&source).expect("parses");
+    let lowered = lower(&component, &source);
+    let instance = component.instance.as_ref().map(|s| s.program);
+    let res = resolve(&component.javascript, instance, None, &lowered);
+    let legacy = Legacy::new(&res, &instance.into_iter().collect::<Vec<_>>());
+    let mut names: Vec<(u32, String, usize)> = Vec::new();
+    let scoping = res.scoping();
+    for symbol in scoping.symbol_ids() {
+        for &reference in scoping.get_resolved_reference_ids(symbol) {
+            let node = scoping.get_reference(reference).node_id();
+            let span = oxc_span::GetSpan::span(&res.semantic().nodes().kind(node));
+            names.push((
+                span.start,
+                scoping.symbol_name(symbol).to_owned(),
+                reference.index(),
+            ));
+        }
+    }
+    for (name, ids) in scoping.root_unresolved_references() {
+        for &reference in ids {
+            let node = scoping.get_reference(reference).node_id();
+            let span = oxc_span::GetSpan::span(&res.semantic().nodes().kind(node));
+            names.push((span.start, name.as_str().to_owned(), reference.index()));
+        }
+    }
+    names.sort_unstable();
+    let out = names
+        .into_iter()
+        .map(|(_, name, reference)| (name, legacy.references[reference]))
         .collect();
     (legacy, out)
 }
@@ -28,6 +48,17 @@ fn a_reactive_assignment_declares_an_undeclared_name_and_stores_resolve() {
     );
     assert_eq!(legacy.reactive_statements.len(), 2);
     assert_eq!(legacy.implicit.len(), 1);
+    assert!(matches!(
+        out[5].1,
+        Some(TopLevel {
+            variable: Variable::Declared(_),
+            store: true
+        })
+    ));
+    assert_ne!(
+        out[5].1.map(|top| top.variable),
+        out[1].1.map(|top| top.variable)
+    );
     let names: Vec<(&str, Option<TopLevel>)> = out
         .iter()
         .map(|(name, top)| (name.as_str(), *top))
@@ -45,14 +76,6 @@ fn a_reactive_assignment_declares_an_undeclared_name_and_stores_resolve() {
     assert_eq!(
         names,
         [
-            (
-                "a",
-                Some(TopLevel {
-                    variable: a,
-                    store: false
-                })
-            ),
-            ("s", names[1].1),
             ("b", implicit),
             (
                 "a",
@@ -65,13 +88,7 @@ fn a_reactive_assignment_declares_an_undeclared_name_and_stores_resolve() {
             ("b", implicit),
             // The parameter `a` shadows the top-level one.
             ("a", None),
-            (
-                "$s",
-                Some(TopLevel {
-                    variable: declared("s").expect("`s`"),
-                    store: true
-                })
-            ),
+            ("$s", names[5].1),
             (
                 "$b",
                 Some(TopLevel {

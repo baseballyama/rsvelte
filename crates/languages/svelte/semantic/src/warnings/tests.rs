@@ -1,39 +1,57 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_svelte_syntax::Parsed;
 
 use super::{CompileWarnings, Options};
-use crate::{Analyzed, Resolved};
-use rsvelte_svelte_syntax::Parsed;
+use crate::{Analyzed, Lowered, Resolved};
 
 /// What `svelte.compile` with `runes: true` warns about `code`, as each warning's code, source
 /// text and message.
 fn compiled(code: &str) -> Vec<(String, String, String)> {
+    let (warnings, _) = compiled_with_errors(code, Some(true));
+    warnings
+}
+
+/// [`compiled`] with the `runes` option, and the codes of the errors the analysis raises.
+fn compiled_with_errors(
+    code: &str,
+    runes: Option<bool>,
+) -> (Vec<(String, String, String)>, Vec<String>) {
     let mut registry = Registry::new();
     crate::register(&mut registry);
     let document = Document::new("Test.svelte".to_owned(), code.to_owned()).expect("small");
     let context = DocumentContext::new(&document, registry.artifacts());
     let component = context.get::<Parsed>().as_ref().expect("parses");
+    let lowered = context.get::<Lowered>().as_ref().expect("lowers");
     let resolution = context.get::<Resolved>().as_ref().expect("resolves");
     let options = Options {
-        runes: Some(true),
+        runes,
         custom_element: false,
     };
     let analysis = context.get::<Analyzed>().as_ref();
-    super::warnings(
+    let found = super::warnings(
         component,
+        lowered,
         resolution,
         analysis,
         code,
         "Test.svelte",
         options,
-    )
-    .compiled()
-    .map(|w| {
-        let text = w.span.text(code).to_owned();
-        (w.code.to_string(), text, w.message.clone())
-    })
-    .collect()
+    );
+    let warnings = found
+        .compiled()
+        .map(|w| {
+            let text = w.span.text(code).to_owned();
+            (w.code.to_string(), text, w.message.clone())
+        })
+        .collect();
+    let errors = found
+        .errors
+        .iter()
+        .map(|(_, e)| e.code.to_string())
+        .collect();
+    (warnings, errors)
 }
 
 /// The source text of each `code` warning.
@@ -313,4 +331,153 @@ fn every_checked_code_is_a_svelte_code() {
         assert!(CompileWarnings::SVELTE_CODES.contains(code), "{code}");
     }
     assert!(CompileWarnings::SVELTE_CODES.contains(&"ownership_invalid_mutation"));
+}
+
+#[test]
+fn a_script_comment_ignores_a_local_state_reference() {
+    for script in [
+        "let count = $state(0);\n// svelte-ignore state_referenced_locally\nlet x = count;",
+        "let count = $state(0);\nlet x = $derived(1);\n// svelte-ignore state_referenced_locally\nconsole.log(count);",
+        "let { a } = $props();\n// svelte-ignore state_referenced_locally\nconst b = a;",
+        "let count = $state(0) as number;\n// svelte-ignore state_referenced_locally\nlet x = count;",
+    ] {
+        let lang = if script.contains(" as ") {
+            " lang=\"ts\""
+        } else {
+            ""
+        };
+        let code = format!("<script{lang}>\n{script}\n</script>\n{{x}}");
+        assert_eq!(compiled(&code), [], "{script}");
+    }
+}
+
+#[test]
+fn a_cast_state_is_referenced_locally_as_the_bare_one_is() {
+    let bare = compiled("<script lang=\"ts\">let count = $state(0); let x = count;</script>{x}");
+    let cast =
+        compiled("<script lang=\"ts\">let count = $state(0) as number; let x = count;</script>{x}");
+    assert_eq!(bare.len(), 1);
+    assert_eq!(cast, bare);
+}
+
+#[test]
+fn an_erased_or_parameter_dollar_name_is_no_binding() {
+    // The control: a plain `$` binding is an error.
+    assert_eq!(
+        compiled_with_errors("<script>let $x = 1;</script>", None).1,
+        ["dollar_prefix_invalid"]
+    );
+    for script in [
+        "<script context=\"module\" lang=\"ts\">\n\
+         import { writable } from 'svelte/store';\n\
+         const a = writable(0)\n\
+         declare const $a: string\n\
+         </script>\n\
+         <script lang=\"ts\">\n\
+         const b = writable(0)\n\
+         declare const $b: string\n\
+         </script>\n\
+         {$a}\n\
+         {$b}",
+        "<script module lang=\"ts\">import { derived } from 'svelte/store';\n\
+         export const m = derived([a, b], ([$a, $b]) => $a < $b);</script>",
+        "<script module>export const m = (($c) => $c)(1);</script>",
+    ] {
+        let errors = compiled_with_errors(script, None).1;
+        assert!(
+            !errors.iter().any(|e| e.starts_with("dollar_")),
+            "{script}: {errors:?}"
+        );
+    }
+}
+
+#[test]
+fn a_cast_attribute_value_selects_as_its_value() {
+    let source = "<script lang=\"ts\">\n\t//\n</script>\n\n<div data-active={false as true}>\n\t<span></span>\n</div>\n\n\
+                  <style>\n\t[data-active='true'] > span {\n\t\tbackground-color: red;\n\t}\n</style>\n";
+    let codes: Vec<String> = compiled(source)
+        .into_iter()
+        .map(|(code, ..)| code)
+        .collect();
+    assert_eq!(codes, ["css_unused_selector"]);
+}
+
+#[test]
+fn a_function_expression_name_counts_no_depth_and_a_class_is_walked() {
+    // Each case with where svelte 5.57.3 raises `dollar_prefix_invalid`, without and with runes.
+    let cases = [
+        ("function g() { const f = function $x() {}; }", None, None),
+        ("const f = function $x() {};", Some(27), Some(27)),
+        (
+            "function g() { function h() { const f = function $x() {}; } }",
+            None,
+            None,
+        ),
+        ("function g() { class $C {} }", None, Some(29)),
+        (
+            "function g() { function h() { class $C {} } }",
+            None,
+            Some(44),
+        ),
+        (
+            "function g() { function h() { let $v = 1; } }",
+            None,
+            Some(42),
+        ),
+    ];
+    let mut registry = Registry::new();
+    crate::register(&mut registry);
+    for (script, without, with) in cases {
+        let source = format!("<script>{script}</script>");
+        let document = Document::new("Test.svelte".to_owned(), source).expect("small");
+        let context = DocumentContext::new(&document, registry.artifacts());
+        let component = context.get::<Parsed>().as_ref().expect("parses");
+        let resolution = context.get::<Resolved>().as_ref().expect("resolves");
+        for (runes, expected) in [(false, without), (true, with)] {
+            let errors = super::dollar_name_errors(
+                &component.javascript,
+                component.instance.as_ref().map(|s| s.program),
+                None,
+                resolution,
+                runes,
+            );
+            let raised: Vec<_> = errors
+                .iter()
+                .map(|(_, e)| (e.code.to_string(), e.span.start_offset))
+                .collect();
+            let expected: Vec<_> = expected
+                .map(|at| ("dollar_prefix_invalid".to_owned(), at))
+                .into_iter()
+                .collect();
+            assert_eq!(raised, expected, "{script} runes={runes}");
+        }
+    }
+}
+
+#[test]
+fn a_type_only_dollar_import_is_erased() {
+    // svelte 5.57.3 compiles the first two and rejects the value import at 27.
+    let cases = [
+        ("import type { $T } from \"./t\";", None),
+        ("import { type $T } from \"./t\";", None),
+        ("import { $T } from \"./t\";", Some(27)),
+    ];
+    let mut registry = Registry::new();
+    crate::register(&mut registry);
+    for (script, expected) in cases {
+        let source = format!("<script lang=\"ts\">{script}</script>");
+        let document = Document::new("Test.svelte".to_owned(), source).expect("small");
+        let context = DocumentContext::new(&document, registry.artifacts());
+        let component = context.get::<Parsed>().as_ref().expect("parses");
+        let resolution = context.get::<Resolved>().as_ref().expect("resolves");
+        let errors = super::dollar_name_errors(
+            &component.javascript,
+            component.instance.as_ref().map(|s| s.program),
+            None,
+            resolution,
+            false,
+        );
+        let raised: Vec<_> = errors.iter().map(|(_, e)| e.span.start_offset).collect();
+        assert_eq!(raised, expected.into_iter().collect::<Vec<_>>(), "{script}");
+    }
 }

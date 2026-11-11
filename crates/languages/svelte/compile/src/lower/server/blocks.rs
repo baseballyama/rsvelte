@@ -1,68 +1,40 @@
 mod each_block;
 mod if_block;
 
-use super::{
-    Kind, NodeIdentifier, ServerCompilationContext, SourceLocation, sanitize_template_string,
-};
+use oxc_ast::ast::{Argument, Expression, Statement};
+use rsvelte_typescript_compile::build::sanitize_template_string;
 
-impl ServerCompilationContext<'_> {
+use super::ServerCompilationContext;
+
+impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `prepend_block_marker`: folds the marker into a leading static push.
-    fn prepend_block_marker(
-        &mut self,
-        mut body: Vec<NodeIdentifier>,
-        marker: &str,
-    ) -> NodeIdentifier {
-        let folded = body.first().and_then(|&first| {
-            let Kind::ExpressionStatement(call) = self.out.kind(first) else {
+    fn prepend_block_marker(&self, mut body: Vec<Statement<'o>>, marker: &str) -> Statement<'o> {
+        let b = self.b;
+        let first = body.first_mut().and_then(|first| {
+            let Statement::ExpressionStatement(statement) = first else {
                 return None;
             };
-            let Kind::Call {
-                callee,
-                arguments: [arg],
-                ..
-            } = self.out.kind(call)
-            else {
+            let Expression::CallExpression(call) = &mut statement.expression else {
                 return None;
             };
-            let is_push = matches!(self.out.kind(callee), Kind::Member { object, property, .. }
-                if self.out.name(object) == "$$renderer" && self.out.name(property) == "push");
-            let Kind::Template {
-                quasis,
-                expressions,
-            } = self.out.kind(*arg)
-            else {
-                return None;
-            };
-            if !is_push {
-                return None;
+            let is_push = matches!(&call.callee, Expression::StaticMemberExpression(m)
+                if m.property.name == "push"
+                    && matches!(&m.object, Expression::Identifier(o) if o.name == "$$renderer"));
+            match call.arguments.as_mut_slice() {
+                [Argument::TemplateLiteral(template)] if is_push => template.quasis.first_mut(),
+                _ => None,
             }
-            let (quasis, expressions) = (quasis.to_vec(), expressions.to_vec());
-            let n = quasis.len();
-            let mut new_quasis = Vec::with_capacity(n);
-            for (i, &q) in quasis.iter().enumerate() {
-                let raw = self.out.str_value(q, self.source_text).to_owned();
-                let raw = if i == 0 {
-                    format!("{}{raw}", sanitize_template_string(marker))
-                } else {
-                    raw
-                };
-                new_quasis.push(self.out.template_element(&raw, i + 1 == n));
-            }
-            let t = self
-                .out
-                .template(&new_quasis, &expressions, SourceLocation::SYNTHETIC);
-            let r = self.out.identifier("$$renderer");
-            let callee = self.out.dot(r, "push");
-            let call = self
-                .out
-                .call(callee, &[t], false, SourceLocation::SYNTHETIC);
-            Some(self.out.expression_statement(call))
         });
-        if let Some(s) = folded {
-            body[0] = s;
+        if let Some(quasi) = first {
+            let raw = format!("{}{}", sanitize_template_string(marker), quasi.value.raw);
+            quasi.value.raw = b.str(&raw).into();
+            if let Some(cooked) = quasi.value.cooked {
+                let cooked = format!("{marker}{}", super::super::javascript::string_value(cooked));
+                quasi.value.cooked = Some(b.str(&cooked).into());
+            }
         } else {
             body.insert(0, self.push_literal(marker));
         }
-        self.out.block(&body, SourceLocation::SYNTHETIC)
+        b.block(body)
     }
 }

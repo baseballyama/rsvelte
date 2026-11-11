@@ -2,10 +2,9 @@ use std::ffi::OsStr;
 use std::path::Path;
 
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript_lint::{JavaScriptFacts, NoInnerDeclarationsOptions};
+use rsvelte_typescript_lint::NoInnerDeclarationsOptions;
 use serde::Deserialize;
 
-use super::nodes::roots;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 /// `ESLint`'s core rule; a `<script>`'s statements are at the program's root.
@@ -54,17 +53,11 @@ struct NoInnerDeclarations(NoInnerDeclarationsOptions);
 
 impl SvelteRule for NoInnerDeclarations {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let facts = JavaScriptFacts {
-            syntax_tree: file.javascript(),
-            sem: file.semantic(),
-            parents: file.parents(),
-        };
         // ESLint's `**/*.cjs` reads a file as CommonJS, a script; every other file is a module.
         let module = Path::new(file.path()).extension() != Some(OsStr::new("cjs"));
         rsvelte_typescript_lint::no_inner_declarations(
-            &facts,
-            &roots(file),
-            file.source(),
+            file.semantic(),
+            &file.programs(),
             module,
             self.0,
             reporter,

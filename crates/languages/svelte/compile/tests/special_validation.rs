@@ -45,7 +45,12 @@ fn invalid_special_attributes_are_refused_on_both_targets() {
         let component = rsvelte_svelte_syntax::parse::parse(source).expect("valid syntax");
         let tree = compiler_syntax_tree::lower(&component, source);
         let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "test.svelte");
-        let resolution = resolve::resolve(&component.javascript, source, component.program, &tree);
+        let resolution = resolve::resolve(
+            &component.javascript,
+            component.instance.as_ref().map(|s| s.program),
+            component.module.as_ref().map(|s| s.program),
+            &tree,
+        );
         let analysis = analyze::analyze(&input, &resolution);
         for target in [Target::Client, Target::Server] {
             let error = compile_input(&CompileInput::from(input), &resolution, &analysis, target)
@@ -174,7 +179,12 @@ fn raises_on_both_targets(script: &str, code: &str) {
     let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid syntax");
     let tree = compiler_syntax_tree::lower(&component, &source);
     let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
-    let resolution = resolve::resolve(&component.javascript, &source, component.program, &tree);
+    let resolution = resolve::resolve(
+        &component.javascript,
+        component.instance.as_ref().map(|s| s.program),
+        component.module.as_ref().map(|s| s.program),
+        &tree,
+    );
     let analysis = analyze::analyze(&input, &resolution);
     for target in [Target::Client, Target::Server] {
         let error = compile_input(&CompileInput::from(input), &resolution, &analysis, target)
@@ -191,7 +201,12 @@ fn a_leading_byte_order_mark_still_counts_in_line_one_columns() {
     let component = rsvelte_svelte_syntax::parse::parse(source).expect("valid syntax");
     let tree = compiler_syntax_tree::lower(&component, source);
     let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "test.svelte");
-    let resolution = resolve::resolve(&component.javascript, source, component.program, &tree);
+    let resolution = resolve::resolve(
+        &component.javascript,
+        component.instance.as_ref().map(|s| s.program),
+        component.module.as_ref().map(|s| s.program),
+        &tree,
+    );
     let analysis = analyze::analyze(&input, &resolution);
     let error = compile_input(
         &CompileInput::from(input),
@@ -210,7 +225,12 @@ fn compiled(source: &str) -> Result<(), rsvelte_kernel::diagnostics::Diagnostic>
     let component = rsvelte_svelte_syntax::parse::parse(source)?;
     let tree = compiler_syntax_tree::lower(&component, source);
     let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "test.svelte");
-    let resolution = resolve::resolve(&component.javascript, source, component.program, &tree);
+    let resolution = resolve::resolve(
+        &component.javascript,
+        component.instance.as_ref().map(|s| s.program),
+        component.module.as_ref().map(|s| s.program),
+        &tree,
+    );
     let analysis = analyze::analyze(&input, &resolution);
     compile_input(
         &CompileInput::from(input),

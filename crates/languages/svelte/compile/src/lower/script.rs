@@ -1,49 +1,62 @@
 //! Shared rune rewriting with a target parameter.
+//!
+//! The rewrite runs over a copy of the input in the output arena: the copy keeps the analysis's
+//! reference and symbol ids, so each identifier still resolves through [`Resolution`].
 
 mod declarators;
 mod props;
+mod stores;
+mod writes;
 
-use declarators::lower_value_declarator;
-use props::{lower_client_props, server_props_pattern};
-use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
-use rsvelte_typescript_compile::copy::{Rewrite, copy};
-use rsvelte_typescript_semantic::scope::BindingIdentifier;
-use rsvelte_typescript_syntax::operators::{
-    AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
+use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
+use oxc_ast::ast::{
+    Argument, BindingIdentifier, Declaration, Expression, IdentifierReference, ImportDeclaration,
+    ObjectProperty, Program, Statement, SwitchCase, VariableDeclaration, VariableDeclarationKind,
+    VariableDeclarator, WithClause, WithClauseKeyword,
 };
-use rsvelte_typescript_syntax::syntax_tree::flag;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
-use rustc_hash::FxHashMap;
+use oxc_ast_visit::{VisitMut, walk_mut};
+use oxc_semantic::{ReferenceId, SymbolId};
+use oxc_span::Span;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+use rsvelte_typescript_compile::strip::is_type_only;
+use rustc_hash::{FxHashMap, FxHashSet};
 
+use super::javascript::member_root;
 use super::names::Names;
-use super::{Target, unsupported};
+use super::{Builder, Target, span_of, unsupported};
+use crate::lower::builder::Runtime;
 
-#[derive(Debug)]
-pub(super) struct ScriptRewrite<'a> {
+pub(super) struct ScriptRewrite<'r, 'o> {
+    pub b: &'r Builder<'o>,
     pub target: Target,
     pub accessors: bool,
-    pub rest_reads: Option<&'a rustc_hash::FxHashSet<NodeIdentifier>>,
-    pub res: &'a Resolution,
-    /// The document the source tree's spans index.
-    pub source_text: &'a str,
+    pub rest_reads: Option<&'r FxHashSet<ReferenceId>>,
+    pub res: &'r Resolution,
     /// How the client reads the names the template declares, for those in scope (upstream's
-    /// per-block `transform`, keyed by binding instead of by name).
-    pub template: Option<&'a FxHashMap<BindingIdentifier, Read>>,
+    /// per-block `transform`, keyed by symbol instead of by name).
+    pub template: Option<&'r FxHashMap<SymbolId, Read>>,
+    /// A snippet a component holds and the outer name it shadows, which the client reads instead.
+    pub shadows: Option<&'r FxHashMap<SymbolId, SymbolId>>,
+    /// The store subscriptions (`$name`).
+    pub stores: &'r [String],
+    /// The store subscription a client mutation reads untracked (upstream's `mutate` transform).
+    pub untracked: Option<ReferenceId>,
+    /// The `{#each}` items of a store's collection, with the subscription a mutation of each
+    /// invalidates.
+    pub invalidates: Option<&'r FxHashMap<SymbolId, &'r str>>,
+    /// The value written is an element's, which upstream never proxies.
+    pub primitive: bool,
 }
 
 /// How a name the template declares is read on the client.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(super) enum Read {
     Plain,
     /// `$.get(name)`
     Get,
     /// `name()`
     Call,
-    /// `$.get(object).name`: a name that a destructuring `{@const}` declares.
-    #[expect(dead_code, reason = "template const destructuring is not lowered yet")]
-    Member(String),
 }
 
 impl Read {
@@ -52,55 +65,72 @@ impl Read {
     }
 }
 
-impl ScriptRewrite<'_> {
+impl<'o> ScriptRewrite<'_, 'o> {
+    /// `e`, copied into the output and rewritten.
+    pub(super) fn expression(&mut self, e: &Expression<'_>) -> Expression<'o> {
+        let mut e = e.clone_in_with_semantic_ids(self.b.allocator());
+        self.visit_expression(&mut e);
+        e
+    }
+
+    pub(super) fn statement(&mut self, s: &Statement<'_>) -> Statement<'o> {
+        let mut s = s.clone_in_with_semantic_ids(self.b.allocator());
+        self.visit_statement(&mut s);
+        s
+    }
+
+    pub(super) fn declarator(&mut self, d: &VariableDeclarator<'_>) -> VariableDeclarator<'o> {
+        let mut d = d.clone_in_with_semantic_ids(self.b.allocator());
+        self.visit_variable_declarator(&mut d);
+        d
+    }
+
     /// Upstream `build_getter` / the `read` transforms, by binding kind and target.
-    fn read(
-        &self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        identifier: NodeIdentifier,
-    ) -> Option<NodeIdentifier> {
+    fn read(&self, identifier: &IdentifierReference<'_>) -> Option<Expression<'o>> {
+        let b = self.b;
         if self.target == Target::Client
-            && self
-                .rest_reads
-                .is_some_and(|reads| reads.contains(&identifier))
+            && let Some(reads) = self.rest_reads
+            && identifier
+                .reference_id
+                .get()
+                .is_some_and(|r| reads.contains(&r))
         {
-            return Some(to.identifier("$$props"));
+            return Some(b.id("$$props"));
         }
-        let (b, info) = self.res.binding(identifier)?;
-        if self.res.sem.bindings[b].node == identifier {
-            return None;
+        if self.is_store(identifier) {
+            return Some(self.store_read(identifier));
         }
-        let source_location = from.source_location(identifier);
-        let name = from.name(identifier);
+        let symbol = self.res.symbol(identifier)?;
+        let symbol = (self.shadows.and_then(|m| m.get(&symbol)))
+            .copied()
+            .unwrap_or(symbol);
+        self.read_symbol(symbol, &identifier.name, identifier.span)
+    }
+
+    pub(in crate::lower) fn read_symbol(
+        &self,
+        symbol: SymbolId,
+        name: &str,
+        span: Span,
+    ) -> Option<Expression<'o>> {
+        let b = self.b;
+        let info = self.res.binding(symbol);
+        let x = || b.id_at(name, span);
         match (self.target, info.kind) {
             (Target::Client, BindingKind::State | BindingKind::RawState)
-                if self.res.is_state_source(b) =>
+                if self.res.is_state_source(symbol) =>
             {
-                let x = to.ident(name, source_location);
-                Some(to.runtime("$", "get", &[x]))
+                Some(b.runtime("get", [x()]))
             }
             (Target::Client, BindingKind::Derived | BindingKind::DerivedBy) => {
-                let x = to.ident(name, source_location);
-                Some(to.runtime("$", "get", &[x]))
+                Some(b.runtime("get", [x()]))
             }
             (Target::Client, BindingKind::Property | BindingKind::BindableProperty) => {
-                let x = to.ident(name, source_location);
-                if is_prop_source(self.res, self.accessors, b) {
-                    return Some(to.call0(x, &[]));
+                if is_prop_source(self.res, self.accessors, symbol) {
+                    return Some(b.call(x(), []));
                 }
                 let key = info.prop_key?;
-                let props = to.identifier("$$props");
-                let k = if from.is_identifier(key) {
-                    to.ident(from.name(key), source_location)
-                } else {
-                    super::javascript::property_key(
-                        to,
-                        &super::javascript::prop_alias(from, self.source_text, key),
-                    )
-                };
-                let computed = !to.is_identifier(k);
-                Some(to.member(props, k, computed, false, SourceLocation::SYNTHETIC))
+                Some(b.member_key(b.id("$$props"), &super::javascript::prop_alias(key)))
             }
             (
                 Target::Client,
@@ -110,302 +140,219 @@ impl ScriptRewrite<'_> {
                 | BindingKind::Snippet
                 | BindingKind::Template,
             ) => {
-                let Some(read) = self.template.and_then(|m| m.get(&b)) else {
+                let Some(read) = self.template.and_then(|m| m.get(&symbol)) else {
                     unreachable!("a template name is read only inside its block")
                 };
-                let x = to.ident(name, source_location);
                 match read {
                     Read::Plain => None,
-                    Read::Get => Some(to.runtime("$", "get", &[x])),
-                    Read::Call => Some(to.call0(x, &[])),
-                    Read::Member(object) => {
-                        let o = to.identifier(object);
-                        let get = to.runtime("$", "get", &[o]);
-                        Some(to.member(get, x, false, false, SourceLocation::SYNTHETIC))
-                    }
+                    Read::Get => Some(b.runtime("get", [x()])),
+                    Read::Call => Some(b.call(x(), [])),
                 }
             }
             (Target::Server, BindingKind::Derived | BindingKind::DerivedBy) => {
-                let x = to.ident(name, source_location);
-                Some(to.call0(x, &[]))
+                Some(b.call(x(), []))
             }
             _ => None,
         }
     }
 
-    fn assign(
-        &mut self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        identifier: NodeIdentifier,
-        op: AssignmentOperator,
-        target: NodeIdentifier,
-        value: NodeIdentifier,
-    ) -> Option<NodeIdentifier> {
-        if self.target != Target::Client {
-            return None;
-        }
-        if !from.is_identifier(target) {
-            let (res, accessors) = (self.res, self.accessors);
-            return mutate_bindable_prop(res, accessors, from, to, target, |to| {
-                let left = copy(from, to, self, target);
-                let right = copy(from, to, self, value);
-                to.assign(op, left, right, from.source_location(identifier))
-            });
-        }
-        let (b, info) = self.res.binding(target)?;
-        let state = self.res.is_state_source(b)
-            || matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
-        let prop = is_prop_source(self.res, self.accessors, b);
-        if !state && !prop {
-            return None;
-        }
-        // Upstream `build_assignment_value`: `a += b` assigns `a + b`, read through the transform.
-        let rhs = copy(from, to, self, value);
-        let new_value = if op == AssignmentOperator::Assign {
-            rhs
-        } else {
-            let current = self.read(from, to, target)?;
-            match logical_of(op) {
-                Some(l) => to.logical(l, current, rhs, from.source_location(identifier)),
-                None => to.binary(
-                    binary_of(op),
-                    current,
-                    rhs,
-                    from.source_location(identifier),
-                ),
+    /// A rune call's lowering, or `None` when `it` is no rune this rewrite lowers.
+    fn rune(&mut self, it: &mut Expression<'o>) -> Option<Expression<'o>> {
+        let b = self.b;
+        let name = match (self.target, self.res.rune(it)?.0) {
+            (Target::Client, "$host") => return Some(b.member(b.id("$$props"), "$$host")),
+            (Target::Server, "$host") => return Some(b.void0()),
+            (Target::Client, "$effect.pending") => {
+                return Some(b.runtime("eager", [b.member(b.id("$"), "pending")]));
             }
+            (Target::Server, "$effect.pending") => return Some(b.number(0.0)),
+            (Target::Client, "$effect.tracking") => return Some(b.runtime("effect_tracking", [])),
+            (Target::Server, "$effect.tracking") => return Some(b.boolean(false)),
+            (Target::Client, "$effect") => "user_effect",
+            (Target::Client, "$effect.pre") => "user_pre_effect",
+            _ => return None,
         };
-        let x = to.ident(from.name(target), from.source_location(target));
-        if prop {
-            return Some(to.call(x, &[new_value], false, from.source_location(identifier)));
-        }
-        let proxy = info.kind == BindingKind::State
-            && matches!(
-                op,
-                AssignmentOperator::Assign
-                    | AssignmentOperator::Or
-                    | AssignmentOperator::And
-                    | AssignmentOperator::Nullish
-            )
-            && should_proxy(from, self.res, value);
-        let mut arguments = vec![x, new_value];
-        if proxy {
-            arguments.push(to.write_boolean(true, SourceLocation::SYNTHETIC));
-        }
-        Some(to.runtime("$", "set", &arguments))
-    }
-
-    fn update(
-        &mut self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        identifier: NodeIdentifier,
-        op: UpdateOperator,
-        prefix: bool,
-        arg: NodeIdentifier,
-    ) -> Option<NodeIdentifier> {
-        if !from.is_identifier(arg) {
-            if self.target != Target::Client {
-                return None;
-            }
-            let (res, accessors) = (self.res, self.accessors);
-            return mutate_bindable_prop(res, accessors, from, to, arg, |to| {
-                let argument = copy(from, to, self, arg);
-                to.update(op, prefix, argument, from.source_location(identifier))
-            });
-        }
-        let (b, info) = self.res.binding(arg)?;
-        let derived = matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
-        if self.target == Target::Server && !derived {
-            return None;
-        }
-        let x = to.ident(from.name(arg), from.source_location(arg));
-        let mut arguments = vec![x];
-        if op == UpdateOperator::Dec {
-            arguments.push(to.write_number(-1.0, SourceLocation::SYNTHETIC));
-        }
-        let name = if self.target == Target::Server {
-            if prefix {
-                "update_derived_pre"
-            } else {
-                "update_derived"
-            }
-        } else if self.res.is_state_source(b) || derived {
-            if prefix { "update_pre" } else { "update" }
-        } else if is_prop_source(self.res, self.accessors, b) {
-            if prefix {
-                "update_pre_prop"
-            } else {
-                "update_prop"
-            }
-        } else {
-            return None;
+        let Expression::CallExpression(call) = it else {
+            unreachable!("a rune is a call")
         };
-        Some(to.runtime("$", name, &arguments))
+        let mut arguments = call.arguments.take_in(b);
+        for argument in &mut arguments {
+            self.visit_argument(argument);
+        }
+        Some(b.call(
+            b.member(b.id("$"), name),
+            arguments_to_expressions(arguments),
+        ))
     }
 }
 
-impl Rewrite for ScriptRewrite<'_> {
-    fn rewrite(
-        &mut self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        identifier: NodeIdentifier,
-    ) -> Option<NodeIdentifier> {
-        match from.kind(identifier) {
-            Kind::Identifier(_) => self.read(from, to, identifier),
-            Kind::Assign(op, target, value) => self.assign(from, to, identifier, op, target, value),
-            Kind::Update { op, prefix, arg } => self.update(from, to, identifier, op, prefix, arg),
-            Kind::ExpressionStatement(_)
-                if self.target == Target::Server && is_effect(from, self.res, identifier) =>
-            {
-                Some(to.empty(from.source_location(identifier)))
+fn arguments_to_expressions<'o>(
+    arguments: ArenaVec<'o, Argument<'o>>,
+) -> impl Iterator<Item = Expression<'o>> {
+    arguments.into_iter().map(|a| match a {
+        Argument::SpreadElement(_) => unreachable!("a rune takes no spread"),
+        a => a.into_expression(),
+    })
+}
+
+impl<'o> ScriptRewrite<'_, 'o> {
+    fn rewrite_expression(&mut self, it: &mut Expression<'o>) {
+        let rewritten = match it {
+            Expression::Identifier(identifier) => match self.read(identifier) {
+                Some(e) => e,
+                None => return,
+            },
+            Expression::AssignmentExpression(_) => {
+                match self.store_assign(it).or_else(|| self.assign(it)) {
+                    Some(e) => e,
+                    None => return walk_mut::walk_expression(self, it),
+                }
             }
-            Kind::Call { arguments, .. } => {
-                let name = match (self.target, self.res.rune(from, identifier)?.0) {
-                    (Target::Client, "$host") => {
-                        let props = to.identifier("$$props");
-                        return Some(to.dot(props, "$$host"));
-                    }
-                    (Target::Server, "$host") => {
-                        let zero = to.write_number(0.0, SourceLocation::SYNTHETIC);
-                        return Some(to.unary(
-                            UnaryOperator::Void,
-                            zero,
-                            SourceLocation::SYNTHETIC,
-                        ));
-                    }
-                    (Target::Client, "$effect.pending") => {
-                        let namespace = to.identifier("$");
-                        let pending = to.dot(namespace, "pending");
-                        return Some(to.runtime("$", "eager", &[pending]));
-                    }
-                    (Target::Server, "$effect.pending") => {
-                        return Some(to.write_number(0.0, SourceLocation::SYNTHETIC));
-                    }
-                    (Target::Client, "$effect.tracking") => {
-                        return Some(to.runtime("$", "effect_tracking", &[]));
-                    }
-                    (Target::Server, "$effect.tracking") => {
-                        return Some(to.write_boolean(false, SourceLocation::SYNTHETIC));
-                    }
-                    (Target::Client, "$effect") => "user_effect",
-                    (Target::Client, "$effect.pre") => "user_pre_effect",
-                    _ => return None,
-                };
-                let arguments: Vec<NodeIdentifier> =
-                    arguments.iter().map(|&a| copy(from, to, self, a)).collect();
-                Some(to.runtime("$", name, &arguments))
+            Expression::UpdateExpression(_) => {
+                match self.store_update(it).or_else(|| self.update(it)) {
+                    Some(e) => e,
+                    None => return walk_mut::walk_expression(self, it),
+                }
             }
-            Kind::Property { key, value, .. } if from.flags(identifier) & flag::SHORTHAND != 0 => {
-                // `{ count }` stops being shorthand when `count` reads through a transform.
-                let v = self.read(from, to, value)?;
-                let k = to.ident(from.name(key), from.source_location(key));
-                Some(to.property(
-                    k,
-                    v,
-                    from.flags(identifier) & !flag::SHORTHAND,
-                    from.source_location(identifier),
-                ))
-            }
-            // Upstream lowers a state or derived declaration in a nested function the same way.
-            Kind::Declarator { .. } => lower_value_declarator(from, to, self, identifier),
-            _ => None,
+            Expression::CallExpression(_) => match self.rune(it) {
+                Some(e) => e,
+                None => return walk_mut::walk_expression(self, it),
+            },
+            _ => return walk_mut::walk_expression(self, it),
+        };
+        *it = rewritten;
+    }
+}
+
+impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
+    fn visit_expression(&mut self, it: &mut Expression<'o>) {
+        // Upstream's `mutate` transform of an `{#each}` item of a store's collection.
+        if let Some(invalidate) = self.invalidation(it) {
+            self.rewrite_expression(it);
+            *it = self.b.sequence([it.take_in(self.b), invalidate]);
+            return;
+        }
+        self.rewrite_expression(it);
+    }
+
+    fn visit_object_property(&mut self, it: &mut ObjectProperty<'o>) {
+        // `{ count }` stops being shorthand when `count` reads through a transform.
+        if it.shorthand
+            && let Expression::Identifier(identifier) = &it.value
+            && let Some(read) = self.read(identifier)
+        {
+            it.value = read;
+            it.shorthand = false;
+            return;
+        }
+        walk_mut::walk_object_property(self, it);
+    }
+
+    // esrap prints `import {} from "x"` as `import "x"`.
+    fn visit_import_declaration(&mut self, it: &mut ImportDeclaration<'o>) {
+        if it.specifiers.as_ref().is_some_and(|s| s.is_empty()) {
+            it.specifiers = None;
+        }
+        walk_mut::walk_import_declaration(self, it);
+    }
+
+    // esrap prints every import attribute list with `with`.
+    fn visit_with_clause(&mut self, it: &mut WithClause<'o>) {
+        it.keyword = WithClauseKeyword::With;
+    }
+
+    // esrap prints no empty statement in a block or program body.
+    fn visit_statements(&mut self, it: &mut ArenaVec<'o, Statement<'o>>) {
+        walk_mut::walk_statements(self, it);
+        it.retain(|s| !matches!(s, Statement::EmptyStatement(_)));
+    }
+
+    // A `switch` case keeps its empty statements.
+    fn visit_switch_case(&mut self, it: &mut SwitchCase<'o>) {
+        if let Some(test) = &mut it.test {
+            self.visit_expression(test);
+        }
+        for statement in &mut it.consequent {
+            self.visit_statement(statement);
+        }
+    }
+
+    fn visit_statement(&mut self, it: &mut Statement<'o>) {
+        // Upstream server `ExpressionStatement`: an effect renders nothing.
+        if self.target == Target::Server && is_effect(self.res, it) {
+            *it = Statement::new_empty_statement(oxc_span::GetSpan::span(it), self.b);
+            return;
+        }
+        walk_mut::walk_statement(self, it);
+    }
+
+    // Upstream lowers a state or derived declaration in a nested function the same way.
+    fn visit_variable_declarator(&mut self, it: &mut VariableDeclarator<'o>) {
+        if !declarators::lower_value_declarator(self, it) {
+            walk_mut::walk_variable_declarator(self, it);
         }
     }
 }
 
 /// Upstream `is_prop_source`; a custom element's accessors read every prop through its signal.
-fn is_prop_source(res: &Resolution, accessors: bool, binding: BindingIdentifier) -> bool {
-    res.is_prop_source(binding)
+fn is_prop_source(res: &Resolution, accessors: bool, symbol: SymbolId) -> bool {
+    res.is_prop_source(symbol)
         || (accessors
             && matches!(
-                res.bindings[binding].kind,
+                res.binding(symbol).kind,
                 BindingKind::Property | BindingKind::BindableProperty
             ))
 }
 
-/// The `$bindable` prop whose member `target` writes, when the prop has a signal: upstream's
-/// `mutate` transform then tells the parent, `prop((prop().x = value), true)`.
-pub(super) fn mutated_bindable_prop(
+/// The `$bindable` prop with a signal that a write through a member of `object` writes:
+/// upstream's `mutate` transform then tells the parent, `prop((prop().x = value), true)`.
+pub(super) fn bindable_root<'e>(
     res: &Resolution,
     accessors: bool,
-    from: &SyntaxTree,
-    target: NodeIdentifier,
-) -> Option<NodeIdentifier> {
-    let root = from.member_root(target);
-    let (b, info) = res.binding(root)?;
-    (root != target
-        && info.kind == BindingKind::BindableProperty
-        && is_prop_source(res, accessors, b))
+    object: &'e Expression<'e>,
+) -> Option<&'e IdentifierReference<'e>> {
+    let root = member_root(object)?;
+    let symbol = res.symbol(root)?;
+    (res.binding(symbol).kind == BindingKind::BindableProperty
+        && is_prop_source(res, accessors, symbol))
     .then_some(root)
 }
 
-/// Upstream's `mutate` transform: the write `mutation` builds through a member of a `$bindable`
-/// prop with a signal becomes `prop(mutation, true)`; `None` when `target` writes no such prop.
-pub(super) fn mutate_bindable_prop(
+/// [`bindable_root`] of the member `target` writes; `None` when `target` is no member.
+pub(super) fn mutated_bindable_prop<'e>(
     res: &Resolution,
     accessors: bool,
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    target: NodeIdentifier,
-    mutation: impl FnOnce(&mut SyntaxTree) -> NodeIdentifier,
-) -> Option<NodeIdentifier> {
-    let prop = mutated_bindable_prop(res, accessors, from, target)?;
-    let mutation = mutation(to);
-    let callee = to.ident(from.name(prop), from.source_location(prop));
-    let mutated = to.write_boolean(true, SourceLocation::SYNTHETIC);
-    Some(to.call0(callee, &[mutation, mutated]))
+    target: &'e Expression<'e>,
+) -> Option<&'e IdentifierReference<'e>> {
+    bindable_root(res, accessors, target.as_member_expression()?.object())
 }
 
 /// Upstream server `ExpressionStatement`: an effect statement renders nothing.
-fn is_effect(from: &SyntaxTree, res: &Resolution, statement: NodeIdentifier) -> bool {
-    matches!(from.kind(statement), Kind::ExpressionStatement(e)
-        if res.rune(from, e).is_some_and(|(r, _)| matches!(r, "$effect" | "$effect.pre")))
-}
-
-const fn logical_of(op: AssignmentOperator) -> Option<LogicalOperator> {
-    match op {
-        AssignmentOperator::Or => Some(LogicalOperator::Or),
-        AssignmentOperator::And => Some(LogicalOperator::And),
-        AssignmentOperator::Nullish => Some(LogicalOperator::Nullish),
-        _ => None,
-    }
-}
-
-fn binary_of(op: AssignmentOperator) -> BinaryOperator {
-    let text = op.as_str();
-    BinaryOperator::parse(&text[..text.len() - 1])
-        .expect("every compound assignment has a binary operator")
-}
-
-/// Upstream `should_proxy`.
-#[must_use]
-pub(super) fn should_proxy(syntax_tree: &SyntaxTree, res: &Resolution, e: NodeIdentifier) -> bool {
-    res.should_proxy(syntax_tree, e)
+fn is_effect(res: &Resolution, statement: &Statement<'_>) -> bool {
+    matches!(statement, Statement::ExpressionStatement(s)
+        if res.rune(&s.expression).is_some_and(|(r, _)| matches!(r, "$effect" | "$effect.pre")))
 }
 
 /// Upstream `should_proxy` on a value it has already visited, where a prop's name has become a
 /// call or a member read and so proxies whatever its default.
 #[must_use]
-pub(super) fn should_proxy_read(
-    syntax_tree: &SyntaxTree,
-    res: &Resolution,
-    e: NodeIdentifier,
-) -> bool {
-    res.binding(e).is_some_and(|(_, information)| {
-        matches!(
-            information.kind,
-            BindingKind::Property | BindingKind::BindableProperty
-        )
-    }) || should_proxy(syntax_tree, res, e)
+pub(super) fn should_proxy_read(res: &Resolution, e: &Expression<'_>) -> bool {
+    let prop = match e {
+        Expression::Identifier(identifier) => res.symbol(identifier).is_some_and(|symbol| {
+            matches!(
+                res.binding(symbol).kind,
+                BindingKind::Property | BindingKind::BindableProperty
+            )
+        }),
+        _ => false,
+    };
+    prop || res.should_proxy(e)
 }
 
 /// Which script is lowered; the instance's exports are collected while it is.
-pub(super) enum ScriptContext<'e> {
+pub(super) enum ScriptContext<'e, 't> {
     Instance {
-        exports: &'e mut Vec<NodeIdentifier>,
+        exports: &'e mut Vec<&'t BindingIdentifier<'t>>,
     },
     Module,
 }
@@ -413,45 +360,43 @@ pub(super) enum ScriptContext<'e> {
 /// Pushes the names an instance export gives the component's exports, when it is one this port
 /// lowers: a `const` of plain names, or a named function. Upstream raises an error for an exported
 /// `let`, and reads an exported signal or class through accessors.
-fn check_export(
-    from: &SyntaxTree,
+fn check_export<'t>(
     res: &Resolution,
-    statement: NodeIdentifier,
-    declaration: NodeIdentifier,
-    exports: &mut Vec<NodeIdentifier>,
+    statement: &Statement<'t>,
+    declaration: &'t Declaration<'t>,
+    exports: &mut Vec<&'t BindingIdentifier<'t>>,
 ) -> Result<(), Diagnostic> {
     let start = exports.len();
-    let named = match from.kind(declaration) {
-        Kind::VariableDeclaration { kind, declarations } if kind == flag::CONST => {
-            declarations.iter().all(|&d| match from.kind(d) {
-                Kind::Declarator { identifier, .. } if from.is_identifier(identifier) => {
+    let named = match declaration {
+        Declaration::VariableDeclaration(d) if d.kind == VariableDeclarationKind::Const => d
+            .declarations
+            .iter()
+            .all(|d| match d.id.get_binding_identifier() {
+                Some(identifier) if d.id.is_binding_identifier() => {
                     exports.push(identifier);
                     true
                 }
                 _ => false,
-            })
-        }
-        Kind::Function {
-            name: Some(name), ..
-        } => {
+            }),
+        Declaration::FunctionDeclaration(f) => f.id.as_ref().is_some_and(|name| {
             exports.push(name);
             true
-        }
+        }),
         _ => false,
     };
     let plain = named
-        && exports[start..].iter().all(|&name| {
-            res.binding(name).is_some_and(|(_, info)| {
-                matches!(info.kind, BindingKind::Normal | BindingKind::RestProperty)
+        && exports[start..].iter().all(|name| {
+            name.symbol_id.get().is_some_and(|symbol| {
+                matches!(
+                    res.binding(symbol).kind,
+                    BindingKind::Normal | BindingKind::RestProperty
+                )
             })
         });
     if plain {
         return Ok(());
     }
-    unsupported(
-        "this export from the instance script",
-        super::span_of(from, statement),
-    )
+    unsupported("this export from the instance script", span_of(statement))
 }
 
 /// Script statements share rune lowering; imports go to `hoisted`.
@@ -460,97 +405,105 @@ fn check_export(
 ///
 /// An `unsupported` [`Diagnostic`] for an export the instance script cannot lower, and
 /// upstream's errors for the exports it can.
-pub(super) fn lower_script(
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    rw: &mut ScriptRewrite<'_>,
-    program: NodeIdentifier,
-    hoisted: &mut Vec<NodeIdentifier>,
+pub(super) fn lower_script<'t, 'o>(
+    rw: &mut ScriptRewrite<'_, 'o>,
+    program: &'t Program<'t>,
+    hoisted: &mut Vec<Statement<'o>>,
     names: &mut Names,
-    mut context: ScriptContext<'_>,
-) -> Result<Vec<NodeIdentifier>, Diagnostic> {
+    mut context: ScriptContext<'_, 't>,
+) -> Result<Vec<Statement<'o>>, Diagnostic> {
     let instance = matches!(context, ScriptContext::Instance { .. });
-    let Kind::Program(body) = from.kind(program) else {
-        unreachable!("scripts parse to programs")
-    };
-    let mut out = Vec::with_capacity(body.len());
-    for &statement in body {
-        let statement = match from.kind(statement) {
-            Kind::ExportNamed(declaration)
+    let mut out = Vec::with_capacity(program.body.len());
+    for statement in &program.body {
+        // Upstream erases the types before it analyzes the component.
+        if is_type_only(statement) {
+            continue;
+        }
+        match statement {
+            Statement::ExportDeclaration(export)
                 if let ScriptContext::Instance { exports } = &mut context =>
             {
-                check_export(from, rw.res, statement, declaration, exports)?;
-                declaration
-            }
-            _ => statement,
-        };
-        match from.kind(statement) {
-            Kind::TypeScriptDeclaration => {}
-            Kind::Import { .. } => hoisted.push(copy(from, to, rw, statement)),
-            // Upstream turns these into the component's exports; copying them would put an
-            // `export` inside the component function.
-            Kind::ExportDefault(_)
-            | Kind::Control(
-                rsvelte_typescript_syntax::syntax_tree::Control::ExportList { .. }
-                | rsvelte_typescript_syntax::syntax_tree::Control::ExportAll { .. },
-            ) if instance => {
-                return unsupported(
-                    "an export from the instance script",
-                    super::span_of(from, statement),
-                );
-            }
-            Kind::VariableDeclaration { kind, declarations } => {
-                // Upstream's instance gives each declarator its own declaration.
-                let location = from.source_location(statement);
-                let mut lowered = Vec::with_capacity(declarations.len());
-                for (i, &d) in declarations.iter().enumerate() {
-                    lower_declarator(from, to, rw, d, &mut lowered, hoisted, names);
-                    if (instance || i + 1 == declarations.len()) && !lowered.is_empty() {
-                        out.push(to.var_declaration(kind, &lowered, location));
-                        lowered.clear();
+                check_export(rw.res, statement, &export.declaration, exports)?;
+                match &export.declaration {
+                    Declaration::VariableDeclaration(d) => {
+                        lower_declaration(rw, d, true, &mut out, hoisted, names);
+                    }
+                    declaration => {
+                        let mut declaration =
+                            declaration.clone_in_with_semantic_ids(rw.b.allocator());
+                        rw.visit_declaration(&mut declaration);
+                        out.push(Statement::from(declaration));
                     }
                 }
             }
-            _ => out.push(copy(from, to, rw, statement)),
+            Statement::ImportDeclaration(_) => hoisted.push(rw.statement(statement)),
+            // Upstream turns these into the component's exports; copying them would put an
+            // `export` inside the component function.
+            Statement::ExportDefaultDeclaration(_)
+            | Statement::ExportNamedDeclaration(_)
+            | Statement::ExportFromDeclaration(_)
+            | Statement::ExportAllDeclaration(_)
+                if instance =>
+            {
+                return unsupported("an export from the instance script", span_of(statement));
+            }
+            Statement::VariableDeclaration(d) => {
+                lower_declaration(rw, d, instance, &mut out, hoisted, names);
+            }
+            // Upstream server `ExpressionStatement`: an effect renders nothing.
+            Statement::EmptyStatement(_) => {}
+            _ if rw.target == Target::Server && is_effect(rw.res, statement) => {}
+            _ => out.push(rw.statement(statement)),
         }
     }
     Ok(out)
 }
 
-fn lower_declarator(
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    rw: &mut ScriptRewrite<'_>,
-    d: NodeIdentifier,
-    out: &mut Vec<NodeIdentifier>,
-    hoisted: &mut Vec<NodeIdentifier>,
+/// A top-level declaration. Upstream's instance gives each declarator its own declaration.
+fn lower_declaration<'o>(
+    rw: &mut ScriptRewrite<'_, 'o>,
+    declaration: &VariableDeclaration<'_>,
+    split: bool,
+    out: &mut Vec<Statement<'o>>,
+    hoisted: &mut Vec<Statement<'o>>,
     names: &mut Names,
 ) {
-    if let Some(lowered) = lower_value_declarator(from, to, rw, d) {
-        out.push(lowered);
+    let b = rw.b;
+    let mut lowered = Vec::with_capacity(declaration.declarations.len());
+    for (i, d) in declaration.declarations.iter().enumerate() {
+        lower_declarator(rw, d, &mut lowered, hoisted, names);
+        if (split || i + 1 == declaration.declarations.len()) && !lowered.is_empty() {
+            let mut statement = b.declaration(declaration.kind, std::mem::take(&mut lowered));
+            if let Statement::VariableDeclaration(d) = &mut statement {
+                d.span = declaration.span;
+            }
+            out.push(statement);
+        }
+    }
+}
+
+fn lower_declarator<'o>(
+    rw: &mut ScriptRewrite<'_, 'o>,
+    d: &VariableDeclarator<'_>,
+    out: &mut Vec<VariableDeclarator<'o>>,
+    hoisted: &mut Vec<Statement<'o>>,
+    names: &mut Names,
+) {
+    let props = d
+        .init
+        .as_ref()
+        .is_some_and(|init| rw.res.rune(init).is_some_and(|(rune, _)| rune == "$props"));
+    if !props {
+        out.push(rw.declarator(d));
         return;
     }
-    let Kind::Declarator {
-        identifier,
-        initializer: Some(initializer),
-    } = from.kind(d)
-    else {
-        out.push(copy(from, to, rw, d));
-        return;
-    };
-    let source_location = from.source_location(d);
-    match (
-        rw.target,
-        rw.res.rune(from, initializer).map(|(rune, _)| rune),
-    ) {
-        (Target::Server, Some("$props")) => {
-            let target = server_props_pattern(from, to, rw, identifier);
-            let props = to.identifier("$$props");
-            out.push(to.declarator(target, Some(props), source_location));
+    match rw.target {
+        Target::Server => {
+            let pattern = props::server_props_pattern(rw, &d.id);
+            let mut declarator = rw.b.declarator(pattern, Some(rw.b.id("$$props")));
+            declarator.span = d.span;
+            out.push(declarator);
         }
-        (Target::Client, Some("$props")) => {
-            lower_client_props(from, to, rw, identifier, out, hoisted, names);
-        }
-        _ => out.push(copy(from, to, rw, d)),
+        Target::Client => props::lower_client_props(rw, &d.id, out, hoisted, names),
     }
 }

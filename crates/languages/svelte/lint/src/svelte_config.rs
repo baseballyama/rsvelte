@@ -3,10 +3,15 @@
 //!
 //! Of the result, rules read `kit.files`, which is kept only when every property of it is static.
 
+use oxc_ast::AstKind;
+use oxc_ast::ast::{
+    BindingPattern, Expression, ObjectExpression, ObjectPropertyKind, PropertyKey, Statement,
+};
+use oxc_semantic::{SymbolFlags, SymbolId};
+use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_semantic::scope::{DeclarationKind, Semantic, analyze};
-use rsvelte_typescript_syntax::parser::parse_program;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::semantic::Semantic;
+use rsvelte_typescript_tree::Tree;
 
 use crate::{Kit, KitFiles, SvelteConfig};
 
@@ -19,25 +24,24 @@ mod tests;
 ///
 /// The source does not parse, which makes `svelte-eslint-parser` fail on every document.
 pub fn parse(source: &str) -> Result<SvelteConfig, String> {
-    let mut tree = SyntaxTree::new();
     let end = u32::try_from(source.len()).map_err(|e| format!("the file is too large: {e}"))?;
-    let program = parse_program(&mut tree, source, Span::new(0, end), false)
-        .map_err(|error| format!("does not parse: {}", error.message))?;
-    let sem = analyze(&tree, program, &[]);
+    let (tree, program) = Tree::build(source, |builder| {
+        builder.program(Span::new(0, end), SourceType::mjs())
+    })
+    .map_err(|error| format!("does not parse: {}", error.message))?;
+    let semantic = Semantic::program(tree, program);
     let evaluator = Evaluator {
-        tree: &tree,
-        sem: &sem,
-        source,
+        semantic: &semantic,
     };
-    Ok(evaluator.config(program))
+    Ok(evaluator.config(semantic.tree().get_program(program)))
 }
 
 /// A value `parseConfig` knows: a static value, or an object literal whose properties it
 /// evaluates when asked.
 #[derive(Clone, Debug)]
-enum Evaluated {
+enum Evaluated<'a> {
     Static(Static),
-    Object(NodeIdentifier),
+    Object(&'a ObjectExpression<'a>),
 }
 
 /// A value without code in it. Regular expressions and big integers are static but never what a
@@ -54,28 +58,23 @@ enum Static {
 }
 
 /// One step from a declared name to the variable's identifier (`parsePatternAssign`).
-enum Step {
+enum Step<'a> {
     Member(String),
     /// A default value, taken when the value so far is `undefined`.
-    Default(NodeIdentifier),
+    Default(&'a Expression<'a>),
 }
 
 /// How deep evaluation may nest; a deeper configuration names itself (`const a = b, b = a`).
 const MAX_DEPTH: usize = 64;
 
 struct Evaluator<'a> {
-    tree: &'a SyntaxTree,
-    sem: &'a Semantic,
-    source: &'a str,
+    semantic: &'a Semantic,
 }
 
-impl Evaluator<'_> {
-    fn config(&self, program: NodeIdentifier) -> SvelteConfig {
-        let Kind::Program(statements) = self.tree.kind(program) else {
-            return SvelteConfig::default();
-        };
-        let Some(declaration) = statements.iter().find_map(|&s| match self.tree.kind(s) {
-            Kind::ExportDefault(declaration) => Some(declaration),
+impl<'a> Evaluator<'a> {
+    fn config(&self, program: &'a oxc_ast::ast::Program<'a>) -> SvelteConfig {
+        let Some(declaration) = program.body.iter().find_map(|s| match s {
+            Statement::ExportDefaultDeclaration(export) => export.declaration.as_expression(),
             _ => None,
         }) else {
             return SvelteConfig::default();
@@ -108,44 +107,61 @@ impl Evaluator<'_> {
         }
     }
 
-    fn expression(&self, node: NodeIdentifier, depth: usize) -> Option<Evaluated> {
+    fn expression(&self, node: &'a Expression<'a>, depth: usize) -> Option<Evaluated<'a>> {
         if depth > MAX_DEPTH {
             return None;
         }
-        Some(match self.tree.kind(node) {
-            Kind::String => Evaluated::Static(Static::String(
-                self.tree.str_value(node, self.source).to_owned(),
-            )),
-            Kind::Number(value) => Evaluated::Static(Static::Number(value)),
-            Kind::Boolean(value) => Evaluated::Static(Static::Boolean(value)),
-            Kind::Null => Evaluated::Static(Static::Null),
-            Kind::Regex { .. } | Kind::BigInt => Evaluated::Static(Static::Other),
-            Kind::Object(_) => Evaluated::Object(node),
-            Kind::Identifier(_) => return self.identifier(node, depth + 1),
+        Some(match node {
+            Expression::StringLiteral(string) => {
+                Evaluated::Static(Static::String(string.value.display().to_string()))
+            }
+            Expression::NumericLiteral(number) => Evaluated::Static(Static::Number(number.value)),
+            Expression::BooleanLiteral(boolean) => {
+                Evaluated::Static(Static::Boolean(boolean.value))
+            }
+            Expression::NullLiteral(_) => Evaluated::Static(Static::Null),
+            Expression::RegExpLiteral(_) | Expression::BigIntLiteral(_) => {
+                Evaluated::Static(Static::Other)
+            }
+            Expression::ObjectExpression(object) => Evaluated::Object(object),
+            Expression::Identifier(identifier) => {
+                let scoping = self.semantic.scoping();
+                let symbol = identifier
+                    .reference_id
+                    .get()
+                    .and_then(|reference| scoping.get_reference(reference).symbol_id());
+                return symbol.map_or_else(
+                    || {
+                        (identifier.name == "undefined")
+                            .then_some(Evaluated::Static(Static::Undefined))
+                    },
+                    |symbol| self.identifier(symbol, depth + 1),
+                );
+            }
             _ => return None,
         })
     }
 
     /// A `const` variable's value, through the pattern that declares it (`parseIdentifier`).
-    fn identifier(&self, node: NodeIdentifier, depth: usize) -> Option<Evaluated> {
-        let Some(binding) = self.sem.binding_of(node) else {
-            return (self.tree.name(node) == "undefined")
-                .then_some(Evaluated::Static(Static::Undefined));
-        };
-        let binding = &self.sem.bindings[binding];
-        if binding.kind != DeclarationKind::Const {
+    fn identifier(&self, symbol: SymbolId, depth: usize) -> Option<Evaluated<'a>> {
+        let scoping = self.semantic.scoping();
+        if !scoping
+            .symbol_flags(symbol)
+            .contains(SymbolFlags::ConstVariable)
+        {
             return None;
         }
-        let Kind::Declarator {
-            identifier: pattern,
-            initializer: Some(initializer),
-        } = self.tree.kind(binding.declaration?)
+        let AstKind::VariableDeclarator(declarator) = self
+            .semantic
+            .nodes()
+            .kind(scoping.symbol_declaration(symbol))
         else {
             return None;
         };
+        let initializer = declarator.init.as_ref()?;
         let mut value = self.expression(initializer, depth)?;
         let mut steps = Vec::new();
-        self.steps(binding.node, pattern, &mut steps)?;
+        Self::steps(symbol, &declarator.id, &mut steps)?;
         for step in steps {
             match step {
                 Step::Member(name) => {
@@ -167,90 +183,90 @@ impl Evaluator<'_> {
     /// The steps from `pattern` to `target`. As upstream, an object or array pattern looks only
     /// at its first named property or element.
     fn steps(
-        &self,
-        target: NodeIdentifier,
-        pattern: NodeIdentifier,
-        out: &mut Vec<Step>,
+        target: SymbolId,
+        pattern: &'a BindingPattern<'a>,
+        out: &mut Vec<Step<'a>>,
     ) -> Option<()> {
-        if pattern == target {
-            return Some(());
-        }
-        match self.tree.kind(pattern) {
-            Kind::AssignPattern(left, right) => {
-                out.push(Step::Default(right));
-                self.steps(target, left, out)
+        match pattern {
+            BindingPattern::BindingIdentifier(identifier) => {
+                (identifier.symbol_id.get() == Some(target)).then_some(())
             }
-            Kind::ObjectPattern(properties) => {
-                let (name, value) = properties.iter().find_map(|&property| {
-                    let Kind::Property {
-                        key,
-                        value,
-                        computed,
-                        ..
-                    } = self.tree.kind(property)
-                    else {
-                        return None;
-                    };
-                    let name = match self.tree.kind(key) {
-                        Kind::Identifier(_) if !computed => self.tree.name(key).to_owned(),
-                        Kind::String => self.tree.str_value(key, self.source).to_owned(),
-                        Kind::Number(number) => number_key(number),
+            BindingPattern::AssignmentPattern(assignment) => {
+                out.push(Step::Default(&assignment.right));
+                Self::steps(target, &assignment.left, out)
+            }
+            BindingPattern::ObjectPattern(object) => {
+                let (name, value) = object.properties.iter().find_map(|property| {
+                    let name = match &property.key {
+                        PropertyKey::StaticIdentifier(key) if !property.computed => {
+                            key.name.as_str().to_owned()
+                        }
+                        PropertyKey::StringLiteral(key) => key.value.display().to_string(),
+                        PropertyKey::NumericLiteral(key) => number_key(key.value),
                         _ => return None,
                     };
-                    Some((name, value))
+                    Some((name, &property.value))
                 })?;
                 out.push(Step::Member(name));
-                self.steps(target, value, out)
+                Self::steps(target, value, out)
             }
-            Kind::ArrayPattern(elements) => {
-                let (index, &element) = elements
+            BindingPattern::ArrayPattern(array) => {
+                let (index, element) = array
+                    .elements
                     .iter()
                     .enumerate()
-                    .find(|(_, e)| !matches!(self.tree.kind(**e), Kind::Hole))?;
+                    .find_map(|(i, e)| e.as_ref().map(|e| (i, e)))?;
                 out.push(Step::Member(index.to_string()));
-                self.steps(target, element, out)
+                Self::steps(target, element, out)
             }
-            _ => None,
         }
     }
 
     /// The value of property `key` of an object literal (`getProperty`): the last one wins, and a
     /// key or spread it cannot evaluate makes a missing key unknown rather than `undefined`.
-    fn property(&self, object: NodeIdentifier, key: &str, depth: usize) -> Option<Evaluated> {
-        let Kind::Object(properties) = self.tree.kind(object) else {
-            return None;
-        };
+    fn property(
+        &self,
+        object: &'a ObjectExpression<'a>,
+        key: &str,
+        depth: usize,
+    ) -> Option<Evaluated<'a>> {
         let mut unknown = false;
-        for &property in properties.iter().rev() {
-            match self.tree.kind(property) {
-                Kind::Property { value, .. } => match self.key(property, depth) {
-                    Some(name) if name == key => return self.expression(value, depth + 1),
-                    Some(_) => {}
-                    None => unknown = true,
-                },
-                Kind::Spread(argument) => {
-                    if let Some(Evaluated::Object(spread)) = self.expression(argument, depth + 1)
+        for property in object.properties.iter().rev() {
+            match property {
+                ObjectPropertyKind::ObjectProperty(property) => {
+                    match self.key(&property.key, property.computed, depth) {
+                        Some(name) if name == key => {
+                            return self.expression(&property.value, depth + 1);
+                        }
+                        Some(_) => {}
+                        None => unknown = true,
+                    }
+                }
+                ObjectPropertyKind::SpreadProperty(spread) => {
+                    if let Some(Evaluated::Object(spread)) =
+                        self.expression(&spread.argument, depth + 1)
                         && let Some(value) = self.property(spread, key, depth + 1)
                     {
                         return Some(value);
                     }
                     unknown = true;
                 }
-                _ => unknown = true,
             }
         }
         (!unknown).then_some(Evaluated::Static(Static::Undefined))
     }
 
     /// A property's name (`getKey`).
-    fn key(&self, property: NodeIdentifier, depth: usize) -> Option<String> {
-        let Kind::Property { key, computed, .. } = self.tree.kind(property) else {
-            return None;
-        };
-        if !computed && matches!(self.tree.kind(key), Kind::Identifier(_)) {
-            return Some(self.tree.name(key).to_owned());
+    fn key(&self, key: &'a PropertyKey<'a>, computed: bool, depth: usize) -> Option<String> {
+        if let PropertyKey::StaticIdentifier(name) = key
+            && !computed
+        {
+            return Some(name.name.as_str().to_owned());
         }
-        match self.to_static(&self.expression(key, depth + 1)?, depth + 1)? {
+        match self.to_static(
+            &self.expression(key.as_expression()?, depth + 1)?,
+            depth + 1,
+        )? {
             Static::String(name) => Some(name),
             Static::Number(number) => Some(number_key(number)),
             Static::Boolean(value) => Some(value.to_string()),
@@ -261,7 +277,7 @@ impl Evaluator<'_> {
     }
 
     /// The value without code in it (`getStatic`), or `None` when any part of it has code.
-    fn to_static(&self, value: &Evaluated, depth: usize) -> Option<Static> {
+    fn to_static(&self, value: &Evaluated<'a>, depth: usize) -> Option<Static> {
         if depth > MAX_DEPTH {
             return None;
         }
@@ -269,24 +285,21 @@ impl Evaluator<'_> {
             Evaluated::Static(value) => return Some(value.clone()),
             Evaluated::Object(object) => *object,
         };
-        let Kind::Object(properties) = self.tree.kind(object) else {
-            return None;
-        };
         let mut out: Vec<(String, Static)> = Vec::new();
-        for &property in properties {
-            match self.tree.kind(property) {
-                Kind::Property { value, .. } => {
-                    let name = self.key(property, depth)?;
-                    let value = self.to_static(&self.expression(value, depth + 1)?, depth + 1)?;
+        for property in &object.properties {
+            match property {
+                ObjectPropertyKind::ObjectProperty(property) => {
+                    let name = self.key(&property.key, property.computed, depth)?;
+                    let value =
+                        self.to_static(&self.expression(&property.value, depth + 1)?, depth + 1)?;
                     out.push((name, value));
                 }
-                Kind::Spread(argument) => {
-                    let spread = self.expression(argument, depth + 1)?;
+                ObjectPropertyKind::SpreadProperty(spread) => {
+                    let spread = self.expression(&spread.argument, depth + 1)?;
                     if let Static::Object(properties) = self.to_static(&spread, depth + 1)? {
                         out.extend(properties);
                     }
                 }
-                _ => return None,
             }
         }
         Some(Static::Object(out))

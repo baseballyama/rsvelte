@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Each_in_if($$renderer, $$props) {
 	let { show, list } = $$props;
 	if (show) {

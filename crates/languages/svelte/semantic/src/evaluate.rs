@@ -10,8 +10,8 @@ mod template;
 mod value;
 mod values;
 
-use rsvelte_typescript_semantic::scope::ScopeIdentifier;
-use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
+use oxc_ast::ast::{Expression, IdentifierReference};
+use oxc_semantic::ScopeId;
 pub use value::Value;
 use values::Values;
 
@@ -97,54 +97,49 @@ fn add(values: &mut Values, value: Value) {
     values.add(value);
 }
 
-/// Which tree an expression lives in.
-///
-/// Output trees carry no scope analysis, so their identifiers
-/// resolve by name against the scope the expression was lowered in, as upstream's
-/// `state.scope.evaluate(value)` does on the transformed expression.
-#[derive(Clone, Copy, Debug)]
-pub enum Tree<'a> {
-    Source,
-    Output(&'a SyntaxTree, ScopeIdentifier),
-}
-
 #[derive(Debug)]
-pub struct Evaluator<'a> {
-    source: &'a SyntaxTree,
-    source_text: &'a str,
-    res: &'a Resolution,
+pub struct Evaluator<'r> {
+    res: &'r Resolution,
+    /// The scope that resolves an identifier without a reference, such as one of a tree a task
+    /// built: upstream's `state.scope.evaluate(value)` on the transformed expression.
+    scope: Option<ScopeId>,
     in_progress: Visited,
 }
 
-impl<'a> Evaluator<'a> {
+impl<'r> Evaluator<'r> {
     #[must_use]
-    pub const fn new(source: &'a SyntaxTree, source_text: &'a str, res: &'a Resolution) -> Self {
+    pub const fn new(res: &'r Resolution) -> Self {
         Evaluator {
-            source,
-            source_text,
             res,
+            scope: None,
             in_progress: Visited::new(),
         }
     }
 
-    pub fn evaluate(&mut self, tree: Tree<'a>, e: NodeIdentifier) -> Evaluation {
-        Evaluation::from_values(self.evaluate_inner(tree, e))
-    }
-
-    pub(crate) fn is_known(&mut self, tree: Tree<'a>, expression: NodeIdentifier) -> bool {
-        self.evaluate_inner(tree, expression).is_known()
-    }
-
-    fn evaluate_inner(&mut self, tree: Tree<'a>, expression: NodeIdentifier) -> Values {
-        let mut values = Values::Empty;
-        self.eval_into(tree, expression, &mut values);
-        values
-    }
-
-    const fn syntax_tree(&self, tree: Tree<'a>) -> &'a SyntaxTree {
-        match tree {
-            Tree::Source => self.source,
-            Tree::Output(a, _) => a,
+    /// An evaluator of a tree a task built, whose identifiers resolve by name in `scope`.
+    #[must_use]
+    pub const fn in_scope(res: &'r Resolution, scope: ScopeId) -> Self {
+        Evaluator {
+            res,
+            scope: Some(scope),
+            in_progress: Visited::new(),
         }
+    }
+
+    pub fn evaluate(&mut self, e: &Expression<'_>) -> Evaluation {
+        Evaluation::from_values(self.evaluate_inner(e))
+    }
+
+    /// Whether the value of the identifier `identifier` is known.
+    pub(crate) fn is_known_identifier(&mut self, identifier: &IdentifierReference<'_>) -> bool {
+        let mut values = Values::Empty;
+        self.identifier(identifier, &mut values);
+        values.is_known()
+    }
+
+    fn evaluate_inner(&mut self, e: &Expression<'_>) -> Values {
+        let mut values = Values::Empty;
+        self.eval_into(e, &mut values);
+        values
     }
 }

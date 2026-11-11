@@ -1,79 +1,86 @@
+use oxc_ast::AstKind;
+use oxc_semantic::SymbolId;
+use oxc_syntax::symbol::SymbolFlags;
+use rsvelte_svelte_semantic::resolve::Resolution;
+
 use super::{
-    Children, CompilerNodeIdentifier, CompilerSyntaxTree, Diagnostic, FxHashMap, NodeKind,
-    Prepared, SyntaxTree, Target, check_runes, names, script,
+    Builder, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Diagnostic, FxHashMap, NodeKind,
+    Prepared, Target, check_runes, names, script,
 };
 
-pub(super) fn prepare<'a>(
-    facts: super::Lowering<'a, '_>,
+pub(super) fn prepare<'c, 'o>(
+    facts: super::Lowering<'c, 'o>,
     target: Target,
-) -> Result<Prepared<'a>, Diagnostic> {
+    b: &Builder<'o>,
+) -> Result<Prepared<'c, 'o>, Diagnostic> {
     let input = facts.input;
     let res = facts.res;
     let custom_element = facts.validated.custom_element.as_ref();
     let javascript = input.component.javascript;
     check_runes(input, res, target, custom_element.is_some())?;
-    let erased = erased_imports(
-        javascript,
-        input
-            .component
-            .module
-            .into_iter()
-            .chain([input.component.program]),
-    );
-    let declared = res
-        .sem
-        .bindings
+    let scoping = res.scoping();
+    // Upstream erases types before it builds scopes, so a type's name is free.
+    let declared = scoping
+        .symbol_ids()
+        .filter(|&s| {
+            let flags = scoping.symbol_flags(s);
+            flags.intersects(SymbolFlags::Value | SymbolFlags::Import) && !declared_in_type(res, s)
+        })
+        .map(|s| scoping.symbol_name(s));
+    let referenced = scoping
+        .root_unresolved_references()
         .iter()
-        .filter(|binding| !binding.declaration.is_some_and(|d| erased.contains(&d)))
-        .map(|binding| javascript.atoms.get(binding.name));
-    let referenced = res
-        .sem
-        .references
-        .iter()
-        .map(|reference| javascript.name(reference.node));
+        .filter(|(_, references)| {
+            references
+                .iter()
+                .any(|&r| scoping.get_reference(r).flags().is_value())
+        })
+        .map(|(name, _)| name.as_str());
     let mut names = names::Names::new(declared, referenced);
     let each_index = each_index_names(input.component.compiler_syntax_tree, &mut names);
     let component_name = names.generate(&facts.identity.name);
-    let mut out = SyntaxTree::new();
-    let mut module_statements = Vec::new();
+    let mut module = Vec::new();
     let mut hoisted = Vec::new();
     let mut rewrite = script::ScriptRewrite {
+        b,
         target,
         accessors: custom_element.is_some(),
         rest_reads: Some(&facts.validated.rest_reads),
         res,
-        source_text: input.component.source_text,
         template: None,
+        shadows: None,
+        stores: &facts.validated.stores,
+        untracked: None,
+        invalidates: None,
+        primitive: false,
     };
-    if let Some(module) = input.component.module {
+    if let Some(program) = input.component.module {
         let statements = script::lower_script(
-            javascript,
-            &mut out,
             &mut rewrite,
-            module,
-            &mut module_statements,
+            javascript.get_program(program),
+            &mut module,
             &mut names,
             script::ScriptContext::Module,
         )?;
-        module_statements.extend(statements);
+        module.extend(statements);
     }
     let mut exports = Vec::new();
-    let instance = script::lower_script(
-        javascript,
-        &mut out,
-        &mut rewrite,
-        input.component.program,
-        &mut hoisted,
-        &mut names,
-        script::ScriptContext::Instance {
-            exports: &mut exports,
-        },
-    )?;
+    let instance = match input.component.instance {
+        Some(program) => script::lower_script(
+            &mut rewrite,
+            javascript.get_program(program),
+            &mut hoisted,
+            &mut names,
+            script::ScriptContext::Instance {
+                exports: &mut exports,
+            },
+        )?,
+        None => Vec::new(),
+    };
     Ok(Prepared {
-        out,
         names,
         each_index,
-        module: module_statements,
+        module,
         hoisted,
         instance,
         exports,
@@ -119,31 +126,19 @@ fn each_index_names(
     out
 }
 
-/// Upstream removes TypeScript-only imports before it builds scopes, so their names are free.
-fn erased_imports(
-    javascript: &SyntaxTree,
-    programs: impl Iterator<Item = rsvelte_typescript_syntax::NodeIdentifier>,
-) -> rustc_hash::FxHashSet<rsvelte_typescript_syntax::NodeIdentifier> {
-    let mut erased = rustc_hash::FxHashSet::default();
-    for program in programs {
-        let rsvelte_typescript_syntax::Kind::Program(statements) = javascript.kind(program) else {
-            continue;
-        };
-        for &statement in statements {
-            if let rsvelte_typescript_syntax::Kind::Import {
-                specifiers,
-                type_only,
-                ..
-            } = javascript.kind(statement)
-            {
-                erased.extend(specifiers.iter().copied().filter(|&specifier| {
-                    type_only
-                        || javascript.flags(specifier)
-                            & rsvelte_typescript_syntax::syntax_tree::flag::TYPE_ONLY
-                            != 0
-                }));
-            }
-        }
+/// A name a type declares, such as a function type's parameter, which erasing types removes.
+fn declared_in_type(res: &Resolution, symbol: SymbolId) -> bool {
+    let scoping = res.scoping();
+    let scope = scoping.get_node_id(scoping.symbol_scope_id(symbol));
+    match res.semantic().nodes().kind(scope) {
+        AstKind::TSFunctionType(_)
+        | AstKind::TSConstructorType(_)
+        | AstKind::TSMethodSignature(_)
+        | AstKind::TSCallSignatureDeclaration(_)
+        | AstKind::TSConstructSignatureDeclaration(_)
+        | AstKind::TSMappedType(_)
+        | AstKind::TSConditionalType(_) => true,
+        AstKind::Function(f) => f.body.is_none(),
+        _ => false,
     }
-    erased
 }

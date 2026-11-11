@@ -1,17 +1,18 @@
+use crate::lower::builder::Runtime;
 use crate::lower::client::{
     Attribute, AttributeValue, ClientCompilationContext, Lists, is_directive,
 };
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream's `$.remove_input_defaults` condition for an `<input>`; a binding is named by its
     /// property, so `bind:value` counts as a dynamic `value`. With a spread the runtime's
     /// `attribute_effect` removes them: returns whether it must.
     pub(super) fn remove_input_defaults(
-        &mut self,
+        &self,
         attributes: &[Attribute],
         has_spread: bool,
         node: &str,
-        l: &mut Lists,
+        l: &mut Lists<'o>,
     ) -> bool {
         let source_text = self.source_text;
         let has_value = attributes.iter().any(|a| {
@@ -31,9 +32,9 @@ impl ClientCompilationContext<'_> {
         if has_spread {
             return true;
         }
-        let x = self.out.identifier(node);
-        let call = self.call("remove_input_defaults", vec![Some(x)]);
-        l.initializer.push(self.statement(call));
+        let b = self.b;
+        l.initializer
+            .push(b.stmt(b.runtime("remove_input_defaults", [b.id(node)])));
         false
     }
 }

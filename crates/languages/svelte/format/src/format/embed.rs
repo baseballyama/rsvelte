@@ -1,3 +1,5 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+
 use super::children::Child;
 use super::javascript::{Adjust, Part as JavaScriptPart};
 use super::{
@@ -6,7 +8,6 @@ use super::{
     TemplateNodeIdentifier, Unsupported, only_ws,
 };
 use crate::options::Part as SortPart;
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 impl Printer<'_, '_, '_> {
     /// `printTopLevelParts`: options, scripts, markup and styles in `svelteSortOrder`, or in the
@@ -475,10 +476,13 @@ impl Printer<'_, '_, '_> {
             clippy::map_err_ignore,
             reason = "oxc's diagnostic points into the sheet, not the component"
         )]
-        let ir = oxc_formatter_css::format_to_ir(&self.embedder.session, &text, options, None)
-            .map_err(|_| {
-                Unsupported::at("CSS that oxc's formatter does not format", style.content)
-            })?;
+        let ir = oxc_formatter_css::format_to_ir(
+            self.embedder.embedding.session(),
+            &text,
+            options,
+            None,
+        )
+        .map_err(|_| Unsupported::at("CSS that oxc's formatter does not format", style.content))?;
         let body = self.keep(ir.ir);
         Ok(self.indented_body(body))
     }

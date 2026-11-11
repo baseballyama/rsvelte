@@ -5,7 +5,7 @@ pub fn write_transform(source: &str, output: &mut StructuredDataWriter) {
     let result = rsvelte_svelte_syntax::parse::parse(source)
         .map_err(|error| (1, error.message, error.span))
         .and_then(|component| {
-            crate::lower(&component, source)
+            crate::lower_alone(&component, source)
                 .map(|tree| crate::emit(&tree, source))
                 .map_err(|error| {
                     (

@@ -1,20 +1,15 @@
-use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
+use oxc_semantic::ReferenceId;
+use oxc_syntax::symbol::SymbolFlags;
+use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
 use rsvelte_svelte_syntax::names::{is_mathml, is_svg};
-use rsvelte_typescript_semantic::scope::{Binding, DeclarationKind, ScopeIdentifier, Semantic};
-use rsvelte_typescript_syntax::syntax_tree::{
-    Class, Control, TypeScriptFeature, TypeScriptRuntime, flag,
-};
-use rustc_hash::FxHashSet;
+use rsvelte_typescript_compile::features::{Feature, first_runtime_feature};
 
 pub(super) mod markup;
 mod runes;
 
-pub(super) use runes::check_runes;
+pub(super) use runes::{check_runes, rejects_binding};
 
-use super::{
-    CompileInput, Diagnostic, Kind, NodeIdentifier, Resolution, Span, SyntaxTree, span_of,
-    unsupported,
-};
+use super::{CompileInput, Diagnostic, Resolution, Span, unsupported};
 
 /// Refuses an element upstream's `is_svg` or `is_mathml` names (case-sensitively).
 ///
@@ -32,225 +27,113 @@ pub(crate) fn check_foreign_element(source_text: &str, name: Span) -> Result<(),
     Ok(())
 }
 
-/// Upstream's name errors in runes mode, in its order: `validate_identifier_name` where the scope
-/// declares a name, `$$props` and `$$restProps`, then `validate_identifier_name` where the
-/// analysis walk meets a declaration.
+/// Upstream's analysis errors in its order: the first it raises as it builds the scopes, then
+/// `$$props` and `$$restProps`, then the first its walk meets. `template` holds those of the
+/// template that the walk over elements does not find.
 ///
 /// # Errors
 ///
-/// `dollar_binding_invalid`, `dollar_prefix_invalid`, `legacy_props_invalid` or
-/// `legacy_rest_props_invalid` at the first such name.
-pub(super) fn check_names(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
-    let javascript = input.component.javascript;
-    let mut reserved = res
-        .sem
-        .bindings
-        .iter()
-        .filter(|b| {
-            javascript.atoms.get(b.name).starts_with('$')
-                && !matches!(b.kind, DeclarationKind::Param | DeclarationKind::Host)
-        })
-        .peekable();
-    if reserved.peek().is_some() {
-        let unchecked = unchecked_declarations(input);
-        let reserved: Vec<&Binding> = reserved
-            .filter(|b| {
-                !unchecked.contains(&b.node)
-                    && !b.declaration.is_some_and(|d| unchecked.contains(&d))
-                    && !names_class_expression(javascript, &res.sem, b)
-            })
-            .collect();
-        // The scope checks names down to function depth 1: the module's function bodies and the
-        // instance's top level.
-        if let Some(b) = reserved
-            .iter()
-            .find(|b| function_depth(javascript, &res.sem, b) <= 1)
-        {
-            return reserved_name(javascript, b);
-        }
-        check_legacy_props(javascript, res)?;
-        if let Some(b) = reserved.iter().find(|b| {
-            b.declaration.is_some()
-                || !(names_function_expression(javascript, &res.sem, b)
-                    || is_catch_parameter(javascript, &res.sem, b))
-        }) {
-            return reserved_name(javascript, b);
-        }
-        return Ok(());
+/// The first such error.
+pub(super) fn check_analysis(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    names: &super::stores::Names<'_>,
+    mut errors: Vec<(Raised, Diagnostic)>,
+) -> Result<(), Diagnostic> {
+    let component = input.component;
+    errors.extend(dollar_name_errors(
+        component.javascript,
+        component.instance,
+        component.module,
+        res,
+        true,
+    ));
+    if let Err(error) = markup::check(input) {
+        let at = error.span.start_offset;
+        let raised = Raised {
+            phase: Phase::Walk,
+            section: Section::Template,
+            at,
+        };
+        errors.push((raised, error));
     }
-    check_legacy_props(javascript, res)
+    errors.sort_by_key(|&(raised, _)| raised);
+    let mut errors = errors.into_iter().peekable();
+    if let Some((_, error)) = errors.next_if(|(raised, _)| raised.phase == Phase::Scopes) {
+        return Err(error);
+    }
+    names.check(input, res)?;
+    check_legacy_props(res)?;
+    errors.next().map_or(Ok(()), |(_, error)| Err(error))
 }
 
 /// Upstream `legacy_props_invalid` and `legacy_rest_props_invalid` at a name no script declares.
-fn check_legacy_props(javascript: &SyntaxTree, res: &Resolution) -> Result<(), Diagnostic> {
-    for r in res.sem.references.iter().filter(|r| r.binding.is_none()) {
-        let (code, message) = match javascript.name(r.node) {
-            "$$props" => ("legacy_props_invalid", "Cannot use `$$props` in runes mode"),
-            "$$restProps" => (
-                "legacy_rest_props_invalid",
-                "Cannot use `$$restProps` in runes mode",
-            ),
-            _ => continue,
-        };
-        return super::special::invalid(code, message, span_of(javascript, r.node));
-    }
-    Ok(())
-}
-
-fn reserved_name<T>(javascript: &SyntaxTree, b: &Binding) -> Result<T, Diagnostic> {
-    let span = span_of(javascript, b.node);
-    if javascript.atoms.get(b.name) == "$" {
-        super::special::invalid(
-            "dollar_binding_invalid",
-            "The $ name is reserved, and cannot be used for variables and imports",
-            span,
-        )
+fn check_legacy_props(res: &Resolution) -> Result<(), Diagnostic> {
+    let first = first_unresolved(res, |name| matches!(name, "$$props" | "$$restProps"));
+    let Some((name, span)) = first else {
+        return Ok(());
+    };
+    let (code, message) = if name == "$$props" {
+        ("legacy_props_invalid", "Cannot use `$$props` in runes mode")
     } else {
-        super::special::invalid(
-            "dollar_prefix_invalid",
-            "The $ prefix is reserved, and cannot be used for variables and imports",
-            span,
+        (
+            "legacy_rest_props_invalid",
+            "Cannot use `$$restProps` in runes mode",
         )
-    }
+    };
+    super::special::invalid(code, message, span)
 }
 
-/// Upstream `function_depth` where `b` is declared: 0 in the module script and 1 in the instance,
-/// plus one per function body around it. A function expression's name is outside its body.
-fn function_depth(javascript: &SyntaxTree, sem: &Semantic, b: &Binding) -> usize {
-    let mut depth = 0;
-    let mut scope = b.scope;
-    loop {
-        if scope == ScopeIdentifier::ROOT {
-            depth += 1;
-            break;
-        }
-        let Some(parent) = sem.scopes[scope].parent else {
-            break;
-        };
-        depth += usize::from(sem.scopes[scope].function);
-        scope = parent;
-    }
-    depth - usize::from(names_function_expression(javascript, sem, b))
+/// The first value reference, in document order, to a name no binding declares that `wanted`
+/// takes.
+fn first_unresolved(res: &Resolution, wanted: impl Fn(&str) -> bool) -> Option<(&str, Span)> {
+    unbound(res, wanted)
+        .flat_map(|(name, references)| {
+            references
+                .into_iter()
+                .map(move |r| (name, res.reference_span(r)))
+        })
+        .min_by_key(|(_, span)| span.start)
+        .map(|(name, span)| (name, Span::new(span.start, span.end)))
 }
 
-/// The name of the function expression whose scope declares it.
-fn names_function_expression(javascript: &SyntaxTree, sem: &Semantic, b: &Binding) -> bool {
-    let node = sem.scopes[b.scope].node;
-    !node.is_none()
-        && matches!(
-            javascript.kind(node),
-            Kind::Function { name: Some(name), declaration: false, .. } if name == b.node
-        )
+/// Each name no binding declares that `wanted` takes, with its value references. Upstream erases a
+/// `declare`d name, so it declares nothing.
+pub(super) fn unbound(
+    res: &Resolution,
+    wanted: impl Fn(&str) -> bool,
+) -> impl Iterator<Item = (&str, Vec<ReferenceId>)> {
+    let scoping = res.scoping();
+    let ambient = (scoping.symbol_ids())
+        .filter(|&s| scoping.symbol_flags(s).contains(SymbolFlags::Ambient))
+        .map(|s| {
+            (
+                scoping.symbol_name(s),
+                scoping.get_resolved_reference_ids(s),
+            )
+        });
+    (scoping.root_unresolved_references().iter())
+        .map(|(name, references)| (name.as_str(), references.as_slice()))
+        .chain(ambient)
+        .filter(move |(name, _)| wanted(name))
+        .map(|(name, references)| {
+            let values = (references.iter().copied())
+                .filter(|&r| scoping.get_reference(r).flags().is_value())
+                .collect();
+            (name, values)
+        })
 }
 
-/// A catch clause's parameter, which no declaration the analysis walk visits declares.
-fn is_catch_parameter(javascript: &SyntaxTree, sem: &Semantic, b: &Binding) -> bool {
-    let node = sem.scopes[b.scope].node;
-    !node.is_none() && matches!(javascript.kind(node), Kind::Control(Control::Catch { .. }))
-}
-
-/// A class expression's name, which the class's own scope declares.
-fn names_class_expression(javascript: &SyntaxTree, sem: &Semantic, b: &Binding) -> bool {
-    let node = sem.scopes[b.scope].node;
-    !node.is_none()
-        && matches!(
-            javascript.kind(node),
-            Kind::Class(Class::Definition {
-                name: Some(name),
-                declaration: false,
-                ..
-            }) if name == b.node
-        )
-}
-
-/// The names and declarators upstream never checks besides a class expression's name: a snippet's
-/// name, a `{@const}` and a type-only import.
-fn unchecked_declarations(input: &CompileInput<'_>) -> FxHashSet<NodeIdentifier> {
-    let javascript = input.component.javascript;
-    let mut unchecked = FxHashSet::default();
-    for n in &input.component.compiler_syntax_tree.nodes {
-        match &n.kind {
-            NodeKind::Snippet(s) => {
-                unchecked.insert(s.name);
-            }
-            &NodeKind::Const { declaration } => {
-                if let Kind::VariableDeclaration { declarations, .. } = javascript.kind(declaration)
-                {
-                    unchecked.extend(declarations.iter().copied());
-                }
-            }
-            _ => {}
-        }
-    }
-    for program in input
-        .component
-        .module
-        .into_iter()
-        .chain([input.component.program])
-    {
-        let Kind::Program(statements) = javascript.kind(program) else {
-            continue;
-        };
-        for &statement in statements {
-            if let Kind::Import {
-                specifiers,
-                type_only,
-                ..
-            } = javascript.kind(statement)
-            {
-                unchecked.extend(specifiers.iter().copied().filter(|&specifier| {
-                    type_only || javascript.flags(specifier) & flag::TYPE_ONLY != 0
-                }));
-            }
-        }
-    }
-    unchecked
-}
-
-/// Refuses a `$name` reference that upstream's analysis turns into a store subscription (its
-/// synthetic `store_sub` bindings); this port has no store support.
-///
-/// Also refuses `$$slots`, which upstream declares from `$.sanitize_slots`.
+/// Refuses `$$slots`, which upstream declares from `$.sanitize_slots`.
 ///
 /// # Errors
 ///
-/// Upstream's `global_reference_invalid` for an undeclared store, or an `unsupported`
-/// [`Diagnostic`], at the first such reference.
-pub(super) fn check_stores(
-    javascript: &SyntaxTree,
-    res: &Resolution,
-    program: NodeIdentifier,
-) -> Result<(), Diagnostic> {
-    let instance = res.sem.scope_of(program).unwrap_or(ScopeIdentifier::ROOT);
-    for r in &res.sem.references {
-        if r.binding.is_some() {
-            continue;
-        }
-        let name = javascript.name(r.node);
-        if name == "$$slots" {
-            return unsupported("`$$slots`", span_of(javascript, r.node));
-        }
-        if res.is_store_subscription(name) {
-            // In runes mode upstream reads an undeclared lowercase store as a misspelt global.
-            let store = &name[1..];
-            let declared = (javascript.atoms.lookup(store))
-                .is_some_and(|atom| res.sem.lookup(instance, atom).is_some());
-            if !declared && store.starts_with(|c: char| c.is_ascii_lowercase()) {
-                return super::special::invalid(
-                    "global_reference_invalid",
-                    &format!(
-                        "`{name}` is an illegal variable name. To reference a global variable called `{name}`, use `globalThis.{name}`"
-                    ),
-                    span_of(javascript, r.node),
-                );
-            }
-            return unsupported(
-                &format!("the store subscription `{name}`"),
-                span_of(javascript, r.node),
-            );
-        }
+/// An `unsupported` [`Diagnostic`] at its first reference.
+pub(super) fn check_slots(res: &Resolution) -> Result<(), Diagnostic> {
+    match first_unresolved(res, |name| name == "$$slots") {
+        Some((_, span)) => unsupported("`$$slots`", span),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 /// Upstream `state_invalid_placement`, which the rune walk and the markup walk both raise.
@@ -267,30 +150,40 @@ fn state_invalid_placement<T>(rune: &str, span: Span) -> Result<T, Diagnostic> {
 }
 
 pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
-    if let Some(runtime) = input.component.javascript.typescript_runtime.first() {
-        return Err(typescript_invalid_feature(runtime));
+    let javascript = input.component.javascript;
+    let mut programs: Vec<_> = (input.component.module.into_iter())
+        .chain(input.component.instance)
+        .map(|p| javascript.get_program(p))
+        .collect();
+    // The parser met the scripts in document order.
+    programs.sort_by_key(|p| p.span.start);
+    match programs.into_iter().find_map(first_runtime_feature) {
+        Some((feature, span)) => Err(typescript_invalid_feature(
+            feature,
+            Span::new(span.start, span.end),
+        )),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 /// Upstream `remove_typescript_nodes` erases types and refuses what has a runtime value; what it
 /// keeps for esrap to print, this compiler does not lower.
-fn typescript_invalid_feature(t: &TypeScriptRuntime) -> Diagnostic {
-    let feature = match t.feature {
-        TypeScriptFeature::Enum => "enums",
-        TypeScriptFeature::NamespaceWithValues => "namespaces with non-type nodes",
-        TypeScriptFeature::Decorator => "decorators (related TSC proposal is not stage 4 yet)",
-        TypeScriptFeature::Accessor => "accessor fields (related TSC proposal is not stage 4 yet)",
-        TypeScriptFeature::ParameterProperty => "accessibility modifiers on constructor parameters",
-        TypeScriptFeature::ImportEquals => {
+fn typescript_invalid_feature(feature: Feature, span: Span) -> Diagnostic {
+    let feature = match feature {
+        Feature::Enum => "enums",
+        Feature::NamespaceWithValues => "namespaces with non-type nodes",
+        Feature::Decorator => "decorators (related TSC proposal is not stage 4 yet)",
+        Feature::Accessor => "accessor fields (related TSC proposal is not stage 4 yet)",
+        Feature::ParameterProperty => "accessibility modifiers on constructor parameters",
+        Feature::ImportEquals => {
             return Diagnostic::error(
                 "unsupported",
                 "`import name = …` is not supported yet",
-                t.span,
+                span,
             );
         }
-        TypeScriptFeature::ExportAssignment => {
-            return Diagnostic::error("unsupported", "`export = …` is not supported yet", t.span);
+        Feature::ExportAssignment => {
+            return Diagnostic::error("unsupported", "`export = …` is not supported yet", span);
         }
     };
     Diagnostic::error(
@@ -304,6 +197,6 @@ fn typescript_invalid_feature(t: &TypeScriptRuntime) -> Diagnostic {
              (`vitePreprocess({{ script: true }})`)\n\
              https://svelte.dev/e/typescript_invalid_feature"
         ),
-        t.span,
+        span,
     )
 }

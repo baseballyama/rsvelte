@@ -1,23 +1,30 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<li><input type="checkbox"/> <input/> <button>x</button></li>`);
-
 var root_1 = $.from_html(`<li>Nothing to do.</li>`);
-
 var root_2 = $.from_html(`<h1>Todos</h1> <input placeholder="What needs doing?"/> <button>Add</button> <ul></ul> <p> </p> <button>Clear completed</button>`, 1);
-
 export default function Todo_list($$anchor, $$props) {
 	$.push($$props, true);
-	let todos = $.state($.proxy([{ id: 1, text: 'Learn Svelte', done: true }, { id: 2, text: 'Build something', done: false }]));
-	let draft = $.state('');
+	let todos = $.state($.proxy([{
+		id: 1,
+		text: "Learn Svelte",
+		done: true
+	}, {
+		id: 2,
+		text: "Build something",
+		done: false
+	}]));
+	let draft = $.state("");
 	let nextId = 3;
 	let remaining = $.derived(() => $.get(todos).filter((t) => !t.done).length);
 	function add() {
 		if (!$.get(draft).trim()) return;
-		$.get(todos).push({ id: nextId++, text: $.get(draft), done: false });
-		$.set(draft, '');
+		$.get(todos).push({
+			id: nextId++,
+			text: $.get(draft),
+			done: false
+		});
+		$.set(draft, "");
 	}
 	function clear() {
 		$.set(todos, $.get(todos).filter((t) => !t.done), true);
@@ -37,7 +44,7 @@ export default function Todo_list($$anchor, $$props) {
 		$.reset(li);
 		$.bind_checked(input_1, () => $.get(todo).done, ($$value) => $.get(todo).done = $$value);
 		$.bind_value(input_2, () => $.get(todo).text, ($$value) => $.get(todo).text = $$value);
-		$.delegated('click', button_1, () => $.set(todos, $.get(todos).filter((t) => t !== $.get(todo)), true));
+		$.delegated("click", button_1, () => $.set(todos, $.get(todos).filter((t) => t !== $.get(todo)), true));
 		$.append($$anchor, li);
 	}, ($$anchor) => {
 		var li_1 = root_1();
@@ -47,12 +54,11 @@ export default function Todo_list($$anchor, $$props) {
 	var p = $.sibling(ul, 2);
 	var text = $.only_child(p);
 	var button_2 = $.sibling(p, 2);
-	$.template_effect(() => $.set_text(text, `${$.get(remaining) ?? ''} remaining`));
+	$.template_effect(() => $.set_text(text, `${$.get(remaining) ?? ""} remaining`));
 	$.bind_value(input, () => $.get(draft), ($$value) => $.set(draft, $$value));
-	$.delegated('click', button, add);
-	$.delegated('click', button_2, clear);
+	$.delegated("click", button, add);
+	$.delegated("click", button_2, clear);
 	$.append($$anchor, fragment);
 	$.pop();
 }
-
-$.delegate(['click']);
+$.delegate(["click"]);

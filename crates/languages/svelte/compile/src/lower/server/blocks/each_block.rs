@@ -1,70 +1,72 @@
-use crate::lower::server::{
-    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, BinaryOperator, CompilerNodeIdentifier,
-    NodeIdentifier, NodeKind, Piece, R, ServerCompilationContext, SourceLocation, UpdateOperator,
-    flag, unsupported,
+use oxc_ast::ast::{
+    BinaryOperator, ForStatementInit, SimpleAssignmentTarget, Statement, UpdateOperator,
+    VariableDeclarationKind,
 };
+use oxc_span::SPAN;
 
-impl ServerCompilationContext<'_> {
+use crate::lower::builder::Runtime;
+use crate::lower::server::{
+    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, NodeKind, Piece, R,
+    ServerCompilationContext, unsupported,
+};
+use crate::lower::span_of;
+
+impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `EachBlock` (server) for a block whose context is an identifier.
     pub(in crate::lower::server) fn each_block(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        template: &mut Vec<Piece>,
+        template: &mut Vec<Piece<'o>>,
     ) -> R<()> {
-        let (compiler_syntax_tree, javascript) = (self.compiler_syntax_tree, self.javascript);
+        let (compiler_syntax_tree, javascript, b) =
+            (self.compiler_syntax_tree, self.javascript, self.b);
         let NodeKind::Each(each) = &compiler_syntax_tree.node(identifier).kind else {
             unreachable!()
         };
-        let context = each.context().expect("the parser requires `as`");
-        if !javascript.is_identifier(context) {
-            let span = javascript
-                .source_location(context)
-                .span()
-                .expect("parsed from source");
-            return unsupported("a destructuring `{#each}` context", span);
-        }
+        let context = &javascript
+            .get_pattern(each.context.expect("the parser requires `as`"))
+            .pattern;
+        let Some(item) = context
+            .get_binding_identifier()
+            .filter(|_| context.is_binding_identifier())
+        else {
+            return unsupported("a destructuring `{#each}` context", span_of(context));
+        };
         let collection = self.expression(each.collection);
-        let index = each.index().map_or_else(
+        let index = each.index.map_or_else(
             || self.each_index[&identifier].clone(),
-            |i| javascript.name(i).to_owned(),
+            |i| {
+                javascript
+                    .get_pattern(i)
+                    .pattern
+                    .get_binding_identifier()
+                    .expect("an `{#each}` index is an identifier")
+                    .name
+                    .to_string()
+            },
         );
         let array_id = self.names.unique("each_array");
-        let ensure = self.out.runtime("$", "ensure_array_like", &[collection]);
-        let array = self.out.identifier(&array_id);
-        let array_declaration = self.out.let_(flag::CONST, array, Some(ensure));
+        let array_declaration = b.const_(&array_id, b.runtime("ensure_array_like", [collection]));
 
-        let mut body = Vec::new();
-        let item = self.out.ident(
-            javascript.name(context),
-            javascript.source_location(context),
-        );
-        let array = self.out.identifier(&array_id);
-        let at = self.out.identifier(&index);
-        let element = self
-            .out
-            .member(array, at, true, false, SourceLocation::SYNTHETIC);
-        body.push(self.out.let_(flag::LET, item, Some(element)));
+        let element = b.computed(b.id(&array_id), b.id(&index));
+        let mut body = vec![b.declaration(
+            VariableDeclarationKind::Let,
+            [b.declarator(b.binding_at(&item.name, item.span), Some(element))],
+        )];
         body.extend(self.fragment(each.body)?);
 
-        let for_loop = self.each_loop(&index, &array_id, &body);
+        let for_loop = self.each_loop(&index, &array_id, body);
 
         if let Some(f) = each.fallback {
             let open = self.push_literal(BLOCK_OPEN);
             let fallback = self.fragment(f)?;
             let fallback = self.prepend_block_marker(fallback, BLOCK_OPEN_ELSE);
-            let array = self.out.identifier(&array_id);
-            let array_length = self.out.dot(array, "length");
-            let zero = self.out.write_number(0.0, SourceLocation::SYNTHETIC);
-            let test = self.out.binary(
-                BinaryOperator::StrictNotEq,
-                array_length,
-                zero,
-                SourceLocation::SYNTHETIC,
+            let test = b.binary(
+                b.member(b.id(&array_id), "length"),
+                BinaryOperator::StrictInequality,
+                b.number(0.0),
             );
-            let consequent = self.out.block(&[open, for_loop], SourceLocation::SYNTHETIC);
-            let statement =
-                self.out
-                    .if_(test, consequent, Some(fallback), SourceLocation::SYNTHETIC);
+            let statement = b.if_(test, b.block([open, for_loop]), Some(fallback));
             template.push(Piece::Statement(array_declaration));
             template.push(Piece::Statement(statement));
         } else {
@@ -77,42 +79,37 @@ impl ServerCompilationContext<'_> {
     }
 
     /// `for (let i = 0, $$length = array.length; i < $$length; i++) { … }`.
-    fn each_loop(
-        &mut self,
-        index: &str,
-        array_id: &str,
-        body: &[NodeIdentifier],
-    ) -> NodeIdentifier {
-        let i = self.out.identifier(index);
-        let zero = self.out.write_number(0.0, SourceLocation::SYNTHETIC);
-        let first = self
-            .out
-            .declarator(i, Some(zero), SourceLocation::SYNTHETIC);
-        let length = self.out.identifier("$$length");
-        let array = self.out.identifier(array_id);
-        let array_length = self.out.dot(array, "length");
-        let second = self
-            .out
-            .declarator(length, Some(array_length), SourceLocation::SYNTHETIC);
-        let initializer =
-            self.out
-                .var_declaration(flag::LET, &[first, second], SourceLocation::SYNTHETIC);
-        let i = self.out.identifier(index);
-        let length = self.out.identifier("$$length");
-        let test = self
-            .out
-            .binary(BinaryOperator::Lt, i, length, SourceLocation::SYNTHETIC);
-        let i = self.out.identifier(index);
-        let update = self
-            .out
-            .update(UpdateOperator::Inc, false, i, SourceLocation::SYNTHETIC);
-        let block = self.out.block(body, SourceLocation::SYNTHETIC);
-        self.out.for_(
-            Some(initializer),
+    fn each_loop(&self, index: &str, array_id: &str, body: Vec<Statement<'o>>) -> Statement<'o> {
+        let b = self.b;
+        let Statement::VariableDeclaration(initializer) = b.declaration(
+            VariableDeclarationKind::Let,
+            [
+                b.declarator(b.binding(index), Some(b.number(0.0))),
+                b.declarator(
+                    b.binding("$$length"),
+                    Some(b.member(b.id(array_id), "length")),
+                ),
+            ],
+        ) else {
+            unreachable!("a variable declaration")
+        };
+        let test = b.binary(b.id(index), BinaryOperator::LessThan, b.id("$$length"));
+        let target =
+            SimpleAssignmentTarget::new_assignment_target_identifier(SPAN, b.str(index), b);
+        let update = oxc_ast::ast::Expression::new_update_expression(
+            SPAN,
+            UpdateOperator::Increment,
+            false,
+            target,
+            b,
+        );
+        Statement::new_for_statement(
+            SPAN,
+            Some(ForStatementInit::VariableDeclaration(initializer)),
             Some(test),
             Some(update),
-            block,
-            SourceLocation::SYNTHETIC,
+            b.block(body),
+            b,
         )
     }
 }

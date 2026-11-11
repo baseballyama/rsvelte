@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Effect($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
 		let n = 0;

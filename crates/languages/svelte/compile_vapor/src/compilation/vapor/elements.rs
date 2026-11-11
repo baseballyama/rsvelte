@@ -1,32 +1,30 @@
-use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind, PropertyKind};
+use oxc_ast::ast::{BinaryOperator, Expression, VariableDeclarationKind};
+use oxc_span::SPAN;
+use rsvelte_svelte_compile::render_plan::Namespace;
+use rsvelte_vue_semantic::compiler_syntax_tree::{
+    CompilerNodeIdentifier, Element, NodeKind, PropertyKind, TagType,
+};
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
-use super::{Builder, Namespace, NodeIdentifier, SYNTHETIC};
+use super::{Body, Emitter, effects};
 
-impl Builder<'_> {
+const SVG: &str = "http://www.w3.org/2000/svg";
+const MATHML: &str = "http://www.w3.org/1998/Math/MathML";
+
+impl<'o> Emitter<'_, 'o> {
     pub(super) fn element(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        body: &mut Vec<NodeIdentifier>,
-    ) -> NodeIdentifier {
-        let NodeKind::Element(element) = &self.input.compiler_syntax_tree.node(identifier).kind
-        else {
-            unreachable!()
+        body: &mut Body<'o>,
+    ) -> Expression<'o> {
+        let NodeKind::Element(element) = &self.tree.node(identifier).kind else {
+            unreachable!("called on an element")
         };
-        if element.tag.text(self.source_text) == "slot" && self.input.custom_element.is_some() {
-            return self.slot(element, body);
-        }
-        if matches!(
-            element.tag.text(self.source_text),
-            "$$Text" | "$$TextareaText" | "$$PreText"
-        ) {
-            return self.static_text(element, body);
-        }
-        if matches!(
-            element.tag.text(self.source_text),
-            "$$Component" | "$$Boundary"
-        ) {
-            if element.tag.text(self.source_text) == "$$Boundary" {
+        let tag = element.tag.text(self.source_text);
+        match tag {
+            "slot" if self.t.template.custom_element.is_some() => return self.slot(element, body),
+            "$$Text" | "$$TextareaText" | "$$PreText" => return self.static_text(element, body),
+            "$$Boundary" => {
                 self.helpers.extend([
                     "defineVaporComponent",
                     "shallowRef",
@@ -38,236 +36,119 @@ impl Builder<'_> {
                     "createComponent",
                     "provide",
                 ]);
+                return self.component(identifier, body);
             }
-            return self.component(identifier, body);
-        }
-        if element.tag.text(self.source_text) == "svelte:element" {
-            let value = self.reactive_expression(self.dynamic_tag(identifier), body);
-            let tag = self.name();
-            body.push(
-                self.to
-                    .let_(rsvelte_typescript_syntax::syntax_tree::flag::LET, tag, None),
-            );
-            let assign = self.to.assign(
-                rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
-                tag,
-                value,
-                SYNTHETIC,
-            );
-            let getter = self.to.arrow(&[], assign, true, false, SYNTHETIC);
-            let mut content = Vec::new();
-            let document = self.to.identifier("document");
-            let namespace = self
-                .input
-                .namespaces
-                .get(&identifier)
-                .copied()
-                .unwrap_or(Namespace::Html);
-            let node = if namespace == Namespace::Html {
-                let create = self.to.dot(document, "createElement");
-                let markup_element = self.to.call0(create, &[tag]);
-                let create = self.to.dot(document, "createElementNS");
-                let uri = self.to.write_string("http://www.w3.org/2000/svg");
-                let svg = self.to.call0(create, &[uri, tag]);
-                let name = self.to.write_string("svg");
-                let test = self.to.binary(
-                    rsvelte_typescript_syntax::operators::BinaryOperator::StrictEq,
-                    tag,
-                    name,
-                    SYNTHETIC,
-                );
-                self.to.cond(test, svg, markup_element, SYNTHETIC)
-            } else {
-                let uri = self.to.write_string(if namespace == Namespace::Svg {
-                    "http://www.w3.org/2000/svg"
-                } else {
-                    "http://www.w3.org/1998/Math/MathML"
-                });
-                let create = self.to.dot(document, "createElementNS");
-                self.to.call0(create, &[uri, tag])
-            };
-            let node = self.declare(node, &mut content);
-            let node = self.element_body(identifier, &mut content, Some(node));
-            content.push(self.to.return_(Some(node), SYNTHETIC));
-            let block = self.to.block(&content, SYNTHETIC);
-            let present = self.to.arrow(&[], block, false, false, SYNTHETIC);
-            let present = self.to.call0(present, &[]);
-            let empty = self.to.array(&[], SYNTHETIC);
-            let render = self.to.cond(tag, present, empty, SYNTHETIC);
-            let render = self.to.arrow(&[], render, true, false, SYNTHETIC);
-            let fragment = self.keyed_fragment(getter, render);
-            return self.declare(fragment, body);
+            "$$Component" => return self.component(identifier, body),
+            "svelte:element" => return self.dynamic_element(identifier, body),
+            _ => {}
         }
         self.element_body(identifier, body, None)
     }
 
-    #[expect(
-        clippy::too_many_lines,
-        reason = "element construction and its directives share the same DOM node"
-    )]
+    /// `<svelte:element this={tag}>`: a fragment keyed by the tag, the element made for it.
+    fn dynamic_element(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        body: &mut Body<'o>,
+    ) -> Expression<'o> {
+        let b = self.b;
+        let source = self.source(
+            self.bound(identifier, Some("$$tag"))
+                .expect("a dynamic tag"),
+        );
+        let value = self.render_expression(source, body);
+        let tag = self.name();
+        body.push(b.declaration(
+            VariableDeclarationKind::Let,
+            [b.declarator(b.binding(&tag), None)],
+        ));
+        let getter = self.arrow(b.assign_name(&tag, value));
+        let document = || b.id("document");
+        let node = match self.namespace(identifier) {
+            Namespace::Html => {
+                let html = b.call(b.member(document(), "createElement"), [b.id(&tag)]);
+                let svg = b.call(
+                    b.member(document(), "createElementNS"),
+                    [b.string(SVG), b.id(&tag)],
+                );
+                let test = b.binary(b.id(&tag), BinaryOperator::StrictEquality, b.string("svg"));
+                Expression::new_conditional_expression(SPAN, test, svg, html, b)
+            }
+            namespace => {
+                let uri = if namespace == Namespace::Svg {
+                    SVG
+                } else {
+                    MATHML
+                };
+                b.call(
+                    b.member(document(), "createElementNS"),
+                    [b.string(uri), b.id(&tag)],
+                )
+            }
+        };
+        let mut content = Body::default();
+        let node = self.declare(node, &mut content);
+        let node = self.element_body(identifier, &mut content, Some(node));
+        let mut statements = content.finish(b);
+        statements.push(b.return_(Some(node)));
+        let present = self.run(statements, false);
+        let render =
+            Expression::new_conditional_expression(SPAN, b.id(&tag), present, b.array([]), b);
+        let render = self.arrow(render);
+        let fragment = self.keyed_fragment(getter, render);
+        b.id(&self.declare(fragment, body))
+    }
+
     fn element_body(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        body: &mut Vec<NodeIdentifier>,
-        dynamic: Option<NodeIdentifier>,
-    ) -> NodeIdentifier {
-        let tree = &self.input.compiler_syntax_tree;
+        body: &mut Body<'o>,
+        dynamic: Option<String>,
+    ) -> Expression<'o> {
+        let b = self.b;
+        let tree = self.tree;
         let NodeKind::Element(el) = &tree.node(identifier).kind else {
             unreachable!("an element")
         };
         let tag = el.tag.text(self.source_text);
-        let namespace = self
-            .input
-            .namespaces
-            .get(&identifier)
-            .copied()
-            .unwrap_or(Namespace::Html);
-        if tag == "$$Title" {
-            let value = self.title_text(identifier, body);
-            let document = self.to.identifier("document");
-            let title = self.to.dot(document, "title");
-            let assignment = self.to.assign(
-                rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
-                title,
-                value,
-                SYNTHETIC,
-            );
-            let callback = self.to.arrow(&[], assignment, true, false, SYNTHETIC);
-            let callback = self.tracked_callback(callback);
-            let effect = self.call("watchPostEffect", &[callback]);
-            body.push(self.to.expression_statement(effect));
-            return self.to.array(&[], SYNTHETIC);
-        }
-        if tag == "$$Scope" {
-            return self.scope(identifier, false);
-        }
-        if tag == "$$Snippet" {
-            body.push(self.snippet_declaration(identifier, false));
-            return self.to.array(&[], SYNTHETIC);
-        }
-        if tag == "$$Render" {
-            return self.render_snippet(identifier, body);
-        }
-        if tag == "$$Await" {
-            let DirectiveExpression::For(each) = &self
-                .structural(identifier, DirectiveName::For)
-                .expect("await has a scope")
-                .exp
-            else {
-                unreachable!()
-            };
-            let parameter = each.parameters[0];
-            let source = self.expression(each.source);
-            let getter = self.to.arrow(&[], source, true, false, SYNTHETIC);
-            let callee = self.to.identifier("$$await_block");
-            let has_catch = self.expression(self.raw_markup_value(identifier));
-            let value = self.to.call0(callee, &[getter, has_catch]);
-            let parameter_node = rsvelte_typescript_compile::copy::copy(
-                &self.input.javascript,
-                &mut self.to,
-                &mut rsvelte_typescript_compile::copy::Verbatim,
-                parameter,
-            );
-            body.push(self.to.let_(
-                rsvelte_typescript_syntax::syntax_tree::flag::CONST,
-                parameter_node,
-                Some(value),
-            ));
-            let binding = self
-                .resolution
-                .sem
-                .binding_of(parameter)
-                .expect("await state has a binding");
-            self.loop_bindings.insert(binding);
-            let children = self.list(tree.children(el.children), body);
-            self.loop_bindings.remove(&binding);
-            return self.to.array(&children, SYNTHETIC);
-        }
-        if tag == "$$RawMarkup" {
-            let value = self.reactive_expression(self.raw_markup_value(identifier), body);
-            let key = self.to.arrow(&[], value, true, false, SYNTHETIC);
-            let callee = self.to.identifier("$$raw_markup");
-            let mut arguments = vec![value];
-            if namespace != Namespace::Html {
-                arguments.push(self.to.write_string(if namespace == Namespace::Svg {
-                    "http://www.w3.org/2000/svg"
-                } else {
-                    "http://www.w3.org/1998/Math/MathML"
-                }));
-            }
-            let content = self.to.call0(callee, &arguments);
-            let render = self.to.arrow(&[], content, true, false, SYNTHETIC);
-            let fragment = self.keyed_fragment(key, render);
-            return self.declare(fragment, body);
-        }
-        if tag == "template"
-            && el.tag_type == rsvelte_vue_semantic::compiler_syntax_tree::TagType::Template
-        {
-            let children = self.list(tree.children(el.children), body);
-            return self.to.array(&children, SYNTHETIC);
+        let namespace = self.namespace(identifier);
+        if let Some(special) = self.special_element(identifier, el, tag, body) {
+            return special;
         }
         let global = matches!(tag, "svelte:window" | "svelte:document" | "svelte:body");
-        if tag == "svelte:head" {
-            let nodes = self.list(tree.children(el.children), body);
-            let nodes = self.to.array(&nodes, SYNTHETIC);
-            let head = self.to.identifier("document");
-            let head = self.to.dot(head, "head");
-            let insert = self.call("insert", &[nodes, head]);
-            body.push(self.to.expression_statement(insert));
-            let cleanup = self.call("remove", &[nodes, head]);
-            let cleanup = self.to.arrow(&[], cleanup, true, false, SYNTHETIC);
-            let dispose = self.call("onScopeDispose", &[cleanup]);
-            body.push(self.to.expression_statement(dispose));
-            return self.to.array(&[], SYNTHETIC);
-        }
-        let mut markup = format!("<{tag}");
-        for p in tree.props(el.props) {
-            if let PropertyKind::Attribute { name, value } = &p.kind {
-                markup.push(' ');
-                markup.push_str(name.text(self.source_text));
-                if let Some(value) = value {
-                    markup.push_str("=\"");
-                    escape_attribute(value.text(self.source_text), &mut markup);
-                    markup.push('"');
-                }
-            }
-        }
-        markup.push('>');
         let dynamic = if dynamic.is_none() && namespace == Namespace::Html && tag.contains('-') {
-            let document = self.to.identifier("document");
-            let create = self.to.dot(document, "createElement");
-            let name = self.to.write_string(tag);
-            let element = self.to.call0(create, &[name]);
+            let element = b.call(b.member(b.id("document"), "createElement"), [b.string(tag)]);
             Some(self.declare(element, body))
         } else {
             dynamic
         };
-        let node = if let Some(node) = dynamic {
+        let node: Expression<'o> = if let Some(node) = &dynamic {
             for property in tree.props(el.props) {
                 if let PropertyKind::Attribute { name, value } = &property.kind {
-                    let name = self.to.write_string(name.text(self.source_text));
-                    let value = self.to.write_string(
-                        value
-                            .as_ref()
-                            .map_or("", |value| value.text(self.source_text)),
+                    let value = value
+                        .as_ref()
+                        .map_or("", |value| value.text(self.source_text));
+                    let set = self.call(
+                        "setAttr",
+                        [
+                            b.id(node),
+                            b.string(name.text(self.source_text)),
+                            b.string(value),
+                        ],
                     );
-                    let set = self.call("setAttr", &[node, name, value]);
-                    body.push(self.to.expression_statement(set));
+                    body.push(b.stmt(set));
                 }
             }
-            node
+            b.id(node)
         } else if global {
             match tag {
-                "svelte:window" => self.to.identifier("window"),
-                "svelte:document" => self.to.identifier("document"),
-                "svelte:body" => {
-                    let document = self.to.identifier("document");
-                    self.to.dot(document, "body")
-                }
-                _ => unreachable!(),
+                "svelte:window" => b.id("window"),
+                "svelte:document" => b.id("document"),
+                _ => b.member(b.id("document"), "body"),
             }
         } else {
-            self.template(&markup, namespace, body)
+            let markup = self.markup(el, tag);
+            b.id(&self.template(&markup, namespace, body))
         };
         let attribute_order = self.reserve_effect_order();
         let child_ids = tree.children(el.children);
@@ -275,25 +156,85 @@ impl Builder<'_> {
             && let [child] = child_ids
             && let NodeKind::Interpolation { expression } = tree.node(*child).kind
         {
-            let value = self.reactive_expression(expression, body);
-            let setter = self.to.identifier("$$value");
-            let call = self.to.call0(setter, &[node, value]);
-            self.effect(call, body);
+            let value = self.render_expression(self.source(expression), body);
+            let call = b.call(b.id("$$value"), [self.copy_output(&node), value]);
+            self.effect(call, true, body);
             Vec::new()
         } else {
             self.list(child_ids, body)
         };
         if !children.is_empty() {
-            let children = self.to.array(&children, SYNTHETIC);
             let parent = if tag == "template" && namespace == Namespace::Html {
-                self.to.dot(node, "content")
+                b.member(self.copy_output(&node), "content")
             } else {
-                node
+                self.copy_output(&node)
             };
-            let insert = self.call("insert", &[children, parent]);
-            body.push(self.to.expression_statement(insert));
+            let insert = self.call("insert", [b.array(children), parent]);
+            body.push(b.stmt(insert));
         }
         let previous_order = self.attribute_effect_order.replace(attribute_order);
+        self.element_directives(el, &node, namespace, body);
+        self.attribute_effect_order = previous_order;
+        if global { b.array([]) } else { node }
+    }
+
+    /// A tag the template translation made, or one Vue does not render as an element.
+    fn special_element(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        el: &Element,
+        tag: &str,
+        body: &mut Body<'o>,
+    ) -> Option<Expression<'o>> {
+        let b = self.b;
+        let tree = self.tree;
+        Some(match tag {
+            "$$Title" => {
+                let value = self.title_text(identifier, body);
+                let assignment = b.assign_member(b.member(b.id("document"), "title"), value);
+                let callback = self.tracked_callback(self.arrow(assignment));
+                let effect = self.call("watchPostEffect", [callback]);
+                body.push(b.stmt(effect));
+                b.array([])
+            }
+            "$$Scope" => self.scope(identifier, false),
+            "$$Snippet" => {
+                let declaration = self.snippet_declaration(identifier, false);
+                body.push(declaration);
+                b.array([])
+            }
+            "$$Render" => self.render_snippet(identifier, body),
+            "$$Await" => self.await_block(identifier, body),
+            "$$RawMarkup" => self.raw_markup(identifier, body),
+            "template" if el.tag_type == TagType::Template => {
+                let children = self.list(tree.children(el.children), body);
+                b.array(children)
+            }
+            "svelte:head" => {
+                let nodes = self.list(tree.children(el.children), body);
+                let nodes = b.array(nodes);
+                let head = || b.member(b.id("document"), "head");
+                let insert = self.call("insert", [self.copy_output(&nodes), head()]);
+                body.push(b.stmt(insert));
+                let cleanup = self.call("remove", [nodes, head()]);
+                let dispose = self.call("onScopeDispose", [self.arrow(cleanup)]);
+                body.push(b.stmt(dispose));
+                b.array([])
+            }
+            _ => return None,
+        })
+    }
+
+    /// An element's `bind:` and `on` directives.
+    fn element_directives(
+        &mut self,
+        el: &Element,
+        node: &Expression<'o>,
+        namespace: Namespace,
+        body: &mut Body<'o>,
+    ) {
+        let b = self.b;
+        let tree = self.tree;
         for p in tree.props(el.props) {
             let PropertyKind::Directive(d) = &p.kind else {
                 continue;
@@ -305,107 +246,149 @@ impl Builder<'_> {
             match (d.name, arg) {
                 (DirectiveName::Bind, Some("$$key" | "$$tag")) => {}
                 (DirectiveName::Bind, Some("$$ref")) => {
-                    let value = self.callback_expression(expression, body);
-                    let dom = super::effects::dom_callback(&self.to, value);
+                    let value = self.callback_expression(self.source(expression), body);
+                    let dom = effects::dom_callback(&value);
+                    let reads =
+                        dom.then(|| effects::reads(&value, &self.memoized, &self.dom_callbacks));
                     let callback = self.declare(value, body);
-                    if dom {
-                        self.dom_callbacks.insert(callback, value);
+                    if let Some(reads) = reads {
+                        self.dom_callbacks.insert(callback.clone(), reads);
                     }
-                    let call = self.to.call0(callback, &[node]);
-                    self.effect(call, body);
-                    let null = self.to.null(SYNTHETIC);
-                    let cleanup = self.to.call0(callback, &[null]);
-                    let cleanup = self.to.arrow(&[], cleanup, true, false, SYNTHETIC);
-                    let dispose = self.call("onScopeDispose", &[cleanup]);
-                    body.push(self.to.expression_statement(dispose));
+                    let call = b.call(b.id(&callback), [self.copy_output(node)]);
+                    self.effect(call, dom, body);
+                    let cleanup = self.arrow(b.call(b.id(&callback), [b.null()]));
+                    let dispose = self.call("onScopeDispose", [cleanup]);
+                    body.push(b.stmt(dispose));
                 }
                 (DirectiveName::Bind, Some(arg)) => {
-                    let value = self.reactive_expression(expression, body);
-                    if arg == "style" {
-                        let call = self.call("setStyle", &[node, value]);
-                        self.effect(call, body);
-                        continue;
-                    }
-                    let boolean = rsvelte_svelte_compile::lower::is_boolean_attribute(arg);
-                    let property = if boolean {
-                        boolean_property(arg)
-                    } else if arg == "CLASS" {
-                        "class"
-                    } else {
-                        arg
-                    };
-                    if matches!(arg, "checked" | "selected") {
-                        let target = self.to.dot(node, property);
-                        let set = self.to.assign(
-                            rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
-                            target,
-                            value,
-                            SYNTHETIC,
-                        );
-                        self.effect(set, body);
-                        continue;
-                    }
-                    let name = self.to.write_string(property);
-                    let helper = if boolean { "setDOMProp" } else { "setAttr" };
-                    let call = if namespace == Namespace::Svg && !boolean {
-                        let svg = self.to.write_boolean(true, SYNTHETIC);
-                        self.call(helper, &[node, name, value, svg])
-                    } else {
-                        self.call(helper, &[node, name, value])
-                    };
-                    self.effect(call, body);
+                    let value = self.render_expression(self.source(expression), body);
+                    self.bind_attribute(node, namespace, arg, value, body);
                 }
                 (DirectiveName::On, Some(event)) => {
-                    let handler = self.expression(expression);
-                    let name = self.to.write_string(event);
-                    let call = self.call("on", &[node, name, handler]);
-                    body.push(self.to.expression_statement(call));
+                    let handler = self.expression(self.source(expression));
+                    let call = self.call("on", [self.copy_output(node), b.string(event), handler]);
+                    body.push(b.stmt(call));
                 }
                 _ => {}
             }
         }
-        self.attribute_effect_order = previous_order;
-        if global {
-            self.to.array(&[], SYNTHETIC)
-        } else {
-            node
-        }
-    }
-}
-
-impl Builder<'_> {
-    pub(super) fn dynamic_tag(&self, identifier: CompilerNodeIdentifier) -> NodeIdentifier {
-        let NodeKind::Element(element) = &self.input.compiler_syntax_tree.node(identifier).kind
-        else {
-            unreachable!()
-        };
-        self.input
-            .compiler_syntax_tree
-            .props(element.props)
-            .iter()
-            .find_map(|property| match &property.kind {
-                PropertyKind::Directive(directive)
-                    if directive
-                        .arg
-                        .as_ref()
-                        .is_some_and(|name| name.text(self.source_text) == "$$tag") =>
-                {
-                    match directive.exp {
-                        DirectiveExpression::Expression(expression) => Some(expression),
-                        _ => None,
-                    }
-                }
-                PropertyKind::Attribute { .. } | PropertyKind::Directive(_) => None,
-            })
-            .expect("a dynamic element has a tag")
     }
 
-    fn static_text(
+    /// `:arg="value"` on an element: its DOM update.
+    fn bind_attribute(
         &mut self,
-        element: &rsvelte_vue_semantic::compiler_syntax_tree::Element,
-        body: &mut Vec<NodeIdentifier>,
-    ) -> NodeIdentifier {
-        let property = &self.input.compiler_syntax_tree.props(element.props)[0];
+        node: &Expression<'o>,
+        namespace: Namespace,
+        arg: &str,
+        value: Expression<'o>,
+        body: &mut Body<'o>,
+    ) {
+        let b = self.b;
+        if arg == "style" {
+            let call = self.call("setStyle", [self.copy_output(node), value]);
+            self.effect(call, true, body);
+            return;
+        }
+        let boolean = rsvelte_svelte_compile::lower::is_boolean_attribute(arg);
+        let property = if boolean {
+            boolean_property(arg)
+        } else if arg == "CLASS" {
+            "class"
+        } else {
+            arg
+        };
+        if matches!(arg, "checked" | "selected") {
+            let set = b.assign_member(b.member(self.copy_output(node), property), value);
+            self.effect(set, true, body);
+            return;
+        }
+        let helper = if boolean { "setDOMProp" } else { "setAttr" };
+        let mut arguments = vec![self.copy_output(node), b.string(property), value];
+        if namespace == Namespace::Svg && !boolean {
+            arguments.push(b.boolean(true));
+        }
+        let call = self.call(helper, arguments);
+        self.effect(call, true, body);
+    }
+
+    /// `<tag a="v">`: the element's static markup.
+    fn markup(&self, el: &Element, tag: &str) -> String {
+        let mut markup = format!("<{tag}");
+        for p in self.tree.props(el.props) {
+            if let PropertyKind::Attribute { name, value } = &p.kind {
+                markup.push(' ');
+                markup.push_str(name.text(self.source_text));
+                if let Some(value) = value {
+                    markup.push_str("=\"");
+                    escape_attribute(value.text(self.source_text), &mut markup);
+                    markup.push('"');
+                }
+            }
+        }
+        markup.push('>');
+        markup
+    }
+
+    /// `{#await}`: the promise's state as a cell, then the branch its status picks.
+    fn await_block(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        body: &mut Body<'o>,
+    ) -> Expression<'o> {
+        let b = self.b;
+        let NodeKind::Element(el) = &self.tree.node(identifier).kind else {
+            unreachable!("an element")
+        };
+        let DirectiveExpression::For(each) = &self
+            .structural(identifier, DirectiveName::For)
+            .expect("await has a scope")
+            .exp
+        else {
+            unreachable!("await's state is a loop's")
+        };
+        let parameters = self.res.tree().get_parameters(each.parameters);
+        let state = &parameters.items[0];
+        let oxc_ast::ast::BindingPattern::BindingIdentifier(state) = &state.pattern else {
+            unreachable!("await's state is a name")
+        };
+        let source = self.expression(self.source(each.source));
+        let has_catch = self.expression(self.source(self.bound(identifier, None).expect("catch")));
+        let value = b.call(b.id("$$await_block"), [self.arrow(source), has_catch]);
+        body.push(b.const_(&state.name, value));
+        let symbol = state.symbol_id.get().expect("await's state has a symbol");
+        self.cells.insert(symbol);
+        let children = self.list(self.tree.children(el.children), body);
+        self.cells.remove(&symbol);
+        b.array(children)
+    }
+
+    /// `{@html}`: a fragment keyed by the markup, its nodes parsed from it.
+    fn raw_markup(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        body: &mut Body<'o>,
+    ) -> Expression<'o> {
+        let b = self.b;
+        let source = self.source(
+            self.bound(identifier, None)
+                .expect("raw markup has a value"),
+        );
+        let value = self.render_expression(source, body);
+        let key = self.arrow(self.copy_output(&value));
+        let mut arguments = vec![value];
+        match self.namespace(identifier) {
+            Namespace::Html => {}
+            Namespace::Svg => arguments.push(b.string(SVG)),
+            Namespace::Mathml => arguments.push(b.string(MATHML)),
+        }
+        let render = self.arrow(b.call(b.id("$$raw_markup"), arguments));
+        let fragment = self.keyed_fragment(key, render);
+        b.id(&self.declare(fragment, body))
+    }
+
+    fn static_text(&mut self, element: &Element, body: &mut Body<'o>) -> Expression<'o> {
+        let b = self.b;
+        let property = &self.tree.props(element.props)[0];
         let PropertyKind::Attribute {
             value: Some(value), ..
         } = &property.kind
@@ -420,56 +403,38 @@ impl Builder<'_> {
         // Vapor treats a text-only template as a literal string.
         let markup = format!("<{tag}>{}</{tag}>", value.text(self.source_text));
         let wrapper = self.template(&markup, Namespace::Html, body);
-        let text = self.to.dot(wrapper, "firstChild");
-        self.declare(text, body)
+        b.id(&self.declare(b.member(b.id(&wrapper), "firstChild"), body))
     }
 
-    pub(super) fn raw_markup_value(&self, identifier: CompilerNodeIdentifier) -> NodeIdentifier {
-        let tree = &self.input.compiler_syntax_tree;
-        let NodeKind::Element(element) = &tree.node(identifier).kind else {
-            unreachable!()
-        };
-        tree.props(element.props)
-            .iter()
-            .find_map(|property| match &property.kind {
-                PropertyKind::Directive(directive) => match directive.exp {
-                    DirectiveExpression::Expression(expression) => Some(expression),
-                    _ => None,
-                },
-                PropertyKind::Attribute { .. } => None,
-            })
-            .expect("raw markup has a value")
-    }
-
+    /// A `<title>`'s text: its parts joined.
     pub(super) fn title_text(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        body: &mut Vec<NodeIdentifier>,
-    ) -> NodeIdentifier {
-        let tree = &self.input.compiler_syntax_tree;
-        let NodeKind::Element(element) = &tree.node(identifier).kind else {
-            unreachable!()
+        body: &mut Body<'o>,
+    ) -> Expression<'o> {
+        let b = self.b;
+        let NodeKind::Element(element) = &self.tree.node(identifier).kind else {
+            unreachable!("a title is an element")
         };
-        let values: Vec<_> = tree
+        let values: Vec<_> = self
+            .tree
             .children(element.children)
             .iter()
-            .map(|&child| match &tree.node(child).kind {
-                NodeKind::Text(text) => self.to.write_string(text.text(self.source_text)),
-                NodeKind::Interpolation { expression } => {
-                    if self.input.server {
-                        self.expression(*expression)
+            .map(|&child| match &self.tree.node(child).kind {
+                NodeKind::Text(text) => b.string(text.text(self.source_text)),
+                &NodeKind::Interpolation { expression } => {
+                    let source = self.source(expression);
+                    if self.t.server {
+                        self.expression(source)
                     } else {
-                        self.reactive_expression(*expression, body)
+                        self.render_expression(source, body)
                     }
                 }
-                NodeKind::Comment { .. } => self.to.write_string(""),
+                NodeKind::Comment { .. } => b.string(""),
                 NodeKind::Element(_) => unreachable!("titles contain text and expressions"),
             })
             .collect();
-        let values = self.to.array(&values, SYNTHETIC);
-        let join = self.to.dot(values, "join");
-        let separator = self.to.write_string("");
-        self.to.call0(join, &[separator])
+        b.call(b.member(b.array(values), "join"), [b.string("")])
     }
 }
 

@@ -11,8 +11,7 @@ use crate::input::CompileInput;
 
 mod namespace;
 mod normalize;
-pub use namespace::Namespace;
-pub use namespace::Namespaces;
+pub use namespace::{Namespace, Namespaces};
 pub(crate) use normalize::is_template_whitespace;
 pub use normalize::{Cleaned, Item, Parent, clean_nodes};
 
@@ -67,8 +66,9 @@ impl RenderPlan {
                                             AttributeValue::Boolean => true,
                                             AttributeValue::Expression { expression, .. }
                                             | AttributeValue::Shorthand(expression) => matches!(
-                                                input.component.javascript.kind(expression),
-                                                rsvelte_typescript_syntax::Kind::Boolean(true)
+                                                input.component.javascript.get_expression(expression).get_inner_expression(),
+                                                oxc_ast::ast::Expression::BooleanLiteral(literal)
+                                                    if literal.value
                                             ),
                                             _ => false,
                                         }

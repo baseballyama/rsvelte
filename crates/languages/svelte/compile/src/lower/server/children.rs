@@ -1,11 +1,12 @@
 use super::{Item, NodeKind, Piece, R, ServerCompilationContext, escape_markup, known_string};
+use crate::lower::builder::Runtime;
 
-impl ServerCompilationContext<'_> {
+impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `process_children` (server).
     pub(super) fn process_children(
         &mut self,
         items: &[Item<'_>],
-        template: &mut Vec<Piece>,
+        template: &mut Vec<Piece<'o>>,
     ) -> R<()> {
         let mut sequence: Vec<&Item<'_>> = Vec::new();
         for item in items {
@@ -17,6 +18,7 @@ impl ServerCompilationContext<'_> {
                         NodeKind::Element(_) => self.element(*identifier, template)?,
                         NodeKind::If { .. } => self.if_block(*identifier, template)?,
                         NodeKind::Each(_) => self.each_block(*identifier, template)?,
+                        NodeKind::Render { .. } => self.render_tag(*identifier, false, template),
                         _ => unreachable!("clean_nodes keeps only elements and blocks as nodes"),
                     }
                 }
@@ -26,7 +28,7 @@ impl ServerCompilationContext<'_> {
         Ok(())
     }
 
-    fn flush(&mut self, sequence: &mut Vec<&Item<'_>>, template: &mut Vec<Piece>) {
+    fn flush(&self, sequence: &mut Vec<&Item<'_>>, template: &mut Vec<Piece<'o>>) {
         if sequence.is_empty() {
             return;
         }
@@ -39,7 +41,7 @@ impl ServerCompilationContext<'_> {
                     .expect("never empty")
                     .push_str(&escape_markup(data, false)),
                 Item::Expression(e) => {
-                    let evaluated = self.res.evaluate(self.javascript, self.source_text, *e);
+                    let evaluated = self.evaluate(*e);
                     if evaluated.is_known {
                         let s = known_string(&evaluated.value);
                         quasis
@@ -47,8 +49,7 @@ impl ServerCompilationContext<'_> {
                             .expect("never empty")
                             .push_str(&escape_markup(&s, false));
                     } else {
-                        let v = self.expression(*e);
-                        expressions.push(self.out.runtime("$", "escape", &[v]));
+                        expressions.push(self.b.runtime("escape", [self.expression(*e)]));
                         quasis.push(String::new());
                     }
                 }

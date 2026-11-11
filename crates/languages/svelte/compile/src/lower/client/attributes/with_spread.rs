@@ -1,9 +1,12 @@
+use oxc_ast::ast::{Expression, PropertyKey};
+
+use crate::lower::builder::Runtime;
 use crate::lower::client::{
-    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Kind, Lists, Memo,
-    NodeIdentifier, SourceLocation, event_attribute, flag, init_property, normalize_attribute,
+    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo, R,
+    event_attribute, is_behaviour, normalize_attribute,
 };
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_attribute_effect`: every attribute and spread, in order, as one object the
     /// runtime diffs, with its own memoized values.
     pub(in crate::lower::client) fn attribute_effect(
@@ -13,24 +16,29 @@ impl ClientCompilationContext<'_> {
         attributes: &[Attribute],
         node: &str,
         remove_defaults: bool,
-        l: &mut Lists,
-    ) {
+        l: &mut Lists<'o>,
+    ) -> R<()> {
+        let b = self.b;
         let mut memo = Memo::default();
         let mut values = Vec::with_capacity(attributes.len());
         let mut class_directives = Vec::new();
+        let mut style_directives = Vec::new();
         for a in attributes {
             match a.value {
-                AttributeValue::Bind(_) | AttributeValue::Attach(_) | AttributeValue::On { .. } => {
-                    continue;
-                }
+                _ if is_behaviour(&a.value) => continue,
+                AttributeValue::Bind(_) => continue,
                 AttributeValue::Class(_) => {
                     class_directives.push(a);
+                    continue;
+                }
+                AttributeValue::Style { .. } => {
+                    style_directives.push(a);
                     continue;
                 }
                 AttributeValue::Spread(e) => {
                     let built = self.expression(e);
                     let v = self.memoize(&mut memo, e, built, false);
-                    values.push(self.out.spread(v, SourceLocation::SYNTHETIC));
+                    values.push(b.spread_property(v));
                     continue;
                 }
                 _ => {}
@@ -39,26 +47,25 @@ impl ClientCompilationContext<'_> {
             let raw_name = a.name.text(self.source_text);
             if event_attribute(self.source_text, a).is_some()
                 && matches!(
-                    self.out.kind(value),
-                    Kind::Arrow { .. } | Kind::Function { .. }
+                    value,
+                    Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_)
                 )
             {
                 // A stable handler, so the runtime does not remove and re-add it on every update.
                 let handler = self.names.generate("event_handler");
-                l.initializer.push(self.var(&handler, value));
-                let x = self.out.identifier(&handler);
-                values.push(init_property(&mut self.out, raw_name, x));
+                l.initializer.push(b.var(&handler, value));
+                values.push(b.init(raw_name, b.id(&handler)));
             } else {
                 let name = if tag == "select" && normalize_attribute(raw_name) == "defaultValue" {
                     "defaultValue"
                 } else {
                     raw_name
                 };
-                values.push(init_property(&mut self.out, name, value));
+                values.push(b.init(name, value));
             }
         }
         if !class_directives.is_empty() {
-            let props: Vec<NodeIdentifier> = class_directives
+            let props: Vec<_> = class_directives
                 .iter()
                 .map(|d| {
                     let AttributeValue::Class(e) = d.value else {
@@ -66,31 +73,38 @@ impl ClientCompilationContext<'_> {
                     };
                     let built = self.expression(e);
                     let v = self.memoize(&mut memo, e, built, false);
-                    init_property(&mut self.out, d.name.text(self.source_text), v)
+                    b.init(d.name.text(self.source_text), v)
                 })
                 .collect();
-            let object = self.out.object(&props, SourceLocation::SYNTHETIC);
-            let ns = self.out.identifier("$");
-            let key = self.out.dot(ns, "CLASS");
-            values.push(
-                self.out
-                    .property(key, object, flag::COMPUTED, SourceLocation::SYNTHETIC),
-            );
+            let key = PropertyKey::from(b.member(b.id("$"), "CLASS"));
+            values.push(b.property(key, b.object(props), true));
         }
-        let object = self.out.object(&values, SourceLocation::SYNTHETIC);
-        let (arrow, sync) = memo.into_effect(&mut self.out, object, true);
-        let hash = if self.an.scoped[identifier] {
-            self.identity.stylesheet_hash.clone()
-        } else {
-            None
-        };
-        let hash = hash.map(|h| self.out.write_string(&h));
-        let remove = remove_defaults.then(|| self.tru());
-        let x = self.out.identifier(node);
-        let call = self.call(
+        if !style_directives.is_empty() {
+            let (object, _) = self.style_directives(&style_directives, &mut memo)?;
+            let key = PropertyKey::from(b.member(b.id("$"), "STYLE"));
+            values.push(b.property(key, object, true));
+        }
+        let object = b.object(values);
+        let (parameters, sync) = memo.into_effect(b);
+        let arrow = b.arrow(parameters, object);
+        let hash = self.an.scoped[identifier]
+            .then_some(self.identity.stylesheet_hash.as_deref())
+            .flatten()
+            .map(|h| b.string(h));
+        let remove = remove_defaults.then(|| b.boolean(true));
+        let call = b.runtime_some(
             "attribute_effect",
-            vec![Some(x), Some(arrow), sync, None, None, hash, remove],
+            vec![
+                Some(b.id(node)),
+                Some(arrow),
+                sync,
+                None,
+                None,
+                hash,
+                remove,
+            ],
         );
-        l.initializer.push(self.statement(call));
+        l.initializer.push(b.stmt(call));
+        Ok(())
     }
 }

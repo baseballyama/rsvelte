@@ -21,6 +21,9 @@ writing our own. Add a dependency only when it saves real work.
 | P6  | Semantic facts live in side tables, not in the trees.                                            |
 | P7  | Claims about speed or correctness need measurements.                                             |
 
+The one exception to P3 and P6: `oxc_semantic` writes the IDs of scopes, symbols and references
+into cells of the oxc trees, so analyze each tree once.
+
 Non-goals:
 
 - Bundling and minifying

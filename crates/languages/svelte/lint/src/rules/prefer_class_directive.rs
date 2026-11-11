@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use oxc_ast::ast::Expression;
+use oxc_syntax::operator::{BinaryOperator, UnaryOperator};
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_space;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
@@ -7,13 +9,12 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Part, TemplateNode,
 };
-use rsvelte_typescript_syntax::operators::{BinaryOperator, UnaryOperator};
-use rsvelte_typescript_syntax::syntax_tree::{Kind, Tag};
-use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_tree::Tree;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
 use super::element_kind::is_html_like;
+use super::nodes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -85,8 +86,14 @@ impl SvelteRule for PreferClassDirective {
                 let parts = component.parts(parts);
                 for (index, part) in parts.iter().enumerate() {
                     if let Part::Expression { expression, span } = *part
-                        && let Some((fix, names)) =
-                            self.verify(&values, attribute, parts, index, expression, span)
+                        && let Some((fix, names)) = self.verify(
+                            &values,
+                            attribute,
+                            parts,
+                            index,
+                            values.javascript.get_expression(expression),
+                            span,
+                        )
                     {
                         let mut report =
                             Report::range("Unexpected class using the ternary operator.", span)
@@ -104,39 +111,32 @@ impl SvelteRule for PreferClassDirective {
 }
 
 struct Values<'a> {
-    javascript: &'a SyntaxTree,
+    javascript: &'a Tree,
     source: &'a str,
 }
 
 impl<'a> Values<'a> {
-    fn span(&self, node: NodeIdentifier) -> Span {
-        self.javascript
-            .source_location(node)
-            .span()
-            .expect("a source node has a span")
-    }
-
     /// `getStringIfConstant`: the string a literal, a template of constants or a `+` of them is.
-    fn constant(&self, node: NodeIdentifier) -> Option<Cow<'a, str>> {
-        match self.javascript.kind(node) {
-            Kind::String => Some(Cow::Borrowed(self.javascript.str_value(node, self.source))),
-            Kind::Template {
-                quasis,
-                expressions,
-            } => {
+    fn constant(expression: &'a Expression<'a>) -> Option<Cow<'a, str>> {
+        match expression {
+            Expression::StringLiteral(string) => Some(string.value.as_str().map_or_else(
+                || Cow::Owned(string.value.display().to_string()),
+                Cow::Borrowed,
+            )),
+            Expression::TemplateLiteral(template) => {
                 let mut text = String::new();
-                for (i, &quasi) in quasis.iter().enumerate() {
-                    let raw = self.javascript.str_value(quasi, self.source);
-                    text.push_str(&rsvelte_typescript_syntax::lexer::cook_template(raw));
-                    if let Some(&expression) = expressions.get(i) {
-                        text.push_str(&self.constant(expression)?);
+                for (i, quasi) in template.quasis.iter().enumerate() {
+                    // An invalid escape has no cooked value.
+                    text.push_str(&quasi.value.cooked?.display().to_string());
+                    if let Some(expression) = template.expressions.get(i) {
+                        text.push_str(&Self::constant(expression)?);
                     }
                 }
                 Some(Cow::Owned(text))
             }
-            Kind::Binary(BinaryOperator::Add, left, right) => {
-                let mut text = self.constant(left)?.into_owned();
-                text.push_str(&self.constant(right)?);
+            Expression::BinaryExpression(binary) if binary.operator == BinaryOperator::Addition => {
+                let mut text = Self::constant(&binary.left)?.into_owned();
+                text.push_str(&Self::constant(&binary.right)?);
                 Some(Cow::Owned(text))
             }
             _ => None,
@@ -144,17 +144,12 @@ impl<'a> Values<'a> {
     }
 
     /// Every string a conditional's branches may be, in order; `None` when one is not constant.
-    fn branches(&self, node: NodeIdentifier, out: &mut Vec<Cow<'a, str>>) -> Option<()> {
-        if let Kind::Conditional {
-            consequent,
-            alternate,
-            ..
-        } = self.javascript.kind(node)
-        {
-            self.branches(consequent, out)?;
-            self.branches(alternate, out)
+    fn branches(expression: &'a Expression<'a>, out: &mut Vec<Cow<'a, str>>) -> Option<()> {
+        if let Expression::ConditionalExpression(conditional) = expression {
+            Self::branches(&conditional.consequent, out)?;
+            Self::branches(&conditional.alternate, out)
         } else {
-            out.push(self.constant(node)?);
+            out.push(Self::constant(expression)?);
             Some(())
         }
     }
@@ -166,7 +161,9 @@ impl<'a> Values<'a> {
             Part::Text(span) => out.push(rsvelte_markup_syntax::decode_attribute(
                 span.text(self.source),
             )),
-            Part::Expression { expression, .. } => self.branches(expression, &mut out)?,
+            Part::Expression { expression, .. } => {
+                Self::branches(self.javascript.get_expression(expression), &mut out)?;
+            }
         }
         Some(out)
     }
@@ -198,31 +195,41 @@ impl<'a> Values<'a> {
     }
 
     /// `test` as a directive's value, negated when `not`.
-    fn condition(&self, test: NodeIdentifier, not: bool) -> String {
-        let source_of = |node| self.span(node).text(self.source);
+    fn condition(&self, test: &Expression<'_>, not: bool) -> String {
+        let source_of = |expression: &Expression<'_>| nodes::text(expression, self.source);
         if !not {
             return source_of(test).to_owned();
         }
-        match self.javascript.kind(test) {
-            Kind::Binary(
-                operator @ (BinaryOperator::StrictEq
-                | BinaryOperator::Eq
-                | BinaryOperator::StrictNotEq
-                | BinaryOperator::NotEq),
-                left,
-                right,
-            ) => {
-                let between = &self.source
-                    [self.span(left).end_offset as usize..self.span(right).start_offset as usize];
-                let between = if matches!(operator, BinaryOperator::StrictEq | BinaryOperator::Eq) {
+        match test {
+            Expression::BinaryExpression(binary)
+                if matches!(
+                    binary.operator,
+                    BinaryOperator::StrictEquality
+                        | BinaryOperator::Equality
+                        | BinaryOperator::StrictInequality
+                        | BinaryOperator::Inequality
+                ) =>
+            {
+                let between = &self.source[nodes::span(&binary.left).end_offset as usize
+                    ..nodes::span(&binary.right).start_offset as usize];
+                let between = if matches!(
+                    binary.operator,
+                    BinaryOperator::StrictEquality | BinaryOperator::Equality
+                ) {
                     swap_equality(between, b'=', '!')
                 } else {
                     swap_equality(between, b'!', '=')
                 };
-                format!("{}{between}{}", source_of(left), source_of(right))
+                format!(
+                    "{}{between}{}",
+                    source_of(&binary.left),
+                    source_of(&binary.right)
+                )
             }
-            Kind::Unary(UnaryOperator::Not, argument) => source_of(argument).to_owned(),
-            _ if needs_parentheses(self.javascript.tag(test)) => format!("!({})", source_of(test)),
+            Expression::UnaryExpression(unary) if unary.operator == UnaryOperator::LogicalNot => {
+                source_of(&unary.argument).to_owned()
+            }
+            _ if needs_parentheses(test) => format!("!({})", source_of(test)),
             _ => format!("!{}", source_of(test)),
         }
     }
@@ -252,17 +259,19 @@ fn swap_equality(between: &str, from: u8, to: char) -> String {
     out
 }
 
-const fn needs_parentheses(tag: Tag) -> bool {
+/// `#a in b` is a `BinaryExpression` to `ESTree`.
+const fn needs_parentheses(expression: &Expression<'_>) -> bool {
     matches!(
-        tag,
-        Tag::Arrow
-            | Tag::Assign
-            | Tag::Binary
-            | Tag::Conditional
-            | Tag::Logical
-            | Tag::Sequence
-            | Tag::Unary
-            | Tag::Update
+        expression,
+        Expression::ArrowFunctionExpression(_)
+            | Expression::AssignmentExpression(_)
+            | Expression::BinaryExpression(_)
+            | Expression::PrivateInExpression(_)
+            | Expression::ConditionalExpression(_)
+            | Expression::LogicalExpression(_)
+            | Expression::SequenceExpression(_)
+            | Expression::UnaryExpression(_)
+            | Expression::UpdateExpression(_)
     )
 }
 
@@ -273,25 +282,24 @@ fn is_class_name(name: &str) -> bool {
 
 impl PreferClassDirective {
     /// The fix, and the classes it writes as directives.
-    fn verify(
+    fn verify<'a>(
         &self,
-        values: &Values<'_>,
+        values: &Values<'a>,
         attribute: &Attribute,
         parts: &[Part],
         index: usize,
-        expression: NodeIdentifier,
+        expression: &'a Expression<'a>,
         span: Span,
     ) -> Option<(Fix, Vec<String>)> {
-        let Kind::Conditional {
-            test,
-            consequent,
-            alternate,
-        } = values.javascript.kind(expression)
-        else {
+        let Expression::ConditionalExpression(conditional) = expression else {
             return None;
         };
+        let test = &conditional.test;
         // A nested conditional makes more than two classes, which is too complicated.
-        let names = [values.constant(consequent)?, values.constant(alternate)?];
+        let names = [
+            Values::constant(&conditional.consequent)?,
+            Values::constant(&conditional.alternate)?,
+        ];
         if self.prefer_empty && names.iter().all(|n| !n.trim_matches(is_space).is_empty()) {
             return None;
         }

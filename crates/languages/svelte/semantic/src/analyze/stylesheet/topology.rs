@@ -1,7 +1,7 @@
+use oxc_ast::ast::Expression;
+use oxc_semantic::SymbolId as BindingIdentifier;
 use rsvelte_kernel::index::IndexVector;
 use rsvelte_kernel::newtype_index;
-use rsvelte_typescript_semantic::scope::BindingIdentifier;
-use rsvelte_typescript_syntax::Kind;
 use rustc_hash::FxHashMap;
 
 use super::relations::Relations;
@@ -78,7 +78,7 @@ impl<'a> Topology<'a> {
         for (id, node) in tree.nodes.iter_enumerated() {
             match &node.kind {
                 NodeKind::Snippet(snippet) => {
-                    if let Some(binding) = resolution.sem.binding_of(snippet.name) {
+                    if let Some(binding) = resolution.snippet(id) {
                         let entry = topology.flow(None);
                         let exit = topology.flow(None);
                         let flow = SnippetFlow {
@@ -95,8 +95,9 @@ impl<'a> Topology<'a> {
                     }
                 }
                 NodeKind::Render { expression } => {
-                    if let Kind::Call { callee, .. } = input.javascript.kind(*expression)
-                        && let Some(binding) = resolution.sem.binding_of(callee)
+                    if let Some(Expression::Identifier(callee)) =
+                        rendered(input.javascript.get_expression(*expression))
+                        && let Some(binding) = resolution.symbol(callee)
                     {
                         topology.renders.insert(id, binding);
                     }
@@ -118,6 +119,18 @@ impl<'a> Topology<'a> {
         topology.walk(tree, tree.root, None, root);
         topology.selected_content(tree);
         topology
+    }
+}
+
+/// The callee of `{@render callee(…)}`, or of `{@render callee?.(…)}`.
+fn rendered<'e>(e: &'e Expression<'e>) -> Option<&'e Expression<'e>> {
+    match e {
+        Expression::CallExpression(call) => Some(&call.callee),
+        Expression::ChainExpression(chain) => match &chain.expression {
+            oxc_ast::ast::ChainElement::CallExpression(call) => Some(&call.callee),
+            _ => None,
+        },
+        _ => None,
     }
 }
 

@@ -1,268 +1,328 @@
-use rsvelte_typescript_syntax::syntax_tree::{Kind, TypeScriptKind};
-use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
+use oxc_ast::AstKind;
+use oxc_ast::ast::{
+    ArrayExpressionElement, BindingPattern, Expression, ObjectPropertyKind, PropertyKey,
+    PropertyKind,
+};
+use oxc_ast_visit::Visit;
+use oxc_span::GetSpan;
+use rsvelte_typescript_tree::PatternIdentifier;
 
 use super::{Printer, R, Span, Unsupported};
 
-/// The TypeScript the template's tree erases, ordered for the two questions the printer asks.
-pub(super) struct TypeScript {
-    /// Every piece, by start and then end.
-    spans: Vec<(Span, TypeScriptKind)>,
-    /// Each piece by the node it belongs to.
-    by_node: Vec<(NodeIdentifier, TypeScriptKind, Span)>,
+/// The document position of an oxc node.
+pub(super) const fn span(span: oxc_span::Span) -> Span {
+    Span::new(span.start, span.end)
 }
 
-impl TypeScript {
-    pub(super) fn new(tree: &SyntaxTree) -> Self {
-        let mut spans: Vec<(Span, TypeScriptKind)> =
-            tree.typescript.iter().map(|t| (t.span, t.kind)).collect();
-        spans.sort_by_key(|(s, _)| (s.start_offset, s.end_offset));
-        let mut by_node: Vec<(NodeIdentifier, TypeScriptKind, Span)> = tree
-            .typescript
-            .iter()
-            .map(|t| (t.node, t.kind, t.span))
-            .collect();
-        by_node.sort_by_key(|&(node, _, span)| (node, span.start_offset));
-        Self { spans, by_node }
-    }
+/// Whether what `visit` walks holds TypeScript: an annotation, a cast or type arguments.
+pub(super) fn has_typescript(visit: impl FnOnce(&mut TypeScriptFinder)) -> bool {
+    let mut finder = TypeScriptFinder(false);
+    visit(&mut finder);
+    finder.0
+}
 
-    /// How many pieces lie within `range`.
-    pub(super) fn within(&self, range: Span) -> usize {
-        self.inside(range).count()
-    }
+pub(super) struct TypeScriptFinder(bool);
 
-    fn inside(&self, range: Span) -> impl Iterator<Item = &(Span, TypeScriptKind)> {
-        let i = self
-            .spans
-            .partition_point(|(t, _)| t.start_offset < range.start_offset);
-        self.spans[i..]
-            .iter()
-            .take_while(move |(t, _)| t.start_offset < range.end_offset)
-            .filter(move |(t, _)| t.end_offset <= range.end_offset)
+impl<'a> Visit<'a> for TypeScriptFinder {
+    fn enter_node(&mut self, kind: AstKind<'a>) {
+        self.0 |= matches!(
+            kind,
+            AstKind::TSTypeAnnotation(_)
+                | AstKind::TSAsExpression(_)
+                | AstKind::TSSatisfiesExpression(_)
+                | AstKind::TSNonNullExpression(_)
+                | AstKind::TSTypeAssertion(_)
+                | AstKind::TSInstantiationExpression(_)
+                | AstKind::TSTypeParameterInstantiation(_)
+                | AstKind::TSTypeParameterDeclaration(_)
+        );
     }
+}
 
-    fn of(&self, node: NodeIdentifier) -> &[(NodeIdentifier, TypeScriptKind, Span)] {
-        let i = self.by_node.partition_point(|&(n, ..)| n < node);
-        let n = self.by_node[i..].partition_point(|&(n, ..)| n == node);
-        &self.by_node[i..i + n]
-    }
+/// A property's value: a pattern's, or an object literal's in a default.
+#[derive(Clone, Copy)]
+enum Value<'p, 'a> {
+    Pattern(&'p BindingPattern<'a>),
+    Expression(&'p Expression<'a>),
+}
 
-    /// The `: T` written after `node`.
-    pub(super) fn annotation(&self, node: NodeIdentifier) -> Option<Span> {
-        self.of(node)
-            .iter()
-            .find(|&&(_, kind, _)| kind == TypeScriptKind::Annotation)
-            .map(|&(.., span)| span)
-    }
-
-    /// Whether the code in `span` ends in `as T`.
-    pub(super) fn ends_in_cast(&self, span: Span) -> bool {
-        self.inside(span)
-            .any(|&(t, kind)| kind == TypeScriptKind::As && t.end_offset == span.end_offset)
-    }
-
-    /// Whether TypeScript wraps `node`: `<T>a`, `a as T`, `a satisfies T` or `a!`.
-    pub(super) fn wraps(&self, node: NodeIdentifier) -> bool {
-        self.of(node).iter().any(|&(_, kind, _)| {
-            matches!(
-                kind,
-                TypeScriptKind::Assertion
-                    | TypeScriptKind::As
-                    | TypeScriptKind::Satisfies
-                    | TypeScriptKind::NonNull
-            )
-        })
-    }
-
-    /// `span`, the expression `node`'s, with the TypeScript around it: the tree keeps
-    /// `<T>a`, `a as T`, `a satisfies T` and `a!` as `a`.
-    pub(super) fn extent(&self, node: NodeIdentifier, span: Span) -> Span {
-        self.of(node)
-            .iter()
-            .fold(span, |s, &(_, kind, t)| match kind {
-                TypeScriptKind::Assertion => {
-                    Span::new(s.start_offset.min(t.start_offset), s.end_offset)
-                }
-                TypeScriptKind::As | TypeScriptKind::Satisfies | TypeScriptKind::NonNull => {
-                    Span::new(s.start_offset, s.end_offset.max(t.end_offset))
-                }
-                _ => s,
-            })
+impl<'p> Value<'p, '_> {
+    fn name(self) -> Option<&'p str> {
+        match self {
+            Self::Pattern(BindingPattern::BindingIdentifier(i)) => Some(i.name.as_str()),
+            Self::Expression(Expression::Identifier(i)) => Some(i.name.as_str()),
+            _ => None,
+        }
     }
 }
 
 impl Printer<'_, '_, '_> {
     /// The plugin's `expandNode`: an `{#each}` or `{#await}` pattern on one line, each part after
     /// a space (` { a, b: [c] }`), with the root's type annotation as written.
-    pub(super) fn expand(&self, pattern: NodeIdentifier) -> R<String> {
+    pub(super) fn expand(&self, pattern: Option<PatternIdentifier>) -> R<String> {
         let mut out = String::new();
-        if pattern == NodeIdentifier::NONE {
+        let Some(pattern) = pattern else {
             return Ok(out);
-        }
-        self.expand_into(pattern, false, &mut out)?;
-        let span = self.pattern_span(pattern);
+        };
+        let parameter = self.c.javascript.get_pattern(pattern);
+        self.expand_pattern(&parameter.pattern, &mut out)?;
         // `expandNode` prints the root's annotation only and drops the others.
-        if self.typescript.within(span) > 0 {
-            return Err(Unsupported::at("TypeScript inside a block's pattern", span));
+        if has_typescript(|f| f.visit_binding_pattern(&parameter.pattern)) {
+            return Err(Unsupported::at(
+                "TypeScript inside a block's pattern",
+                span(parameter.pattern.span()),
+            ));
         }
-        if let Some(a) = self.typescript.annotation(pattern) {
+        if let Some(annotation) = &parameter.type_annotation {
             out.push_str(": ");
-            out.push_str(a.text(self.source_text));
+            out.push_str(span(annotation.type_annotation.span()).text(self.source_text));
         }
         Ok(out)
     }
 
-    fn pattern_span(&self, node: NodeIdentifier) -> Span {
-        self.c
-            .javascript
-            .source_location(node)
-            .span()
-            .expect("a parsed pattern has a source span")
-    }
-
-    /// `_expandNode`; `in_object` is its `parent` being an object literal.
-    fn expand_into(&self, node: NodeIdentifier, in_object: bool, out: &mut String) -> R<()> {
-        let javascript = &self.c.javascript;
-        let refuse = |what| Err(Unsupported::at(what, self.pattern_span(node)));
-        match javascript.kind(node) {
-            Kind::ArrayPattern(elements) | Kind::Array(elements) => {
+    /// `_expandNode` of a binding pattern.
+    fn expand_pattern(&self, pattern: &BindingPattern<'_>, out: &mut String) -> R<()> {
+        match pattern {
+            BindingPattern::BindingIdentifier(identifier) => {
+                out.push(' ');
+                out.push_str(identifier.name.as_str());
+            }
+            BindingPattern::ArrayPattern(array) => {
                 out.push_str(" [");
                 let start = out.len();
-                for (i, &e) in elements.iter().enumerate() {
-                    if i > 0 {
+                let mut first = true;
+                for element in &array.elements {
+                    if !std::mem::take(&mut first) {
                         out.push(',');
                     }
-                    if matches!(javascript.kind(e), Kind::Hole) {
-                        out.push(' ');
-                    } else {
-                        self.expand_into(e, false, out)?;
+                    match element {
+                        Some(element) => self.expand_pattern(element, out)?,
+                        None => out.push(' '),
                     }
                 }
+                if let Some(rest) = &array.rest {
+                    if !std::mem::take(&mut first) {
+                        out.push(',');
+                    }
+                    self.expand_rest(Value::Pattern(&rest.argument), out)?;
+                }
                 // `.join(',').slice(1)`: the first element's leading space goes.
-                if !elements.is_empty() {
+                if !first {
                     out.remove(start);
                 }
                 out.push(']');
             }
-            Kind::AssignPattern(left, right) => {
-                self.expand_into(left, false, out)?;
+            BindingPattern::AssignmentPattern(assignment) => {
+                self.expand_pattern(&assignment.left, out)?;
                 out.push_str(" =");
-                self.expand_into(right, false, out)?;
+                self.expand_expression(&assignment.right, out)?;
             }
-            Kind::Identifier(_) => {
-                out.push(' ');
-                out.push_str(javascript.name(node));
-            }
-            Kind::Number(_) | Kind::String | Kind::Boolean(_) | Kind::Null => {
-                out.push(' ');
-                out.push_str(self.pattern_span(node).text(self.source_text));
-            }
-            Kind::Object(properties) | Kind::ObjectPattern(properties) => {
-                let literal = matches!(javascript.kind(node), Kind::Object(_));
+            BindingPattern::ObjectPattern(object) => {
                 out.push_str(" {");
-                for (i, &p) in properties.iter().enumerate() {
-                    if i > 0 {
+                let mut first = true;
+                for property in &object.properties {
+                    if !std::mem::take(&mut first) {
                         out.push(',');
                     }
-                    // `{...{a}}` is not JavaScript; Svelte's parser rejects it.
-                    if let Kind::Rest(argument) = javascript.kind(p)
-                        && !matches!(javascript.kind(argument), Kind::Identifier(_))
-                    {
-                        return refuse("a pattern after `...` in an object");
+                    self.expand_property(
+                        &property.key,
+                        Value::Pattern(&property.value),
+                        property.computed,
+                        false,
+                        span(property.span),
+                        out,
+                    )?;
+                }
+                if let Some(rest) = &object.rest {
+                    if !first {
+                        out.push(',');
                     }
-                    self.expand_into(p, literal, out)?;
+                    self.expand_rest(Value::Pattern(&rest.argument), out)?;
                 }
                 out.push_str(" }");
             }
-            Kind::Property {
-                key,
-                value,
-                computed,
-                method: false,
-                getter: false,
-                setter: false,
-                ..
-            } => self.expand_property(node, key, value, computed, in_object, out)?,
-            Kind::Rest(argument) => {
-                out.push_str(" ...");
-                let start = out.len();
-                self.expand_into(argument, false, out)?;
-                // `.slice(1)` of the argument.
-                out.remove(start);
-            }
-            // `_expandNode` throws on any other node.
-            _ => return refuse("this part of a block's pattern"),
         }
         Ok(())
     }
 
-    /// `_expandNode`'s `Property` case.
+    /// `_expandNode` of an expression, which a default value is.
+    fn expand_expression(&self, e: &Expression<'_>, out: &mut String) -> R<()> {
+        match e {
+            Expression::ArrayExpression(array) => {
+                out.push_str(" [");
+                let start = out.len();
+                for (i, element) in array.elements.iter().enumerate() {
+                    if i > 0 {
+                        out.push(',');
+                    }
+                    match element {
+                        ArrayExpressionElement::Elision(_) => out.push(' '),
+                        ArrayExpressionElement::SpreadElement(spread) => {
+                            self.expand_rest(Value::Expression(&spread.argument), out)?;
+                        }
+                        element => {
+                            let element = element
+                                .as_expression()
+                                .expect("an element is an expression");
+                            self.expand_expression(element, out)?;
+                        }
+                    }
+                }
+                if !array.elements.is_empty() {
+                    out.remove(start);
+                }
+                out.push(']');
+            }
+            Expression::Identifier(identifier) => {
+                out.push(' ');
+                out.push_str(identifier.name.as_str());
+            }
+            Expression::NumericLiteral(_)
+            | Expression::StringLiteral(_)
+            | Expression::BooleanLiteral(_)
+            | Expression::NullLiteral(_) => {
+                out.push(' ');
+                out.push_str(span(e.span()).text(self.source_text));
+            }
+            Expression::ObjectExpression(object) => {
+                out.push_str(" {");
+                for (i, property) in object.properties.iter().enumerate() {
+                    if i > 0 {
+                        out.push(',');
+                    }
+                    match property {
+                        ObjectPropertyKind::ObjectProperty(p)
+                            if p.kind == PropertyKind::Init && !p.method =>
+                        {
+                            self.expand_property(
+                                &p.key,
+                                Value::Expression(&p.value),
+                                p.computed,
+                                true,
+                                span(p.span),
+                                out,
+                            )?;
+                        }
+                        ObjectPropertyKind::SpreadProperty(spread) => {
+                            if !matches!(spread.argument, Expression::Identifier(_)) {
+                                return Err(Unsupported::at(
+                                    "a pattern after `...` in an object",
+                                    span(spread.span),
+                                ));
+                            }
+                            self.expand_rest(Value::Expression(&spread.argument), out)?;
+                        }
+                        ObjectPropertyKind::ObjectProperty(p) => {
+                            return Err(Unsupported::at(
+                                "this part of a block's pattern",
+                                span(p.span),
+                            ));
+                        }
+                    }
+                }
+                out.push_str(" }");
+            }
+            // `_expandNode` throws on any other node.
+            _ => {
+                return Err(Unsupported::at(
+                    "this part of a block's pattern",
+                    span(e.span()),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn expand_value(&self, value: Value<'_, '_>, out: &mut String) -> R<()> {
+        match value {
+            Value::Pattern(p) => self.expand_pattern(p, out),
+            Value::Expression(e) => self.expand_expression(e, out),
+        }
+    }
+
+    /// `_expandNode`'s `RestElement` case.
+    fn expand_rest(&self, argument: Value<'_, '_>, out: &mut String) -> R<()> {
+        out.push_str(" ...");
+        let start = out.len();
+        self.expand_value(argument, out)?;
+        // `.slice(1)` of the argument.
+        out.remove(start);
+        Ok(())
+    }
+
+    /// `_expandNode`'s `Property` case; `in_object` is its `parent` being an object literal.
     fn expand_property(
         &self,
-        node: NodeIdentifier,
-        key: NodeIdentifier,
-        value: NodeIdentifier,
+        key: &PropertyKey<'_>,
+        value: Value<'_, '_>,
         computed: bool,
         in_object: bool,
+        at: Span,
         out: &mut String,
     ) -> R<()> {
-        let javascript = &self.c.javascript;
-        let identifier_key = matches!(javascript.kind(key), Kind::Identifier(_));
         // `node.key.name`, which a computed key has when it is an identifier.
-        let key_name = identifier_key.then(|| javascript.name(key));
+        let key_name = match key {
+            PropertyKey::StaticIdentifier(identifier) => Some(identifier.name.as_str()),
+            PropertyKey::Identifier(identifier) => Some(identifier.name.as_str()),
+            _ => None,
+        };
         let key_doc = |out: &mut String| -> R<()> {
             if computed {
                 out.push_str(" [");
-                out.push_str(self.pattern_span(key).text(self.source_text));
+                out.push_str(span(key.span()).text(self.source_text));
                 out.push(']');
-                Ok(())
-            } else {
-                self.expand_into(key, false, out)
+                return Ok(());
+            }
+            match key {
+                PropertyKey::StaticIdentifier(identifier) => {
+                    out.push(' ');
+                    out.push_str(identifier.name.as_str());
+                    Ok(())
+                }
+                PropertyKey::StringLiteral(_) | PropertyKey::NumericLiteral(_) => {
+                    out.push(' ');
+                    out.push_str(span(key.span()).text(self.source_text));
+                    Ok(())
+                }
+                _ => Err(Unsupported::at(
+                    "this part of a block's pattern",
+                    span(key.span()),
+                )),
             }
         };
-        match javascript.kind(value) {
-            Kind::ObjectPattern(_) | Kind::ArrayPattern(_) => {
-                if !computed && !identifier_key {
-                    // `' ' + node.key.name` prints ` undefined` for a quoted key.
-                    return Err(Unsupported::at(
-                        "a quoted key before a nested pattern",
-                        self.pattern_span(node),
-                    ));
-                }
-                key_doc(out)?;
-                out.push(':');
-                self.expand_into(value, false, out)?;
+        let nested = matches!(
+            value,
+            Value::Pattern(BindingPattern::ObjectPattern(_) | BindingPattern::ArrayPattern(_))
+        );
+        if nested {
+            if !computed && key_name.is_none() {
+                // `' ' + node.key.name` prints ` undefined` for a quoted key.
+                return Err(Unsupported::at("a quoted key before a nested pattern", at));
             }
-            Kind::Identifier(_) if in_object || key_name != Some(javascript.name(value)) => {
-                key_doc(out)?;
-                out.push(':');
-                self.expand_into(value, false, out)?;
-            }
-            _ if in_object => {
-                key_doc(out)?;
-                out.push(':');
-                self.expand_into(value, false, out)?;
-            }
-            // Upstream prints only the value from here on; that is the property itself
-            // only when it is written short (`a`, `a = 1`).
-            Kind::Identifier(_) if computed => {
-                return Err(Unsupported::at(
-                    "a computed key named like its value",
-                    self.pattern_span(node),
-                ));
-            }
-            Kind::AssignPattern(left, _)
-                if computed
-                    || key_name.is_none()
-                    || !matches!(javascript.kind(left), Kind::Identifier(_))
-                    || key_name != Some(javascript.name(left)) =>
-            {
+            key_doc(out)?;
+            out.push(':');
+            return self.expand_value(value, out);
+        }
+        let value_name = value.name();
+        if in_object || (value_name.is_some() && key_name != value_name) {
+            key_doc(out)?;
+            out.push(':');
+            return self.expand_value(value, out);
+        }
+        // Upstream prints only the value from here on; that is the property itself only when
+        // it is written short (`a`, `a = 1`).
+        if value_name.is_some() && computed {
+            return Err(Unsupported::at("a computed key named like its value", at));
+        }
+        if let Value::Pattern(BindingPattern::AssignmentPattern(assignment)) = value {
+            let left = Value::Pattern(&assignment.left).name();
+            if computed || key_name.is_none() || left.is_none() || key_name != left {
                 return Err(Unsupported::at(
                     "a renamed property with a default in a block's pattern",
-                    self.pattern_span(node),
+                    at,
                 ));
             }
-            _ => self.expand_into(value, false, out)?,
         }
-        Ok(())
+        self.expand_value(value, out)
     }
 }

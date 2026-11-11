@@ -1,12 +1,16 @@
 //! Expression metadata, template dynamics, and stylesheet usage.
 
+use oxc_ast::ast::{ChainElement, Expression};
+use oxc_ast_visit::Visit;
+use oxc_semantic::ReferenceId;
 use rsvelte_kernel::index::IndexVector;
-use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
-use crate::compiler_syntax_tree::CompilerNodeIdentifier;
+use crate::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use crate::input::ComponentInput;
 use crate::resolve::Resolution;
+use crate::typescript::without_typescript;
 
 mod dynamic;
 mod evaluation;
@@ -27,12 +31,20 @@ pub struct ExpressionMetadata {
     pub has_state: bool,
     pub has_call: bool,
     pub has_member: bool,
+    /// The first store subscription among the dependencies (upstream's first `store_sub`
+    /// binding), which an `{#each}` over it invalidates.
+    pub first_store_subscription: Option<ReferenceId>,
 }
 
 #[derive(Debug)]
 pub struct Analysis {
-    /// Keyed by the expression root of every template expression.
-    pub expressions: FxHashMap<NodeIdentifier, ExpressionMetadata>,
+    /// Keyed by every template expression.
+    pub expressions: FxHashMap<ExpressionIdentifier, ExpressionMetadata>,
+    /// Keyed by every `{@const}` and `{let}` tag's declaration.
+    pub declarations: FxHashMap<DeclarationIdentifier, ExpressionMetadata>,
+    /// Keyed by each `{@render}` tag's expression: one per argument of its call (upstream
+    /// `metadata.arguments`).
+    render_arguments: FxHashMap<ExpressionIdentifier, Vec<ExpressionMetadata>>,
     pub needs_context: bool,
     /// Per HIR node: whether the style sheet selects it (elements only).
     pub scoped: IndexVector<CompilerNodeIdentifier, bool>,
@@ -47,13 +59,33 @@ pub struct Analysis {
 impl Analysis {
     /// # Panics
     ///
-    /// If `expression` is not the root of a template expression.
+    /// If `expression` is not a template expression.
     #[must_use]
-    pub fn meta(&self, expression: NodeIdentifier) -> ExpressionMetadata {
+    pub fn meta(&self, expression: ExpressionIdentifier) -> ExpressionMetadata {
         *self
             .expressions
             .get(&expression)
             .expect("every template expression is analysed")
+    }
+
+    /// # Panics
+    ///
+    /// If `declaration` is not a tag's declaration.
+    #[must_use]
+    pub fn declaration_meta(&self, declaration: DeclarationIdentifier) -> ExpressionMetadata {
+        *self
+            .declarations
+            .get(&declaration)
+            .expect("every tag's declaration is analysed")
+    }
+
+    /// Each argument's metadata of the call a `{@render}` tag's `expression` makes; empty for
+    /// another expression.
+    #[must_use]
+    pub fn render_arguments(&self, expression: ExpressionIdentifier) -> &[ExpressionMetadata] {
+        self.render_arguments
+            .get(&expression)
+            .map_or(&[], Vec::as_slice)
     }
 }
 
@@ -62,6 +94,8 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
     let compiler_syntax_tree = input.compiler_syntax_tree;
     let mut analysis = Analysis {
         expressions: FxHashMap::default(),
+        declarations: FxHashMap::default(),
+        render_arguments: FxHashMap::default(),
         needs_context: false,
         scoped: IndexVector::from_element_n(false, compiler_syntax_tree.nodes.len()),
         dynamic: IndexVector::from_element_n(false, compiler_syntax_tree.nodes.len()),
@@ -69,25 +103,74 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
         stylesheet_used: Vec::new(),
         stylesheet_scoped: Vec::new(),
     };
-    let mut values = BindingValues::new(input, res);
-    let mut walker = MetadataWalker::<false>::new(input, res, &mut values);
-    if let Some(module) = input.module {
-        walker.visit(module);
+    let tree = input.javascript;
+    let mut values = BindingValues::new(res);
+    let mut walker = MetadataWalker::<false>::new(res, &mut values);
+    for program in input.module.into_iter().chain(input.instance) {
+        walker.visit_program(tree.get_program(program));
     }
-    walker.visit(input.program);
     let mut needs_context = walker.needs_context();
-    let mut expressions =
-        FxHashMap::with_capacity_and_hasher(input.template_expressions.len(), FxBuildHasher);
     // Upstream reads a component's name from its tag, not as an expression that needs context.
-    let references: FxHashSet<NodeIdentifier> =
+    let references: FxHashSet<ExpressionIdentifier> =
         compiler_syntax_tree.component_references().collect();
-    for &expression in input.template_expressions {
-        let mut walker = MetadataWalker::<true>::new(input, res, &mut values);
-        walker.visit(expression);
-        needs_context |= walker.needs_context() && !references.contains(&expression);
-        expressions.insert(expression, walker.metadata());
+    let mut expressions =
+        FxHashMap::with_capacity_and_hasher(tree.expressions().len(), FxBuildHasher);
+    let renders: FxHashSet<ExpressionIdentifier> = compiler_syntax_tree
+        .nodes
+        .iter()
+        .filter_map(|node| match node.kind {
+            NodeKind::Render { expression } => Some(expression),
+            _ => None,
+        })
+        .collect();
+    for (identifier, expression) in tree.expressions() {
+        let mut walker = MetadataWalker::<true>::new(res, &mut values);
+        // Upstream's render tag visits its call's callee and each argument, never the call.
+        let call = renders
+            .contains(&identifier)
+            .then(|| render_call(expression))
+            .flatten();
+        let Some(call) = call else {
+            walker.visit_expression(expression);
+            needs_context |= walker.needs_context() && !references.contains(&identifier);
+            expressions.insert(identifier, walker.metadata());
+            continue;
+        };
+        walker.visit_expression(&call.callee);
+        needs_context |= walker.needs_context();
+        expressions.insert(identifier, walker.metadata());
+        let arguments = call
+            .arguments
+            .iter()
+            .map(|argument| {
+                let mut walker = MetadataWalker::<true>::new(res, &mut values);
+                walker.visit_argument(argument);
+                needs_context |= walker.needs_context();
+                walker.metadata()
+            })
+            .collect();
+        analysis.render_arguments.insert(identifier, arguments);
+    }
+    let mut declarations = FxHashMap::default();
+    for (identifier, declaration) in tree.declarations() {
+        let mut walker = MetadataWalker::<true>::new(res, &mut values);
+        walker.visit_variable_declaration(declaration);
+        needs_context |= walker.needs_context();
+        declarations.insert(identifier, walker.metadata());
+    }
+    // Upstream's visitors also meet the calls in the template's patterns' defaults.
+    for (_, pattern) in tree.patterns() {
+        let mut walker = MetadataWalker::<true>::new(res, &mut values);
+        walker.visit_formal_parameter(pattern);
+        needs_context |= walker.needs_context();
+    }
+    for (_, parameters) in tree.parameters() {
+        let mut walker = MetadataWalker::<true>::new(res, &mut values);
+        walker.visit_formal_parameters(parameters);
+        needs_context |= walker.needs_context();
     }
     analysis.expressions = expressions;
+    analysis.declarations = declarations;
     analysis.needs_context = needs_context;
     analysis.root_dynamic = dynamic::mark_dynamic(
         input,
@@ -99,3 +182,18 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
     stylesheet::analyze(input, res, &mut analysis);
     analysis
 }
+
+/// Upstream `unwrap_optional` of a render tag's expression: the call it makes.
+fn render_call<'a>(e: &'a Expression<'a>) -> Option<&'a oxc_ast::ast::CallExpression<'a>> {
+    match without_typescript(e) {
+        Expression::CallExpression(call) => Some(call),
+        Expression::ChainExpression(chain) => match &chain.expression {
+            ChainElement::CallExpression(call) => Some(call),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests;

@@ -1,12 +1,14 @@
+use oxc_ast::ast::{
+    BindingPattern, Declaration, Expression, ModuleExportName, Statement, VariableDeclaration,
+};
+use oxc_semantic::{ScopeId, Scoping, SymbolId};
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript_lint::{JavaScriptFacts, PreferConstOptions, ProgramStatements};
-use rsvelte_typescript_semantic::scope::{BindingIdentifier, Semantic};
-use rsvelte_typescript_syntax::syntax_tree::Control;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_typescript_lint::{PreferConstOptions, ProgramStatements};
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
-use super::nodes::{is_named, roots};
+use super::nodes::is_named;
 use super::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -65,12 +67,6 @@ struct PreferConst {
 
 impl SvelteRule for PreferConst {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let tree = file.javascript();
-        let facts = JavaScriptFacts {
-            syntax_tree: tree,
-            sem: file.semantic(),
-            parents: file.parents(),
-        };
         let statements = if file.is_component() {
             ProgramStatements::Wrapped
         } else {
@@ -78,11 +74,11 @@ impl SvelteRule for PreferConst {
         };
         let props = props(file);
         rsvelte_typescript_lint::prefer_const(
-            &facts,
-            &roots(file),
+            file.semantic(),
+            &file.programs(),
             self.core,
             statements,
-            |declaration| self.initialised_by_excluded_rune(tree, declaration),
+            |declaration| self.initialised_by_excluded_rune(declaration),
             |variable| props.contains(&variable),
             reporter,
         );
@@ -91,138 +87,140 @@ impl SvelteRule for PreferConst {
 
 impl PreferConst {
     /// A declarator of `declaration` calls `$rune(…)` or `$rune.member(…)` with an excluded rune.
-    fn initialised_by_excluded_rune(&self, tree: &SyntaxTree, declaration: NodeIdentifier) -> bool {
-        let Kind::VariableDeclaration { declarations, .. } = tree.kind(declaration) else {
-            return false;
-        };
-        declarations.iter().any(|&declarator| {
-            let Kind::Declarator {
-                initializer: Some(initializer),
-                ..
-            } = tree.kind(declarator)
-            else {
+    fn initialised_by_excluded_rune(&self, declaration: &VariableDeclaration<'_>) -> bool {
+        declaration.declarations.iter().any(|declarator| {
+            let Some(Expression::CallExpression(call)) = &declarator.init else {
                 return false;
             };
-            let Kind::Call { callee, .. } = tree.kind(initializer) else {
-                return false;
+            let rune = match &call.callee {
+                Expression::StaticMemberExpression(member) => &member.object,
+                Expression::ComputedMemberExpression(member) => &member.object,
+                callee => callee,
             };
-            let rune = match tree.kind(callee) {
-                Kind::Member { object, .. } => object,
-                _ => callee,
-            };
-            tree.atom(rune).is_some_and(|atom| {
-                self.excluded_runes
-                    .iter()
-                    .any(|r| r == tree.atoms.get(atom))
-            })
+            self.excluded_runes.iter().any(|r| is_named(rune, r))
         })
     }
 }
 
 /// The instance script's props, which the parent component writes: `export let` names and
 /// exported variables, and in runes mode the `$bindable()` names of `let {…} = $props()`.
-fn props(file: &File<'_>) -> FxHashSet<BindingIdentifier> {
+fn props(file: &File<'_>) -> FxHashSet<SymbolId> {
     let mut props = FxHashSet::default();
     let Some(instance) = file.component().and_then(|c| c.instance.as_ref()) else {
         return props;
     };
-    let tree = file.javascript();
-    let sem = file.semantic();
-    let Kind::Program(statements) = tree.kind(instance.program) else {
-        return props;
-    };
-    let scope = sem.scope_of(instance.program);
+    let program = file.javascript().get_program(instance.program);
+    let scoping = file.semantic().scoping();
+    // With a `<script module>`, the instance's statements are in the module's scope.
+    let scope = file.resolution().map(Resolution::instance_scope);
     let runes_mode = runes(file) != Some(false);
     let mut identifiers = Vec::new();
-    for &statement in statements {
+    for statement in &program.body {
         identifiers.clear();
-        match tree.kind(statement) {
-            Kind::ExportNamed(declaration) => {
-                if let Kind::VariableDeclaration { declarations, .. } = tree.kind(declaration) {
-                    for &declarator in declarations {
-                        if let Kind::Declarator { identifier, .. } = tree.kind(declarator) {
-                            pattern_names(tree, identifier, &mut identifiers);
-                        }
+        match statement {
+            Statement::ExportDeclaration(export) => {
+                if let Declaration::VariableDeclaration(declaration) = &export.declaration {
+                    for declarator in &declaration.declarations {
+                        pattern_names(&declarator.id, &mut identifiers);
                     }
                 }
             }
-            Kind::Control(Control::ExportList { specifiers, .. }) => {
-                for &specifier in specifiers {
-                    if let Kind::Control(Control::ExportSpecifier {
-                        local,
-                        type_only: false,
-                        ..
-                    }) = tree.kind(specifier)
-                    {
-                        props.extend(scope.and_then(|scope| lookup(tree, sem, scope, local)));
-                    }
+            Statement::ExportNamedDeclaration(export) if !export.export_kind.is_type() => {
+                for specifier in export
+                    .specifiers
+                    .iter()
+                    .filter(|s| !s.export_kind.is_type())
+                {
+                    props.extend(scope.and_then(|scope| lookup(scoping, scope, &specifier.local)));
                 }
             }
-            Kind::VariableDeclaration { declarations, .. } if runes_mode => {
-                for &declarator in declarations {
-                    if let Kind::Declarator {
-                        identifier,
-                        initializer: Some(initializer),
-                    } = tree.kind(declarator)
-                        && let Kind::Call { callee, .. } = tree.kind(initializer)
-                        && is_named(tree, callee, "$props")
-                        && matches!(tree.kind(identifier), Kind::ObjectPattern(_))
+            Statement::ExportFromDeclaration(export) if !export.export_kind.is_type() => {
+                for specifier in export
+                    .specifiers
+                    .iter()
+                    .filter(|s| !s.export_kind.is_type())
+                {
+                    props.extend(scope.and_then(|scope| lookup(scoping, scope, &specifier.local)));
+                }
+            }
+            Statement::VariableDeclaration(declaration) if runes_mode => {
+                for declarator in &declaration.declarations {
+                    if let Some(Expression::CallExpression(call)) = &declarator.init
+                        && is_named(&call.callee, "$props")
+                        && matches!(declarator.id, BindingPattern::ObjectPattern(_))
                     {
-                        bindable_names(tree, identifier, &mut identifiers);
+                        bindable_names(&declarator.id, &mut identifiers);
                     }
                 }
             }
             _ => {}
         }
-        props.extend(identifiers.iter().filter_map(|&i| sem.binding_of(i)));
+        props.extend(identifiers.iter().flatten());
     }
     props
 }
 
 /// The variable a name in `export { name }` refers to, looked up by name as upstream does.
-fn lookup(
-    tree: &SyntaxTree,
-    sem: &Semantic,
-    scope: rsvelte_typescript_semantic::scope::ScopeIdentifier,
-    local: NodeIdentifier,
-) -> Option<BindingIdentifier> {
-    sem.lookup(scope, tree.atom(local)?)
-}
-
-/// The identifiers a pattern declares.
-fn pattern_names(tree: &SyntaxTree, pattern: NodeIdentifier, out: &mut Vec<NodeIdentifier>) {
-    match tree.kind(pattern) {
-        Kind::Identifier(_) => out.push(pattern),
-        Kind::ObjectPattern(items) | Kind::ArrayPattern(items) => {
-            for &item in items {
-                pattern_names(tree, item, out);
-            }
-        }
-        Kind::Property { value, .. } => pattern_names(tree, value, out),
-        Kind::AssignPattern(left, _) | Kind::Rest(left) => pattern_names(tree, left, out),
-        _ => {}
+fn lookup(scoping: &Scoping, scope: ScopeId, local: &ModuleExportName<'_>) -> Option<SymbolId> {
+    match local {
+        ModuleExportName::IdentifierName(name) => scoping.find_binding(scope, name.name),
+        ModuleExportName::IdentifierReference(name) => scoping.find_binding(scope, name.name),
+        ModuleExportName::StringLiteral(_) => None,
     }
 }
 
-/// The identifiers of a pattern that default to `$bindable(…)`, at any depth.
-fn bindable_names(tree: &SyntaxTree, pattern: NodeIdentifier, out: &mut Vec<NodeIdentifier>) {
-    match tree.kind(pattern) {
-        Kind::ObjectPattern(items) | Kind::ArrayPattern(items) => {
-            for &item in items {
-                bindable_names(tree, item, out);
+/// The symbols a pattern declares.
+fn pattern_names(pattern: &BindingPattern<'_>, out: &mut Vec<Option<SymbolId>>) {
+    match pattern {
+        BindingPattern::BindingIdentifier(identifier) => out.push(identifier.symbol_id.get()),
+        BindingPattern::ObjectPattern(object) => {
+            for property in &object.properties {
+                pattern_names(&property.value, out);
+            }
+            if let Some(rest) = &object.rest {
+                pattern_names(&rest.argument, out);
             }
         }
-        Kind::Property { value, .. } => bindable_names(tree, value, out),
-        Kind::Rest(argument) => bindable_names(tree, argument, out),
-        Kind::AssignPattern(left, right) => {
-            if matches!(tree.kind(left), Kind::Identifier(_))
-                && let Kind::Call { callee, .. } = tree.kind(right)
-                && is_named(tree, callee, "$bindable")
+        BindingPattern::ArrayPattern(array) => {
+            for element in array.elements.iter().flatten() {
+                pattern_names(element, out);
+            }
+            if let Some(rest) = &array.rest {
+                pattern_names(&rest.argument, out);
+            }
+        }
+        BindingPattern::AssignmentPattern(assignment) => pattern_names(&assignment.left, out),
+    }
+}
+
+/// The symbols of a pattern that default to `$bindable(…)`, at any depth.
+fn bindable_names(pattern: &BindingPattern<'_>, out: &mut Vec<Option<SymbolId>>) {
+    match pattern {
+        BindingPattern::BindingIdentifier(_) => {}
+        BindingPattern::ObjectPattern(object) => {
+            for property in &object.properties {
+                bindable_names(&property.value, out);
+            }
+            if let Some(rest) = &object.rest {
+                bindable_names(&rest.argument, out);
+            }
+        }
+        BindingPattern::ArrayPattern(array) => {
+            for element in array.elements.iter().flatten() {
+                bindable_names(element, out);
+            }
+            if let Some(rest) = &array.rest {
+                bindable_names(&rest.argument, out);
+            }
+        }
+        BindingPattern::AssignmentPattern(assignment) => {
+            if let BindingPattern::BindingIdentifier(identifier) = &assignment.left
+                && let Expression::CallExpression(call) = &assignment.right
+                && is_named(&call.callee, "$bindable")
             {
-                out.push(left);
+                out.push(identifier.symbol_id.get());
             }
-            bindable_names(tree, left, out);
+            bindable_names(&assignment.left, out);
         }
-        _ => {}
     }
 }

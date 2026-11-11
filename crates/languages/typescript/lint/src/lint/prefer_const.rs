@@ -1,11 +1,19 @@
+use oxc_ast::AstKind;
+use oxc_ast::ast::{
+    AssignmentTarget, AssignmentTargetMaybeDefault, AssignmentTargetProperty, BindingPattern,
+    Expression, ForStatementInit, ForStatementLeft, SimpleAssignmentTarget, VariableDeclaration,
+    VariableDeclarationKind,
+};
+use oxc_ast_visit::{Visit, walk};
+use oxc_semantic::{NodeId, ScopeId, SymbolId};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript_semantic::scope::{BindingIdentifier, ScopeIdentifier};
-use rsvelte_typescript_syntax::syntax_tree::{Class, Control, Kind, NodeIdentifier, flag};
+use rsvelte_typescript_semantic::semantic::Semantic;
+use rsvelte_typescript_tree::ProgramIdentifier;
 use rustc_hash::FxHashMap;
 
-use super::JavaScriptFacts;
+use super::{Facts, Use, roots, span};
 
 /// `ESLint`'s `prefer-const` options.
 #[derive(Clone, Copy, Debug, Default)]
@@ -25,16 +33,6 @@ pub enum ProgramStatements {
     Wrapped,
 }
 
-/// A reference as `prefer-const` reads it; a `for…in`/`for…of` declaration writes its names
-/// once more than the scope analysis records.
-#[derive(Clone, Copy)]
-struct Use {
-    node: NodeIdentifier,
-    read: bool,
-    write: bool,
-    scope: ScopeIdentifier,
-}
-
 /// The name a check uses for `undefined` (no name) as distinct from the initial `""`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Name<'a> {
@@ -42,50 +40,39 @@ enum Name<'a> {
     Undefined,
 }
 
-/// `ESLint`'s `prefer-const` over the `let` declarations under `roots` that `skip` does not
-/// exclude. A variable `written_by_host` (a Svelte prop, which its parent writes) is never const.
+/// `ESLint`'s `prefer-const` over the `let` declarations that `skip` does not exclude.
+///
+/// It reads `programs` and the parts of the tree outside them, such as a template's
+/// expressions. A variable `written_by_host` (a Svelte prop, which its parent writes) is never
+/// const.
 pub fn prefer_const(
-    f: &JavaScriptFacts<'_>,
-    roots: &[NodeIdentifier],
+    semantic: &Semantic,
+    programs: &[ProgramIdentifier],
     options: PreferConstOptions,
     statements: ProgramStatements,
-    skip: impl Fn(NodeIdentifier) -> bool,
-    written_by_host: impl Fn(BindingIdentifier) -> bool,
+    skip: impl Fn(&VariableDeclaration<'_>) -> bool,
+    written_by_host: impl Fn(SymbolId) -> bool,
     reporter: &mut Reporter<'_>,
 ) {
-    let tree = f.syntax_tree;
-    let mut variables: Vec<BindingIdentifier> = Vec::new();
-    let mut stack: Vec<NodeIdentifier> = roots.iter().rev().copied().collect();
-    let mut identifiers = Vec::new();
-    while let Some(node) = stack.pop() {
-        if let Kind::VariableDeclaration {
-            kind: flag::LET,
-            declarations,
-        } = tree.kind(node)
-            && !is_init_of_for(f, node)
-            && !skip(node)
-        {
-            for &declarator in declarations {
-                if let Kind::Declarator { identifier, .. } = tree.kind(declarator) {
-                    identifiers.clear();
-                    pattern_identifiers(f, identifier, &mut identifiers);
-                    variables.extend(identifiers.iter().filter_map(|&i| f.sem.binding_of(i)));
-                }
-            }
-        }
-        let at = stack.len();
-        tree.for_each_child(node, |child| stack.push(child));
-        stack[at..].reverse();
+    let f = Facts::new(semantic);
+    let mut collector = Lets {
+        f: &f,
+        skip,
+        variables: Vec::new(),
+    };
+    for root in roots(semantic.tree(), programs) {
+        root.visit(&mut collector);
     }
-    let mut groups: Vec<(NodeIdentifier, Vec<Option<NodeIdentifier>>)> = Vec::new();
-    let mut group_of: FxHashMap<NodeIdentifier, usize> = FxHashMap::default();
+    let variables = collector.variables;
+    let mut groups: Vec<Vec<Option<NodeId>>> = Vec::new();
+    let mut group_of: FxHashMap<NodeId, usize> = FxHashMap::default();
     let mut uses = Vec::new();
     for &variable in &variables {
-        collect_uses(f, variable, &mut uses);
+        f.uses(variable, &mut uses);
         let identifier = if written_by_host(variable) {
             None
         } else {
-            identifier_if_should_be_const(f, variable, &uses, options, statements)
+            identifier_if_should_be_const(&f, variable, &uses, options, statements)
         };
         let mut previous = None;
         for reference in &uses {
@@ -93,12 +80,12 @@ pub fn prefer_const(
                 continue;
             }
             previous = Some(reference.node);
-            if let Some(host) = destructuring_host(f, reference) {
+            if let Some(host) = destructuring_host(&f, reference) {
                 let index = *group_of.entry(host).or_insert_with(|| {
-                    groups.push((host, Vec::new()));
+                    groups.push(Vec::new());
                     groups.len() - 1
                 });
-                groups[index].1.push(identifier);
+                groups[index].push(identifier);
             }
         }
     }
@@ -107,84 +94,111 @@ pub fn prefer_const(
         id: None,
         count: 0,
     };
-    for (_, nodes) in &groups {
-        check_group(f, options, nodes, &mut state, reporter);
+    for nodes in &groups {
+        check_group(&f, options, nodes, &mut state, reporter);
+    }
+}
+
+/// Collects the symbols of the `let` declarations a check looks at, in source order.
+struct Lets<'f, 's, S> {
+    f: &'f Facts<'s>,
+    skip: S,
+    variables: Vec<SymbolId>,
+}
+
+impl<'a, S: Fn(&VariableDeclaration<'_>) -> bool> Visit<'a> for Lets<'_, '_, S> {
+    fn visit_variable_declaration(&mut self, it: &VariableDeclaration<'a>) {
+        if it.kind == VariableDeclarationKind::Let
+            && !is_init_of_for(self.f, it.node_id.get())
+            && !(self.skip)(it)
+        {
+            for declarator in &it.declarations {
+                self.variables.extend(
+                    declarator
+                        .id
+                        .get_binding_identifiers()
+                        .iter()
+                        .filter_map(|i| i.symbol_id.get()),
+                );
+            }
+        }
+        walk::walk_variable_declaration(self, it);
     }
 }
 
 struct GroupState<'a> {
     name: Name<'a>,
-    id: Option<NodeIdentifier>,
+    /// The first declarator of the last declaration, by its node.
+    id: Option<NodeId>,
     count: usize,
 }
 
+/// The name an identifier node carries, declared or referenced.
+fn name_of<'s>(f: &Facts<'s>, node: NodeId) -> &'s str {
+    match f.kind(node) {
+        AstKind::BindingIdentifier(i) => i.name.as_str(),
+        AstKind::IdentifierReference(i) => i.name.as_str(),
+        _ => "",
+    }
+}
+
 /// `checkGroup`, with the counters `ESLint` keeps across groups.
-fn check_group<'a>(
-    f: &JavaScriptFacts<'a>,
+fn check_group<'s>(
+    f: &Facts<'s>,
     options: PreferConstOptions,
-    nodes: &[Option<NodeIdentifier>],
-    state: &mut GroupState<'a>,
+    nodes: &[Option<NodeId>],
+    state: &mut GroupState<'s>,
     reporter: &mut Reporter<'_>,
 ) {
-    let tree = f.syntax_tree;
-    let to_report: Vec<NodeIdentifier> = nodes.iter().flatten().copied().collect();
+    let to_report: Vec<NodeId> = nodes.iter().flatten().copied().collect();
     if nodes.is_empty() || (options.destructuring_all && to_report.len() != nodes.len()) {
         return;
     }
     let declaration = nodes[0].and_then(|node| enclosing_declaration(f, node));
-    let declarations = match declaration.map(|d| tree.kind(d)) {
-        Some(Kind::VariableDeclaration { declarations, .. }) => declarations,
-        _ => &[],
-    };
-    if let Some(&first) = declarations.first()
-        && let Kind::Declarator {
-            identifier,
-            initializer: Some(initializer),
-        } = tree.kind(first)
+    let declaration = declaration.and_then(|d| match f.kind(d) {
+        AstKind::VariableDeclaration(declaration) => Some((d, declaration)),
+        _ => None,
+    });
+    let declarations = declaration.map_or(&[][..], |(_, d)| &d.declarations[..]);
+    if let Some(first) = declarations.first()
+        && let Some(initializer) = &first.init
     {
-        let name_of = |node| match tree.kind(node) {
-            Kind::Identifier(atom) => Name::Named(tree.atoms.get(atom)),
+        let pattern_name = match &first.id {
+            BindingPattern::BindingIdentifier(i) => Name::Named(i.name.as_str()),
             _ => Name::Undefined,
         };
-        if name_of(identifier) != state.name {
-            state.name = name_of(identifier);
+        if pattern_name != state.name {
+            state.name = pattern_name;
             state.count = 0;
         }
-        if matches!(tree.kind(identifier), Kind::ObjectPattern(_))
-            && name_of(initializer) != state.name
-        {
-            state.name = name_of(initializer);
-            state.count = 0;
+        if matches!(first.id, BindingPattern::ObjectPattern(_)) {
+            let initializer_name = match initializer {
+                Expression::Identifier(i) => Name::Named(i.name.as_str()),
+                _ => Name::Undefined,
+            };
+            if initializer_name != state.name {
+                state.name = initializer_name;
+                state.count = 0;
+            }
         }
-        if state.id != Some(identifier) {
-            state.id = Some(identifier);
+        let id = Some(first.node_id.get());
+        if state.id != id {
+            state.id = id;
             state.count = 0;
         }
     }
-    let mut should_fix = declaration.is_some_and(|declaration| {
-        let in_for_each = f.parent(declaration).is_some_and(|p| {
-            matches!(tree.kind(p), Kind::Control(Control::ForEach { left, .. }) if left == declaration)
-        });
-        in_for_each
-            || declarations.iter().all(|&d| {
-                matches!(
-                    tree.kind(d),
-                    Kind::Declarator {
-                        initializer: Some(_),
-                        ..
-                    }
-                )
-            })
+    let mut should_fix = declaration.is_some_and(|(node, _)| {
+        is_left_of_for_each(f, node) || declarations.iter().all(|d| d.init.is_some())
     }) && to_report.len() == nodes.len();
     if declarations.len() > 1 {
         state.count += to_report.len();
         let total: usize = declarations
             .iter()
-            .map(|&d| match tree.kind(d) {
-                Kind::Declarator { identifier, .. } => match tree.kind(identifier) {
-                    Kind::ObjectPattern(items) | Kind::ArrayPattern(items) => items.len(),
-                    _ => 1,
-                },
+            .map(|d| match &d.id {
+                BindingPattern::ObjectPattern(p) => {
+                    p.properties.len() + usize::from(p.rest.is_some())
+                }
+                BindingPattern::ArrayPattern(p) => p.elements.len() + usize::from(p.rest.is_some()),
                 _ => 1,
             })
             .sum();
@@ -194,22 +208,23 @@ fn check_group<'a>(
         let mut report = Report::range(
             format!(
                 "'{}' is never reassigned. Use 'const' instead.",
-                tree.name(node)
+                name_of(f, node)
             ),
-            f.span(node),
+            span(f.span(node)),
         )
         .message_id("useConst");
-        if should_fix
-            && let Some(declaration) = declaration
-            && let Kind::VariableDeclaration { kind, .. } = tree.kind(declaration)
-        {
+        if should_fix && let Some((_, declaration)) = declaration {
             // A declaration starts with its keyword, which `ESLint` replaces whatever it is.
-            let range = f.span(declaration);
-            let length = if kind == flag::CONST { 5 } else { 3 };
-            let keyword = Span::new(range.start_offset, range.start_offset + length);
+            let range = declaration.span;
+            let length = if declaration.kind == VariableDeclarationKind::Const {
+                5
+            } else {
+                3
+            };
+            let keyword = Span::new(range.start, range.start + length);
             // The fix covers the whole declaration so that no other fix in the pass touches it.
             let mut fix = Fix::replace(keyword, "const");
-            fix.push(Span::new(range.end_offset, range.end_offset), "");
+            fix.push(Span::new(range.end, range.end), "");
             report = report.fix(fix);
         }
         reporter.report(report);
@@ -218,13 +233,13 @@ fn check_group<'a>(
 
 /// `getIdentifierIfShouldBeConst`.
 fn identifier_if_should_be_const(
-    f: &JavaScriptFacts<'_>,
-    variable: BindingIdentifier,
+    f: &Facts<'_>,
+    variable: SymbolId,
     uses: &[Use],
     options: PreferConstOptions,
     statements: ProgramStatements,
-) -> Option<NodeIdentifier> {
-    let binding = &f.sem.bindings[variable];
+) -> Option<NodeId> {
+    let scope = f.scoping.symbol_scope_id(variable);
     let mut writer: Option<&Use> = None;
     let mut read_before_init = false;
     for reference in uses {
@@ -233,8 +248,8 @@ fn identifier_if_should_be_const(
                 return None;
             }
             if let Some(host) = destructuring_host(f, reference)
-                && let Kind::Assign(_, left, _) = f.syntax_tree.kind(host)
-                && destructures_outer_or_member(f, left, binding.scope)
+                && let AstKind::AssignmentExpression(assignment) = f.kind(host)
+                && destructures_outer_or_member(f, &assignment.left, scope)
             {
                 return None;
             }
@@ -247,204 +262,224 @@ fn identifier_if_should_be_const(
         }
     }
     let writer = writer?;
-    if writer.scope != binding.scope || !can_become_declaration(f, writer.node, statements) {
+    if writer.scope != scope || !can_become_declaration(f, writer.node, statements) {
         return None;
     }
-    Some(if read_before_init {
-        binding.node
+    if read_before_init {
+        f.identifiers[variable.index()]
     } else {
-        writer.node
-    })
-}
-
-/// The binding's references, with the write a `for…in`/`for…of` declaration makes.
-fn collect_uses(f: &JavaScriptFacts<'_>, variable: BindingIdentifier, uses: &mut Vec<Use>) {
-    uses.clear();
-    let binding = &f.sem.bindings[variable];
-    let declaration = binding.declaration.and_then(|d| f.parent(d));
-    let in_for_each = declaration.is_some_and(|declaration| {
-        f.parent(declaration).is_some_and(|p| {
-            matches!(f.syntax_tree.kind(p), Kind::Control(Control::ForEach { left, .. }) if left == declaration)
-        })
-    });
-    if in_for_each {
-        uses.push(Use {
-            node: binding.node,
-            read: false,
-            write: true,
-            scope: binding.scope,
-        });
+        Some(writer.node)
     }
-    uses.extend(f.sem.references_to(variable).map(|r| Use {
-        node: r.node,
-        read: r.read,
-        write: r.write,
-        scope: r.scope,
-    }));
 }
 
-const fn is_pattern(kind: Kind<'_>) -> bool {
+/// A node of a binding or assignment pattern, which the host of a write is above.
+const fn is_pattern(kind: AstKind<'_>) -> bool {
     matches!(
         kind,
-        Kind::ObjectPattern(_)
-            | Kind::ArrayPattern(_)
-            | Kind::AssignPattern(..)
-            | Kind::Rest(_)
-            | Kind::Property { .. }
+        AstKind::ObjectPattern(_)
+            | AstKind::ArrayPattern(_)
+            | AstKind::AssignmentPattern(_)
+            | AstKind::BindingRestElement(_)
+            | AstKind::BindingProperty(_)
+            | AstKind::ObjectAssignmentTarget(_)
+            | AstKind::ArrayAssignmentTarget(_)
+            | AstKind::AssignmentTargetWithDefault(_)
+            | AstKind::AssignmentTargetRest(_)
+            | AstKind::AssignmentTargetPropertyIdentifier(_)
+            | AstKind::AssignmentTargetPropertyProperty(_)
     )
 }
 
 /// The first node above `node` that is not part of a pattern.
-fn pattern_host(f: &JavaScriptFacts<'_>, node: NodeIdentifier) -> Option<NodeIdentifier> {
+fn pattern_host(f: &Facts<'_>, node: NodeId) -> Option<NodeId> {
     let mut at = f.parent(node)?;
-    while is_pattern(f.syntax_tree.kind(at)) {
+    while is_pattern(f.kind(at)) {
         at = f.parent(at)?;
     }
     Some(at)
 }
 
 /// `getDestructuringHost`: the declarator or assignment a write belongs to.
-fn destructuring_host(f: &JavaScriptFacts<'_>, reference: &Use) -> Option<NodeIdentifier> {
+fn destructuring_host(f: &Facts<'_>, reference: &Use) -> Option<NodeId> {
     if !reference.write {
         return None;
     }
     let host = pattern_host(f, reference.node)?;
     matches!(
-        f.syntax_tree.kind(host),
-        Kind::Declarator { .. } | Kind::Assign(..)
+        f.kind(host),
+        AstKind::VariableDeclarator(_) | AstKind::AssignmentExpression(_)
     )
     .then_some(host)
 }
 
 /// `canBecomeVariableDeclaration`.
 fn can_become_declaration(
-    f: &JavaScriptFacts<'_>,
-    identifier: NodeIdentifier,
+    f: &Facts<'_>,
+    identifier: NodeId,
     statements: ProgramStatements,
 ) -> bool {
-    let tree = f.syntax_tree;
     let Some(host) = pattern_host(f, identifier) else {
         return false;
     };
-    match tree.kind(host) {
-        Kind::Declarator { .. } => true,
-        Kind::Assign(..) => f
+    match f.kind(host) {
+        AstKind::VariableDeclarator(_) => true,
+        AstKind::AssignmentExpression(_) => f
             .parent(host)
-            .filter(|&s| matches!(tree.kind(s), Kind::ExpressionStatement(_)))
+            .filter(|&s| matches!(f.kind(s), AstKind::ExpressionStatement(_)))
             .and_then(|s| f.parent(s))
-            .is_some_and(|p| match tree.kind(p) {
-                Kind::Program(_) => statements == ProgramStatements::InProgram,
-                Kind::Block(_)
-                | Kind::Control(Control::Case { .. })
-                | Kind::Class(Class::StaticBlock(_)) => true,
+            .is_some_and(|p| match f.kind(p) {
+                AstKind::Program(_) => statements == ProgramStatements::InProgram,
+                AstKind::BlockStatement(_)
+                | AstKind::FunctionBody(_)
+                | AstKind::SwitchCase(_)
+                | AstKind::StaticBlock(_) => true,
                 _ => false,
             }),
         _ => false,
     }
 }
 
+/// The symbol a plain identifier target assigns.
+fn assigned_symbol(f: &Facts<'_>, target: &AssignmentTargetMaybeDefault<'_>) -> Option<SymbolId> {
+    match target {
+        AssignmentTargetMaybeDefault::AssignmentTargetIdentifier(identifier) => f
+            .scoping
+            .get_reference(identifier.reference_id())
+            .symbol_id(),
+        _ => None,
+    }
+}
+
 /// Whether a destructuring assignment also assigns a variable from outside `scope`, a
 /// parameter, or a member (`hasOuterVariables || hasNonIdentifiers`).
 fn destructures_outer_or_member(
-    f: &JavaScriptFacts<'_>,
-    left: NodeIdentifier,
-    scope: ScopeIdentifier,
+    f: &Facts<'_>,
+    left: &AssignmentTarget<'_>,
+    scope: ScopeId,
 ) -> bool {
-    let tree = f.syntax_tree;
-    let names: Vec<NodeIdentifier> = match tree.kind(left) {
-        Kind::ObjectPattern(properties) => properties
+    let symbols: Vec<SymbolId> = match left {
+        AssignmentTarget::ObjectAssignmentTarget(object) => object
+            .properties
             .iter()
-            .filter_map(|&p| match tree.kind(p) {
-                Kind::Property { value, .. } => Some(value),
-                _ => None,
+            .filter_map(|p| match p {
+                AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(p)
+                    if p.init.is_none() =>
+                {
+                    f.scoping
+                        .get_reference(p.binding.reference_id())
+                        .symbol_id()
+                }
+                AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => {
+                    assigned_symbol(f, &p.binding)
+                }
+                AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(_) => None,
             })
             .collect(),
-        Kind::ArrayPattern(items) => items.to_vec(),
+        AssignmentTarget::ArrayAssignmentTarget(array) => array
+            .elements
+            .iter()
+            .flatten()
+            .filter_map(|e| assigned_symbol(f, e))
+            .collect(),
         _ => return false,
     };
-    let outer = names.iter().any(|&name| {
-        let Some(atom) = tree.atom(name) else {
-            return false;
-        };
-        f.sem.lookup(scope, atom).is_some_and(|b| {
-            let binding = &f.sem.bindings[b];
-            binding.scope != scope
-                || binding.kind == rsvelte_typescript_semantic::scope::DeclarationKind::Param
-        })
+    let outer = symbols.iter().any(|&symbol| {
+        f.scoping.symbol_scope_id(symbol) != scope
+            || matches!(
+                f.kind(f.declaration(symbol)),
+                AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_)
+            )
     });
-    outer || has_member_assignment(f, left)
+    outer || has_member_assignment(left)
 }
 
 /// `hasMemberExpressionAssignment`.
-fn has_member_assignment(f: &JavaScriptFacts<'_>, node: NodeIdentifier) -> bool {
-    match f.syntax_tree.kind(node) {
-        Kind::ObjectPattern(properties) => {
-            properties.iter().any(|&p| match f.syntax_tree.kind(p) {
-                Kind::Property { value, .. } => has_member_assignment(f, value),
-                Kind::Rest(argument) => has_member_assignment(f, argument),
-                _ => false,
-            })
+fn has_member_assignment(target: &AssignmentTarget<'_>) -> bool {
+    match target {
+        AssignmentTarget::ObjectAssignmentTarget(object) => {
+            object.properties.iter().any(|p| match p {
+                AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => {
+                    has_member_assignment_maybe_default(&p.binding)
+                }
+                AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(_) => false,
+            }) || object
+                .rest
+                .as_ref()
+                .is_some_and(|r| has_member_assignment(&r.target))
         }
-        Kind::ArrayPattern(items) => items.iter().any(|&item| has_member_assignment(f, item)),
-        Kind::AssignPattern(left, _) => has_member_assignment(f, left),
-        Kind::Member { .. } => true,
-        _ => false,
+        AssignmentTarget::ArrayAssignmentTarget(array) => {
+            array
+                .elements
+                .iter()
+                .flatten()
+                .any(has_member_assignment_maybe_default)
+                || array
+                    .rest
+                    .as_ref()
+                    .is_some_and(|r| has_member_assignment(&r.target))
+        }
+        target => matches!(
+            target.as_simple_assignment_target(),
+            Some(
+                SimpleAssignmentTarget::ComputedMemberExpression(_)
+                    | SimpleAssignmentTarget::StaticMemberExpression(_)
+                    | SimpleAssignmentTarget::PrivateFieldExpression(_)
+            )
+        ),
+    }
+}
+
+fn has_member_assignment_maybe_default(target: &AssignmentTargetMaybeDefault<'_>) -> bool {
+    match target {
+        AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(with_default) => {
+            has_member_assignment(&with_default.binding)
+        }
+        target => target
+            .as_assignment_target()
+            .is_some_and(has_member_assignment),
     }
 }
 
 /// `findUp(node, "VariableDeclaration", …)`, which stops at a statement.
-fn enclosing_declaration(f: &JavaScriptFacts<'_>, node: NodeIdentifier) -> Option<NodeIdentifier> {
+fn enclosing_declaration(f: &Facts<'_>, node: NodeId) -> Option<NodeId> {
     let mut at = Some(node);
     while let Some(current) = at {
-        match f.syntax_tree.kind(current) {
-            Kind::VariableDeclaration { .. } => return Some(current),
-            Kind::ExpressionStatement(_)
-            | Kind::Block(_)
-            | Kind::If { .. }
-            | Kind::For { .. }
-            | Kind::Return(_)
-            | Kind::Empty => return None,
-            Kind::Control(control)
-                if !matches!(control, Control::Catch { .. } | Control::Case { .. }) =>
-            {
-                return None;
-            }
-            _ => at = f.parent(current),
+        let kind = f.kind(current);
+        match kind {
+            AstKind::VariableDeclaration(_) => return Some(current),
+            AstKind::FunctionBody(_) => return None,
+            AstKind::ExportDefaultDeclaration(_) => {}
+            kind if kind.is_statement() => return None,
+            _ => {}
         }
+        at = f.parent(current);
     }
     None
 }
 
-/// `isInitOfForStatement`.
-fn is_init_of_for(f: &JavaScriptFacts<'_>, declaration: NodeIdentifier) -> bool {
+/// The declaration is the left of a `for…in` or `for…of`.
+fn is_left_of_for_each(f: &Facts<'_>, declaration: NodeId) -> bool {
+    let span = f.span(declaration);
     f.parent(declaration).is_some_and(|p| {
-        matches!(f.syntax_tree.kind(p), Kind::For { initializer: Some(i), .. } if i == declaration)
+        let left = match f.kind(p) {
+            AstKind::ForInStatement(s) => &s.left,
+            AstKind::ForOfStatement(s) => &s.left,
+            _ => return false,
+        };
+        matches!(left, ForStatementLeft::VariableDeclaration(d) if d.span == span)
     })
 }
 
-/// The identifiers a pattern declares, in order.
-fn pattern_identifiers(
-    f: &JavaScriptFacts<'_>,
-    pattern: NodeIdentifier,
-    out: &mut Vec<NodeIdentifier>,
-) {
-    match f.syntax_tree.kind(pattern) {
-        Kind::Identifier(_) => out.push(pattern),
-        Kind::ObjectPattern(properties) => {
-            for &p in properties {
-                match f.syntax_tree.kind(p) {
-                    Kind::Property { value, .. } => pattern_identifiers(f, value, out),
-                    Kind::Rest(argument) => pattern_identifiers(f, argument, out),
-                    _ => {}
-                }
-            }
-        }
-        Kind::ArrayPattern(items) => {
-            for &item in items {
-                pattern_identifiers(f, item, out);
-            }
-        }
-        Kind::AssignPattern(left, _) | Kind::Rest(left) => pattern_identifiers(f, left, out),
-        _ => {}
-    }
+/// `isInitOfForStatement`.
+fn is_init_of_for(f: &Facts<'_>, declaration: NodeId) -> bool {
+    let span = f.span(declaration);
+    f.parent(declaration).is_some_and(|p| {
+        matches!(
+            f.kind(p),
+            AstKind::ForStatement(s) if matches!(
+                &s.init,
+                Some(ForStatementInit::VariableDeclaration(d)) if d.span == span
+            )
+        )
+    })
 }

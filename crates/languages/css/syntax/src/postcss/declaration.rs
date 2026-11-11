@@ -289,7 +289,8 @@ impl Parser<'_> {
                 return (cut, true);
             }
             if text.eq_ignore_ascii_case("important") {
-                // As upstream, the text before is rebuilt from the end; its cost matches upstream's.
+                // As upstream, the text before is rebuilt from the end; its cost matches
+                // upstream's.
                 let mut cut = kept;
                 let mut text = String::new();
                 for j in (1..=i).rev() {

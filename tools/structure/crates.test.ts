@@ -39,7 +39,8 @@ function role(manifestPath: string): Role | undefined {
 	// Only hosts load configuration files; a plugin reads its options through the plugin interface.
 	if (path === 'hosts/configuration_loading') return 'host_library';
 	if (path.startsWith('hosts/')) return 'host';
-	if (/^languages\/[^/]+\/syntax$/.test(path)) return 'syntax';
+	// A language's trees are syntax, whether its crate parses them or only holds them.
+	if (/^languages\/[^/]+\/(syntax|tree)$/.test(path)) return 'syntax';
 	if (/^languages\/[^/]+\/semantic$/.test(path)) return 'semantic';
 	if (/^languages\/[^/]+\/[^/]+$/.test(path)) return 'capability';
 	return undefined;
@@ -108,7 +109,7 @@ test('every workspace crate has a role from its path', () => {
 		'rsvelte_markup_syntax',
 		'rsvelte_stylesheet_syntax',
 		'rsvelte_svelte_syntax',
-		'rsvelte_typescript_syntax',
+		'rsvelte_typescript_tree',
 		'rsvelte_vue_syntax',
 	]);
 	assert.deepEqual(named('semantic'), [
@@ -225,7 +226,7 @@ test('support, plugin and host boundaries reject injected dependencies', () => {
 		['rsvelte_svelte_compile', 'rsvelte_example_plugin'],
 		['rsvelte_example_plugin', 'rsvelte_command_line'],
 		['rsvelte_plugin_interface', 'rsvelte_configuration_loading'],
-		['rsvelte_typescript_content_mapper', 'rsvelte_typescript_syntax'],
+		['rsvelte_typescript_content_mapper', 'rsvelte_typescript_tree'],
 		['rsvelte_svelte_lint', 'rsvelte_command_line'],
 		['rsvelte_vue_compile_svelte', 'rsvelte_kernel_browser'],
 		['rsvelte_command_line', 'rsvelte_kernel_browser'],

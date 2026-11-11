@@ -15,7 +15,7 @@ const fn attributes_len(a: Attributes<'_>) -> usize {
     }
 }
 
-impl Printer<'_, '_> {
+impl Printer<'_, '_, '_> {
     // ---- print/children.js -----------------------------------------------------------
 
     pub(super) fn force_next_empty_line(&self, i: usize) -> bool {

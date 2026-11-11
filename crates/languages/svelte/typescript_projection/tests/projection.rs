@@ -8,7 +8,7 @@ use rsvelte_svelte_typescript_projection::syntax_tree::{Node, NodeIdentifier, Sy
 fn project(source: &str) -> (SyntaxTree, rsvelte_kernel::output::emitter::Emitter) {
     let component = parse(source).expect("valid Svelte source");
     let before = format!("{component:?}");
-    let tree = rsvelte_svelte_typescript_projection::lower(&component, source)
+    let tree = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
         .expect("supported template");
     assert_eq!(
         format!("{component:?}"),
@@ -142,7 +142,7 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
 fn unsupported_semantics_are_reported_at_the_original_construct() {
     let source = "<input bind:value={value}>";
     let component = parse(source).expect("valid Svelte source");
-    let error = rsvelte_svelte_typescript_projection::lower(&component, source)
+    let error = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
         .expect_err("bindings need their own type semantics");
     assert_eq!(error.span().text(source), "bind:value={value}");
 }
@@ -223,4 +223,39 @@ fn a_style_sheet_error_does_not_stop_the_content_mapper() {
     let output = output.finish();
     assert!(!output.contains("\"diagnostics\""), "{output}");
     assert!(output.contains("let a = 1;"), "{output}");
+}
+
+#[test]
+fn a_typed_each_context_drops_its_annotation_as_svelte2tsx_does() {
+    let source = "<script lang=\"ts\">let letters = ['a'];</script>\
+                  {#each letters as letter: string, i}<span>{i}{letter}</span>{/each}";
+    let (_, output) = project(source);
+    assert!(
+        output
+            .out
+            .contains("for (let [i, letter] of __rsvelte_each(letters))"),
+        "{}",
+        output.out
+    );
+    assert!(!output.out.contains(": string"), "{}", output.out);
+}
+
+#[test]
+fn a_prop_default_that_reads_a_sibling_infers_no_cycle() {
+    let source =
+        "<script lang=\"ts\">let { a, b = 5, c = b, d = a, e = a.length } = $props();</script>";
+    let (_, output) = project(source);
+    let props = &output.out[output
+        .out
+        .find("const __rsvelte_public_props0")
+        .expect("the props are inferred")..];
+    // From svelte2tsx: `c?: typeof b`, and `any` for a default that reads a prop another way.
+    for expected in [
+        "b: 5,",
+        "c: 5,",
+        "d: __rsvelte_untyped_prop(),",
+        "e: __rsvelte_untyped_prop(),",
+    ] {
+        assert!(props.contains(expected), "{expected}\n{}", output.out);
+    }
 }

@@ -1,20 +1,16 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<option> </option>`);
-
 var root_1 = $.from_html(`<select><option>A</option><option>B</option><!></select> <p> </p>`, 1);
-
 export default function Select_bind($$anchor) {
-	let choice = $.state('b');
-	let items = $.proxy(['a', 'b']);
+	let choice = $.state("b");
+	let items = $.proxy(["a", "b"]);
 	var fragment = root_1();
 	var select = $.first_child(fragment);
 	var option = $.child(select);
-	option.value = option.__value = 'a';
+	option.value = option.__value = "a";
 	var option_1 = $.sibling(option);
-	option_1.value = option_1.__value = 'b';
+	option_1.value = option_1.__value = "b";
 	var node = $.sibling(option_1);
 	$.each(node, 17, () => items, $.index, ($$anchor, item) => {
 		var option_2 = root();

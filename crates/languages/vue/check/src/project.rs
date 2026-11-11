@@ -10,20 +10,22 @@
 //! mapped; the inserted text is not, so a diagnostic maps back to what was written
 //! ([`Emitter::lookup_overlap`]).
 
+use oxc_ast::ast::Expression;
+use oxc_semantic::ReferenceId;
+use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_semantic::scope::ScopeIdentifier;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
+use rsvelte_typescript_tree::ExpressionIdentifier;
 use rsvelte_vue_semantic::expressions::{
-    camelize, can_prefix, collect_identifiers, is_simple_identifier, to_handler_key,
+    Identifier, Parent, camelize, can_prefix, collect_identifiers, collect_pattern_identifiers,
+    is_simple_identifier, to_handler_key,
 };
 use rsvelte_vue_semantic::resolve::Resolution;
 use rsvelte_vue_syntax::syntax_tree::{
     AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent, TemplateNode,
     TemplateNodeIdentifier,
 };
-use rustc_hash::FxHashMap;
 
 #[derive(Debug)]
 pub(crate) enum Projection {
@@ -51,29 +53,16 @@ pub(crate) fn project(
     if c.script.is_some() && !c.typescript {
         return Ok(Projection::JavaScript);
     }
-    if let Some(p) = &res.define_props {
+    if let Some(p) = res.define_props() {
         return Err(Unsupported::at(
             "defineProps in a type-checked component",
-            c.javascript
-                .source_location(p.call)
-                .span()
-                .unwrap_or_default(),
+            document_span(p.call.span),
         ));
     }
     let mut p = Projector {
         c,
         source_text,
-        locals: res
-            .sem
-            .references
-            .iter()
-            .map(|r| {
-                let local = r
-                    .binding
-                    .is_some_and(|b| res.sem.bindings[b].scope != ScopeIdentifier::ROOT);
-                (r.node, local)
-            })
-            .collect(),
+        res,
         e: Emitter::new(),
         chain_open: false,
     };
@@ -82,7 +71,7 @@ pub(crate) fn project(
         p.e.push("\n");
     }
     p.e.push(PRELUDE);
-    let exposed = p.exposed(res);
+    let exposed = p.exposed();
     if exposed.is_empty() {
         p.e.push(&format!("const __VLS_ctx = {{}} as {INSTANCE};\n"));
     } else {
@@ -103,9 +92,7 @@ pub(crate) fn project(
 struct Projector<'a> {
     c: &'a SingleFileComponent,
     source_text: &'a str,
-    /// Every reference, and whether it names something the template declares (a `v-for` alias, a
-    /// parameter of a function written in an expression).
-    locals: FxHashMap<NodeIdentifier, bool>,
+    res: &'a Resolution,
     e: Emitter,
     /// The last statement closed a `v-if` / `v-else-if` block, so a `v-else` may follow.
     chain_open: bool,
@@ -114,23 +101,29 @@ struct Projector<'a> {
 impl<'a> Projector<'a> {
     /// The script's top-level names the template reads, in the order it first reads them:
     /// upstream's `__VLS_SetupExposed`.
-    fn exposed(&self, res: &Resolution) -> Vec<&'a str> {
+    fn exposed(&self) -> Vec<&'a str> {
+        let res = self.res;
         let c: &'a SingleFileComponent = self.c;
         let Some(template) = &c.template else {
             return Vec::new();
         };
-        let mut found: Vec<(u32, &str)> = res
-            .sem
-            .references
+        let (scoping, nodes) = (res.scoping(), res.semantic().nodes());
+        let mut found: Vec<(u32, &str)> = scoping
+            .get_bindings(res.root_scope())
             .iter()
-            .filter_map(|r| {
-                let b = &res.sem.bindings[r.binding?];
-                let at = c.javascript.source_location(r.node).span()?;
-                (b.scope == ScopeIdentifier::ROOT
-                    && template.content.start_offset <= at.start_offset
-                    && at.end_offset <= template.content.end_offset)
-                    .then(|| (at.start_offset, c.javascript.name(r.node)))
+            .flat_map(|(name, &symbol)| {
+                scoping
+                    .get_resolved_reference_ids(symbol)
+                    .iter()
+                    .map(move |&r| {
+                        let at = nodes.kind(scoping.get_reference(r).node_id()).span();
+                        (at, name.as_str())
+                    })
             })
+            .filter(|(at, _)| {
+                template.content.start_offset <= at.start && at.end <= template.content.end_offset
+            })
+            .map(|(at, name)| (at.start, name))
             .collect();
         found.sort_unstable_by_key(|&(at, _)| at);
         let mut names: Vec<&'a str> = Vec::new();
@@ -182,15 +175,26 @@ impl<'a> Projector<'a> {
                         let DirectiveExpression::For(f) = &d.exp else {
                             unreachable!("the parser gives v-for a for expression")
                         };
+                        let javascript = &self.c.javascript;
+                        let parameters = javascript.get_parameters(f.parameters);
+                        if let Some(rest) = &parameters.rest {
+                            return Err(Unsupported::at(
+                                "a rest alias in v-for",
+                                document_span(rest.span),
+                            ));
+                        }
                         self.e.push("for (const [");
-                        for (i, &param) in f.parameters.iter().enumerate() {
+                        for (i, param) in parameters.items.iter().enumerate() {
                             if i > 0 {
                                 self.e.push(", ");
                             }
-                            self.expression(param, self.span_of(param), false);
+                            let mut identifiers = Vec::new();
+                            collect_pattern_identifiers(&param.pattern, &mut identifiers);
+                            self.prefixed(identifiers, document_span(param.pattern.span()), false);
                         }
                         self.e.push("] of __VLS_vFor((");
-                        self.expression(f.source, self.span_of(f.source), false);
+                        let source = javascript.get_expression(f.source);
+                        self.expression(f.source, document_span(source.span()), false);
                         self.e.push(")!)) {\n");
                     }
                     (None, None) => self.chain_open = false,
@@ -339,7 +343,7 @@ impl<'a> Projector<'a> {
 
     /// `...{ onClick: … },`: a name or a function as written, an inline statement as a function
     /// that receives `$event`.
-    fn handler(&mut self, arg: Span, exp: NodeIdentifier, value: Span) {
+    fn handler(&mut self, arg: Span, exp: ExpressionIdentifier, value: Span) {
         let key = to_handler_key(&camelize(arg.text(self.source_text)));
         self.e.push("...{ ");
         if is_simple_identifier(&key) {
@@ -348,9 +352,13 @@ impl<'a> Projector<'a> {
             self.e.push(&format!("'{key}'"));
         }
         self.e.push(": ");
-        let as_written = match self.c.javascript.kind(exp) {
-            Kind::Member { .. } | Kind::Arrow { .. } | Kind::Function { .. } => true,
-            Kind::Identifier(_) => self.c.javascript.name(exp) != "undefined",
+        let as_written = match self.c.javascript.get_expression(exp) {
+            Expression::StaticMemberExpression(_)
+            | Expression::ComputedMemberExpression(_)
+            | Expression::PrivateFieldExpression(_)
+            | Expression::ArrowFunctionExpression(_)
+            | Expression::FunctionExpression(_) => true,
+            Expression::Identifier(identifier) => identifier.name != "undefined",
             _ => false,
         };
         if as_written {
@@ -365,37 +373,32 @@ impl<'a> Projector<'a> {
         self.e.push("},\n");
     }
 
-    fn span_of(&self, n: NodeIdentifier) -> Span {
-        self.c
-            .javascript
-            .source_location(n)
-            .span()
-            .expect("a parsed template expression has a source range")
-    }
-
     /// The source text `text` of expression `root`, with every name read from the component
     /// prefixed by `__VLS_context.` (a shorthand property keeps its key).
-    fn expression(&mut self, root: NodeIdentifier, text: Span, event_local: bool) {
-        let mut idents = Vec::new();
-        collect_identifiers(&self.c.javascript, root, None, &mut idents);
-        let mut prefixed: Vec<(Span, bool)> = idents
+    fn expression(&mut self, root: ExpressionIdentifier, text: Span, event_local: bool) {
+        let mut identifiers = Vec::new();
+        collect_identifiers(self.c.javascript.get_expression(root), &mut identifiers);
+        self.prefixed(identifiers, text, event_local);
+    }
+
+    /// Whether `reference` names something the template declares (a `v-for` alias, a parameter
+    /// of a function written in an expression).
+    fn is_local(&self, reference: ReferenceId) -> bool {
+        let res = self.res;
+        res.symbol_of(reference)
+            .is_some_and(|symbol| res.scoping().symbol_scope_id(symbol) != res.root_scope())
+    }
+
+    fn prefixed(&mut self, identifiers: Vec<Identifier<'_>>, text: Span, event_local: bool) {
+        let mut prefixed: Vec<(Span, bool)> = identifiers
             .into_iter()
-            .filter_map(|(identifier, parent)| {
-                let local = *self.locals.get(&identifier)?;
-                let name = self.c.javascript.name(identifier);
+            .filter_map(|identifier| {
+                let local = self.is_local(identifier.reference?);
+                let name = identifier.name;
                 if local || (event_local && name == "$event") || !can_prefix(name) {
                     return None;
                 }
-                let shorthand = parent.is_some_and(|p| {
-                    matches!(
-                        self.c.javascript.kind(p),
-                        Kind::Property {
-                            shorthand: true,
-                            ..
-                        }
-                    )
-                });
-                Some((self.span_of(identifier), shorthand))
+                Some((identifier.span, identifier.parent == Parent::Shorthand))
             })
             .collect();
         prefixed.sort_unstable_by_key(|(s, _)| s.start_offset);
@@ -418,4 +421,8 @@ impl<'a> Projector<'a> {
             self.e.copy(self.source_text, span);
         }
     }
+}
+
+const fn document_span(span: oxc_span::Span) -> Span {
+    Span::new(span.start, span.end)
 }

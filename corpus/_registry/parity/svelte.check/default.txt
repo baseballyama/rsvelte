@@ -1,4 +1,4 @@
-# svelte.check/default: 8169 match
+# svelte.check/default: 8178 match
 svelte/animotion/src/lib/components/action.svelte	mismatch
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -8921,7 +8921,6 @@ svelte/svelte-commerce/src/lib/components/image/image-overlay.svelte	mismatch
 svelte/svelte-commerce/src/lib/components/image/images-carousel.svelte	refused
 svelte/svelte-commerce/src/lib/components/nav/bottom-nav.svelte	refused
 svelte/svelte-commerce/src/lib/components/nav/cart-sidebar.svelte	refused
-svelte/svelte-commerce/src/lib/components/nav/main-nav.svelte	mismatch
 svelte/svelte-commerce/src/lib/components/nav/mega-menu.svelte	refused
 svelte/svelte-commerce/src/lib/components/nav/ms-search-renderer.svelte	refused
 svelte/svelte-commerce/src/lib/components/nav/ms-search.svelte	refused
@@ -9096,18 +9095,14 @@ svelte/svelte-commerce/src/lib/core/components/plugins/enquiry-modal.svelte	refu
 svelte/svelte-commerce/src/lib/core/components/plugins/share-button.svelte	refused
 svelte/svelte-commerce/src/lib/theme/default/DefaultHomepage.svelte	refused
 svelte/svelte-commerce/src/lib/theme/default/DefaultProductCard.svelte	refused
-svelte/svelte-commerce/src/lib/theme/lime/LimeFooter.svelte	mismatch
-svelte/svelte-commerce/src/lib/theme/lime/LimeHomepage.svelte	mismatch
 svelte/svelte-commerce/src/lib/theme/lime/LimeNav.svelte	refused
 svelte/svelte-commerce/src/lib/theme/lime/LimeProductCard.svelte	refused
 svelte/svelte-commerce/src/lib/theme/lime/ui/ll-button.svelte	refused
 svelte/svelte-commerce/src/lib/theme/lime/ui/ll-heading.svelte	refused
 svelte/svelte-commerce/src/lib/theme/lime/ui/ll-image.svelte	mismatch
-svelte/svelte-commerce/src/lib/theme/noor/NoorFooter.svelte	mismatch
 svelte/svelte-commerce/src/lib/theme/noor/NoorHomepage.svelte	mismatch
 svelte/svelte-commerce/src/lib/theme/noor/NoorNav.svelte	refused
 svelte/svelte-commerce/src/lib/theme/noor/NoorProductCard.svelte	refused
-svelte/svelte-commerce/src/lib/theme/organic/OrganicHomepage.svelte	mismatch
 svelte/svelte-commerce/src/lib/theme/sections/banner.svelte	refused
 svelte/svelte-commerce/src/lib/theme/sections/newsletter.svelte	refused
 svelte/svelte-commerce/src/lib/theme/sections/tile-grid.svelte	refused
@@ -10317,7 +10312,6 @@ svelte/svelte/packages/svelte/tests/migrate/samples/state-ts/input.svelte	refuse
 svelte/svelte/packages/svelte/tests/parser-legacy/samples/generic-snippets/input.svelte	refused
 svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-style-tag/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/parser-modern/samples/each-block-object-pattern-special-characters/input.svelte	refused
 svelte/svelte/packages/svelte/tests/parser-modern/samples/options/input.svelte	refused
 svelte/svelte/packages/svelte/tests/parser-modern/samples/snippets/input.svelte	refused
 svelte/svelte/packages/svelte/tests/parser-modern/samples/typescript-in-event-handler/input.svelte	refused
@@ -10356,7 +10350,6 @@ svelte/svelte/packages/svelte/tests/server-side-rendering/samples/select-value-c
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/store-init-props/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte	mismatch
 svelte/svelte/packages/svelte/tests/types/bindings.svelte	refused
-svelte/svelte/packages/svelte/tests/validator/samples/static-state-reference/input.svelte	mismatch
 svelte/svelte/playgrounds/sandbox/scripts/main.template.svelte	refused
 svelte/sveltekit/packages/enhanced-img/test/Input.svelte	refused
 svelte/sveltekit/packages/kit/src/runtime/components/root.svelte	refused
@@ -10645,7 +10638,6 @@ svelte/syntaxfm-website/src/lib/Pagination.svelte	refused
 svelte/syntaxfm-website/src/lib/PodcastHero.svelte	refused
 svelte/syntaxfm-website/src/lib/SelectMenu.svelte	refused
 svelte/syntaxfm-website/src/lib/ShowCard.svelte	refused
-svelte/syntaxfm-website/src/lib/ShowTable.svelte	mismatch
 svelte/syntaxfm-website/src/lib/forms/Input.svelte	refused
 svelte/syntaxfm-website/src/lib/forms/UserSubmissionForm.svelte	refused
 svelte/syntaxfm-website/src/lib/hosts/HostSocialLink.svelte	mismatch
@@ -10663,7 +10655,6 @@ svelte/syntaxfm-website/src/lib/search/SearchResults.svelte	refused
 svelte/syntaxfm-website/src/lib/share/HairButton.svelte	mismatch
 svelte/syntaxfm-website/src/lib/share/ShareActions.svelte	refused
 svelte/syntaxfm-website/src/lib/share/ShareWindow.svelte	refused
-svelte/syntaxfm-website/src/lib/transcript/TableOfContents.svelte	mismatch
 svelte/syntaxfm-website/src/lib/transcript/Transcript.svelte	mismatch
 svelte/syntaxfm-website/src/params/ThemeMaker.svelte	refused
 svelte/syntaxfm-website/src/routes/(blank)/+layout.svelte	refused

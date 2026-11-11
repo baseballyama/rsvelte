@@ -15,7 +15,9 @@ use rsvelte_kernel::source::positions::Span;
 pub(crate) use rsvelte_svelte_syntax::names::is_component_name;
 pub use rsvelte_svelte_syntax::syntax_tree::Part;
 use rsvelte_svelte_syntax::syntax_tree::{TemplateNodeIdentifier, decode_text};
-use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_tree::{
+    DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
+};
 
 newtype_index!(
     pub struct CompilerNodeIdentifier;
@@ -33,14 +35,16 @@ pub struct CompilerSyntaxTree {
     pub origin: IndexVector<CompilerNodeIdentifier, TemplateNodeIdentifier>,
     children: Vec<CompilerNodeIdentifier>,
     branches: Vec<Branch>,
-    /// Lists of JavaScript nodes: snippet parameters and `{@debug}` identifiers.
-    javascript_lists: Vec<NodeIdentifier>,
+    /// The identifiers of every `{@debug}`.
+    debug_identifiers: Vec<ExpressionIdentifier>,
     // Keep component references outside Node so its size stays fixed.
-    component_references: Vec<(CompilerNodeIdentifier, NodeIdentifier)>,
+    component_references: Vec<(CompilerNodeIdentifier, ExpressionIdentifier)>,
+    /// Every `slot="…"` with a static value, in order (upstream `determine_slot`).
+    static_slots: Vec<AttributeIdentifier>,
     pub root: Children,
 }
 
-/// A slice of [`CompilerSyntaxTree`]'s list of JavaScript nodes.
+/// A slice of [`CompilerSyntaxTree`]'s list of `{@debug}` identifiers.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct NodeList {
     start: u32,
@@ -76,7 +80,7 @@ pub enum NodeKind {
         data: Span,
     },
     Expression {
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
     },
     Element(Element),
     If {
@@ -87,7 +91,7 @@ pub enum NodeKind {
     Each(Each),
     /// `{#key expression}…{/key}`
     Key {
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
         body: Children,
     },
     /// Boxed: the three branches would make every node larger, and the block is rare.
@@ -95,15 +99,15 @@ pub enum NodeKind {
     Snippet(Snippet),
     /// `{@render f(…)}`: a call or an optional call.
     Render {
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
     },
     /// `{@html expression}`
     Html {
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
     },
     /// `{@const pattern = expression}`: a `const` declaration in the enclosing fragment's scope.
     Const {
-        declaration: NodeIdentifier,
+        declaration: DeclarationIdentifier,
     },
     /// `{@debug a, b}`
     Debug {
@@ -111,7 +115,7 @@ pub enum NodeKind {
     },
     /// `{let …}` or `{const …}`: a declaration in the enclosing fragment's scope.
     Declaration {
-        declaration: NodeIdentifier,
+        declaration: DeclarationIdentifier,
     },
 }
 
@@ -119,10 +123,9 @@ pub enum NodeKind {
 /// declared in scopes of their own, which only their branch sees.
 #[derive(Debug)]
 pub struct Await {
-    pub expression: NodeIdentifier,
-    /// A pattern node; `NodeIdentifier::NONE` when absent, as is `error`.
-    pub value: NodeIdentifier,
-    pub error: NodeIdentifier,
+    pub expression: ExpressionIdentifier,
+    pub value: Option<PatternIdentifier>,
+    pub error: Option<PatternIdentifier>,
     pending: Children,
     then: Children,
     catch: Children,
@@ -137,9 +140,9 @@ impl Await {
 
     #[must_use]
     pub(crate) fn new(
-        expression: NodeIdentifier,
-        value: NodeIdentifier,
-        error: NodeIdentifier,
+        expression: ExpressionIdentifier,
+        value: Option<PatternIdentifier>,
+        error: Option<PatternIdentifier>,
         pending: Option<Children>,
         then: Option<Children>,
         catch: Option<Children>,
@@ -180,16 +183,6 @@ impl Await {
         self.branch(self.catch, Self::CATCH)
     }
 
-    #[must_use]
-    pub(crate) const fn value(&self) -> Option<NodeIdentifier> {
-        some(self.value)
-    }
-
-    #[must_use]
-    pub(crate) const fn error(&self) -> Option<NodeIdentifier> {
-        some(self.error)
-    }
-
     const fn branch(&self, children: Children, bit: u8) -> Option<Children> {
         if self.present & bit == 0 {
             None
@@ -203,10 +196,10 @@ impl Await {
 /// scope, the parameters in a scope of their own that the body sees.
 #[derive(Debug)]
 pub struct Snippet {
-    /// An identifier node.
-    pub name: NodeIdentifier,
-    /// Pattern nodes.
-    pub parameters: NodeList,
+    /// An identifier.
+    pub name: ExpressionIdentifier,
+    /// `None` for `{#snippet name()}`.
+    pub parameters: Option<ParametersIdentifier>,
     pub body: Children,
 }
 
@@ -215,53 +208,31 @@ pub struct Snippet {
 /// fallback do not.
 #[derive(Debug)]
 pub struct Each {
-    pub collection: NodeIdentifier,
-    /// A pattern node; `NodeIdentifier::NONE` when absent, as are `index` and `key`.
-    pub context: NodeIdentifier,
-    /// An identifier node.
-    pub index: NodeIdentifier,
-    pub key: NodeIdentifier,
+    pub collection: ExpressionIdentifier,
+    pub context: Option<PatternIdentifier>,
+    /// An identifier.
+    pub index: Option<PatternIdentifier>,
+    pub key: Option<ExpressionIdentifier>,
     pub body: Children,
     pub fallback: Option<Children>,
 }
 
 impl Each {
-    #[must_use]
-    pub const fn context(&self) -> Option<NodeIdentifier> {
-        some(self.context)
-    }
-
-    #[must_use]
-    pub const fn index(&self) -> Option<NodeIdentifier> {
-        some(self.index)
-    }
-
-    #[must_use]
-    pub const fn key(&self) -> Option<NodeIdentifier> {
-        some(self.key)
-    }
-
     /// Upstream's `metadata.keyed`: a key other than the index itself.
     #[must_use]
-    pub fn keyed(&self, javascript: &rsvelte_typescript_syntax::SyntaxTree) -> bool {
-        let Some(key) = self.key() else {
+    pub fn keyed(&self, javascript: &rsvelte_typescript_tree::Tree) -> bool {
+        let Some(key) = self.key else {
             return false;
         };
-        let is_index = matches!(
-            javascript.kind(key),
-            rsvelte_typescript_syntax::Kind::Identifier(_)
-        ) && self.index().is_some_and(|i| {
-            javascript.atom(i).is_some() && javascript.atom(i) == javascript.atom(key)
-        });
+        let is_index = match (javascript.get_expression(key), self.index) {
+            (oxc_ast::ast::Expression::Identifier(key), Some(index)) => javascript
+                .get_pattern(index)
+                .pattern
+                .get_binding_identifier()
+                .is_some_and(|index| index.name == key.name),
+            _ => false,
+        };
         !is_index
-    }
-}
-
-const fn some(identifier: NodeIdentifier) -> Option<NodeIdentifier> {
-    if identifier.0 == NodeIdentifier::NONE.0 {
-        None
-    } else {
-        Some(identifier)
     }
 }
 
@@ -326,7 +297,7 @@ pub struct Branches {
 
 #[derive(Debug)]
 pub struct Branch {
-    pub test: NodeIdentifier,
+    pub test: ExpressionIdentifier,
     pub body: Children,
     pub origin: TemplateNodeIdentifier,
 }
@@ -336,7 +307,7 @@ impl CompilerSyntaxTree {
     pub fn component_reference(
         &self,
         identifier: CompilerNodeIdentifier,
-    ) -> Option<NodeIdentifier> {
+    ) -> Option<ExpressionIdentifier> {
         let index = self
             .component_references
             .binary_search_by_key(&identifier, |&(node, _)| node)
@@ -344,8 +315,17 @@ impl CompilerSyntaxTree {
         Some(self.component_references[index].1)
     }
 
+    /// Whether `attributes` hold a `slot` with a static value (upstream `determine_slot`).
+    #[must_use]
+    pub fn has_static_slot(&self, attributes: IndexRange<AttributeIdentifier>) -> bool {
+        let at = self.static_slots.partition_point(|&a| a < attributes.start);
+        self.static_slots
+            .get(at)
+            .is_some_and(|&a| a < attributes.end)
+    }
+
     /// The expression each component element names its component by.
-    pub fn component_references(&self) -> impl Iterator<Item = NodeIdentifier> + '_ {
+    pub fn component_references(&self) -> impl Iterator<Item = ExpressionIdentifier> + '_ {
         self.component_references
             .iter()
             .map(|&(_, reference)| reference)
@@ -362,8 +342,8 @@ impl CompilerSyntaxTree {
     }
 
     #[must_use]
-    pub fn javascript_list(&self, l: NodeList) -> &[NodeIdentifier] {
-        &self.javascript_lists[l.start as usize..(l.start + l.len) as usize]
+    pub fn debug_identifiers(&self, l: NodeList) -> &[ExpressionIdentifier] {
+        &self.debug_identifiers[l.start as usize..(l.start + l.len) as usize]
     }
 
     #[must_use]

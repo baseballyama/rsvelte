@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Each_index($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
 		let { items } = $$props;

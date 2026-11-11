@@ -1,5 +1,5 @@
 use rsvelte_kernel::index::IndexVector;
-use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 use rustc_hash::FxHashMap;
 
 use super::ExpressionMetadata;
@@ -11,7 +11,7 @@ use crate::input::ComponentInput;
 /// in it, and every block and tag reads or declares one.
 pub(super) fn mark_dynamic(
     input: &ComponentInput<'_>,
-    expressions: &FxHashMap<NodeIdentifier, ExpressionMetadata>,
+    expressions: &FxHashMap<ExpressionIdentifier, ExpressionMetadata>,
     list: &[CompilerNodeIdentifier],
     out: &mut IndexVector<CompilerNodeIdentifier, bool>,
 ) -> bool {
@@ -77,7 +77,7 @@ pub(super) fn mark_dynamic(
 }
 
 fn attribute_is_dynamic(
-    expressions: &FxHashMap<NodeIdentifier, ExpressionMetadata>,
+    expressions: &FxHashMap<ExpressionIdentifier, ExpressionMetadata>,
     el: &compiler_syntax_tree::Element,
     a: &compiler_syntax_tree::Attribute,
     source_text: &str,

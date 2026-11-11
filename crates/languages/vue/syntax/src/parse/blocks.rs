@@ -1,8 +1,6 @@
-use super::{
-    Diagnostic, P, R, Script, Span, Style, TagAttributes, Template, TokenType, parse_program,
-};
+use super::{Diagnostic, P, R, Script, Span, Style, TagAttributes, Template, TokenType};
 
-impl P<'_> {
+impl P<'_, '_> {
     // ---- the top level ---------------------------------------------------------------------
 
     pub(super) fn blocks(&mut self) -> R<()> {
@@ -170,15 +168,7 @@ impl P<'_> {
         if self.c.script.is_some() {
             return Self::err_at(content, "a component can have only one <script setup>");
         }
-        let (t, c) = self.marks();
-        let program = parse_program(
-            &mut self.c.javascript,
-            self.source_text,
-            content,
-            self.c.typescript,
-        )
-        .map_err(|e| Diagnostic::error("js_parse_error", e.message, e.span))?;
-        self.javascript_region(content.start_offset, content.end_offset, t, c);
+        let program = self.program(content)?;
         self.close_tag("script")?;
         self.c.script = Some(Script {
             span: Span::new(start_offset as u32, self.position as u32),

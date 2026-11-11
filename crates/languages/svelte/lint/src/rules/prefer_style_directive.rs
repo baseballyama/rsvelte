@@ -1,12 +1,14 @@
+use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_stylesheet_syntax::postcss::InlineNode;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, TemplateNode};
-use rsvelte_typescript_syntax::syntax_tree::{Kind, Tag};
+use rsvelte_typescript_tree::ExpressionIdentifier;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::element_kind::is_html_like;
+use super::nodes;
 use super::style_attribute::{expression_of_hole, inline_style, is_style, literal_style};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -112,28 +114,29 @@ impl SvelteRule for PreferStyleDirective {
 /// `style:property={…}`.
 fn conditional<'s>(
     file: &File<'s>,
-    expression: rsvelte_typescript_syntax::NodeIdentifier,
+    expression: ExpressionIdentifier,
     directive: &impl Fn(&str) -> bool,
 ) -> Option<(Span, &'s str, String)> {
-    let javascript = file.javascript();
     let source = file.source();
-    let Kind::Conditional {
-        test,
-        consequent,
-        alternate,
-    } = javascript.kind(expression)
+    let expression = file.javascript().get_expression(expression);
+    let Expression::ConditionalExpression(conditional) = expression else {
+        return None;
+    };
+    let (Expression::StringLiteral(when_true), Expression::StringLiteral(when_false)) =
+        (&conditional.consequent, &conditional.alternate)
     else {
         return None;
     };
-    if javascript.tag(consequent) != Tag::String || javascript.tag(alternate) != Tag::String {
+    let positive = when_false.value.is_empty();
+    if !positive && !when_true.value.is_empty() {
         return None;
     }
-    let positive = javascript.str_value(alternate, source).is_empty();
-    if !positive && !javascript.str_value(consequent, source).is_empty() {
-        return None;
-    }
-    let literal = if positive { consequent } else { alternate };
-    let nodes = literal_style(javascript, source, literal)?;
+    let literal = if positive {
+        &conditional.consequent
+    } else {
+        &conditional.alternate
+    };
+    let nodes = literal_style(source, literal)?;
     let [InlineNode::Declaration(declaration)] = nodes.as_slice() else {
         return None;
     };
@@ -141,13 +144,11 @@ fn conditional<'s>(
     if directive(property) {
         return None;
     }
-    let span = |node| {
-        javascript
-            .source_location(node)
-            .span()
-            .expect("a source node has a span")
-    };
-    let (test, consequent, alternate) = (span(test), span(consequent), span(alternate));
+    let (test, consequent, alternate) = (
+        nodes::span(&conditional.test),
+        nodes::span(&conditional.consequent),
+        nodes::span(&conditional.alternate),
+    );
     let quoted = |literal: Span| {
         let quotes = literal.text(source);
         format!(
@@ -180,20 +181,10 @@ fn conditional<'s>(
         ""
     };
     Some((
-        span_of(javascript, expression),
+        nodes::span(expression),
         property,
         format!("style:{property}{important}={{{value}}}"),
     ))
-}
-
-fn span_of(
-    javascript: &rsvelte_typescript_syntax::SyntaxTree,
-    node: rsvelte_typescript_syntax::NodeIdentifier,
-) -> Span {
-    javascript
-        .source_location(node)
-        .span()
-        .expect("a source node has a span")
 }
 
 /// Moves node `index` of the style out of `attribute` and into a directive `text`.

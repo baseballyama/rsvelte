@@ -5,7 +5,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, ElementKind, MetadataTag, NodeKind,
 };
 use rsvelte_svelte_syntax::syntax_tree::decode_text;
-use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 /// A node after whitespace cleaning; text may have been trimmed, so it carries its own strings.
 #[derive(Debug, Clone)]
@@ -13,7 +13,7 @@ pub enum Item<'a> {
     /// An element or block.
     Node(CompilerNodeIdentifier),
     /// An `{expression}` tag, or an expression chunk of an attribute value.
-    Expression(NodeIdentifier),
+    Expression(ExpressionIdentifier),
     Text {
         data: Cow<'a, str>,
         raw: Cow<'a, str>,

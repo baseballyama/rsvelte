@@ -1,10 +1,12 @@
+use oxc_ast::ast::Expression;
+
+use crate::lower::builder::Runtime;
 use crate::lower::client::{
-    AssignmentOperator, Attribute, AttributeValue, ClientCompilationContext,
-    CompilerNodeIdentifier, Frag, Lists, NodeIdentifier, R, SourceLocation, event_attribute,
-    normalize_attribute, unsupported,
+    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, R,
+    event_attribute, is_behaviour, is_directive, normalize_attribute, unsupported,
 };
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// The attribute loop of upstream `RegularElement` (no spread).
     pub(in crate::lower::client) fn element_attributes(
         &mut self,
@@ -12,18 +14,26 @@ impl ClientCompilationContext<'_> {
         tag: &str,
         attributes: &[Attribute],
         node: &str,
-        frag: &mut Frag,
-        l: &mut Lists,
+        frag: &mut Frag<'o>,
+        l: &mut Lists<'o>,
     ) -> R<()> {
         let class_directives: Vec<&Attribute> = attributes
             .iter()
             .filter(|a| matches!(a.value, AttributeValue::Class(_)))
             .collect();
+        let style_directives: Vec<&Attribute> = attributes
+            .iter()
+            .filter(|a| matches!(a.value, AttributeValue::Style { .. }))
+            .collect();
+        let html = self.plan.namespace(identifier) == crate::render_plan::Namespace::Html;
         for a in attributes {
-            if let AttributeValue::Bind(_)
-            | AttributeValue::Attach(_)
-            | AttributeValue::On { .. }
-            | AttributeValue::Class(_) = a.value
+            if is_behaviour(&a.value)
+                || matches!(
+                    a.value,
+                    AttributeValue::Bind(_)
+                        | AttributeValue::Class(_)
+                        | AttributeValue::Style { .. }
+                )
             {
                 continue;
             }
@@ -32,7 +42,12 @@ impl ClientCompilationContext<'_> {
                 self.event(raw_name, handler, node, l);
                 continue;
             }
-            let attribute_name = normalize_attribute(raw_name);
+            // Upstream `get_attribute_name`: svg and MathML keep the name's case.
+            let attribute_name = if html {
+                normalize_attribute(raw_name)
+            } else {
+                raw_name.to_owned()
+            };
             // `select_value` sets these once the options exist.
             if (matches!(tag, "option" | "select") && raw_name == "value")
                 || (tag == "select" && attribute_name == "defaultValue")
@@ -46,6 +61,7 @@ impl ClientCompilationContext<'_> {
             };
             if !crate::lower::cannot_be_set_statically(raw_name)
                 && (attribute_name != "class" || class_directives.is_empty())
+                && (attribute_name != "style" || style_directives.is_empty())
                 && let Some(value) = literal
             {
                 self.static_attribute(frag, identifier, raw_name, &attribute_name, value);
@@ -58,12 +74,15 @@ impl ClientCompilationContext<'_> {
                     &mut frag.memo,
                     l,
                 );
-            } else if attribute_name == "autofocus" || attribute_name == "style" {
-                return unsupported(&format!("a dynamic `{attribute_name}` attribute"), a.span);
+            } else if attribute_name == "autofocus" {
+                return unsupported("a dynamic `autofocus` attribute", a.span);
+            } else if attribute_name == "style" {
+                self.set_style(node, Some(a), &style_directives, &mut frag.memo, l)?;
             } else {
                 let (value, has_state) = self.attribute_value(a, &mut frag.memo, false);
-                let update = self.attribute_update(node, &attribute_name, value);
-                let s = self.statement(update);
+                let s = self
+                    .b
+                    .stmt(self.attribute_update(node, &attribute_name, value));
                 if has_state {
                     l.update.push(s);
                 } else {
@@ -81,12 +100,19 @@ impl ClientCompilationContext<'_> {
         } else if !has_class && self.an.scoped[identifier] {
             self.static_attribute(frag, identifier, "class", "class", Some(String::new()));
         }
+        // And `style=""` to one with `style:`.
+        let has_style = attributes.iter().any(|a| {
+            !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("style")
+        });
+        if !has_style && !style_directives.is_empty() {
+            self.set_style(node, None, &style_directives, &mut frag.memo, l)?;
+        }
         Ok(())
     }
 
     fn static_attribute(
         &self,
-        frag: &mut Frag,
+        frag: &mut Frag<'o>,
         identifier: CompilerNodeIdentifier,
         raw_name: &str,
         attribute_name: &str,
@@ -111,43 +137,22 @@ impl ClientCompilationContext<'_> {
     }
 
     /// Upstream `build_element_attribute_update`.
-    fn attribute_update(
-        &mut self,
-        node: &str,
-        name: &str,
-        value: NodeIdentifier,
-    ) -> NodeIdentifier {
-        let x = self.out.identifier(node);
+    fn attribute_update(&self, node: &str, name: &str, value: Expression<'o>) -> Expression<'o> {
+        let b = self.b;
+        let x = b.id(node);
         match name {
-            "muted" => {
-                let target = self.out.dot(x, "muted");
-                self.out.assign(
-                    AssignmentOperator::Assign,
-                    target,
-                    value,
-                    SourceLocation::SYNTHETIC,
-                )
-            }
-            "value" => self.call("set_value", vec![Some(x), Some(value)]),
-            "checked" => self.call("set_checked", vec![Some(x), Some(value)]),
-            "selected" => self.call("set_selected", vec![Some(x), Some(value)]),
-            _ if crate::lower::is_dom_property(name) => {
-                let target = self.out.dot(x, name);
-                self.out.assign(
-                    AssignmentOperator::Assign,
-                    target,
-                    value,
-                    SourceLocation::SYNTHETIC,
-                )
-            }
+            "muted" => b.assign_member(b.member(x, "muted"), value),
+            "value" => b.runtime("set_value", [x, value]),
+            "checked" => b.runtime("set_checked", [x, value]),
+            "selected" => b.runtime("set_selected", [x, value]),
+            _ if crate::lower::is_dom_property(name) => b.assign_member(b.member(x, name), value),
             _ => {
                 let method = if name.starts_with("xlink") {
                     "set_xlink_attribute"
                 } else {
                     "set_attribute"
                 };
-                let n = self.out.write_string(name);
-                self.call(method, vec![Some(x), Some(n), Some(value)])
+                b.runtime(method, [x, b.string(name), value])
             }
         }
     }

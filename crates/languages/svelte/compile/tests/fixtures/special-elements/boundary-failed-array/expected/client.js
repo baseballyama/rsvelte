@@ -1,11 +1,7 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<p> </p>`);
-
 var root_1 = $.from_html(`<p>Ready</p>`);
-
 export default function Boundary_failed_array($$anchor) {
 	var fragment = $.comment();
 	var node = $.first_child(fragment);
@@ -16,7 +12,7 @@ export default function Boundary_failed_array($$anchor) {
 			let rest = () => $.get($$array).slice(1);
 			var p = root();
 			var text = $.only_child(p);
-			$.template_effect(() => $.set_text(text, `${first() ?? ''}: ${rest().length ?? ''}`));
+			$.template_effect(() => $.set_text(text, `${first() ?? ""}: ${rest().length ?? ""}`));
 			$.append($$anchor, p);
 		};
 		$.boundary(node, { failed }, ($$anchor) => {

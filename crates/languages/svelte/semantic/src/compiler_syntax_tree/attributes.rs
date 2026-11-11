@@ -1,7 +1,7 @@
 //! An element's attributes and directives.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{CompilerNodeIdentifier, Part};
 
@@ -50,45 +50,45 @@ pub enum AttributeValue {
     Static(Box<str>),
     /// `a={e}`, or `a="{e}"` with `quoted`.
     Expression {
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
         quoted: bool,
     },
     /// `{a}`
-    Shorthand(NodeIdentifier),
+    Shorthand(ExpressionIdentifier),
     /// Text and expressions, or several expressions: `class="a {b}"`. Empty for `a=` followed by
     /// nothing, which is not the empty text `a=""`: the compiler sets it at runtime.
     Interpolated(Box<[Part]>),
     /// `bind:name={e}`: the attribute's name is the bound property.
-    Bind(NodeIdentifier),
+    Bind(ExpressionIdentifier),
     /// `{@attach e}`: the attribute's name is empty.
-    Attach(NodeIdentifier),
+    Attach(ExpressionIdentifier),
     /// `class:name={e}`: the attribute's name is the class.
-    Class(NodeIdentifier),
+    Class(ExpressionIdentifier),
     /// `{...e}`: the attribute's name is empty.
-    Spread(NodeIdentifier),
+    Spread(ExpressionIdentifier),
     /// `on:name={handler}`: the attribute's name is the event; without a handler the event is
     /// forwarded.
     On {
-        handler: Option<NodeIdentifier>,
+        handler: Option<ExpressionIdentifier>,
         modifiers: Modifiers,
     },
     /// `use:action={argument}`: `action` is an identifier or a member chain.
     Use {
-        action: NodeIdentifier,
-        argument: Option<NodeIdentifier>,
+        action: ExpressionIdentifier,
+        argument: Option<ExpressionIdentifier>,
     },
     /// `transition:`, `in:` or `out:`.
     Transition {
-        function: NodeIdentifier,
-        argument: Option<NodeIdentifier>,
+        function: ExpressionIdentifier,
+        argument: Option<ExpressionIdentifier>,
         intro: bool,
         outro: bool,
         modifiers: Modifiers,
     },
     /// `animate:name={parameters}`
     Animate {
-        function: NodeIdentifier,
-        argument: Option<NodeIdentifier>,
+        function: ExpressionIdentifier,
+        argument: Option<ExpressionIdentifier>,
     },
     /// `style:property={value}`: the attribute's name is the property. Boxed: the value has the
     /// shapes of an attribute's, and directives are rare.
@@ -97,19 +97,19 @@ pub enum AttributeValue {
         modifiers: Modifiers,
     },
     /// `let:name={pattern}`
-    Let(Option<NodeIdentifier>),
+    Let(Option<ExpressionIdentifier>),
 }
 
 /// The value of a `style:` directive.
 #[derive(Debug)]
 pub enum StyleValue {
     /// `style:color`, which reads `color`.
-    Shorthand(NodeIdentifier),
+    Shorthand(ExpressionIdentifier),
     /// `style:--name`: nothing to read.
     Empty,
     Static(Box<str>),
     Expression {
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
         quoted: bool,
     },
     Interpolated(Box<[Part]>),

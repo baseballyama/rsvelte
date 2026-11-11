@@ -1,5 +1,12 @@
 use std::collections::BTreeMap;
 
+use oxc_ast::AstKind;
+use oxc_ast::ast::Statement;
+use oxc_semantic::{AstNodes, NodeId};
+use oxc_syntax::operator::BinaryOperator::{
+    Equality, Inequality, Instanceof, StrictEquality, StrictInequality,
+};
+use oxc_syntax::operator::{LogicalOperator, UnaryOperator};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
@@ -7,17 +14,12 @@ use rsvelte_typescript_semantic::globals::{Global, global};
 use rsvelte_typescript_semantic::reference_tracker::{
     global_references_matching, import_references, property_references,
 };
-use rsvelte_typescript_semantic::scope::Semantic;
+use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_semantic::static_value::{StaticValues, Value};
-use rsvelte_typescript_syntax::operators::BinaryOperator::{
-    Eq, InstanceOf, NotEq, StrictEq, StrictNotEq,
-};
-use rsvelte_typescript_syntax::operators::{LogicalOperator, UnaryOperator};
-use rsvelte_typescript_syntax::syntax_tree::Control;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::nodes::{is_named, roots, span, walk};
+use super::javascript::walk;
+use super::nodes::span;
 use super::runes::is_svelte_file;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -54,49 +56,33 @@ impl SvelteRule for NoTopLevelBrowserGlobals {
         if !is_svelte_file(file) {
             return;
         }
-        let tree = file.javascript();
-        let sem = file.semantic();
-        let parents = file.parents();
-        let source = file.source();
-        let mut guards = Guards::new(file, tree, sem, parents);
+        let semantic = file.semantic();
+        let mut guards = Guards::new(file, semantic);
         let mut found = Vec::new();
         let mut available: Vec<Available<'_>> = Vec::new();
         let mut functions = Vec::new();
-        walk(file, |node| {
-            if matches!(tree.kind(node), Kind::Function { .. } | Kind::Arrow { .. }) {
-                functions.push(span(tree, node));
-            }
-            if let Kind::MetaProperty { meta, property } = tree.kind(node)
-                && is_named(tree, meta, "import")
-                && is_named(tree, property, "meta")
-            {
+        walk(file, |node| match node.kind() {
+            AstKind::Function(function) => functions.push(span(function)),
+            AstKind::ArrowFunctionExpression(arrow) => functions.push(span(arrow)),
+            AstKind::ImportMeta(_) => {
                 // `import.meta.env.SSR`, which Vite sets on the server.
-                found.extend(property_references(
-                    tree,
-                    sem,
-                    parents,
-                    source,
-                    node,
-                    &["env"],
-                    &["SSR"],
-                ));
+                found.extend(property_references(semantic, node.id(), &["env"], &["SSR"]));
             }
+            _ => {}
         });
         guards.not_top_level(functions);
         for reference in std::mem::take(&mut found) {
             available.extend(guards.checker(reference.node, true).map(Available::browser));
         }
-        let programs: Vec<NodeIdentifier> = roots(file)
-            .into_iter()
-            .filter(|&root| matches!(tree.kind(root), Kind::Program(_)))
-            .collect();
+        let programs = file.programs();
         for (module, export) in ENVIRONMENT_MODULES {
-            for reference in
-                import_references(tree, sem, parents, source, &programs, module, &[export])
-            {
+            for reference in import_references(semantic, &programs, module, &[export]) {
                 if matches!(
-                    tree.kind(reference.node),
-                    Kind::Identifier(_) | Kind::Member { .. }
+                    guards.nodes.kind(reference.node),
+                    AstKind::IdentifierReference(_)
+                        | AstKind::StaticMemberExpression(_)
+                        | AstKind::ComputedMemberExpression(_)
+                        | AstKind::PrivateFieldExpression(_)
                 ) && guards.is_top_level(reference.node)
                 {
                     available.extend(
@@ -108,14 +94,7 @@ impl SvelteRule for NoTopLevelBrowserGlobals {
             }
         }
         let mut candidates = Vec::new();
-        for reference in global_references_matching(
-            tree,
-            sem,
-            parents,
-            source,
-            is_browser_global,
-            &["globalThis"],
-        ) {
+        for reference in global_references_matching(semantic, is_browser_global, &["globalThis"]) {
             let node = reference.node;
             if !guards.is_top_level(node) {
                 continue;
@@ -130,15 +109,15 @@ impl SvelteRule for NoTopLevelBrowserGlobals {
                 None => candidates.push((node, name)),
             }
         }
-        report_unguarded(tree, available, candidates, reporter);
+        report_unguarded(guards.nodes, available, candidates, reporter);
     }
 }
 
 /// Reports each candidate no guard covers.
 fn report_unguarded(
-    tree: &SyntaxTree,
+    nodes: &AstNodes<'_>,
     available: Vec<Available<'_>>,
-    candidates: Vec<(NodeIdentifier, &str)>,
+    candidates: Vec<(NodeId, &str)>,
     reporter: &mut Reporter<'_>,
 ) {
     let mut browser = Coverage::default();
@@ -154,7 +133,7 @@ fn report_unguarded(
         coverage.index();
     }
     for (node, name) in candidates {
-        let at = span(tree, node);
+        let at = span(&nodes.kind(node));
         let guarded =
             browser.contains(node, at) || by_name.get(name).is_some_and(|c| c.contains(node, at));
         if !guarded {
@@ -193,7 +172,7 @@ impl Available<'_> {
 #[derive(Debug, Default)]
 struct Checker {
     ranges: Vec<Span>,
-    node: Option<NodeIdentifier>,
+    node: Option<NodeId>,
 }
 
 impl Checker {
@@ -210,7 +189,7 @@ impl Checker {
 struct Coverage {
     /// Sorted by start, each with the furthest end of it and the ranges before it.
     ranges: Vec<(u32, u32)>,
-    nodes: FxHashSet<NodeIdentifier>,
+    nodes: FxHashSet<NodeId>,
 }
 
 impl Coverage {
@@ -234,19 +213,18 @@ impl Coverage {
     }
 
     /// Some range that starts at or before `at` also ends at or after it, or the guard is `node`.
-    fn contains(&self, node: NodeIdentifier, at: Span) -> bool {
+    fn contains(&self, node: NodeId, at: Span) -> bool {
         let i = self.ranges.partition_point(|r| r.0 <= at.start_offset);
         (i > 0 && at.end_offset <= self.ranges[i - 1].1) || self.nodes.contains(&node)
     }
 }
 
-/// What the guards are decided by: the tree, and the template's `{#if}` tests and snippets.
+/// What the guards are decided by: the trees, and the template's `{#if}` tests and snippets.
 struct Guards<'a> {
-    tree: &'a SyntaxTree,
+    nodes: &'a AstNodes<'a>,
     values: StaticValues<'a>,
-    parents: &'a [NodeIdentifier],
     /// A template `{#if}` test, with the ranges its branch and its `{:else}` cover.
-    if_tests: FxHashMap<NodeIdentifier, (Option<Span>, Option<Span>)>,
+    if_tests: FxHashMap<NodeId, (Option<Span>, Option<Span>)>,
     /// The outermost functions and snippets, in order; nothing in them is top-level.
     enclosed: Vec<Span>,
     /// A script's statements are not in a program upstream but in a `<script>` element.
@@ -254,12 +232,7 @@ struct Guards<'a> {
 }
 
 impl<'a> Guards<'a> {
-    fn new(
-        file: &File<'a>,
-        tree: &'a SyntaxTree,
-        sem: &'a Semantic,
-        parents: &'a [NodeIdentifier],
-    ) -> Self {
+    fn new(file: &File<'a>, semantic: &'a Semantic) -> Self {
         let mut if_tests = FxHashMap::default();
         let mut enclosed: Vec<Span> = Vec::new();
         if let Some(component) = file.component() {
@@ -272,7 +245,7 @@ impl<'a> Guards<'a> {
                         ..
                     } => {
                         if_tests.insert(
-                            *test,
+                            component.javascript.get_expression(*test).node_id(),
                             (
                                 cover(component, *consequent),
                                 alternate.and_then(|a| cover(component, a)),
@@ -285,17 +258,24 @@ impl<'a> Guards<'a> {
             }
         }
         Self {
-            tree,
-            values: StaticValues::new(tree, file.source(), Some(sem)),
-            parents,
+            nodes: semantic.nodes(),
+            values: StaticValues::new(semantic),
             if_tests,
             enclosed,
             statements_in_program: !file.is_component(),
         }
     }
 
-    fn parent(&self, node: NodeIdentifier) -> Option<NodeIdentifier> {
-        self.parents[node.index()].opt()
+    /// The parent of `node`; `None` at a program, whose children are a script's statements and
+    /// the template's expressions.
+    fn parent(&self, node: NodeId) -> Option<NodeId> {
+        let parent = self.nodes.parent_id(node);
+        (parent != node && !matches!(self.nodes.kind(parent), AstKind::Program(_)))
+            .then_some(parent)
+    }
+
+    fn span(&self, node: NodeId) -> Span {
+        span(&self.nodes.kind(node))
     }
 
     /// Adds the functions to the snippets, and keeps the outermost of them in order.
@@ -315,64 +295,84 @@ impl<'a> Guards<'a> {
     }
 
     /// Outside every function and snippet: a node is in one exactly when its range is.
-    fn is_top_level(&self, node: NodeIdentifier) -> bool {
-        let at = span(self.tree, node);
+    fn is_top_level(&self, node: NodeId) -> bool {
+        let at = self.span(node);
         let i = self
             .enclosed
             .partition_point(|s| s.start_offset <= at.start_offset);
         !(i > 0 && at.end_offset <= self.enclosed[i - 1].end_offset)
     }
 
+    fn is_member(&self, node: NodeId) -> bool {
+        matches!(
+            self.nodes.kind(node),
+            AstKind::StaticMemberExpression(_)
+                | AstKind::ComputedMemberExpression(_)
+                | AstKind::PrivateFieldExpression(_)
+        )
+    }
+
     /// `getGuardCheckerFromReference`: what a reference to a browser global guards, when it is
     /// a check for that global.
-    fn checker_from_reference(&self, node: NodeIdentifier) -> Option<Checker> {
-        let tree = self.tree;
-        let is_member = matches!(tree.kind(node), Kind::Member { .. });
+    fn checker_from_reference(&self, node: NodeId) -> Option<Checker> {
+        let nodes = self.nodes;
+        let is_member = self.is_member(node);
         let parent = self.parent(node);
-        match parent.map(|p| (p, tree.kind(p))) {
-            Some((parent, Kind::Binary(operator, left, right))) => {
-                if operator == InstanceOf && left == node && is_member {
+        match parent.map(|p| (p, nodes.kind(p))) {
+            Some((parent, AstKind::BinaryExpression(binary))) => {
+                let operator = binary.operator;
+                let left = binary.left.node_id() == node;
+                if operator == Instanceof && left && is_member {
                     return self.checker(parent, false);
                 }
-                let operand = if left == node { right } else { left };
+                let operand = if left { &binary.right } else { &binary.left };
                 if !is_member {
                     return None;
                 }
                 match (self.values.value(operand)?, operator) {
-                    (Value::Undefined, StrictNotEq | NotEq) | (Value::Null, NotEq) => {
-                        self.checker(parent, false)
-                    }
-                    (Value::Undefined, StrictEq | Eq) | (Value::Null, Eq) => {
+                    (Value::Undefined, StrictInequality | Inequality)
+                    | (Value::Null, Inequality) => self.checker(parent, false),
+                    (Value::Undefined, StrictEquality | Equality) | (Value::Null, Equality) => {
                         self.checker(parent, true)
                     }
                     _ => None,
                 }
             }
-            Some((parent, Kind::Unary(UnaryOperator::TypeOf, _))) => {
+            Some((parent, AstKind::UnaryExpression(unary)))
+                if unary.operator == UnaryOperator::Typeof =>
+            {
                 let comparison = self.parent(parent)?;
-                let Kind::Binary(operator, left, right) = tree.kind(comparison) else {
+                let AstKind::BinaryExpression(binary) = nodes.kind(comparison) else {
                     return None;
                 };
-                let other = if left == parent { right } else { left };
+                let other = if binary.left.node_id() == parent {
+                    &binary.right
+                } else {
+                    &binary.left
+                };
                 let undefined = match self.values.value(other)? {
                     Value::String(s) if s == "undefined" => true,
                     Value::String(s) if s == "object" => false,
                     _ => return None,
                 };
-                match operator {
-                    StrictNotEq | NotEq => self.checker(comparison, !undefined),
-                    StrictEq | Eq => self.checker(comparison, undefined),
+                match binary.operator {
+                    StrictInequality | Inequality => self.checker(comparison, !undefined),
+                    StrictEquality | Equality => self.checker(comparison, undefined),
                     _ => None,
                 }
             }
             _ if is_member => {
-                let optional_use = parent.is_some_and(|p| match tree.kind(p) {
-                    Kind::Call {
-                        callee, optional, ..
-                    } => callee == node && optional,
-                    Kind::Member {
-                        object, optional, ..
-                    } => object == node && optional,
+                let optional_use = parent.is_some_and(|p| match nodes.kind(p) {
+                    AstKind::CallExpression(call) => call.callee.node_id() == node && call.optional,
+                    AstKind::StaticMemberExpression(member) => {
+                        member.object.node_id() == node && member.optional
+                    }
+                    AstKind::ComputedMemberExpression(member) => {
+                        member.object.node_id() == node && member.optional
+                    }
+                    AstKind::PrivateFieldExpression(member) => {
+                        member.object.node_id() == node && member.optional
+                    }
                     _ => false,
                 });
                 if optional_use {
@@ -388,61 +388,55 @@ impl<'a> Guards<'a> {
     }
 
     /// `getGuardChecker`: where `node` being truthy (falsy with `not`) holds.
-    fn checker(&self, node: NodeIdentifier, not: bool) -> Option<Checker> {
-        let tree = self.tree;
+    fn checker(&self, node: NodeId, not: bool) -> Option<Checker> {
         let Some(parent) = self.parent(node) else {
             let &(consequent, alternate) = self.if_tests.get(&node)?;
             return if not { alternate } else { consequent }.map(Checker::range);
         };
-        match tree.kind(parent) {
-            Kind::Conditional {
-                consequent,
-                alternate,
-                ..
-            } => Some(Checker::range(span(
-                tree,
-                if not { alternate } else { consequent },
-            ))),
-            Kind::Unary(UnaryOperator::Not, _) => self.checker(parent, !not),
-            Kind::If {
-                test,
-                consequent,
-                alternate,
-            } if test == node => {
+        match self.nodes.kind(parent) {
+            AstKind::ConditionalExpression(conditional) => Some(Checker::range(span(if not {
+                &conditional.alternate
+            } else {
+                &conditional.consequent
+            }))),
+            AstKind::UnaryExpression(unary) if unary.operator == UnaryOperator::LogicalNot => {
+                self.checker(parent, !not)
+            }
+            AstKind::IfStatement(statement) if statement.test.node_id() == node => {
                 if !not {
-                    return Some(Checker::range(span(tree, consequent)));
+                    return Some(Checker::range(span(&statement.consequent)));
                 }
-                if let Some(alternate) = alternate {
-                    return Some(Checker::range(span(tree, alternate)));
+                if let Some(alternate) = &statement.alternate {
+                    return Some(Checker::range(span(alternate)));
                 }
-                if !self.jumps_on_every_path(consequent) {
+                if !jumps_on_every_path(&statement.consequent) {
                     return None;
                 }
-                let host = self.parent(parent)?;
-                let hosts = match tree.kind(host) {
-                    Kind::Block(_) => true,
-                    Kind::Program(_) => self.statements_in_program,
+                let host = self.nodes.parent_id(parent);
+                let hosts = match self.nodes.kind(host) {
+                    AstKind::BlockStatement(_) => true,
+                    AstKind::Program(_) => self.statements_in_program,
                     _ => false,
                 };
                 hosts.then(|| {
                     Checker::range(Span::new(
-                        span(tree, parent).end_offset,
-                        span(tree, host).end_offset,
+                        self.span(parent).end_offset,
+                        self.span(host).end_offset,
                     ))
                 })
             }
-            Kind::Logical(operator, left, right) => {
-                if !not && operator == LogicalOperator::And {
+            AstKind::LogicalExpression(logical) => {
+                if !not && logical.operator == LogicalOperator::And {
                     let mut checker = self.checker(parent, not);
-                    if left == node {
+                    if logical.left.node_id() == node {
                         checker
                             .get_or_insert_default()
                             .ranges
-                            .push(span(tree, right));
+                            .push(span(&logical.right));
                     }
                     return checker;
                 }
-                if not && operator == LogicalOperator::Or {
+                if not && logical.operator == LogicalOperator::Or {
                     return self.checker(parent, not);
                 }
                 None
@@ -450,19 +444,21 @@ impl<'a> Guards<'a> {
             _ => None,
         }
     }
+}
 
-    /// `hasJumpStatementInAllPath`.
-    fn jumps_on_every_path(&self, statement: NodeIdentifier) -> bool {
-        match self.tree.kind(statement) {
-            Kind::Return(_) | Kind::Control(Control::Jump { .. }) => true,
-            Kind::Block(statements) => statements.iter().any(|&s| self.jumps_on_every_path(s)),
-            Kind::If {
-                consequent,
-                alternate: Some(alternate),
-                ..
-            } => self.jumps_on_every_path(alternate) && self.jumps_on_every_path(consequent),
-            _ => false,
+/// `hasJumpStatementInAllPath`.
+fn jumps_on_every_path(statement: &Statement<'_>) -> bool {
+    match statement {
+        Statement::ReturnStatement(_)
+        | Statement::BreakStatement(_)
+        | Statement::ContinueStatement(_) => true,
+        Statement::BlockStatement(block) => block.body.iter().any(jumps_on_every_path),
+        Statement::IfStatement(statement) => {
+            statement.alternate.as_ref().is_some_and(|alternate| {
+                jumps_on_every_path(alternate) && jumps_on_every_path(&statement.consequent)
+            })
         }
+        _ => false,
     }
 }
 

@@ -1,31 +1,35 @@
 mod contract;
 
-use std::cell::OnceCell;
-
+use oxc_ast::ast::Expression;
+use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_semantic::resolve::{self, Runes};
+use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, Range, TemplateNode,
 };
-use rsvelte_typescript_syntax::NodeIdentifier as SourceNode;
-use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use crate::buffers::Buffer;
 use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree};
 
 type Result<T> = std::result::Result<T, Unsupported>;
 
+/// The component's analysis, which `lower` asks for only when a call may be a rune.
+pub type Resolve<'a> = dyn Fn() -> Option<&'a Resolution> + 'a;
+
 /// # Errors
 ///
 /// Returns the source range of a construct whose type semantics are not supported yet.
-pub fn lower(component: &Component, source: &str) -> Result<SyntaxTree> {
+pub fn lower<'a>(
+    component: &'a Component,
+    source: &'a str,
+    resolution: &'a Resolve<'a>,
+) -> Result<SyntaxTree> {
     let mut builder = Builder {
         component,
-        runes: OnceCell::new(),
+        resolution,
         source,
-        suffixes: Buffer::new(0),
-        type_arguments: Buffer::new(0),
         scratch: Buffer::new(2),
         tree: SyntaxTree::default(),
         element_callee: None,
@@ -44,77 +48,68 @@ pub fn lower(component: &Component, source: &str) -> Result<SyntaxTree> {
     Ok(builder.tree)
 }
 
+/// [`lower`] outside the artifact database: it analyzes the component itself, when it must.
+///
+/// # Errors
+///
+/// As [`lower`].
+pub fn lower_alone(component: &Component, source: &str) -> Result<SyntaxTree> {
+    let resolution = std::cell::OnceCell::new();
+    let resolve = || {
+        Some(resolution.get_or_init(|| {
+            let lowered = rsvelte_svelte_semantic::compiler_syntax_tree::lower(component, source);
+            rsvelte_svelte_semantic::resolve::resolve(
+                &component.javascript,
+                component.instance.as_ref().map(|s| s.program),
+                component.module.as_ref().map(|s| s.program),
+                &lowered,
+            )
+        }))
+    };
+    lower(component, source, &resolve)
+}
+
 struct Builder<'a> {
     component: &'a Component,
-    /// Built on the first call that could be a rune; most components make none.
-    runes: OnceCell<Runes>,
+    resolution: &'a Resolve<'a>,
     source: &'a str,
-    suffixes: Buffer<Option<Span>>,
-    type_arguments: Buffer<SourceNode>,
     scratch: Buffer<NodeIdentifier>,
     tree: SyntaxTree,
     element_callee: Option<NodeIdentifier>,
     attachment_key: Option<NodeIdentifier>,
 }
 
+/// The source text at `at`, whose mapping ends at `end` when that is not its own end.
+fn source_expression(at: oxc_span::Span, end: Option<u32>) -> SourceExpression {
+    let span = span(at);
+    SourceExpression {
+        span,
+        end: end.unwrap_or(span.end_offset),
+    }
+}
+
+/// The document position of an oxc node.
+const fn span(span: oxc_span::Span) -> Span {
+    Span::new(span.start, span.end)
+}
+
 impl Builder<'_> {
-    fn source_expression(&mut self, identifier: SourceNode, end: Option<u32>) -> SourceExpression {
-        let span = self
-            .component
-            .javascript
-            .source_location(identifier)
-            .span()
-            .expect("a parsed source node has a range");
-        let suffix = self.suffix(identifier);
-        let span = suffix.map_or(span, |suffix| {
-            Span::new(
-                span.start_offset.min(suffix.start_offset),
-                span.end_offset.max(suffix.end_offset),
-            )
-        });
-        SourceExpression {
-            identifier,
-            span,
-            end: end.unwrap_or(span.end_offset),
-        }
+    fn expression(&self, identifier: ExpressionIdentifier) -> &Expression<'_> {
+        self.component.javascript.get_expression(identifier)
     }
 
-    fn suffix(&mut self, identifier: SourceNode) -> Option<Span> {
-        if self.suffixes.is_empty() && !self.component.javascript.typescript.is_empty() {
-            self.suffixes.resize(self.component.javascript.len(), None);
-            for syntax in &self.component.javascript.typescript {
-                if matches!(
-                    syntax.kind,
-                    TypeScriptKind::As
-                        | TypeScriptKind::Satisfies
-                        | TypeScriptKind::NonNull
-                        | TypeScriptKind::Assertion
-                ) {
-                    let entry = &mut self.suffixes[syntax.node.index()];
-                    *entry = Some(entry.map_or(syntax.span, |span| {
-                        Span::new(
-                            span.start_offset.min(syntax.span.start_offset),
-                            span.end_offset.max(syntax.span.end_offset),
-                        )
-                    }));
-                }
-                if syntax.kind == TypeScriptKind::TypeArgs {
-                    self.type_arguments.push(syntax.node);
-                }
-            }
-            self.type_arguments
-                .sort_unstable_by_key(|node| node.index());
-        }
-        if self.suffixes.is_empty() {
-            None
-        } else {
-            self.suffixes[identifier.index()]
-        }
-    }
-
-    fn source(&mut self, identifier: SourceNode, end: Option<u32>) -> NodeIdentifier {
-        let expression = self.source_expression(identifier, end);
+    fn source(&mut self, at: oxc_span::Span, end: Option<u32>) -> NodeIdentifier {
+        let expression = source_expression(at, end);
         self.tree.push(Node::Source(expression))
+    }
+
+    fn expression_source(
+        &mut self,
+        identifier: ExpressionIdentifier,
+        end: Option<u32>,
+    ) -> NodeIdentifier {
+        let at = self.expression(identifier).span();
+        self.source(at, end)
     }
 
     fn finish_list(&mut self, start: usize) -> Range {
@@ -142,8 +137,8 @@ impl Builder<'_> {
         let node = match *self.component.node(identifier) {
             TemplateNode::Text { .. } | TemplateNode::Comment { .. } => return Ok(None),
             TemplateNode::Expression { expression, span } => {
-                let value = self.source_expression(expression, Some(span.end_offset - 1));
-                Node::Expression(value)
+                let at = self.expression(expression).span();
+                Node::Expression(source_expression(at, Some(span.end_offset - 1)))
             }
             TemplateNode::Element {
                 name,
@@ -162,7 +157,7 @@ impl Builder<'_> {
                 alternate,
                 ..
             } => {
-                let test = self.source(test, None);
+                let test = self.expression_source(test, None);
                 let consequent = self.children(consequent)?;
                 let alternate = alternate.map(|range| self.children(range)).transpose()?;
                 Node::If {
@@ -182,15 +177,19 @@ impl Builder<'_> {
                 ..
             } => {
                 let start = self.scratch.len();
-                let expression = self.source(expression, None);
+                let expression = self.expression_source(expression, None);
                 let callee = self.tree.push(Node::Identifier("__rsvelte_each"));
                 let arguments = self.tree.list(&[expression]);
                 let iterable = self.tree.push(Node::Call { callee, arguments });
-                let index = (index != SourceNode::NONE).then(|| self.source(index, None));
-                let value = (context != SourceNode::NONE).then(|| self.source(context, None));
+                let javascript = &self.component.javascript;
+                let index = index.map(|index| javascript.get_pattern(index).span);
+                let index = index.map(|at| self.source(at, None));
+                // svelte2tsx drops a context's type annotation, and `for…of` takes none.
+                let value = context.map(|context| javascript.get_pattern(context).pattern.span());
+                let value = value.map(|at| self.source(at, None));
                 let binding = self.tree.push(Node::ArrayPattern { index, value });
-                if key != SourceNode::NONE {
-                    let value = self.source_expression(key, None);
+                if let Some(key) = key {
+                    let value = source_expression(self.expression(key).span(), None);
                     self.scratch.push(self.tree.push(Node::Expression(value)));
                 }
                 self.append_children(body)?;
@@ -210,7 +209,8 @@ impl Builder<'_> {
             }
             TemplateNode::Const { declaration, .. }
             | TemplateNode::Declaration { declaration, .. } => {
-                let declaration = self.source(declaration, None);
+                let at = self.component.javascript.get_declaration(declaration).span;
+                let declaration = self.source(at, None);
                 Node::Statement(declaration)
             }
             TemplateNode::Key { span, .. }
@@ -228,11 +228,11 @@ impl Builder<'_> {
     fn element(
         &mut self,
         name: Span,
-        component: SourceNode,
+        component: Option<ExpressionIdentifier>,
         attributes: Range,
         children: Range,
     ) -> Result<NodeIdentifier> {
-        let is_component = component != SourceNode::NONE;
+        let is_component = component.is_some();
         let tag = name.text(self.source);
         if !is_component
             && (!tag.starts_with(|c: char| c.is_ascii_lowercase()) || tag.contains(['-', ':']))
@@ -274,8 +274,8 @@ impl Builder<'_> {
         }
         let properties = self.finish_list(start);
         let properties = self.tree.push(Node::Object { properties });
-        let call = if is_component {
-            let component = self.source(component, None);
+        let call = if let Some(component) = component {
+            let component = self.expression_source(component, None);
             let callee = self.tree.push(Node::Identifier("__rsvelte_component"));
             let arguments = self.tree.list(&[component]);
             let callee = self.tree.push(Node::Call { callee, arguments });
@@ -304,12 +304,12 @@ impl Builder<'_> {
                 && let [Part::Expression { expression, .. }] = self.component.parts(parts)
             {
                 if matches!(
-                    self.component.javascript.kind(*expression),
-                    rsvelte_typescript_syntax::syntax_tree::Kind::Sequence(_)
+                    self.expression(*expression),
+                    Expression::SequenceExpression(_)
                 ) {
                     return Err(Unsupported::at("function bindings", attribute.span));
                 }
-                let target = self.source(*expression, None);
+                let target = self.expression_source(*expression, None);
                 call = self.tree.push(Node::Assignment {
                     target,
                     value: call,
@@ -322,7 +322,7 @@ impl Builder<'_> {
                 && let AttributeValue::Parts(parts) = attribute.value
                 && let [Part::Expression { expression, .. }] = self.component.parts(parts)
             {
-                let value = self.source_expression(*expression, None);
+                let value = source_expression(self.expression(*expression).span(), None);
                 self.scratch.push(self.tree.push(Node::Expression(value)));
             }
         }
@@ -339,7 +339,7 @@ impl Builder<'_> {
         let value = match (attribute.value, parts) {
             (AttributeValue::True, _) => self.tree.push(Node::Boolean),
             (_, [Part::Expression { expression, span }]) => {
-                self.source(*expression, Some(span.end_offset - 1))
+                self.expression_source(*expression, Some(span.end_offset - 1))
             }
             _ => {
                 let template = parts
@@ -351,7 +351,7 @@ impl Builder<'_> {
                     let value = match *part {
                         Part::Text(span) => self.tree.push(Node::Text(span)),
                         Part::Expression { expression, span } => {
-                            self.source(expression, Some(span.end_offset - 1))
+                            self.expression_source(expression, Some(span.end_offset - 1))
                         }
                     };
                     self.scratch.push(value);

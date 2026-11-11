@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Derived_update($$renderer) {
 	let count = $.derived(() => 0);
 	let after = $.update_derived(count);

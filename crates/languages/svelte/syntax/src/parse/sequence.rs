@@ -4,7 +4,7 @@ use rsvelte_kernel::source::positions::Span;
 use super::{ParseResult, Parser};
 use crate::syntax_tree::{Part, TokenType};
 
-impl Parser<'_> {
+impl Parser<'_, '_> {
     pub(super) fn sequence(&mut self, quote: Option<u8>) -> ParseResult<()> {
         loop {
             let rest = self.rest();

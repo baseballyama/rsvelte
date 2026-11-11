@@ -1,110 +1,140 @@
-//! TypeScript the parser accepts: what compilation erases, what it must refuse, and which type
-//! names scope analysis sees. Printed and refused forms are the official compiler's (svelte 5.57.3
-//! on the same statements in `<script lang="ts">`); which names count as references is
-//! typescript-eslint's, checked through `no-unused-variables` in `rsvelte_svelte_lint`'s tests.
+//! Type erasure and the TypeScript it refuses. Printed and refused forms are the official
+//! compiler's (svelte 5.57.3 on the same statements in `<script lang="ts">`).
 
-use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_compile::codegen::print_program;
-use rsvelte_typescript_syntax::parser::parse_program;
-use rsvelte_typescript_syntax::syntax_tree::{SyntaxTree, TypeScriptFeature};
+use oxc_allocator::{Allocator, CloneIn};
+use oxc_ast_visit::VisitMut;
+use oxc_parser::Parser;
+use oxc_span::SourceType;
+use rsvelte_typescript_compile::features::{Feature, first_runtime_feature};
+use rsvelte_typescript_compile::print::print;
+use rsvelte_typescript_compile::strip::Strip;
 
-fn parse(source_text: &str) -> (SyntaxTree, rsvelte_typescript_syntax::NodeIdentifier) {
-    let mut syntax_tree = SyntaxTree::new();
-    let p = parse_program(
-        &mut syntax_tree,
-        source_text,
-        Span::new(0, source_text.len() as u32),
-        true,
-    )
-    .unwrap_or_else(|e| panic!("{}: {:?}", e.message, e.span));
-    (syntax_tree, p)
+fn erase(source_text: &str) -> String {
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, source_text, SourceType::ts()).parse();
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    let output = Allocator::default();
+    let mut program = parsed.program.clone_in(&output);
+    Strip::new(&output).visit_program(&mut program);
+    print(&program)
 }
 
-fn print(source_text: &str) -> String {
-    let (syntax_tree, p) = parse(source_text);
-    print_program(&syntax_tree, source_text, p).out
+/// Prints JavaScript the way [`erase`] does, so a test states its expectation as source.
+fn javascript(source_text: &str) -> String {
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, source_text, SourceType::mjs()).parse();
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    print(&parsed.program)
 }
 
-#[test]
-fn type_arguments_are_erased_from_calls() {
-    assert_eq!(print("let x = f<string>(\"a\");"), "let x = f(\"a\");\n");
-    assert_eq!(print("let x = f<Array<string>>([]);"), "let x = f([]);\n");
-    assert_eq!(
-        print("let x = new Map<string, number>();"),
-        "let x = new Map();\n"
-    );
-    // TypeScript reads a `<` … `>` pair before `(` as type arguments, whatever JavaScript would.
-    assert_eq!(print("let x = a < b > (c);"), "let x = a(c);\n");
-}
-
-#[test]
-fn a_comparison_stays_a_comparison() {
-    assert_eq!(
-        print("let x = a < b && c > (a);"),
-        "let x = a < b && c > a;\n"
-    );
+fn feature(source_text: &str) -> Option<(Feature, String)> {
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, source_text, SourceType::ts()).parse();
+    first_runtime_feature(&parsed.program).map(|(feature, span)| {
+        (
+            feature,
+            source_text[span.start as usize..span.end as usize].to_owned(),
+        )
+    })
 }
 
 #[test]
-fn constructs_with_a_runtime_value_are_recorded() {
-    let features = |source_text: &str| {
-        let (syntax_tree, _) = parse(source_text);
-        syntax_tree
-            .typescript_runtime
-            .iter()
-            .map(|t| (t.feature, t.span.text(source_text).to_owned()))
-            .collect::<Vec<_>>()
-    };
+fn types_are_erased() {
+    for (typescript, erased) in [
+        ("let x = f<string>(\"a\");", "let x = f(\"a\");"),
+        ("let x = new Map<string, number>();", "let x = new Map();"),
+        ("let x = a < b > (c);", "let x = a(c);"),
+        ("let x = a < b && c > (a);", "let x = a < b && c > a;"),
+        ("let x: number = (y as any)!;", "let x = y;"),
+        ("(x as any).y = 1; x! = 2;", "x.y = 1; x = 2;"),
+        ("a?.b!.c;", "a?.b.c;"),
+        (
+            "function f<T>(this: T, a?: T, ...b: T[]): T {}",
+            "function f(a, ...b) {}",
+        ),
+        ("const g = <T,>(a: T): T => a;", "const g = (a) => a;"),
+        ("let y!: number;", "let y;"),
+        (
+            "class A<T> extends B<T> implements C { declare x: T; y?: T; private z = 1; m(): void {} n(): void; [k: string]: any }",
+            "class A extends B { y; z = 1; m() {} }",
+        ),
+        (
+            "abstract class A { abstract m(): void; abstract p: number; }",
+            "class A {}",
+        ),
+        ("try {} catch (e: unknown) {}", "try {} catch (e) {}"),
+    ] {
+        assert_eq!(erase(typescript), javascript(erased), "{typescript}");
+    }
+}
+
+#[test]
+fn type_only_statements_are_removed() {
+    let typescript = "\
+        import type A from 'a';\n\
+        import { type B } from 'b';\n\
+        import { type C, D } from 'c';\n\
+        import {} from 'e';\n\
+        export type { F } from 'f';\n\
+        export { type G };\n\
+        export interface H {}\n\
+        export type I = string;\n\
+        interface J { j: number }\n\
+        type K = string;\n\
+        declare const l: number;\n\
+        declare function m(): void;\n\
+        function n(): void;\n\
+        function n() {}\n\
+        namespace O { export type P = string; }\n\
+        declare module 'q' {}\n\
+        export default interface R {}\n\
+        let s = 1;";
     assert_eq!(
-        features("enum Color { Red }\nlet x = 1;"),
-        [(TypeScriptFeature::Enum, "enum Color { Red }".to_owned())]
+        erase(typescript),
+        javascript("import { D } from 'c'; import {} from 'e'; function n() {} let s = 1;")
+    );
+}
+
+#[test]
+fn constructs_with_a_runtime_value_are_found() {
+    assert_eq!(
+        feature("enum Color { Red }\nlet x = 1;"),
+        Some((Feature::Enum, "enum Color { Red }".to_owned()))
     );
     assert_eq!(
-        features("declare enum E { A }"),
-        [(TypeScriptFeature::Enum, "declare enum E { A }".to_owned())]
+        feature("export enum E { A }"),
+        Some((Feature::Enum, "enum E { A }".to_owned()))
     );
     assert_eq!(
-        features("export enum E { A }"),
-        [(TypeScriptFeature::Enum, "enum E { A }".to_owned())]
+        feature("namespace N { export type A = string; export interface B { b: number } }"),
+        None
     );
     assert_eq!(
-        features("namespace N { export type A = string; export interface B { b: number } }"),
-        []
-    );
-    assert_eq!(
-        features("namespace N { export const a = 1; }"),
-        [(
-            TypeScriptFeature::NamespaceWithValues,
+        feature("namespace N { export const a = 1; }"),
+        Some((
+            Feature::NamespaceWithValues,
             "namespace N { export const a = 1; }".to_owned()
-        )]
+        ))
     );
     // Upstream visits the body first, so an enum inside wins over the namespace.
     assert_eq!(
-        features("namespace N { const q = 1; enum E { A } }"),
-        [(TypeScriptFeature::Enum, "enum E { A }".to_owned())]
+        feature("namespace N { const q = 1; enum E { A } }"),
+        Some((Feature::Enum, "enum E { A }".to_owned()))
     );
-}
-
-#[test]
-fn type_names_are_noted_but_keys_and_members_are_not() {
-    let source_text = "let x: A.B<C, { d: D; e?: E }> = f<G>((h: H) => h);";
-    let (syntax_tree, _) = parse(source_text);
-    let names: Vec<&str> = syntax_tree
-        .type_references
-        .iter()
-        .map(|r| r.span.text(source_text))
-        .collect();
-    assert_eq!(names, ["A", "C", "D", "E", "G", "H"]);
-}
-
-#[test]
-fn an_interface_read_as_text_leaves_no_members_behind() {
-    // `m(): void` is not a property signature, so the body is kept as text after `x` was read.
-    let source_text = "interface A { x: number; m(): void }\nlet y = 1;";
-    let (syntax_tree, p) = parse(source_text);
-    let rsvelte_typescript_syntax::syntax_tree::Kind::Program(body) = syntax_tree.kind(p) else {
-        panic!("not a program")
-    };
-    assert_eq!(body.len(), 2);
-    assert_eq!(print(source_text), "let y = 1;\n");
+    assert_eq!(
+        feature("class A { constructor(private a) {} }"),
+        Some((Feature::ParameterProperty, "private a".to_owned()))
+    );
+    assert_eq!(
+        feature("class A { accessor a = 1 }"),
+        Some((Feature::Accessor, "accessor a = 1".to_owned()))
+    );
+    assert_eq!(
+        feature("@d class A {}"),
+        Some((Feature::Decorator, "@d".to_owned()))
+    );
+    assert_eq!(
+        feature("import a = require('a');"),
+        Some((Feature::ImportEquals, "import a = require('a');".to_owned()))
+    );
 }

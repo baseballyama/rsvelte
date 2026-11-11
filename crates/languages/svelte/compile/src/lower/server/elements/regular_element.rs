@@ -3,12 +3,12 @@ use crate::lower::server::{
     ServerCompilationContext, check_foreign_element, is_customizable_select, is_void, unsupported,
 };
 
-impl ServerCompilationContext<'_> {
+impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `RegularElement` + `build_element_attributes` (server, no spread).
     pub(in crate::lower::server) fn element(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        template: &mut Vec<Piece>,
+        template: &mut Vec<Piece<'o>>,
     ) -> R<()> {
         let compiler_syntax_tree = self.compiler_syntax_tree;
         let NodeKind::Element(el) = &compiler_syntax_tree.node(identifier).kind else {
@@ -54,11 +54,11 @@ impl ServerCompilationContext<'_> {
             &tag,
             compiler_syntax_tree.attributes(el.attributes),
             template,
-        )?;
+        );
         let void = is_void(&tag);
         template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
         let cleaned = self.plan.fragment(el.children);
-        self.hoisted_elements(&cleaned.hoisted, template)?;
+        self.hoisted_elements(&cleaned.hoisted, |_| false, template)?;
         self.process_children(&cleaned.items, template)?;
         if !void {
             template.push(Piece::Text(format!("</{tag}>")));

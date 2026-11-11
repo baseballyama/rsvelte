@@ -2,8 +2,8 @@ use std::cmp::Ordering;
 
 use num_bigint::{BigInt, Sign};
 use num_traits::FromPrimitive;
+use oxc_syntax::operator::{BinaryOperator, UnaryOperator};
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
-use rsvelte_typescript_syntax::operators::{BinaryOperator, UnaryOperator};
 
 use super::Value;
 
@@ -68,8 +68,12 @@ fn compare(value: &BigInt, other: &Value) -> Option<Ordering> {
 
 pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> {
     use BinaryOperator::{
-        Add, BitAnd, BitOr, BitXor, Div, Eq, Exp, Gt, GtEq, In, InstanceOf, Lt, LtEq, Mul, NotEq,
-        Remainder, Shl, Shr, StrictEq, StrictNotEq, Sub, UShr,
+        Addition as Add, BitwiseAnd as BitAnd, BitwiseOR as BitOr, BitwiseXOR as BitXor,
+        Division as Div, Equality as Eq, Exponential as Exp, GreaterEqualThan as GtEq,
+        GreaterThan as Gt, In, Inequality as NotEq, Instanceof as InstanceOf,
+        LessEqualThan as LtEq, LessThan as Lt, Multiplication as Mul, Remainder, ShiftLeft as Shl,
+        ShiftRight as Shr, ShiftRightZeroFill as UShr, StrictEquality as StrictEq,
+        StrictInequality as StrictNotEq, Subtraction as Sub,
     };
     if op == Add && (matches!(a, Value::String(_)) || matches!(b, Value::String(_))) {
         return Some(Value::String(format!(
@@ -129,11 +133,11 @@ pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> 
 
 pub(super) fn unary(op: UnaryOperator, value: &BigInt) -> Value {
     match op {
-        UnaryOperator::Neg => Value::BigInt(Box::new(-value)),
-        UnaryOperator::BitNot => Value::BigInt(Box::new(!value)),
-        UnaryOperator::Plus => Value::Unknown,
-        UnaryOperator::Not => Value::Boolean(value.sign() == Sign::NoSign),
-        UnaryOperator::TypeOf => Value::String("bigint".into()),
+        UnaryOperator::UnaryNegation => Value::BigInt(Box::new(-value)),
+        UnaryOperator::BitwiseNot => Value::BigInt(Box::new(!value)),
+        UnaryOperator::UnaryPlus => Value::Unknown,
+        UnaryOperator::LogicalNot => Value::Boolean(value.sign() == Sign::NoSign),
+        UnaryOperator::Typeof => Value::String("bigint".into()),
         UnaryOperator::Void => Value::Undefined,
         UnaryOperator::Delete => Value::Boolean(true),
     }

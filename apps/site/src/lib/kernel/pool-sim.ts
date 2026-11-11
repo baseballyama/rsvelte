@@ -1,7 +1,6 @@
-// A model of `buffer_pool::take_keyed` / `buffer_pool::give_keyed` for one key (one column type of `rsvelte_typescript_syntax::SyntaxTree`)
-// on one worker, driven by the order in which rsvelte_svelte_syntax creates and drops `SyntaxTree`s for a document:
-// the parsed tree lives until the document ends; each compile target lowers into a fresh tree that
-// is dropped after printing. Growth follows Rust's `Vec` (amortised doubling, first allocation of 4
+// A model of `buffer_pool::take_keyed` / `buffer_pool::give_keyed` for one key (one column type of
+// `rsvelte_svelte_syntax::syntax_tree::Component`) on one worker: each document parses one tree,
+// which lives until the document ends. Growth follows Rust's `Vec` (amortised doubling, first allocation of 4
 // for small elements). The byte budget is counted in elements here; the real one is `MAXIMUM_BYTES`,
 // over every key of the thread.
 
@@ -42,7 +41,7 @@ function growths(from: number, need: number): { allocations: number; cap: number
 }
 
 /**
- * `sizes[d]` is the parsed tree's node count for document d; lowered trees are larger. `budget` is
+ * `sizes[d]` is the parsed tree's node count for document d. `budget` is
  * what the pool may hold, in elements.
  */
 export function simulate(sizes: number[], enabled: boolean, budget = Infinity): Step[] {
@@ -83,12 +82,8 @@ export function simulate(sizes: number[], enabled: boolean, budget = Infinity): 
 				allocations: total,
 			});
 		};
-		take('parse', n);
-		take('lower.client', Math.round(n * 1.6));
-		give('lower.client');
-		take('lower.server', Math.round(n * 1.3));
-		give('lower.server');
-		give('parse');
+		take('Component', n);
+		give('Component');
 	});
 	return steps;
 }

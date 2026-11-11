@@ -2,11 +2,12 @@
 //! `svelte-ignore` comments matched to the nodes they lead, and styles in a language other than
 //! CSS left out. Shared by `valid-compile` and `no-unused-svelte-ignore`.
 
+use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::warnings::{CompileWarnings, code_for_v5};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
-use rsvelte_typescript_syntax::Kind;
+use rsvelte_typescript_tree::ProgramIdentifier;
 
 use crate::rule::File;
 use crate::words::{is_js_space, words};
@@ -39,7 +40,13 @@ const CSS_CODES: &[&str] = &[
 /// `getSvelteIgnoreItems`: JavaScript comments, then template comments.
 pub(super) fn ignores(component: &Component, source: &str) -> Ignores {
     let mut out = Ignores::default();
-    for &comment in &component.javascript.comments {
+    let tree = &component.javascript;
+    let scripts = component.module.iter().chain(&component.instance);
+    let comments = scripts
+        .flat_map(|script| &tree.get_program(script.program).comments)
+        .chain(tree.comments());
+    for comment in comments {
+        let comment = Span::new(comment.span.start, comment.span.end);
         // `//` and `/*` are two bytes, and so is a block comment's `*/`.
         let value = Span::new(comment.start_offset + 2, block_end(comment, source));
         read(value, comment, source, &mut out);
@@ -382,35 +389,29 @@ impl Targets<'_> {
     }
 
     /// The comments before the top-level statement of `program` that holds `at`.
-    fn statement(
-        self,
-        program: rsvelte_typescript_syntax::NodeIdentifier,
-        content: u32,
-        at: u32,
-    ) -> Vec<Vec<Span>> {
-        let javascript = &self.component.javascript;
-        let Kind::Program(statements) = javascript.kind(program) else {
+    fn statement(self, program: ProgramIdentifier, content: u32, at: u32) -> Vec<Vec<Span>> {
+        let program = self.component.javascript.get_program(program);
+        let statements = &program.body;
+        let span = |statement: &oxc_ast::ast::Statement<'_>| {
+            let span = statement.span();
+            Span::new(span.start, span.end)
+        };
+        let i = statements.partition_point(|statement| span(statement).end_offset <= at);
+        let Some(here) = statements.get(i).map(span).filter(|s| contains(*s, at)) else {
             return Vec::new();
         };
-        let span = |statement| javascript.source_location(statement).span();
-        let i = statements
-            .partition_point(|&statement| span(statement).is_some_and(|s| s.end_offset <= at));
-        let Some(here) = statements
-            .get(i)
-            .and_then(|&s| span(s))
-            .filter(|s| contains(*s, at))
-        else {
-            return Vec::new();
-        };
-        let previous_end = statements[..i]
-            .iter()
-            .rev()
-            .find_map(|&s| span(s))
-            .map_or(content, |s| s.end_offset);
-        let comments = &javascript.comments;
-        let first = comments.partition_point(|c| c.start_offset < previous_end);
-        let last = comments.partition_point(|c| c.end_offset <= here.start_offset);
-        vec![comments[first..last.max(first)].to_vec()]
+        let previous_end = i
+            .checked_sub(1)
+            .map_or(content, |previous| span(&statements[previous]).end_offset);
+        let comments = &program.comments;
+        let first = comments.partition_point(|c| c.span.start < previous_end);
+        let last = comments.partition_point(|c| c.span.end <= here.start_offset);
+        vec![
+            comments[first..last.max(first)]
+                .iter()
+                .map(|c| Span::new(c.span.start, c.span.end))
+                .collect(),
+        ]
     }
 }
 

@@ -1,9 +1,6 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<p></p>`);
-
 export default function Try($$anchor) {
 	let value = "a";
 	function run() {
@@ -16,6 +13,6 @@ export default function Try($$anchor) {
 		}
 	}
 	var p = root();
-	$.template_effect(() => $.set_class(p, 1, $.clsx(value), 'svelte-nct6v0'));
+	$.template_effect(() => $.set_class(p, 1, $.clsx(value), "svelte-nct6v0"));
 	$.append($$anchor, p);
 }

@@ -95,10 +95,7 @@ fn directives_keep_their_parts() {
                     modifiers.contains(Modifiers::CAPTURE)
                 ),
                 AttributeValue::Use { action, argument } => {
-                    let member = matches!(
-                        c.javascript.kind(*action),
-                        rsvelte_typescript_syntax::Kind::Member { .. }
-                    );
+                    let member = c.javascript.get_expression(*action).is_member_expression();
                     format!("use member={member} {}", argument.is_some())
                 }
                 AttributeValue::Transition {

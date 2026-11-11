@@ -1,22 +1,15 @@
-mod parameters;
+use super::{ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R};
+use crate::lower::builder::Runtime;
 
-use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
-
-use super::super::javascript::getter;
-
-use super::{
-    ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeIdentifier, NodeKind, R,
-    SourceLocation, flag, init_property,
-};
-
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn boundary(
         &mut self,
         identifier: CompilerNodeIdentifier,
         node: &str,
-        frag: &mut Frag,
-        lists: &mut Lists,
+        frag: &mut Frag<'o>,
+        lists: &mut Lists<'o>,
     ) -> R<()> {
+        let b = self.b;
         let tree = self.compiler_syntax_tree;
         let NodeKind::Element(element) = &tree.node(identifier).kind else {
             unreachable!("a boundary element")
@@ -28,65 +21,34 @@ impl ClientCompilationContext<'_> {
             let value = self.expression(expression);
             let name = attribute.name.text(self.source_text);
             let property = if self.an.meta(expression).has_state {
-                getter(&mut self.out, name, value)
+                b.getter(name, value)
             } else {
-                init_property(&mut self.out, name, value)
+                b.init(name, value)
             };
             properties.push(property);
         }
         let mut declarations = Vec::new();
         for &child in &self.plan.fragment(element.children).hoisted {
             if let NodeKind::Snippet(snippet) = &tree.node(child).kind {
-                declarations.push(self.boundary_snippet(snippet)?);
-                let name = self.javascript.name(snippet.name);
-                let value = self.out.identifier(name);
-                properties.push(init_property(&mut self.out, name, value));
+                declarations.push(self.snippet_declaration(snippet)?);
+                let name = self.snippet_name(snippet);
+                if matches!(name, "failed" | "pending") {
+                    properties.push(b.init(name, b.id(name)));
+                }
             }
         }
-        let props = self.out.object(&properties, SourceLocation::SYNTHETIC);
-        let body = self.fragment_with_snippets(element.children, false)?;
-        let block = self.out.block(&body, SourceLocation::SYNTHETIC);
-        let anchor = self.out.identifier("$$anchor");
-        let callback = self
-            .out
-            .arrow(&[anchor], block, false, false, SourceLocation::SYNTHETIC);
-        let anchor = self.out.identifier(node);
-        let call = self.call("boundary", vec![Some(anchor), Some(props), Some(callback)]);
-        let statement = self.statement(call);
+        let props = b.object(properties);
+        let body = self.fragment_without(element.children, |_| true)?;
+        let callback = b.arrow_block(b.params(["$$anchor"]), body, false);
+        let statement = b.stmt(b.runtime("boundary", [b.id(node), props, callback]));
         let statement = if declarations.is_empty() {
             statement
         } else {
             declarations.push(statement);
-            self.out.block(&declarations, SourceLocation::SYNTHETIC)
+            b.block(declarations)
         };
         frag.tpl.push_comment();
         lists.initializer.push(statement);
         Ok(())
-    }
-
-    fn boundary_snippet(&mut self, snippet: &Snippet) -> R<NodeIdentifier> {
-        let saved_scope = self.scope;
-        let parameters = self.snippet_parameters(snippet);
-        let body = self.fragment(snippet.body);
-        self.scope = saved_scope;
-        for (binding, read) in parameters.saved_reads {
-            if let Some(read) = read {
-                self.reads.insert(binding, read);
-            } else {
-                self.reads.remove(&binding);
-            }
-        }
-        let mut declarations = parameters.declarations;
-        declarations.extend(body?);
-        let body = self.out.block(&declarations, SourceLocation::SYNTHETIC);
-        let callback = self.out.arrow(
-            &parameters.arguments,
-            body,
-            false,
-            false,
-            SourceLocation::SYNTHETIC,
-        );
-        let name = self.out.identifier(self.javascript.name(snippet.name));
-        Ok(self.out.let_(flag::CONST, name, Some(callback)))
     }
 }

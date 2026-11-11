@@ -1,11 +1,7 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 import C from "./C.svelte";
-
 var root = $.from_svg(`<!><svg><!><g></g></svg><!>`, 1);
-
 export default function Component_beside_svg($$anchor) {
 	var fragment = root();
 	var node = $.first_child(fragment);

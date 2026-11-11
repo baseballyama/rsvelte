@@ -7,7 +7,7 @@ use super::{
     AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, NodeKind, event_attribute,
 };
 
-impl ClientCompilationContext<'_> {
+impl ClientCompilationContext<'_, '_> {
     pub(super) fn is_static_element(&self, identifier: CompilerNodeIdentifier) -> bool {
         let NodeKind::Element(el) = &self.compiler_syntax_tree.node(identifier).kind else {
             return false;

@@ -1,210 +1,164 @@
-use super::{
-    BindingKind, Kind, Names, NodeIdentifier, Rewrite, ScriptRewrite, SyntaxTree, copy, flag,
-    should_proxy_read,
+use oxc_allocator::{CloneIn, GetAllocator};
+use oxc_ast::ast::{
+    AssignmentPattern, BindingPattern, BindingProperty, BindingRestElement, Expression,
+    PropertyKey, Statement, VariableDeclarator,
 };
+use oxc_ast_visit::{VisitMut, walk_mut};
+use oxc_span::SPAN;
+
+use super::{BindingKind, Names, ScriptRewrite, is_prop_source, should_proxy_read};
+use crate::lower::builder::Runtime;
 use crate::lower::javascript::{is_simple_expression, prop_alias};
 
-pub(super) fn server_props_pattern(
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    rw: &mut ScriptRewrite<'_>,
-    identifier: NodeIdentifier,
-) -> NodeIdentifier {
-    let rw = &mut UnwrapBindable(rw);
-    let hidden = |to: &mut SyntaxTree| {
+/// Upstream server `$props` declaration: `$$slots` and `$$events` go beside the rest, and
+/// `x = $bindable(d)` becomes `x = d`.
+pub(super) fn server_props_pattern<'o>(
+    rw: &mut ScriptRewrite<'_, 'o>,
+    pattern: &BindingPattern<'_>,
+) -> BindingPattern<'o> {
+    let b = rw.b;
+    let hidden = || {
         ["$$slots", "$$events"].map(|name| {
-            let value = to.identifier(name);
-            crate::lower::javascript::init_property(to, name, value)
+            BindingProperty::new(
+                SPAN,
+                PropertyKey::new_static_identifier(SPAN, name, b),
+                b.binding(name),
+                true,
+                false,
+                b,
+            )
         })
     };
-    match from.kind(identifier) {
-        Kind::ObjectPattern(props)
-            if props
-                .last()
-                .is_some_and(|&p| matches!(from.kind(p), Kind::Rest(_))) =>
-        {
-            let mut copied: Vec<NodeIdentifier> =
-                props.iter().map(|&p| copy(from, to, rw, p)).collect();
-            let rest = copied.pop().expect("the pattern ends with a rest element");
-            copied.extend(hidden(to));
-            copied.push(rest);
-            to.object_pat(&copied, from.source_location(identifier))
+    let mut pattern = pattern.clone_in_with_semantic_ids(b.allocator());
+    UnwrapBindable(rw).visit_binding_pattern(&mut pattern);
+    match pattern {
+        BindingPattern::ObjectPattern(mut object) if object.rest.is_some() => {
+            object.properties.extend(hidden());
+            BindingPattern::ObjectPattern(object)
         }
-        Kind::Identifier(_) => {
-            let mut props = hidden(to).to_vec();
-            let name = copy(from, to, rw, identifier);
-            props.push(to.rest(
-                name,
-                rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-            ));
-            to.object_pat(
-                &props,
-                rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-            )
+        BindingPattern::BindingIdentifier(name) => {
+            let rest = BindingRestElement::boxed(SPAN, BindingPattern::BindingIdentifier(name), b);
+            BindingPattern::new_object_pattern(SPAN, b.vec(hidden()), Some(rest), b)
         }
-        _ => copy(from, to, rw, identifier),
+        pattern => pattern,
     }
 }
 
-/// Upstream server `$props` declaration: `x = $bindable(d)` becomes `x = d`.
-struct UnwrapBindable<'r, 'a>(&'r mut ScriptRewrite<'a>);
+struct UnwrapBindable<'w, 'r, 'o>(&'w mut ScriptRewrite<'r, 'o>);
 
-impl Rewrite for UnwrapBindable<'_, '_> {
-    fn rewrite(
-        &mut self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        identifier: NodeIdentifier,
-    ) -> Option<NodeIdentifier> {
-        if let Kind::AssignPattern(left, right) = from.kind(identifier)
-            && let Some(("$bindable", arg)) = self.0.res.rune(from, right)
-        {
-            let left = copy(from, to, self, left);
-            let right = if let Some(a) = arg {
-                copy(from, to, self, a)
-            } else {
-                let zero = to.write_number(
-                    0.0,
-                    rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                );
-                to.unary(
-                    rsvelte_typescript_syntax::operators::UnaryOperator::Void,
-                    zero,
-                    rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                )
-            };
-            return Some(to.assign_pat(left, right, from.source_location(identifier)));
+impl<'o> VisitMut<'o> for UnwrapBindable<'_, '_, 'o> {
+    fn visit_assignment_pattern(&mut self, it: &mut AssignmentPattern<'o>) {
+        if let Some(("$bindable", argument)) = self.0.res.rune(it.right.get_inner_expression()) {
+            let argument = argument.map(|a| a.clone_in_with_semantic_ids(self.0.b.allocator()));
+            it.right = argument.unwrap_or_else(|| self.0.b.void0());
         }
-        self.0.rewrite(from, to, identifier)
+        walk_mut::walk_assignment_pattern(self, it);
+    }
+
+    fn visit_expression(&mut self, it: &mut Expression<'o>) {
+        self.0.visit_expression(it);
     }
 }
 
 /// Upstream client `VariableDeclaration`, `$props` branch: only props that need a source get a
 /// declaration (`$.prop(…)`); the rest are read as `$$props.x`, and a rest pattern is
 /// `$.rest_props` without the names declared before it.
-#[expect(
-    clippy::too_many_lines,
-    reason = "ports upstream's `$props` branch in one piece"
-)]
-pub(super) fn lower_client_props(
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    rw: &mut ScriptRewrite<'_>,
-    pattern: NodeIdentifier,
-    out: &mut Vec<NodeIdentifier>,
-    hoisted: &mut Vec<NodeIdentifier>,
+pub(super) fn lower_client_props<'o>(
+    rw: &mut ScriptRewrite<'_, 'o>,
+    pattern: &BindingPattern<'_>,
+    out: &mut Vec<VariableDeclarator<'o>>,
+    hoisted: &mut Vec<Statement<'o>>,
     names: &mut Names,
 ) {
+    let (b, res) = (rw.b, rw.res);
     let mut seen: Vec<String> = ["$$slots", "$$events", "$$legacy"]
         .map(str::to_owned)
         .to_vec();
     if rw.accessors {
         seen.push("$$host".to_owned());
     }
-    let mut rest_props = |target: NodeIdentifier, seen: &[String], to: &mut SyntaxTree| {
+    let mut rest_props = |target: &str, seen: &[String]| {
         let exclude = names.unique("rest_excludes");
-        let items: Vec<NodeIdentifier> = seen.iter().map(|n| to.write_string(n)).collect();
-        let array = to.array(
-            &items,
-            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-        );
-        let set = to.identifier("Set");
-        let new = to.new_(
-            set,
-            &[array],
-            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-        );
-        let identifier = to.identifier(&exclude);
-        hoisted.push(to.let_(flag::VAR, identifier, Some(new)));
-        let props = to.identifier("$$props");
-        let exclude = to.identifier(&exclude);
-        let call = to.runtime("$", "rest_props", &[props, exclude]);
-        let target = to.ident(from.name(target), from.source_location(target));
-        to.declarator(
-            target,
-            Some(call),
-            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-        )
+        let set = b.new_(b.id("Set"), [b.array(seen.iter().map(|n| b.string(n)))]);
+        hoisted.push(b.var(&exclude, set));
+        let call = b.runtime("rest_props", [b.id("$$props"), b.id(&exclude)]);
+        b.declarator(b.binding(target), Some(call))
     };
-    let Kind::ObjectPattern(props) = from.kind(pattern) else {
-        out.push(rest_props(pattern, &seen, to));
+    let BindingPattern::ObjectPattern(object) = pattern else {
+        let name = pattern
+            .get_binding_identifier()
+            .expect("validation refuses a `$props()` pattern of another shape");
+        out.push(rest_props(&name.name, &seen));
         return;
     };
-    for &p in props {
-        let (key, value) = match from.kind(p) {
-            Kind::Property { key, value, .. } => (key, value),
-            Kind::Rest(arg) => {
-                out.push(rest_props(arg, &seen, to));
-                continue;
-            }
-            _ => continue,
-        };
-        let key_name = prop_alias(from, rw.source_text, key);
-        // Upstream excludes a number key as a number, which a rest object's string keys never match.
+    for property in &object.properties {
+        let key_name = prop_alias(&property.key);
+        // Upstream excludes a number key as a number, which a rest object's string keys never
+        // match.
         seen.push(key_name.clone().into_owned());
-        let local = match from.kind(value) {
-            Kind::AssignPattern(l, _) => l,
-            _ => value,
+        let local = match &property.value {
+            BindingPattern::AssignmentPattern(assignment) => &assignment.left,
+            value => value,
         };
-        let Some((b, info)) = rw.res.binding(local) else {
+        let Some(local) = local.get_binding_identifier() else {
             continue;
         };
-        if !super::is_prop_source(rw.res, rw.accessors, b) {
+        let Some(symbol) = local.symbol_id.get() else {
+            continue;
+        };
+        if !is_prop_source(res, rw.accessors, symbol) {
             continue;
         }
-        let s = &rw.res.sem.bindings[b];
+        let info = res.binding(symbol);
         let mut flags = 1 | 2; // PROPS_IS_IMMUTABLE | PROPS_IS_RUNES
         if info.kind == BindingKind::BindableProperty {
             flags |= 8;
         }
-        if rw.accessors || s.writes > 0 || s.mutations > 0 {
+        if rw.accessors || res.reassigned(symbol) || res.mutations(symbol) > 0 {
             flags |= 4; // PROPS_IS_UPDATED
         }
         // Upstream passes the key's own value, which reads the same prop.
-        let key_argument = match from.kind(key) {
-            Kind::Number(value) => to.write_number(
-                value,
-                rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-            ),
-            _ => to.write_string(&key_name),
+        let key_argument = match &property.key {
+            PropertyKey::NumericLiteral(literal) => b.number(literal.value),
+            _ => b.string(&key_name),
         };
-        let mut arguments = vec![to.identifier("$$props"), key_argument];
         let initial = info.initial.map(|i| {
-            let initializer = copy(from, to, rw, i);
-            if info.kind == BindingKind::BindableProperty && should_proxy_read(from, rw.res, i) {
-                to.runtime("$", "proxy", &[initializer])
+            let initializer = rw.expression(i);
+            if info.kind == BindingKind::BindableProperty && should_proxy_read(res, i) {
+                b.runtime("proxy", [initializer])
             } else {
                 initializer
             }
         });
-        let arg = initial.map(|initializer| {
-            if is_simple_expression(to, initializer) {
-                initializer
-            } else {
-                flags |= 16; // PROPS_IS_LAZY_INITIAL
-                match to.kind(initializer) {
-                    Kind::Call {
-                        callee, arguments, ..
-                    } if arguments.is_empty() && to.is_identifier(callee) => callee,
-                    _ => to.arrow(
-                        &[],
-                        initializer,
-                        true,
-                        false,
-                        rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                    ),
+        let argument = initial.map(|initializer| {
+            if is_simple_expression(&initializer) {
+                return initializer;
+            }
+            flags |= 16; // PROPS_IS_LAZY_INITIAL
+            match initializer {
+                Expression::CallExpression(call)
+                    if call.arguments.is_empty()
+                        && matches!(call.callee, Expression::Identifier(_)) =>
+                {
+                    call.unbox().callee
                 }
+                initializer => b.arrow(b.params([]), initializer),
             }
         });
-        arguments.push(to.write_number(
-            f64::from(flags),
-            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-        ));
-        if let Some(a) = arg {
-            arguments.push(a);
-        }
-        let call = to.runtime("$", "prop", &arguments);
-        let target = to.ident(from.name(local), from.source_location(local));
-        out.push(to.declarator(target, Some(call), from.source_location(p)));
+        let mut arguments = vec![b.id("$$props"), key_argument, b.number(f64::from(flags))];
+        arguments.extend(argument);
+        let mut declarator = b.declarator(
+            b.binding_at(&local.name, local.span),
+            Some(b.runtime("prop", arguments)),
+        );
+        declarator.span = oxc_span::GetSpan::span(property);
+        out.push(declarator);
+    }
+    if let Some(rest) = &object.rest {
+        let name = rest
+            .argument
+            .get_binding_identifier()
+            .expect("validation refuses a nested `$props()` rest");
+        out.push(rest_props(&name.name, &seen));
     }
 }

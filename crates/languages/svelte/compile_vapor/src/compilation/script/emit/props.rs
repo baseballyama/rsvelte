@@ -1,68 +1,64 @@
-use super::{
-    BindingKind, NodeIdentifier, Resolution, ScriptRewrite, SourceLocation, SyntaxTree, copy, flag,
-};
+use oxc_ast::ast::{Expression, IdentifierReference, PropertyKey, Statement};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+use rsvelte_typescript_compile::build::Builder;
 
-/// `$$props.<key>` for a prop reference and `$$attrs` for rest props.
-pub(crate) fn prop_member(
-    resolution: &Resolution,
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    identifier: NodeIdentifier,
-) -> Option<NodeIdentifier> {
-    let (binding, info) = resolution.binding(identifier)?;
-    if resolution.sem.bindings[binding].node == identifier {
-        return None;
-    }
+use super::super::prop_cell;
+use super::ScriptRewrite;
+
+/// What a template read of a prop becomes: `$$props.<key>`, `$$attrs` for the rest, or the
+/// prop's cell, which Vue unwraps.
+pub(crate) fn prop_member<'t>(
+    b: &Builder<'t>,
+    res: &Resolution,
+    identifier: &IdentifierReference<'_>,
+) -> Option<Expression<'t>> {
+    let symbol = res.symbol(identifier)?;
+    let info = res.binding(symbol);
     if info.kind == BindingKind::RestProperty {
-        return Some(to.ident("$$attrs", from.source_location(identifier)));
+        return Some(b.id_at("$$attrs", identifier.span));
     }
-    if super::super::prop_cell(resolution, from, binding) {
-        return Some(to.ident(from.name(identifier), from.source_location(identifier)));
+    if prop_cell(res, symbol) {
+        return Some(b.id_at(&identifier.name, identifier.span));
     }
     if info.kind != BindingKind::Property {
         return None;
     }
-    let key = from.name(info.prop_key?);
-    let object = to.identifier("$$props");
-    let property = to.ident(key, SourceLocation::SYNTHETIC);
-    Some(to.member(
-        object,
-        property,
-        false,
-        false,
-        from.source_location(identifier),
-    ))
+    let PropertyKey::StaticIdentifier(key) = info.prop_key? else {
+        return None;
+    };
+    let Expression::StaticMemberExpression(mut m) = b.member(b.id("$$props"), &key.name) else {
+        unreachable!("a member")
+    };
+    m.span = identifier.span;
+    Some(Expression::StaticMemberExpression(m))
 }
 
-pub(super) fn prop_declarations(
-    javascript: &SyntaxTree,
-    resolution: &Resolution,
-    to: &mut SyntaxTree,
-    server: bool,
-    body: &mut Vec<NodeIdentifier>,
-    rewriter: &mut ScriptRewrite<'_>,
-) {
-    for (binding, info) in resolution.bindings.iter_enumerated() {
-        if !super::super::prop_cell(resolution, javascript, binding) {
+/// `const name = $$prop_cell($$props, 'key', () => fallback, server, bindable)` for each prop read
+/// through a cell.
+pub(super) fn prop_declarations<'t>(rw: &mut ScriptRewrite<'_, 't>, body: &mut Vec<Statement<'t>>) {
+    let (b, res, server) = (rw.b, rw.res, rw.server);
+    let scoping = res.scoping();
+    for symbol in scoping.symbol_ids() {
+        if !prop_cell(res, symbol) {
             continue;
         }
-        let declaration = resolution.sem.bindings[binding].node;
-        let fallback = if let Some(argument) = info.initial {
-            copy(javascript, to, rewriter, argument)
-        } else {
-            to.identifier("undefined")
+        let info = res.binding(symbol);
+        let fallback = info
+            .initial
+            .map_or_else(|| b.id("undefined"), |argument| rw.expression(argument));
+        let Some(PropertyKey::StaticIdentifier(key)) = info.prop_key else {
+            unreachable!("a prop has a key")
         };
-        let fallback = to.arrow(&[], fallback, true, false, SourceLocation::SYNTHETIC);
-        let props = to.identifier("$$props");
-        let key = to.write_string(javascript.name(info.prop_key.expect("a prop has a key")));
-        let server = to.write_boolean(server, SourceLocation::SYNTHETIC);
-        let callee = to.identifier("$$prop_cell");
-        let bindable = to.write_boolean(
-            info.kind == BindingKind::BindableProperty,
-            SourceLocation::SYNTHETIC,
+        let value = b.call(
+            b.id("$$prop_cell"),
+            [
+                b.id("$$props"),
+                b.string(&key.name),
+                b.arrow(b.params([]), fallback),
+                b.boolean(server),
+                b.boolean(info.kind == BindingKind::BindableProperty),
+            ],
         );
-        let value = to.call0(callee, &[props, key, fallback, server, bindable]);
-        let name = to.identifier(javascript.name(declaration));
-        body.push(to.let_(flag::CONST, name, Some(value)));
+        body.push(b.const_(scoping.symbol_name(symbol), value));
     }
 }

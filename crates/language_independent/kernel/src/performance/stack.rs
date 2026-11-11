@@ -16,3 +16,20 @@ const SEGMENT: usize = 4 << 20;
 pub fn grow<R>(f: impl FnOnce() -> R) -> R {
     stacker::maybe_grow(RED_ZONE, SEGMENT, f)
 }
+
+/// Stack every source byte may need below a task: oxc's passes recurse once per nesting level and
+/// grow no stack themselves. The worst measured is an array nested in an array, about 0.4 KiB per
+/// byte optimized and 1.3 KiB unoptimized.
+#[cfg(not(debug_assertions))]
+const PER_BYTE: usize = 1 << 10;
+#[cfg(debug_assertions)]
+const PER_BYTE: usize = 4 << 10;
+/// What a task needs besides the nesting of its text.
+const BASE: usize = 1 << 20;
+
+/// Runs `f`, a task over a text of `len` bytes, on a stack as deep as that text may nest: on this
+/// one when it has room, else on a segment whose pages are reserved, not committed.
+pub fn for_text<R>(len: usize, f: impl FnOnce() -> R) -> R {
+    let need = len.saturating_mul(PER_BYTE).saturating_add(BASE);
+    stacker::maybe_grow(need, need, f)
+}

@@ -1,6 +1,6 @@
 use super::{Kind2, LayoutInstructionIdentifier, Node, Printer, R};
 
-impl<'a> Printer<'a, '_> {
+impl<'a> Printer<'a, '_, '_> {
     pub(super) fn lit(&mut self, s: &'static str) -> LayoutInstructionIdentifier {
         self.d().lit(s)
     }

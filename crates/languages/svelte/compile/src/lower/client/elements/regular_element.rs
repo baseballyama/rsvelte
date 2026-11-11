@@ -1,17 +1,18 @@
+use crate::lower::builder::Runtime;
 use crate::lower::client::{
     AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
     NodeKind, R, check_foreign_element, is_custom_element_node, is_customizable_select,
     is_directive, is_load_error_element, unsupported,
 };
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `RegularElement`.
     pub(in crate::lower::client) fn element(
         &mut self,
         identifier: CompilerNodeIdentifier,
         node: &str,
-        frag: &mut Frag,
-        l: &mut Lists,
+        frag: &mut Frag<'o>,
+        l: &mut Lists<'o>,
     ) -> R<()> {
         let compiler_syntax_tree = self.compiler_syntax_tree;
         let NodeKind::Element(el) = &compiler_syntax_tree.node(identifier).kind else {
@@ -57,27 +58,55 @@ impl ClientCompilationContext<'_> {
         let remove_defaults = el.name.text(self.source_text) == "input"
             && self.remove_input_defaults(attribute_list, has_spread, node, l);
         if has_spread {
-            self.attribute_effect(identifier, &tag, attribute_list, node, remove_defaults, l);
+            self.attribute_effect(identifier, &tag, attribute_list, node, remove_defaults, l)?;
         } else {
             self.element_attributes(identifier, &tag, attribute_list, node, frag, l)?;
         }
         let load_error_events = attribute_list.iter().any(|a| {
             !is_directive(&a.value) && matches!(a.name.text(self.source_text), "onload" | "onerror")
         });
-        if is_load_error_element(&tag) && (has_spread || load_error_events) {
-            let x = self.out.identifier(node);
-            let call = self.call("replay_events", vec![Some(x)]);
-            l.after.push(self.statement(call));
+        let has_use = attribute_list
+            .iter()
+            .any(|a| matches!(a.value, AttributeValue::Use { .. }));
+        if is_load_error_element(&tag) && (has_spread || has_use || load_error_events) {
+            let b = self.b;
+            l.after
+                .push(b.stmt(b.runtime("replay_events", [b.id(node)])));
         }
 
-        let mut child = self.element_children(identifier, node, frag)?;
-        if self.an.dynamic[identifier] {
-            l.initializer.append(&mut child.initializer);
-            l.update.append(&mut child.update);
-            l.after.append(&mut child.after);
+        let (snippets, child) =
+            self.collecting_snippets(|context| context.element_children(identifier, node, frag));
+        let mut child = child?;
+        if snippets.is_empty() {
+            if self.an.dynamic[identifier] {
+                l.initializer.append(&mut child.initializer);
+                l.update.append(&mut child.update);
+                l.after.append(&mut child.after);
+            }
+            l.initializer.append(&mut directives.initializer);
+            l.after.append(&mut directives.after);
+        } else {
+            // A block keeps the snippets' names from clashing with the parent's.
+            let mut block = snippets;
+            block.append(&mut child.initializer);
+            block.append(&mut directives.initializer);
+            if !child.update.is_empty() {
+                block.push(self.render_statement(frag, child.update));
+            }
+            block.append(&mut child.after);
+            block.append(&mut directives.after);
+            l.initializer.push(self.b.block(block));
         }
-        l.initializer.append(&mut directives.initializer);
-        l.after.append(&mut directives.after);
+        if attribute_list.iter().any(|a| {
+            !is_directive(&a.value)
+                && !matches!(a.value, AttributeValue::Spread(_))
+                && a.name.text(self.source_text) == "dir"
+        }) {
+            // Chromium keeps an `auto` direction after the text changes unless it is set again.
+            let b = self.b;
+            let dir = || b.member(b.id(node), "dir");
+            l.update.push(b.stmt(b.assign_member(dir(), dir())));
+        }
         if !has_spread {
             self.select_value(el, &tag, attribute_list, node, frag, l);
         }

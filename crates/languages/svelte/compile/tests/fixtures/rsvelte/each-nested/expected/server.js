@@ -1,7 +1,12 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Each_nested($$renderer) {
-	let groups = [{ name: 'fruit', items: ['apple', 'pear'] }, { name: 'veg', items: ['leek'] }];
+	let groups = [{
+		name: "fruit",
+		items: ["apple", "pear"]
+	}, {
+		name: "veg",
+		items: ["leek"]
+	}];
 	$$renderer.push(`<!--[-->`);
 	const each_array = $.ensure_array_like(groups);
 	for (let $$index_1 = 0, $$length = each_array.length; $$index_1 < $$length; $$index_1++) {

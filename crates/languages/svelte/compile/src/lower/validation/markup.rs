@@ -1,21 +1,21 @@
 //! The template errors upstream's parser and analysis raise, one walk for elements and
 //! components.
 
+use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Each, ElementKind, MetadataTag};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
 mod placement;
 
 use placement::Ancestors;
-
-use crate::render_plan::is_template_whitespace;
 
 use super::super::special::invalid;
 use super::super::{
     AttributeValue, Children, CompileInput, CompilerNodeIdentifier, Diagnostic, Element, NodeKind,
     is_custom_element_node, is_directive,
 };
+use crate::render_plan::is_template_whitespace;
 
 /// The nearest component, `<svelte:element>` or custom element above a node, which decides where a
 /// `slot` attribute may go.
@@ -99,11 +99,11 @@ fn walk<'a>(
 
 /// Upstream's `EachBlock` refuses a context named `$state` or `$derived`.
 fn each_rune<'a>(input: &CompileInput<'a>, each: &Each) -> Option<&'a str> {
-    let javascript = input.component.javascript;
-    let context = each.context()?;
-    let name = javascript
-        .is_identifier(context)
-        .then(|| javascript.name(context))?;
+    let context = input.component.javascript.get_pattern(each.context?);
+    let oxc_ast::ast::BindingPattern::BindingIdentifier(name) = &context.pattern else {
+        return None;
+    };
+    let name = name.name.as_str();
     matches!(name, "$state" | "$derived").then_some(name)
 }
 
@@ -223,16 +223,14 @@ fn element<'a>(
 
 /// Upstream's `bind_invalid_expression` test: a `{get, set}` pair, or a member chain that starts
 /// from a name, with no optional chain in it, which cannot be assigned to.
-fn binds_a_name(javascript: &SyntaxTree, target: NodeIdentifier) -> bool {
-    if let Kind::Sequence(expressions) = javascript.kind(target) {
-        return expressions.len() == 2;
+fn binds_a_name(javascript: &Tree, target: ExpressionIdentifier) -> bool {
+    // Upstream erases types before it analyzes the template.
+    let mut link = javascript.get_expression(target).get_inner_expression();
+    if let Expression::SequenceExpression(sequence) = link {
+        return sequence.expressions.len() == 2;
     }
-    let mut link = target;
-    while let Kind::Member { object, .. } = javascript.kind(link) {
-        if javascript.is_chain(link) {
-            return false;
-        }
-        link = object;
+    while let Some(member) = link.as_member_expression() {
+        link = member.object().get_inner_expression();
     }
-    javascript.is_identifier(link)
+    matches!(link, Expression::Identifier(_))
 }

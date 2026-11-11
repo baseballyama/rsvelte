@@ -1,8 +1,11 @@
-use rsvelte_typescript_syntax::syntax_tree::{Kind, TypeScriptKind, flag};
-
-use super::{
-    Buffer, Builder, Node, NodeIdentifier, Range, Result, SourceNode, Span, Unsupported, resolve,
+use oxc_ast::ast::{
+    BindingPattern, Declaration, Expression, IdentifierReference, PropertyKey, Statement,
+    VariableDeclaration, VariableDeclarationKind,
 };
+use oxc_ast_visit::Visit;
+use oxc_span::GetSpan;
+
+use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, Span, Unsupported, span};
 
 struct Edit {
     span: Span,
@@ -13,7 +16,6 @@ impl Builder<'_> {
     pub(super) fn scripts(&mut self) -> Result<NodeIdentifier> {
         if let Some(script) = &self.component.module {
             self.scratch.push(self.tree.push(Node::Program {
-                identifier: script.program,
                 span: script.content,
             }));
         }
@@ -30,36 +32,39 @@ impl Builder<'_> {
             {
                 return Err(Unsupported::at("generic component contracts", name));
             }
-            let Kind::Program(statements) = self.component.javascript.kind(script.program) else {
-                unreachable!("a script has a program node");
-            };
-            for &statement in statements {
-                let declaration = self.instance_export(statement, &mut exports, &mut edits)?;
-                if let Kind::VariableDeclaration { declarations, .. } =
-                    self.component.javascript.kind(declaration)
-                {
-                    for &declaration in declarations {
-                        let Kind::Declarator {
-                            identifier,
-                            initializer: Some(initializer),
-                        } = self.component.javascript.kind(declaration)
-                        else {
-                            continue;
-                        };
-                        if self.is_rune(initializer, "$props") {
-                            if props.is_some() {
-                                return Err(Unsupported::at(
-                                    "multiple props declarations",
-                                    self.span(identifier),
-                                ));
-                            }
-                            props = Some(self.props(identifier, &mut bindings, &mut edits)?);
+            let program = self.component.javascript.get_program(script.program);
+            for statement in &program.body {
+                let Some(declaration) =
+                    self.instance_export(statement, &mut exports, &mut edits)?
+                else {
+                    continue;
+                };
+                for declarator in &declaration.declarations {
+                    let Some(initializer) = &declarator.init else {
+                        continue;
+                    };
+                    if self.is_rune(initializer, "$props") {
+                        if props.is_some() {
+                            return Err(Unsupported::at(
+                                "multiple props declarations",
+                                span(declarator.id.span()),
+                            ));
                         }
+                        let annotation = declarator
+                            .type_annotation
+                            .as_ref()
+                            .map(|a| span(a.type_annotation.span()));
+                        props = Some(self.props(
+                            &declarator.id,
+                            annotation,
+                            &mut bindings,
+                            &mut edits,
+                        )?);
                     }
                 }
             }
             edits.sort_unstable_by_key(|edit| edit.span.start_offset);
-            self.script_parts(script.program, script.content, &edits);
+            self.script_parts(script.content, &edits);
             self.scratch[generated_start..].rotate_right(1);
         }
         let props = props.unwrap_or_else(|| {
@@ -92,50 +97,50 @@ impl Builder<'_> {
         Ok(self.tree.push(Node::ExportDefault(value)))
     }
 
-    fn instance_export(
+    /// The variable declaration `statement` is or exports, after recording what it exports.
+    fn instance_export<'s>(
         &mut self,
-        statement: SourceNode,
+        statement: &'s Statement<'s>,
         exports: &mut Buffer<NodeIdentifier>,
         edits: &mut Buffer<Edit>,
-    ) -> Result<SourceNode> {
-        let tree = &self.component.javascript;
-        let declaration = match tree.kind(statement) {
-            Kind::ExportNamed(declaration) => declaration,
-            Kind::ExportDefault(_) => {
+    ) -> Result<Option<&'s VariableDeclaration<'s>>> {
+        let export = match statement {
+            Statement::VariableDeclaration(declaration) => return Ok(Some(&**declaration)),
+            Statement::ExportDeclaration(export) => export,
+            Statement::ExportDefaultDeclaration(export) => {
                 return Err(Unsupported::at(
                     "instance default exports",
-                    self.span(statement),
+                    span(export.span),
                 ));
             }
-            _ => return Ok(statement),
+            _ => return Ok(None),
         };
-        match tree.kind(declaration) {
-            Kind::Function {
-                name: Some(name), ..
-            } => self.export_property(name, exports),
-            Kind::VariableDeclaration { kind, declarations } if kind == flag::CONST => {
-                for &declaration in declarations {
-                    let Kind::Declarator { identifier, .. } = tree.kind(declaration) else {
-                        unreachable!("a variable declaration has declarators");
-                    };
-                    self.export_pattern(identifier, exports)?;
-                }
+        let declaration = match &export.declaration {
+            Declaration::FunctionDeclaration(function) if function.id.is_some() => {
+                let name = function.id.as_ref().expect("checked above");
+                self.export_property(name.span, exports);
+                None
             }
-            Kind::TypeScriptDeclaration => {
-                return Ok(declaration);
+            Declaration::VariableDeclaration(declaration)
+                if declaration.kind == VariableDeclarationKind::Const =>
+            {
+                for declarator in &declaration.declarations {
+                    self.export_pattern(&declarator.id, exports)?;
+                }
+                Some(&**declaration)
+            }
+            Declaration::TSTypeAliasDeclaration(_) | Declaration::TSInterfaceDeclaration(_) => {
+                return Ok(None);
             }
             _ => {
                 return Err(Unsupported::at(
                     "instance export contracts",
-                    self.span(statement),
+                    span(export.span),
                 ));
             }
-        }
+        };
         edits.push(Edit {
-            span: Span::new(
-                self.span(statement).start_offset,
-                self.span(declaration).start_offset,
-            ),
+            span: Span::new(export.span.start, export.declaration.span().start),
             replacement: None,
         });
         Ok(declaration)
@@ -143,42 +148,37 @@ impl Builder<'_> {
 
     fn export_pattern(
         &mut self,
-        pattern: SourceNode,
+        pattern: &BindingPattern<'_>,
         exports: &mut Buffer<NodeIdentifier>,
     ) -> Result<()> {
-        match self.component.javascript.kind(pattern) {
-            Kind::Identifier(_) => self.export_property(pattern, exports),
-            Kind::ObjectPattern(properties) => {
-                for &property in properties {
-                    match self.component.javascript.kind(property) {
-                        Kind::Property { value, .. } | Kind::Rest(value) => {
-                            self.export_pattern(value, exports)?;
-                        }
-                        _ => unreachable!("an object pattern has properties or a rest binding"),
-                    }
+        match pattern {
+            BindingPattern::BindingIdentifier(identifier) => {
+                self.export_property(identifier.span, exports);
+            }
+            BindingPattern::ObjectPattern(object) => {
+                for property in &object.properties {
+                    self.export_pattern(&property.value, exports)?;
+                }
+                if let Some(rest) = &object.rest {
+                    self.export_pattern(&rest.argument, exports)?;
                 }
             }
-            Kind::AssignPattern(value, _) | Kind::Rest(value) => {
-                self.export_pattern(value, exports)?;
+            BindingPattern::AssignmentPattern(assignment) => {
+                self.export_pattern(&assignment.left, exports)?;
             }
-            Kind::ArrayPattern(values) => {
-                for &value in values {
-                    if !matches!(self.component.javascript.kind(value), Kind::Hole) {
-                        self.export_pattern(value, exports)?;
-                    }
+            BindingPattern::ArrayPattern(array) => {
+                for element in array.elements.iter().flatten() {
+                    self.export_pattern(element, exports)?;
                 }
-            }
-            _ => {
-                return Err(Unsupported::at(
-                    "instance export bindings",
-                    self.span(pattern),
-                ));
+                if let Some(rest) = &array.rest {
+                    self.export_pattern(&rest.argument, exports)?;
+                }
             }
         }
         Ok(())
     }
 
-    fn export_property(&mut self, name: SourceNode, exports: &mut Buffer<NodeIdentifier>) {
+    fn export_property(&mut self, name: oxc_span::Span, exports: &mut Buffer<NodeIdentifier>) {
         let name = self.source(name, None);
         let value = self.tree.push(Node::TypeQuery(name));
         exports.push(self.tree.push(Node::TypeProperty { name, value }));
@@ -186,63 +186,43 @@ impl Builder<'_> {
 
     fn props(
         &mut self,
-        pattern: SourceNode,
+        pattern: &BindingPattern<'_>,
+        annotation: Option<Span>,
         bindings: &mut Buffer<NodeIdentifier>,
         edits: &mut Buffer<Edit>,
     ) -> Result<NodeIdentifier> {
-        let annotation = self
-            .component
-            .javascript
-            .typescript
-            .iter()
-            .find(|syntax| syntax.node == pattern && syntax.kind == TypeScriptKind::Annotation)
-            .map(|syntax| syntax.span);
-        let Kind::ObjectPattern(properties) = self.component.javascript.kind(pattern) else {
+        let BindingPattern::ObjectPattern(object) = pattern else {
             if let Some(span) = annotation {
-                return Ok(self.tree.push(Node::SourceCopy {
-                    identifier: pattern,
-                    span,
-                }));
+                return Ok(self.tree.push(Node::SourceCopy { span }));
             }
             return Err(Unsupported::at(
                 "untyped props object contracts",
-                self.span(pattern),
+                span(pattern.span()),
             ));
         };
         let mut required = Buffer::new(0);
         let mut optional = Buffer::new(0);
-        let mut rest = false;
-        for &property in properties {
-            let (key, value) = match self.component.javascript.kind(property) {
-                Kind::Property {
-                    key,
-                    value,
-                    computed: false,
-                    ..
-                } => (key, value),
-                Kind::Rest(_) => {
-                    rest = true;
-                    continue;
-                }
-                _ => {
-                    return Err(Unsupported::at(
-                        "computed props contracts",
-                        self.span(property),
-                    ));
-                }
-            };
-            let default = match self.component.javascript.kind(value) {
-                Kind::AssignPattern(_, default) => Some(default),
+        let rest = object.rest.is_some();
+        let siblings = Siblings::new(pattern);
+        for property in &object.properties {
+            if property.computed {
+                return Err(Unsupported::at(
+                    "computed props contracts",
+                    span(property.span),
+                ));
+            }
+            let default = match &property.value {
+                BindingPattern::AssignmentPattern(assignment) => Some(&assignment.right),
                 _ => None,
             };
             if let Some(default) = default
                 && self.is_rune(default, "$bindable")
             {
-                bindings.push(self.property_string(key));
+                bindings.push(self.property_string(&property.key));
             }
             if annotation.is_none() {
-                let name = self.source(key, None);
-                let value = self.prop_default(default);
+                let name = self.source(property.key.span(), None);
+                let value = self.prop_default(default, &siblings);
                 let property = self.tree.push(Node::NamedProperty { name, value });
                 if default.is_some() {
                     optional.push(property);
@@ -252,10 +232,7 @@ impl Builder<'_> {
             }
         }
         if let Some(span) = annotation {
-            return Ok(self.tree.push(Node::SourceCopy {
-                identifier: pattern,
-                span,
-            }));
+            return Ok(self.tree.push(Node::SourceCopy { span }));
         }
         let name = self.props_name();
         let required = self.tree.list(&required);
@@ -276,7 +253,7 @@ impl Builder<'_> {
             .push(self.tree.push(Node::Const { name, value }));
         let value = self.tree.push(Node::TypeQuery(name));
         let replacement = self.tree.push(Node::TypeAnnotation(value));
-        let end = self.span(pattern).end_offset;
+        let end = pattern.span().end;
         edits.push(Edit {
             span: Span::new(end, end),
             replacement: Some(replacement),
@@ -284,36 +261,32 @@ impl Builder<'_> {
         Ok(value)
     }
 
-    fn prop_default(&mut self, default: Option<SourceNode>) -> NodeIdentifier {
+    fn prop_default<'e>(
+        &mut self,
+        default: Option<&'e Expression<'e>>,
+        siblings: &Siblings<'e>,
+    ) -> NodeIdentifier {
         let Some(mut default) = default else {
             return self.untyped_prop();
         };
         if self.is_rune(default, "$bindable") {
-            let typed = self.suffix(default).is_some();
-            let Kind::Call {
-                callee, arguments, ..
-            } = self.component.javascript.kind(default)
-            else {
-                unreachable!("a rune is a call");
+            let Expression::CallExpression(call) = default else {
+                // A typed `$bindable(…) as T` is the prop's type as written.
+                return self.source(default.span(), None);
             };
-            if typed
-                || self
-                    .type_arguments
-                    .binary_search_by_key(&callee.index(), |node| node.index())
-                    .is_ok()
-            {
-                return self.source(default, None);
+            if call.type_arguments.is_some() {
+                return self.source(default.span(), None);
             }
-            let Some(&fallback) = arguments.first() else {
+            let Some(fallback) = call.arguments.first().and_then(|a| a.as_expression()) else {
                 return self.untyped_prop();
             };
             default = fallback;
         }
-        let value = self.source(default, None);
-        let kind = self.component.javascript.kind(default);
-        if matches!(kind, Kind::Array(values) if values.is_empty())
-            && self.suffix(default).is_none()
-        {
+        let Some(default) = siblings.independent(default) else {
+            return self.untyped_prop();
+        };
+        let value = self.source(default.span(), None);
+        if matches!(default, Expression::ArrayExpression(array) if array.elements.is_empty()) {
             let callee = self.tree.push(Node::Identifier("__rsvelte_empty_array"));
             let arguments = self.tree.list(&[value]);
             self.tree.push(Node::Call { callee, arguments })
@@ -330,12 +303,11 @@ impl Builder<'_> {
         })
     }
 
-    fn property_string(&mut self, key: SourceNode) -> NodeIdentifier {
-        if matches!(self.component.javascript.kind(key), Kind::String) {
-            self.source(key, None)
+    fn property_string(&mut self, key: &PropertyKey<'_>) -> NodeIdentifier {
+        if let PropertyKey::StringLiteral(string) = key {
+            self.source(string.span, None)
         } else {
-            let span = self.span(key);
-            let text = self.tree.push(Node::Text(span));
+            let text = self.tree.push(Node::Text(span(key.span())));
             let parts = self.tree.list(&[text]);
             self.tree.push(Node::String {
                 parts,
@@ -346,49 +318,39 @@ impl Builder<'_> {
 
     fn props_name(&mut self) -> NodeIdentifier {
         let prefix = "__rsvelte_public_props";
+        let taken = |name: &str| {
+            (self.resolution)().is_some_and(|resolution| {
+                let scoping = resolution.scoping();
+                scoping.symbol_names().any(|n| n == name)
+                    || resolution.unresolved_names().any(|n| n == name)
+            })
+        };
         let mut index = 0;
-        while self
-            .component
-            .javascript
-            .atoms
-            .lookup(&format!("{prefix}{index}"))
-            .is_some()
-        {
+        while taken(&format!("{prefix}{index}")) {
             index += 1;
         }
         let prefix = self.tree.push(Node::Identifier(prefix));
         self.tree.push(Node::GeneratedIdentifier { prefix, index })
     }
 
-    fn is_rune(&self, node: SourceNode, name: &str) -> bool {
-        let javascript = &self.component.javascript;
-        resolve::rune_call(javascript, node).is_some_and(|(rune, _)| rune == name)
-            && self
-                .runes
-                .get_or_init(|| {
-                    resolve::runes(
-                        javascript,
-                        self.source,
-                        self.component.program,
-                        self.component.module.as_ref().map(|module| module.program),
-                    )
-                })
-                .rune(javascript, node)
+    /// Whether `e`, without its TypeScript wrappers, calls the rune `name` in its scope.
+    fn is_rune(&self, mut e: &Expression<'_>, name: &str) -> bool {
+        while let Expression::TSAsExpression(_)
+        | Expression::TSSatisfiesExpression(_)
+        | Expression::TSNonNullExpression(_)
+        | Expression::TSTypeAssertion(_) = e
+        {
+            e = e.get_inner_expression();
+        }
+        rsvelte_svelte_semantic::resolve::rune_call(e).is_some_and(|(rune, _)| rune == name)
+            && (self.resolution)()
+                .and_then(|resolution| resolution.rune(e))
                 .is_some()
     }
 
-    fn span(&self, node: SourceNode) -> Span {
-        self.component
-            .javascript
-            .source_location(node)
-            .span()
-            .expect("a source node has a span")
-    }
-
-    fn script_parts(&mut self, identifier: SourceNode, span: Span, edits: &[Edit]) {
+    fn script_parts(&mut self, span: Span, edits: &[Edit]) {
         if edits.is_empty() {
-            self.scratch
-                .push(self.tree.push(Node::Program { identifier, span }));
+            self.scratch.push(self.tree.push(Node::Program { span }));
             return;
         }
         let start = self.scratch.len();
@@ -396,7 +358,6 @@ impl Builder<'_> {
         for edit in edits {
             if cursor < edit.span.start_offset {
                 self.scratch.push(self.tree.push(Node::SourceCopy {
-                    identifier,
                     span: Span::new(cursor, edit.span.start_offset),
                 }));
             }
@@ -407,12 +368,80 @@ impl Builder<'_> {
         }
         if cursor < span.end_offset {
             self.scratch.push(self.tree.push(Node::SourceCopy {
-                identifier,
                 span: Span::new(cursor, span.end_offset),
             }));
         }
         let parts = self.finish_list(start);
         self.scratch
-            .push(self.tree.push(Node::ProgramParts { identifier, parts }));
+            .push(self.tree.push(Node::ProgramParts { parts }));
+    }
+}
+
+/// The bindings of one `$props()` pattern. The props object is inferred from the defaults, so a
+/// default that reads a sibling would infer the object from itself (TS7022).
+struct Siblings<'e> {
+    names: Vec<&'e str>,
+    defaults: Vec<(&'e str, Option<&'e Expression<'e>>)>,
+}
+
+impl<'e> Siblings<'e> {
+    fn new(pattern: &'e BindingPattern<'e>) -> Self {
+        let BindingPattern::ObjectPattern(object) = pattern else {
+            return Self {
+                names: Vec::new(),
+                defaults: Vec::new(),
+            };
+        };
+        let defaults = object
+            .properties
+            .iter()
+            .filter_map(|property| match &property.value {
+                BindingPattern::BindingIdentifier(name) => Some((name.name.as_str(), None)),
+                BindingPattern::AssignmentPattern(assignment) => match &assignment.left {
+                    BindingPattern::BindingIdentifier(name) => {
+                        Some((name.name.as_str(), Some(&assignment.right)))
+                    }
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect();
+        let names = pattern
+            .get_binding_identifiers()
+            .iter()
+            .map(|name| name.name.as_str())
+            .collect();
+        Self { names, defaults }
+    }
+
+    /// The default to infer from: a sibling's own, as svelte2tsx's `typeof sibling`, or `None` for
+    /// an untyped prop, as is one that reads a sibling another way, which svelte2tsx types `any`.
+    fn independent(&self, mut default: &'e Expression<'e>) -> Option<&'e Expression<'e>> {
+        for _ in 0..=self.defaults.len() {
+            if let Expression::Identifier(name) = default.without_parentheses()
+                && let Some(&(_, next)) = self.defaults.iter().find(|(n, _)| *n == name.name)
+            {
+                default = next?;
+                continue;
+            }
+            let mut reads = Reads {
+                names: &self.names,
+                found: false,
+            };
+            reads.visit_expression(default);
+            return (!reads.found).then_some(default);
+        }
+        None
+    }
+}
+
+struct Reads<'n, 'e> {
+    names: &'n [&'e str],
+    found: bool,
+}
+
+impl<'a> Visit<'a> for Reads<'_, '_> {
+    fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
+        self.found |= self.names.contains(&it.name.as_str());
     }
 }

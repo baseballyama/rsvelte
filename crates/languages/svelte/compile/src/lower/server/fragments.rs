@@ -1,61 +1,75 @@
-use super::{
-    EMPTY_COMMENT, NodeIdentifier, Piece, R, ServerCompilationContext, SourceLocation,
-    sanitize_template_string,
-};
+use oxc_ast::ast::{Expression, Statement};
+use rsvelte_svelte_semantic::compiler_syntax_tree::Children;
 
-impl ServerCompilationContext<'_> {
-    pub(super) fn fragment(
-        &mut self,
-        children: rsvelte_svelte_semantic::compiler_syntax_tree::Children,
-    ) -> R<Vec<NodeIdentifier>> {
-        self.fragment_with_snippets(children, true)
+use super::super::component::{Standalone, standalone};
+use super::{EMPTY_COMMENT, Piece, R, ServerCompilationContext};
+
+impl<'o> ServerCompilationContext<'_, 'o> {
+    pub(super) fn fragment(&mut self, children: Children) -> R<Vec<Statement<'o>>> {
+        self.fragment_without(children, |_| false)
     }
 
-    pub(super) fn fragment_with_snippets(
+    /// Upstream `Fragment` over the children but the snippets named so that `skipped` holds,
+    /// which the caller declares: the snippets come first (upstream `state.init`).
+    pub(super) fn fragment_without(
         &mut self,
-        children: rsvelte_svelte_semantic::compiler_syntax_tree::Children,
-        include_snippets: bool,
-    ) -> R<Vec<NodeIdentifier>> {
+        children: Children,
+        skipped: fn(&str) -> bool,
+    ) -> R<Vec<Statement<'o>>> {
+        let (mut snippets, template) = self.fragment_parts(children, skipped)?;
+        snippets.extend(template);
+        Ok(snippets)
+    }
+
+    /// The snippets a fragment declares, apart from the rest of it.
+    pub(super) fn fragment_parts(
+        &mut self,
+        children: Children,
+        skipped: fn(&str) -> bool,
+    ) -> R<(Vec<Statement<'o>>, Vec<Statement<'o>>)> {
+        let outer = std::mem::take(&mut self.snippets);
+        let template = self.fragment_template(children, skipped);
+        let snippets = std::mem::replace(&mut self.snippets, outer);
+        Ok((snippets, self.build_template(template?)))
+    }
+
+    fn fragment_template(
+        &mut self,
+        children: Children,
+        skipped: fn(&str) -> bool,
+    ) -> R<Vec<Piece<'o>>> {
         let cleaned = self.plan.fragment(children);
         let mut template = Vec::new();
-        for &identifier in &cleaned.hoisted {
-            if !include_snippets
-                && matches!(
-                    self.compiler_syntax_tree.node(identifier).kind,
-                    super::NodeKind::Snippet(_)
-                )
-            {
-                continue;
-            }
-            self.special_element(identifier, &mut template)?;
-        }
+        self.hoisted_elements(&cleaned.hoisted, skipped, &mut template)?;
         if cleaned.text_first {
             template.push(Piece::Text(EMPTY_COMMENT.into()));
         }
-        if let Some(component) = super::super::component::standalone_component(
+        match standalone(
             self.compiler_syntax_tree,
             self.javascript,
             self.res,
             &cleaned.items,
         ) {
-            self.component(component, true, &mut template)?;
-        } else {
-            self.process_children(&cleaned.items, &mut template)?;
+            Some(Standalone::Render(tag)) => self.render_tag(tag, true, &mut template),
+            Some(Standalone::Component(component)) => {
+                self.component(component, true, &mut template)?;
+            }
+            None => self.process_children(&cleaned.items, &mut template)?,
         }
-        Ok(self.build_template(template))
+        Ok(template)
     }
 
     /// Upstream `build_template`: adjacent pieces fold into one `$$renderer.push(`…`)`.
-    pub(super) fn build_template(&mut self, template: Vec<Piece>) -> Vec<NodeIdentifier> {
+    pub(super) fn build_template(&self, template: Vec<Piece<'o>>) -> Vec<Statement<'o>> {
         let mut statements = Vec::new();
         let mut strings: Vec<String> = Vec::new();
-        let mut expressions: Vec<NodeIdentifier> = Vec::new();
+        let mut expressions: Vec<Expression<'o>> = Vec::new();
         for piece in template {
             if let Piece::Statement(s) = piece {
                 if !strings.is_empty() {
                     statements.push(self.push_call(
                         &std::mem::take(&mut strings),
-                        &std::mem::take(&mut expressions),
+                        std::mem::take(&mut expressions),
                     ));
                 }
                 statements.push(s);
@@ -83,29 +97,14 @@ impl ServerCompilationContext<'_> {
             }
         }
         if !strings.is_empty() {
-            statements.push(self.push_call(&strings, &expressions));
+            statements.push(self.push_call(&strings, expressions));
         }
         statements
     }
 
-    fn push_call(&mut self, strings: &[String], expressions: &[NodeIdentifier]) -> NodeIdentifier {
-        let n = strings.len();
-        let quasis: Vec<NodeIdentifier> = strings
-            .iter()
-            .enumerate()
-            .map(|(i, s)| {
-                self.out
-                    .template_element(&sanitize_template_string(s), i + 1 == n)
-            })
-            .collect();
-        let t = self
-            .out
-            .template(&quasis, expressions, SourceLocation::SYNTHETIC);
-        let r = self.out.identifier("$$renderer");
-        let callee = self.out.dot(r, "push");
-        let call = self
-            .out
-            .call(callee, &[t], false, SourceLocation::SYNTHETIC);
-        self.out.expression_statement(call)
+    fn push_call(&self, strings: &[String], expressions: Vec<Expression<'o>>) -> Statement<'o> {
+        let b = self.b;
+        let template = b.template(strings.iter().map(String::as_str), expressions);
+        b.stmt(b.call(b.member(b.id("$$renderer"), "push"), [template]))
     }
 }

@@ -17,13 +17,14 @@ fn direct_lowering_and_compilation_refuse_runtime_typescript() {
         ));
         let resolution = rsvelte_svelte_semantic::resolve::resolve(
             &component.javascript,
-            &source,
-            component.program,
+            component.instance.as_ref().map(|s| s.program),
+            component.module.as_ref().map(|s| s.program),
             &tree,
         );
         let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
         for target in [Target::Client, Target::Server] {
-            let lowered = lower::lower(&input, &resolution, &analysis, target)
+            let allocator = oxc_allocator::Allocator::default();
+            let lowered = lower::lower(&input, &resolution, &analysis, target, &allocator)
                 .expect_err("runtime TypeScript refused");
             let compiled =
                 rsvelte_svelte_compile::compile_input(&input, &resolution, &analysis, target)
@@ -67,15 +68,15 @@ fn an_interpolated_attribute_decodes_references_as_an_attribute_value() {
     ));
     let resolution = rsvelte_svelte_semantic::resolve::resolve(
         &component.javascript,
-        source,
-        component.program,
+        component.instance.as_ref().map(|s| s.program),
+        component.module.as_ref().map(|s| s.program),
         &tree,
     );
     let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
     for (target, expected) in [
         (
             Target::Client,
-            r"$.set_attribute(a, 'title', '1{\n&copy=©');",
+            r#"$.set_attribute(a, "title", "1{\n&copy=©");"#,
         ),
         (Target::Server, "<a title=\"1{\n&amp;copy=©\">a</a>"),
     ] {

@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Boundary_failed_array_fixed($$renderer) {
 	{
 		function failed($$renderer, [first, , third], reset) {

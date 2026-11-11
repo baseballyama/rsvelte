@@ -2,8 +2,8 @@ use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, Component, Part, TokenType};
 
-use super::expressions::Expressions;
 use super::markup::{parts, value_span};
+use super::nodes;
 use super::shorthand_attribute::Options;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -29,7 +29,6 @@ impl SvelteRule for ShorthandDirective {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let source = file.source();
-        let expressions = Expressions::new(&component.javascript, source);
         for attribute in &component.attributes {
             if !matches!(
                 attribute.kind,
@@ -47,12 +46,15 @@ impl SvelteRule for ShorthandDirective {
                         Report::range("Expected regular directive syntax.", attribute.span)
                             .message_id("expectedRegular")
                             // After the modifiers too: `style:color|important={color}`.
-                            .fix(Fix::insert(attribute.name.end_offset, format!("={{{name}}}"))),
+                            .fix(Fix::insert(
+                                attribute.name.end_offset,
+                                format!("={{{name}}}"),
+                            )),
                     );
                 }
                 continue;
             }
-            if !self.always || !names_itself(component, &expressions, attribute, name) {
+            if !self.always || !names_itself(component, attribute, name) {
                 continue;
             }
             reporter.report(
@@ -65,19 +67,11 @@ impl SvelteRule for ShorthandDirective {
 }
 
 /// The value is `{name}`, the directive's own name.
-fn names_itself(
-    component: &Component,
-    expressions: &Expressions<'_>,
-    attribute: &Attribute,
-    name: &str,
-) -> bool {
-    let javascript = &component.javascript;
+fn names_itself(component: &Component, attribute: &Attribute, name: &str) -> bool {
     matches!(
         *parts(component, attribute),
         [Part::Expression { expression, .. }]
-            if javascript.is_identifier(expression)
-                && !expressions.asserted(expression)
-                && javascript.name(expression) == name
+            if nodes::is_named(component.javascript.get_expression(expression), name)
     )
 }
 

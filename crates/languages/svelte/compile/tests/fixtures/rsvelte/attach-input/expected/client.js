@@ -1,11 +1,8 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<label>Name <input/></label> <p> </p>`, 1);
-
 export default function Attach_input($$anchor) {
-	let text = $.state('');
+	let text = $.state("");
 	let focused = $.state(false);
 	function autofocus(node) {
 		node.focus();
@@ -21,7 +18,7 @@ export default function Attach_input($$anchor) {
 	$.attach(p, () => () => {
 		$.set(focused, $.get(text).length > 0);
 	});
-	$.template_effect(() => $.set_text(text_1, $.get(focused) ? 'typing' : 'idle'));
+	$.template_effect(() => $.set_text(text_1, $.get(focused) ? "typing" : "idle"));
 	$.bind_value(input, () => $.get(text), ($$value) => $.set(text, $$value));
 	$.append($$anchor, fragment);
 }

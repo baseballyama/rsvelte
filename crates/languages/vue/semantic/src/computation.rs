@@ -37,8 +37,8 @@ impl Artifact for Resolved {
         Some(resolve::resolve(
             &c.javascript,
             c.program,
+            None,
             compiler_syntax_tree,
-            context.source_text(),
         ))
     }
 }

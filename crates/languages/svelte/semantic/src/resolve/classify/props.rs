@@ -1,57 +1,67 @@
-use rsvelte_kernel::index::IndexVector;
-use rsvelte_typescript_semantic::scope::{BindingIdentifier, Semantic};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use oxc_ast::ast::{BindingPattern, PropertyKey};
+use rsvelte_typescript_semantic::semantic::Semantic;
 
 use super::super::{BindingInformation, BindingKind, runes};
 
-pub(super) fn classify_props(
-    syntax_tree: &SyntaxTree,
-    sem: &Semantic,
+pub(super) fn classify_props<'a>(
+    semantic: &Semantic,
     subscribed: &[&str],
-    pattern: NodeIdentifier,
-    out: &mut IndexVector<BindingIdentifier, BindingInformation>,
+    pattern: &'a BindingPattern<'a>,
+    out: &mut [BindingInformation<'a>],
 ) {
-    match syntax_tree.kind(pattern) {
-        Kind::Identifier(_) => {
-            if let Some(b) = sem.binding_of(pattern) {
-                out[b].kind = BindingKind::RestProperty;
-            }
+    let mut set = |identifier: &oxc_ast::ast::BindingIdentifier<'_>,
+                   info: BindingInformation<'a>| {
+        if let Some(symbol) = identifier.symbol_id.get() {
+            out[symbol.index()] = BindingInformation {
+                is_function: false,
+                ..info
+            };
         }
-        Kind::ObjectPattern(props) => {
-            for &p in props {
-                match syntax_tree.kind(p) {
-                    Kind::Property { key, value, .. } => {
-                        let (local, default) = match syntax_tree.kind(value) {
-                            Kind::AssignPattern(l, r) => (l, Some(r)),
-                            _ => (value, None),
-                        };
-                        let bindable_rune = default
-                            .and_then(|d| runes::rune(syntax_tree, sem, subscribed, d))
-                            .filter(|(r, _)| *r == "$bindable");
-                        let bindable = bindable_rune.is_some();
-                        if let Some(b) = sem.binding_of(local) {
-                            let info = &mut out[b];
-                            info.kind = if bindable {
-                                BindingKind::BindableProperty
-                            } else {
-                                BindingKind::Property
-                            };
-                            info.initial = if bindable {
-                                bindable_rune.and_then(|(_, a)| a)
-                            } else {
-                                default
-                            };
-                            info.prop_key = Some(key);
-                            info.is_function = false;
-                        }
+    };
+    let rest = BindingInformation {
+        kind: BindingKind::RestProperty,
+        is_function: false,
+        initial: None,
+        prop_key: None,
+    };
+    match pattern {
+        BindingPattern::BindingIdentifier(identifier) => set(identifier, rest),
+        BindingPattern::ObjectPattern(object) => {
+            for property in &object.properties {
+                let (local, default) = match &property.value {
+                    BindingPattern::AssignmentPattern(assignment) => {
+                        (&assignment.left, Some(&assignment.right))
                     }
-                    Kind::Rest(arg) => {
-                        if let Some(b) = sem.binding_of(arg) {
-                            out[b].kind = BindingKind::RestProperty;
-                        }
-                    }
-                    _ => {}
-                }
+                    value => (value, None),
+                };
+                let BindingPattern::BindingIdentifier(local) = local else {
+                    continue;
+                };
+                let bindable = default
+                    .and_then(|d| runes::rune(semantic, subscribed, d))
+                    .filter(|(r, _)| *r == "$bindable");
+                let key: &'a PropertyKey<'a> = &property.key;
+                set(
+                    local,
+                    BindingInformation {
+                        kind: if bindable.is_some() {
+                            BindingKind::BindableProperty
+                        } else {
+                            BindingKind::Property
+                        },
+                        is_function: false,
+                        initial: match bindable {
+                            Some((_, argument)) => argument,
+                            None => default.map(|d| crate::typescript::without_typescript(d)),
+                        },
+                        prop_key: Some(key),
+                    },
+                );
+            }
+            if let Some(rest_element) = &object.rest
+                && let BindingPattern::BindingIdentifier(identifier) = &rest_element.argument
+            {
+                set(identifier, rest);
             }
         }
         _ => {}

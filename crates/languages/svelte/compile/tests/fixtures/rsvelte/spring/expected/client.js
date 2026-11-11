@@ -1,11 +1,7 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
-import { Spring } from 'svelte/motion';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
+import { Spring } from "svelte/motion";
 var root = $.from_html(`<p> </p>`);
-
 export default function Spring_1($$anchor, $$props) {
 	$.push($$props, true);
 	const size = new Spring(10);

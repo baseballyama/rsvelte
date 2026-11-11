@@ -1,19 +1,23 @@
+use oxc_ast::ast::Expression;
+
 use super::{escaped_text, scoped_class};
+use crate::lower::builder::Runtime;
+use crate::lower::javascript::string_value;
 use crate::lower::server::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, Kind, Piece, R, ServerCompilationContext,
-    SourceLocation, capture_event, escape_markup, event_attribute, is_boolean_attribute,
-    is_directive, push_captured_events, unsupported,
+    Attribute, AttributeValue, CompilerNodeIdentifier, Piece, ServerCompilationContext,
+    capture_event, capture_load_events, escape_markup, event_attribute, is_behaviour,
+    is_boolean_attribute, is_directive, push_captured_events,
 };
 
-impl<'a> ServerCompilationContext<'a> {
+impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_element_attributes` (no spread).
     pub(in crate::lower::server) fn element_attributes(
-        &mut self,
+        &self,
         identifier: CompilerNodeIdentifier,
         tag: &str,
-        list: &'a [Attribute],
-        template: &mut Vec<Piece>,
-    ) -> R<()> {
+        list: &'o [Attribute],
+        template: &mut Vec<Piece<'o>>,
+    ) {
         let source_text = self.source_text;
         // A `defaultValue` on an `<input>` deopts to the spread path, which orders it at runtime.
         let has_spread = list.iter().any(|a| {
@@ -24,7 +28,7 @@ impl<'a> ServerCompilationContext<'a> {
         });
         if has_spread {
             self.spread_attributes(identifier, tag, list, template);
-            return Ok(());
+            return;
         }
         let hash = if self.an.scoped[identifier] {
             self.identity.stylesheet_hash.clone()
@@ -36,10 +40,15 @@ impl<'a> ServerCompilationContext<'a> {
             .iter()
             .filter(|a| matches!(a.value, AttributeValue::Class(_)))
             .collect();
+        let style_directives: Vec<&Attribute> = list
+            .iter()
+            .filter(|a| matches!(a.value, AttributeValue::Style { .. }))
+            .collect();
+        let directives = (class_directives.as_slice(), style_directives.as_slice());
         for a in list {
             let raw_name = a.name.text(self.source_text);
             match a.value {
-                AttributeValue::Bind(_) if tag == "svelte:element" && raw_name == "this" => {
+                AttributeValue::Bind(_) if raw_name == "this" => {
                     continue;
                 }
                 AttributeValue::Bind(_) => {
@@ -47,9 +56,12 @@ impl<'a> ServerCompilationContext<'a> {
                     template.push(Piece::Expression(call));
                     continue;
                 }
-                AttributeValue::Attach(_)
-                | AttributeValue::On { .. }
-                | AttributeValue::Class(_) => continue,
+                AttributeValue::Use { .. } => {
+                    capture_load_events(&mut events, tag);
+                    continue;
+                }
+                AttributeValue::Class(_) | AttributeValue::Style { .. } => continue,
+                _ if is_behaviour(&a.value) => continue,
                 AttributeValue::Spread(_) => unreachable!("spreads take the spread path"),
                 _ if event_attribute(self.source_text, a).is_some() => {
                     capture_event(&mut events, tag, raw_name);
@@ -64,62 +76,99 @@ impl<'a> ServerCompilationContext<'a> {
                 raw_name.to_owned()
             };
             let trim = matches!(name.as_str(), "class" | "style");
-            let can_use_literal = name != "class" || class_directives.is_empty();
             let literal = match &a.value {
                 AttributeValue::Boolean => Some(None),
                 AttributeValue::Static(v) => Some(Some(escaped_text(v, trim))),
                 _ => None,
             };
-            if can_use_literal && let Some(v) = literal {
+            if can_use_literal(&name, directives)
+                && let Some(v) = literal
+            {
                 Self::literal_attribute(template, &name, v, hash.as_deref());
                 continue;
             }
-            if name == "style" {
-                return unsupported("a dynamic `style` attribute", a.span);
-            }
-            let value = match literal {
-                Some(Some(v)) => self.out.write_string(&v),
-                _ => self.attribute_value(a, trim, raw_name == "class"),
-            };
-            if can_use_literal && matches!(self.out.kind(value), Kind::String) {
-                let mut v = self.out.str_value(value, self.source_text).to_owned();
-                if name == "class"
-                    && let Some(h) = &hash
-                {
-                    v = scoped_class(&v, h);
-                }
-                let v = escape_markup(&v, true);
-                template.push(Piece::Text(format!(" {name}=\"{v}\"")));
-            } else if name == "class" {
-                let call = self.attribute_class(&class_directives, value, hash.as_deref());
-                template.push(Piece::Expression(call));
-            } else {
-                let n = self.out.write_string(&name);
-                let mut arguments = vec![n, value];
-                if is_boolean_attribute(&name) {
-                    arguments.push(self.out.write_boolean(true, SourceLocation::SYNTHETIC));
-                }
-                template.push(Piece::Expression(self.out.runtime("$", "attr", &arguments)));
-            }
+            let value = self.attribute_value(a, trim, raw_name == "class");
+            self.dynamic_attribute(&name, value, directives, hash.as_deref(), template);
         }
-        // Upstream's analysis appends `class=""` to such an element.
+        self.implicit_class(
+            identifier,
+            list,
+            &class_directives,
+            hash.as_deref(),
+            template,
+        );
+        // And `style=""` to one with `style:`.
+        let has_style = list.iter().any(|a| {
+            !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case("style")
+        });
+        if !has_style && !style_directives.is_empty() {
+            let call = self.attr_style(&style_directives, self.b.string(""));
+            template.push(Piece::Expression(call));
+        }
+        push_captured_events(template, &events);
+    }
+
+    /// An attribute upstream does not print as text: inlined when its value is a string, else
+    /// through `$.attr_class`, `$.attr_style` or `$.attr`.
+    fn dynamic_attribute(
+        &self,
+        name: &str,
+        value: Expression<'o>,
+        (class_directives, style_directives): (&[&Attribute], &[&Attribute]),
+        hash: Option<&str>,
+        template: &mut Vec<Piece<'o>>,
+    ) {
+        let b = self.b;
+        if can_use_literal(name, (class_directives, style_directives))
+            && let Expression::StringLiteral(literal) = &value
+        {
+            let mut v = string_value(literal.value).into_owned();
+            if name == "class"
+                && let Some(h) = hash
+            {
+                v = scoped_class(&v, h);
+            }
+            let v = escape_markup(&v, true);
+            template.push(Piece::Text(format!(" {name}=\"{v}\"")));
+            return;
+        }
+        let call = match name {
+            "class" => self.attribute_class(class_directives, value, hash),
+            "style" => self.attr_style(style_directives, value),
+            _ => {
+                let mut arguments = vec![b.string(name), value];
+                if is_boolean_attribute(name) {
+                    arguments.push(b.boolean(true));
+                }
+                b.runtime("attr", arguments)
+            }
+        };
+        template.push(Piece::Expression(call));
+    }
+
+    /// Upstream's analysis appends `class=""` to an element with `class:` or a scoped one.
+    fn implicit_class(
+        &self,
+        identifier: CompilerNodeIdentifier,
+        list: &[Attribute],
+        class_directives: &[&Attribute],
+        hash: Option<&str>,
+        template: &mut Vec<Piece<'o>>,
+    ) {
         let has_class = list.iter().any(|a| {
             !matches!(a.value, AttributeValue::Class(_))
                 && a.name.text(self.source_text).eq_ignore_ascii_case("class")
         });
         if !has_class && !class_directives.is_empty() {
-            let value = self.out.write_string("");
-            let call = self.attribute_class(&class_directives, value, hash.as_deref());
+            let call = self.attribute_class(class_directives, self.b.string(""), hash);
             template.push(Piece::Expression(call));
         } else if !has_class && self.an.scoped[identifier] {
-            Self::literal_attribute(template, "class", Some(String::new()), hash.as_deref());
+            Self::literal_attribute(template, "class", Some(String::new()), hash);
         }
-        push_captured_events(template, &events);
-        Ok(())
     }
 
     fn literal_attribute(
-        template: &mut Vec<Piece>,
+        template: &mut Vec<Piece<'o>>,
         name: &str,
         value: Option<String>,
         hash: Option<&str>,
@@ -140,4 +189,9 @@ impl<'a> ServerCompilationContext<'a> {
             )));
         }
     }
+}
+
+/// Upstream's `can_use_literal`: a `class` or `style` with directives needs the runtime.
+fn can_use_literal(name: &str, (classes, styles): (&[&Attribute], &[&Attribute])) -> bool {
+    (name != "class" || classes.is_empty()) && (name != "style" || styles.is_empty())
 }

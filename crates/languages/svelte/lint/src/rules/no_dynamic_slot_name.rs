@@ -3,7 +3,6 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Part, TemplateNode};
 
 use super::constant_string::{root, string_if_constant};
-use super::expressions::Expressions;
 use super::markup::{is_attribute, parts, quote, value_span};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -25,7 +24,6 @@ impl SvelteRule for NoDynamicSlotName {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let source = file.source();
-        let expressions = Expressions::new(&component.javascript, source);
         for node in &component.nodes {
             let TemplateNode::Element {
                 name, attributes, ..
@@ -55,10 +53,13 @@ impl SvelteRule for NoDynamicSlotName {
                     let Part::Expression { expression, span } = *part else {
                         continue;
                     };
-                    let expression = root(&expressions, || file.semantic(), expression);
+                    let expression = root(
+                        file.semantic(),
+                        component.javascript.get_expression(expression),
+                    );
                     let report = Report::range("`<slot>` name cannot be dynamic.", span)
                         .message_id("unexpected");
-                    let Some(text) = string_if_constant(&expressions, expression) else {
+                    let Some(text) = string_if_constant(expression) else {
                         reporter.report(report);
                         continue;
                     };

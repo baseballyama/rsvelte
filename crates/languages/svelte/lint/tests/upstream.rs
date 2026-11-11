@@ -68,6 +68,10 @@ const COUNTED: &[(&str, &str)] = &[
         concat!(env!("CARGO_MANIFEST_DIR"), "/tests/upstream_parser.json"),
         "need syntax the parser lacks",
     ),
+    (
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/upstream_rejected.json"),
+        "TypeScript rejects",
+    ),
 ];
 
 #[derive(Deserialize)]

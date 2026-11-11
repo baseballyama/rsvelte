@@ -1,9 +1,13 @@
 use std::sync::Arc;
 
+use oxc_ast::ast::{
+    BindingPattern, Declaration, Expression, PropertyKey, Statement, VariableDeclarator,
+};
+use oxc_ast_visit::{Visit, walk};
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::kit_route::{RouteFile, route_file};
+use super::nodes::{is_named, span};
 use crate::LintSettings;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -45,83 +49,60 @@ impl SvelteRule for ValidPropNames {
             RouteFile::Layout => LAYOUT,
             RouteFile::Error => ERROR,
         };
-        let tree = &component.javascript;
-        let span = |node| {
-            tree.source_location(node)
-                .span()
-                .expect("a source node has a span")
-        };
+        let program = component.javascript.get_program(instance.program);
         // `export let` props of the legacy syntax, in every route component.
-        if let Kind::Program(statements) = tree.kind(instance.program) {
-            for &statement in statements {
-                let Kind::ExportNamed(declaration) = tree.kind(statement) else {
-                    continue;
-                };
-                let Kind::VariableDeclaration { declarations, .. } = tree.kind(declaration) else {
-                    continue;
-                };
-                for &declarator in declarations {
-                    let Kind::Declarator { identifier, .. } = tree.kind(declarator) else {
-                        continue;
-                    };
-                    match tree.kind(identifier) {
-                        Kind::Identifier(name) => {
-                            if !LEGACY_PAGE.contains(&tree.atoms.get(name)) {
-                                reporter.range(MESSAGE, span(declarator));
-                            }
+        for statement in &program.body {
+            let Statement::ExportDeclaration(export) = statement else {
+                continue;
+            };
+            let Declaration::VariableDeclaration(declaration) = &export.declaration else {
+                continue;
+            };
+            for declarator in &declaration.declarations {
+                match &declarator.id {
+                    BindingPattern::BindingIdentifier(name) => {
+                        if !LEGACY_PAGE.contains(&name.name.as_str()) {
+                            reporter.range(MESSAGE, span(declarator));
                         }
-                        _ => check_pattern(tree, identifier, LEGACY_PAGE, reporter),
                     }
+                    pattern => check_pattern(pattern, LEGACY_PAGE, reporter),
                 }
             }
         }
         // `let { … } = $props()` anywhere in the instance script.
-        let mut pending = vec![instance.program];
-        while let Some(node) = pending.pop() {
-            if let Kind::Declarator {
-                identifier,
-                initializer: Some(initializer),
-            } = tree.kind(node)
-                && let Kind::Call { callee, .. } = tree.kind(initializer)
-                && tree
-                    .atom(callee)
-                    .is_some_and(|name| tree.atoms.get(name) == "$props")
-            {
-                check_pattern(tree, identifier, expected, reporter);
-            }
-            tree.for_each_child(node, |child| pending.push(child));
+        Props { expected, reporter }.visit_program(program);
+    }
+}
+
+struct Props<'r, 'p> {
+    expected: &'static [&'static str],
+    reporter: &'r mut Reporter<'p>,
+}
+
+impl<'a> Visit<'a> for Props<'_, '_> {
+    fn visit_variable_declarator(&mut self, it: &VariableDeclarator<'a>) {
+        if let Some(Expression::CallExpression(call)) = &it.init
+            && is_named(&call.callee, "$props")
+        {
+            check_pattern(&it.id, self.expected, self.reporter);
         }
+        walk::walk_variable_declarator(self, it);
     }
 }
 
 /// Reports each key of an object pattern that is not an expected prop.
-fn check_pattern(
-    tree: &SyntaxTree,
-    pattern: NodeIdentifier,
-    expected: &[&str],
-    reporter: &mut Reporter<'_>,
-) {
-    let Kind::ObjectPattern(properties) = tree.kind(pattern) else {
+fn check_pattern(pattern: &BindingPattern<'_>, expected: &[&str], reporter: &mut Reporter<'_>) {
+    let BindingPattern::ObjectPattern(object) = pattern else {
         return;
     };
-    for &property in properties {
-        let Kind::Property {
-            key,
-            computed: false,
-            ..
-        } = tree.kind(property)
-        else {
+    for property in &object.properties {
+        if property.computed {
             continue;
-        };
-        if let Some(name) = tree.atom(key)
-            && !expected.contains(&tree.atoms.get(name))
+        }
+        if let PropertyKey::StaticIdentifier(key) = &property.key
+            && !expected.contains(&key.name.as_str())
         {
-            reporter.range(
-                MESSAGE,
-                tree.source_location(key)
-                    .span()
-                    .expect("a source node has a span"),
-            );
+            reporter.range(MESSAGE, span(key.as_ref()));
         }
     }
 }

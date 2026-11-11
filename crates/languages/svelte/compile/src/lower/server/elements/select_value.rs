@@ -1,9 +1,8 @@
 use crate::lower::server::{
-    CompilerNodeIdentifier, Element, Piece, R, ServerCompilationContext, SourceLocation,
-    call_arguments, synthetic_value,
+    CompilerNodeIdentifier, Element, Piece, R, ServerCompilationContext, synthetic_value,
 };
 
-impl ServerCompilationContext<'_> {
+impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `RegularElement`'s `is_select_special` / `is_option_special` branches: the
     /// renderer writes the element, so it can mark the selected option.
     pub(super) fn select_element(
@@ -11,21 +10,19 @@ impl ServerCompilationContext<'_> {
         identifier: CompilerNodeIdentifier,
         el: &Element,
         tag: &str,
-        template: &mut Vec<Piece>,
+        template: &mut Vec<Piece<'o>>,
     ) -> R<()> {
+        let b = self.b;
         let compiler_syntax_tree = self.compiler_syntax_tree;
         let body = if let Some(e) = synthetic_value(compiler_syntax_tree, self.source_text, tag, el)
         {
             self.expression(e)
         } else {
-            let cleaned = self.plan.fragment(el.children);
+            let plan = self.plan;
             let mut inner = Vec::new();
-            self.process_children(&cleaned.items, &mut inner)?;
+            self.process_children(&plan.fragment(el.children).items, &mut inner)?;
             let statements = self.build_template(inner);
-            let block = self.out.block(&statements, SourceLocation::SYNTHETIC);
-            let param = self.out.identifier("$$renderer");
-            self.out
-                .arrow(&[param], block, false, false, SourceLocation::SYNTHETIC)
+            b.arrow_block(b.params(["$$renderer"]), statements, false)
         };
         let (mut arguments, _) = self.spread_args(
             identifier,
@@ -34,13 +31,8 @@ impl ServerCompilationContext<'_> {
             true,
         );
         arguments.insert(1, Some(body));
-        let arguments = call_arguments(&mut self.out, arguments);
-        let r = self.out.identifier("$$renderer");
-        let callee = self.out.dot(r, tag);
-        let call = self
-            .out
-            .call(callee, &arguments, false, SourceLocation::SYNTHETIC);
-        template.push(Piece::Statement(self.out.expression_statement(call)));
+        let call = b.call_some(b.member(b.id("$$renderer"), tag), arguments);
+        template.push(Piece::Statement(b.stmt(call)));
         Ok(())
     }
 }

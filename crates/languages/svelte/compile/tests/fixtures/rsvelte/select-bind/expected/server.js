@@ -1,13 +1,12 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Select_bind($$renderer) {
-	let choice = 'b';
-	let items = ['a', 'b'];
+	let choice = "b";
+	let items = ["a", "b"];
 	$$renderer.select({ value: choice }, ($$renderer) => {
-		$$renderer.option({ value: 'a' }, ($$renderer) => {
+		$$renderer.option({ value: "a" }, ($$renderer) => {
 			$$renderer.push(`A`);
 		});
-		$$renderer.option({ value: 'b' }, ($$renderer) => {
+		$$renderer.option({ value: "b" }, ($$renderer) => {
 			$$renderer.push(`B`);
 		});
 		$$renderer.push(`<!--[-->`);

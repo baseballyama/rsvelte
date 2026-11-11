@@ -1,16 +1,20 @@
-use super::{
-    AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R,
-    SourceLocation,
-};
+use oxc_ast::ast::Expression;
 
-impl ClientCompilationContext<'_> {
+use super::{
+    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists,
+    NodeKind, R, is_behaviour,
+};
+use crate::lower::builder::Runtime;
+
+impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn dynamic_element(
         &mut self,
         identifier: CompilerNodeIdentifier,
         node: &str,
-        frag: &mut Frag,
-        lists: &mut Lists,
+        frag: &mut Frag<'o>,
+        lists: &mut Lists<'o>,
     ) -> R<()> {
+        let b = self.b;
         let tree = self.compiler_syntax_tree;
         let NodeKind::Element(element) = &tree.node(identifier).kind else {
             unreachable!("an element")
@@ -18,12 +22,12 @@ impl ClientCompilationContext<'_> {
         let attributes = tree.attributes(element.attributes);
         let tag = &tree.attributes[element.this.expect("dynamic tag is validated")];
         let tag = match &tag.value {
-            AttributeValue::Static(tag) => self.out.write_string(tag),
+            AttributeValue::Static(tag) => b.string(tag),
             value => self.expression(
                 super::super::template::single_expression(value).expect("a validated dynamic tag"),
             ),
         };
-        let get_tag = self.thunk(tag);
+        let get_tag = b.thunk(tag);
         let name = self.names.generate("$$element");
         let mut inner = Lists::default();
         let directives = self.element_directives(attributes, "svelte:element", &name);
@@ -34,13 +38,8 @@ impl ClientCompilationContext<'_> {
             .collect();
         let mut element_frag = Frag::default();
         let mut actual = attributes.iter().filter(|a| {
-            !matches!(
-                a.value,
-                AttributeValue::Bind(_)
-                    | AttributeValue::Attach(_)
-                    | AttributeValue::Class(_)
-                    | AttributeValue::On { .. }
-            )
+            !is_behaviour(&a.value)
+                && !matches!(a.value, AttributeValue::Bind(_) | AttributeValue::Class(_))
         });
         let first = actual.next();
         if let Some(attribute) = first {
@@ -67,7 +66,7 @@ impl ClientCompilationContext<'_> {
                     &name,
                     false,
                     &mut inner,
-                );
+                )?;
             }
         }
         if first.is_none() && (!classes.is_empty() || self.an.scoped[identifier]) {
@@ -83,39 +82,30 @@ impl ClientCompilationContext<'_> {
         inner.after.extend(directives.after);
         let mut body = inner.initializer;
         if !inner.update.is_empty() {
-            body.push(self.render_statement(&mut element_frag, &inner.update));
+            body.push(self.render_statement(&mut element_frag, inner.update));
         }
         body.extend(inner.after);
         body.extend(self.fragment(element.children)?);
-        let callback = (!body.is_empty()).then(|| {
-            let block = self.out.block(&body, SourceLocation::SYNTHETIC);
-            let element = self.out.identifier(&name);
-            let anchor = self.out.identifier("$$anchor");
-            self.out.arrow(
-                &[element, anchor],
-                block,
-                false,
-                false,
-                SourceLocation::SYNTHETIC,
-            )
-        });
+        let callback = (!body.is_empty())
+            .then(|| b.arrow_block(b.params([name.as_str(), "$$anchor"]), body, false));
         let namespace = self.dynamic_namespace(attributes);
-        let anchor = self.out.identifier(node);
         let foreign = self.plan.namespace(identifier) != crate::render_plan::Namespace::Html;
-        let svg = self.out.write_boolean(foreign, SourceLocation::SYNTHETIC);
-        let call = self.call(
+        let call = b.runtime_some(
             "element",
-            vec![Some(anchor), Some(get_tag), Some(svg), callback, namespace],
+            vec![
+                Some(b.id(node)),
+                Some(get_tag),
+                Some(b.boolean(foreign)),
+                callback,
+                namespace,
+            ],
         );
         frag.tpl.push_comment();
-        lists.initializer.push(self.statement(call));
+        lists.initializer.push(b.stmt(call));
         Ok(())
     }
 
-    fn dynamic_namespace(
-        &mut self,
-        attributes: &[super::Attribute],
-    ) -> Option<super::NodeIdentifier> {
+    fn dynamic_namespace(&self, attributes: &[Attribute]) -> Option<Expression<'o>> {
         let namespace = attributes.iter().find(|a| {
             a.name.text(self.source_text) == "xmlns"
                 && !matches!(a.value, AttributeValue::Static(_))
@@ -125,8 +115,7 @@ impl ClientCompilationContext<'_> {
                 super::super::template::single_expression(&a.value)
                     .expect("a namespace expression"),
             );
-            self.out
-                .arrow(&[], value, true, false, SourceLocation::SYNTHETIC)
+            self.b.arrow(self.b.params([]), value)
         })
     }
 }

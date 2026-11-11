@@ -1,68 +1,61 @@
-use super::{
-    Attribute, AttributeValue, Builder, Helper, Part, R, SourceLocation, Steps, attribute, bound,
-    vue,
-};
+use oxc_ast::ast::Expression;
 
-impl Builder<'_, '_> {
+use super::{Attribute, AttributeValue, Helper, Steps, Template, attribute, vue};
+
+impl<'t> Template<'_, '_, 't> {
+    /// A plain attribute's value as an expression.
+    pub(super) fn plain_value(&mut self, a: &Attribute) -> Expression<'t> {
+        match &a.value {
+            AttributeValue::Boolean => self.b.boolean(true),
+            AttributeValue::Static(value) => self.b.string(value),
+            &(AttributeValue::Expression { expression, .. }
+            | AttributeValue::Shorthand(expression)) => self.template_expression(expression),
+            AttributeValue::Interpolated(parts) => self.interpolated(parts),
+            _ => unreachable!("a plain attribute"),
+        }
+    }
+
     pub(super) fn special_boolean_attribute(
         &mut self,
         source: &Attribute,
         props: &mut Vec<vue::Property>,
-        steps: &mut Steps,
-    ) -> R<()> {
+        steps: &mut Steps<'t>,
+    ) {
         let name = source.name.text(self.i.source_text);
         if self.i.server || name == "hidden" {
             match &source.value {
                 AttributeValue::Static(value) => {
                     props.push(attribute(source, Some(value)));
-                    return Ok(());
+                    return;
                 }
                 AttributeValue::Boolean => {
                     props.push(attribute(source, None));
-                    return Ok(());
+                    return;
                 }
                 _ => {}
             }
         }
-        let value = match &source.value {
-            AttributeValue::Boolean => self.to.write_boolean(true, SourceLocation::SYNTHETIC),
-            AttributeValue::Static(value) => self.to.write_string(value),
-            AttributeValue::Expression { expression, .. }
-            | AttributeValue::Shorthand(expression) => {
-                self.render_read(*expression)?;
-                self.template_expression(*expression)
-            }
-            AttributeValue::Interpolated(parts) => {
-                for part in parts {
-                    if let Part::Expression { expression, .. } = *part {
-                        self.render_read(expression)?;
-                    }
-                }
-                self.interpolated(parts)
-            }
-            _ => unreachable!("a plain attribute"),
-        };
+        let value = self.plain_value(source);
         if self.i.server {
             let value = if name == "hidden" {
                 value
             } else {
                 self.helpers.insert(Helper::BooleanServer);
-                self.call("$$bool", &[value])
+                self.call("$$bool", [value])
             };
-            props.push(bound(name, source.name.span(), value, source.span));
+            props.push(self.bound(name, source.name.span(), value, source.span));
         } else if name == "muted" {
-            let value = self.call("Boolean", &[value]);
-            props.push(bound(name, source.name.span(), value, source.span));
+            let value = self.call("Boolean", [value]);
+            props.push(self.bound(name, source.name.span(), value, source.span));
         } else {
             self.helpers.insert(Helper::SpecialAttribute);
-            let element = self.to.identifier("$$el");
             let helper = if name == "hidden" {
                 "$$hidden"
             } else {
                 "$$autofocus"
             };
-            steps.mounted.push(self.call(helper, &[element, value]));
+            let call = self.call(helper, [self.b.id("$$el"), value]);
+            steps.mounted.push(call);
         }
-        Ok(())
     }
 }

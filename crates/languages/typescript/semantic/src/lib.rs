@@ -3,7 +3,7 @@
 pub mod globals;
 pub mod number;
 pub mod reference_tracker;
-pub mod scope;
+pub mod semantic;
 pub mod static_value;
 
 pub(crate) mod computation;

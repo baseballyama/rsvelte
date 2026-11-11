@@ -1,320 +1,222 @@
-//! How JavaScript constructs lay out their tokens.
+//! How JavaScript constructs lay out their tokens, node by node as `ESLint` visits `ESTree`.
 
+use oxc_ast::AstKind;
+use oxc_ast::ast::{
+    ClassType, FormalParameters, FunctionType, TSNamespaceDeclarationBody, TSThisParameter,
+};
+use oxc_ast_visit::Visit;
+use oxc_parser::Kind;
+use oxc_span::{GetSpan, Span as OxcSpan};
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_syntax::lexer::T;
-use rsvelte_typescript_syntax::syntax_tree::{Class, Control, TypeScriptKind};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::layout::{Item, Layout};
-use super::tokens::Token;
+use super::tokens::{Token, Tokens};
 
 pub(super) struct Script<'s, 'a> {
     pub layout: &'s mut Layout<'a>,
-    pub javascript: &'a SyntaxTree,
-    pub parents: &'a [NodeIdentifier],
-    /// By node, where its type annotation (or `?`) ends, which `ESTree` puts inside the binding.
-    pub annotations: Vec<(NodeIdentifier, u32)>,
-    /// By node, the indexes of its entries in [`SyntaxTree::typescript`].
-    pub typescript: Vec<(NodeIdentifier, u32)>,
+    /// The nodes around the one being laid out, outermost first.
+    ancestors: Vec<AstKind<'a>>,
 }
 
-/// [`Script::annotations`] of a tree.
-pub(super) fn annotations(javascript: &SyntaxTree) -> Vec<(NodeIdentifier, u32)> {
-    let mut out: Vec<(NodeIdentifier, u32)> = javascript
-        .typescript
-        .iter()
-        .filter(|t| {
-            matches!(
-                t.kind,
-                TypeScriptKind::Annotation | TypeScriptKind::Optional
-            )
-        })
-        .map(|t| (t.node, t.span.end_offset))
-        .collect();
-    out.sort_unstable();
-    out
+impl<'a> Visit<'a> for Script<'_, 'a> {
+    fn enter_node(&mut self, kind: AstKind<'a>) {
+        self.enter(kind);
+        self.ancestors.push(kind);
+    }
+
+    fn leave_node(&mut self, _kind: AstKind<'a>) {
+        self.ancestors.pop();
+    }
 }
 
-fn opt(node: NodeIdentifier) -> Option<NodeIdentifier> {
-    node.opt()
+/// The document's position type of an oxc span.
+pub(super) const fn span(node: OxcSpan) -> Span {
+    crate::rules::node_span(node)
 }
 
-impl Script<'_, '_> {
-    fn parent(&self, node: NodeIdentifier) -> Option<NodeIdentifier> {
-        self.parents.get(node.index()).copied().and_then(opt)
-    }
+/// The entries of a parameter list as `ESTree` lists them: `this`, the parameters, the rest.
+pub(super) fn parameter_spans(
+    this: Option<&TSThisParameter<'_>>,
+    parameters: &FormalParameters<'_>,
+) -> Vec<OxcSpan> {
+    this.map(|t| t.span)
+        .into_iter()
+        .chain(parameters.items.iter().map(|p| p.span))
+        .chain(parameters.rest.as_ref().map(|r| r.span))
+        .collect()
+}
 
-    /// The node's range as `ESTree` has it.
-    pub(super) fn span(&self, node: NodeIdentifier) -> Option<Span> {
-        let js = self.javascript;
-        // An optional child, such as an overload's body, is absent.
-        if node.is_none() {
-            return None;
-        }
-        let mut span = js.source_location(node).span()?;
-        if matches!(js.kind(node), Kind::Hole) {
-            return None;
-        }
-        // `ESTree` starts a declaration at the `declare` or `const` before it.
-        if let Some(p) = self.parent(node)
-            && matches!(js.kind(p), Kind::TypeScriptDeclaration)
-            && let Some(outer) = js.source_location(p).span()
-        {
-            span = Span::new(outer.start_offset, span.end_offset);
-        }
-        let tokens = &self.layout.tokens;
-        match js.kind(node) {
-            // A method's function starts at its parameters.
-            Kind::Function {
-                declaration: false, ..
-            } if self.is_method_value(node) => {
-                let key = self.method_key(node)?;
-                let key_end = js.source_location(key).span()?.end_offset;
-                let paren = tokens.after_matching(key_end, |t| {
-                    tokens.is(t, T::LParen) || tokens.text(t) == "<"
-                })?;
-                Some(Span::new(tokens.span(paren).start_offset, span.end_offset))
-            }
-            // A declaration statement ends with its semicolon.
-            Kind::VariableDeclaration { .. }
-                if !self.parent(node).is_some_and(|p| {
-                    matches!(
-                        js.kind(p),
-                        Kind::For { .. } | Kind::Control(Control::ForEach { .. })
-                    )
-                }) =>
-            {
-                let end = tokens
-                    .after_offset(span.end_offset)
-                    .filter(|&t| tokens.is(t, T::Semi))
-                    .map_or(span.end_offset, |t| tokens.span(t).end_offset);
-                Some(Span::new(span.start_offset, end))
-            }
-            Kind::Type(_) => Some(self.member_span(node, span)),
-            _ => {
-                let i = self.annotations.partition_point(|&(n, _)| n <= node);
-                let end = match i.checked_sub(1).map(|i| self.annotations[i]) {
-                    Some((n, end)) if n == node => end.max(span.end_offset),
-                    _ => span.end_offset,
-                };
-                Some(Span::new(span.start_offset, end))
-            }
+impl<'s, 'a> Script<'s, 'a> {
+    pub(super) const fn new(layout: &'s mut Layout<'a>) -> Self {
+        Self {
+            layout,
+            ancestors: Vec::new(),
         }
     }
+}
 
-    fn method_key(&self, function: NodeIdentifier) -> Option<NodeIdentifier> {
-        match self.javascript.kind(self.parent(function)?) {
-            Kind::Class(Class::Method { key, .. }) | Kind::Property { key, .. } => Some(key),
-            _ => None,
-        }
+impl<'a> Script<'_, 'a> {
+    /// The parent of the node being laid out.
+    pub(super) fn parent(&self) -> Option<AstKind<'a>> {
+        self.ancestors.last().copied()
     }
 
-    fn is_method_value(&self, function: NodeIdentifier) -> bool {
-        self.parent(function)
-            .is_some_and(|p| match self.javascript.kind(p) {
-                Kind::Class(Class::Method { function: f, .. }) => f == function,
-                Kind::Property {
-                    value,
-                    method,
-                    getter,
-                    setter,
-                    ..
-                } => value == function && (method || getter || setter),
-                _ => false,
-            })
+    /// The ancestors of the node being laid out, nearest first.
+    pub(super) fn ancestors(&self) -> impl Iterator<Item = AstKind<'a>> + '_ {
+        self.ancestors.iter().rev().copied()
     }
 
-    fn node(&self, node: NodeIdentifier) -> Option<Item> {
-        self.span(node).map(Item::Node)
+    pub(super) const fn tokens(&self) -> &Tokens<'a> {
+        &self.layout.tokens
     }
 
-    fn first(&self, node: NodeIdentifier) -> Option<Token> {
-        self.layout.tokens.first(self.span(node)?)
+    pub(super) fn first(&self, node: OxcSpan) -> Option<Token> {
+        self.tokens().first(span(node))
     }
 
-    fn last(&self, node: NodeIdentifier) -> Option<Token> {
-        self.layout.tokens.last(self.span(node)?)
+    pub(super) fn last(&self, node: OxcSpan) -> Option<Token> {
+        self.tokens().last(span(node))
     }
 
     /// `getFirstAndLastTokens(node)`.
-    fn outer(&self, node: NodeIdentifier) -> Option<(Token, Token)> {
-        self.layout.tokens.outer(self.span(node)?, 0)
+    pub(super) fn outer(&self, node: OxcSpan) -> Option<(Token, Token)> {
+        self.tokens().outer(span(node), 0)
     }
 
-    fn before_node(&self, node: NodeIdentifier) -> Option<Token> {
-        self.layout
-            .tokens
-            .before_offset(self.span(node)?.start_offset)
+    pub(super) fn outer_first(&self, node: OxcSpan) -> Option<Token> {
+        self.outer(node).map(|(f, _)| f)
     }
 
-    fn after_node(&self, node: NodeIdentifier) -> Option<Token> {
-        self.layout.tokens.after_offset(self.span(node)?.end_offset)
+    pub(super) fn before_node(&self, node: OxcSpan) -> Option<Token> {
+        self.tokens().before_offset(node.start)
     }
 
-    fn after_node_matching(
+    pub(super) fn after_node(&self, node: OxcSpan) -> Option<Token> {
+        self.tokens().after_offset(node.end)
+    }
+
+    pub(super) fn after_node_matching(
         &self,
-        node: NodeIdentifier,
+        node: OxcSpan,
         f: impl Fn(Token) -> bool,
     ) -> Option<Token> {
-        let tokens = &self.layout.tokens;
-        tokens.after_matching(self.span(node)?.end_offset, f)
+        self.tokens().after_matching(node.end, f)
     }
 
-    fn before_node_matching(
+    pub(super) fn before_node_matching(
         &self,
-        node: NodeIdentifier,
+        node: OxcSpan,
         f: impl Fn(Token) -> bool,
     ) -> Option<Token> {
-        let tokens = &self.layout.tokens;
-        tokens.before_matching(self.span(node)?.start_offset, f)
+        self.tokens().before_matching(node.start, f)
     }
 
-    fn is(&self, token: Option<Token>, kind: T) -> bool {
-        token.is_some_and(|t| self.layout.tokens.is(t, kind))
+    pub(super) fn after(&self, token: Option<Token>) -> Option<Token> {
+        self.tokens().after(token?)
     }
 
-    fn text(&self, token: Token) -> &str {
-        self.layout.tokens.text(token)
+    pub(super) fn is(&self, token: Option<Token>, kind: Kind) -> bool {
+        token.is_some_and(|t| self.tokens().is(t, kind))
     }
 
-    fn items(&self, nodes: &[NodeIdentifier]) -> Vec<Option<Item>> {
-        nodes.iter().map(|&n| self.node(n)).collect()
+    pub(super) fn text(&self, token: Token) -> &str {
+        self.tokens().text(token)
     }
 
-    /// Lays out `node` and everything below it, parents before children as `ESLint` visits them.
-    pub(super) fn visit(&mut self, node: NodeIdentifier) {
-        self.visit_from(node, None);
+    pub(super) const fn item(node: OxcSpan) -> Item {
+        Item::Node(span(node))
     }
 
-    /// Visits a node whose annotation is laid out from `base`, as a field's key's is from the
-    /// field.
-    fn visit_from(&mut self, node: NodeIdentifier, base: Option<Token>) {
-        if node.is_none() || self.span(node).is_none() {
-            return;
+    pub(super) fn items(nodes: impl IntoIterator<Item = OxcSpan>) -> Vec<Option<Item>> {
+        nodes.into_iter().map(|n| Some(Self::item(n))).collect()
+    }
+
+    /// Lays out one node before its children, as `ESLint` calls its handlers on entering it.
+    fn enter(&mut self, kind: AstKind<'a>) {
+        if self.is_statement(kind) {
+            self.semicolon(kind.span());
         }
-        match self.javascript.kind(node) {
-            Kind::TypeScriptDeclaration => return self.typescript_statement(node),
-            Kind::Type(ty) => return self.visit_type(node, ty),
-            _ => {}
+        if is_expression(kind) || is_parenthesizable_type(kind) {
+            self.parentheses(kind.span());
         }
-        if self.is_statement(node) {
-            self.semicolon(node);
-        }
-        if self.is_expression(node) {
-            self.parentheses(node);
-        }
-        self.lay_out(node);
-        self.visit_typescript(node, base);
-        let mut children = Vec::new();
-        self.children(node, &mut children);
-        let field_key = match self.javascript.kind(node) {
-            Kind::Class(Class::Field { key, .. }) => Some((key, self.first(node))),
-            _ => None,
+        self.lay_out(kind);
+    }
+
+    /// A namespace that is the body of another, `B` in `namespace A.B {}`: `ESTree` has one
+    /// declaration named `A.B`.
+    pub(super) fn is_inner_namespace(&self, kind: AstKind<'a>) -> bool {
+        let AstKind::TSNamespaceDeclaration(inner) = kind else {
+            return false;
         };
-        for child in children {
-            match field_key {
-                Some((key, base)) if key == child => self.visit_from(child, base),
-                _ => self.visit(child),
-            }
-        }
+        matches!(
+            self.parent(),
+            Some(AstKind::TSNamespaceDeclaration(outer))
+                if matches!(&outer.body, TSNamespaceDeclarationBody::TSNamespaceDeclaration(b)
+                    if std::ptr::eq(&raw const **b, inner))
+        )
     }
 
-    /// Children in visiting order; a static block's body is its statements.
-    fn children(&self, node: NodeIdentifier, out: &mut Vec<NodeIdentifier>) {
-        let js = self.javascript;
-        match js.kind(node) {
-            Kind::Class(Class::StaticBlock(body)) => {
-                if let Kind::Block(statements) = js.kind(body) {
-                    out.extend_from_slice(statements);
-                }
-            }
-            Kind::Class(Class::Method { key, function, .. }) => {
-                out.push(key);
-                out.push(function);
-            }
-            Kind::Class(Class::Field { key, value, .. }) => {
-                out.push(key);
-                out.extend(value);
-            }
-            _ => js.for_each_child(node, |c| out.push(c)),
-        }
-    }
-
-    fn is_statement(&self, node: NodeIdentifier) -> bool {
-        match self.javascript.kind(node) {
-            Kind::VariableDeclaration { .. } => self.parent(node).is_none_or(|p| {
-                !matches!(
-                    self.javascript.kind(p),
-                    Kind::For { .. } | Kind::Control(Control::ForEach { .. })
-                )
-            }),
-            // An overload is `TSDeclareFunction`, which `:statement` does not match.
-            Kind::Function {
-                declaration, body, ..
-            } => declaration && !body.is_none(),
-            Kind::Class(Class::Definition { declaration, .. }) => declaration,
-            Kind::Control(control) => !matches!(
-                control,
-                Control::Catch { .. } | Control::Case { .. } | Control::ExportSpecifier { .. }
-            ),
-            Kind::Class(Class::Field { .. })
-            | Kind::ExpressionStatement(_)
-            | Kind::Return(_)
-            | Kind::If { .. }
-            | Kind::For { .. }
-            | Kind::Block(_)
-            | Kind::Empty
-            | Kind::Import { .. }
-            | Kind::ExportNamed(_)
-            | Kind::ExportDefault(_) => true,
-            _ => false,
-        }
-    }
-
-    fn is_expression(&self, node: NodeIdentifier) -> bool {
-        match self.javascript.kind(node) {
-            Kind::Identifier(_) => !self
-                .parent(node)
-                .is_some_and(|p| matches!(self.javascript.kind(p), Kind::MetaProperty { .. })),
-            Kind::Function { declaration, .. }
-            | Kind::Class(Class::Definition { declaration, .. }) => !declaration,
-            Kind::Number(_)
-            | Kind::String
-            | Kind::Regex { .. }
-            | Kind::Boolean(_)
-            | Kind::Null
-            | Kind::BigInt
-            | Kind::This
-            | Kind::Template { .. }
-            | Kind::TaggedTemplate { .. }
-            | Kind::Array(_)
-            | Kind::Object(_)
-            | Kind::Member { .. }
-            | Kind::Call { .. }
-            | Kind::New { .. }
-            | Kind::Arrow { .. }
-            | Kind::Unary(..)
-            | Kind::Update { .. }
-            | Kind::Binary(..)
-            | Kind::Logical(..)
-            | Kind::Conditional { .. }
-            | Kind::Assign(..)
-            | Kind::Sequence(_)
-            | Kind::Await(_)
-            | Kind::Yield { .. }
-            | Kind::ImportExpression { .. }
-            | Kind::MetaProperty { .. } => true,
+    /// `:statement`, `PropertyDefinition` and the TypeScript declarations and members whose `;`
+    /// upstream places.
+    fn is_statement(&self, kind: AstKind<'a>) -> bool {
+        match kind {
+            AstKind::Function(f) => f.r#type == FunctionType::FunctionDeclaration,
+            AstKind::Class(c) => c.r#type == ClassType::ClassDeclaration,
+            AstKind::MethodDefinition(m) => m.r#type.is_abstract(),
+            AstKind::TSNamespaceDeclaration(_) => !self.is_inner_namespace(kind),
+            AstKind::BlockStatement(_)
+            | AstKind::ExpressionStatement(_)
+            | AstKind::Directive(_)
+            | AstKind::IfStatement(_)
+            | AstKind::DoWhileStatement(_)
+            | AstKind::WhileStatement(_)
+            | AstKind::ForStatement(_)
+            | AstKind::ForInStatement(_)
+            | AstKind::ForOfStatement(_)
+            | AstKind::ContinueStatement(_)
+            | AstKind::BreakStatement(_)
+            | AstKind::ReturnStatement(_)
+            | AstKind::WithStatement(_)
+            | AstKind::SwitchStatement(_)
+            | AstKind::LabeledStatement(_)
+            | AstKind::ThrowStatement(_)
+            | AstKind::TryStatement(_)
+            | AstKind::DebuggerStatement(_)
+            | AstKind::EmptyStatement(_)
+            | AstKind::VariableDeclaration(_)
+            | AstKind::ImportDeclaration(_)
+            | AstKind::ExportDeclaration(_)
+            | AstKind::ExportNamedDeclaration(_)
+            | AstKind::ExportFromDeclaration(_)
+            | AstKind::ExportDefaultDeclaration(_)
+            | AstKind::ExportAllDeclaration(_)
+            | AstKind::PropertyDefinition(_)
+            | AstKind::AccessorProperty(_)
+            | AstKind::TSTypeAliasDeclaration(_)
+            | AstKind::TSInterfaceDeclaration(_)
+            | AstKind::TSEnumDeclaration(_)
+            | AstKind::TSEnumMember(_)
+            | AstKind::TSExternalModuleDeclaration(_)
+            | AstKind::TSGlobalDeclaration(_)
+            | AstKind::TSImportEqualsDeclaration(_)
+            | AstKind::TSNamespaceExportDeclaration(_)
+            | AstKind::TSTypeParameterDeclaration(_)
+            | AstKind::TSPropertySignature(_)
+            | AstKind::TSIndexSignature(_)
+            | AstKind::TSMethodSignature(_)
+            | AstKind::TSCallSignatureDeclaration(_)
+            | AstKind::TSConstructSignatureDeclaration(_) => true,
             _ => false,
         }
     }
 
     /// `:statement`: a semicolon that ends its line stays with the statement's first token.
-    fn semicolon(&mut self, node: NodeIdentifier) {
+    pub(super) fn semicolon(&mut self, node: OxcSpan) {
         let (Some(first), Some(last)) = (self.first(node), self.last(node)) else {
             return;
         };
-        let tokens = &self.layout.tokens;
-        if tokens.is(last, T::Semi) && first != last {
+        let tokens = self.tokens();
+        if tokens.is(last, Kind::Semicolon) && first != last {
             let line = |t: Token| tokens.line(tokens.span(t).start_offset);
             if tokens
                 .after(last)
@@ -325,32 +227,25 @@ impl Script<'_, '_> {
         }
     }
 
-    /// `:expression`: parentheses around an expression.
-    fn parentheses(&mut self, node: NodeIdentifier) {
-        if let Some(span) = self.span(node) {
-            self.parentheses_of(span);
-        }
-    }
-
-    /// Parentheses around the syntax at `span`.
-    fn parentheses_of(&mut self, span: Span) {
-        let tokens = &self.layout.tokens;
+    /// `:expression`: parentheses around the syntax at `node`.
+    pub(super) fn parentheses(&mut self, node: OxcSpan) {
+        let tokens = self.tokens();
         let (Some(mut first), Some(mut left), Some(mut right)) = (
-            tokens.first(span),
-            tokens.before_offset(span.start_offset),
-            tokens.after_offset(span.end_offset),
+            tokens.first(span(node)),
+            tokens.before_offset(node.start),
+            tokens.after_offset(node.end),
         ) else {
             return;
         };
         loop {
-            let tokens = &self.layout.tokens;
-            if !(tokens.is(left, T::LParen) && tokens.is(right, T::RParen)) {
+            let tokens = self.tokens();
+            if !(tokens.is(left, Kind::LParen) && tokens.is(right, Kind::RParen)) {
                 return;
             }
             self.layout.offset(Some(first), 1, Some(left));
             self.layout.offset(Some(right), 0, Some(left));
             first = left;
-            let tokens = &self.layout.tokens;
+            let tokens = self.tokens();
             match (tokens.before(left), tokens.after(right)) {
                 (Some(l), Some(r)) => (left, right) = (l, r),
                 _ => return,
@@ -359,11 +254,107 @@ impl Script<'_, '_> {
     }
 
     /// The body's first token: a block stays at `base`, a statement is indented.
-    fn body(&mut self, body: NodeIdentifier, base: Option<Token>) {
+    pub(super) fn body(&mut self, body: OxcSpan, base: Option<Token>) {
         let first = self.first(body);
-        let offset = u32::from(!self.is(first, T::LBrace));
+        let offset = u32::from(!self.is(first, Kind::LCurly));
         self.layout.offset(first, offset, base);
     }
+}
+
+/// `:expression`: an `ESTree` type that ends with `Expression` or `Literal`, an identifier, or a
+/// meta property.
+const fn is_expression(kind: AstKind<'_>) -> bool {
+    match kind {
+        AstKind::Function(f) => matches!(
+            f.r#type,
+            FunctionType::FunctionExpression | FunctionType::TSEmptyBodyFunctionExpression
+        ),
+        AstKind::Class(c) => matches!(c.r#type, ClassType::ClassExpression),
+        AstKind::IdentifierReference(_)
+        | AstKind::BindingIdentifier(_)
+        | AstKind::IdentifierName(_)
+        | AstKind::LabelIdentifier(_)
+        | AstKind::TSThisParameter(_)
+        | AstKind::TSIndexSignatureName(_)
+        | AstKind::BooleanLiteral(_)
+        | AstKind::NullLiteral(_)
+        | AstKind::NumericLiteral(_)
+        | AstKind::StringLiteral(_)
+        | AstKind::BigIntLiteral(_)
+        | AstKind::RegExpLiteral(_)
+        | AstKind::TemplateLiteral(_)
+        | AstKind::ThisExpression(_)
+        | AstKind::ArrayExpression(_)
+        | AstKind::ObjectExpression(_)
+        | AstKind::ComputedMemberExpression(_)
+        | AstKind::StaticMemberExpression(_)
+        | AstKind::PrivateFieldExpression(_)
+        | AstKind::CallExpression(_)
+        | AstKind::NewExpression(_)
+        | AstKind::ImportMeta(_)
+        | AstKind::NewTarget(_)
+        | AstKind::UpdateExpression(_)
+        | AstKind::UnaryExpression(_)
+        | AstKind::BinaryExpression(_)
+        | AstKind::PrivateInExpression(_)
+        | AstKind::LogicalExpression(_)
+        | AstKind::ConditionalExpression(_)
+        | AstKind::AssignmentExpression(_)
+        | AstKind::SequenceExpression(_)
+        | AstKind::AwaitExpression(_)
+        | AstKind::ChainExpression(_)
+        | AstKind::ArrowFunctionExpression(_)
+        | AstKind::YieldExpression(_)
+        | AstKind::ImportExpression(_)
+        | AstKind::TaggedTemplateExpression(_)
+        | AstKind::TSAsExpression(_)
+        | AstKind::TSSatisfiesExpression(_)
+        | AstKind::TSNonNullExpression(_)
+        | AstKind::TSInstantiationExpression(_) => true,
+        _ => false,
+    }
+}
+
+/// The type syntax whose parentheses upstream lays out.
+const fn is_parenthesizable_type(kind: AstKind<'_>) -> bool {
+    matches!(
+        kind,
+        AstKind::TSAnyKeyword(_)
+            | AstKind::TSArrayType(_)
+            | AstKind::TSBigIntKeyword(_)
+            | AstKind::TSBooleanKeyword(_)
+            | AstKind::TSConditionalType(_)
+            | AstKind::TSConstructorType(_)
+            | AstKind::TSFunctionType(_)
+            | AstKind::TSImportType(_)
+            | AstKind::TSIndexedAccessType(_)
+            | AstKind::TSInferType(_)
+            | AstKind::TSIntersectionType(_)
+            | AstKind::TSIntrinsicKeyword(_)
+            | AstKind::TSLiteralType(_)
+            | AstKind::TSMappedType(_)
+            | AstKind::TSNamedTupleMember(_)
+            | AstKind::TSNeverKeyword(_)
+            | AstKind::TSNullKeyword(_)
+            | AstKind::TSNumberKeyword(_)
+            | AstKind::TSObjectKeyword(_)
+            | AstKind::TSOptionalType(_)
+            | AstKind::TSRestType(_)
+            | AstKind::TSStringKeyword(_)
+            | AstKind::TSSymbolKeyword(_)
+            | AstKind::TSTemplateLiteralType(_)
+            | AstKind::TSThisType(_)
+            | AstKind::TSTupleType(_)
+            | AstKind::TSTypeLiteral(_)
+            | AstKind::TSTypeOperator(_)
+            | AstKind::TSTypePredicate(_)
+            | AstKind::TSTypeQuery(_)
+            | AstKind::TSTypeReference(_)
+            | AstKind::TSUndefinedKeyword(_)
+            | AstKind::TSUnionType(_)
+            | AstKind::TSUnknownKeyword(_)
+            | AstKind::TSVoidKeyword(_)
+    )
 }
 
 mod declarations;
@@ -371,4 +362,3 @@ mod forms;
 mod kinds;
 mod types;
 mod typescript;
-pub(super) use typescript::by_node as typescript;

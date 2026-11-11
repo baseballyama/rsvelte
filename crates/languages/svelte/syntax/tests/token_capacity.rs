@@ -1,5 +1,6 @@
 use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_svelte_syntax::parse::parse;
+use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 
 #[test]
 fn token_storage_follows_token_count_for_large_sources() {
@@ -20,7 +21,12 @@ fn token_storage_follows_token_count_for_large_sources() {
         .tokens
         .check_lossless(&expressions)
         .expect("all expressions");
-    assert_eq!(component.template_expressions.len(), 4_000);
+    let tags = component
+        .nodes
+        .iter()
+        .filter(|node| matches!(node, TemplateNode::Expression { .. }))
+        .count();
+    assert_eq!(tags, 4_000);
     drop(component);
     buffer_pool::set_enabled(pooling);
 }

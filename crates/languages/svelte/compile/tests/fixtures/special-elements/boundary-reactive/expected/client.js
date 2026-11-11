@@ -1,11 +1,7 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<p>Hello</p>`);
-
 var root_1 = $.from_html(`<!><button>change</button>`, 1);
-
 export default function Boundary_reactive($$anchor) {
 	let onerror = $.state(() => {});
 	var fragment = root_1();
@@ -17,8 +13,7 @@ export default function Boundary_reactive($$anchor) {
 		$.append($$anchor, p);
 	});
 	var button = $.sibling(node);
-	$.delegated('click', button, () => $.set(onerror, () => {}));
+	$.delegated("click", button, () => $.set(onerror, () => {}));
 	$.append($$anchor, fragment);
 }
-
-$.delegate(['click']);
+$.delegate(["click"]);

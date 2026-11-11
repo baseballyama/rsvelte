@@ -1,8 +1,9 @@
-use rsvelte_kernel::source::positions::{SourceLocation, Span};
-use rsvelte_typescript_syntax::NodeIdentifier;
+use oxc_ast::ast::{Expression, IdentifierName};
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::identifier::identifier_len;
-use super::{ParseResult, Parser};
+use super::{ParseResult, Parser, javascript_error};
 use crate::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part};
 
 /// Upstream `regex_valid_identifier`, which decides how `parse_directive_name` reads a member.
@@ -14,7 +15,7 @@ fn is_valid_identifier(name: &str) -> bool {
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 }
 
-impl Parser<'_> {
+impl<'a> Parser<'a, '_> {
     pub(super) fn directive(
         &mut self,
         attribute: &mut Attribute,
@@ -24,7 +25,7 @@ impl Parser<'_> {
             return self.shorthand_directive(attribute, directive);
         };
         if attribute.kind != AttributeKind::Style {
-            let chunks = self.component.parts(parts);
+            let chunks = parts.get(&self.component.parts);
             if chunks.len() != 1 || matches!(chunks[0], Part::Text(_)) {
                 let at = match chunks.first() {
                     Some(Part::Text(s) | Part::Expression { span: s, .. }) => *s,
@@ -37,7 +38,7 @@ impl Parser<'_> {
             attribute.kind,
             AttributeKind::Use | AttributeKind::Transition { .. } | AttributeKind::Animate
         ) {
-            attribute.target = self.directive_target(directive);
+            attribute.target = Some(self.directive_target(directive));
         }
         Ok(())
     }
@@ -69,59 +70,49 @@ impl Parser<'_> {
                 attribute.shorthand = true;
             }
             AttributeKind::Use | AttributeKind::Transition { .. } | AttributeKind::Animate => {
-                attribute.target = self.directive_target(directive);
+                attribute.target = Some(self.directive_target(directive));
             }
             _ => {}
         }
         Ok(())
     }
 
-    fn name_expression(&mut self, span: Span) -> ParseResult<NodeIdentifier> {
-        let (tokens, comments) = (
-            self.component.javascript.tokens.len(),
-            self.component.javascript.comments.len(),
-        );
-        let expression = rsvelte_typescript_syntax::parser::parse_expression(
-            &mut self.component.javascript,
-            self.source_text,
-            span,
-            self.typescript,
-        )
-        .map_err(super::javascript_error)?;
-        // The name's token already covers the identifier.
-        self.component.javascript.tokens.truncate(tokens);
-        self.component.javascript.comments.truncate(comments);
-        self.component.template_expressions.push(expression);
-        Ok(expression)
+    /// The expression a shorthand directive's name stands for; the name's token covers it.
+    fn name_expression(&mut self, span: Span) -> ParseResult<ExpressionIdentifier> {
+        let source_type = self.source_type();
+        let (expression, end) = self
+            .builder
+            .read_expression_before(span.start_offset, span.end_offset, source_type)
+            .map_err(javascript_error)?;
+        if end != span.end_offset {
+            return Self::err_at(span, "expected one expression");
+        }
+        Ok(self.builder.keep_expression(expression))
     }
 
-    fn directive_target(&mut self, directive: Span) -> NodeIdentifier {
-        let text = directive.text(self.source_text);
-        let javascript = &mut self.component.javascript;
-        let mut at = directive.start_offset;
-        let mut target = NodeIdentifier::NONE;
-        for (i, part) in text.split('.').enumerate() {
-            let span = Span::new(at, at + part.len() as u32);
-            at = span.end_offset + 1;
-            if i == 0 {
-                target = javascript.ident(part, span);
-                continue;
-            }
-            let computed = !is_valid_identifier(part);
-            let property = if computed {
-                javascript.str_owned(part, span)
+    /// What a directive's name (`fade`, `actions.tooltip`) refers to, as upstream builds it.
+    fn directive_target(&mut self, directive: Span) -> ExpressionIdentifier {
+        let text: &'a str = directive.text(self.source_text);
+        let ast = self.builder.ast();
+        let span_of = |offset: u32, part: &str| {
+            let end = offset + u32::try_from(part.len()).expect("source positions use u32 bytes");
+            oxc_span::Span::new(offset, end)
+        };
+        let mut parts = text.split('.');
+        let first = parts.next().unwrap_or(text);
+        let mut span = span_of(directive.start_offset, first);
+        let mut target = Expression::new_identifier(span, first, &ast);
+        for part in parts {
+            span = span_of(span.end + 1, part);
+            let whole = oxc_span::Span::new(directive.start_offset, span.end);
+            target = if is_valid_identifier(part) {
+                let property = IdentifierName::new(span, part, &ast);
+                Expression::new_static_member_expression(whole, target, property, false, &ast)
             } else {
-                javascript.ident(part, span)
+                let property = Expression::new_string_literal(span, part, None, &ast);
+                Expression::new_computed_member_expression(whole, target, property, false, &ast)
             };
-            target = javascript.member(
-                target,
-                property,
-                computed,
-                false,
-                SourceLocation::from(Span::new(directive.start_offset, span.end_offset)),
-            );
         }
-        self.component.template_expressions.push(target);
-        target
+        self.builder.keep_expression(target)
     }
 }

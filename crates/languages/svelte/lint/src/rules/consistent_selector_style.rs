@@ -1,15 +1,17 @@
+use oxc_ast::AstKind;
+use oxc_ast::ast::{BindingPattern, Expression};
+use oxc_span::Span;
 use rsvelte_kernel::source::characters::split_ecmascript_whitespace;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, Range, TemplateNode, TemplateNodeIdentifier,
 };
-use rsvelte_typescript_syntax::NodeIdentifier;
-use rsvelte_typescript_syntax::syntax_tree::Kind;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 
 use super::element_kind::{ElementKind, element_kind};
+use super::nodes;
 use super::style_sheet::{StyleVerdict, verdict};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -280,6 +282,7 @@ impl Template<'_> {
                         }
                     }
                     Part::Expression { expression, .. } => {
+                        let expression = self.file.javascript().get_expression(expression);
                         let prefix = affix(self.file, expression, End::Prefix, &mut Vec::new());
                         let suffix = affix(self.file, expression, End::Suffix, &mut Vec::new());
                         selections.affix(prefix, suffix, element);
@@ -296,67 +299,65 @@ enum End {
     Suffix,
 }
 
-/// The text an expression's value surely starts (or ends) with, through `+`, template literals
-/// and constants declared once; `None` when unknown.
+/// The text an expression's value surely starts (or ends) with, through binary expressions,
+/// template literals and declared initializers; `None` when unknown. Type assertions are seen
+/// through.
 fn affix(
     file: &File<'_>,
-    expression: NodeIdentifier,
+    expression: &Expression<'_>,
     end: End,
-    visited: &mut Vec<NodeIdentifier>,
+    visited: &mut Vec<Span>,
 ) -> Option<String> {
-    let javascript = file.javascript();
     let source = file.source();
-    match javascript.kind(expression) {
-        Kind::Binary(_, left, right) => affix(
+    match expression.get_inner_expression() {
+        Expression::BinaryExpression(binary) => affix(
             file,
-            if end == End::Prefix { left } else { right },
+            if end == End::Prefix {
+                &binary.left
+            } else {
+                &binary.right
+            },
             end,
             visited,
         ),
-        Kind::String => Some(javascript.str_value(expression, source).to_owned()),
-        Kind::Identifier(_) => {
-            if visited.contains(&expression) {
+        Expression::StringLiteral(string) => Some(string.value.display().to_string()),
+        Expression::Identifier(identifier) => {
+            if visited.contains(&identifier.span) {
                 return None;
             }
-            visited.push(expression);
+            visited.push(identifier.span);
             let semantic = file.semantic();
-            let binding = &semantic.bindings[semantic.binding_of(expression)?];
-            let declarator = binding.declaration?;
-            let Kind::Declarator {
-                identifier,
-                initializer,
-            } = javascript.kind(declarator)
+            let scoping = semantic.scoping();
+            let symbol = scoping
+                .get_reference(identifier.reference_id.get()?)
+                .symbol_id()?;
+            let AstKind::VariableDeclarator(declarator) =
+                semantic.nodes().kind(scoping.symbol_declaration(symbol))
             else {
                 return None;
             };
-            if identifier != binding.node {
+            // A destructured name does not hold the initializer.
+            let BindingPattern::BindingIdentifier(id) = &declarator.id else {
+                return None;
+            };
+            if id.symbol_id.get() != Some(symbol) {
                 return None;
             }
-            affix(file, initializer?, end, visited)
+            affix(file, declarator.init.as_ref()?, end, visited)
         }
-        Kind::Template {
-            quasis,
-            expressions,
-        } => {
+        Expression::TemplateLiteral(template) => {
             // Quasis and expressions alternate, starting and ending with a quasi.
-            let parts = (0..quasis.len() + expressions.len()).map(|i| {
-                if i % 2 == 0 {
-                    (quasis[i / 2], true)
-                } else {
-                    (expressions[i / 2], false)
-                }
-            });
-            let mut parts: Box<dyn Iterator<Item = (NodeIdentifier, bool)>> = if end == End::Prefix
-            {
-                Box::new(parts)
+            let count = template.quasis.len() + template.expressions.len();
+            let mut parts: Box<dyn Iterator<Item = usize>> = if end == End::Prefix {
+                Box::new(0..count)
             } else {
-                Box::new(parts.rev())
+                Box::new((0..count).rev())
             };
-            parts.find_map(|(part, quasi)| {
-                if !quasi {
-                    return Some(affix(file, part, end, visited));
+            parts.find_map(|i| {
+                if i % 2 == 1 {
+                    return Some(affix(file, &template.expressions[i / 2], end, visited));
                 }
-                let raw = javascript.str_value(part, source);
+                let raw = nodes::text(&template.quasis[i / 2], source);
                 (!raw.is_empty()).then(|| Some(raw.to_owned()))
             })?
         }

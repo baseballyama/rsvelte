@@ -1,48 +1,14 @@
 //! `export_let_unused`: legacy mode's exports that nothing reads or writes.
 
-use crate::resolve::{Resolution, for_each_pattern_target};
+use oxc_ast::ast::{Declaration, ModuleExportName, Statement};
+use oxc_semantic::{ReferenceId, SymbolId};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Component, TemplateNode};
-use rsvelte_typescript_semantic::scope::BindingIdentifier;
-use rsvelte_typescript_semantic::scope::DeclarationKind;
-use rsvelte_typescript_syntax::NodeIdentifier;
-use rsvelte_typescript_syntax::syntax_tree::{Control, Kind, flag};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::found::{Found, Stage};
-use super::warning;
-
-/// In runes mode, each binding the instance's `export { … }` names, with where the specifier
-/// starts: upstream's `ExportSpecifier` visitor marks it reassigned from there on.
-pub(super) fn exported_by_specifier(
-    component: &Component,
-    resolution: &Resolution,
-) -> FxHashMap<BindingIdentifier, u32> {
-    let mut out = FxHashMap::default();
-    let javascript = &component.javascript;
-    let Some(instance) = &component.instance else {
-        return out;
-    };
-    let Kind::Program(statements) = javascript.kind(instance.program) else {
-        return out;
-    };
-    for &statement in statements {
-        let Kind::Control(Control::ExportList { specifiers, .. }) = javascript.kind(statement)
-        else {
-            continue;
-        };
-        for &specifier in specifiers {
-            if let Kind::Control(Control::ExportSpecifier { local, .. }) =
-                javascript.kind(specifier)
-                && let Some(binding) = resolution.sem.binding_of(local)
-                && let Some(span) = javascript.source_location(specifier).span()
-            {
-                out.entry(binding).or_insert(span.start_offset);
-            }
-        }
-    }
-    out
-}
+use super::{span, warning};
+use crate::resolve::Resolution;
 
 /// `export_let_unused`: in legacy mode, an `export let` nothing reads or writes.
 pub(super) fn unused_exports(
@@ -54,56 +20,41 @@ pub(super) fn unused_exports(
     let Some(instance) = &component.instance else {
         return;
     };
-    let javascript = &component.javascript;
-    let sem = &resolution.sem;
-    let Kind::Program(statements) = javascript.kind(instance.program) else {
-        return;
-    };
+    let scoping = resolution.scoping();
     // Legacy props: `export let` and `export var`, and a `let` or `var` an `export { … }` names.
-    let mut props: Vec<BindingIdentifier> = Vec::new();
-    let mut specifiers: FxHashSet<NodeIdentifier> = FxHashSet::default();
-    for &statement in statements {
-        match javascript.kind(statement) {
-            Kind::ExportNamed(declaration) => {
-                let Kind::VariableDeclaration { kind, declarations } = javascript.kind(declaration)
-                else {
+    let mut props: Vec<SymbolId> = Vec::new();
+    let mut specifiers: FxHashSet<ReferenceId> = FxHashSet::default();
+    for statement in &component.javascript.get_program(instance.program).body {
+        match statement {
+            Statement::ExportDeclaration(export) => {
+                let Declaration::VariableDeclaration(declaration) = &export.declaration else {
                     continue;
                 };
-                if kind & 3 == flag::CONST {
+                if declaration.kind.is_const() {
                     continue;
                 }
-                for &declarator in declarations {
-                    if let Kind::Declarator { identifier, .. } = javascript.kind(declarator) {
-                        for_each_pattern_target(javascript, identifier, &mut |name| {
-                            props.extend(sem.binding_of(name));
-                        });
+                for declarator in &declaration.declarations {
+                    for identifier in declarator.id.get_binding_identifiers() {
+                        props.extend(identifier.symbol_id.get());
                     }
                 }
             }
-            Kind::Control(Control::ExportList {
-                specifiers: list,
-                source: None,
-                ..
-            }) => {
-                for &specifier in list {
-                    let Kind::Control(Control::ExportSpecifier {
-                        local,
-                        type_only: false,
-                        ..
-                    }) = javascript.kind(specifier)
-                    else {
+            Statement::ExportNamedDeclaration(export) if !export.export_kind.is_type() => {
+                for specifier in &export.specifiers {
+                    let ModuleExportName::IdentifierReference(local) = &specifier.local else {
                         continue;
                     };
-                    specifiers.insert(local);
-                    if let Some(binding) = sem.binding_of(local)
-                        && sem.scopes[sem.bindings[binding].scope].node == instance.program
-                        && matches!(
-                            sem.bindings[binding].kind,
-                            DeclarationKind::Let | DeclarationKind::Variable
-                        )
-                        && sem.bindings[binding].declaration.is_some()
+                    if specifier.export_kind.is_type() {
+                        continue;
+                    }
+                    specifiers.extend(local.reference_id.get());
+                    if let Some(symbol) = resolution.symbol(local)
+                        && scoping.symbol_scope_id(symbol) == resolution.instance_scope()
+                        && resolution
+                            .variable_kind(symbol)
+                            .is_some_and(|kind| !kind.is_const())
                     {
-                        props.push(binding);
+                        props.push(symbol);
                     }
                 }
             }
@@ -113,37 +64,29 @@ pub(super) fn unused_exports(
     // Declaration order, as the compiler walks the instance scope.
     props.sort_unstable();
     props.dedup();
-    let subscribed: FxHashSet<&str> = sem
-        .references
-        .iter()
-        .filter(|r| r.binding.is_none())
-        .filter_map(|r| javascript.name(r.node).strip_prefix('$'))
+    let subscribed: FxHashSet<&str> = resolution
+        .unresolved_names()
+        .filter_map(|name| name.strip_prefix('$'))
         .collect();
     let shadows = let_shadows(component, source);
-    for binding in props {
-        let node = sem.bindings[binding].node;
-        let text = javascript.name(node);
-        let used = sem.references_to(binding).any(|r| {
-            r.node != node
-                && !specifiers.contains(&r.node)
-                && !javascript.source_location(r.node).span().is_some_and(|at| {
-                    shadows.get(text).is_some_and(|spans| {
-                        spans.iter().any(|s| {
-                            s.start_offset <= at.start_offset && at.end_offset <= s.end_offset
-                        })
-                    })
+    for symbol in props {
+        let text = scoping.symbol_name(symbol);
+        let used = scoping.get_resolved_reference_ids(symbol).iter().any(|&r| {
+            let at = resolution.reference_span(r);
+            !specifiers.contains(&r)
+                && !shadows.get(text).is_some_and(|spans| {
+                    spans
+                        .iter()
+                        .any(|s| s.start_offset <= at.start && at.end <= s.end_offset)
                 })
         });
-        if !used
-            && !subscribed.contains(text)
-            && let Some(span) = javascript.source_location(node).span()
-        {
+        if !used && !subscribed.contains(text) {
             out.push(Stage::Bindings, 0, warning(
                 "export_let_unused",
                 &format!(
                     "Component has unused export property '{text}'. If it is for external reference only, please consider using `export const {text}`"
                 ),
-                span,
+                span(scoping.symbol_span(symbol)),
             ));
         }
     }

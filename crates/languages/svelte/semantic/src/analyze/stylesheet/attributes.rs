@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 
+use oxc_ast::ast::{ArrayExpressionElement, Expression, ObjectPropertyKind, PropertyKey};
+use oxc_syntax::operator::LogicalOperator;
 use rsvelte_stylesheet_semantic::matcher::Match;
 use rsvelte_typescript_semantic::number::number;
-use rsvelte_typescript_syntax::operators::LogicalOperator;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::compiler_syntax_tree::{AttributeIdentifier, AttributeValue, Part};
@@ -43,13 +43,7 @@ impl<'a> AttributeFacts<'a> {
                 AttributeValue::Expression { expression, .. }
                 | AttributeValue::Shorthand(expression) => {
                     let mut values = Values::default();
-                    values.collect(
-                        input.javascript,
-                        input.source_text,
-                        *expression,
-                        class,
-                        false,
-                    );
+                    values.collect(input.javascript.get_expression(*expression), class, false);
                     values
                 }
                 _ => unreachable!("only expression attributes need value facts"),
@@ -70,34 +64,27 @@ impl<'a> Values<'a> {
         self.candidates.insert(value.into());
     }
 
-    fn collect(
-        &mut self,
-        tree: &'a SyntaxTree,
-        source: &'a str,
-        expression: NodeIdentifier,
-        class: bool,
-        nested: bool,
-    ) {
+    fn collect(&mut self, expression: &'a Expression<'a>, class: bool, nested: bool) {
         if self.unknown {
             return;
         }
-        match tree.kind(expression) {
-            Kind::String => self.add(tree.str_value(expression, source)),
-            Kind::Number(value) => self.add(number(value)),
-            Kind::Boolean(value) => self.add(if value { "true" } else { "false" }),
-            Kind::Null => self.add("null"),
-            Kind::Conditional {
-                consequent,
-                alternate,
-                ..
-            } => {
-                self.collect(tree, source, consequent, class, nested);
-                self.collect(tree, source, alternate, class, nested);
+        // Upstream reads the value after erasing types.
+        match crate::typescript::without_typescript(expression) {
+            Expression::StringLiteral(s) => match s.value.as_str() {
+                Some(value) => self.add(value),
+                None => self.unknown = true,
+            },
+            Expression::NumericLiteral(n) => self.add(number(n.value)),
+            Expression::BooleanLiteral(b) => self.add(if b.value { "true" } else { "false" }),
+            Expression::NullLiteral(_) => self.add("null"),
+            Expression::ConditionalExpression(c) => {
+                self.collect(&c.consequent, class, nested);
+                self.collect(&c.alternate, class, nested);
             }
-            Kind::Logical(operator, left, right) => {
-                if operator == LogicalOperator::And {
+            Expression::LogicalExpression(l) => {
+                if l.operator == LogicalOperator::And {
                     let mut lhs = Self::default();
-                    lhs.collect(tree, source, left, class, nested);
+                    lhs.collect(&l.left, class, nested);
                     if !class || !nested {
                         if lhs.unknown {
                             for value in ["", "false", "NaN", "0"] {
@@ -108,32 +95,34 @@ impl<'a> Values<'a> {
                         }
                     }
                 } else {
-                    self.collect(tree, source, left, class, nested);
+                    self.collect(&l.left, class, nested);
                 }
-                self.collect(tree, source, right, class, nested);
+                self.collect(&l.right, class, nested);
             }
-            Kind::Array(elements) if class => {
-                for &element in elements {
-                    if !element.is_none() {
-                        self.collect(tree, source, element, class, true);
+            Expression::ArrayExpression(array) if class => {
+                for element in &array.elements {
+                    match element {
+                        ArrayExpressionElement::Elision(_) => {}
+                        ArrayExpressionElement::SpreadElement(_) => self.unknown = true,
+                        element => {
+                            if let Some(element) = element.as_expression() {
+                                self.collect(element, class, true);
+                            }
+                        }
                     }
                 }
             }
-            Kind::Object(properties) if class => {
-                for &property in properties {
-                    if let Kind::Property {
-                        key,
-                        computed: false,
-                        ..
-                    } = tree.kind(property)
-                    {
-                        if let Some(atom) = tree.atom(key) {
-                            self.add(tree.atoms.get(atom));
-                        } else {
-                            self.collect(tree, source, key, false, true);
-                        }
-                    } else {
-                        self.unknown = true;
+            Expression::ObjectExpression(object) if class => {
+                for property in &object.properties {
+                    match property {
+                        ObjectPropertyKind::ObjectProperty(p) if !p.computed => match &p.key {
+                            PropertyKey::StaticIdentifier(key) => self.add(key.name.as_str()),
+                            key => match key.as_expression() {
+                                Some(key) => self.collect(key, false, true),
+                                None => self.unknown = true,
+                            },
+                        },
+                        _ => self.unknown = true,
                     }
                 }
             }
@@ -150,13 +139,7 @@ fn interpolated<'a>(parts: &[Part], input: &ComponentInput<'a>, class: bool) -> 
         match *part {
             Part::Text(span) => values.add(span.text(input.source_text)),
             Part::Expression { expression, .. } => {
-                values.collect(
-                    input.javascript,
-                    input.source_text,
-                    expression,
-                    class,
-                    false,
-                );
+                values.collect(input.javascript.get_expression(expression), class, false);
             }
         }
         if values.unknown || candidates.len() * values.candidates.len() > MAX_COMBINATIONS {

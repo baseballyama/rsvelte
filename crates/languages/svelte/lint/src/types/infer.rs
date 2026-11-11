@@ -1,180 +1,255 @@
-use rsvelte_kernel::index::TypedIndex;
-use rsvelte_kernel::source::positions::Span;
+use oxc_ast::AstKind;
+use oxc_ast::ast::{
+    BindingPattern, Expression, TSLiteral, TSType, TSTypeAnnotation, VariableDeclarationKind,
+};
+use oxc_semantic::{NodeId, SymbolFlags, SymbolId};
+use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::Component;
-use rsvelte_typescript_semantic::scope::{Binding, DeclarationKind};
-use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::{ConditionType, TypeFacts};
 
 impl TypeFacts {
-    pub(crate) fn infer(component: &Component, resolution: &Resolution, source: &str) -> Self {
-        let tree = &component.javascript;
-        let mut facts = Self::new(
-            (0..tree.len())
-                .map(|index| literal_type(tree, source, NodeIdentifier(index as u32)))
-                .collect(),
-        );
-        let mut asserted = vec![false; tree.len()];
-        let mut declared = vec![None; resolution.sem.bindings.len()];
-        for annotation in &tree.typescript {
-            match annotation.kind {
-                TypeScriptKind::Annotation => {
-                    if let Some(binding) = resolution.sem.binding_of(annotation.node) {
-                        declared[binding.index()]
-                            .get_or_insert_with(|| annotation_type(tree, source, annotation.span));
+    pub(crate) fn infer(component: &Component, resolution: &Resolution, _source: &str) -> Self {
+        let semantic = resolution.semantic();
+        let nodes = semantic.nodes();
+        let scoping = semantic.scoping();
+        let mut facts = Self::new(nodes.iter().map(|node| literal_type(node.kind())).collect());
+        // The declaring identifier of each symbol, and the type its annotation gives it.
+        let mut identifiers = vec![None; scoping.symbols_len()];
+        let mut declared = vec![None; scoping.symbols_len()];
+        for node in nodes.iter() {
+            match node.kind() {
+                AstKind::BindingIdentifier(identifier) => {
+                    if let Some(symbol) = identifier.symbol_id.get() {
+                        identifiers[symbol.index()].get_or_insert_with(|| node.id());
                     }
                 }
-                TypeScriptKind::Optional => {
-                    if let Some(binding) = resolution.sem.binding_of(annotation.node) {
-                        declared[binding.index()] = Some(ConditionType::Unknown);
+                AstKind::VariableDeclarator(declarator) => {
+                    annotate(
+                        &mut declared,
+                        &declarator.id,
+                        declarator.type_annotation.as_deref(),
+                    );
+                }
+                AstKind::CatchParameter(parameter) => {
+                    annotate(
+                        &mut declared,
+                        &parameter.pattern,
+                        parameter.type_annotation.as_deref(),
+                    );
+                }
+                AstKind::FormalParameter(parameter) => {
+                    if parameter.optional {
+                        if let BindingPattern::BindingIdentifier(identifier) = &parameter.pattern
+                            && let Some(symbol) = identifier.symbol_id.get()
+                        {
+                            declared[symbol.index()] = Some(ConditionType::Unknown);
+                        }
+                    } else {
+                        annotate(
+                            &mut declared,
+                            &parameter.pattern,
+                            parameter.type_annotation.as_deref(),
+                        );
                     }
                 }
-                TypeScriptKind::As | TypeScriptKind::Assertion => {
-                    asserted[annotation.node.index()] = true;
-                    facts.nodes[annotation.node.index()] =
-                        annotation_type(tree, source, annotation.span);
+                AstKind::TSAsExpression(expression) => {
+                    facts.nodes[node.id().index()] = type_of(&expression.type_annotation);
                 }
                 _ => {}
             }
         }
-        facts.resolve_bindings(tree, resolution, &declared, &asserted);
-        for reference in &resolution.sem.references {
-            if asserted[reference.node.index()] {
-                continue;
-            }
-            let Some(binding) = reference.binding else {
-                continue;
-            };
-            let info = &resolution.sem.bindings[binding];
-            let span = tree
-                .source_location(reference.node)
-                .span()
-                .expect("a source reference has a span");
-            let in_script = [component.instance.as_ref(), component.module.as_ref()]
+        facts.resolve_bindings(resolution, &identifiers, &declared);
+        let in_script = |span: oxc_span::Span| {
+            [component.instance.as_ref(), component.module.as_ref()]
                 .into_iter()
                 .flatten()
                 .any(|script| {
-                    script.content.start_offset <= span.start_offset
-                        && span.end_offset <= script.content.end_offset
-                });
-            facts.nodes[reference.node.index()] = if !in_script
-                && matches!(info.kind, DeclarationKind::Let | DeclarationKind::Variable)
-            {
-                ConditionType::Unknown
-            } else {
-                facts.get(info.node)
+                    script.content.start_offset <= span.start
+                        && span.end <= script.content.end_offset
+                })
+        };
+        for symbol in scoping.symbol_ids() {
+            let Some(identifier) = identifiers[symbol.index()] else {
+                continue;
             };
+            // The template may read a `let` after the script has changed it.
+            let variable = matches!(
+                resolution.variable_kind(symbol),
+                Some(VariableDeclarationKind::Let | VariableDeclarationKind::Var)
+            );
+            for &reference in scoping.get_resolved_reference_ids(symbol) {
+                let node = scoping.get_reference(reference).node_id();
+                facts.nodes[node.index()] = if variable && !in_script(nodes.kind(node).span()) {
+                    ConditionType::Unknown
+                } else {
+                    facts.get(identifier)
+                };
+            }
+        }
+        // A wrapper follows what it wraps, which has a larger index.
+        for index in (0..nodes.len()).rev() {
+            let node = nodes.get_node(NodeId::new(index));
+            let inner = match node.kind() {
+                AstKind::TSSatisfiesExpression(e) => &e.expression,
+                AstKind::TSInstantiationExpression(e) => &e.expression,
+                AstKind::TSNonNullExpression(e) => &e.expression,
+                _ => continue,
+            };
+            let mut condition = facts.get(inner.node_id());
+            if matches!(node.kind(), AstKind::TSNonNullExpression(_))
+                && condition == ConditionType::Nullish
+            {
+                condition = ConditionType::Unknown;
+            }
+            facts.nodes[node.id().index()] = condition;
         }
         facts
     }
 
+    /// Gives each symbol's identifier its type: the annotation's, or a `const`'s initializer's,
+    /// following `const a = b` chains so each dependency is typed first.
     fn resolve_bindings(
         &mut self,
-        tree: &SyntaxTree,
         resolution: &Resolution,
+        identifiers: &[Option<NodeId>],
         declared: &[Option<ConditionType>],
-        asserted: &[bool],
     ) {
-        let mut completed = vec![false; resolution.sem.bindings.len()];
+        let scoping = resolution.scoping();
+        let mut completed = vec![false; scoping.symbols_len()];
         let mut chain = Vec::new();
-        for (binding, _) in resolution.sem.bindings.iter_enumerated() {
-            let mut current = binding;
+        for symbol in scoping.symbol_ids() {
+            let mut current = symbol;
             while !completed[current.index()] {
                 completed[current.index()] = true;
-                let info = &resolution.sem.bindings[current];
                 chain.push(current);
-                if declared[current.index()].is_some()
-                    || info.kind != DeclarationKind::Const
-                    || info.writes != 0
-                {
+                if declared[current.index()].is_some() {
                     break;
                 }
-                let Some(initializer) = info.initializer(tree) else {
-                    break;
-                };
-                if asserted[initializer.index()] || !tree.is_identifier(initializer) {
-                    break;
-                }
-                let Some(dependency) = resolution.sem.binding_of(initializer) else {
+                let Some(dependency) = constant_initializer(resolution, current)
+                    .and_then(|initializer| identifier_symbol(resolution, initializer))
+                else {
                     break;
                 };
                 current = dependency;
             }
             while let Some(current) = chain.pop() {
-                let info = &resolution.sem.bindings[current];
-                self.nodes[info.node.index()] = declared[current.index()]
-                    .unwrap_or_else(|| self.initializer_type(tree, resolution, info, asserted));
+                let Some(identifier) = identifiers[current.index()] else {
+                    continue;
+                };
+                self.nodes[identifier.index()] = declared[current.index()]
+                    .unwrap_or_else(|| self.initializer_type(resolution, identifiers, current));
             }
         }
     }
 
     fn initializer_type(
         &self,
-        tree: &SyntaxTree,
         resolution: &Resolution,
-        binding: &Binding,
-        asserted: &[bool],
+        identifiers: &[Option<NodeId>],
+        symbol: SymbolId,
     ) -> ConditionType {
-        if binding.kind != DeclarationKind::Const || binding.writes != 0 {
-            return ConditionType::Unknown;
-        }
-        let Some(initializer) = binding.initializer(tree) else {
+        let Some(initializer) = constant_initializer(resolution, symbol) else {
             return ConditionType::Unknown;
         };
-        if !asserted[initializer.index()]
-            && tree.is_identifier(initializer)
-            && let Some(dependency) = resolution.sem.binding_of(initializer)
-        {
-            return self.get(resolution.sem.bindings[dependency].node);
+        if let Some(dependency) = identifier_symbol(resolution, initializer) {
+            return identifiers[dependency.index()]
+                .map_or(ConditionType::Unknown, |identifier| self.get(identifier));
         }
-        self.get(initializer)
+        self.get(initializer.node_id())
     }
 }
 
-fn annotation_type(tree: &SyntaxTree, source: &str, span: Span) -> ConditionType {
-    let start = tree
-        .tokens
-        .after(span.start_offset)
-        .expect("an annotation contains a token");
-    let mut tokens = tree
-        .tokens
-        .since(start.index())
-        .iter()
-        .take_while(|token| token.span.end_offset <= span.end_offset);
-    match (tokens.next(), tokens.next()) {
-        (Some(token), None) => match token.span.text(source) {
-            "true" => ConditionType::Truthy,
-            "false" => ConditionType::Falsy,
-            "null" | "undefined" => ConditionType::Nullish,
-            "boolean" | "number" | "string" | "bigint" | "symbol" => ConditionType::NonNullish,
+/// The first annotation of a name a pattern declares gives its type.
+fn annotate(
+    declared: &mut [Option<ConditionType>],
+    pattern: &BindingPattern<'_>,
+    annotation: Option<&TSTypeAnnotation<'_>>,
+) {
+    if let BindingPattern::BindingIdentifier(identifier) = pattern
+        && let Some(symbol) = identifier.symbol_id.get()
+        && let Some(annotation) = annotation
+    {
+        declared[symbol.index()].get_or_insert_with(|| type_of(&annotation.type_annotation));
+    }
+}
+
+/// The initializer of a `const` that nothing writes, past the type syntax that changes no type.
+fn constant_initializer(resolution: &Resolution, symbol: SymbolId) -> Option<&Expression<'_>> {
+    let constant = resolution
+        .scoping()
+        .symbol_flags(symbol)
+        .contains(SymbolFlags::ConstVariable);
+    if !constant || resolution.writes(symbol) != 0 {
+        return None;
+    }
+    resolution.initializer(symbol).map(without_erased)
+}
+
+/// The symbol an identifier initializer reads.
+fn identifier_symbol(resolution: &Resolution, initializer: &Expression<'_>) -> Option<SymbolId> {
+    match initializer {
+        Expression::Identifier(identifier) => resolution.symbol(identifier),
+        _ => None,
+    }
+}
+
+/// `e satisfies T`, `e!` and `e<T>` have the type of `e`; `e as T` has its own.
+fn without_erased<'e>(mut expression: &'e Expression<'e>) -> &'e Expression<'e> {
+    loop {
+        expression = match expression {
+            Expression::TSSatisfiesExpression(e) => &e.expression,
+            Expression::TSNonNullExpression(e) => &e.expression,
+            Expression::TSInstantiationExpression(e) => &e.expression,
+            _ => return expression,
+        };
+    }
+}
+
+/// The condition type of a type written as one keyword or boolean literal.
+fn type_of(written: &TSType<'_>) -> ConditionType {
+    match written {
+        TSType::TSLiteralType(literal) => match &literal.literal {
+            TSLiteral::BooleanLiteral(boolean) if boolean.value => ConditionType::Truthy,
+            TSLiteral::BooleanLiteral(_) => ConditionType::Falsy,
             _ => ConditionType::Unknown,
         },
+        TSType::TSNullKeyword(_) | TSType::TSUndefinedKeyword(_) => ConditionType::Nullish,
+        TSType::TSBooleanKeyword(_)
+        | TSType::TSNumberKeyword(_)
+        | TSType::TSStringKeyword(_)
+        | TSType::TSBigIntKeyword(_)
+        | TSType::TSSymbolKeyword(_) => ConditionType::NonNullish,
         _ => ConditionType::Unknown,
     }
 }
 
-fn literal_type(tree: &SyntaxTree, source: &str, node: NodeIdentifier) -> ConditionType {
-    match tree.kind(node) {
-        Kind::Boolean(true)
-        | Kind::Object(_)
-        | Kind::Array(_)
-        | Kind::Arrow { .. }
-        | Kind::Function { .. }
-        | Kind::Class(_)
-        | Kind::Regex { .. } => ConditionType::Truthy,
-        Kind::Boolean(false) => ConditionType::Falsy,
-        Kind::Null => ConditionType::Nullish,
-        Kind::Number(value) => {
-            if value == 0.0 || value.is_nan() {
+fn literal_type(kind: AstKind<'_>) -> ConditionType {
+    match kind {
+        AstKind::BooleanLiteral(boolean) => {
+            if boolean.value {
+                ConditionType::Truthy
+            } else {
+                ConditionType::Falsy
+            }
+        }
+        AstKind::ObjectExpression(_)
+        | AstKind::ArrayExpression(_)
+        | AstKind::ArrowFunctionExpression(_)
+        | AstKind::Function(_)
+        | AstKind::Class(_)
+        | AstKind::RegExpLiteral(_) => ConditionType::Truthy,
+        AstKind::NullLiteral(_) => ConditionType::Nullish,
+        AstKind::NumericLiteral(number) => {
+            if number.value == 0.0 || number.value.is_nan() {
                 ConditionType::Falsy
             } else {
                 ConditionType::Truthy
             }
         }
-        Kind::String => {
-            if tree.str_value(node, source).is_empty() {
+        AstKind::StringLiteral(string) => {
+            if string.value.is_empty() {
                 ConditionType::Falsy
             } else {
                 ConditionType::Truthy

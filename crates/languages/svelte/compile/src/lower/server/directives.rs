@@ -1,21 +1,20 @@
-use super::{
-    Attribute, AttributeValue, NodeIdentifier, ServerCompilationContext, SourceLocation,
-    is_boolean_attribute,
-};
+use oxc_ast::ast::Expression;
 
-impl ServerCompilationContext<'_> {
+use super::{Attribute, AttributeValue, ServerCompilationContext, is_boolean_attribute};
+use crate::lower::builder::Runtime;
+
+impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `BindDirective` (server): the bound value as an attribute.
-    pub(super) fn binding(&mut self, a: &Attribute) -> NodeIdentifier {
+    pub(super) fn binding(&self, a: &Attribute) -> Expression<'o> {
         let AttributeValue::Bind(e) = a.value else {
             unreachable!("called on bindings")
         };
+        let b = self.b;
         let name = a.name.text(self.source_text).to_ascii_lowercase();
-        let value = self.expression(e);
-        let n = self.out.write_string(&name);
-        let mut arguments = vec![n, value];
+        let mut arguments = vec![b.string(&name), self.expression(e)];
         if is_boolean_attribute(&name) {
-            arguments.push(self.out.write_boolean(true, SourceLocation::SYNTHETIC));
+            arguments.push(b.boolean(true));
         }
-        self.out.runtime("$", "attr", &arguments)
+        b.runtime("attr", arguments)
     }
 }

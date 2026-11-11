@@ -1,11 +1,7 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<p>Loading</p>`);
-
 var root_1 = $.from_html(`<p>Ready</p>`);
-
 export default function Boundary_pending_snippet($$anchor) {
 	var fragment = $.comment();
 	var node = $.first_child(fragment);

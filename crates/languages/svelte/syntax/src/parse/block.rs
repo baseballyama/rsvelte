@@ -1,14 +1,16 @@
+use oxc_ast::ast::{Expression, TSAsExpression};
+use oxc_ast_visit::{Visit, walk};
+use oxc_parser::Kind;
+use oxc_span::GetSpan;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_syntax::lexer::T;
-use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
+use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier};
 
 use super::identifier::is_identifier_continue;
-use super::{End, ParseResult, Parser};
+use super::{End, ParseResult, Parser, javascript_error};
 use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
 
-impl Parser<'_> {
+impl Parser<'_, '_> {
     pub(super) fn eat_marker(&mut self, sigil: char, word: &str) -> bool {
         let rest = self.rest();
         let Some(after) = rest.strip_prefix('{') else {
@@ -128,29 +130,29 @@ impl Parser<'_> {
     fn each_block(&mut self, start_offset: usize) -> ParseResult<TemplateNodeIdentifier> {
         let expression = self.each_expression()?;
         self.skip_ws();
-        let mut context = NodeIdentifier::NONE;
+        let mut context = None;
         if self.at_word("as") {
             self.eat_token(TokenType::BlockKeyword, 2);
             self.require_ws()?;
-            context = self.pattern()?;
+            context = Some(self.pattern()?);
             self.skip_ws();
         }
-        let mut index = NodeIdentifier::NONE;
+        let mut index = None;
         if self.peek() == Some(b',') {
-            self.eat_token(TokenType::JavaScript(T::Comma), 1);
+            self.eat_token(TokenType::JavaScript(Kind::Comma), 1);
             self.skip_ws();
-            index = self.identifier()?;
+            index = Some(self.binding_identifier()?);
             self.skip_ws();
         }
-        let mut key = NodeIdentifier::NONE;
+        let mut key = None;
         if self.peek() == Some(b'(') {
-            self.eat_token(TokenType::JavaScript(T::LParen), 1);
-            key = self.expression()?;
+            self.eat_token(TokenType::JavaScript(Kind::LParen), 1);
+            key = Some(self.expression()?);
             self.skip_ws();
             if self.peek() != Some(b')') {
                 return self.err("expected `)`");
             }
-            self.eat_token(TokenType::JavaScript(T::RParen), 1);
+            self.eat_token(TokenType::JavaScript(Kind::RParen), 1);
         }
         self.close_mustache()?;
         let body = self.fragment(End::Block)?;
@@ -176,81 +178,86 @@ impl Parser<'_> {
         }))
     }
 
-    fn each_expression(&mut self) -> ParseResult<NodeIdentifier> {
+    /// An `{#each}` index: one name, which scope analysis declares.
+    fn binding_identifier(&mut self) -> ParseResult<PatternIdentifier> {
+        let len = self.binding_name_len()?;
+        if len == 0 {
+            return self.err("expected an identifier");
+        }
+        let span = Span::new(self.position as u32, (self.position + len) as u32);
+        let source_type = self.source_type();
+        let index = self
+            .builder
+            .pattern(span, source_type)
+            .map_err(javascript_error)?;
+        self.javascript_region(span.start_offset, span.end_offset);
+        Ok(index)
+    }
+
+    fn each_expression(&mut self) -> ParseResult<ExpressionIdentifier> {
         let (position, tokens, mark) = (
             self.position,
             self.component.tokens.len(),
-            self.component.javascript.mark(),
+            self.builder.mark(),
         );
-        let typescript_from = self.component.javascript.typescript.len();
-        let expression = match self.expression() {
+        let expression = match self.read_expression() {
             Ok(e) => e,
-            // `{#each x as { y = z }}` reads `as { y = z }` as a type that does not parse; read
-            // only up to the last `as` before the error, as upstream does.
+            // `{#each x as { y = z }}` reads `as { y = z }` as a type that does not parse, and
+            // JavaScript has no `as` at all; read only up to the last `as` the error reaches, as
+            // upstream does.
             Err(e) => {
-                let before = &self.source_text[position..e.span.start_offset as usize];
+                let before = &self.source_text[position..e.span.end_offset as usize];
                 let Some(keyword) = last_as(before) else {
                     return Err(e);
                 };
-                self.position = position;
-                self.component.tokens.truncate(tokens);
-                self.component.javascript.rewind(mark);
-                self.skip_ws();
-                return self.expression_until((position + keyword) as u32);
+                return self.each_expression_before(position, tokens, mark, position + keyword);
             }
         };
         if self.at_word("as") {
-            return Ok(expression);
+            return Ok(self.builder.keep_expression(expression));
         }
-        let first = match self.component.javascript.kind(expression) {
-            Kind::Sequence(items) => items[0],
-            _ => expression,
+        let first = match &expression {
+            Expression::SequenceExpression(sequence) => &sequence.expressions[0],
+            expression => expression,
         };
-        let Some(assertion) = self.component.javascript.typescript[typescript_from..]
-            .iter()
-            .rev()
-            .find(|t| t.kind == TypeScriptKind::As && t.node == first)
-        else {
-            if let Kind::Sequence(items) = self.component.javascript.kind(expression)
-                && let Some(span) = self.component.javascript.source_location(items[0]).span()
-            {
-                self.rewind_to(position, tokens, mark);
-                self.skip_ws();
-                return self.expression_until(span.end_offset);
+        // TypeScript reads `items as item` as an assertion, also inside `a || [] as item`: the
+        // `as` of the one that ends the expression is the block's (upstream's walk).
+        if let Some(type_start) = trailing_assertion(first) {
+            let keyword = self
+                .component
+                .tokens
+                .since(tokens)
+                .iter()
+                .rev()
+                .find(|token| {
+                    token.kind == TokenType::JavaScript(Kind::As)
+                        && token.span.end_offset <= type_start
+                });
+            if let Some(keyword) = keyword {
+                let keyword = keyword.span.start_offset as usize;
+                return self.each_expression_before(position, tokens, mark, keyword);
             }
-            return Ok(expression);
-        };
-        let Some(keyword) = self
-            .component
-            .javascript
-            .tokens
-            .iter()
-            .rev()
-            .find(|token| {
-                token.kind == T::Identifier
-                    && token.span.end_offset <= assertion.span.start_offset
-                    && token.span.start_offset >= position as u32
-                    && token.span.text(self.source_text) == "as"
-            })
-            .map(|token| token.span.start_offset)
-        else {
-            return Ok(expression);
-        };
-        self.rewind_to(position, tokens, mark);
-        self.skip_ws();
-        self.expression_until(keyword)
+        } else if let Expression::SequenceExpression(sequence) = &expression {
+            let end = sequence.expressions[0].span().end as usize;
+            return self.each_expression_before(position, tokens, mark, end);
+        }
+        Ok(self.builder.keep_expression(expression))
     }
 
-    fn rewind_to(
+    /// The `{#each}` expression read again from `position`, up to `limit`.
+    fn each_expression_before(
         &mut self,
         position: usize,
         tokens: usize,
-        mark: rsvelte_typescript_syntax::syntax_tree::Mark,
-    ) {
+        mark: usize,
+        limit: usize,
+    ) -> ParseResult<ExpressionIdentifier> {
         self.position = position;
         self.component.tokens.truncate(tokens);
-        self.component.javascript.rewind(mark);
-        self.component.template_expressions.pop();
+        self.builder.rewind(mark);
+        self.skip_ws();
+        let expression = self.read_expression_before(limit as u32)?;
+        Ok(self.builder.keep_expression(expression))
     }
 
     #[expect(
@@ -260,7 +267,7 @@ impl Parser<'_> {
     fn await_block(&mut self, start_offset: usize) -> ParseResult<TemplateNodeIdentifier> {
         let expression = self.expression()?;
         self.skip_ws();
-        let (mut value, mut error) = (NodeIdentifier::NONE, NodeIdentifier::NONE);
+        let (mut value, mut error) = (None, None);
         let (mut pending, mut then, mut catch) = (Range::ABSENT, Range::ABSENT, Range::ABSENT);
         let first = if self.at_word("then") {
             self.eat_token(TokenType::BlockKeyword, "then".len());
@@ -312,18 +319,18 @@ impl Parser<'_> {
         }))
     }
 
-    fn optional_pattern(&mut self) -> ParseResult<NodeIdentifier> {
+    fn optional_pattern(&mut self) -> ParseResult<Option<PatternIdentifier>> {
         let at = self.position;
         let tokens = self.component.tokens.len();
         self.skip_ws();
         if self.peek() == Some(b'}') {
-            return Ok(NodeIdentifier::NONE);
+            return Ok(None);
         }
         if self.position == at {
             self.component.tokens.truncate(tokens);
             return self.err("expected whitespace");
         }
-        self.pattern()
+        self.pattern().map(Some)
     }
 
     fn key_block(&mut self, start_offset: usize) -> ParseResult<TemplateNodeIdentifier> {
@@ -338,6 +345,32 @@ impl Parser<'_> {
             span,
         }))
     }
+}
+
+/// Where the type starts of the outermost `as` assertion in `e` that ends where `e` does.
+fn trailing_assertion(e: &Expression<'_>) -> Option<u32> {
+    struct Find {
+        end: u32,
+        type_start: Option<u32>,
+    }
+    impl<'a> Visit<'a> for Find {
+        fn visit_ts_as_expression(&mut self, it: &TSAsExpression<'a>) {
+            if self.type_start.is_some() {
+                return;
+            }
+            if it.span.end == self.end {
+                self.type_start = Some(it.type_annotation.span().start);
+                return;
+            }
+            walk::walk_ts_as_expression(self, it);
+        }
+    }
+    let mut find = Find {
+        end: e.span().end,
+        type_start: None,
+    };
+    find.visit_expression(e);
+    find.type_start
 }
 
 /// The offset of the last `as` keyword in `s` that has whitespace before it.
@@ -357,6 +390,9 @@ fn last_as(s: &str) -> Option<usize> {
 struct IfHead {
     start_offset: usize,
     elseif: bool,
-    test: NodeIdentifier,
+    test: ExpressionIdentifier,
     consequent: Range,
 }
+
+#[cfg(test)]
+mod tests;

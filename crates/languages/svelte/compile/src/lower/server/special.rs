@@ -1,18 +1,25 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::MetadataTag;
 
 use super::{
-    CompilerNodeIdentifier, ElementKind, NodeKind, Piece, R, ServerCompilationContext,
-    SourceLocation, unsupported,
+    CompilerNodeIdentifier, ElementKind, NodeKind, Piece, R, ServerCompilationContext, unsupported,
 };
+use crate::lower::builder::Runtime;
 
-impl ServerCompilationContext<'_> {
+impl<'o> ServerCompilationContext<'_, 'o> {
+    /// The snippets and special elements of a fragment, but the snippets named so that `skipped`
+    /// holds.
     pub(super) fn hoisted_elements(
         &mut self,
         identifiers: &[CompilerNodeIdentifier],
-        template: &mut Vec<Piece>,
+        skipped: fn(&str) -> bool,
+        template: &mut Vec<Piece<'o>>,
     ) -> R<()> {
         for &identifier in identifiers {
-            self.special_element(identifier, template)?;
+            match &self.compiler_syntax_tree.node(identifier).kind {
+                NodeKind::Snippet(snippet) if skipped(self.snippet_name(snippet)) => {}
+                NodeKind::Snippet(_) => self.snippet(identifier)?,
+                _ => self.special_element(identifier, template)?,
+            }
         }
         Ok(())
     }
@@ -20,8 +27,9 @@ impl ServerCompilationContext<'_> {
     pub(super) fn special_element(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        template: &mut Vec<Piece>,
+        template: &mut Vec<Piece<'o>>,
     ) -> R<()> {
+        let b = self.b;
         let tree = self.compiler_syntax_tree;
         let NodeKind::Element(element) = &tree.node(identifier).kind else {
             unreachable!("special elements are elements")
@@ -29,32 +37,25 @@ impl ServerCompilationContext<'_> {
         match element.kind {
             ElementKind::Metadata(Some(MetadataTag::Head)) => {
                 let body = self.fragment(element.children)?;
-                let block = self.out.block(&body, SourceLocation::SYNTHETIC);
-                let renderer = self.out.identifier("$$renderer");
-                let callback =
-                    self.out
-                        .arrow(&[renderer], block, false, false, SourceLocation::SYNTHETIC);
-                let hash = self.out.write_string(
+                let callback = b.arrow_block(b.params(["$$renderer"]), body, false);
+                let hash = b.string(
                     self.identity
                         .head_hash
                         .as_deref()
                         .expect("a head has an identity"),
                 );
-                let call = self.out.runtime("$", "head", &[hash, renderer, callback]);
-                template.push(Piece::Statement(self.out.expression_statement(call)));
+                let call = b.runtime("head", [hash, b.id("$$renderer"), callback]);
+                template.push(Piece::Statement(b.stmt(call)));
             }
             ElementKind::Title => {
+                let plan = self.plan;
                 let mut pieces = vec![Piece::Text("<title>".into())];
-                self.process_children(&self.plan.fragment(element.children).items, &mut pieces)?;
+                self.process_children(&plan.fragment(element.children).items, &mut pieces)?;
                 pieces.push(Piece::Text("</title>".into()));
                 let body = self.build_template(pieces);
-                let block = self.out.block(&body, SourceLocation::SYNTHETIC);
-                let renderer = self.out.identifier("$$renderer");
-                let callback =
-                    self.out
-                        .arrow(&[renderer], block, false, false, SourceLocation::SYNTHETIC);
-                let call = self.out.runtime("$$renderer", "title", &[callback]);
-                template.push(Piece::Statement(self.out.expression_statement(call)));
+                let callback = b.arrow_block(b.params(["$$renderer"]), body, false);
+                let call = b.call(b.member(b.id("$$renderer"), "title"), [callback]);
+                template.push(Piece::Statement(b.stmt(call)));
             }
             ElementKind::Metadata(Some(
                 MetadataTag::Window

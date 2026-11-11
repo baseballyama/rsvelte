@@ -1,11 +1,7 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<p>Thanks.</p>`);
-
 var root_1 = $.from_html(`<label><input type="checkbox"/> I agree</label> <!>`, 1);
-
 export default function Bind_checked($$anchor) {
 	let agreed = $.state(false);
 	var fragment = root_1();

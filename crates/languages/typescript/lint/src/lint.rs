@@ -1,322 +1,255 @@
-//! Lint rules over JavaScript facts alone, for every language that embeds JavaScript.
+//! Lint rules over a document's scope analysis alone, for every language that embeds JavaScript.
 //!
 //! A host language wraps them in its own [`rsvelte_lint_runner::rule::Rule`]. Its template
-//! expressions are scope-analysis roots ([`rsvelte_typescript_semantic::scope::HostRoot`]), so
-//! their reads are already here; which bindings a rule reports on is the host's decision
-//! (`considered`), because the upstream plugins differ: svelte-eslint-parser puts `{#each}` names
-//! in the scope core rules read, while Vue's `v-for` names are reported by
-//! `vue/no-unused-variables` instead.
+//! expressions are in the same [`Semantic`], so their reads are already here; which symbols a
+//! rule reports on is the host's decision (`considered`), because the upstream plugins differ:
+//! svelte-eslint-parser puts `{#each}` names in the scope core rules read, while Vue's `v-for`
+//! names are reported by `vue/no-unused-variables` instead.
 
 mod no_inner_declarations;
+mod no_unused_variables;
 mod prefer_const;
 pub use no_inner_declarations::{NoInnerDeclarationsOptions, no_inner_declarations};
+pub use no_unused_variables::no_unused_variables;
+use oxc_ast::AstKind;
+use oxc_ast::ast::{
+    Expression, FormalParameter, FormalParameters, Program, TSTypeName, VariableDeclaration,
+};
+use oxc_ast_visit::Visit;
+use oxc_semantic::{AstNodes, NodeId, ScopeId, Scoping, SymbolId};
+use oxc_span::GetSpan;
 pub use prefer_const::{PreferConstOptions, ProgramStatements, prefer_const};
-
-use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind, Reference, Semantic};
-use rsvelte_typescript_syntax::operators::AssignmentOperator;
-use rsvelte_typescript_syntax::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, TypeScriptKind};
+use rsvelte_typescript_semantic::semantic::Semantic;
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
+use rustc_hash::{FxHashMap, FxHashSet};
 
-#[derive(Debug)]
-pub struct JavaScriptFacts<'a> {
-    pub syntax_tree: &'a SyntaxTree,
-    pub sem: &'a Semantic,
-    /// [`SyntaxTree::parents`].
-    pub parents: &'a [NodeIdentifier],
+/// What a rule over syntax walks: a program, or a part a host keeps apart from the programs,
+/// such as a Svelte template's expression.
+enum Root<'a> {
+    Program(&'a Program<'a>),
+    Expression(&'a Expression<'a>),
+    Pattern(&'a FormalParameter<'a>),
+    Parameters(&'a FormalParameters<'a>),
+    Declaration(&'a VariableDeclaration<'a>),
 }
 
-impl JavaScriptFacts<'_> {
-    fn parent(&self, n: NodeIdentifier) -> Option<NodeIdentifier> {
-        self.parents[n.index()].opt()
+impl<'a> Root<'a> {
+    fn start(&self) -> u32 {
+        match self {
+            Self::Program(program) => program.span.start,
+            Self::Expression(expression) => expression.span().start,
+            Self::Pattern(pattern) => pattern.span.start,
+            Self::Parameters(parameters) => parameters.span.start,
+            Self::Declaration(declaration) => declaration.span.start,
+        }
     }
 
-    /// `ESLint`'s `isInside` compares ranges; on one tree that is ancestry.
-    fn inside(&self, inner: NodeIdentifier, outer: NodeIdentifier) -> bool {
-        let mut n = Some(inner);
-        while let Some(x) = n {
-            if x == outer {
-                return true;
+    fn visit(&self, visitor: &mut impl Visit<'a>) {
+        match self {
+            Self::Program(program) => visitor.visit_program(program),
+            Self::Expression(expression) => visitor.visit_expression(expression),
+            Self::Pattern(pattern) => visitor.visit_formal_parameter(pattern),
+            Self::Parameters(parameters) => visitor.visit_formal_parameters(parameters),
+            Self::Declaration(declaration) => visitor.visit_variable_declaration(declaration),
+        }
+    }
+}
+
+/// `programs` and every part of `tree` outside the programs, in source order.
+fn roots<'a>(tree: &'a Tree, programs: &[ProgramIdentifier]) -> Vec<Root<'a>> {
+    let mut roots: Vec<Root<'a>> = programs
+        .iter()
+        .map(|&program| Root::Program(tree.get_program(program)))
+        .chain(tree.expressions().map(|(_, e)| Root::Expression(e)))
+        .chain(tree.patterns().map(|(_, p)| Root::Pattern(p)))
+        .chain(tree.parameters().map(|(_, p)| Root::Parameters(p)))
+        .chain(tree.declarations().map(|(_, d)| Root::Declaration(d)))
+        .collect();
+    roots.sort_by_key(Root::start);
+    roots
+}
+
+/// A reference as `ESLint`'s scope analysis records it: oxc's, and the write a declaration's
+/// initializer, a `for…in`/`for…of` head or a parameter's default makes at the declared name.
+#[derive(Clone, Copy, Debug)]
+struct Use {
+    node: NodeId,
+    span: oxc_span::Span,
+    read: bool,
+    write: bool,
+    scope: ScopeId,
+}
+
+/// What every rule here asks of one analysis.
+struct Facts<'s> {
+    scoping: &'s Scoping,
+    nodes: &'s AstNodes<'s>,
+    /// The declaring identifier of each symbol.
+    identifiers: Vec<Option<NodeId>>,
+    /// The later declaring identifiers of a redeclared symbol (`var a = 1; var a = 2;`).
+    redeclared: FxHashMap<SymbolId, Vec<NodeId>>,
+    /// What the left of a qualified type name (`A` of `A.B`) names. typescript-eslint takes any
+    /// symbol of that name, where oxc takes only a namespace.
+    qualified: FxHashSet<SymbolId>,
+}
+
+impl<'s> Facts<'s> {
+    fn new(semantic: &'s Semantic) -> Self {
+        let scoping = semantic.scoping();
+        let nodes = semantic.nodes();
+        let mut identifiers = vec![None; scoping.symbols_len()];
+        let mut redeclared: FxHashMap<SymbolId, Vec<NodeId>> = FxHashMap::default();
+        let mut qualified = FxHashSet::default();
+        for node in nodes.iter() {
+            match node.kind() {
+                AstKind::BindingIdentifier(identifier) => {
+                    if let Some(symbol) = identifier.symbol_id.get() {
+                        match identifiers[symbol.index()] {
+                            None => identifiers[symbol.index()] = Some(node.id()),
+                            Some(_) => redeclared.entry(symbol).or_default().push(node.id()),
+                        }
+                    }
+                }
+                AstKind::TSQualifiedName(name) => {
+                    if let TSTypeName::IdentifierReference(left) = &name.left
+                        && left
+                            .reference_id
+                            .get()
+                            .and_then(|r| scoping.get_reference(r).symbol_id())
+                            .is_none()
+                    {
+                        qualified.extend(scoping.find_binding(node.scope_id(), left.name));
+                    }
+                }
+                _ => {}
             }
-            n = self.parent(x);
+        }
+        Self {
+            scoping,
+            nodes,
+            identifiers,
+            redeclared,
+            qualified,
+        }
+    }
+
+    fn kind(&self, node: NodeId) -> AstKind<'s> {
+        self.nodes.kind(node)
+    }
+
+    fn parent(&self, node: NodeId) -> Option<NodeId> {
+        let parent = self.nodes.parent_id(node);
+        (parent != node).then_some(parent)
+    }
+
+    /// The parent, past parentheses, which `ESTree` does not keep.
+    fn parent_past_parentheses(&self, node: NodeId) -> Option<NodeId> {
+        let mut parent = self.parent(node)?;
+        while matches!(self.kind(parent), AstKind::ParenthesizedExpression(_)) {
+            parent = self.parent(parent)?;
+        }
+        Some(parent)
+    }
+
+    fn span(&self, node: NodeId) -> oxc_span::Span {
+        self.kind(node).span()
+    }
+
+    /// `ESLint`'s `isInside` compares ranges; on one document that is containment.
+    fn inside(&self, inner: oxc_span::Span, outer: NodeId) -> bool {
+        let outer = self.span(outer);
+        outer.start <= inner.start && inner.end <= outer.end
+    }
+
+    /// `scope.variableScope`: the nearest function, module, class static block or namespace.
+    fn variable_scope(&self, scope: ScopeId) -> ScopeId {
+        self.scoping
+            .scope_ancestors(scope)
+            .find(|&s| {
+                let flags = self.scoping.scope_flags(s);
+                flags.is_var() || flags.is_arrow()
+            })
+            .unwrap_or(scope)
+    }
+
+    /// The node that declares `symbol`: a declarator, a parameter, a function, an import
+    /// specifier, ….
+    fn declaration(&self, symbol: SymbolId) -> NodeId {
+        self.scoping.symbol_declaration(symbol)
+    }
+
+    /// The symbol's references in source order, with the write `ESLint` records at its name.
+    fn uses(&self, symbol: SymbolId, out: &mut Vec<Use>) {
+        out.clear();
+        out.extend(
+            self.scoping
+                .get_resolved_reference_ids(symbol)
+                .iter()
+                .map(|&id| {
+                    let reference = self.scoping.get_reference(id);
+                    let node = reference.node_id();
+                    Use {
+                        node,
+                        span: self.span(node),
+                        read: reference.is_read(),
+                        write: reference.is_write(),
+                        scope: reference.scope_id(),
+                    }
+                }),
+        );
+        let later = self.redeclared.get(&symbol).map_or(&[][..], Vec::as_slice);
+        for &identifier in self.identifiers[symbol.index()].iter().chain(later) {
+            if self.written_where_declared(identifier) {
+                out.push(Use {
+                    node: identifier,
+                    span: self.span(identifier),
+                    read: false,
+                    write: true,
+                    scope: self.nodes.get_node(identifier).scope_id(),
+                });
+            }
+        }
+        out.sort_by_key(|u| u.span.start);
+    }
+
+    /// A name declared with a value: in a declarator with an initializer, in a `for…in` or
+    /// `for…of` head, or under a default.
+    fn written_where_declared(&self, identifier: NodeId) -> bool {
+        let mut at = identifier;
+        while let Some(parent) = self.parent(at) {
+            match self.kind(parent) {
+                AstKind::VariableDeclarator(declarator) => {
+                    return declarator.init.is_some()
+                        || self
+                            .parent(parent)
+                            .and_then(|d| self.parent(d))
+                            .is_some_and(|p| {
+                                matches!(
+                                    self.kind(p),
+                                    AstKind::ForInStatement(_) | AstKind::ForOfStatement(_)
+                                )
+                            });
+                }
+                AstKind::AssignmentPattern(_) => return true,
+                AstKind::FormalParameter(parameter) => return parameter.initializer.is_some(),
+                AstKind::ArrayPattern(_)
+                | AstKind::ObjectPattern(_)
+                | AstKind::BindingProperty(_)
+                | AstKind::BindingRestElement(_) => at = parent,
+                _ => return false,
+            }
         }
         false
     }
+}
 
-    fn span(&self, n: NodeIdentifier) -> Span {
-        self.syntax_tree
-            .source_location(n)
-            .span()
-            .expect("a source tree node has a source range")
+const fn span(span: oxc_span::Span) -> Span {
+    Span {
+        start_offset: span.start,
+        end_offset: span.end,
     }
 }
 
-/// `ESLint`'s `no-unused-variables` with its default options (`variables: all`, `arguments:
-/// after-used`, `caughtErrors: all`, no ignore patterns, `ignoreRestSiblings: false`).
-///
-/// The parser has no loop, class or catch syntax yet, so `isInLoop`, `isForInOfRef` and the
-/// class/catch skips have nothing to decide and are absent; they arrive with that syntax.
-/// A [`DeclarationKind::Host`] binding is judged as a variable (not a parameter).
-pub fn no_unused_variables(
-    f: &JavaScriptFacts<'_>,
-    considered: impl Fn(BindingIdentifier) -> bool,
-    reporter: &mut Reporter<'_>,
-) {
-    for (b, binding) in f.sem.bindings.iter_enumerated() {
-        if !considered(b) {
-            continue;
-        }
-        if binding.kind == DeclarationKind::Function
-            && matches!(
-                f.parent(binding.node).map(|p| f.syntax_tree.kind(p)),
-                Some(Kind::Function {
-                    declaration: false,
-                    ..
-                })
-            )
-        {
-            continue;
-        }
-        if binding.kind == DeclarationKind::Param
-            && matches!(
-                f.parent(binding.node).map(|p| f.syntax_tree.kind(p)),
-                Some(Kind::Function { .. } | Kind::Arrow { .. })
-            )
-            && !is_after_last_used_arg(f, b)
-        {
-            continue;
-        }
-        if is_used(f, b) || is_exported(f, b) {
-            continue;
-        }
-        let var_scope = f.sem.variable_scope(binding.scope);
-        let node = f
-            .sem
-            .references_to(b)
-            .filter(|r| r.write && f.sem.variable_scope(r.scope) == var_scope)
-            .last()
-            .map_or(binding.node, |r| r.node);
-        let action = if f.sem.references_to(b).any(|r| r.write) {
-            "assigned a value"
-        } else {
-            "defined"
-        };
-        reporter.range(
-            format!(
-                "'{}' is {action} but never used.",
-                f.syntax_tree.name(binding.node)
-            ),
-            identifier_range(f, node),
-        );
-    }
-}
-
-/// typescript-eslint's identifier range covers its `?` and type annotation.
-fn identifier_range(f: &JavaScriptFacts<'_>, ident: NodeIdentifier) -> Span {
-    let mut span = f.span(ident);
-    for t in &f.syntax_tree.typescript {
-        if t.node == ident
-            && matches!(
-                t.kind,
-                TypeScriptKind::Annotation | TypeScriptKind::Optional
-            )
-        {
-            span.end_offset = span.end_offset.max(t.span.end_offset);
-        }
-    }
-    span
-}
-
-fn is_exported(f: &JavaScriptFacts<'_>, b: BindingIdentifier) -> bool {
-    let binding = &f.sem.bindings[b];
-    let owner = match binding.kind {
-        DeclarationKind::Param => return false,
-        DeclarationKind::Function => f.parent(binding.node),
-        _ => binding
-            .declaration
-            .and_then(|d| match f.syntax_tree.kind(d) {
-                Kind::Declarator { .. } => f.parent(d),
-                _ => Some(d),
-            }),
-    };
-    matches!(
-        owner
-            .and_then(|o| f.parent(o))
-            .map(|p| f.syntax_tree.kind(p)),
-        Some(Kind::ExportNamed(_) | Kind::ExportDefault(_))
-    )
-}
-
-fn is_after_last_used_arg(f: &JavaScriptFacts<'_>, b: BindingIdentifier) -> bool {
-    let scope = f.sem.bindings[b].scope;
-    !f.sem
-        .bindings
-        .iter_enumerated()
-        .skip(b.index() + 1)
-        .filter(|(_, v)| v.scope == scope && v.kind == DeclarationKind::Param)
-        .any(|(later, _)| f.sem.references_to(later).next().is_some())
-}
-
-fn function_definitions(f: &JavaScriptFacts<'_>, b: BindingIdentifier) -> Option<NodeIdentifier> {
-    let binding = &f.sem.bindings[b];
-    match binding.kind {
-        DeclarationKind::Function => f.parent(binding.node),
-        _ => binding.initializer(f.syntax_tree).filter(|&i| {
-            matches!(
-                f.syntax_tree.kind(i),
-                Kind::Function { .. } | Kind::Arrow { .. }
-            )
-        }),
-    }
-}
-
-fn is_used(f: &JavaScriptFacts<'_>, b: BindingIdentifier) -> bool {
-    if f.sem.is_type_referenced(b) {
-        return true;
-    }
-    let binding = &f.sem.bindings[b];
-    let function = function_definitions(f, b);
-    let mut rhs = None;
-    f.sem.references_to(b).any(|r| {
-        let for_itself = is_read_for_itself(f, r, rhs);
-        rhs = rhs_node(f, r, rhs, binding.scope);
-        r.read && !for_itself && !function.is_some_and(|func| is_self_reference(f, r, func))
-    })
-}
-
-fn is_self_reference(f: &JavaScriptFacts<'_>, r: &Reference, func: NodeIdentifier) -> bool {
-    let mut s = Some(r.scope);
-    while let Some(scope) = s {
-        if f.sem.scopes[scope].node == func {
-            return true;
-        }
-        s = f.sem.scopes[scope].parent;
-    }
-    false
-}
-
-fn is_unused_expression(f: &JavaScriptFacts<'_>, node: NodeIdentifier) -> bool {
-    let Some(parent) = f.parent(node) else {
-        return false;
-    };
-    match f.syntax_tree.kind(parent) {
-        Kind::ExpressionStatement(_) => true,
-        Kind::Sequence(list) => list.last() != Some(&node) || is_unused_expression(f, parent),
-        _ => false,
-    }
-}
-
-fn rhs_node(
-    f: &JavaScriptFacts<'_>,
-    r: &Reference,
-    prev: Option<NodeIdentifier>,
-    declaration_scope: rsvelte_typescript_semantic::scope::ScopeIdentifier,
-) -> Option<NodeIdentifier> {
-    let can_be_used_later =
-        f.sem.variable_scope(r.scope) != f.sem.variable_scope(declaration_scope);
-    if let Some(p) = prev
-        && f.inside(r.node, p)
-    {
-        return Some(p);
-    }
-    let parent = f.parent(r.node)?;
-    match f.syntax_tree.kind(parent) {
-        Kind::Assign(_, left, right)
-            if is_unused_expression(f, parent) && left == r.node && !can_be_used_later =>
-        {
-            Some(right)
-        }
-        _ => None,
-    }
-}
-
-fn is_read_for_itself(f: &JavaScriptFacts<'_>, r: &Reference, rhs: Option<NodeIdentifier>) -> bool {
-    if !r.read {
-        return false;
-    }
-    let self_update = f
-        .parent(r.node)
-        .is_some_and(|parent| match f.syntax_tree.kind(parent) {
-            Kind::Assign(op, left, _) => {
-                left == r.node
-                    && is_unused_expression(f, parent)
-                    && !matches!(
-                        op,
-                        AssignmentOperator::Or
-                            | AssignmentOperator::And
-                            | AssignmentOperator::Nullish
-                    )
-            }
-            Kind::Update { .. } => is_unused_expression(f, parent),
-            _ => false,
-        });
-    self_update
-        || rhs.is_some_and(|rhs| {
-            f.inside(r.node, rhs) && !is_inside_of_storable_function(f, r.node, rhs)
-        })
-}
-
-fn is_inside_of_storable_function(
-    f: &JavaScriptFacts<'_>,
-    identifier: NodeIdentifier,
-    rhs: NodeIdentifier,
-) -> bool {
-    let mut n = Some(identifier);
-    while let Some(x) = n {
-        if matches!(
-            f.syntax_tree.kind(x),
-            Kind::Function { .. } | Kind::Arrow { .. }
-        ) {
-            return f.inside(x, rhs) && is_storable_function(f, x, rhs);
-        }
-        n = f.parent(x);
-    }
-    false
-}
-
-fn is_storable_function(
-    f: &JavaScriptFacts<'_>,
-    func: NodeIdentifier,
-    rhs: NodeIdentifier,
-) -> bool {
-    let mut node = func;
-    let mut parent = f.parent(func);
-    while let Some(p) = parent.filter(|&p| f.inside(p, rhs)) {
-        match f.syntax_tree.kind(p) {
-            Kind::Sequence(list) => {
-                if list.last() != Some(&node) {
-                    return false;
-                }
-            }
-            Kind::Call { callee, .. } | Kind::New { callee, .. } => return callee != node,
-            Kind::Assign(..) => return true,
-            k if is_statement(k) => return true,
-            _ => {}
-        }
-        node = p;
-        parent = f.parent(p);
-    }
-    false
-}
-
-/// `ESTree` types matching `/(?:Statement|Declaration)$/`.
-const fn is_statement(k: Kind<'_>) -> bool {
-    matches!(
-        k,
-        Kind::ExpressionStatement(_)
-            | Kind::Return(_)
-            | Kind::If { .. }
-            | Kind::Block(_)
-            | Kind::Empty
-            | Kind::VariableDeclaration { .. }
-            | Kind::Function {
-                declaration: true,
-                ..
-            }
-            | Kind::Import { .. }
-            | Kind::ExportNamed(_)
-            | Kind::ExportDefault(_)
-            | Kind::TypeScriptDeclaration
-    )
-}
+#[cfg(test)]
+mod tests;

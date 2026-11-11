@@ -1,8 +1,7 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Check_cases($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
-		let n = 'x';
+		let n = "x";
 		let { label } = $$props;
 		let count = 0;
 		let maybe = void 0;
@@ -12,6 +11,6 @@ export default function Check_cases($$renderer, $$props) {
 		} else {
 			$$renderer.push(`<!--[-1--><p>${$.escape(maybe.length)}</p>`);
 		}
-		$$renderer.push(`<!--]--> <p${$.attr('title', `a${$.stringify(count.bar)}b`)}>😀 ${$.escape(label.baz)}</p>`);
+		$$renderer.push(`<!--]--> <p${$.attr("title", `a${$.stringify(count.bar)}b`)}>😀 ${$.escape(label.baz)}</p>`);
 	});
 }

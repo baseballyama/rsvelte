@@ -1,8 +1,8 @@
 //! The component's code tokens, and where they sit in lines.
 
+use oxc_parser::Kind;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
-use rsvelte_typescript_syntax::lexer::T;
 
 /// The index of a token in [`Tokens`].
 pub(super) type Token = u32;
@@ -55,23 +55,22 @@ impl<'a> Tokens<'a> {
         self.kind(t) == TokenType::JavaScriptComment
     }
 
-    pub(super) fn is(&self, t: Token, kind: T) -> bool {
+    pub(super) fn is(&self, t: Token, kind: Kind) -> bool {
         self.kind(t) == TokenType::JavaScript(kind)
     }
 
     /// Punctuation as `ESLint` sees it: JavaScript punctuators and the markup's brackets.
     pub(super) fn is_punctuator(&self, t: Token) -> bool {
         match self.kind(t) {
-            TokenType::JavaScript(kind) => !matches!(
-                kind,
-                T::Identifier
-                    | T::PrivateName
-                    | T::Number
-                    | T::String
-                    | T::Template { .. }
-                    | T::Regex
-                    | T::BigInt
-            ),
+            TokenType::JavaScript(kind) => {
+                !(kind.is_identifier_name()
+                    || kind.is_number()
+                    || is_template(kind)
+                    || matches!(
+                        kind,
+                        Kind::PrivateIdentifier | Kind::Str | Kind::RegExp | Kind::JSXText
+                    ))
+            }
             TokenType::TagOpen
             | TokenType::EndTagOpen
             | TokenType::TagEnd
@@ -83,6 +82,11 @@ impl<'a> Tokens<'a> {
             | TokenType::MustacheClose => true,
             _ => false,
         }
+    }
+
+    /// A template literal's head, middle, tail or whole.
+    pub(super) fn is_template(&self, t: Token) -> bool {
+        matches!(self.kind(t), TokenType::JavaScript(kind) if is_template(kind))
     }
 
     pub(super) fn line(&self, offset: u32) -> u32 {
@@ -192,8 +196,8 @@ impl<'a> Tokens<'a> {
     pub(super) fn outer(&self, span: Span, border: u32) -> Option<(Token, Token)> {
         let (mut first, mut last) = (self.first(span)?, self.last(span)?);
         while let (Some(left), Some(right)) = (self.before(first), self.after(last)) {
-            if !(self.is(left, T::LParen)
-                && self.is(right, T::RParen)
+            if !(self.is(left, Kind::LParen)
+                && self.is(right, Kind::RParen)
                 && border <= self.span(left).start_offset)
             {
                 break;
@@ -208,4 +212,14 @@ impl<'a> Tokens<'a> {
         self.before_offset(offset)
             .is_none_or(|prev| self.line(self.span(prev).end_offset) < self.line(offset))
     }
+}
+
+const fn is_template(kind: Kind) -> bool {
+    matches!(
+        kind,
+        Kind::NoSubstitutionTemplate
+            | Kind::TemplateHead
+            | Kind::TemplateMiddle
+            | Kind::TemplateTail
+    )
 }

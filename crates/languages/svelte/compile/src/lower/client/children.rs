@@ -1,18 +1,21 @@
-use super::{
-    AssignmentOperator, ClientCompilationContext, CompilerNodeIdentifier, Frag, Item, Kind, Lists,
-    NodeIdentifier, NodeKind, Prev, R, SourceLocation, Walk,
-};
+use oxc_ast::ast::Expression;
 
-impl ClientCompilationContext<'_> {
+use super::{
+    ClientCompilationContext, CompilerNodeIdentifier, Frag, Item, Lists, NodeKind, Prev, R, Walk,
+};
+use crate::lower::builder::Runtime;
+
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `process_children`.
     pub(super) fn process_children(
         &mut self,
         items: &[Item<'_>],
         initial: Prev,
         is_element: bool,
-        frag: &mut Frag,
-        l: &mut Lists,
+        frag: &mut Frag<'o>,
+        l: &mut Lists<'o>,
     ) -> R<()> {
+        let b = self.b;
         let mut st = Walk {
             prev: initial,
             skipped: 0,
@@ -58,50 +61,66 @@ impl ClientCompilationContext<'_> {
         }
         if st.skipped > 1 {
             st.skipped -= 1;
-            let n = (st.skipped != 1).then(|| self.write_number(st.skipped));
-            let call = self.call("next", vec![n]);
-            l.initializer.push(self.statement(call));
+            let n = (st.skipped != 1).then(|| b.number(f64::from(st.skipped)));
+            l.initializer.push(b.stmt(b.runtime_some("next", vec![n])));
         }
         Ok(())
     }
 
-    fn prev_expression(&mut self, prev: &Prev, is_text: bool) -> NodeIdentifier {
+    fn prev_expression(&self, prev: &Prev, is_text: bool) -> Expression<'o> {
+        let b = self.b;
         match prev {
-            Prev::Identifier(name) => self.out.identifier(name),
-            Prev::Call { method, of } => {
-                let x = self.out.identifier(of);
-                let t = is_text.then(|| self.tru());
-                self.call(method, vec![Some(x), t])
-            }
+            Prev::Identifier(name) => b.id(name),
+            Prev::Call { method, of } => b.runtime_some(
+                method,
+                vec![Some(b.id(of)), is_text.then(|| b.boolean(true))],
+            ),
         }
     }
 
-    fn get_node(&mut self, st: &Walk, is_text: bool) -> NodeIdentifier {
+    /// The node `st` points at: a name when it is one already, else the call that reaches it.
+    fn get_node(&self, st: &Walk, is_text: bool) -> Result<String, Expression<'o>> {
+        let b = self.b;
         if st.skipped == 0 {
-            return self.prev_expression(&st.prev, is_text);
+            if let Prev::Identifier(name) = &st.prev {
+                return Ok(name.clone());
+            }
+            return Err(self.prev_expression(&st.prev, is_text));
         }
         let p = self.prev_expression(&st.prev, false);
-        let n = (is_text || st.skipped != 1).then(|| self.write_number(st.skipped));
-        let t = is_text.then(|| self.tru());
-        self.call("sibling", vec![Some(p), n, t])
+        let n = (is_text || st.skipped != 1).then(|| b.number(f64::from(st.skipped)));
+        let t = is_text.then(|| b.boolean(true));
+        Err(b.runtime_some("sibling", vec![Some(p), n, t]))
     }
 
-    fn flush_node(&mut self, st: &mut Walk, is_text: bool, name: &str, l: &mut Lists) -> String {
-        let expression = self.get_node(st, is_text);
-        let identifier = if let Kind::Identifier(_) = self.out.kind(expression) {
-            self.out.name(expression).to_owned()
-        } else {
-            let identifier = self.names.generate(name);
-            let declaration = self.var(&identifier, expression);
-            l.initializer.push(declaration);
-            identifier
+    fn flush_node(
+        &mut self,
+        st: &mut Walk,
+        is_text: bool,
+        name: &str,
+        l: &mut Lists<'o>,
+    ) -> String {
+        let identifier = match self.get_node(st, is_text) {
+            Ok(identifier) => identifier,
+            Err(expression) => {
+                let identifier = self.names.generate(name);
+                l.initializer.push(self.b.var(&identifier, expression));
+                identifier
+            }
         };
         st.prev = Prev::Identifier(identifier.clone());
         st.skipped = 1;
         identifier
     }
 
-    fn flush_sequence(&mut self, seq: &[Item<'_>], st: &mut Walk, frag: &mut Frag, l: &mut Lists) {
+    fn flush_sequence(
+        &mut self,
+        seq: &[Item<'_>],
+        st: &mut Walk,
+        frag: &mut Frag<'o>,
+        l: &mut Lists<'o>,
+    ) {
+        let b = self.b;
         if seq.iter().all(|i| matches!(i, Item::Text { .. })) {
             st.skipped += 1;
             let raw: String = seq
@@ -117,19 +136,12 @@ impl ClientCompilationContext<'_> {
         frag.tpl.push_text(" ".into());
         let (value, has_state) = self.template_chunk(seq, &mut frag.memo, false);
         let identifier = self.flush_node(st, seq.len() == 1, "text", l);
-        let x = self.out.identifier(&identifier);
+        let x = b.id(&identifier);
         if has_state {
-            let call = self.call("set_text", vec![Some(x), Some(value)]);
-            l.update.push(self.statement(call));
+            l.update.push(b.stmt(b.runtime("set_text", [x, value])));
         } else {
-            let target = self.out.dot(x, "nodeValue");
-            let assign = self.out.assign(
-                AssignmentOperator::Assign,
-                target,
-                value,
-                SourceLocation::SYNTHETIC,
-            );
-            l.initializer.push(self.statement(assign));
+            let target = b.member(x, "nodeValue");
+            l.initializer.push(b.stmt(b.assign_member(target, value)));
         }
     }
 
@@ -137,13 +149,17 @@ impl ClientCompilationContext<'_> {
         &mut self,
         identifier: CompilerNodeIdentifier,
         node: &str,
-        frag: &mut Frag,
-        l: &mut Lists,
+        frag: &mut Frag<'o>,
+        l: &mut Lists<'o>,
     ) -> R<()> {
         match self.compiler_syntax_tree.node(identifier).kind {
             NodeKind::Element(_) => self.element(identifier, node, frag, l),
             NodeKind::If { .. } => self.if_block(identifier, node, frag, l),
             NodeKind::Each(_) => self.each_block(identifier, node, false, frag, l),
+            NodeKind::Render { .. } => {
+                self.render_tag(identifier, node, frag, l);
+                Ok(())
+            }
             _ => unreachable!("clean_nodes keeps only elements and blocks as nodes"),
         }
     }

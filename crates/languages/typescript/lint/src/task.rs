@@ -5,21 +5,21 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
 use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
-use rsvelte_typescript_semantic::Resolved;
-use rsvelte_typescript_syntax::Parsed;
+use rsvelte_typescript_semantic::semantic::Semantic;
+use rsvelte_typescript_tree::Parsed;
 
-use crate::lint::{self, JavaScriptFacts};
+use crate::lint;
 
 #[derive(Debug)]
 struct NoUnusedVariables;
 
-impl Rule<JavaScriptFacts<'_>> for NoUnusedVariables {
+impl Rule<Semantic> for NoUnusedVariables {
     fn identifier(&self) -> &'static str {
         "@typescript-eslint/no-unused-vars"
     }
 
-    fn check(&self, context: &JavaScriptFacts<'_>, reporter: &mut Reporter<'_>) {
-        lint::no_unused_variables(context, |_| true, reporter);
+    fn check(&self, context: &Semantic, reporter: &mut Reporter<'_>) {
+        lint::no_unused_variables(context, |_| true, |_| &[], reporter);
     }
 }
 
@@ -27,14 +27,14 @@ pub static PLUGIN: Plugin = Plugin {
     identifier: "typescript.lint",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "typescript.semantic",
+        identifier: "typescript.tree",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
 
 pub fn register(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_typescript_semantic::register(registry);
+    rsvelte_typescript_tree::register(registry);
     registry.task(Lint);
 }
 
@@ -47,7 +47,7 @@ impl Task for Lint {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_typescript_syntax::matches(document)
+        rsvelte_typescript_tree::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
@@ -58,18 +58,10 @@ impl Task for Lint {
                 return;
             }
         };
-        let sem = context
-            .get::<Resolved>()
-            .as_ref()
-            .expect("a parsed program is resolved");
-        let parents = program.syntax_tree.parents();
-        let facts = JavaScriptFacts {
-            syntax_tree: &program.syntax_tree,
-            sem,
-            parents: &parents,
-        };
+        // This task is the only one that analyzes a standalone file's scopes.
+        let semantic = Semantic::program(program.tree.clone(), program.root);
         let mut findings = Findings::new();
-        findings.run([&NoUnusedVariables], &facts);
+        findings.run([&NoUnusedVariables], &semantic);
         let findings = match findings.finish() {
             Ok(findings) => findings,
             Err(error) => {

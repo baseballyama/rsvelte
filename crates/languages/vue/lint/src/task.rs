@@ -2,7 +2,6 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
-use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_vue_semantic::Resolved;
 use rsvelte_vue_syntax::Parsed;
@@ -46,20 +45,11 @@ impl Task for Lint {
             .get::<Resolved>()
             .as_ref()
             .expect("a parsed component is resolved");
-        let parents = {
-            let _p = measurement::phase("js.parents");
-            c.javascript.parents()
-        };
         let rule_context = crate::lint::RuleContext {
             c,
             source_text: context.source_text(),
             path: &context.document.path,
             res,
-            javascript: rsvelte_typescript_lint::JavaScriptFacts {
-                syntax_tree: &c.javascript,
-                sem: &res.sem,
-                parents: &parents,
-            },
         };
         let findings = match crate::lint::lint(&rule_context) {
             Ok(findings) => findings,

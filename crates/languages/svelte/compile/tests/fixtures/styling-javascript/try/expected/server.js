@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Try($$renderer) {
 	let value = "a";
 	function run() {
@@ -11,5 +10,5 @@ export default function Try($$renderer) {
 			console.log(value);
 		}
 	}
-	$$renderer.push(`<p${$.attr_class($.clsx(value), 'svelte-nct6v0')}></p>`);
+	$$renderer.push(`<p${$.attr_class($.clsx(value), "svelte-nct6v0")}></p>`);
 }

@@ -78,3 +78,232 @@ fn exported_declarations_are_not_unused() {
                     \n\t]\n}\n";
     assert!(got.ends_with(want), "{got}");
 }
+
+/// Each finding's message and start line.
+fn unused_at(source_text: &str) -> Vec<(String, u32)> {
+    let got = lint(source_text);
+    let mut out = Vec::new();
+    let mut lines = got.lines().map(str::trim);
+    while let Some(line) = lines.next() {
+        if let Some(message) = line.strip_prefix("\"message\": \"") {
+            let start = lines
+                .by_ref()
+                .find_map(|l| l.strip_prefix("\"line\": "))
+                .expect("a start line");
+            out.push((
+                message.trim_end_matches("\",").to_owned(),
+                start.trim_end_matches(',').parse().expect("a number"),
+            ));
+        }
+    }
+    out
+}
+
+// Expected values from ESLint with svelte-eslint-parser and typescript-eslint's parser,
+// `svelteFeatures.runes: true`, `no-unused-vars` alone.
+#[test]
+fn a_bindable_prop_is_used() {
+    let script = |body: &str| format!("<script lang=\"ts\">{body}</script>");
+    assert_eq!(
+        unused(&script("let { a = $bindable() } = $props(); a = 1;")),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&script("let { a = $bindable() } = $props();")),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&script("let { x: a = $bindable() } = $props(); a = 1;")),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&script(
+            "let { a = $bindable(1), b = 2 } = $props(); b = 3;"
+        )),
+        ["'b' is assigned a value but never used."]
+    );
+    assert_eq!(
+        unused(&script("let { a } = $props(); a = 1;")),
+        ["'a' is assigned a value but never used."]
+    );
+}
+
+#[test]
+fn a_snippet_passed_to_a_component_is_used() {
+    let component = "<script lang=\"ts\">import C from './C.svelte';</script>\n";
+    assert_eq!(
+        unused(&format!(
+            "{component}<C>{{#snippet child({{ props }})}}<p/>{{/snippet}}</C>"
+        )),
+        ["'props' is defined but never used."]
+    );
+    assert_eq!(
+        unused(&format!(
+            "{component}<C><div>{{#snippet child({{ props }})}}<p/>{{/snippet}}</div></C>"
+        )),
+        [
+            "'child' is defined but never used.",
+            "'props' is defined but never used."
+        ]
+    );
+    assert_eq!(
+        unused(&format!(
+            "{component}<C>{{#if x}}{{#snippet child()}}<p/>{{/snippet}}{{/if}}</C>"
+        )),
+        ["'child' is defined but never used."]
+    );
+    assert_eq!(
+        unused(
+            "<script>import * as M from './m';</script><M.C>{#snippet child()}<p/>{/snippet}</M.C>"
+        ),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<svelte:boundary>{#snippet failed()}<p/>{/snippet}</svelte:boundary>"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<svelte:component this={x}>{#snippet child()}<p/>{/snippet}</svelte:component>"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<div>{#snippet child()}<p/>{/snippet}</div>"),
+        ["'child' is defined but never used."]
+    );
+}
+
+#[test]
+fn the_scripts_share_their_top_level_names() {
+    let scripts = |module: &str, instance: &str| {
+        format!(
+            "<script lang=\"ts\" module>{module}</script>\n<script lang=\"ts\">{instance}</script>"
+        )
+    };
+    assert_eq!(
+        unused_at(&scripts(
+            "type Shadowed = string;",
+            "type Shadowed = boolean; let { p }: { p: Shadowed } = $props(); console.log(p);"
+        )),
+        []
+    );
+    assert_eq!(
+        unused_at(&scripts(
+            "type S = string; export const q: S = '';",
+            "type S = boolean;"
+        )),
+        []
+    );
+    assert_eq!(
+        unused_at(&scripts(
+            "namespace A { export const x = 1; }",
+            "interface A { y: number } let { p }: { p: A } = $props(); console.log(p);"
+        )),
+        []
+    );
+    assert_eq!(
+        unused_at(&scripts(
+            "type Shadowed = string;",
+            "type Shadowed = boolean;"
+        )),
+        [("'Shadowed' is defined but never used.".to_owned(), 1)]
+    );
+    assert_eq!(
+        unused_at(&scripts(
+            "namespace A { export const x = 1; }",
+            "interface A { y: number }"
+        )),
+        [("'A' is defined but never used.".to_owned(), 1)]
+    );
+    assert_eq!(
+        unused_at(&scripts("let v = 1;", "let v = 2; console.log(v);")),
+        []
+    );
+    assert_eq!(
+        unused_at(&scripts("let v = 1;", "let v = 2;")),
+        [("'v' is assigned a value but never used.".to_owned(), 2)]
+    );
+}
+
+#[test]
+fn a_store_subscription_reads_the_store() {
+    let store = "<script>import { writable } from 'svelte/store';";
+    assert_eq!(
+        unused(&format!(
+            "{store} const count = writable(0); const unused = writable(0);\
+             </script>\n<p>{{$count}}</p>"
+        )),
+        ["'unused' is assigned a value but never used."]
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} const count = writable(0); function f() {{ $count = 1; }} f();</script>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} const obj = writable({{ a: 1 }}); function f() {{ $obj.a++; }} f();</script>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} const action = writable(() => {{}});</script>\n<p use:$action></p>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(
+            "<script module>import { writable } from 'svelte/store'; const count = writable(0);\
+             </script>\n<script>console.log($count);</script>"
+        ),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>import { page } from '$app/stores';</script>\n{$page.url}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>let state = 1; let x = $state(0); console.log(x);</script>"),
+        ["'state' is assigned a value but never used."]
+    );
+}
+
+// A `$name` is a plain read of `name`, so ESLint's `isReadForItself` drops an update of it.
+#[test]
+fn a_store_updated_only_for_itself_is_unused() {
+    let store = "<script>import { writable } from 'svelte/store'; const count = writable(0);";
+    let assigned = ["'count' is assigned a value but never used."];
+    assert_eq!(
+        unused(&format!(
+            "{store} function f() {{ $count++; }} f();</script>"
+        )),
+        assigned
+    );
+    assert_eq!(unused(&format!("{store} $count += 1;</script>")), assigned);
+    assert_eq!(
+        unused(&format!(
+            "{store} function f() {{ $count = 1; $count++; }} f();</script>"
+        )),
+        assigned
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} const y = $count++; console.log(y);</script>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} count.set(1); function f() {{ $count = 1; }} f();</script>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(
+            "<script>import { count } from './store.js'; export function increment() { $count++; }\
+             </script>"
+        ),
+        ["'count' is defined but never used."]
+    );
+}

@@ -3,15 +3,17 @@
 //! That is compileScript with the template inlined into `setup` (or, without a script,
 //! compileTemplate's render function), the plugin's `_export_sfc` tail, and compileStyle's CSS.
 
+mod out;
 mod style;
 pub(crate) mod template;
 
+use oxc_allocator::Allocator;
+use oxc_ast::ast::{Expression, Program};
+use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Unsupported;
-use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_typescript_compile::copy::{Rewrite, Verbatim, copy};
-use rsvelte_typescript_semantic::scope::{DeclarationKind, ScopeIdentifier};
-use rsvelte_typescript_syntax::syntax_tree::flag;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_compile::build::Builder;
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 use rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_vue_semantic::resolve::{BindingType, Resolution, call_name, is_static};
 use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
@@ -33,9 +35,9 @@ pub(crate) struct Output {
 #[derive(Debug)]
 pub(crate) struct CompileInput<'a> {
     /// Every JavaScript expression of the component, script and template.
-    pub javascript: &'a SyntaxTree,
+    pub javascript: &'a Tree,
     /// The `<script setup>` program; `None` without one.
-    pub script: Option<NodeIdentifier>,
+    pub script: Option<ProgramIdentifier>,
     /// The template; `None` without one.
     pub compiler_syntax_tree: Option<&'a CompilerSyntaxTree>,
     pub styles: Vec<StyleInput<'a>>,
@@ -92,16 +94,15 @@ pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) ->
     let source_text = input.source_text;
     let identifier = scope_identifier(path);
     let scoped = input.styles.iter().any(|s| s.scoped);
-    let mut to = SyntaxTree::new();
+    let allocator = Allocator::default();
+    let b = Builder::new(&allocator);
     let mut body = Vec::new();
-    let mut attached = Vec::new();
+    let mut attached: Vec<(&str, Expression<'_>)> = Vec::new();
     if let Some(program) = input.script {
-        script_setup(input, res, path, program, &mut to, &mut body)?;
+        script_setup(input, res, path, program, &b, &mut body)?;
     } else {
         // `const _sfc_main = {}`, then compileTemplate's module with `render` renamed.
-        let main = to.identifier("_sfc_main");
-        let empty = to.object(&[], SourceLocation::SYNTHETIC);
-        body.push(to.let_(flag::CONST, main, Some(empty)));
+        body.push(b.const_("_sfc_main", b.object([])));
         if let Some(compiler_syntax_tree) = input.compiler_syntax_tree {
             let t = template::transform(
                 input.javascript,
@@ -110,52 +111,61 @@ pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) ->
                 res,
                 false,
             )?;
-            let (preamble, ret) = t.generate(input.javascript, res, false, &mut to);
+            let (preamble, ret) = t.generate(input.javascript, res, false, &b);
             body.extend(preamble);
-            let parameters = [to.identifier("_ctx"), to.identifier("_cache")];
-            let r = to.return_(Some(ret), SourceLocation::SYNTHETIC);
-            let block = to.block(&[r], SourceLocation::SYNTHETIC);
-            let name = to.identifier("_sfc_render");
-            body.push(to.function(
-                true,
-                Some(name),
-                &parameters,
-                block,
+            body.push(b.function_declaration(
+                "_sfc_render",
+                b.params(["_ctx", "_cache"]),
+                [b.return_(Some(ret))],
                 false,
-                SourceLocation::SYNTHETIC,
             ));
-            attached.push(("render", to.identifier("_sfc_render")));
+            attached.push(("render", b.id("_sfc_render")));
         }
     }
     if scoped {
-        let v = to.write_string(&format!("data-v-{identifier}"));
-        attached.push(("__scopeId", v));
+        attached.push(("__scopeId", b.string(&format!("data-v-{identifier}"))));
     }
-    let main = to.identifier("_sfc_main");
+    let main = b.id("_sfc_main");
     let default = if attached.is_empty() {
         main
     } else {
-        let local = to.identifier("_export_sfc");
-        let spec = to.import_default(local, SourceLocation::SYNTHETIC);
-        let source = to.write_string("plugin-vue:export-helper");
-        body.push(to.import(&[spec], source, false, SourceLocation::SYNTHETIC));
-        let pairs: Vec<NodeIdentifier> = attached
-            .into_iter()
-            .map(|(k, v)| {
-                let k = to.write_string(k);
-                to.array(&[k, v], SourceLocation::SYNTHETIC)
-            })
-            .collect();
-        let list = to.array(&pairs, SourceLocation::SYNTHETIC);
-        let callee = to.identifier("_export_sfc");
-        let call = to.call0(callee, &[main, list]);
-        to.mark_pure(call);
-        call
+        body.push(out::import_default(
+            &b,
+            "_export_sfc",
+            "plugin-vue:export-helper",
+        ));
+        let pairs = attached.into_iter().map(|(k, v)| b.array([b.string(k), v]));
+        out::pure_call(&b, b.id("_export_sfc"), [main, b.array(pairs)])
     };
-    body.push(to.export_default(default, SourceLocation::SYNTHETIC));
-    let program = to.program(&body, SourceLocation::SYNTHETIC);
-    let javascript =
-        rsvelte_typescript_compile::codegen::print_program(&to, source_text, program).out;
+    body.push(out::export_default(&b, default));
+    let mut program = Program::new(
+        SPAN,
+        SourceType::mjs(),
+        source_text,
+        [],
+        None,
+        [],
+        b.vec(body),
+        &b,
+    );
+    if input.typescript {
+        // Upstream's build hands compileScript's TypeScript to a transform that erases it.
+        if let Some(script) = input.script
+            && let Some((_, span)) = rsvelte_typescript_compile::features::first_runtime_feature(
+                input.javascript.get_program(script),
+            )
+        {
+            return Err(Unsupported::at(
+                "TypeScript that erasing types cannot compile",
+                document_span(span),
+            ));
+        }
+        oxc_ast_visit::VisitMut::visit_program(
+            &mut rsvelte_typescript_compile::strip::Strip::new(&allocator),
+            &mut program,
+        );
+    }
+    let javascript = rsvelte_typescript_compile::print::print(&program);
     let stylesheet = if input.styles.is_empty() {
         None
     } else {
@@ -170,6 +180,11 @@ pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) ->
         javascript,
         stylesheet,
     })
+}
+
+/// A span of an oxc tree read from the document, as the kernel holds it.
+pub(crate) const fn document_span(span: oxc_span::Span) -> Span {
+    Span::new(span.start, span.end)
 }
 
 mod script;

@@ -1,10 +1,14 @@
+use oxc_allocator::{CloneIn, GetAllocator};
+use oxc_ast::ast::{BinaryOperator, Expression, LogicalOperator, VariableDeclarationKind};
+use rsvelte_svelte_semantic::evaluate::Evaluator;
+
+use crate::lower::builder::Runtime;
 use crate::lower::client::{
-    AssignmentOperator, Attribute, AttributeValue, BinaryOperator, ClientCompilationContext,
-    Element, Frag, Lists, LogicalOperator, NodeIdentifier, SourceLocation, flag, is_directive,
+    Attribute, AttributeValue, ClientCompilationContext, Element, Frag, Lists, is_directive,
     normalize_attribute, synthetic_value,
 };
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     /// The tail of upstream `RegularElement` for `<option>` and `<select>`: the value goes to the
     /// hidden `__value` once the children exist, then a `<select>` picks its option.
     pub(super) fn select_value(
@@ -13,9 +17,10 @@ impl ClientCompilationContext<'_> {
         tag: &str,
         attributes: &[Attribute],
         node: &str,
-        frag: &mut Frag,
-        l: &mut Lists,
+        frag: &mut Frag<'o>,
+        l: &mut Lists<'o>,
     ) {
+        let b = self.b;
         if !matches!(tag, "option" | "select") {
             return;
         }
@@ -42,9 +47,7 @@ impl ClientCompilationContext<'_> {
         });
         if let Some(a) = default_value {
             let (value, has_state) = self.attribute_value(a, &mut frag.memo, false);
-            let x = self.out.identifier(node);
-            let call = self.call("set_default_select_value", vec![Some(x), Some(value)]);
-            let s = self.statement(call);
+            let s = b.stmt(b.runtime("set_default_select_value", [b.id(node), value]));
             if has_state {
                 l.update.push(s);
             } else {
@@ -58,9 +61,8 @@ impl ClientCompilationContext<'_> {
             matches!(a.value, AttributeValue::Bind(_)) && a.name.text(source_text) == "value"
         });
         if default_value.is_some() || dynamic_value || bound {
-            let x = self.out.identifier(node);
-            let call = self.call("init_select", vec![Some(x)]);
-            l.initializer.push(self.statement(call));
+            l.initializer
+                .push(b.stmt(b.runtime("init_select", [b.id(node)])));
         }
     }
 
@@ -69,92 +71,51 @@ impl ClientCompilationContext<'_> {
         &mut self,
         tag: &str,
         node: &str,
-        (value, has_state): (NodeIdentifier, bool),
+        (value, has_state): (Expression<'o>, bool),
         select_with_value: bool,
         synthetic: bool,
-        l: &mut Lists,
+        l: &mut Lists<'o>,
     ) {
-        let defined = self
-            .res
-            .evaluate_output(
-                self.javascript,
-                self.source_text,
-                &self.out,
-                value,
-                self.scope,
-            )
+        let b = self.b;
+        let defined = Evaluator::in_scope(self.res, self.scope)
+            .evaluate(&value)
             .is_defined;
-        let build_update = |context: &mut Self, v: NodeIdentifier| {
-            let x = context.out.identifier(node);
-            let hidden = context.out.dot(x, "__value");
-            let assignment = context.out.assign(
-                AssignmentOperator::Assign,
-                hidden,
-                v,
-                SourceLocation::SYNTHETIC,
-            );
-            let set_value = |context: &mut Self| {
+        let build_update = |v: Expression<'o>| {
+            let hidden = b.member(b.id(node), "__value");
+            let second = select_with_value.then(|| v.clone_in(b.allocator()));
+            let assignment = b.assign_member(hidden, v);
+            let set_value = |assignment: Expression<'o>| {
                 let rhs = if defined {
                     assignment
                 } else {
-                    let empty = context.out.write_string("");
-                    context.out.logical(
-                        LogicalOperator::Nullish,
-                        assignment,
-                        empty,
-                        SourceLocation::SYNTHETIC,
-                    )
+                    b.logical(assignment, LogicalOperator::Coalesce, b.string(""))
                 };
-                let x = context.out.identifier(node);
-                let target = context.out.dot(x, "value");
-                context.out.assign(
-                    AssignmentOperator::Assign,
-                    target,
-                    rhs,
-                    SourceLocation::SYNTHETIC,
-                )
+                b.assign_member(b.member(b.id(node), "value"), rhs)
             };
-            let e = if select_with_value {
-                let set = set_value(context);
-                let x = context.out.identifier(node);
-                let select = context.call("select_option", vec![Some(x), Some(v)]);
-                context.out.seq(&[set, select], SourceLocation::SYNTHETIC)
+            let e = if let Some(v) = second {
+                let select = b.runtime("select_option", [b.id(node), v]);
+                b.sequence([set_value(assignment), select])
             } else if synthetic {
                 assignment
             } else {
-                set_value(context)
+                set_value(assignment)
             };
-            context.statement(e)
+            b.stmt(e)
         };
         if has_state {
             let identifier = self.names.generate(&format!("{node}_value"));
-            let initializer =
-                (tag == "option").then(|| self.out.object(&[], SourceLocation::SYNTHETIC));
-            let target = self.out.identifier(&identifier);
+            let initializer = (tag == "option").then(|| b.object([]));
             l.initializer
-                .push(self.out.let_(flag::VAR, target, initializer));
-            let read = self.out.identifier(&identifier);
-            let target = self.out.identifier(&identifier);
-            let assign = self.out.assign(
-                AssignmentOperator::Assign,
-                target,
-                value,
-                SourceLocation::SYNTHETIC,
+                .push(b.declare(VariableDeclarationKind::Var, &identifier, initializer));
+            let test = b.binary(
+                b.id(&identifier),
+                BinaryOperator::StrictInequality,
+                b.assign_name(&identifier, value),
             );
-            let test = self.out.binary(
-                BinaryOperator::StrictNotEq,
-                read,
-                assign,
-                SourceLocation::SYNTHETIC,
-            );
-            let v = self.out.identifier(&identifier);
-            let update = build_update(self, v);
-            let block = self.out.block(&[update], SourceLocation::SYNTHETIC);
-            l.update
-                .push(self.out.if_(test, block, None, SourceLocation::SYNTHETIC));
+            let update = build_update(b.id(&identifier));
+            l.update.push(b.if_(test, b.block([update]), None));
         } else {
-            let s = build_update(self, value);
-            l.initializer.push(s);
+            l.initializer.push(build_update(value));
         }
     }
 }

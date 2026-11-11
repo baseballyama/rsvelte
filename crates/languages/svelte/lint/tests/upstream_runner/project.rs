@@ -6,9 +6,8 @@ use std::path::Path;
 use rsvelte_kernel::computation::file_facts::FileFacts;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_svelte_lint::project;
 use rsvelte_svelte_lint::project::SvelteKitProject;
-use rsvelte_svelte_lint::{Configuration, LintSettings, SvelteConfig};
+use rsvelte_svelte_lint::{Configuration, LintSettings, SvelteConfig, project};
 
 use super::cases::svelte_config_file;
 use super::{Case, LanguageOptions, UPSTREAM, lint, read};

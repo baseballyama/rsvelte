@@ -1,11 +1,7 @@
-import 'svelte/internal/disclose-version';
-
-import * as $ from 'svelte/internal/client';
-
+import "svelte/internal/disclose-version";
+import * as $ from "svelte/internal/client";
 var root = $.from_html(`<span> </span>`);
-
 var root_1 = $.from_html(`<p>hidden</p>`);
-
 export default function Each_in_if($$anchor, $$props) {
 	var fragment = $.comment();
 	var node = $.first_child(fragment);
@@ -26,7 +22,8 @@ export default function Each_in_if($$anchor, $$props) {
 			$.append($$anchor, p);
 		};
 		$.if(node, ($$render) => {
-			if ($$props.show) $$render(consequent); else $$render(alternate, -1);
+			if ($$props.show) $$render(consequent);
+			else $$render(alternate, -1);
 		});
 	}
 	$.append($$anchor, fragment);

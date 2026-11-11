@@ -3,7 +3,6 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, Component, Part, TemplateNode, decode_attribute,
 };
-
 use rsvelte_typescript_semantic::static_value::{StaticValues, Value};
 
 use super::markup::{is_attribute, parts};
@@ -56,9 +55,7 @@ impl SvelteRule for NoBindValueOnCheckableInputs {
                 })
                 .and_then(|attribute| {
                     static_type(component, source, attribute, || {
-                        values.get_or_insert_with(|| {
-                            StaticValues::new(&component.javascript, source, Some(file.semantic()))
-                        })
+                        values.get_or_insert_with(|| StaticValues::new(file.semantic()))
                     })
                 })
             else {
@@ -110,10 +107,12 @@ fn static_type<'v>(
 ) -> Option<String> {
     let value = match *parts(component, attribute) {
         [Part::Text(text)] => decode_attribute(text.text(source)).into_owned(),
-        [Part::Expression { expression, .. }] => match values().value(expression)? {
-            Value::String(value) => value,
-            _ => return None,
-        },
+        [Part::Expression { expression, .. }] => {
+            match values().value(component.javascript.get_expression(expression))? {
+                Value::String(value) => value,
+                _ => return None,
+            }
+        }
         _ => return None,
     };
     Some(value.to_lowercase())

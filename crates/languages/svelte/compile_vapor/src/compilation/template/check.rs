@@ -1,7 +1,13 @@
+use oxc_ast::ast::{Expression, IdentifierReference, ThisExpression};
+use oxc_ast_visit::{Visit, walk};
+use oxc_semantic::NodeId;
+use rsvelte_svelte_semantic::compiler_syntax_tree::MetadataTag;
+use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_typescript_tree::ExpressionIdentifier;
+
 use super::{
     Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
-    ElementKind, FxHashSet, Kind, NodeIdentifier, NodeKind, R, Resolution, Span, SyntaxTree,
-    span_of, unsupported, walk,
+    ElementKind, FxHashSet, NodeKind, R, Resolution, Span, span_of, unsupported,
 };
 
 /// The parents a table part needs for the browser to parse it where it is written.
@@ -80,6 +86,10 @@ const REFUSED_ELEMENTS: &[&str] = &[
     "script", "slot", "noscript", "iframe", "object", "html", "head", "body",
 ];
 
+fn is_options(el: &Element) -> bool {
+    el.kind == ElementKind::Metadata(Some(MetadataTag::Options))
+}
+
 /// The cheap checks, before anything is built: element kinds and names, attribute shapes, the
 /// names template expressions read.
 ///
@@ -87,147 +97,139 @@ const REFUSED_ELEMENTS: &[&str] = &[
 ///
 /// A `vuelte_unsupported` diagnostic at the first construct outside the mapping.
 pub(crate) fn check(
+    c: &Component,
     compiler_syntax_tree: &CompilerSyntaxTree,
-    javascript: &SyntaxTree,
-    resolution: &Resolution,
-    expressions: &[NodeIdentifier],
+    res: &Resolution,
     source_text: &str,
     namespaces: &rsvelte_svelte_compile::render_plan::Namespaces,
 ) -> R<super::Options> {
-    let options = read_options(compiler_syntax_tree, javascript, source_text)?;
-    let option_expressions = option_expressions(compiler_syntax_tree, source_text);
-    let mut rune_roots = FxHashSet::default();
-    for &expression in expressions {
-        walk(javascript, expression, &mut |identifier| {
-            if let Kind::Call { callee, .. } = javascript.kind(identifier)
-                && resolution
-                    .rune(javascript, identifier)
-                    .is_some_and(|(name, _)| {
-                        crate::script::runes::local(name).is_some()
-                            || crate::script::runes::eager(name)
-                            || crate::script::runes::value(name)
-                    })
-            {
-                let root = match javascript.kind(callee) {
-                    Kind::Member { object, .. } => object,
-                    _ => callee,
-                };
-                rune_roots.insert(root);
-            }
-            Ok(())
-        })?;
+    let javascript = &c.javascript;
+    let mut options = super::Options::default();
+    let mut option_expressions = FxHashSet::default();
+    for (_, node) in compiler_syntax_tree.nodes.iter_enumerated() {
+        if let NodeKind::Element(element) = &node.kind
+            && is_options(element)
+        {
+            let attributes = compiler_syntax_tree.attributes(element.attributes);
+            options = super::options::read(javascript, attributes, source_text)?;
+            option_expressions.extend(attributes.iter().filter_map(|a| match a.value {
+                AttributeValue::Expression { expression, .. } => Some(expression),
+                _ => None,
+            }));
+        }
     }
     for (identifier, n) in compiler_syntax_tree.nodes.iter_enumerated() {
-        if let NodeKind::Element(el) = &n.kind {
-            let name = el.name.text(source_text);
-            if name == "svelte:options" {
-                continue;
-            }
-            let foreign = namespaces.get(identifier) != super::Namespace::Html;
-            check_element(
-                compiler_syntax_tree,
-                source_text,
-                identifier,
-                el,
-                foreign,
-                options.custom_element.is_some(),
-            )?;
-            let attributes = compiler_syntax_tree.attributes(el.attributes);
-            let spread = attributes
-                .iter()
-                .any(|a| matches!(a.value, AttributeValue::Spread(_)));
-            for a in attributes {
-                if name == "slot" {
-                    check_slot_attribute(source_text, a)?;
-                }
-                check_await_directive(javascript, a)?;
-                if name == "svelte:boundary" {
-                    if !matches!(a.name.text(source_text), "onerror" | "failed" | "pending")
-                        || !matches!(
-                            a.value,
-                            AttributeValue::Expression { .. } | AttributeValue::Shorthand(_)
-                        )
-                    {
-                        return Err(unsupported("this boundary attribute", a.span));
-                    }
-                } else if el.kind != ElementKind::Component {
-                    check_attribute(source_text, name, a, spread, foreign)?;
-                }
-                if matches!(a.value, AttributeValue::Animate { .. }) {
-                    let valid = n.parent.is_some_and(|parent| matches!(&compiler_syntax_tree.node(parent).kind, NodeKind::Each(each) if each.key().is_some()));
-                    if !valid {
-                        return Err(unsupported(
-                            "an animation outside an immediate child of a keyed each block",
-                            a.span,
-                        ));
-                    }
-                }
-            }
-        }
-    }
-    for &e in expressions {
-        if option_expressions.contains(&e) {
+        let NodeKind::Element(el) = &n.kind else {
+            continue;
+        };
+        if is_options(el) {
             continue;
         }
-        walk(javascript, e, &mut |n| match javascript.kind(n) {
-            Kind::Identifier(_) if resolution.sem.binding_of(n).is_none() => {
-                if rune_roots.contains(&n) {
-                    return Ok(());
+        let name = el.name.text(source_text);
+        let foreign = namespaces.get(identifier) != super::Namespace::Html;
+        check_element(
+            compiler_syntax_tree,
+            source_text,
+            identifier,
+            el,
+            foreign,
+            options.custom_element.is_some(),
+        )?;
+        let attributes = compiler_syntax_tree.attributes(el.attributes);
+        let spread = attributes
+            .iter()
+            .any(|a| matches!(a.value, AttributeValue::Spread(_)));
+        for a in attributes {
+            if name == "slot" {
+                check_slot_attribute(source_text, a)?;
+            }
+            check_await_directive(javascript, a)?;
+            if name == "svelte:boundary" {
+                if !matches!(a.name.text(source_text), "onerror" | "failed" | "pending")
+                    || !matches!(
+                        a.value,
+                        AttributeValue::Expression { .. } | AttributeValue::Shorthand(_)
+                    )
+                {
+                    return Err(unsupported("this boundary attribute", a.span));
                 }
-                let name = javascript.name(n);
-                if name.starts_with('$') {
+            } else if el.kind != ElementKind::Component {
+                check_attribute(source_text, name, a, spread, foreign)?;
+            }
+            if matches!(a.value, AttributeValue::Animate { .. }) {
+                let valid = n.parent.is_some_and(|parent| {
+                    matches!(&compiler_syntax_tree.node(parent).kind,
+                        NodeKind::Each(each) if each.key.is_some())
+                });
+                if !valid {
                     return Err(unsupported(
-                        format_args!("the rune or store subscription `{name}`"),
-                        span_of(javascript, n),
+                        "an animation outside an immediate child of a keyed each block",
+                        a.span,
                     ));
                 }
-                Ok(())
             }
-            Kind::This => Err(unsupported(
-                "`this` in the template",
-                span_of(javascript, n),
-            )),
-            _ => Ok(()),
-        })?;
-    }
-    Ok(options)
-}
-
-fn option_expressions(tree: &CompilerSyntaxTree, source_text: &str) -> FxHashSet<NodeIdentifier> {
-    tree.nodes
-        .iter()
-        .filter_map(|node| {
-            let NodeKind::Element(element) = &node.kind else {
-                return None;
-            };
-            (element.name.text(source_text) == "svelte:options").then_some(element)
-        })
-        .flat_map(|element| tree.attributes(element.attributes))
-        .filter_map(|attribute| match attribute.value {
-            AttributeValue::Expression { expression, .. } => Some(expression),
-            _ => None,
-        })
-        .collect()
-}
-
-fn read_options(
-    compiler_syntax_tree: &CompilerSyntaxTree,
-    javascript: &SyntaxTree,
-    source_text: &str,
-) -> R<super::Options> {
-    let mut options = super::Options::default();
-    for node in &compiler_syntax_tree.nodes {
-        if let NodeKind::Element(element) = &node.kind
-            && element.name.text(source_text) == "svelte:options"
-        {
-            options = super::options::read(
-                javascript,
-                compiler_syntax_tree.attributes(element.attributes),
-                source_text,
-            )?;
         }
     }
+    let mut names = Names {
+        res,
+        rune_roots: FxHashSet::default(),
+        result: Ok(()),
+    };
+    for (e, expression) in javascript.expressions() {
+        if !option_expressions.contains(&e) {
+            names.visit_expression(expression);
+        }
+    }
+    names.result?;
     Ok(options)
+}
+
+/// The `$` names and `this` a template expression reads.
+struct Names<'r> {
+    res: &'r Resolution,
+    /// The callees' roots of the rune calls seen so far.
+    rune_roots: FxHashSet<NodeId>,
+    result: R<()>,
+}
+
+impl<'a> Visit<'a> for Names<'_> {
+    fn visit_expression(&mut self, it: &Expression<'a>) {
+        if let Expression::CallExpression(call) = it
+            && self.res.rune(it).is_some_and(|(name, _)| {
+                crate::script::runes::local(name).is_some()
+                    || crate::script::runes::eager(name)
+                    || crate::script::runes::value(name)
+            })
+        {
+            let mut callee = call.callee.get_inner_expression();
+            while let Expression::StaticMemberExpression(m) = callee {
+                callee = m.object.get_inner_expression();
+            }
+            if let Expression::Identifier(id) = callee {
+                self.rune_roots.insert(id.node_id.get());
+            }
+        }
+        walk::walk_expression(self, it);
+    }
+
+    fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
+        if self.result.is_ok()
+            && self.res.symbol(it).is_none()
+            && !self.rune_roots.contains(&it.node_id.get())
+            && it.name.starts_with('$')
+        {
+            self.result = Err(unsupported(
+                format_args!("the rune or store subscription `{}`", it.name),
+                span_of(it.span),
+            ));
+        }
+    }
+
+    fn visit_this_expression(&mut self, it: &ThisExpression) {
+        if self.result.is_ok() {
+            self.result = Err(unsupported("`this` in the template", span_of(it.span)));
+        }
+    }
 }
 
 fn check_slot_attribute(source_text: &str, a: &Attribute) -> R<()> {
@@ -258,23 +260,25 @@ fn check_slot_attribute(source_text: &str, a: &Attribute) -> R<()> {
     Ok(())
 }
 
-fn check_await_directive(javascript: &SyntaxTree, attribute: &Attribute) -> R<()> {
-    let (first, second) = match attribute.value {
-        AttributeValue::Attach(expression) | AttributeValue::Bind(expression) => {
-            (Some(expression), None)
-        }
-        AttributeValue::Use { action, argument } => (Some(action), argument),
-        AttributeValue::Transition {
-            function, argument, ..
-        }
-        | AttributeValue::Animate { function, argument } => (Some(function), argument),
-        _ => return Ok(()),
-    };
-    if first
-        .into_iter()
-        .chain(second)
-        .any(|expression| crate::compilation::asynchronous::has_await(javascript, expression))
-    {
+fn check_await_directive(
+    javascript: &rsvelte_typescript_tree::Tree,
+    attribute: &Attribute,
+) -> R<()> {
+    let (first, second): (Option<ExpressionIdentifier>, Option<ExpressionIdentifier>) =
+        match attribute.value {
+            AttributeValue::Attach(expression) | AttributeValue::Bind(expression) => {
+                (Some(expression), None)
+            }
+            AttributeValue::Use { action, argument } => (Some(action), argument),
+            AttributeValue::Transition {
+                function, argument, ..
+            }
+            | AttributeValue::Animate { function, argument } => (Some(function), argument),
+            _ => return Ok(()),
+        };
+    if first.into_iter().chain(second).any(|expression| {
+        crate::compilation::asynchronous::has_await(javascript.get_expression(expression))
+    }) {
         if matches!(attribute.value, AttributeValue::Bind(_)) {
             return Err(unsupported(
                 "an await expression in a binding (Svelte rejects it as `bind_invalid_expression`)",
@@ -300,28 +304,25 @@ pub(super) fn check_element(
     custom_element: bool,
 ) -> R<()> {
     let name = el.name.text(source_text);
+    let children = compiler_syntax_tree.children(el.children);
+    let only = |allowed: fn(&NodeKind) -> bool| {
+        children
+            .iter()
+            .all(|&child| allowed(&compiler_syntax_tree.node(child).kind))
+    };
+    let text_like = |kind: &NodeKind| {
+        matches!(
+            kind,
+            NodeKind::Text { .. } | NodeKind::Expression { .. } | NodeKind::Comment { .. }
+        )
+    };
     if name == "slot" && custom_element {
         return Ok(());
     }
-    if name == "style"
-        && compiler_syntax_tree
-            .children(el.children)
-            .iter()
-            .any(|&child| !matches!(compiler_syntax_tree.node(child).kind, NodeKind::Text { .. }))
-    {
+    if name == "style" && !only(|kind| matches!(kind, NodeKind::Text { .. })) {
         return Err(unsupported("a nested style with non-text content", el.name));
     }
-    if el.kind == ElementKind::Title
-        && compiler_syntax_tree
-            .children(el.children)
-            .iter()
-            .any(|&child| {
-                !matches!(
-                    compiler_syntax_tree.node(child).kind,
-                    NodeKind::Text { .. } | NodeKind::Expression { .. } | NodeKind::Comment { .. }
-                )
-            })
-    {
+    if el.kind == ElementKind::Title && !only(text_like) {
         return Err(unsupported(
             "a title containing elements or blocks",
             el.name,
@@ -357,17 +358,7 @@ pub(super) fn check_element(
             el.name,
         ));
     }
-    if name == "textarea"
-        && compiler_syntax_tree
-            .children(el.children)
-            .iter()
-            .any(|&child| {
-                !matches!(
-                    compiler_syntax_tree.node(child).kind,
-                    NodeKind::Text { .. } | NodeKind::Expression { .. } | NodeKind::Comment { .. }
-                )
-            })
-    {
+    if name == "textarea" && !only(text_like) {
         return Err(unsupported("a block inside <textarea>", el.name));
     }
     Ok(())

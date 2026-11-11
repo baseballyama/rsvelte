@@ -55,8 +55,7 @@ fn disabled_and_syntax_rules_do_not_build_semantic_facts() {
         [
             "svelte.parse",
             "svelte.resolve",
-            "svelte.compiler_syntax_tree",
-            "svelte.lint.parents"
+            "svelte.compiler_syntax_tree"
         ]
     );
 }
@@ -139,11 +138,14 @@ fn a_type_provider_is_lazy_cached_and_replaces_the_built_in_types() {
     rsvelte_svelte_lint::register_artifacts(&mut registry);
     rsvelte_svelte_lint::register_type_provider(&mut registry, move |context| {
         provider_calls.fetch_add(1, Ordering::Relaxed);
-        let component = context
-            .get::<rsvelte_svelte_syntax::Parsed>()
+        let resolution = context
+            .get::<rsvelte_svelte_semantic::Resolved>()
             .as_ref()
             .expect("source parses");
-        TypeFacts::new(vec![ConditionType::Truthy; component.javascript.len()])
+        TypeFacts::new(vec![
+            ConditionType::Truthy;
+            resolution.semantic().nodes().len()
+        ])
     });
     let document = Document::new(
         "test.svelte".to_owned(),
@@ -165,7 +167,12 @@ fn a_type_provider_is_lazy_cached_and_replaces_the_built_in_types() {
     assert_eq!(calls.load(Ordering::Relaxed), 1);
     assert_eq!(
         context.computed(),
-        ["svelte.parse", "svelte.lint.condition_types"]
+        [
+            "svelte.parse",
+            "svelte.lint.condition_types",
+            "svelte.resolve",
+            "svelte.compiler_syntax_tree"
+        ]
     );
     assert_eq!(
         context
@@ -274,7 +281,7 @@ fn lint_does_not_register_type_services() {
             "svelte.semantic",
             "svelte.syntax",
             "typescript.semantic",
-            "typescript.syntax"
+            "typescript.tree"
         ]
     );
 }

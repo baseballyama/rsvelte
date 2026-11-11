@@ -284,6 +284,7 @@ impl<'a> Parser<'a> {
     const fn end_of_file(&self) -> bool {
         self.returned.is_empty() && self.position >= self.end
     }
+
     // Parser.
 
     fn parse(&mut self) -> R<()> {

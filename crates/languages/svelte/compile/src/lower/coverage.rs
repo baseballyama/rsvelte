@@ -1,14 +1,16 @@
 //! The template syntax this port does not lower yet, refused before lowering starts so neither
 //! target meets it.
 
+use oxc_ast::ast::{Expression, VariableDeclarationKind};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    CompilerNodeIdentifier, ElementKind, MetadataTag,
+    CompilerNodeIdentifier, ElementKind, MetadataTag, StyleValue,
 };
-use rsvelte_typescript_semantic::scope::DeclarationKind;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
+use super::javascript::member_root;
 use super::{
-    Attribute, AttributeValue, BindingKind, CompileInput, Diagnostic, Element, NodeIdentifier,
-    NodeKind, Resolution, unsupported,
+    Attribute, AttributeValue, BindingKind, CompileInput, Diagnostic, Element, NodeKind,
+    Resolution, unsupported,
 };
 
 pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
@@ -18,9 +20,11 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             NodeKind::Text { .. }
             | NodeKind::Comment { .. }
             | NodeKind::Expression { .. }
-            | NodeKind::If { .. } => None,
+            | NodeKind::If { .. }
+            | NodeKind::Snippet(_)
+            | NodeKind::Render { .. } => None,
             NodeKind::Each(each) => each
-                .context()
+                .context
                 .is_none()
                 .then_some("an `{#each}` block without `as`"),
             NodeKind::Element(el) => {
@@ -29,20 +33,6 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             }
             NodeKind::Key { .. } => Some("a `{#key}` block"),
             NodeKind::Await(_) => Some("an `{#await}` block"),
-            NodeKind::Snippet(snippet) => {
-                let parent_is_boundary = tree.node(identifier).parent.is_some_and(|parent| matches!(&tree.node(parent).kind, NodeKind::Element(element) if element.kind == ElementKind::Metadata(Some(MetadataTag::Boundary))));
-                if parent_is_boundary
-                    && matches!(
-                        input.component.javascript.name(snippet.name),
-                        "failed" | "pending"
-                    )
-                {
-                    None
-                } else {
-                    Some("this snippet")
-                }
-            }
-            NodeKind::Render { .. } => Some("a `{@render}` tag"),
             NodeKind::Html { .. } => Some("an `{@html}` tag"),
             NodeKind::Const { .. } => Some("a `{@const}` tag"),
             NodeKind::Debug { .. } => Some("a `{@debug}` tag"),
@@ -95,12 +85,24 @@ fn check_element(
             check_component_attribute(a)?;
         }
         let what = match a.value {
-            AttributeValue::On { .. } if !component && el.kind != ElementKind::Regular => continue,
+            AttributeValue::On { .. }
+            | AttributeValue::Use { .. }
+            | AttributeValue::Transition { .. }
+            | AttributeValue::Animate { .. }
+                if !component =>
+            {
+                continue;
+            }
             AttributeValue::On { .. } => "an `on:` directive",
-            AttributeValue::Use { .. } => "a `use:` directive",
-            AttributeValue::Transition { .. } => "a transition",
-            AttributeValue::Animate { .. } => "an `animate:` directive",
-            AttributeValue::Style { .. } => "a `style:` directive",
+            AttributeValue::Style { .. } if matches!(&a.value, AttributeValue::Style { value, .. } if matches!(**value, StyleValue::Empty)) => {
+                "a `style:` directive without a value"
+            }
+            // Upstream adds an empty `style` beside its own empty `class`, which this port does
+            // not.
+            AttributeValue::Style { .. } if tag == Some("svelte:element") => {
+                "a `style:` directive on `<svelte:element>`"
+            }
+            AttributeValue::Style { .. } if !component => continue,
             AttributeValue::Let(_) => "a `let:` directive",
             _ if !component => {
                 if name == "slot" && !super::is_directive(&a.value) && in_component {
@@ -109,10 +111,13 @@ fn check_element(
                     continue;
                 }
             }
-            AttributeValue::Bind(_) if name == "this" => "`bind:this` on a component",
+            AttributeValue::Bind(target) if name == "this" => {
+                check_bind_this(input, res, a, target)?;
+                continue;
+            }
             AttributeValue::Bind(_) if name == "group" => "`bind:group` on a component",
             AttributeValue::Bind(target)
-                if !is_bindable(input, res, target, true) && !unbound(input, res, target) =>
+                if !is_bindable(input, res, target, true) && !rejected(input, res, target) =>
             {
                 "a component binding to anything but a `let`, `$state`, a prop or a member"
             }
@@ -145,30 +150,36 @@ fn has_content(input: &CompileInput<'_>, el: &Element) -> bool {
 fn is_bindable(
     input: &CompileInput<'_>,
     res: &Resolution,
-    target: NodeIdentifier,
+    target: ExpressionIdentifier,
     component: bool,
 ) -> bool {
-    let javascript = input.component.javascript;
-    let root = javascript.member_root(target);
-    if !javascript.is_identifier(root) {
+    let target = input
+        .component
+        .javascript
+        .get_expression(target)
+        .get_inner_expression()
+        .get_inner_expression();
+    let Some(root) = member_root(target) else {
         return false;
+    };
+    let member = !matches!(target, Expression::Identifier(_));
+    let Some(symbol) = res.symbol(root) else {
+        return res.is_store_subscription(&root.name);
+    };
+    match res.binding(symbol).kind {
+        BindingKind::State | BindingKind::RawState => true,
+        BindingKind::Each => member,
+        _ if !component => false,
+        BindingKind::Property | BindingKind::BindableProperty => true,
+        BindingKind::Normal => {
+            member
+                || matches!(
+                    res.variable_kind(symbol),
+                    Some(VariableDeclarationKind::Let | VariableDeclarationKind::Var)
+                )
+        }
+        _ => member,
     }
-    let member = root != target;
-    res.binding(root)
-        .is_some_and(|(binding, info)| match info.kind {
-            BindingKind::State | BindingKind::RawState => true,
-            BindingKind::Each => member,
-            _ if !component => false,
-            BindingKind::Property | BindingKind::BindableProperty => true,
-            BindingKind::Normal => {
-                member
-                    || matches!(
-                        res.sem.bindings[binding].kind,
-                        DeclarationKind::Let | DeclarationKind::Variable
-                    )
-            }
-            _ => member,
-        })
 }
 
 /// Upstream's `component_invalid_directive`, which the refusals below would hide.
@@ -187,12 +198,33 @@ fn check_component_attribute(a: &Attribute) -> Result<(), Diagnostic> {
     }
 }
 
-/// A binding to a name nothing declares, for which the rune walk raises `bind_invalid_value`.
-fn unbound(input: &CompileInput<'_>, res: &Resolution, target: NodeIdentifier) -> bool {
-    let javascript = input.component.javascript;
-    javascript.is_identifier(target)
-        && res.binding(target).is_none()
-        && !res.is_store_subscription(javascript.name(target))
+/// A binding upstream rejects, whose error the rune walk raises.
+fn rejected(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIdentifier) -> bool {
+    super::validation::rejects_binding(res, input.component.javascript.get_expression(target))
+}
+
+/// Upstream's `bind:this` takes what a component binding takes, on an element or a component.
+fn check_bind_this(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    a: &Attribute,
+    target: ExpressionIdentifier,
+) -> Result<(), Diagnostic> {
+    let accessors = matches!(
+        input
+            .component
+            .javascript
+            .get_expression(target)
+            .get_inner_expression(),
+        Expression::SequenceExpression(_)
+    );
+    if !accessors && !is_bindable(input, res, target, true) && !rejected(input, res, target) {
+        return unsupported(
+            "a `bind:this` to anything but a `let`, `$state`, a prop or a member",
+            a.span,
+        );
+    }
+    Ok(())
 }
 
 /// A supported property on a supported element, as upstream's `binding_properties` names it,
@@ -203,10 +235,13 @@ fn check_element_binding(
     tag: &str,
     attributes: &[Attribute],
     a: &Attribute,
-    target: NodeIdentifier,
+    target: ExpressionIdentifier,
 ) -> Result<(), Diagnostic> {
     let source_text = input.component.source_text;
     let property = a.name.text(source_text);
+    if property == "this" {
+        return check_bind_this(input, res, a, target);
+    }
     if !supported_binding(source_text, tag, attributes, property) {
         return unsupported(&format!("`bind:{property}` on this `<{tag}>`"), a.span);
     }
@@ -219,7 +254,7 @@ fn check_element_binding(
             a.span,
         );
     }
-    if !is_bindable(input, res, target, false) && !unbound(input, res, target) {
+    if !is_bindable(input, res, target, false) && !rejected(input, res, target) {
         return unsupported(
             "a binding to anything but `$state` or a member of `$state` or of an `{#each}` item",
             a.span,

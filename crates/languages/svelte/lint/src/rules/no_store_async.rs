@@ -1,9 +1,7 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript_syntax::Kind;
 
-use super::javascript::span;
-use super::svelte_store::store_calls;
+use super::svelte_store::{Function, store_calls};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -22,21 +20,20 @@ struct NoStoreAsync;
 
 impl SvelteRule for NoStoreAsync {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let javascript = file.javascript();
         for (call, _) in store_calls(file, &["writable", "readable", "derived"]) {
-            let Kind::Call { arguments, .. } = javascript.kind(call) else {
-                continue;
-            };
-            let Some(&function) = arguments.get(1) else {
-                continue;
-            };
-            let (Kind::Function { is_async: true, .. } | Kind::Arrow { is_async: true, .. }) =
-                javascript.kind(function)
+            let Some(function) = call
+                .arguments
+                .get(1)
+                .and_then(|argument| argument.as_expression())
+                .and_then(Function::of)
             else {
                 continue;
             };
+            if !function.is_async {
+                continue;
+            }
             // Upstream reports the five characters of `async`.
-            let start = span(javascript, function).start_offset;
+            let start = function.span.start;
             reporter.report(
                 Report::range(
                     "Do not pass async functions to svelte stores.",

@@ -1,7 +1,12 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function If_in_each($$renderer) {
-	let tasks = [{ text: 'write', done: true }, { text: 'test', done: false }];
+	let tasks = [{
+		text: "write",
+		done: true
+	}, {
+		text: "test",
+		done: false
+	}];
 	$$renderer.push(`<!--[-->`);
 	const each_array = $.ensure_array_like(tasks);
 	for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {

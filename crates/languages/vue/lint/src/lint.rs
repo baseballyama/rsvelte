@@ -5,6 +5,8 @@
 //! binding read only in the template is used (vue-eslint-parser marks such a variable used). It
 //! judges only the script's bindings; the `v-for` aliases are `vue/no-unused-variables`' to report.
 
+use oxc_ast::ast::{BindingIdentifier, FormalParameters};
+use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Finding;
@@ -12,12 +14,11 @@ use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_markup_lint::button_type::{Allowed, Problem, check_static};
 use rsvelte_markup_syntax::character_references::{Place, Rules, decode};
-use rsvelte_typescript_lint::JavaScriptFacts;
-use rsvelte_typescript_semantic::scope::{DeclarationKind, HostRoot};
 use rsvelte_vue_semantic::resolve::Resolution;
 use rsvelte_vue_syntax::syntax_tree::{
-    AttributeKind, DirectiveName, SingleFileComponent, TemplateNode,
+    AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent, TemplateNode,
 };
+use rustc_hash::FxHashSet;
 
 #[derive(Debug)]
 pub(crate) struct RuleContext<'a> {
@@ -26,7 +27,6 @@ pub(crate) struct RuleContext<'a> {
     /// The document's path: some rules read the file name.
     pub path: &'a str,
     pub res: &'a Resolution,
-    pub javascript: JavaScriptFacts<'a>,
 }
 
 type VueRule = dyn for<'a> Rule<RuleContext<'a>>;
@@ -61,10 +61,13 @@ impl<'a> Rule<RuleContext<'a>> for NoUnusedVariables {
     }
 
     fn check(&self, context: &RuleContext<'a>, reporter: &mut Reporter<'_>) {
-        let sem = &context.res.sem;
+        let aliases: FxHashSet<SymbolId> = aliases(context)
+            .filter_map(|(binding, _)| binding.symbol_id.get())
+            .collect();
         rsvelte_typescript_lint::no_unused_variables(
-            &context.javascript,
-            |b| sem.bindings[b].kind != DeclarationKind::Host,
+            context.res.semantic(),
+            |symbol| !aliases.contains(&symbol),
+            |_| &[],
             reporter,
         );
     }
@@ -81,73 +84,72 @@ impl<'a> Rule<RuleContext<'a>> for VueNoUnusedVariables {
     }
 
     fn check(&self, context: &RuleContext<'a>, reporter: &mut Reporter<'_>) {
-        let mut stack: Vec<&HostRoot> = context.res.host.iter().rev().collect();
-        while let Some(r) = stack.pop() {
-            let HostRoot::Scope(h) = r else { continue };
-            // One group per directive kind; `v-for` is the only kind that declares yet.
-            let variables: Vec<_> = h
-                .parameters
-                .iter()
-                .flat_map(|&p| pattern_bindings(context, p))
-                .collect();
+        let scoping = context.res.scoping();
+        // One group per directive kind; `v-for` is the only kind that declares yet.
+        for parameters in loops(context) {
+            let variables: Vec<_> = parameter_bindings(parameters).collect();
             let mut has_after_used = false;
-            for &(b, destructured) in variables.iter().rev() {
-                if context.res.sem.references_to(b).next().is_some() {
+            for &(binding, destructured) in variables.iter().rev() {
+                let used = binding
+                    .symbol_id
+                    .get()
+                    .is_some_and(|s| !scoping.get_resolved_reference_ids(s).is_empty());
+                if used {
                     has_after_used = true;
                     continue;
                 }
                 if has_after_used && !destructured {
                     continue;
                 }
-                let identifier = context.res.sem.bindings[b].node;
                 reporter.range(
-                    format!(
-                        "'{}' is defined but never used.",
-                        context.c.javascript.name(identifier)
-                    ),
-                    context
-                        .javascript
-                        .syntax_tree
-                        .source_location(identifier)
-                        .span()
-                        .expect("a parsed alias has a range"),
+                    format!("'{}' is defined but never used.", binding.name),
+                    Span::new(binding.span.start, binding.span.end),
                 );
             }
-            stack.extend(h.body.iter().rev());
         }
     }
 }
 
-/// The bindings a `v-for` alias declares, in order, each with whether it came from destructuring
+/// Each `v-for`'s aliases, as a parameter list.
+fn loops<'c>(context: &RuleContext<'c>) -> impl Iterator<Item = &'c FormalParameters<'c>> {
+    let (sfc, tree) = (context.c, context.res.tree());
+    sfc.nodes
+        .iter()
+        .filter_map(move |n| match *n {
+            TemplateNode::Element { attributes, .. } => Some(sfc.attributes(attributes)),
+            _ => None,
+        })
+        .flatten()
+        .filter_map(move |a| match &a.kind {
+            AttributeKind::Directive(d) => match d.exp {
+                DirectiveExpression::For(l) => Some(tree.get_parameters(l.parameters)),
+                _ => None,
+            },
+            AttributeKind::Static => None,
+        })
+}
+
+/// Every `v-for` alias binding, with whether it came from destructuring.
+fn aliases<'c>(
+    context: &RuleContext<'c>,
+) -> impl Iterator<Item = (&'c BindingIdentifier<'c>, bool)> {
+    loops(context).flat_map(parameter_bindings)
+}
+
+/// The bindings a parameter list declares, in order, each with whether it came from destructuring
 /// (upstream `isDestructuringVariable`).
-fn pattern_bindings(
-    context: &RuleContext<'_>,
-    p: rsvelte_typescript_syntax::NodeIdentifier,
-) -> Vec<(rsvelte_typescript_semantic::scope::BindingIdentifier, bool)> {
-    let syntax_tree = context.javascript.syntax_tree;
-    let mut out = Vec::new();
-    let mut stack = vec![(p, false)];
-    while let Some((n, destructured)) = stack.pop() {
-        if matches!(
-            syntax_tree.kind(n),
-            rsvelte_typescript_syntax::Kind::Identifier(_)
-        ) {
-            if let Some(b) = context.res.sem.binding_of(n) {
-                out.push((b, destructured));
-            }
-            continue;
-        }
-        let mut children = Vec::new();
-        syntax_tree.for_each_child(n, |k| children.push(k));
-        let inner = destructured
-            || matches!(
-                syntax_tree.kind(n),
-                rsvelte_typescript_syntax::Kind::ObjectPattern(_)
-                    | rsvelte_typescript_syntax::Kind::ArrayPattern(_)
-            );
-        stack.extend(children.into_iter().rev().map(|k| (k, inner)));
-    }
-    out
+fn parameter_bindings<'p>(
+    parameters: &'p FormalParameters<'p>,
+) -> impl Iterator<Item = (&'p BindingIdentifier<'p>, bool)> {
+    let items = parameters.items.iter().map(|p| &p.pattern);
+    let rest = parameters.rest.iter().map(|r| &r.rest.argument);
+    items.chain(rest).flat_map(|pattern| {
+        let destructured = pattern.get_binding_identifier().is_none();
+        pattern
+            .get_binding_identifiers()
+            .into_iter()
+            .map(move |b| (b, destructured))
+    })
 }
 
 /// With the default options, so the `forbiddenTypeAttribute` message cannot fire.

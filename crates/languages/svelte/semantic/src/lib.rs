@@ -7,6 +7,7 @@ pub mod input;
 pub mod legacy;
 pub mod resolve;
 pub mod template;
+pub mod typescript;
 pub mod warnings;
 
 mod visited;

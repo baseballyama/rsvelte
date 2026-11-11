@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Options_custom_host($$renderer, $$props) {
 	let {} = $$props;
 	let host = void 0;

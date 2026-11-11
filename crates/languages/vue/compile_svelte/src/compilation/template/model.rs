@@ -1,13 +1,28 @@
 use super::{
-    AssignmentOperator, Attribute, AttributeValue, Class, DeclarationKind, Directive, Helper, Kind,
-    NodeIdentifier, Property, R, SourceLocation, Span, SvelteNodeIdentifier, T, Target,
-    expression_of, span_of, svelte, unsupported, vmodel,
+    AssignmentOperator, AssignmentTarget, Attribute, AttributeValue, Class, Declared, Directive,
+    Expression, ExpressionIdentifier, GetSpan, Helper, Property, R, SimpleAssignmentTarget, Span,
+    SvelteNodeIdentifier, T, Target, conditional, expression_of, output_span, span_of, svelte,
+    unsupported, vmodel,
 };
 
-impl T<'_, '_> {
+/// An attribute waiting for the element it goes on.
+type Pending = Box<dyn FnOnce(SvelteNodeIdentifier, &Property) -> Attribute>;
+
+/// The object of the innermost member of `e`'s chain, or `e` itself.
+fn member_root<'e, 'v>(mut e: &'e Expression<'v>) -> &'e Expression<'v> {
+    loop {
+        e = match e {
+            Expression::StaticMemberExpression(m) => &m.object,
+            Expression::ComputedMemberExpression(m) => &m.object,
+            Expression::PrivateFieldExpression(m) => &m.object,
+            _ => return e,
+        };
+    }
+}
+
+impl<'a> T<'_, '_, '_, 'a> {
     /// `v-model`. On the client, Vue's own directive runs on the element through an attachment;
     /// on the server, the attribute compiler-ssr's `ssrTransformModel` renders.
-    #[expect(clippy::type_complexity, reason = "an attribute waiting for its owner")]
     pub(super) fn model(
         &mut self,
         tag: &str,
@@ -15,19 +30,20 @@ impl T<'_, '_> {
         value: Option<&str>,
         p: &Property,
         d: &Directive,
-    ) -> R<Option<Box<dyn FnOnce(SvelteNodeIdentifier, &Property) -> Attribute>>> {
-        let (source_text, from) = (self.source_text, self.info.from);
+    ) -> R<Option<Pending>> {
+        let (source_text, info) = (self.source_text, self.info);
         if d.arg.is_some() {
             return Err(unsupported("a `v-model` argument on an element", p.span));
         }
         let exp = expression_of(d, p.span)?;
-        if !matches!(from.kind(exp), Kind::Identifier(_) | Kind::Member { .. }) {
+        let written = info.from.get_expression(exp);
+        if !matches!(written, Expression::Identifier(_)) && !written.is_member_expression() {
             return Err(unsupported(
                 "a `v-model` value other than a variable or a member",
-                span_of(from, exp),
+                span_of(written.span()),
             ));
         }
-        self.check_model_target(exp)?;
+        self.check_model_target(written)?;
         let dir = match (tag, ty) {
             ("input", Some("checkbox")) => Helper::VModelCheckbox,
             ("input", Some("radio")) => Helper::VModelRadio,
@@ -56,55 +72,51 @@ impl T<'_, '_> {
             }
             modifiers.push(m);
         }
-        if self.info.target == Target::Server {
+        if info.target == Target::Server {
             return self.ssr_model(dir, exp, value);
         }
+        let b = self.b;
         let model = self.expression(exp)?;
         let callee = self.helper(dir);
-        let mods: Vec<NodeIdentifier> = modifiers
-            .iter()
-            .map(|m| {
-                let key = self.to.identifier(m);
-                let yes = self.to.write_boolean(true, SourceLocation::SYNTHETIC);
-                self.to.property(key, yes, 0, SourceLocation::SYNTHETIC)
-            })
-            .collect();
-        let mods = self.to.object(&mods, SourceLocation::SYNTHETIC);
-        let param = self.names.fresh(from, "value");
-        let target = self.expression(exp)?;
-        let new_value = self.to.identifier(&param);
-        let assign = self.to.assign(
-            AssignmentOperator::Assign,
-            target,
-            new_value,
-            SourceLocation::SYNTHETIC,
+        let mods = b.object(
+            modifiers
+                .iter()
+                .map(|m| b.property(b.key(m), b.boolean(true), false)),
         );
-        let param_id = self.to.identifier(&param);
-        let assigner = self
-            .to
-            .arrow(&[param_id], assign, true, false, SourceLocation::SYNTHETIC);
-        let key = self.to.write_string("onUpdate:modelValue");
-        let mut props = vec![
-            self.to
-                .property(key, assigner, 0, SourceLocation::SYNTHETIC),
-        ];
+        let parameter = self.names.fresh("value");
+        let target = match self.expression(exp)? {
+            Expression::Identifier(identifier) => {
+                SimpleAssignmentTarget::AssignmentTargetIdentifier(identifier)
+            }
+            e if e.is_member_expression() => {
+                SimpleAssignmentTarget::from(e.into_member_expression())
+            }
+            _ => {
+                return Err(unsupported(
+                    "a `v-model` value other than a variable or a member",
+                    span_of(written.span()),
+                ));
+            }
+        };
+        let assign = b.assign(
+            AssignmentOperator::Assign,
+            AssignmentTarget::from(target),
+            b.id(&parameter),
+        );
+        let assigner = b.arrow(b.params([parameter.as_str()]), assign);
+        let mut props = vec![b.property(b.key("onUpdate:modelValue"), assigner, false)];
         for (name, text) in [("type", ty), ("value", value)] {
             if let Some(text) = text {
-                let key = self.to.identifier(name);
-                let text = self.to.write_string(text);
-                props.push(self.to.property(key, text, 0, SourceLocation::SYNTHETIC));
+                props.push(b.property(b.key(name), b.string(text), false));
             }
         }
-        let props = self.to.object(&props, SourceLocation::SYNTHETIC);
+        let props = b.object(props);
         let vmodel = self.vmodel_helper();
-        let vmodel = self.to.identifier(&vmodel);
-        let call = self.to.call(
-            vmodel,
-            &[callee, model, mods, props],
-            false,
-            SourceLocation::from(p.span),
-        );
-        let call = self.root_expression(call);
+        let mut call = b.call(b.id(&vmodel), [callee, model, mods, props]);
+        if let Expression::CallExpression(c) = &mut call {
+            c.span = output_span(p.span);
+        }
+        let call = self.keep(call);
         Ok(Some(Box::new(move |owner, p| Attribute {
             name: svelte::Name::Spelled {
                 text: "".into(),
@@ -117,13 +129,13 @@ impl T<'_, '_> {
         })))
     }
 
-    #[expect(clippy::type_complexity, reason = "an attribute waiting for its owner")]
     pub(super) fn ssr_model(
         &mut self,
         dir: Helper,
-        e: NodeIdentifier,
+        e: ExpressionIdentifier,
         value: Option<&str>,
-    ) -> R<Option<Box<dyn FnOnce(SvelteNodeIdentifier, &Property) -> Attribute>>> {
+    ) -> R<Option<Pending>> {
+        let b = self.b;
         let (name, v) = match dir {
             Helper::VModelText => {
                 let m = self.expression(e)?;
@@ -134,21 +146,21 @@ impl T<'_, '_> {
                 let test = self.is_array(e)?;
                 let m = self.expression(e)?;
                 let contain = self.helper(Helper::SsrLooseContain);
-                let contain = self.to.call0(contain, &[m, value]);
+                let contain = b.call(contain, [m, value]);
                 let m = self.expression(e)?;
-                let c = self.to.cond(test, contain, m, SourceLocation::SYNTHETIC);
+                let c = conditional(b, test, contain, m);
                 ("checked", self.ssr_boolean(c))
             }
             Helper::VModelRadio => {
                 let value = self.value_or_null(value);
                 let m = self.expression(e)?;
                 let eq = self.helper(Helper::SsrLooseEqual);
-                let eq = self.to.call0(eq, &[m, value]);
+                let eq = b.call(eq, [m, value]);
                 ("checked", self.ssr_boolean(eq))
             }
             _ => return Ok(None),
         };
-        let v = self.root_expression(v);
+        let v = self.keep(v);
         Ok(Some(Box::new(move |owner, p| Attribute {
             name: svelte::Name::Spelled {
                 text: name.into(),
@@ -167,23 +179,24 @@ impl T<'_, '_> {
     /// compiler-ssr `processOption`.
     pub(super) fn ssr_option_selected(
         &mut self,
-        model: NodeIdentifier,
+        model: ExpressionIdentifier,
         value: Option<&str>,
         owner: SvelteNodeIdentifier,
         span: Span,
     ) -> R<Attribute> {
+        let b = self.b;
         let test = self.is_array(model)?;
         let v = self.value_or_null(value);
         let m = self.expression(model)?;
         let contain = self.helper(Helper::SsrLooseContain);
-        let contain = self.to.call0(contain, &[m, v]);
+        let contain = b.call(contain, [m, v]);
         let value = self.value_or_null(value);
         let m = self.expression(model)?;
         let eq = self.helper(Helper::SsrLooseEqual);
-        let eq = self.to.call0(eq, &[m, value]);
-        let c = self.to.cond(test, contain, eq, SourceLocation::SYNTHETIC);
+        let eq = b.call(eq, [m, value]);
+        let c = conditional(b, test, contain, eq);
         let v = self.ssr_boolean(c);
-        let v = self.root_expression(v);
+        let v = self.keep(v);
         Ok(Attribute {
             name: svelte::Name::Spelled {
                 text: "selected".into(),
@@ -199,68 +212,60 @@ impl T<'_, '_> {
         })
     }
 
-    pub(super) fn value_or_null(&mut self, value: Option<&str>) -> NodeIdentifier {
-        match value {
-            Some(v) => self.to.write_string(v),
-            None => self.to.null(SourceLocation::SYNTHETIC),
-        }
+    fn value_or_null(&self, value: Option<&str>) -> Expression<'a> {
+        value.map_or_else(|| self.b.null(), |v| self.b.string(v))
     }
 
-    pub(super) fn is_array(&mut self, e: NodeIdentifier) -> R<NodeIdentifier> {
+    fn is_array(&self, e: ExpressionIdentifier) -> R<Expression<'a>> {
         let m = self.expression(e)?;
-        let array = self.to.identifier("Array");
-        let is_array = self.to.dot(array, "isArray");
-        Ok(self.to.call0(is_array, &[m]))
+        Ok(self
+            .b
+            .call(self.b.member(self.b.id("Array"), "isArray"), [m]))
     }
 
-    pub(super) fn ssr_boolean(&mut self, v: NodeIdentifier) -> NodeIdentifier {
+    fn ssr_boolean(&mut self, v: Expression<'a>) -> Expression<'a> {
         let callee = self.helper(Helper::SsrIncludeBooleanAttribute);
-        self.to.call0(callee, &[v])
+        self.b.call(callee, [v])
     }
 
     /// What `v-model` may assign: not a prop, a computed, a `v-for` alias, a constant or an
     /// unresolved name.
-    pub(super) fn check_model_target(&self, e: NodeIdentifier) -> R<()> {
-        let from = self.info.from;
-        let root = from.member_root(e);
-        if root == e {
-            let ok = self.info.resolution.sem.binding_of(e).is_some_and(|b| {
-                let binding = &self.info.resolution.sem.bindings[b];
-                self.info.class.get(&b) == Some(&Class::Ref)
-                    || (binding.scope == rsvelte_typescript_semantic::scope::ScopeIdentifier::ROOT
-                        && matches!(
-                            binding.kind,
-                            DeclarationKind::Let | DeclarationKind::Variable
-                        ))
+    fn check_model_target(&self, e: &Expression<'_>) -> R<()> {
+        let info = self.info;
+        let root = member_root(e);
+        if let Expression::Identifier(identifier) = e {
+            let ok = info.symbol(identifier).is_some_and(|s| {
+                info.class.get(&s) == Some(&Class::Ref)
+                    || info
+                        .top
+                        .get(&s)
+                        .is_some_and(|t| matches!(t.declared, Declared::Let | Declared::Var))
             });
             if !ok {
                 return Err(unsupported(
                     "`v-model` on something other than a ref or a variable",
-                    span_of(from, e),
+                    span_of(identifier.span),
                 ));
             }
-        } else if matches!(from.kind(root), Kind::Identifier(_))
-            && self
-                .info
-                .class_of(root)
-                .is_some_and(|c| matches!(c, Class::Props | Class::Computed))
+        } else if info
+            .class_of_expression(root)
+            .is_some_and(|c| matches!(c, Class::Props | Class::Computed))
         {
             return Err(unsupported(
                 "`v-model` on a prop or a computed",
-                span_of(from, e),
+                span_of(e.span()),
             ));
         }
         Ok(())
     }
 
-    pub(super) fn vmodel_helper(&mut self) -> String {
+    fn vmodel_helper(&mut self) -> String {
         if let Some(n) = &self.vmodel {
             return n.clone();
         }
-        let from = self.info.from;
-        let name = self.names.fresh(from, "vmodel");
-        let untrack = self.names.helper(from, Helper::Untrack);
-        let declarations = vmodel(self.to, &name, &untrack, self.names, from);
+        let name = self.names.fresh("vmodel");
+        let untrack = self.names.helper(Helper::Untrack);
+        let declarations = vmodel(self.b, &name, &untrack, self.names);
         self.hoisted.extend(declarations);
         self.vmodel = Some(name.clone());
         name

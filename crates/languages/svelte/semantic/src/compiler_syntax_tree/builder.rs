@@ -1,8 +1,10 @@
+use rsvelte_typescript_tree::ExpressionIdentifier;
+
 use super::{
-    Attribute, AttributeIdentifier, Branch, Branches, Children, CompilerNodeIdentifier,
-    CompilerSyntaxTree, CompilerSyntaxTreeBuilder, ElementKind, IndexRange, IndexVector,
-    MetadataTag, Node, NodeIdentifier, NodeKind, NodeList, Span, TemplateNodeIdentifier,
-    decode_text, is_component_name,
+    Attribute, AttributeIdentifier, AttributeValue, Branch, Branches, Children,
+    CompilerNodeIdentifier, CompilerSyntaxTree, CompilerSyntaxTreeBuilder, ElementKind, IndexRange,
+    IndexVector, MetadataTag, Node, NodeKind, NodeList, Span, TemplateNodeIdentifier, decode_text,
+    is_component_name,
 };
 
 impl<'s> CompilerSyntaxTreeBuilder<'s> {
@@ -16,8 +18,9 @@ impl<'s> CompilerSyntaxTreeBuilder<'s> {
                 origin: IndexVector::with_capacity(nodes),
                 children: Vec::with_capacity(nodes),
                 branches: Vec::new(),
-                javascript_lists: Vec::new(),
+                debug_identifiers: Vec::new(),
                 component_references: Vec::new(),
+                static_slots: Vec::new(),
                 root: Children::default(),
             },
         }
@@ -41,7 +44,7 @@ impl<'s> CompilerSyntaxTreeBuilder<'s> {
     pub(crate) fn component_reference(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        reference: NodeIdentifier,
+        reference: ExpressionIdentifier,
     ) {
         self.compiler_syntax_tree
             .component_references
@@ -59,7 +62,12 @@ impl<'s> CompilerSyntaxTreeBuilder<'s> {
     ) -> IndexRange<AttributeIdentifier> {
         let first = self.compiler_syntax_tree.attributes.next_identifier();
         for a in attributes {
-            self.compiler_syntax_tree.attributes.push(a);
+            let slot = a.name.text(self.source_text) == "slot"
+                && matches!(a.value, AttributeValue::Static(_));
+            let identifier = self.compiler_syntax_tree.attributes.push(a);
+            if slot {
+                self.compiler_syntax_tree.static_slots.push(identifier);
+            }
         }
         IndexRange::new(
             first,
@@ -76,9 +84,9 @@ impl<'s> CompilerSyntaxTreeBuilder<'s> {
         }
     }
 
-    pub(crate) fn javascript_list(&mut self, nodes: &[NodeIdentifier]) -> NodeList {
-        let start = self.compiler_syntax_tree.javascript_lists.len() as u32;
-        self.compiler_syntax_tree.javascript_lists.extend(nodes);
+    pub(crate) fn debug_identifiers(&mut self, nodes: &[ExpressionIdentifier]) -> NodeList {
+        let start = self.compiler_syntax_tree.debug_identifiers.len() as u32;
+        self.compiler_syntax_tree.debug_identifiers.extend(nodes);
         NodeList {
             start,
             len: nodes.len() as u32,

@@ -1,66 +1,61 @@
 //! The expected uses are what eslint-utils 4.10.1's `ReferenceTracker` yields for the same code
 //! (`READ` and `CALL` for each name, `globals.browser` and `globals.es2021` declared).
 
-use rsvelte_kernel::source::positions::Span;
+use oxc_ast::ast::Statement;
+use oxc_semantic::NodeId;
+use oxc_span::{GetSpan, SourceType};
+use rsvelte_kernel::source::document::Document;
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 
 use super::{
     TrackedReference, global_references, global_references_matching, import_references,
     property_references,
 };
-use crate::scope;
-use crate::scope::Semantic;
-use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree, parser};
+use crate::semantic::Semantic;
 
 /// Each use as `name@text`, the text being the call's when the use is called, in source order.
 fn uses(
     source: &str,
-    track: impl Fn(
-        &SyntaxTree,
-        &Semantic,
-        &[NodeIdentifier],
-        NodeIdentifier,
-    ) -> Vec<TrackedReference<'static>>,
+    track: impl Fn(&Semantic, ProgramIdentifier) -> Vec<TrackedReference<'static>>,
 ) -> Vec<String> {
-    let mut tree = SyntaxTree::new();
-    let program = parser::parse_program(&mut tree, source, Span::new(0, source.len() as u32), true)
-        .expect("parses");
-    let sem = scope::analyze(&tree, program, &[]);
-    let parents = tree.parents();
-    let mut out: Vec<(Span, String)> = track(&tree, &sem, &parents, program)
+    let document = Document::new("a.ts".to_owned(), source.to_owned()).expect("small");
+    let (tree, program) = Tree::program(&document, SourceType::ts()).expect("parses");
+    let semantic = Semantic::program(tree, program);
+    let mut out: Vec<(u32, u32, String)> = track(&semantic, program)
         .into_iter()
         .map(|reference| {
             let node = reference.call.unwrap_or(reference.node);
-            let span = tree.source_location(node).span().expect("parsed");
-            (span, format!("{}@{}", reference.name, span.text(source)))
+            let span = semantic.nodes().kind(node).span();
+            let text = &source[span.start as usize..span.end as usize];
+            (span.start, span.end, format!("{}@{text}", reference.name))
         })
         .collect();
-    out.sort_by_key(|(span, _)| (span.start_offset, span.end_offset));
-    out.into_iter().map(|(_, text)| text).collect()
+    out.sort();
+    out.into_iter().map(|(.., text)| text).collect()
+}
+
+/// The initializer of the program's first declaration.
+fn first_initializer(semantic: &Semantic, program: ProgramIdentifier) -> NodeId {
+    let statement = &semantic.tree().get_program(program).body[0];
+    let Statement::VariableDeclaration(declaration) = statement else {
+        unreachable!("the tests start with a declaration")
+    };
+    declaration.declarations[0]
+        .init
+        .as_ref()
+        .expect("initialized")
+        .node_id()
 }
 
 fn store(source: &str, exports: &[&'static str]) -> Vec<String> {
-    uses(source, |tree, sem, parents, program| {
-        import_references(
-            tree,
-            sem,
-            parents,
-            source,
-            &[program],
-            "svelte/store",
-            exports,
-        )
+    uses(source, |semantic, program| {
+        import_references(semantic, &[program], "svelte/store", exports)
     })
 }
 
 fn globals(source: &str) -> Vec<String> {
-    uses(source, |tree, sem, parents, _| {
-        global_references(
-            tree,
-            sem,
-            parents,
-            source,
-            &["setTimeout", "setInterval", "queueMicrotask"],
-        )
+    uses(source, |semantic, _| {
+        global_references(semantic, &["setTimeout", "setInterval", "queueMicrotask"])
     })
 }
 
@@ -211,12 +206,9 @@ fn an_alias_reports_what_is_done_with_it_not_itself() {
 #[test]
 fn globals_can_be_matched_by_a_predicate_with_other_global_objects() {
     let source = "window.location; globalThis.location; location; window.window.location;";
-    let found = uses(source, |tree, sem, parents, _| {
+    let found = uses(source, |semantic, _| {
         let found = global_references_matching(
-            tree,
-            sem,
-            parents,
-            source,
+            semantic,
             |name| matches!(name, "location" | "window"),
             &["globalThis"],
         );
@@ -248,28 +240,10 @@ fn globals_can_be_matched_by_a_predicate_with_other_global_objects() {
 fn members_of_a_value_are_followed_through_aliases_and_patterns() {
     let source = "const m = new Map(); m.set(1); const { delete: d } = m; d(); const n = m; \
                   n.clear(); m.get(1);";
-    let found = uses(source, |tree, sem, parents, program| {
-        let rsvelte_typescript_syntax::Kind::Program(statements) = tree.kind(program) else {
-            unreachable!()
-        };
-        let rsvelte_typescript_syntax::Kind::VariableDeclaration { declarations, .. } =
-            tree.kind(statements[0])
-        else {
-            unreachable!()
-        };
-        let rsvelte_typescript_syntax::Kind::Declarator {
-            initializer: Some(map),
-            ..
-        } = tree.kind(declarations[0])
-        else {
-            unreachable!()
-        };
+    let found = uses(source, |semantic, program| {
         property_references(
-            tree,
-            sem,
-            parents,
-            source,
-            map,
+            semantic,
+            first_initializer(semantic, program),
             &[],
             &["set", "delete", "clear", "get"],
         )
@@ -290,26 +264,55 @@ fn members_of_a_value_are_followed_through_aliases_and_patterns() {
 fn members_on_a_path_are_followed_through_each_step() {
     let source = "const m = import.meta; m.env.SSR; const { env } = m; env.SSR; \
                   const { SSR } = env; const e = m.env; e[\"SSR\"]; m.SSR; m.env.other;";
-    let found = uses(source, |tree, sem, parents, program| {
-        let rsvelte_typescript_syntax::Kind::Program(statements) = tree.kind(program) else {
-            unreachable!()
-        };
-        let rsvelte_typescript_syntax::Kind::VariableDeclaration { declarations, .. } =
-            tree.kind(statements[0])
-        else {
-            unreachable!()
-        };
-        let rsvelte_typescript_syntax::Kind::Declarator {
-            initializer: Some(meta),
-            ..
-        } = tree.kind(declarations[0])
-        else {
-            unreachable!()
-        };
-        property_references(tree, sem, parents, source, meta, &["env"], &["SSR"])
+    let found = uses(source, |semantic, program| {
+        property_references(
+            semantic,
+            first_initializer(semantic, program),
+            &["env"],
+            &["SSR"],
+        )
     });
     assert_eq!(
         found,
         ["SSR@m.env.SSR", "SSR@env.SSR", "SSR@SSR", "SSR@e[\"SSR\"]"]
+    );
+}
+
+#[test]
+fn values_pass_through_chains_casts_and_destructuring_assignments() {
+    let source = "import { writable, readable } from 'svelte/store';\n\
+                  import * as ns from 'svelte/store';\n\
+                  ns?.writable();\n\
+                  let w, r; ({ writable: w, readable: r = null } = ns); w(); r();\n\
+                  (readable satisfies unknown)();\n\
+                  writable!();";
+    let found = uses(source, |semantic, program| {
+        import_references(
+            semantic,
+            &[program],
+            "svelte/store",
+            &["writable", "readable"],
+        )
+    });
+    assert_eq!(
+        found,
+        [
+            "writable@ns?.writable()",
+            "writable@writable: w",
+            "readable@readable: r = null",
+            "writable@w()",
+            "readable@r()",
+            "readable@(readable satisfies unknown)()",
+            "writable@writable!()",
+        ]
+    );
+}
+
+#[test]
+fn a_value_passes_through_an_optional_chain() {
+    let source = "import * as ns from 'svelte/store';\nconst c = ns?.writable; c();";
+    assert_eq!(
+        store(source, &["writable"]),
+        ["writable@ns?.writable", "writable@c()"]
     );
 }

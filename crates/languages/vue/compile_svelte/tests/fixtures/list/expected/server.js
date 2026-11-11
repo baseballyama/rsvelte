@@ -1,13 +1,20 @@
-import * as $ from 'svelte/internal/server';
-
-import { renderList, toDisplayString } from 'vue';
-
+import * as $ from "svelte/internal/server";
+import { renderList, toDisplayString } from "vue";
 export default function List_vue($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
-		let items = [{ id: 1, name: 'apple' }, { id: 2, name: 'banana' }];
+		let items = [{
+			id: 1,
+			name: "apple"
+		}, {
+			id: 2,
+			name: "banana"
+		}];
 		let next = 3;
 		function add() {
-			items.push({ id: next, name: `item ${next}` });
+			items.push({
+				id: next,
+				name: `item ${next}`
+			});
 			next++;
 		}
 		function removeFirst() {
@@ -23,7 +30,7 @@ export default function List_vue($$renderer, $$props) {
 		if (items.length === 0) {
 			$$renderer.push(`<!--[0--><p>empty</p>`);
 		} else {
-			$$renderer.push('<!--[-1-->');
+			$$renderer.push("<!--[-1-->");
 		}
 		$$renderer.push(`<!--]--><button class="add">add</button><button class="remove">remove first</button>`);
 	});

@@ -1,7 +1,8 @@
 //! Which `<svelte:options>` attributes Svelte surely accepts.
 
-use rsvelte_typescript_syntax::NodeIdentifier;
-use rsvelte_typescript_syntax::syntax_tree::Kind;
+use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKey, PropertyKind};
+use oxc_span::GetSpan;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{Attribute, AttributeKind, AttributeValue, Part, Printer};
 
@@ -27,9 +28,10 @@ impl Printer<'_, '_, '_> {
         match a.name.text(source_text) {
             "runes" | "immutable" | "accessors" | "preserveWhitespace" => match parts {
                 None => true,
-                Some([Part::Expression { expression, .. }]) => {
-                    matches!(c.javascript.kind(*expression), Kind::Boolean(_))
-                }
+                Some([Part::Expression { expression, .. }]) => matches!(
+                    c.javascript.get_expression(*expression),
+                    Expression::BooleanLiteral(_)
+                ),
                 Some(_) => false,
             },
             "namespace" => matches!(
@@ -45,10 +47,13 @@ impl Printer<'_, '_, '_> {
             "css" => text() == Some("injected"),
             "customElement" => match parts {
                 Some([Part::Expression { expression, .. }])
-                    if !matches!(c.javascript.kind(*expression), Kind::String) =>
+                    if !matches!(
+                        c.javascript.get_expression(*expression),
+                        Expression::StringLiteral(_)
+                    ) =>
                 {
-                    matches!(c.javascript.kind(*expression), Kind::Null)
-                        || self.is_valid_custom_element(*expression)
+                    let e = c.javascript.get_expression(*expression);
+                    matches!(e, Expression::NullLiteral(_)) || self.is_valid_custom_element(e)
                 }
                 _ => text().is_some_and(is_valid_tag),
             },
@@ -57,56 +62,55 @@ impl Printer<'_, '_, '_> {
     }
 
     /// A string literal's value, when it has no escape.
-    fn plain_string(&self, expression: NodeIdentifier) -> Option<&str> {
-        let javascript = &self.c.javascript;
-        if !matches!(javascript.kind(expression), Kind::String) {
+    fn plain_string(&self, expression: ExpressionIdentifier) -> Option<&str> {
+        self.plain_string_of(self.c.javascript.get_expression(expression))
+    }
+
+    fn plain_string_of(&self, e: &Expression<'_>) -> Option<&str> {
+        if !matches!(e, Expression::StringLiteral(_)) {
             return None;
         }
-        let raw = javascript
-            .source_location(expression)
-            .span()?
-            .text(self.source_text);
+        let at = e.span();
+        let raw = &self.source_text[at.start as usize..at.end as usize];
         let inner = raw.get(1..raw.len() - 1)?;
         (!inner.contains('\\')).then_some(inner)
     }
 
     /// `read_options`' checks of a `customElement={{ … }}` object, for plain properties only.
-    fn is_valid_custom_element(&self, object: NodeIdentifier) -> bool {
-        let javascript = &self.c.javascript;
-        let properties = |node| match javascript.kind(node) {
-            Kind::Object(properties) => Some(
-                properties
-                    .iter()
-                    .map(|&p| match javascript.kind(p) {
-                        Kind::Property {
-                            key,
-                            value,
-                            computed: false,
-                            method: false,
-                            getter: false,
-                            setter: false,
-                            ..
-                        } if matches!(javascript.kind(key), Kind::Identifier(_)) => {
-                            Some((javascript.name(key), value))
+    fn is_valid_custom_element(&self, object: &Expression<'_>) -> bool {
+        fn properties<'e>(node: &'e Expression<'e>) -> Option<Vec<(&'e str, &'e Expression<'e>)>> {
+            let Expression::ObjectExpression(object) = node else {
+                return None;
+            };
+            object
+                .properties
+                .iter()
+                .map(|p| match p {
+                    ObjectPropertyKind::ObjectProperty(p)
+                        if !p.computed && !p.method && p.kind == PropertyKind::Init =>
+                    {
+                        match &p.key {
+                            PropertyKey::StaticIdentifier(key) => {
+                                Some((key.name.as_str(), &p.value))
+                            }
+                            _ => None,
                         }
-                        _ => None,
-                    })
-                    .collect::<Option<Vec<_>>>(),
-            )
-            .flatten(),
-            _ => None,
-        };
+                    }
+                    _ => None,
+                })
+                .collect()
+        }
         let Some(options) = properties(object) else {
             return false;
         };
         // Svelte reads the first property of each name.
         let first = |name: &str| options.iter().find(|(n, _)| *n == name).map(|&(_, v)| v);
-        if first("tag").is_some_and(|v| !self.plain_string(v).is_some_and(is_valid_tag)) {
+        if first("tag").is_some_and(|v| !self.plain_string_of(v).is_some_and(is_valid_tag)) {
             return false;
         }
         if first("shadow").is_some_and(|v| {
-            !matches!(self.plain_string(v), Some("open" | "none"))
-                && !matches!(javascript.kind(v), Kind::Object(_))
+            !matches!(self.plain_string_of(v), Some("open" | "none"))
+                && !matches!(v, Expression::ObjectExpression(_))
         }) {
             return false;
         }
@@ -118,11 +122,11 @@ impl Printer<'_, '_, '_> {
                 properties(prop).is_some_and(|fields| {
                     fields.iter().all(|&(name, v)| match name {
                         "type" => matches!(
-                            self.plain_string(v),
+                            self.plain_string_of(v),
                             Some("String" | "Number" | "Boolean" | "Array" | "Object")
                         ),
-                        "reflect" => matches!(javascript.kind(v), Kind::Boolean(_)),
-                        "attribute" => self.plain_string(v).is_some(),
+                        "reflect" => matches!(v, Expression::BooleanLiteral(_)),
+                        "attribute" => self.plain_string_of(v).is_some(),
                         _ => false,
                     })
                 })

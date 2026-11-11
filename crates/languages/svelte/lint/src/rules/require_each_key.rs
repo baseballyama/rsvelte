@@ -2,7 +2,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 
-use super::node_span;
+use super::nodes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -34,11 +34,11 @@ impl SvelteRule for RequireEachKey {
                 continue;
             };
             // `{#each { length: 8 }}` has no item to key.
-            if context.is_none() || !key.is_none() {
+            let (Some(context), None) = (context, key) else {
                 continue;
-            }
-            let last = index.opt().unwrap_or(context);
-            let after = node_span(&component.javascript, last).end_offset;
+            };
+            let last = index.unwrap_or(context);
+            let after = nodes::span(component.javascript.get_pattern(last)).end_offset;
             let closing = component.tokens.get(
                 component
                     .tokens

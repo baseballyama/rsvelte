@@ -90,7 +90,7 @@ pub fn compile(source: &str, options: &CompileOptions) -> Result<CompileResult, 
     );
     let document = document(&options.filename, source)?;
     let context = DocumentContext::new(&document, registry.artifacts());
-    let compiled = crate::task::compiled(&context, options.generate)?;
+    let compiled = crate::task::compiled(&context, options.generate, true)?;
     let map = compiled
         .javascript
         .source_map(context.line_index(), &options.filename);

@@ -2,7 +2,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     self, Component, TemplateNode, TemplateNodeIdentifier, decode_attribute,
 };
-use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{
     Attribute, AttributeValue, Await, Branch, Children, CompilerNodeIdentifier, CompilerSyntaxTree,
@@ -74,7 +74,7 @@ impl SurfaceBuilder<'_> {
                 ..
             } => {
                 let kind = self.b.element_kind(name.text(source_text), parent);
-                if component != NodeIdentifier::NONE {
+                if let Some(component) = component {
                     self.b.component_reference(identifier, component);
                 }
                 let has_this = matches!(
@@ -206,19 +206,16 @@ impl SurfaceBuilder<'_> {
                 parameters,
                 body,
                 ..
-            } => {
-                let parameters = self.b.javascript_list(c.javascript_list(parameters));
-                NodeKind::Snippet(Snippet {
-                    name,
-                    parameters,
-                    body: self.list(c.children(body), Some(identifier)),
-                })
-            }
+            } => NodeKind::Snippet(Snippet {
+                name,
+                parameters,
+                body: self.list(c.children(body), Some(identifier)),
+            }),
             TemplateNode::Render { expression, .. } => NodeKind::Render { expression },
             TemplateNode::Html { expression, .. } => NodeKind::Html { expression },
             TemplateNode::Const { declaration, .. } => NodeKind::Const { declaration },
             TemplateNode::Debug { identifiers, .. } => NodeKind::Debug {
-                identifiers: self.b.javascript_list(c.javascript_list(identifiers)),
+                identifiers: self.b.debug_identifiers(c.debug_identifiers(identifiers)),
             },
             TemplateNode::Declaration { declaration, .. } => NodeKind::Declaration { declaration },
         };
@@ -235,7 +232,7 @@ fn modifiers(c: &Component, source_text: &str, a: &syntax_tree::Attribute) -> Mo
 }
 
 /// The one expression of a directive's value, if it has one.
-fn directive_expression(c: &Component, a: &syntax_tree::Attribute) -> Option<NodeIdentifier> {
+fn directive_expression(c: &Component, a: &syntax_tree::Attribute) -> Option<ExpressionIdentifier> {
     match a.value {
         syntax_tree::AttributeValue::True => None,
         syntax_tree::AttributeValue::Parts(r) => match c.parts(r) {
@@ -255,13 +252,13 @@ fn attribute_value(c: &Component, source_text: &str, a: &syntax_tree::Attribute)
         }
         syntax_tree::AttributeKind::Use => {
             return AttributeValue::Use {
-                action: a.target,
+                action: target(a),
                 argument: directive_expression(c, a),
             };
         }
         syntax_tree::AttributeKind::Transition { intro, outro } => {
             return AttributeValue::Transition {
-                function: a.target,
+                function: target(a),
                 argument: directive_expression(c, a),
                 intro,
                 outro,
@@ -270,7 +267,7 @@ fn attribute_value(c: &Component, source_text: &str, a: &syntax_tree::Attribute)
         }
         syntax_tree::AttributeKind::Animate => {
             return AttributeValue::Animate {
-                function: a.target,
+                function: target(a),
                 argument: directive_expression(c, a),
             };
         }
@@ -319,6 +316,11 @@ fn attribute_value(c: &Component, source_text: &str, a: &syntax_tree::Attribute)
         ),
         _ => AttributeValue::Interpolated(parts.into()),
     }
+}
+
+/// What a `use:`, `transition:` or `animate:` directive names, which the parser always reads.
+const fn target(a: &syntax_tree::Attribute) -> ExpressionIdentifier {
+    a.target.expect("the parser reads a directive's target")
 }
 
 fn style_value(c: &Component, source_text: &str, a: &syntax_tree::Attribute) -> StyleValue {

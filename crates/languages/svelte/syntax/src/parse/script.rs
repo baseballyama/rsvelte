@@ -1,7 +1,6 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_syntax::parser::parse_program;
 
 use super::{ParseResult, Parser, javascript_error};
 use crate::syntax_tree::{Script, Style, TagAttributes, TokenType};
@@ -53,7 +52,7 @@ fn is_module(source_text: &str, attributes: &[TagAttributes]) -> bool {
     })
 }
 
-impl Parser<'_> {
+impl Parser<'_, '_> {
     pub(super) fn script_or_style(&mut self, start_offset: usize, name: &str) -> ParseResult<()> {
         let attributes = self.open_tag_attributes()?;
         if name == "script" {
@@ -168,18 +167,12 @@ impl Parser<'_> {
                  top-level `<script module>` element",
             );
         }
-        let (tokens, comments) = (
-            self.component.javascript.tokens.len(),
-            self.component.javascript.comments.len(),
-        );
-        let program = parse_program(
-            &mut self.component.javascript,
-            self.source_text,
-            content,
-            typescript,
-        )
-        .map_err(javascript_error)?;
-        self.javascript_region(content.start_offset, content.end_offset, tokens, comments);
+        let source_type = self.source_type();
+        let program = self
+            .builder
+            .program(content, source_type)
+            .map_err(javascript_error)?;
+        self.javascript_region(content.start_offset, content.end_offset);
         self.close_raw("script");
         let span = Span::new(start_offset as u32, self.position as u32);
         let script = Script {

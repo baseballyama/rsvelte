@@ -1,7 +1,6 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Pre($$renderer) {
-	let text = 'hi';
+	let text = "hi";
 	$$renderer.push(`<pre>
   a
 	${$.escape(text)}

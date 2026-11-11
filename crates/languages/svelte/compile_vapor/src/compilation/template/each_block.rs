@@ -1,8 +1,10 @@
+use oxc_span::GetSpan;
+
 use super::{
-    AttributeValue, Builder, Children, CompilerNodeIdentifier, CompilerSyntaxTree,
-    DirectiveExpression, DirectiveName, Helper, LoopExpression, NodeIdentifier, NodeKind, Parent,
-    R, SourceLocation, Verbatim, bound, copy, directive, vue,
+    AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, DirectiveExpression,
+    DirectiveName, Helper, NodeKind, Parent, R, Template, directive, vue,
 };
+use crate::compilation::span_of;
 
 fn has_animation(tree: &CompilerSyntaxTree, body: Children) -> bool {
     tree.children(body).iter().any(|&child| {
@@ -15,11 +17,7 @@ fn has_animation(tree: &CompilerSyntaxTree, body: Children) -> bool {
     })
 }
 
-impl Builder<'_, '_> {
-    #[expect(
-        clippy::too_many_lines,
-        reason = "the loop and fallback share one evaluated collection"
-    )]
+impl Template<'_, '_, '_> {
     pub(super) fn each(
         &mut self,
         identifier: CompilerNodeIdentifier,
@@ -27,75 +25,50 @@ impl Builder<'_, '_> {
         preserve_whitespace: bool,
         out: &mut Vec<vue::CompilerNodeIdentifier>,
     ) -> R<()> {
-        let (compiler_syntax_tree, javascript) = (self.i.compiler_syntax_tree, self.i.javascript);
+        let b = self.b;
+        let (compiler_syntax_tree, javascript) =
+            (self.i.compiler_syntax_tree, &self.i.component.javascript);
         let node = compiler_syntax_tree.node(identifier);
         let NodeKind::Each(each) = &node.kind else {
             unreachable!("called on an each")
         };
-        self.render_read(each.collection)?;
-        let mut source = self.each_source(each.collection);
+        self.helpers.insert(if self.i.server {
+            Helper::EachServer
+        } else {
+            Helper::Each
+        });
+        let collection = self.template_expression(each.collection);
+        let mut source = self.call("$$each", [collection]);
         let mut wrapper = None;
         let mut vue_parent = vue_parent;
         let collection_name = format!("$$each_collection_{}", node.span.start_offset);
         if each.fallback.is_some() {
-            let parameter = self.to.identifier(&collection_name);
-            let array = self.to.array(&[source], SourceLocation::SYNTHETIC);
-            let props = self.vb.props([directive(
-                DirectiveName::For,
-                None,
-                DirectiveExpression::For(LoopExpression {
-                    parameters: vec![parameter],
-                    source: array,
-                }),
-                node.span,
-            )]);
-            let element = vue::Element {
-                tag: super::spelled("template", node.span),
-                tag_type: vue::TagType::Template,
-                props,
-                children: vue::Children::default(),
-            };
-            let identifier =
-                self.vb
-                    .node(vue::NodeKind::Element(element), node.span, vue_parent, 0);
-            wrapper = Some(identifier);
-            vue_parent = Some(identifier);
-            source = self.to.identifier(&collection_name);
+            let parameter = b.parameter(b.binding(&collection_name));
+            let property = self.loop_directive([parameter], b.array([source]), node.span);
+            let scope = self.template_node("template", node.span, vec![property], vue_parent);
+            wrapper = Some(scope);
+            vue_parent = Some(scope);
+            source = b.id(&collection_name);
         }
-        let context = if let Some(context) = each.context() {
-            self.template_expression(context)
-        } else {
-            self.to
-                .identifier(&format!("$$each_item_{}", node.span.start_offset))
-        };
+        let context = each.context.map_or_else(
+            || b.parameter(b.binding(&format!("$$each_item_{}", node.span.start_offset))),
+            |context| self.parameter(javascript.get_pattern(context)),
+        );
         let mut parameters = vec![context];
-        if let Some(i) = each.index() {
-            parameters.push(copy(javascript, self.to, &mut Verbatim, i));
+        if let Some(index) = each.index {
+            parameters.push(self.parameter(javascript.get_pattern(index)));
         }
         let mut lead = Vec::new();
         if each.fallback.is_some() {
-            let list = self.to.identifier(&collection_name);
-            let length = self.to.dot(list, "length");
-            lead.push(directive(
-                DirectiveName::If,
-                None,
-                DirectiveExpression::Expression(length),
-                node.span,
-            ));
+            let length = b.member(b.id(&collection_name), "length");
+            lead.push(self.directive_with(DirectiveName::If, Some(length), node.span));
         }
-        lead.push(directive(
-            DirectiveName::For,
-            None,
-            DirectiveExpression::For(LoopExpression { parameters, source }),
-            node.span,
-        ));
-        if let Some(k) = each.key().filter(|_| each.keyed(javascript)) {
-            self.render_read(k)?;
-            let exp = self.template_expression(k);
-            let span = javascript.source_location(k).span().unwrap_or(node.span);
-            lead.push(bound("$$key", span, exp, span));
+        lead.push(self.loop_directive(parameters, source, node.span));
+        if let Some(key) = each.key.filter(|_| each.keyed(javascript)) {
+            let span = span_of(self.source(key).span());
+            let value = self.template_expression(key);
+            lead.push(self.bound("$$key", span, value, span));
         }
-        let mut children = Vec::new();
         let loop_node = self.block_element(
             Parent::Each,
             compiler_syntax_tree.children(each.body),
@@ -107,8 +80,8 @@ impl Builder<'_, '_> {
         if has_animation(compiler_syntax_tree, each.body) {
             self.animation_loops.insert(loop_node);
         }
-        children.push(loop_node);
-        if let Some(f) = each.fallback {
+        let mut children = vec![loop_node];
+        if let Some(fallback) = each.fallback {
             let lead = vec![directive(
                 DirectiveName::Else,
                 None,
@@ -117,7 +90,7 @@ impl Builder<'_, '_> {
             )];
             children.push(self.block_element(
                 Parent::Each,
-                compiler_syntax_tree.children(f),
+                compiler_syntax_tree.children(fallback),
                 vue_parent,
                 lead,
                 preserve_whitespace,
@@ -132,15 +105,5 @@ impl Builder<'_, '_> {
             out.extend(children);
         }
         Ok(())
-    }
-
-    pub(super) fn each_source(&mut self, collection: NodeIdentifier) -> NodeIdentifier {
-        self.helpers.insert(if self.i.server {
-            Helper::EachServer
-        } else {
-            Helper::Each
-        });
-        let c = self.template_expression(collection);
-        self.call("$$each", &[c])
     }
 }

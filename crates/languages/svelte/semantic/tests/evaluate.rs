@@ -1,25 +1,39 @@
-use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
-use rsvelte_svelte_semantic::evaluate::{Evaluation, Evaluator, Tree, Value};
-use rsvelte_svelte_semantic::resolve;
-use rsvelte_typescript_syntax::{Kind, SyntaxTree, parser};
+use oxc_allocator::Allocator;
+use oxc_ast::ast::Statement;
+use rsvelte_svelte_semantic::compiler_syntax_tree::lower;
+use rsvelte_svelte_semantic::evaluate::{Evaluation, Evaluator, Value};
+use rsvelte_svelte_semantic::resolve::{Resolution, resolve};
 
-fn evaluate(source: &str) -> Evaluation {
-    let mut tree = SyntaxTree::new();
-    let program =
-        parser::parse_program(&mut tree, source, Span::new(0, source.len() as u32), false)
-            .expect("valid JavaScript");
-    let Kind::Program(body) = tree.kind(program) else {
-        unreachable!("a program")
-    };
-    let Kind::ExpressionStatement(expression) = tree.kind(*body.last().expect("a statement"))
-    else {
+/// The resolution of a component whose instance script is `script`.
+fn resolution(script: &str) -> Resolution {
+    // TypeScript parses every script these tests write.
+    let source = format!("<script lang=\"ts\">{script}</script>");
+    let component = rsvelte_svelte_syntax::parse::parse(&source).expect("parses");
+    let lowered = lower(&component, &source);
+    resolve(
+        &component.javascript,
+        component.instance.as_ref().map(|s| s.program),
+        None,
+        &lowered,
+    )
+}
+
+/// The value of the last statement of `script`, an expression.
+fn evaluate(script: &str) -> Evaluation {
+    let resolution = resolution(script);
+    let program = resolution
+        .semantic()
+        .nodes()
+        .iter()
+        .find_map(|node| match node.kind() {
+            oxc_ast::AstKind::Program(program) => Some(program),
+            _ => None,
+        })
+        .expect("a program");
+    let Some(Statement::ExpressionStatement(statement)) = program.body.last() else {
         unreachable!("the last statement is an expression")
     };
-    let compiler_syntax_tree =
-        CompilerSyntaxTreeBuilder::new(source, 0, 0).finish(Children::default());
-    let resolution = resolve::resolve(&tree, source, program, &compiler_syntax_tree);
-    resolution.evaluate(&tree, source, expression)
+    Evaluator::new(&resolution).evaluate(&statement.expression)
 }
 
 #[test]
@@ -91,26 +105,30 @@ fn alternatives_keep_value_order_and_flags() {
 
 #[test]
 fn output_identifiers_use_the_source_scope() {
-    let source = "const value = 3;";
-    let mut tree = SyntaxTree::new();
-    let program =
-        parser::parse_program(&mut tree, source, Span::new(0, source.len() as u32), false)
-            .expect("a program");
-    let compiler_syntax_tree =
-        CompilerSyntaxTreeBuilder::new(source, 0, 0).finish(Children::default());
-    let resolution = resolve::resolve(&tree, source, program, &compiler_syntax_tree);
-    let mut output = SyntaxTree::new();
-    let expression = output.identifier("value");
-    let scope = resolution.sem.scope_of(program).expect("a program scope");
-    let mut evaluator = Evaluator::new(&tree, source, &resolution);
+    let resolution = resolution("const value = 3;");
+    let allocator = Allocator::default();
+    // Parsed apart from the component, so the analysis never resolved it.
+    let output = oxc_parser::Parser::new(&allocator, "value", oxc_span::SourceType::mjs())
+        .parse_expression()
+        .expect("an expression");
+    let mut evaluator = Evaluator::in_scope(&resolution, resolution.instance_scope());
     for _ in 0..2 {
-        assert_eq!(
-            evaluator
-                .evaluate(Tree::Output(&output, scope), expression)
-                .value,
-            Value::Number(3.0)
-        );
+        assert_eq!(evaluator.evaluate(&output).value, Value::Number(3.0));
     }
+}
+
+#[test]
+fn an_output_identifier_folds_through_its_bindings_rune() {
+    let resolution = resolution("let text = $state('Hello');");
+    let allocator = Allocator::default();
+    let output = oxc_parser::Parser::new(&allocator, "text", oxc_span::SourceType::mjs())
+        .parse_expression()
+        .expect("an expression");
+    let mut evaluator = Evaluator::in_scope(&resolution, resolution.instance_scope());
+    assert_eq!(
+        evaluator.evaluate(&output).value,
+        Value::String("Hello".into())
+    );
 }
 
 #[test]
@@ -130,4 +148,52 @@ fn a_string_converts_to_a_number_or_a_bigint_after_javascript_trims_it() {
     for (source, expected) in [(r#"1n < "\uFEFF2";"#, true), (r#"1n < "\u00852";"#, false)] {
         assert_eq!(evaluate(source).value, Value::Boolean(expected), "{source}");
     }
+}
+
+#[test]
+fn types_around_a_binding_and_its_initial_fold_away() {
+    let folded =
+        evaluate("let count = $state(1)!; let double = $derived(count! * 2)!; double! as number;");
+    assert_eq!(folded.value, Value::Number(2.0));
+}
+
+#[test]
+fn a_regular_expression_is_one_known_object_per_literal() {
+    let string = |s: &str| Value::String(s.into());
+    // From the official compiler's server output.
+    for (source, expected) in [
+        ("const re = /a[/]b/ig; String(re);", string("/a[/]b/gi")),
+        ("const re = /a[/]b/ig; re + 1;", string("/a[/]b/gi1")),
+        (
+            "const re = /a[/]b/ig; re == '/a[/]b/gi';",
+            Value::Boolean(true),
+        ),
+        ("const re = /a[/]b/ig; re === re;", Value::Boolean(true)),
+        (
+            "const re = /x/; const other = /x/; re === other;",
+            Value::Boolean(false),
+        ),
+        (
+            "const re = /x/; const other = /x/; re == other;",
+            Value::Boolean(false),
+        ),
+        ("const re = /x/; typeof re;", string("object")),
+        ("const re = /x/; !re;", Value::Boolean(false)),
+        ("const re = /x/; re < 'b';", Value::Boolean(true)),
+    ] {
+        assert_eq!(evaluate(source).value, expected, "{source}");
+    }
+    assert!(evaluate("/x/;").is_known);
+    assert_eq!(
+        evaluate("const re = /x/; -re;")
+            .value
+            .to_javascript_string(),
+        "NaN"
+    );
+}
+
+#[test]
+fn an_exported_binding_is_not_constant() {
+    assert!(evaluate("let klass = ''; klass;").is_known);
+    assert!(!evaluate("let klass = ''; export { klass }; klass;").is_known);
 }

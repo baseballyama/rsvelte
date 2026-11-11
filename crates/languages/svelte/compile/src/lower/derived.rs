@@ -1,11 +1,11 @@
 //! `$.derived`'s callback, for `$derived(…)` in the script and for a component's memoized props.
 
-use rsvelte_kernel::source::positions::{SourceLocation, Span};
+use oxc_ast::ast::Expression;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
-use rsvelte_typescript_semantic::scope::DeclarationKind;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
-use super::javascript::unthunk;
+use super::Builder;
+use crate::lower::builder::Runtime;
 
 #[derive(Clone, Copy)]
 pub(super) enum Created {
@@ -17,47 +17,44 @@ pub(super) enum Created {
 
 /// Upstream's `b.thunk(value)`, except that `() => f()` stays an arrow unless `source`, the
 /// expression `value` was built from, calls a function `$.derived(f)` may keep.
-pub(super) fn callback(
-    syntax_tree: &SyntaxTree,
+pub(super) fn callback<'o>(
+    b: &Builder<'o>,
     res: &Resolution,
-    out: &mut SyntaxTree,
-    source: Option<NodeIdentifier>,
-    value: NodeIdentifier,
+    source: Option<&Expression<'_>>,
+    value: Expression<'o>,
     created: Created,
-) -> NodeIdentifier {
-    let arrow = out.arrow(&[], value, true, false, SourceLocation::SYNTHETIC);
-    if source.is_none_or(|source| final_callee(syntax_tree, res, source, created)) {
-        unthunk(out, arrow)
+) -> Expression<'o> {
+    if keeps_callee(res, source, created) {
+        b.thunk(value)
     } else {
-        arrow
+        b.arrow(b.params([]), value)
     }
 }
 
-/// Whether the callee of the call `source` already holds the function it keeps when the derived
-/// is created: one never reassigned, and a function, an import or declared before the derived.
-/// A global counts as final, as upstream treats it, although the component cannot see its writes.
-fn final_callee(
-    syntax_tree: &SyntaxTree,
+/// Whether `$.derived` may keep the callee of the call `source` instead of a thunk: one never
+/// reassigned, and a function, an import or declared before the derived. A global counts as
+/// final, as upstream treats it, although the component cannot see its writes.
+pub(super) fn keeps_callee(
     res: &Resolution,
-    source: NodeIdentifier,
+    source: Option<&Expression<'_>>,
     created: Created,
 ) -> bool {
-    let Kind::Call { callee, .. } = syntax_tree.kind(source) else {
+    let Some(Expression::CallExpression(call)) = source else {
         return true;
     };
-    res.sem.binding_of(callee).is_none_or(|b| {
-        let binding = &res.sem.bindings[b];
-        binding.writes == 0
+    let Expression::Identifier(callee) = &call.callee else {
+        return true;
+    };
+    res.symbol(callee).is_none_or(|symbol| {
+        let scoping = res.scoping();
+        let flags = scoping.symbol_flags(symbol);
+        !res.reassigned(symbol)
             && match created {
                 Created::Template => true,
                 Created::Script(at) => {
-                    matches!(
-                        binding.kind,
-                        DeclarationKind::Function | DeclarationKind::Import
-                    ) || syntax_tree
-                        .source_location(binding.node)
-                        .span()
-                        .is_some_and(|span| span.start_offset < at.start_offset)
+                    flags.is_function()
+                        || flags.is_import()
+                        || scoping.symbol_span(symbol).start < at.start_offset
                 }
             }
     })

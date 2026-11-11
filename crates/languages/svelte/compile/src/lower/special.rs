@@ -8,7 +8,6 @@ pub(super) fn validate(
 ) -> Result<Option<super::custom_element::CustomElement>, Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
-    validate_snippet_parameters(input)?;
     let mut seen = 0_u8;
     let mut custom_element = None;
     for (identifier, element) in tree.elements() {
@@ -118,30 +117,6 @@ fn validate_globals(
     Ok(())
 }
 
-fn validate_snippet_parameters(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
-    let component = input.component;
-    let tree = component.compiler_syntax_tree;
-    for node in &tree.nodes {
-        let NodeKind::Snippet(snippet) = &node.kind else {
-            continue;
-        };
-        for &parameter in tree.javascript_list(snippet.parameters) {
-            if matches!(component.javascript.kind(parameter), super::Kind::Rest(_)) {
-                return invalid(
-                    "snippet_invalid_rest_parameter",
-                    "Snippets do not support rest parameters; use an array instead",
-                    component
-                        .javascript
-                        .source_location(parameter)
-                        .span()
-                        .expect("a parsed parameter"),
-                );
-            }
-        }
-    }
-    Ok(())
-}
-
 fn validate_placement(
     tree: &super::CompilerSyntaxTree,
     source: &str,
@@ -215,8 +190,13 @@ fn validate_options(
         let value = match attribute.value {
             AttributeValue::Boolean => Some(true),
             _ => single_expression(&attribute.value).and_then(|e| {
-                match input.component.javascript.kind(e) {
-                    super::Kind::Boolean(value) => Some(value),
+                match input
+                    .component
+                    .javascript
+                    .get_expression(e)
+                    .get_inner_expression()
+                {
+                    oxc_ast::ast::Expression::BooleanLiteral(literal) => Some(literal.value),
                     _ => None,
                 }
             }),
@@ -232,11 +212,15 @@ fn validate_options(
 }
 
 pub(super) fn invalid<T>(code: &'static str, message: &str, span: Span) -> Result<T, Diagnostic> {
-    Err(Diagnostic::error(
+    Err(error(code, message, span))
+}
+
+pub(super) fn error(code: &'static str, message: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
         code,
         format!("{message}\nhttps://svelte.dev/e/{code}"),
         span,
-    ))
+    )
 }
 
 #[derive(Clone, Copy)]

@@ -1,5 +1,4 @@
-import * as $ from 'svelte/internal/server';
-
+import * as $ from "svelte/internal/server";
 export default function Element_children($$renderer) {
 	let tag = "div";
 	let text = "Hello";

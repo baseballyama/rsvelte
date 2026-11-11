@@ -1,9 +1,12 @@
+use oxc_ast::AstKind;
+use oxc_ast::ast::{
+    Argument, CallExpression, Expression, FormalParameters, FunctionBody, Statement,
+};
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript_syntax::syntax_tree::flag;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
-use super::nodes::{span, text, walk};
+use super::javascript::walk;
+use super::nodes::{is_named, span, text};
 use super::runes::runes_or_undetermined;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -26,75 +29,68 @@ impl SvelteRule for PreferDerivedOverDerivedBy {
         if !runes_or_undetermined(file) {
             return;
         }
-        let tree = file.javascript();
         let source = file.source();
         walk(file, |node| {
-            let Some(expression) = derived_by_expression(tree, node) else {
+            let AstKind::CallExpression(call) = node.kind() else {
                 return;
             };
-            let replacement = format!("$derived({})", text(tree, expression, source));
+            let Some(expression) = derived_by_expression(call) else {
+                return;
+            };
+            let replacement = format!("$derived({})", text(expression, source));
             reporter.report(
                 Report::range(
                     "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions.",
-                    span(tree, node),
+                    span(call),
                 )
                 .message_id("unnecessary")
-                .fix(Fix::replace(span(tree, node), replacement)),
+                .fix(Fix::replace(span(call), replacement)),
             );
         });
     }
 }
 
 /// The expression a `$derived.by(() => expression)` call returns, when it could be `$derived`.
-fn derived_by_expression(tree: &SyntaxTree, call: NodeIdentifier) -> Option<NodeIdentifier> {
-    let Kind::Call {
-        callee,
-        arguments: &[argument],
-        ..
-    } = tree.kind(call)
-    else {
+fn derived_by_expression<'a>(call: &'a CallExpression<'a>) -> Option<&'a Expression<'a>> {
+    let [argument] = call.arguments.as_slice() else {
         return None;
     };
-    let Kind::Member {
-        object,
-        property,
-        computed: false,
-        ..
-    } = tree.kind(callee)
-    else {
+    let Expression::StaticMemberExpression(member) = &call.callee else {
         return None;
     };
-    if tree.atom(object).map(|a| tree.atoms.get(a)) != Some("$derived")
-        || tree.atom(property).map(|a| tree.atoms.get(a)) != Some("by")
-    {
+    if !is_named(&member.object, "$derived") || member.property.name != "by" {
         return None;
     }
-    let body = match tree.kind(argument) {
-        Kind::Arrow {
-            parameters: [],
-            body,
-            is_async: false,
-            expression_body,
-        } => {
-            if expression_body {
-                return Some(body);
+    let body = match argument {
+        Argument::ArrowFunctionExpression(arrow)
+            if !arrow.r#async && no_parameters(&arrow.params) =>
+        {
+            if let Some(expression) = arrow.body.as_expression() {
+                return Some(expression);
             }
-            body
+            arrow.body.as_function_body()?
         }
-        Kind::Function {
-            parameters: [],
-            body,
-            is_async: false,
-            declaration: false,
-            ..
-        } if tree.flags(argument) & flag::GENERATOR == 0 => body,
+        Argument::FunctionExpression(function)
+            if !function.r#async && !function.generator && no_parameters(&function.params) =>
+        {
+            function.body.as_deref()?
+        }
         _ => return None,
     };
-    match tree.kind(body) {
-        Kind::Block(&[statement]) => match tree.kind(statement) {
-            Kind::Return(argument) => argument,
-            _ => None,
-        },
+    only_statement(body).and_then(|statement| match statement {
+        Statement::ReturnStatement(statement) => statement.argument.as_ref(),
+        _ => None,
+    })
+}
+
+fn no_parameters(parameters: &FormalParameters<'_>) -> bool {
+    parameters.items.is_empty() && parameters.rest.is_none()
+}
+
+/// The one statement of a body, a directive counting as a statement as in `ESTree`.
+fn only_statement<'a>(body: &'a FunctionBody<'a>) -> Option<&'a Statement<'a>> {
+    match (body.directives.as_slice(), body.statements.as_slice()) {
+        ([], [statement]) => Some(statement),
         _ => None,
     }
 }

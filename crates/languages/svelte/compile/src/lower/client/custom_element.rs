@@ -1,30 +1,28 @@
 use std::borrow::Cow;
 
-use rsvelte_typescript_compile::copy::Verbatim;
+use oxc_allocator::{CloneIn, GetAllocator};
+use oxc_ast::ast::{BindingIdentifier, Expression, ObjectPropertyKind, PropertyKind, Statement};
+use oxc_semantic::SymbolId;
+use rsvelte_typescript_tree::Tree;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::{
-    ClientCompilationContext, Kind, NodeIdentifier, SourceLocation, copy, flag, init_property,
-    runtime_call,
-};
+use super::ClientCompilationContext;
 use crate::lower::BindingKind;
-use crate::lower::custom_element::{Shadow, Tag, option_property};
-use crate::lower::javascript::{accessor, prop_alias};
+use crate::lower::builder::Runtime;
+use crate::lower::custom_element::{CustomElement, Shadow, Tag, option_property};
+use crate::lower::javascript::prop_alias;
 
-impl ClientCompilationContext<'_> {
+impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn custom_element_stylesheet(
-        &mut self,
+        &self,
         stylesheet: Option<&str>,
-    ) -> Option<NodeIdentifier> {
+    ) -> Option<Statement<'o>> {
         self.custom_element?;
         let stylesheet = stylesheet?;
-        let hash = self.out.write_string(Self::stylesheet_hash(self.identity));
-        let hash = init_property(&mut self.out, "hash", hash);
-        let code = self.out.write_string(stylesheet);
-        let code = init_property(&mut self.out, "code", code);
-        let value = self.out.object(&[hash, code], SourceLocation::SYNTHETIC);
-        let name = self.out.identifier("$$css");
-        Some(self.out.let_(flag::CONST, name, Some(value)))
+        let b = self.b;
+        let hash = b.init("hash", b.string(Self::stylesheet_hash(self.identity)));
+        let code = b.init("code", b.string(stylesheet));
+        Some(b.const_("$$css", b.object([hash, code])))
     }
 
     fn stylesheet_hash(identity: &crate::OutputIdentity) -> &str {
@@ -34,52 +32,43 @@ impl ClientCompilationContext<'_> {
             .expect("a stylesheet hash")
     }
 
-    pub(super) fn custom_element_exports(&mut self) -> Vec<NodeIdentifier> {
+    /// The props the instance declares, in declaration order.
+    fn props(&self) -> impl Iterator<Item = SymbolId> {
+        let res = self.res;
+        res.scoping().symbol_ids().filter(move |&symbol| {
+            matches!(
+                res.binding(symbol).kind,
+                BindingKind::Property | BindingKind::BindableProperty
+            )
+        })
+    }
+
+    pub(super) fn custom_element_exports(&self) -> Vec<ObjectPropertyKind<'o>> {
         if self.custom_element.is_none() {
             return Vec::new();
         }
+        let b = self.b;
         let mut properties = Vec::new();
-        for (identifier, binding) in self.res.bindings.iter_enumerated() {
-            if !matches!(
-                binding.kind,
-                BindingKind::Property | BindingKind::BindableProperty
-            ) {
-                continue;
-            }
-            let name = self
-                .javascript
-                .atoms
-                .get(self.res.sem.bindings[identifier].name);
+        for symbol in self.props() {
+            let binding = self.res.binding(symbol);
+            let name = self.res.scoping().symbol_name(symbol);
             if name.starts_with("$$") {
                 continue;
             }
-            let key = prop_alias(
-                self.javascript,
-                self.source_text,
-                binding.prop_key.expect("a property key"),
+            let key = prop_alias(binding.prop_key.expect("a property key"));
+            let read = b.return_(Some(b.call(b.id(name), [])));
+            properties.push(b.accessor(PropertyKind::Get, &key, b.params([]), [read]));
+            let parameter = binding.initial.map_or_else(
+                || b.parameter(b.binding("$$value")),
+                |initial| b.default_parameter("$$value", initial.clone_in(b.allocator())),
             );
-            let target = self.out.identifier(name);
-            let read = self.out.call0(target, &[]);
-            let read = self.out.return_(Some(read), SourceLocation::SYNTHETIC);
-            properties.push(accessor(&mut self.out, &key, &[], &[read], flag::GETTER));
-            let value = self.out.identifier("$$value");
-            let parameter = if let Some(initial) = binding.initial {
-                let initial = copy(self.javascript, &mut self.out, &mut Verbatim, initial);
-                self.out
-                    .assign_pat(value, initial, SourceLocation::SYNTHETIC)
-            } else {
-                value
-            };
-            let call = self.out.call0(target, &[value]);
-            let call = self.out.expression_statement(call);
-            let flush = self.out.runtime("$", "flush", &[]);
-            let flush = self.out.expression_statement(flush);
-            properties.push(accessor(
-                &mut self.out,
+            let call = b.stmt(b.call(b.id(name), [b.id("$$value")]));
+            let flush = b.stmt(b.runtime("flush", []));
+            properties.push(b.accessor(
+                PropertyKind::Set,
                 &key,
-                &[parameter],
-                &[call, flush],
-                flag::SETTER,
+                b.formal_parameters([parameter]),
+                [call, flush],
             ));
         }
         properties
@@ -87,39 +76,25 @@ impl ClientCompilationContext<'_> {
 
     pub(super) fn custom_element_registration(
         &mut self,
-        exports: &[NodeIdentifier],
-    ) -> Option<NodeIdentifier> {
+        exports: &[&BindingIdentifier<'_>],
+    ) -> Option<Statement<'o>> {
+        let b = self.b;
         let ce = self.custom_element.take()?;
-        let props = self.custom_element_properties(ce.props);
-        let props = self.out.object(&props, SourceLocation::SYNTHETIC);
-        let slots = self.out.array(&[], SourceLocation::SYNTHETIC);
-        let exports: Vec<NodeIdentifier> = (exports.iter())
-            .map(|&name| self.out.write_string(self.javascript.name(name)))
-            .collect();
-        let accessors = self.out.array(&exports, SourceLocation::SYNTHETIC);
+        let javascript = self.javascript;
+        let verbatim = |e: &Expression<'_>| e.clone_in(b.allocator());
+        let props = b.object(self.custom_element_properties(ce.option(javascript, "props")));
+        let slots = b.array([]);
+        let accessors = b.array(exports.iter().map(|name| b.string(&name.name)));
         let shadow = match &ce.shadow {
-            Shadow::Open => {
-                let mode = self.out.write_string("open");
-                let mode = init_property(&mut self.out, "mode", mode);
-                Some(self.out.object(&[mode], SourceLocation::SYNTHETIC))
-            }
+            Shadow::Open => Some(b.object([b.init("mode", b.string("open"))])),
             Shadow::None => None,
-            Shadow::Expression(expression) => Some(copy(
-                self.javascript,
-                &mut self.out,
-                &mut Verbatim,
-                *expression,
-            )),
+            Shadow::Expression => Some(verbatim(validated_option(ce, javascript, "shadow"))),
         };
-        let extend = ce
-            .extend
-            .map(|e| copy(self.javascript, &mut self.out, &mut Verbatim, e));
-        let name = self.out.identifier(&self.component_name);
-        let create = runtime_call(
-            &mut self.out,
+        let extend = ce.option(javascript, "extend").map(verbatim);
+        let create = b.runtime_some(
             "create_custom_element",
             vec![
-                Some(name),
+                Some(b.id(&self.component_name)),
                 Some(props),
                 Some(slots),
                 Some(accessors),
@@ -130,60 +105,47 @@ impl ClientCompilationContext<'_> {
         let call = match &ce.tag {
             Some(tag) => {
                 let tag = match tag {
-                    Tag::Static(value) => self.out.write_string(value),
-                    Tag::Expression(e) => copy(self.javascript, &mut self.out, &mut Verbatim, *e),
+                    Tag::Static(value) => b.string(value),
+                    Tag::Expression => verbatim(validated_option(ce, javascript, "tag")),
                 };
-                let registry = self.out.identifier("customElements");
-                let define = self.out.dot(registry, "define");
-                self.out.call0(define, &[tag, create])
+                b.call(b.member(b.id("customElements"), "define"), [tag, create])
             }
             None => create,
         };
-        Some(self.out.expression_statement(call))
+        Some(b.stmt(call))
     }
 
     fn custom_element_properties(
-        &mut self,
-        configured: Option<NodeIdentifier>,
-    ) -> Vec<NodeIdentifier> {
+        &self,
+        configured: Option<&Expression<'_>>,
+    ) -> Vec<ObjectPropertyKind<'o>> {
+        let b = self.b;
+        let scoping = self.res.scoping();
         let mut result = Vec::new();
         let mut definitions = FxHashMap::default();
         let mut names = Vec::new();
         if let Some(configured) = configured {
-            let Kind::Object(properties) = self.javascript.kind(configured) else {
+            let Expression::ObjectExpression(object) = configured else {
                 unreachable!("validated custom element properties")
             };
-            for &property in properties {
-                let (name, value) =
-                    option_property(self.javascript, property).expect("a validated property");
+            for property in &object.properties {
+                let (name, value) = option_property(property).expect("a validated property");
                 if definitions.insert(name, value).is_none() {
                     names.push(name);
                 }
             }
         }
-        let bindings = (!names.is_empty()).then(|| {
-            self.res
-                .sem
-                .bindings
-                .iter_enumerated()
-                .filter(|(_, binding)| {
-                    binding.scope == rsvelte_typescript_semantic::scope::ScopeIdentifier::ROOT
-                })
-                .map(|(id, binding)| (self.javascript.atoms.get(binding.name), id))
-                .collect::<FxHashMap<_, _>>()
-        });
         let mut configured_names = FxHashSet::default();
         for name in names {
             configured_names.insert(name);
             let mut attribute = None;
             let mut reflect = None;
             let mut property_type = None;
-            let Kind::Object(fields) = self.javascript.kind(definitions[name]) else {
+            let Expression::ObjectExpression(fields) = definitions[name] else {
                 unreachable!("a validated property definition")
             };
-            for &field in fields {
-                let (key, value) =
-                    option_property(self.javascript, field).expect("a validated field");
+            for field in &fields.properties {
+                let (key, value) = option_property(field).expect("a validated field");
                 match key {
                     "attribute" => attribute = Some(value),
                     "reflect" => reflect = Some(value),
@@ -191,57 +153,46 @@ impl ClientCompilationContext<'_> {
                     _ => unreachable!("a validated property field"),
                 }
             }
-            let info = bindings
-                .as_ref()
-                .and_then(|bindings| bindings.get(name))
-                .map(|&id| self.res.bindings[id]);
+            let info = scoping
+                .get_binding(self.res.instance_scope(), name.into())
+                .map(|symbol| self.res.binding(symbol));
             let key = info
                 .and_then(|info| info.prop_key)
-                .map_or(Cow::Borrowed(name), |key| {
-                    prop_alias(self.javascript, self.source_text, key)
-                });
+                .map_or(Cow::Borrowed(name), prop_alias);
             let mut fields = Vec::with_capacity(3);
-            if let Some(attribute) =
-                attribute.filter(|&e| !self.javascript.str_value(e, self.source_text).is_empty())
+            if let Some(attribute) = attribute
+                .filter(|e| !matches!(e, Expression::StringLiteral(s) if s.value.is_empty()))
             {
-                let value = copy(self.javascript, &mut self.out, &mut Verbatim, attribute);
-                fields.push(init_property(&mut self.out, "attribute", value));
+                fields.push(b.init("attribute", attribute.clone_in(b.allocator())));
             }
-            if reflect.is_some_and(|e| matches!(self.javascript.kind(e), Kind::Boolean(true))) {
-                let value = self.tru();
-                fields.push(init_property(&mut self.out, "reflect", value));
+            if reflect.is_some_and(|e| matches!(e, Expression::BooleanLiteral(l) if l.value)) {
+                fields.push(b.init("reflect", b.boolean(true)));
             }
             let property_type = property_type
-                .map(|e| copy(self.javascript, &mut self.out, &mut Verbatim, e))
+                .map(|e| e.clone_in(b.allocator()))
                 .or_else(|| {
                     info.and_then(|i| i.initial)
-                        .filter(|&e| matches!(self.javascript.kind(e), Kind::Boolean(_)))
-                        .map(|_| self.out.write_string("Boolean"))
+                        .filter(|e| matches!(e, Expression::BooleanLiteral(_)))
+                        .map(|_| b.string("Boolean"))
                 });
             if let Some(property_type) = property_type {
-                fields.push(init_property(&mut self.out, "type", property_type));
+                fields.push(b.init("type", property_type));
             }
-            let value = self.out.object(&fields, SourceLocation::SYNTHETIC);
-            result.push(init_property(&mut self.out, &key, value));
+            result.push(b.init(&key, b.object(fields)));
         }
-        for binding in &self.res.bindings {
-            if !matches!(
-                binding.kind,
-                BindingKind::Property | BindingKind::BindableProperty
-            ) {
-                continue;
-            }
-            let key = prop_alias(
-                self.javascript,
-                self.source_text,
-                binding.prop_key.expect("a property key"),
-            );
+        for symbol in self.props() {
+            let key = prop_alias(self.res.binding(symbol).prop_key.expect("a property key"));
             if configured_names.contains(&*key) {
                 continue;
             }
-            let value = self.out.object(&[], SourceLocation::SYNTHETIC);
-            result.push(init_property(&mut self.out, &key, value));
+            result.push(b.init(&key, b.object([])));
         }
         result
     }
+}
+
+/// An option that `parse` found, as the shadow or the tag it read from it says.
+fn validated_option<'t>(ce: &CustomElement, tree: &'t Tree, name: &str) -> &'t Expression<'t> {
+    ce.option(tree, name)
+        .expect("a validated custom element option")
 }

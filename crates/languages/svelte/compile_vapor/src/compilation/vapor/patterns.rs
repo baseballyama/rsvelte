@@ -1,107 +1,92 @@
-use rsvelte_typescript_compile::copy::{Verbatim, copy};
-use rsvelte_typescript_semantic::scope::BindingIdentifier;
-use rsvelte_typescript_syntax::syntax_tree::flag;
+use oxc_allocator::{Box as ArenaBox, CloneIn, GetAllocator};
+use oxc_ast::ast::{BinaryOperator, BindingPattern, Expression, FormalParameters};
+use oxc_semantic::SymbolId;
+use oxc_span::SPAN;
 
-use super::{Builder, Kind, NodeIdentifier, SYNTHETIC};
+use super::{Body, Emitter};
 
-impl Builder<'_> {
-    fn optional_parameter(&mut self, argument: NodeIdentifier) -> NodeIdentifier {
-        let name = self.to.identifier("value");
-        let undefined = self.to.identifier("undefined");
-        let field = self.to.property(name, undefined, 0, SYNTHETIC);
-        let fallback = self.to.object(&[field], SYNTHETIC);
-        self.to.assign_pat(argument, fallback, SYNTHETIC)
+impl<'o> Emitter<'_, 'o> {
+    /// `name = { value: undefined }`: a snippet's argument a render leaves out.
+    fn optional(&self, name: &str) -> oxc_ast::ast::FormalParameter<'o> {
+        let b = self.b;
+        b.default_parameter(name, b.object([b.init("value", b.id("undefined"))]))
     }
 
+    /// The parameters of a render function whose arguments are cells: a name stays one, a
+    /// pattern becomes a cell per name it binds. Returns the names it made cells.
     pub(super) fn scope_parameters(
         &mut self,
-        parameters: &[NodeIdentifier],
-        body: &mut Vec<NodeIdentifier>,
+        parameters: &FormalParameters<'_>,
+        body: &mut Body<'o>,
         optional: bool,
-    ) -> (Vec<NodeIdentifier>, Vec<BindingIdentifier>) {
-        let mut output = Vec::with_capacity(parameters.len());
+    ) -> (ArenaBox<'o, FormalParameters<'o>>, Vec<SymbolId>) {
+        let b = self.b;
+        let mut output = Vec::with_capacity(parameters.items.len());
         let mut added = Vec::new();
-        for &parameter in parameters {
-            let (pattern, default) = match self.input.javascript.kind(parameter) {
-                Kind::AssignPattern(pattern, default) => (pattern, Some(default)),
-                _ => (parameter, None),
-            };
-            let bindings: Vec<_> =
-                crate::compilation::patterns::names(&self.input.javascript, pattern)
-                    .into_iter()
-                    .filter_map(|node| {
-                        self.resolution
-                            .sem
-                            .binding_of(node)
-                            .map(|binding| (node, binding))
-                    })
-                    .collect();
-            if matches!(self.input.javascript.kind(parameter), Kind::Identifier(_)) {
-                let argument = copy(
-                    &self.input.javascript,
-                    &mut self.to,
-                    &mut Verbatim,
-                    parameter,
-                );
-                let argument = if optional {
-                    self.optional_parameter(argument)
+        for parameter in &parameters.items {
+            let names = parameter.pattern.get_binding_identifiers();
+            if let BindingPattern::BindingIdentifier(id) = &parameter.pattern
+                && parameter.initializer.is_none()
+            {
+                output.push(if optional {
+                    self.optional(&id.name)
                 } else {
-                    argument
-                };
-                output.push(argument);
+                    b.parameter(b.binding_at(&id.name, id.span))
+                });
             } else {
                 let argument = self.name();
-                let signature = if optional {
-                    self.optional_parameter(argument)
+                output.push(if optional {
+                    self.optional(&argument)
                 } else {
-                    argument
-                };
-                output.push(signature);
-                let mut value = self.to.dot(argument, "value");
-                if let Some(default) = default {
-                    let undefined = self.to.identifier("undefined");
-                    let test = self.to.binary(
-                        rsvelte_typescript_syntax::operators::BinaryOperator::StrictEq,
-                        value,
-                        undefined,
-                        SYNTHETIC,
+                    b.parameter(b.binding(&argument))
+                });
+                let mut value = b.member(b.id(&argument), "value");
+                if let Some(default) = &parameter.initializer {
+                    let test = b.binary(
+                        b.member(b.id(&argument), "value"),
+                        BinaryOperator::StrictEquality,
+                        b.id("undefined"),
                     );
                     let default = self.expression(default);
-                    value = self.to.cond(test, default, value, SYNTHETIC);
+                    value = Expression::new_conditional_expression(SPAN, test, default, value, b);
                 }
-                let pattern = self.copy_expression(pattern);
-                let declaration = self.to.let_(flag::CONST, pattern, Some(value));
-                let names: Vec<_> = bindings
-                    .iter()
-                    .map(|&(node, _)| self.to.identifier(self.input.javascript.name(node)))
-                    .collect();
-                let values = self.to.array(&names, SYNTHETIC);
-                let result = self.to.return_(Some(values), SYNTHETIC);
-                let block = self.to.block(&[declaration, result], SYNTHETIC);
-                let getter = self.to.arrow(&[], block, false, false, SYNTHETIC);
+                let pattern = self.copy_pattern(&parameter.pattern);
+                let values = names.iter().map(|name| b.id(&name.name));
+                let getter = b.arrow_block(
+                    b.params([]),
+                    [
+                        b.declaration(
+                            oxc_ast::ast::VariableDeclarationKind::Const,
+                            [b.declarator(pattern, Some(value))],
+                        ),
+                        b.return_(Some(b.array(values))),
+                    ],
+                    false,
+                );
                 let getter = self.tracked_callback(getter);
-                let computed = self.call("computed", &[getter]);
+                let computed = self.call("computed", [getter]);
                 let selected = self.declare(computed, body);
-                for (index, &(node, _)) in bindings.iter().enumerate() {
-                    let values = self.to.dot(selected, "value");
-                    let index = self.to.write_number(
-                        f64::from(u32::try_from(index).expect("patterns use u32 nodes")),
-                        SYNTHETIC,
-                    );
-                    let value = self.to.member(values, index, true, false, SYNTHETIC);
-                    let getter = self.to.arrow(&[], value, true, false, SYNTHETIC);
-                    let value = self.call("computed", &[getter]);
-                    let name = self.to.identifier(self.input.javascript.name(node));
-                    body.push(self.to.let_(flag::CONST, name, Some(value)));
+                for (index, name) in names.iter().enumerate() {
+                    let index = f64::from(u32::try_from(index).expect("fewer than u32::MAX names"));
+                    let value = b.computed(b.member(b.id(&selected), "value"), b.number(index));
+                    let value = self.call("computed", [self.arrow(value)]);
+                    body.push(b.const_(&name.name, value));
                 }
             }
             added.extend(
-                bindings
-                    .into_iter()
-                    .map(|(_, binding)| binding)
-                    .filter(|&binding| self.loop_bindings.insert(binding)),
+                names
+                    .iter()
+                    .filter_map(|name| name.symbol_id.get())
+                    .filter(|&symbol| self.cells.insert(symbol)),
             );
         }
-        (output, added)
+        (b.formal_parameters(output), added)
+    }
+
+    /// A pattern copied with its defaults' names rewritten.
+    pub(super) fn copy_pattern(&mut self, pattern: &BindingPattern<'_>) -> BindingPattern<'o> {
+        let mut value = pattern.clone_in_with_semantic_ids(self.b.allocator());
+        self.rewrite_pattern(&mut value);
+        value
     }
 }

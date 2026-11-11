@@ -152,13 +152,21 @@ fn deep(terms: usize) -> String {
     out
 }
 
+/// Lints on a worker's 2 MiB stack, inside the room the pipeline gives a document of its length.
 #[test]
 fn deep_expressions_do_not_exhaust_the_stack() {
     let module = format!("const a = 1;\nexport const b = {};\n", deep(100_000));
-    assert_eq!(
-        lint("svelte/prefer-destructured-store-props", "a.js", &module).0,
-        0
-    );
+    let found = std::thread::Builder::new()
+        .stack_size(2 << 20)
+        .spawn(move || {
+            rsvelte_kernel::performance::stack::for_text(module.len(), || {
+                lint("svelte/prefer-destructured-store-props", "a.js", &module).0
+            })
+        })
+        .expect("spawns")
+        .join()
+        .expect("runs within the stack the pipeline gives it");
+    assert_eq!(found, 0);
 }
 
 #[test]

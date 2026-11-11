@@ -10,20 +10,33 @@ mod errors;
 
 /// The output, or the code of the diagnostic that refuses the source.
 fn compile(source: &str, target: Target) -> Result<String, String> {
-    let component =
-        rsvelte_svelte_syntax::parse::parse(source).map_err(|error| error.code.to_string())?;
+    compile_at(source, target).map_err(|(code, _)| code)
+}
+
+/// The output, or the error's code and where it is (UTF-8 bytes, which equal upstream's offsets
+/// in ASCII).
+fn compile_at(source: &str, target: Target) -> Result<String, (String, (u32, u32))> {
+    let component = rsvelte_svelte_syntax::parse::parse(source).map_err(|error| {
+        (
+            error.code.to_string(),
+            (error.span.start_offset, error.span.end_offset),
+        )
+    })?;
     let tree = compiler_syntax_tree::lower(&component, source);
     let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "App.svelte");
-    let resolution = resolve::resolve_with_module(
+    let resolution = resolve::resolve(
         &component.javascript,
-        source,
-        component.program,
+        component.instance.as_ref().map(|s| s.program),
         component.module.as_ref().map(|s| s.program),
         &tree,
     );
     let analysis = analyze::analyze(&input, &resolution);
-    compile_input(&CompileInput::from(input), &resolution, &analysis, target)
-        .map_err(|error| error.code.to_string())
+    compile_input(&CompileInput::from(input), &resolution, &analysis, target).map_err(|error| {
+        (
+            error.code.to_string(),
+            (error.span.start_offset, error.span.end_offset),
+        )
+    })
 }
 
 fn compiled(source: &str, target: Target) -> String {
@@ -406,7 +419,7 @@ fn a_prop_proxies_where_upstream_reads_it_and_not_where_it_follows_the_default()
     for (script, expected) in [
         (
             "let { d = null, c = $bindable(d) } = $props();",
-            "c=$.prop($$props,'c',27,()=>$.proxy(d()));",
+            r#"c=$.prop($$props,"c",27,()=>$.proxy(d()));"#,
         ),
         (
             "let { d = null } = $props(); let s = $state(d);",
@@ -495,9 +508,9 @@ fn a_number_props_key_reads_the_prop_its_string_names() {
     let source = "<script>let { 0: a, 0x10: b, 1.5: c = 1, \"x-y\": d, \"e\": e, ...rest } = $props();</script>{a}{b}{c}{d}{e}{rest}";
     let client = squashed(source, Target::Client);
     for expected in [
-        "newSet(['$$slots','$$events','$$legacy','0','16','1.5','x-y','e'])",
+        r#"newSet(["$$slots","$$events","$$legacy","0","16","1.5","x-y","e"])"#,
         "letc=$.prop($$props,1.5,3,1)",
-        "${$$props['0']??''}${$$props['16']??''}${c()??''}${$$props['x-y']??''}${$$props.e??''}",
+        r#"${$$props["0"]??""}${$$props["16"]??""}${c()??""}${$$props["x-y"]??""}${$$props.e??""}"#,
     ] {
         assert!(client.contains(expected), "{expected} in {client}");
     }

@@ -40,7 +40,7 @@ libc.workspace = true
 [dev-dependencies]
 rsvelte_svelte_syntax.workspace = true
 rsvelte_svelte_semantic.workspace = true
-rsvelte_typescript_syntax.workspace = true
+rsvelte_typescript_tree.workspace = true
 rsvelte_typescript_semantic.workspace = true
 rsvelte_vue_semantic.workspace = true
 oxc_allocator.workspace = true
