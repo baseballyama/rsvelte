@@ -394,3 +394,31 @@ fn what_svelte_rejects_is_refused() {
 /// The `<title>` group fits only because the binary expression after it would break, a layout
 /// the expression printer does not build: Prettier prints `<title>x</title>{a +\n  b}`.
 mod review;
+
+#[test]
+fn prettier_ignore_keeps_the_next_sibling_as_the_plugin_does() {
+    // An ignored comment is itself the node kept, so the element after it is formatted.
+    assert_eq!(
+        formatted(
+            "<!-- prettier-ignore -->\n<!-- prettier-ignore -->\n<div   a=\"1\"   >x</div>\n"
+        ),
+        "<!-- prettier-ignore -->\n<!-- prettier-ignore -->\n<div a=\"1\">x</div>\n"
+    );
+    // Text that is not blank is the next node, kept with its own spaces.
+    assert_eq!(
+        formatted("<p><!-- prettier-ignore -->  text   here  <b   >x</b></p>\n"),
+        "<p><!-- prettier-ignore -->  text   here   <b>x</b></p>\n"
+    );
+    // The kept source has the `\n` line endings Prettier reads.
+    assert_eq!(
+        formatted(
+            "<!-- prettier-ignore -->\r\n<div\r\n      a=\"1\"   >x</div>\r\n<p   >y</p>\r\n"
+        ),
+        "<!-- prettier-ignore -->\n<div\n      a=\"1\"   >x</div>\n<p>y</p>\n"
+    );
+    // A deviation: the plugin keeps `<p>` as written here, which the comment does not precede.
+    assert_eq!(
+        formatted("<div><!-- prettier-ignore --></div>\n<p   class=\"a\"   >x</p>\n"),
+        "<div><!-- prettier-ignore --></div>\n<p class=\"a\">x</p>\n"
+    );
+}

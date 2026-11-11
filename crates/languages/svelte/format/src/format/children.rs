@@ -109,11 +109,19 @@ impl Printer<'_, '_, '_> {
         }
     }
 
-    /// `printChildren` (outside `<pre>`).
+    /// `printChildren`, after which a `prettier-ignore` comment that ends the list ignores
+    /// nothing.
     pub(super) fn print_children<C: AsChild>(
         &mut self,
         children: &[C],
     ) -> R<Vec<LayoutInstructionIdentifier>> {
+        let docs = self.print_list(children);
+        // The plugin's flag reaches whatever it prints next, which keeps unrelated code as written.
+        self.ignore.next = false;
+        docs
+    }
+
+    fn print_list<C: AsChild>(&mut self, children: &[C]) -> R<Vec<LayoutInstructionIdentifier>> {
         let in_pre = self.in_pre;
         // `printChildren` prints each node as it is inside `<pre>`.
         if in_pre {
@@ -217,20 +225,74 @@ impl Printer<'_, '_, '_> {
         Ok(docs)
     }
 
+    /// The plugin's test at the top of `print`: whether a `prettier-ignore` comment or range keeps
+    /// the node as written, which consumes the comment.
+    fn keeps_source(&mut self, identifier: TemplateNodeIdentifier) -> bool {
+        let range_end = || match *self.c.node(identifier) {
+            TemplateNode::Comment { data, .. } => {
+                data.text(self.source_text)
+                    .trim_matches(is_ecmascript_whitespace)
+                    == "prettier-ignore-end"
+            }
+            _ => false,
+        };
+        if !(self.ignore.next || (self.ignore.range && !range_end()))
+            || self.is_empty_text(identifier)
+        {
+            return false;
+        }
+        self.ignore.next = false;
+        true
+    }
+
+    /// The node's source, each line after the first on a literal line, as the plugin slices it
+    /// from the text Prettier read with `\n` line endings.
+    fn as_written(&mut self, identifier: TemplateNodeIdentifier) -> LayoutInstructionIdentifier {
+        let span = self.c.node(identifier).span();
+        // The JavaScript comments inside are printed with the rest of the source.
+        self.embedder.kept.push(span);
+        let mut out = self.take_buffer();
+        for (j, line) in span.text(self.source_text).split('\n').enumerate() {
+            if j > 0 {
+                out.push(self.d().literalline());
+            }
+            out.push(self.d().text(line.strip_suffix('\r').unwrap_or(line)));
+        }
+        let doc = self.cat(&out);
+        self.give_buffer(out);
+        doc
+    }
+
+    /// The plugin's `isNodeTopLevelHTML`: the node is a child of the root.
+    fn is_root_child(&self, identifier: TemplateNodeIdentifier) -> bool {
+        let c = self.c;
+        let start = c.node(identifier).span().start_offset;
+        let root = c.children(c.root);
+        root.binary_search_by_key(&start, |&n| c.node(n).span().start_offset)
+            .is_ok_and(|i| root[i] == identifier)
+    }
+
     /// `print` for one template node.
     pub(super) fn node(
         &mut self,
         identifier: TemplateNodeIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
+        if self.keeps_source(identifier) {
+            return Ok(self.as_written(identifier));
+        }
         match *self.c.node(identifier) {
             TemplateNode::Text { .. } => Ok(self.text_node(identifier)),
-            TemplateNode::Comment { data, span } => {
+            TemplateNode::Comment { data, .. } => {
                 let data = data.text(self.source_text);
-                if data
-                    .trim_matches(is_ecmascript_whitespace)
-                    .starts_with("prettier-ignore")
-                {
-                    return Err(Unsupported::at("prettier-ignore comments", span));
+                match data.trim_matches(is_ecmascript_whitespace) {
+                    "prettier-ignore-start" if self.is_root_child(identifier) => {
+                        self.ignore.range = true;
+                    }
+                    "prettier-ignore-end" if self.is_root_child(identifier) => {
+                        self.ignore.range = false;
+                    }
+                    "prettier-ignore" => self.ignore.next = true,
+                    _ => {}
                 }
                 let o = self.lit("<!--");
                 let t = self.d().text(data);
