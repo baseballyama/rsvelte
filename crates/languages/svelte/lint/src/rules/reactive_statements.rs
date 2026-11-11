@@ -1,21 +1,22 @@
 //! What the rules on Svelte 4's `$:` statements share.
 
+use oxc_ast::ast::Statement;
 use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{Token, TokenIdentifier, Tokens};
 use rsvelte_svelte_semantic::legacy::reactive_body;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
+use rsvelte_typescript_tree::ProgramIdentifier;
 
 use super::runes::runes_mode;
 
 /// The scripts' programs, the module script's first.
-pub(super) fn programs(component: &Component) -> impl Iterator<Item = NodeIdentifier> + '_ {
+fn programs(component: &Component) -> impl Iterator<Item = ProgramIdentifier> + '_ {
     component
         .module
         .iter()
+        .chain(&component.instance)
         .map(|script| script.program)
-        .chain(std::iter::once(component.program))
 }
 
 /// The top-level `$:` statements with their bodies, in source order; none in runes mode, where
@@ -23,18 +24,13 @@ pub(super) fn programs(component: &Component) -> impl Iterator<Item = NodeIdenti
 pub(super) fn reactive_statements<'a>(
     component: &'a Component,
     source: &str,
-) -> impl Iterator<Item = (NodeIdentifier, NodeIdentifier)> + 'a {
+) -> impl Iterator<Item = (&'a Statement<'a>, &'a Statement<'a>)> + 'a {
     let runes = runes_mode(component, source);
     let javascript = &component.javascript;
     programs(component)
         .filter(move |_| !runes)
-        .flat_map(move |program| match javascript.kind(program) {
-            Kind::Program(body) => body,
-            _ => &[],
-        })
-        .filter_map(move |&statement| {
-            reactive_body(javascript, statement).map(|body| (statement, body))
-        })
+        .flat_map(move |program| &javascript.get_program(program).body)
+        .filter_map(|statement| reactive_body(statement).map(|body| (statement, body)))
 }
 
 /// The `items`, keyed by start offset, grouped by the statement each starts in, for statements

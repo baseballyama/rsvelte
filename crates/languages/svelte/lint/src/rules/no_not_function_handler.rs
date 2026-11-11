@@ -1,11 +1,11 @@
+use oxc_ast::ast::Expression;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Part, TemplateNode};
-use rsvelte_typescript_syntax::syntax_tree::Class;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::constant_string::root;
-use super::expressions::Expressions;
 use super::markup::{is_attribute, parts};
+use super::nodes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -26,7 +26,6 @@ impl SvelteRule for NoNotFunctionHandler {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let source = file.source();
-        let expressions = Expressions::new(&component.javascript, source);
         for node in &component.nodes {
             let TemplateNode::Element {
                 name, attributes, ..
@@ -44,7 +43,7 @@ impl SvelteRule for NoNotFunctionHandler {
                 }
                 for part in parts(component, attribute) {
                     if let Part::Expression { expression, .. } = *part {
-                        verify(file, &expressions, expression, reporter);
+                        verify(file, expression, reporter);
                     }
                 }
             }
@@ -52,32 +51,25 @@ impl SvelteRule for NoNotFunctionHandler {
     }
 }
 
-fn verify(
-    file: &File<'_>,
-    expressions: &Expressions<'_>,
-    expression: NodeIdentifier,
-    reporter: &mut Reporter<'_>,
-) {
-    let value = root(expressions, || file.semantic(), expression);
-    // An asserted value (`'a' as never`) is not a literal to ESTree.
-    let Some(kind) = expressions.kind(value) else {
-        return;
-    };
-    let phrase = match kind {
-        Kind::Object(_) => "object",
-        Kind::Array(_) => "array",
-        Kind::Class(Class::Definition { .. }) => "class",
-        Kind::Regex { .. } => "regex value",
-        Kind::BigInt => "bigint value",
-        Kind::String | Kind::Template { .. } => "string value",
-        Kind::Number(_) => "number value",
-        Kind::Boolean(_) => "boolean value",
+fn verify(file: &File<'_>, expression: ExpressionIdentifier, reporter: &mut Reporter<'_>) {
+    let javascript = &file.component().expect("a component rule").javascript;
+    let expression = javascript.get_expression(expression);
+    // An asserted value (`'a' as never`) is not a literal to ESTree, so it matches no arm.
+    let phrase = match root(file.semantic(), expression) {
+        Expression::ObjectExpression(_) => "object",
+        Expression::ArrayExpression(_) => "array",
+        Expression::ClassExpression(_) => "class",
+        Expression::RegExpLiteral(_) => "regex value",
+        Expression::BigIntLiteral(_) => "bigint value",
+        Expression::StringLiteral(_) | Expression::TemplateLiteral(_) => "string value",
+        Expression::NumericLiteral(_) => "number value",
+        Expression::BooleanLiteral(_) => "boolean value",
         _ => return,
     };
     reporter.report(
         Report::range(
             format!("Unexpected {phrase} in event handler."),
-            expressions.span(expression),
+            nodes::span(expression),
         )
         .message_id("unexpected"),
     );

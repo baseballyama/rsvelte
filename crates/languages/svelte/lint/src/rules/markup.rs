@@ -9,7 +9,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TagAttributes, TemplateNode,
     TokenType,
 };
-use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 /// `kind: "html"`: neither a component nor a `svelte:` element.
 pub(super) fn is_html(name: &str) -> bool {
@@ -104,13 +104,13 @@ pub(super) fn value_span(component: &Component, attribute: &Attribute) -> Option
     Some(Span::new(start, attribute.span.end_offset))
 }
 
-/// Whether a comment starts inside `span`.
-pub(super) fn has_comment(javascript: &SyntaxTree, span: Span) -> bool {
-    let comments = &javascript.comments;
-    let at = comments.partition_point(|comment| comment.start_offset < span.start_offset);
-    comments
-        .get(at)
-        .is_some_and(|comment| comment.start_offset < span.end_offset)
+/// Whether a JavaScript comment starts inside `span`.
+pub(super) fn has_comment(component: &Component, span: Span) -> bool {
+    component
+        .tokens
+        .within(span)
+        .iter()
+        .any(|token| token.kind == TokenType::JavaScriptComment)
 }
 
 /// What holds a mustache tag.
@@ -129,7 +129,7 @@ pub(super) enum Holder<'a> {
 /// A `SvelteMustacheTag`: its expression, its span (braces included) and what holds it.
 #[derive(Clone, Copy)]
 pub(super) struct Mustache<'a> {
-    pub expression: NodeIdentifier,
+    pub expression: ExpressionIdentifier,
     pub span: Span,
     pub holder: Holder<'a>,
 }

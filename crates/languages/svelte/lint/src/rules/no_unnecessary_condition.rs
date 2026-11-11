@@ -1,7 +1,10 @@
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript_syntax::operators::{LogicalOperator, UnaryOperator};
-use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use oxc_ast::AstKind;
+use oxc_ast::ast::Expression;
+use oxc_semantic::AstNodes;
+use oxc_syntax::operator::{LogicalOperator, UnaryOperator};
+
+use super::nodes::span;
 
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 use crate::types::TypeFacts;
@@ -23,55 +26,35 @@ struct NoUnnecessaryCondition;
 impl SvelteRule for NoUnnecessaryCondition {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         match file.condition_types().expect("a component rule") {
-            Ok(types) => check(file.javascript(), types, reporter),
+            Ok(types) => check(file.nodes(), types, reporter),
             Err(why) => reporter.fail(why),
         }
     }
 }
 
-fn check(tree: &SyntaxTree, types: &TypeFacts, reporter: &mut Reporter<'_>) {
-    let mut assertions: Vec<_> = tree
-        .typescript
-        .iter()
-        .filter(|syntax| matches!(syntax.kind, TypeScriptKind::As | TypeScriptKind::Assertion))
-        .map(|syntax| (syntax.node, syntax.span))
-        .collect();
-    assertions.sort_unstable_by_key(|(node, _)| node.index());
-    let assertion_range = |node: NodeIdentifier| {
-        let start = assertions.partition_point(|(id, _)| id.index() < node.index());
-        let end = assertions.partition_point(|(id, _)| id.index() <= node.index());
-        start..end
+fn check(nodes: &AstNodes<'_>, types: &TypeFacts, reporter: &mut Reporter<'_>) {
+    let report = |node: &Expression<'_>, message, reporter: &mut Reporter<'_>| {
+        reporter.range(message, span(node));
     };
-    let report = |node, message, reporter: &mut Reporter<'_>| {
-        let mut span = tree
-            .source_location(node)
-            .span()
-            .expect("a source node has a span");
-        for (_, assertion) in &assertions[assertion_range(node)] {
-            span.start_offset = span.start_offset.min(assertion.start_offset);
-            span.end_offset = span.end_offset.max(assertion.end_offset);
-        }
-        reporter.range(message, span);
-    };
-    let condition = |mut node: NodeIdentifier, reporter: &mut Reporter<'_>| {
+    let condition = |node: &Expression<'_>, reporter: &mut Reporter<'_>| {
+        let mut node = node;
         let mut is_not_argument = false;
         loop {
-            if !assertion_range(node).is_empty() {
-                break;
-            }
-            match tree.kind(node) {
-                Kind::Unary(UnaryOperator::Not, argument) => {
-                    node = argument;
+            match node {
+                Expression::UnaryExpression(unary) if unary.operator == UnaryOperator::LogicalNot => {
+                    node = &unary.argument;
                     is_not_argument = true;
                 }
-                Kind::Logical(operator, _, right) if operator != LogicalOperator::Nullish => {
-                    node = right;
+                Expression::LogicalExpression(logical)
+                    if logical.operator != LogicalOperator::Coalesce =>
+                {
+                    node = &logical.right;
                     is_not_argument = false;
                 }
                 _ => break,
             }
         }
-        if let Some(truthy) = types.get(node).truthiness() {
+        if let Some(truthy) = types.get(node.node_id()).truthiness() {
             report(
                 node,
                 if truthy ^ is_not_argument {
@@ -83,12 +66,13 @@ fn check(tree: &SyntaxTree, types: &TypeFacts, reporter: &mut Reporter<'_>) {
             );
         }
     };
-    for index in 0..tree.len() {
-        let node = NodeIdentifier(index as u32);
-        match tree.kind(node) {
-            Kind::If { test, .. } | Kind::Conditional { test, .. } => condition(test, reporter),
-            Kind::Logical(LogicalOperator::Nullish, left, _) => {
-                if let Some(nullish) = types.get(left).nullish() {
+    for node in nodes.iter() {
+        match node.kind() {
+            AstKind::IfStatement(statement) => condition(&statement.test, reporter),
+            AstKind::ConditionalExpression(expression) => condition(&expression.test, reporter),
+            AstKind::LogicalExpression(logical) if logical.operator == LogicalOperator::Coalesce => {
+                let left = &logical.left;
+                if let Some(nullish) = types.get(left.node_id()).nullish() {
                     report(
                         left,
                         if nullish {
@@ -107,8 +91,9 @@ fn check(tree: &SyntaxTree, types: &TypeFacts, reporter: &mut Reporter<'_>) {
                     );
                 }
             }
-            Kind::Logical(_, left, _) => condition(left, reporter),
+            AstKind::LogicalExpression(logical) => condition(&logical.left, reporter),
             _ => {}
         }
     }
 }
+

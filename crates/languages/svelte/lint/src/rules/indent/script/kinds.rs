@@ -1,177 +1,170 @@
 //! What each kind of JavaScript node offsets.
 
-use rsvelte_typescript_syntax::lexer::T;
-use rsvelte_typescript_syntax::syntax_tree::Class;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
+use oxc_ast::AstKind;
+use oxc_ast::ast::{ArrayExpressionElement, BindingPattern, Expression, FormalParameter};
+use oxc_parser::Kind;
+use oxc_span::{GetSpan, Span as OxcSpan};
 
-use super::Script;
+use super::{Script, annotated, parameter_spans};
 use crate::rules::indent::layout::Item;
 use crate::rules::indent::tokens::Token;
 
-impl Script<'_, '_> {
+impl<'a> Script<'_, 'a> {
     #[expect(clippy::too_many_lines, reason = "one arm per construct")]
-    pub(super) fn lay_out(&mut self, node: NodeIdentifier) {
-        let js = self.javascript;
+    pub(super) fn lay_out(&mut self, kind: AstKind<'a>) {
+        let node = kind.span();
         let first = self.first(node);
-        match js.kind(node) {
-            Kind::Array(elements) | Kind::ArrayPattern(elements) => {
-                let start = elements
-                    .last()
-                    .and_then(|&e| self.span(e))
-                    .map(|s| s.end_offset)
-                    .or_else(|| first.map(|f| self.layout.tokens.span(f).end_offset));
-                let right = start.and_then(|s| {
-                    let tokens = &self.layout.tokens;
-                    tokens.after_matching(s, |t| tokens.is(t, T::RBracket))
+        match kind {
+            AstKind::ArrayExpression(n) => {
+                let elements = n.elements.iter().map(|e| match e {
+                    ArrayExpressionElement::Elision(_) => None,
+                    e => Some(e.span()),
                 });
-                self.list_from(first, &self.items(elements), right, 1);
+                self.elements(first, elements, Kind::RBrack);
             }
-            Kind::Object(properties) | Kind::ObjectPattern(properties) => {
-                let start = properties
-                    .last()
-                    .and_then(|&e| self.span(e))
-                    .map(|s| s.end_offset)
-                    .or_else(|| first.map(|f| self.layout.tokens.span(f).end_offset));
-                let right = start.and_then(|s| {
-                    let tokens = &self.layout.tokens;
-                    tokens.after_matching(s, |t| tokens.is(t, T::RBrace))
-                });
-                self.list_from(first, &self.items(properties), right, 1);
+            AstKind::ArrayPattern(n) => {
+                let elements = n
+                    .elements
+                    .iter()
+                    .map(|e| e.as_ref().map(GetSpan::span))
+                    .chain(n.rest.as_ref().map(|r| Some(r.span)));
+                self.elements(first, elements, Kind::RBrack);
             }
-            Kind::Arrow {
-                parameters,
-                body,
-                is_async,
-                ..
-            } => {
-                let second = first.and_then(|f| self.layout.tokens.after(f));
-                let left = if is_async { second } else { first };
-                let arrow = self.before_node_matching(body, |t| self.layout.tokens.is(t, T::Arrow));
-                if is_async {
+            AstKind::ArrayAssignmentTarget(n) => {
+                let elements = n
+                    .elements
+                    .iter()
+                    .map(|e| e.as_ref().map(GetSpan::span))
+                    .chain(n.rest.as_ref().map(|r| Some(r.span)));
+                self.elements(first, elements, Kind::RBrack);
+            }
+            AstKind::ObjectExpression(n) => {
+                let properties = n.properties.iter().map(|p| Some(p.span()));
+                self.elements(first, properties, Kind::RCurly);
+            }
+            AstKind::ObjectPattern(n) => {
+                let properties = n
+                    .properties
+                    .iter()
+                    .map(|p| Some(p.span))
+                    .chain(n.rest.as_ref().map(|r| Some(r.span)));
+                self.elements(first, properties, Kind::RCurly);
+            }
+            AstKind::ObjectAssignmentTarget(n) => {
+                let properties = n
+                    .properties
+                    .iter()
+                    .map(|p| Some(p.span()))
+                    .chain(n.rest.as_ref().map(|r| Some(r.span)));
+                self.elements(first, properties, Kind::RCurly);
+            }
+            AstKind::ArrowFunctionExpression(n) => {
+                let second = self.after(first);
+                let left = if n.r#async { second } else { first };
+                let body = n.body.span();
+                let arrow = self.before_node_matching(body, |t| self.tokens().is(t, Kind::Arrow));
+                if n.r#async {
                     self.layout.offset(second, 1, first);
                 }
-                if self.is(left, T::LParen) {
-                    let right = self.closing(parameters.last().copied(), left, T::RParen);
-                    self.list_from(left, &self.items(parameters), right, 1);
+                if self.is(left, Kind::LParen) {
+                    let parameters = parameter_spans(None, &n.params);
+                    let right = self.closing(parameters.last().copied(), left, Kind::RParen);
+                    self.list_from(left, &Self::items(parameters), right, 1);
                 }
                 self.layout.offset(arrow, 1, first);
                 self.body(body, first);
             }
-            Kind::Assign(_, left, right)
-            | Kind::AssignPattern(left, right)
-            | Kind::Binary(_, left, right)
-            | Kind::Logical(_, left, right) => {
-                self.chain(node, left, right);
+            AstKind::AssignmentExpression(n) => {
+                self.chain(node, true, n.left.span(), n.right.span());
             }
-            Kind::Await(_)
-            | Kind::Rest(_)
-            | Kind::Spread(_)
-            | Kind::Unary(..)
-            | Kind::Update { .. } => {
-                let next = first.and_then(|f| self.layout.tokens.after(f));
+            AstKind::AssignmentPattern(n) => self.chain(node, true, n.left.span(), n.right.span()),
+            AstKind::AssignmentTargetWithDefault(n) => {
+                self.chain(node, true, n.binding.span(), n.init.span());
+            }
+            AstKind::BinaryExpression(n) => self.chain(node, false, n.left.span(), n.right.span()),
+            AstKind::PrivateInExpression(n) => self.chain(node, false, n.left.span, n.right.span()),
+            AstKind::LogicalExpression(n) => self.chain(node, false, n.left.span(), n.right.span()),
+            // `ESTree`'s `Property` whose value is the `AssignmentPattern` `a = 1`.
+            AstKind::AssignmentTargetPropertyIdentifier(n) => {
+                if let Some(init) = &n.init {
+                    self.chain(node, true, n.binding.span, init.span());
+                }
+            }
+            AstKind::FormalParameter(n) => self.parameter(n),
+            AstKind::AwaitExpression(_)
+            | AstKind::ThrowStatement(_)
+            | AstKind::BindingRestElement(_)
+            | AstKind::AssignmentTargetRest(_)
+            | AstKind::SpreadElement(_)
+            | AstKind::UnaryExpression(_)
+            | AstKind::UpdateExpression(_) => {
+                let next = self.after(first);
                 self.layout.offset(next, 1, first);
             }
-            Kind::Block(statements) | Kind::Program(statements) => {
-                if let Some(span) = self.span(node) {
-                    self.layout.list(
-                        &self.items(statements),
-                        Item::Node(span),
-                        self.last(node).map(Item::Token),
-                        1,
-                        false,
-                    );
-                }
+            AstKind::BlockStatement(n) => {
+                self.block(node, n.body.iter().map(GetSpan::span));
             }
-            Kind::Call {
-                callee, arguments, ..
-            } => {
-                let tokens = &self.layout.tokens;
-                let left = self.after_node_matching(callee, |t| tokens.is(t, T::LParen));
+            AstKind::FunctionBody(n) => {
+                let statements = n.directives.iter().map(|d| d.span);
+                self.block(
+                    node,
+                    statements.chain(n.statements.iter().map(GetSpan::span)),
+                );
+            }
+            AstKind::ClassBody(n) => self.block(node, n.body.iter().map(GetSpan::span)),
+            AstKind::CallExpression(n) => {
+                let anchor = n
+                    .type_arguments
+                    .as_ref()
+                    .map_or_else(|| n.callee.span(), |t| t.span);
+                let tokens = self.tokens();
+                let left = self.after_node_matching(anchor, |t| tokens.is(t, Kind::LParen));
                 let right = self.last(node);
-                if let (Some(callee_last), Some(l)) = (self.last(callee), left) {
-                    let optional: Vec<Token> = tokens
-                        .between(callee_last, l)
-                        .filter(|&t| tokens.is(t, T::QuestionDot))
-                        .collect();
-                    self.layout.offset_all(optional, 1, first);
+                if let Some(type_arguments) = &n.type_arguments {
+                    let type_first = self.first(type_arguments.span);
+                    self.layout.offset(type_first, 1, first);
                 }
+                self.optional_tokens(anchor, left, first);
                 self.layout.offset(left, 1, first);
-                self.list_from(left, &self.items(arguments), right, 1);
+                let arguments = Self::items(n.arguments.iter().map(GetSpan::span));
+                self.list_from(left, &arguments, right, 1);
             }
-            Kind::Class(Class::Definition {
-                name,
-                superclass,
-                members,
-                ..
-            }) => {
-                if let Some(name) = name {
-                    let id = self.first(name);
-                    self.layout.offset(id, 1, first);
+            AstKind::Class(n) => {
+                if let Some(id) = &n.id {
+                    let id_token = self.first(id.span);
+                    self.layout.offset(id_token, 1, first);
                 }
-                if let Some(superclass) = superclass {
+                if let Some(heritage) = &n.heritage {
+                    let superclass = heritage.expression.span();
                     let extends = self.before_node(superclass);
-                    let super_token = extends.and_then(|e| self.layout.tokens.after(e));
+                    let super_token = self.after(extends);
                     self.layout.offset(extends, 1, first);
                     self.layout.offset(super_token, 1, extends);
                 }
-                let after = superclass.or(name);
-                let tokens = &self.layout.tokens;
-                let from = after
-                    .and_then(|n| self.span(n))
-                    .map(|s| s.end_offset)
-                    .or_else(|| first.map(|f| tokens.span(f).end_offset));
-                let open = from.and_then(|f| tokens.after_matching(f, |t| tokens.is(t, T::LBrace)));
-                self.layout.offset(open, 0, first);
-                let close = self.last(node);
-                let body = self.class_body(node, members);
-                self.list_from(open, &self.items(&body), close, 1);
+                let body_token = self.first(n.body.span);
+                self.layout.offset(body_token, 0, first);
+                self.class_typescript(n, first);
             }
-            Kind::Class(Class::Method {
-                key,
-                function,
-                computed,
-                ..
-            }) => {
-                self.member(node, key, Some(function), computed);
-            }
-            Kind::Class(Class::Field {
-                key,
-                value,
-                computed,
-                ..
-            }) => self.member(node, key, value, computed),
-            Kind::Property {
-                key,
-                value,
-                computed,
-                ..
-            } => self.member(node, key, Some(value), computed),
-            Kind::Class(Class::StaticBlock(body)) => {
-                let mut next = first.and_then(|f| self.layout.tokens.after(f));
-                while let Some(t) = next.filter(|&t| !self.layout.tokens.is(t, T::LBrace)) {
-                    self.layout.offset(Some(t), 0, first);
-                    next = self.layout.tokens.after(t);
-                }
-                self.layout.offset(next, 0, first);
-                let statements = match js.kind(body) {
-                    Kind::Block(statements) => statements,
-                    _ => &[],
-                };
-                let close = self.last(node);
-                self.list_from(next, &self.items(statements), close, 1);
-            }
-            Kind::Conditional {
-                test, consequent, ..
-            } => {
-                let tokens = &self.layout.tokens;
-                let question = self.after_node_matching(test, |t| !tokens.is(t, T::RParen));
-                let consequent_token = question.and_then(|q| tokens.after(q));
-                let colon = self.after_node_matching(consequent, |t| !tokens.is(t, T::RParen));
-                let alternate_token = colon.and_then(|c| tokens.after(c));
-                let mut base = node;
-                while let Some(parent) = self.parent(base) {
-                    match js.kind(parent) {
-                        Kind::Conditional { alternate, .. } if alternate == base => base = parent,
+            AstKind::ConditionalExpression(n) => {
+                let tokens = self.tokens();
+                let question =
+                    self.after_node_matching(n.test.span(), |t| !tokens.is(t, Kind::RParen));
+                let consequent_token = self.after(question);
+                let colon =
+                    self.after_node_matching(n.consequent.span(), |t| !tokens.is(t, Kind::RParen));
+                let alternate_token = self.after(colon);
+                // The head of a chain of conditionals in alternates.
+                let mut base = n.span;
+                let mut child = n;
+                for ancestor in self.ancestors() {
+                    match ancestor {
+                        AstKind::ConditionalExpression(parent)
+                            if matches!(&parent.alternate, Expression::ConditionalExpression(c)
+                                if std::ptr::eq(&raw const **c, child)) =>
+                        {
+                            base = parent.span;
+                            child = parent;
+                        }
                         _ => break,
                     }
                 }
@@ -181,162 +174,214 @@ impl Script<'_, '_> {
                 self.layout.offset(consequent_token, 1, question);
                 self.layout.offset(alternate_token, 1, colon);
             }
-            Kind::Control(control) => self.control(node, control, first),
-            Kind::ExportDefault(declaration) => {
-                let declaration_token = self.outer(declaration).map(|(f, _)| f);
-                if let (Some(f), Some(d)) = (first, declaration_token) {
-                    let tokens: Vec<Token> = self.layout.tokens.between(f, d).collect();
-                    self.layout.offset_all(tokens, 1, first);
-                }
-                self.layout.offset(declaration_token, 1, first);
+            AstKind::ImportMeta(_) | AstKind::NewTarget(_) => {
+                let dot = self.after(first);
+                let property = self.after(dot);
+                self.layout.offset(dot, 1, first);
+                self.layout.offset(property, 1, first);
             }
-            Kind::ExportNamed(declaration) => {
-                let declaration_token = self.first(declaration);
-                self.layout.offset(declaration_token, 1, first);
-            }
-            Kind::For {
-                initializer,
-                test,
-                update,
-                body,
-            } => {
-                let tokens = &self.layout.tokens;
-                let left = first.and_then(|f| tokens.after(f));
-                let right = self.before_node_matching(body, |t| !tokens.is(t, T::LParen));
+            AstKind::ComputedMemberExpression(n) => {
+                let property = n.expression.span();
+                let tokens = self.tokens();
+                let left = self.before_node_matching(property, |t| tokens.is(t, Kind::LBrack));
+                let right = self.after_node_matching(property, |t| tokens.is(t, Kind::RBrack));
+                self.optional_tokens(n.object.span(), left, first);
                 self.layout.offset(left, 1, first);
-                let items = [initializer, test, update].map(|n| n.and_then(|n| self.node(n)));
-                self.list_from(left, &items, right, 1);
-                self.body(body, first);
+                self.list_from(left, &[Some(Self::item(property))], right, 1);
             }
-            Kind::Function {
-                name,
-                parameters,
-                body,
-                ..
-            } => self.function(node, name, parameters, body, first),
-            Kind::If {
-                consequent,
-                alternate,
-                ..
-            } => {
-                let tokens = &self.layout.tokens;
-                let left = first.and_then(|f| tokens.after(f));
-                let right = self.before_node_matching(consequent, |t| tokens.is(t, T::RParen));
-                self.layout.offset(left, 1, first);
-                self.layout.offset(right, 0, left);
-                self.body(consequent, first);
-                if let Some(alternate) = alternate {
-                    let tokens = &self.layout.tokens;
-                    let else_token =
-                        self.after_node_matching(consequent, |t| !tokens.is(t, T::RParen));
-                    self.layout.offset(else_token, 0, first);
-                    self.body(alternate, else_token);
-                }
+            AstKind::StaticMemberExpression(n) => self.dot(first, n.property.span),
+            AstKind::PrivateFieldExpression(n) => self.dot(first, n.field.span),
+            AstKind::MethodDefinition(n) => {
+                self.member(node, n.key.span(), Some(n.value.span), n.computed);
             }
-            Kind::Import {
-                specifiers, source, ..
-            } => self.import(node, specifiers, source, first),
-            Kind::ImportNamed { .. } => self.specifier(node),
-            Kind::ImportNamespace(_) => {
-                if let Some(span) = self.span(node) {
-                    let tokens: Vec<Token> = self.layout.tokens.within(span).skip(1).collect();
-                    self.layout.offset_all(tokens, 1, first);
-                }
+            AstKind::PropertyDefinition(n) => {
+                self.member(
+                    node,
+                    n.key.span(),
+                    n.value.as_ref().map(GetSpan::span),
+                    n.computed,
+                );
             }
-            Kind::ImportExpression { source, .. } => {
-                let right = self.last(node);
-                let tokens = &self.layout.tokens;
-                let left = first.and_then(|f| {
-                    tokens.after_matching(tokens.span(f).end_offset, |t| tokens.is(t, T::LParen))
-                });
-                self.layout.offset(left, 1, first);
-                self.list_from(left, &[self.node(source)], right, 1);
+            AstKind::AccessorProperty(n) => {
+                self.member(
+                    node,
+                    n.key.span(),
+                    n.value.as_ref().map(GetSpan::span),
+                    n.computed,
+                );
             }
-            Kind::Member {
-                object,
-                property,
-                computed,
-                ..
-            } => {
-                if computed {
-                    let tokens = &self.layout.tokens;
-                    let left = self.before_node_matching(property, |t| tokens.is(t, T::LBracket));
-                    let right = self.after_node_matching(property, |t| tokens.is(t, T::RBracket));
-                    if let (Some(object_last), Some(l)) = (self.last(object), left) {
-                        let optional: Vec<Token> = tokens
-                            .between(object_last, l)
-                            .filter(|&t| tokens.is(t, T::QuestionDot))
-                            .collect();
-                        self.layout.offset_all(optional, 1, first);
-                    }
-                    self.layout.offset(left, 1, first);
-                    self.list_from(left, &[self.node(property)], right, 1);
-                } else {
-                    self.dot(first, property);
-                }
+            AstKind::ObjectProperty(n) => {
+                self.member(node, n.key.span(), Some(n.value.span()), n.computed);
             }
-            Kind::MetaProperty { property, .. } => self.dot(first, property),
-            Kind::New { callee, arguments } => {
-                let callee_tokens = self.outer(callee);
+            AstKind::BindingProperty(n) => {
+                self.member(node, n.key.span(), Some(n.value.span()), n.computed);
+            }
+            AstKind::AssignmentTargetPropertyProperty(n) => {
+                self.member(node, n.name.span(), Some(n.binding.span()), n.computed);
+            }
+            AstKind::NewExpression(n) => {
+                let callee_tokens = self.outer(n.callee.span());
                 let callee_first = callee_tokens.map(|(f, _)| f);
                 self.layout.offset(callee_first, 1, first);
-                let node_end = self.span(node).map(|s| s.end_offset);
+                if let Some(type_arguments) = &n.type_arguments {
+                    let type_first = self.first(type_arguments.span);
+                    self.layout.offset(type_first, 1, callee_first);
+                }
                 if let Some((_, callee_last)) = callee_tokens {
-                    let tokens = &self.layout.tokens;
-                    let before = self
-                        .type_arguments_end(callee)
-                        .unwrap_or_else(|| tokens.span(callee_last).end_offset);
-                    if !arguments.is_empty() || node_end.is_some_and(|end| before < end) {
+                    let tokens = self.tokens();
+                    let before = n
+                        .type_arguments
+                        .as_ref()
+                        .map_or_else(|| tokens.span(callee_last).end_offset, |t| t.span.end);
+                    if !n.arguments.is_empty() || before < node.end {
                         let right = self.last(node);
                         let left = tokens.after_offset(before);
                         self.layout.offset(left, 1, callee_first);
-                        self.list_from(left, &self.items(arguments), right, 1);
+                        let arguments = Self::items(n.arguments.iter().map(GetSpan::span));
+                        self.list_from(left, &arguments, right, 1);
                     }
                 }
             }
-            Kind::Return(Some(_)) => {
-                let next = first.and_then(|f| self.layout.tokens.after(f));
+            AstKind::ReturnStatement(n) if n.argument.is_some() => {
+                let next = self.after(first);
                 self.layout.offset(next, 1, first);
             }
-            Kind::Sequence(expressions) => {
+            AstKind::BreakStatement(n) if n.label.is_some() => {
+                let next = self.after(first);
+                self.layout.offset(next, 1, first);
+            }
+            AstKind::ContinueStatement(n) if n.label.is_some() => {
+                let next = self.after(first);
+                self.layout.offset(next, 1, first);
+            }
+            AstKind::SequenceExpression(n) => {
                 if let Some(f) = first {
+                    let expressions = Self::items(n.expressions.iter().map(GetSpan::span));
                     self.layout
-                        .list(&self.items(expressions), Item::Token(f), None, 0, false);
+                        .list(&expressions, Item::Token(f), None, 0, false);
                 }
             }
-            Kind::Template { .. } => self.template(node),
-            Kind::TaggedTemplate { tag, quasi } => {
-                let tag = self.outer(tag).map(|(f, _)| f);
-                let quasi = self.first(quasi);
+            AstKind::TemplateLiteral(_) | AstKind::TSTemplateLiteralType(_) => {
+                self.template(node);
+            }
+            AstKind::TaggedTemplateExpression(n) => {
+                let tag = self.outer_first(n.tag.span());
+                if let Some(type_arguments) = &n.type_arguments {
+                    let type_first = self.first(type_arguments.span);
+                    let tag_first = self.first(n.tag.span());
+                    self.layout.offset(type_first, 1, tag_first);
+                }
+                let quasi = self.first(n.quasi.span);
                 self.layout.offset(quasi, 1, tag);
             }
-            Kind::VariableDeclaration { declarations, .. } => {
+            AstKind::VariableDeclaration(n) => {
                 if let Some(f) = first {
+                    let declarations = Self::items(n.declarations.iter().map(|d| d.span));
                     self.layout
-                        .list(&self.items(declarations), Item::Token(f), None, 1, false);
+                        .list(&declarations, Item::Token(f), None, 1, false);
                 }
             }
-            Kind::Declarator {
-                identifier,
-                initializer: Some(_),
-            } => {
-                let eq = self.after_node(identifier);
-                let init = eq.and_then(|e| self.layout.tokens.after(e));
+            AstKind::VariableDeclarator(n) if n.init.is_some() => {
+                let id = annotated(&n.id, n.type_annotation.as_ref().map(|a| a.span));
+                let eq = self.after_node(id);
+                let init = self.after(eq);
                 self.layout.offset(eq, 1, first);
                 self.layout.offset(init, 1, first);
             }
-            Kind::Yield {
-                argument: Some(_),
-                delegate,
-            } => {
-                let second = first.and_then(|f| self.layout.tokens.after(f));
+            AstKind::YieldExpression(n) if n.argument.is_some() => {
+                let second = self.after(first);
                 self.layout.offset(second, 1, first);
-                if delegate {
-                    let third = second.and_then(|s| self.layout.tokens.after(s));
+                if n.delegate {
+                    let third = self.after(second);
                     self.layout.offset(third, 1, first);
                 }
             }
-            _ => {}
+            AstKind::StaticBlock(n) => {
+                let mut next = self.after(first);
+                while let Some(t) = next.filter(|&t| !self.tokens().is(t, Kind::LCurly)) {
+                    self.layout.offset(Some(t), 0, first);
+                    next = self.tokens().after(t);
+                }
+                self.layout.offset(next, 0, first);
+                let close = self.last(node);
+                let statements = Self::items(n.body.iter().map(GetSpan::span));
+                self.list_from(next, &statements, close, 1);
+            }
+            _ => self.lay_out_form(kind, first),
+        }
+    }
+
+    /// `ArrayExpression`, `ObjectExpression` and their patterns: the elements between the
+    /// brackets; a hole is `None`.
+    fn elements(
+        &mut self,
+        first: Option<Token>,
+        elements: impl Iterator<Item = Option<OxcSpan>>,
+        close: Kind,
+    ) {
+        let elements: Vec<Option<OxcSpan>> = elements.collect();
+        let start = match elements.last() {
+            Some(Some(last)) => Some(last.end),
+            _ => first.map(|f| self.tokens().span(f).end_offset),
+        };
+        let right = start.and_then(|s| {
+            let tokens = self.tokens();
+            tokens.after_matching(s, |t| tokens.is(t, close))
+        });
+        let items: Vec<Option<Item>> = elements.into_iter().map(|e| e.map(Self::item)).collect();
+        self.list_from(first, &items, right, 1);
+    }
+
+    /// `BlockStatement` and `ClassBody`: the statements or members between the braces.
+    fn block(&mut self, node: OxcSpan, statements: impl Iterator<Item = OxcSpan>) {
+        let statements = Self::items(statements);
+        self.layout.list(
+            &statements,
+            Item::Node(super::span(node)),
+            self.last(node).map(Item::Token),
+            1,
+            false,
+        );
+    }
+
+    /// `?.` between an object or callee and its `[` or `(`, indented from the chain's start.
+    fn optional_tokens(&mut self, object: OxcSpan, left: Option<Token>, first: Option<Token>) {
+        let (Some(object_last), Some(l)) = (self.last(object), left) else {
+            return;
+        };
+        let tokens = self.tokens();
+        let optional: Vec<Token> = tokens
+            .between(object_last, l)
+            .filter(|&t| tokens.is(t, Kind::QuestionDot))
+            .collect();
+        self.layout.offset_all(optional, 1, first);
+    }
+
+    /// A parameter: `ESTree` has its pattern, an `AssignmentPattern` around it for a default, and
+    /// a `TSParameterProperty` around both for a modifier.
+    fn parameter(&mut self, parameter: &FormalParameter<'a>) {
+        let pattern = parameter.pattern.span();
+        let annotation = parameter.type_annotation.as_ref().map(|a| a.span);
+        if parameter.has_modifier() {
+            self.parameter_property(parameter);
+        }
+        if let Some(init) = &parameter.initializer {
+            let assignment = if parameter.has_modifier() {
+                OxcSpan::new(pattern.start, init.span().end)
+            } else {
+                parameter.span
+            };
+            self.chain(
+                assignment,
+                true,
+                annotated(&parameter.pattern, annotation),
+                init.span(),
+            );
+        } else if !parameter.has_modifier()
+            && matches!(parameter.pattern, BindingPattern::BindingIdentifier(_))
+        {
+            // The identifier's range holds its annotation and `?`, so parentheses can be around it.
+            self.parentheses(parameter.span);
         }
     }
 
@@ -359,60 +404,51 @@ impl Script<'_, '_> {
         }
     }
 
-    /// The `kind` token after the last of `nodes`, or after `from` when there is none.
+    /// The `kind` token after `last`, or after `from` when there is none.
     pub(super) fn closing(
         &self,
-        last: Option<NodeIdentifier>,
+        last: Option<OxcSpan>,
         from: Option<Token>,
-        kind: T,
+        kind: Kind,
     ) -> Option<Token> {
-        let tokens = &self.layout.tokens;
+        let tokens = self.tokens();
         let start = match last {
-            Some(n) => self.span(n)?.end_offset,
+            Some(n) => n.end,
             None => tokens.span(from?).end_offset,
         };
         tokens.after_matching(start, |t| tokens.is(t, kind))
     }
 
-    pub(super) fn dot(&mut self, first: Option<Token>, property: NodeIdentifier) {
+    pub(super) fn dot(&mut self, first: Option<Token>, property: OxcSpan) {
         let dot = self.before_node(property);
-        let property_token = dot.and_then(|d| self.layout.tokens.after(d));
+        let property_token = self.after(dot);
         self.layout.offset(dot, 1, first);
         self.layout.offset(property_token, 1, first);
     }
 
-    /// Operators of a chain of binary, logical and assignment expressions: indented from the
-    /// chain's first operand.
-    pub(super) fn chain(
-        &mut self,
-        node: NodeIdentifier,
-        left: NodeIdentifier,
-        right: NodeIdentifier,
-    ) {
-        let js = self.javascript;
-        let mut head = node;
-        while let Some(parent) = self.parent(head) {
-            if !matches!(
-                js.kind(parent),
-                Kind::Assign(..) | Kind::AssignPattern(..) | Kind::Binary(..) | Kind::Logical(..)
-            ) {
+    /// Operators of a chain of binary, logical and assignment expressions and patterns: indented
+    /// from the chain's first operand; `assign` for an assignment or a pattern.
+    pub(super) fn chain(&mut self, node: OxcSpan, assign: bool, left: OxcSpan, right: OxcSpan) {
+        let (mut head, mut assign) = (node, assign);
+        for ancestor in self.ancestors() {
+            let Some((parent, parent_assign)) = chain_link(ancestor) else {
                 break;
-            }
+            };
             let (before, after) = (self.before_node(head), self.after_node(head));
-            if self.is(before, T::LParen) && self.is(after, T::RParen) {
+            if self.is(before, Kind::LParen) && self.is(after, Kind::RParen) {
                 break;
             }
-            head = parent;
+            (head, assign) = (parent, parent_assign);
         }
-        let tokens = &self.layout.tokens;
-        let operator = self.after_node_matching(left, |t| !tokens.is(t, T::RParen));
-        let base = if matches!(js.kind(head), Kind::Assign(..) | Kind::AssignPattern(..)) {
+        let tokens = self.tokens();
+        let operator = self.after_node_matching(left, |t| !tokens.is(t, Kind::RParen));
+        let base = if assign {
             self.first(head)
         } else {
-            self.outer(head).map(|(f, _)| f)
+            self.outer_first(head)
         };
-        let left_token = self.outer(left).map(|(f, _)| f);
-        let right_token = self.outer(right).map(|(f, _)| f);
+        let left_token = self.outer_first(left);
+        let right_token = self.outer_first(right);
         if left_token != base {
             self.layout.offset(left_token, 1, base);
         }
@@ -423,31 +459,28 @@ impl Script<'_, '_> {
     /// A property, method or field: modifiers and key at the start, the value after the key.
     pub(super) fn member(
         &mut self,
-        node: NodeIdentifier,
-        key: NodeIdentifier,
-        value: Option<NodeIdentifier>,
+        node: OxcSpan,
+        key: OxcSpan,
+        value: Option<OxcSpan>,
         computed: bool,
     ) {
         let first = self.first(node);
-        // The key's own range: a field's annotation is not part of it.
-        let key_span = self.javascript.source_location(key).span();
-        let Some((key_first, key_last)) = key_span.and_then(|s| self.layout.tokens.outer(s, 0))
-        else {
+        let Some((key_first, key_last)) = self.outer(key) else {
             return;
         };
         let Some(f) = first else {
             return;
         };
-        let mut prefix: Vec<Token> = self.layout.tokens.between(f, key_first).collect();
+        let mut prefix: Vec<Token> = self.tokens().between(f, key_first).collect();
         if computed {
             prefix.pop();
         }
         self.layout.offset_all(prefix, 0, first);
         let last_key = if computed {
-            let left = self.layout.tokens.before(key_first);
-            let right = self.layout.tokens.after(key_last);
+            let left = self.tokens().before(key_first);
+            let right = self.tokens().after(key_last);
             self.layout.offset(left, 0, first);
-            self.list_from(left, &[self.node(key)], right, 1);
+            self.list_from(left, &[Some(Self::item(key))], right, 1);
             right
         } else {
             self.layout.offset(Some(key_first), 0, first);
@@ -457,9 +490,33 @@ impl Script<'_, '_> {
             let Some(init) = self.first(value) else {
                 return;
             };
-            let mut tokens: Vec<Token> = self.layout.tokens.between(last_key, init).collect();
+            let mut tokens: Vec<Token> = self.tokens().between(last_key, init).collect();
             tokens.push(init);
             self.layout.offset_all(tokens, 1, Some(last_key));
         }
+    }
+}
+
+/// The range of a node that continues a chain of operators, and whether it is an assignment or a
+/// pattern.
+fn chain_link(kind: AstKind<'_>) -> Option<(OxcSpan, bool)> {
+    match kind {
+        AstKind::AssignmentExpression(n) => Some((n.span, true)),
+        AstKind::AssignmentPattern(n) => Some((n.span, true)),
+        AstKind::AssignmentTargetWithDefault(n) => Some((n.span, true)),
+        AstKind::AssignmentTargetPropertyIdentifier(n) if n.init.is_some() => Some((n.span, true)),
+        AstKind::FormalParameter(n) => {
+            let init = n.initializer.as_ref()?;
+            let span = if n.has_modifier() {
+                OxcSpan::new(n.pattern.span().start, init.span().end)
+            } else {
+                n.span
+            };
+            Some((span, true))
+        }
+        AstKind::BinaryExpression(n) => Some((n.span, false)),
+        AstKind::PrivateInExpression(n) => Some((n.span, false)),
+        AstKind::LogicalExpression(n) => Some((n.span, false)),
+        _ => None,
     }
 }

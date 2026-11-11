@@ -4,8 +4,8 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Component, Part, TemplateNode, TokenType};
 use serde::Deserialize;
 
-use super::expressions::Expressions;
 use super::markup::{is_attribute, parts};
+use super::nodes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -51,7 +51,6 @@ impl SvelteRule for ShorthandAttribute {
         let component = file.component().expect("a component rule");
         let javascript = &component.javascript;
         let source = file.source();
-        let expressions = Expressions::new(javascript, source);
         for node in &component.nodes {
             let TemplateNode::Element {
                 name, attributes, ..
@@ -78,10 +77,7 @@ impl SvelteRule for ShorthandAttribute {
                 let [Part::Expression { expression, span }] = *parts(component, attribute) else {
                     continue;
                 };
-                if !javascript.is_identifier(expression)
-                    || expressions.asserted(expression)
-                    || javascript.name(expression) != key
-                {
+                if !nodes::is_named(javascript.get_expression(expression), key) {
                     continue;
                 }
                 let report = Report::range("Expected shorthand attribute.", attribute.span)

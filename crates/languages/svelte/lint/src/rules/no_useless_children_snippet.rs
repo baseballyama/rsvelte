@@ -1,6 +1,7 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 
+use super::nodes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -32,8 +33,14 @@ impl SvelteRule for NoUselessChildrenSnippet {
                     span,
                     ..
                 } = *component.node(child)
-                    && parameters.len == 0
-                    && component.javascript.name(name) == "children"
+                    && parameters.is_none_or(|parameters| {
+                        component
+                            .javascript
+                            .get_parameters(parameters)
+                            .parameters_count()
+                            == 0
+                    })
+                    && nodes::is_named(component.javascript.get_expression(name), "children")
                 {
                     reporter.report(
                         Report::range("Found an unnecessary children snippet.", span)

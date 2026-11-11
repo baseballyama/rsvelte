@@ -27,10 +27,5 @@ impl SvelteRule for NoUnusedVariables {
 }
 
 fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
-    let facts = rsvelte_typescript_lint::JavaScriptFacts {
-        syntax_tree: file.javascript(),
-        sem: file.semantic(),
-        parents: file.parents(),
-    };
-    rsvelte_typescript_lint::no_unused_variables(&facts, |_| true, reporter);
+    rsvelte_typescript_lint::no_unused_variables(file.semantic(), |_| true, reporter);
 }

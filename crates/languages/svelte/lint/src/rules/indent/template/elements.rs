@@ -112,7 +112,9 @@ impl Template<'_, '_> {
                     {
                         let tokens = self.tokens();
                         let (open, close) = (tokens.first(span), tokens.last(span));
-                        let item = self.js_span(expression).map(Item::Node);
+                        let item = Some(crate::rules::indent::script::Script::item(
+                            self.expression_span(expression),
+                        ));
                         if let Some(o) = open {
                             self.script.layout.list(
                                 &[item],
@@ -123,7 +125,7 @@ impl Template<'_, '_> {
                             );
                         }
                     }
-                    self.visit_js(expression);
+                    self.visit_expression(expression);
                 }
             }
         }

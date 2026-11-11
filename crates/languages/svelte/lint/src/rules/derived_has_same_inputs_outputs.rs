@@ -1,9 +1,11 @@
+use oxc_ast::ast::{
+    ArrayExpressionElement, BindingIdentifier, BindingPattern, Expression, FormalParameter,
+};
 use rsvelte_lint_runner::finding::Suggestion;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
-use super::javascript::span;
-use super::svelte_store::{Scopes, rename, store_calls};
+use super::nodes::span;
+use super::svelte_store::{Function, Scopes, rename, store_calls};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -22,36 +24,51 @@ struct DerivedHasSameInputsOutputs;
 
 impl SvelteRule for DerivedHasSameInputsOutputs {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let javascript = file.javascript();
-        let name = |node| javascript.atom(node).map(|atom| javascript.atoms.get(atom));
         let calls = store_calls(file, &["derived"]);
         if calls.is_empty() {
             return;
         }
         let scopes = Scopes::new(file);
         for (call, _) in calls {
-            let Kind::Call { arguments, .. } = javascript.kind(call) else {
+            let [inputs, function, ..] = call.arguments.as_slice() else {
                 continue;
             };
-            let [inputs, function, ..] = *arguments else {
+            let (Some(inputs), Some(function)) = (
+                inputs.as_expression(),
+                function.as_expression().and_then(Function::of),
+            ) else {
                 continue;
             };
-            let (Kind::Function { parameters, .. } | Kind::Arrow { parameters, .. }) =
-                javascript.kind(function)
-            else {
+            let Some(parameter) = function.parameters.items.first() else {
                 continue;
             };
-            let Some(&parameter) = parameters.first() else {
-                continue;
-            };
-            match (javascript.kind(inputs), javascript.kind(parameter)) {
-                (Kind::Identifier(_), Kind::Identifier(_)) => {
-                    check(file, &scopes, function, parameter, name(inputs), reporter);
+            match (inputs, plain(parameter)) {
+                (
+                    Expression::Identifier(input),
+                    Some(BindingPattern::BindingIdentifier(output)),
+                ) => {
+                    check(
+                        file,
+                        &scopes,
+                        function,
+                        output,
+                        Some(input.name.as_str()),
+                        reporter,
+                    );
                 }
-                (Kind::Array(inputs), Kind::ArrayPattern(outputs)) => {
-                    for (&input, &output) in inputs.iter().zip(outputs) {
-                        if matches!(javascript.kind(output), Kind::Identifier(_)) {
-                            check(file, &scopes, function, output, name(input), reporter);
+                (
+                    Expression::ArrayExpression(inputs),
+                    Some(BindingPattern::ArrayPattern(outputs)),
+                ) => {
+                    for (input, output) in inputs.elements.iter().zip(&outputs.elements) {
+                        if let Some(BindingPattern::BindingIdentifier(output)) = output {
+                            let input = match input {
+                                ArrayExpressionElement::Identifier(input) => {
+                                    Some(input.name.as_str())
+                                }
+                                _ => None,
+                            };
+                            check(file, &scopes, function, output, input, reporter);
                         }
                     }
                 }
@@ -61,34 +78,41 @@ impl SvelteRule for DerivedHasSameInputsOutputs {
     }
 }
 
+/// The parameter's pattern, unless a default value wraps it.
+fn plain<'a>(parameter: &'a FormalParameter<'a>) -> Option<&'a BindingPattern<'a>> {
+    parameter
+        .initializer
+        .is_none()
+        .then_some(&parameter.pattern)
+}
+
 /// Reports `output` unless it is `$input`.
 fn check(
     file: &File<'_>,
-    scopes: &Scopes,
-    function: NodeIdentifier,
-    output: NodeIdentifier,
+    scopes: &Scopes<'_>,
+    function: Function<'_>,
+    output: &BindingIdentifier<'_>,
     input: Option<&str>,
     reporter: &mut Reporter<'_>,
 ) {
-    let javascript = file.javascript();
     let Some(input) = input else {
         return;
     };
     let expected = format!("${input}");
-    let actual = javascript.name(output);
+    let actual = output.name.as_str();
     if actual == expected {
         return;
     }
     let mut report = Report::range(
         format!("The argument name should be '{expected}'."),
-        span(javascript, output),
+        span(output),
     )
     .message_id("unexpected");
-    if let Ok(binding) = scopes.replaceable(file, function, Some(actual), &expected) {
+    if let Ok(symbol) = scopes.replaceable(file, function, Some(actual), &expected) {
         report = report.suggest(Suggestion {
             message_id: Some("renameParam".into()),
             message: format!("Rename the parameter from {actual} to {expected}."),
-            fix: rename(file, output, binding, &expected),
+            fix: rename(file, span(output), symbol, &expected),
         });
     }
     reporter.report(report);

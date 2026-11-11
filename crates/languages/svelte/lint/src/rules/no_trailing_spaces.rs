@@ -1,12 +1,12 @@
+use oxc_parser::Kind;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_javascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{TemplateNode, TokenType};
-use rsvelte_typescript_syntax::lexer::T;
 use serde::Deserialize;
 
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_javascript_whitespace;
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-trailing-spaces",
@@ -49,7 +49,12 @@ impl SvelteRule for NoTrailingSpaces {
         };
         for token in component.tokens.iter() {
             match token.kind {
-                TokenType::JavaScript(T::Template { .. }) => ignore(token.span, false),
+                TokenType::JavaScript(
+                    Kind::NoSubstitutionTemplate
+                    | Kind::TemplateHead
+                    | Kind::TemplateMiddle
+                    | Kind::TemplateTail,
+                ) => ignore(token.span, false),
                 TokenType::JavaScriptComment if self.0.ignore_comments => {
                     let block = token.span.text(source).starts_with("/*");
                     ignore(token.span, !block);

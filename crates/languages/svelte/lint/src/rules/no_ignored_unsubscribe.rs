@@ -1,7 +1,9 @@
+use oxc_ast::AstKind;
+use oxc_ast::ast::Expression;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript_syntax::Kind;
 
-use super::javascript::{is_optional_chain, span, walk};
+use super::javascript::walk;
+use super::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -20,29 +22,36 @@ struct NoIgnoredUnsubscribe;
 
 impl SvelteRule for NoIgnoredUnsubscribe {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let javascript = file.javascript();
         walk(file, |node| {
-            let Kind::ExpressionStatement(call) = javascript.kind(node) else {
+            let AstKind::ExpressionStatement(statement) = node.kind() else {
                 return;
             };
-            let Kind::Call { callee, .. } = javascript.kind(call) else {
+            // An optional chain is a `ChainExpression`, not a call.
+            let Expression::CallExpression(call) = &statement.expression else {
                 return;
             };
-            if is_optional_chain(javascript, call) {
-                return;
-            }
             // `property.name` is also an identifier's name inside brackets.
-            if let Kind::Member { property, .. } = javascript.kind(callee)
-                && javascript.atom(property).map(|a| javascript.atoms.get(a)) == Some("subscribe")
-            {
-                reporter.report(
-                    Report::range(
-                        "Ignoring returned value of the subscribe method is forbidden.",
-                        span(javascript, property),
-                    )
-                    .message_id("forbidden"),
-                );
-            }
+            let property = match &call.callee {
+                Expression::StaticMemberExpression(member)
+                    if member.property.name == "subscribe" =>
+                {
+                    span(&member.property)
+                }
+                Expression::ComputedMemberExpression(member) => match &member.expression {
+                    Expression::Identifier(property) if property.name == "subscribe" => {
+                        span(property.as_ref())
+                    }
+                    _ => return,
+                },
+                _ => return,
+            };
+            reporter.report(
+                Report::range(
+                    "Ignoring returned value of the subscribe method is forbidden.",
+                    property,
+                )
+                .message_id("forbidden"),
+            );
         });
     }
 }

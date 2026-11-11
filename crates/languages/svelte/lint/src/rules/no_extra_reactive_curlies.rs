@@ -1,9 +1,10 @@
+use oxc_ast::ast::Statement;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TokenType;
-use rsvelte_typescript_syntax::Kind;
 
+use super::nodes::span;
 use super::reactive_statements::{between, reactive_statements};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -24,15 +25,14 @@ struct NoExtraReactiveCurlies;
 impl SvelteRule for NoExtraReactiveCurlies {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        let javascript = &component.javascript;
         for (_, body) in reactive_statements(component, file.source()) {
-            let Kind::Block([_]) = javascript.kind(body) else {
+            let Statement::BlockStatement(block) = body else {
                 continue;
             };
-            let block = javascript
-                .source_location(body)
-                .span()
-                .expect("a parsed block");
+            if block.body.len() != 1 {
+                continue;
+            }
+            let block = span(block.as_ref());
             let mut report = Report::range(
                 "Do not wrap reactive statements in curly braces unless necessary.",
                 block,
