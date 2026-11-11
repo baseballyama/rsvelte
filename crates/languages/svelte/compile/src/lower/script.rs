@@ -399,17 +399,16 @@ fn check_export<'t>(
     unsupported("this export from the instance script", span_of(statement))
 }
 
-/// Script statements share rune lowering; imports go to `hoisted`.
-///
-/// # Errors
-///
-/// An `unsupported` [`Diagnostic`] for an export the instance script cannot lower, and
-/// upstream's errors for the exports it can.
 /// Upstream `analysis.props_id`: the name `const id = $props.id()` declares.
 pub(super) fn props_id(program: &Program<'_>, res: &Resolution) -> Option<String> {
     program.body.iter().find_map(|statement| {
-        let Statement::VariableDeclaration(d) = statement else {
-            return None;
+        let d = match statement {
+            Statement::VariableDeclaration(d) => d,
+            Statement::ExportDeclaration(export) => match &export.declaration {
+                Declaration::VariableDeclaration(d) => d,
+                _ => return None,
+            },
+            _ => return None,
         };
         d.declarations.iter().find_map(|d| {
             let init = d.init.as_ref()?;
@@ -421,6 +420,12 @@ pub(super) fn props_id(program: &Program<'_>, res: &Resolution) -> Option<String
     })
 }
 
+/// Script statements share rune lowering; imports go to `hoisted`.
+///
+/// # Errors
+///
+/// An `unsupported` [`Diagnostic`] for an export the instance script cannot lower, and
+/// upstream's errors for the exports it can.
 pub(super) fn lower_script<'t, 'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
     program: &'t Program<'t>,
