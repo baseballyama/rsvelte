@@ -197,6 +197,8 @@ pub(crate) struct Prepared<'c, 'o> {
     module: Vec<Statement<'o>>,
     hoisted: Vec<Statement<'o>>,
     instance: Vec<Statement<'o>>,
+    /// Upstream `analysis.props_id`, which each target declares first in the component.
+    props_id: Option<String>,
     /// The names the instance script exports, in source order.
     exports: Vec<&'o BindingIdentifier<'o>>,
     custom_element: Option<&'c custom_element::CustomElement>,
