@@ -1,7 +1,7 @@
-use crate::lower::builder::Runtime;
 use oxc_ast::ast::{Expression, ObjectPropertyKind};
 
 use super::escaped_text;
+use crate::lower::builder::Runtime;
 use crate::lower::server::{
     Attribute, AttributeValue, CompilerNodeIdentifier, Piece, ServerCompilationContext,
     capture_event, capture_load_events, event_attribute, is_behaviour, is_directive,

@@ -1,4 +1,3 @@
-use crate::lower::builder::Runtime;
 use std::borrow::Cow;
 
 use oxc_allocator::{CloneIn, GetAllocator};
@@ -9,6 +8,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::ClientCompilationContext;
 use crate::lower::BindingKind;
+use crate::lower::builder::Runtime;
 use crate::lower::custom_element::{CustomElement, Shadow, Tag, option_property};
 use crate::lower::javascript::prop_alias;
 

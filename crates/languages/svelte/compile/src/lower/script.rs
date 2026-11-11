@@ -8,7 +8,6 @@ mod props;
 mod stores;
 mod writes;
 
-use crate::lower::builder::Runtime;
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::ast::{
     Argument, BindingIdentifier, Declaration, Expression, IdentifierReference, ImportDeclaration,
@@ -26,6 +25,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use super::javascript::member_root;
 use super::names::Names;
 use super::{Builder, Target, span_of, unsupported};
+use crate::lower::builder::Runtime;
 
 pub(super) struct ScriptRewrite<'r, 'o> {
     pub b: &'r Builder<'o>,

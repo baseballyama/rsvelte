@@ -1,4 +1,3 @@
-use crate::lower::builder::Runtime;
 use oxc_ast::ast::{Expression, PropertyKind};
 
 use super::super::component::{
@@ -10,6 +9,7 @@ use super::{
     AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, Memo, NodeKind,
     Part, R, Target,
 };
+use crate::lower::builder::Runtime;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_component`; a `standalone` component is its fragment's only node, so it

@@ -27,7 +27,8 @@ fn options() -> CodegenOptions {
 /// `program.source_text`, which `lines` indexes by `\n`.
 #[must_use]
 pub fn print_mapped(program: &Program<'_>, lines: &LineIndex) -> Emitter {
-    // The printer counts ECMAScript's line breaks, which differ from `\n` only at a lone CR, LS or PS.
+    // The printer counts ECMAScript's line breaks, which differ from `\n` only at a lone CR, LS or
+    // PS.
     let text = program.source_text;
     // Single-character searches, which are fast; a pattern of several characters is not.
     let other_breaks = text.contains('\u{2028}')

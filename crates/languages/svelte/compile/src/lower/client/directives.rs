@@ -1,10 +1,9 @@
-use crate::lower::builder::Runtime;
 use oxc_ast::ast::Expression;
+use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
-
 use super::{Attribute, AttributeValue, ClientCompilationContext, Lists};
+use crate::lower::builder::Runtime;
 
 const TRANSITION_IN: u32 = 1;
 const TRANSITION_OUT: u32 = 1 << 1;

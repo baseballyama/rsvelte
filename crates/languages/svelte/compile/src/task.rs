@@ -9,7 +9,6 @@ use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_svelte_semantic::{Analyzed, Resolved};
-
 use rsvelte_typescript_compile::print;
 
 use crate::computation::Validated;

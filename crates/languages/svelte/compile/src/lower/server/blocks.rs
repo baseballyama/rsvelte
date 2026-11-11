@@ -2,9 +2,9 @@ mod each_block;
 mod if_block;
 
 use oxc_ast::ast::{Argument, Expression, Statement};
+use rsvelte_typescript_compile::build::sanitize_template_string;
 
 use super::ServerCompilationContext;
-use rsvelte_typescript_compile::build::sanitize_template_string;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `prepend_block_marker`: folds the marker into a leading static push.
