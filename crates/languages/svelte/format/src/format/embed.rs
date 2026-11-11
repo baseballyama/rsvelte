@@ -1,7 +1,6 @@
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 use super::children::Child;
-use super::javascript::{Adjust, Part as JavaScriptPart};
 use super::{
     Attribute, AttributeKind, AttributeValue, Cow, ElementKind, LayoutInstructionIdentifier,
     LayoutInstructions, Part, Printer, R, Span, TagAttributes, TemplateNode,
@@ -289,30 +288,6 @@ impl Printer<'_, '_, '_> {
             .collect()
     }
 
-    /// The plugin's `getLangAttribute`: `lang`, else `type`, without a `text/` prefix, with the
-    /// attribute's name.
-    fn language(&self, attributes: &[TagAttributes]) -> Option<(Span, &str)> {
-        let value = |name: &str| {
-            attributes
-                .iter()
-                .find(|(n, _)| n.text(self.source_text) == name)
-                .and_then(|&(n, v)| Some((n, v?.text(self.source_text))))
-                .filter(|(_, v)| !v.is_empty())
-        };
-        let (at, language) = value("lang").or_else(|| value("type"))?;
-        Some((at, language.strip_prefix("text/").unwrap_or(language)))
-    }
-
-    /// The plugin's `isNodeSupportedLanguage`: it keeps the body of these as it is.
-    fn unsupported(&self, attributes: &[TagAttributes]) -> bool {
-        self.language(attributes).is_some_and(|(_, language)| {
-            matches!(
-                language,
-                "coffee" | "coffeescript" | "styl" | "stylus" | "sass"
-            )
-        })
-    }
-
     /// `embedTag` keeps the body as it is when the comment right above is `prettier-ignore`.
     fn ignores(&self, comments: &[(Span, bool)]) -> bool {
         comments.last().is_some_and(|&(data, _)| {
@@ -500,39 +475,6 @@ impl Printer<'_, '_, '_> {
         self.group(&[open, body, close])
     }
 
-    /// The plugin's `getLangAttribute` names a language other than JavaScript or TypeScript: JSON
-    /// goes to Prettier's JSON printer, and any other body the plugin keeps when it does not parse.
-    fn refuse_script_language(&self, attributes: &[TagAttributes]) -> R<()> {
-        let Some((at, lang)) = self.language(attributes) else {
-            return Ok(());
-        };
-        if matches!(
-            lang,
-            "ts" | "typescript" | "js" | "javascript" | "module" | "application/javascript"
-        ) {
-            Ok(())
-        } else {
-            Err(Unsupported::at(
-                "a script language other than JavaScript",
-                at,
-            ))
-        }
-    }
-
-    /// `formatBodyContent` around the script's program.
-    pub(super) fn script_body(&mut self, content: Span) -> R<LayoutInstructionIdentifier> {
-        let text = content.text(self.source_text);
-        if text.trim_matches(is_ecmascript_whitespace).is_empty() {
-            return Ok(if text.is_empty() {
-                self.d().nil()
-            } else {
-                self.d().hardline()
-            });
-        }
-        let body = self.embed(content, JavaScriptPart::Script, Adjust::default())?;
-        Ok(self.indented_body(body))
-    }
-
     /// `[indent([hardline, body]), hardline]` after trimming the body's trailing lines, without
     /// the `indent` when `svelteIndentScriptAndStyle` is off.
     pub(super) fn indented_body(
@@ -561,57 +503,7 @@ impl Printer<'_, '_, '_> {
             self.d().line()
         }
     }
-
-    pub(super) fn style_body(
-        &mut self,
-        style: &rsvelte_svelte_syntax::syntax_tree::Style,
-    ) -> R<LayoutInstructionIdentifier> {
-        // The plugin's `embedStyle`: any language but Less and SCSS, such as `postcss`, is CSS.
-        let variant = match self.language(&style.attributes) {
-            Some((_, "less")) => oxc_formatter_css::CssVariant::Less,
-            Some((_, "scss")) => oxc_formatter_css::CssVariant::Scss,
-            _ => oxc_formatter_css::CssVariant::Css,
-        };
-        // Where Svelte's parser fails, Prettier's CSS parser may fail too and keep the body.
-        if variant == oxc_formatter_css::CssVariant::Css && style.sheet.is_err() {
-            return Err(Unsupported::at(
-                "a style sheet that does not parse",
-                style.content,
-            ));
-        }
-        let text = style.content.text(self.source_text);
-        if text.trim_matches(is_ecmascript_whitespace).is_empty() {
-            return Ok(if text.is_empty() {
-                self.d().nil()
-            } else {
-                self.d().hardline()
-            });
-        }
-        let text = oxc_formatter_core::normalize_newlines(text, ['\r']);
-        let core = &self.embedder.options;
-        let options = oxc_formatter_css::CssFormatOptions {
-            indent_style: core.indent_style,
-            indent_width: core.indent_width,
-            line_width: core.line_width,
-            line_ending: core.line_ending,
-            single_quote: self.options.single_quote.into(),
-            variant,
-            ..oxc_formatter_css::CssFormatOptions::default()
-        };
-        #[expect(
-            clippy::map_err_ignore,
-            reason = "oxc's diagnostic points into the sheet, not the component"
-        )]
-        let ir = oxc_formatter_css::format_to_ir(
-            self.embedder.embedding.session(),
-            &text,
-            options,
-            None,
-        )
-        .map_err(|_| Unsupported::at("CSS that oxc's formatter does not format", style.content))?;
-        let body = self.keep(ir.ir);
-        Ok(self.indented_body(body))
-    }
 }
 
+mod language;
 mod options;
