@@ -114,7 +114,8 @@ fn checks_attributes_as_the_compiler_does() {
 #[test]
 fn codes_separated_by_wide_spaces() {
     let found = codes(
-        "<!-- svelte-ignore a11y_autofocus\u{3000}a11y_accesskey\u{a0}x -->\n<div accesskey=\"x\"></div>\n",
+        "<!-- svelte-ignore a11y_autofocus\u{3000}a11y_accesskey\u{a0}x -->\n<div \
+            accesskey=\"x\"></div>\n",
     );
     assert_eq!(found, []);
 }
@@ -242,7 +243,8 @@ fn dollar_names_where_the_compiler_rejects_them() {
     );
     assert_eq!(
         at(
-            "<script lang=\"ts\">\n  import type { $T } from \"x\";\n  try {} catch ($e) {}\n</script>\n"
+            "<script lang=\"ts\">\n  import type { $T } from \"x\";\n  try {} catch ($e) \
+                {}\n</script>\n"
         ),
         dollar(3, 16)
     );
@@ -254,7 +256,8 @@ fn dollar_names_where_the_compiler_rejects_them() {
 
 #[test]
 fn a_store_subscription_is_no_rune() {
-    let code = "<script>\n  import { writable } from \"svelte/store\";\n  const state = writable(0);\n  $state;\n  export let a;\n</script>\n";
+    let code = "<script>\n  import { writable } from \"svelte/store\";\n  const state = \
+        writable(0);\n  $state;\n  export let a;\n</script>\n";
     assert_eq!(codes(code), [("export_let_unused".to_owned(), 5, 13)]);
     let code = "<script>\n  let { state } = $props();\n  $state;\n</script>\n";
     assert_eq!(codes(code), []);
@@ -273,7 +276,8 @@ fn unused_exports_named_by_an_export_list() {
     );
     assert_eq!(
         codes(
-            "<script>\n  const c = 1;\n  function f() {}\n  export { c, f };\n  var v;\n  export { v as w };\n</script>\n"
+            "<script>\n  const c = 1;\n  function f() {}\n  export { c, f };\n  var v;\n  export { \
+                v as w };\n</script>\n"
         ),
         unused(5, 6)
     );
@@ -334,7 +338,8 @@ fn analysis_errors_that_silence_every_warning() {
             only("const_tag_invalid_placement", 1, 5),
         ),
         (
-            "{#if x}{@const a = 1}{a}{/if}\n<Foo>{@const b = 1}{b}</Foo>\n<Foo><div slot=\"s\">{@const c = 1}{c}</div></Foo>\n",
+            "{#if x}{@const a = 1}{a}{/if}\n<Foo>{@const b = 1}{b}</Foo>\n<Foo><div \
+                slot=\"s\">{@const c = 1}{c}</div></Foo>\n",
             Vec::new(),
         ),
         (
