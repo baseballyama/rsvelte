@@ -18,19 +18,30 @@ pub struct Session {
 }
 
 /// A program the checker built from one tsconfig, in one snapshot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Project {
     pub snapshot: u64,
     pub handle: u64,
+    /// The root files the tsconfig names, after its `files`, `include` and `exclude`.
+    pub root_files: Vec<PathBuf>,
+}
+
+/// What the checker reads before the disk: files by their full text, and links to directories on
+/// the disk.
+#[derive(Debug, Default)]
+pub struct Layer {
+    pub files: Vec<(PathBuf, String)>,
+    /// A link path, then the disk directory it reaches.
+    pub links: Vec<(PathBuf, PathBuf)>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct Diagnostic {
     #[serde(rename = "fileName")]
     pub file_name: Option<PathBuf>,
-    /// UTF-16 offsets in the original text of the file.
-    pub pos: u32,
-    pub end: u32,
+    /// UTF-16 offsets in the original text of the file; -1 for a diagnostic of the program.
+    pub pos: i64,
+    pub end: i64,
     #[serde(rename = "startPosition")]
     pub start_position: Option<Position>,
     #[serde(rename = "endPosition")]
@@ -80,6 +91,14 @@ struct ProjectResponse {
     handle: u64,
     #[serde(rename = "configFileName")]
     config_file_name: PathBuf,
+    #[serde(rename = "parsedCommandLine")]
+    parsed: Option<ParsedCommandLine>,
+}
+
+#[derive(Deserialize)]
+struct ParsedCommandLine {
+    #[serde(rename = "fileNames", default)]
+    file_names: Vec<PathBuf>,
 }
 
 /// Which diagnostics of a program to ask for.
@@ -145,17 +164,41 @@ impl Session {
         Ok(session)
     }
 
-    /// Opens the projects of `configs` in a new snapshot, in the same order.
+    /// Opens the projects of `configs` in a new snapshot, in the same order, with `layer` over
+    /// the disk.
     ///
     /// # Errors
     /// The checker fails, or does not open a project for each config.
-    pub fn open(&mut self, configs: &[&Path]) -> Result<Vec<Project>, String> {
+    pub fn open(&mut self, configs: &[&Path], layer: &Layer) -> Result<Vec<Project>, String> {
         let mut w = StructuredDataWriter::new(false);
         w.begin_object().key("openProjects").begin_array();
         for c in configs {
             w.write_string(&c.to_string_lossy());
         }
-        w.end_array().end_object();
+        w.end_array();
+        if !layer.files.is_empty() || !layer.links.is_empty() {
+            w.key("fileSystem")
+                .begin_object()
+                .key("kind")
+                .write_string("layer")
+                .key("files")
+                .begin_object();
+            for (path, text) in &layer.files {
+                w.key(&path.to_string_lossy()).write_string(text);
+            }
+            w.end_object().key("symlinks").begin_object();
+            for (link, target) in &layer.links {
+                w.key(&link.to_string_lossy())
+                    .begin_object()
+                    .key("target")
+                    .write_string(&target.to_string_lossy())
+                    .key("host")
+                    .write_boolean(true)
+                    .end_object();
+            }
+            w.end_object().end_object();
+        }
+        w.end_object();
         let response = self.request("createSnapshot", w.finish().as_bytes())?;
         let snapshot: Snapshot = self.decode("createSnapshot", &response)?;
         configs
@@ -168,6 +211,11 @@ impl Session {
                     .map(|p| Project {
                         snapshot: snapshot.snapshot,
                         handle: p.handle,
+                        root_files: p
+                            .parsed
+                            .as_ref()
+                            .map(|c| c.file_names.clone())
+                            .unwrap_or_default(),
                     })
                     .ok_or_else(|| format!("{}: no project for {}", self.program, c.display()))
             })
@@ -180,7 +228,7 @@ impl Session {
     /// The checker fails or answers in an unknown shape.
     pub fn diagnostics(
         &mut self,
-        project: Project,
+        project: &Project,
         kind: DiagnosticKind,
         files: Option<&[&Path]>,
     ) -> Result<Vec<Diagnostic>, String> {

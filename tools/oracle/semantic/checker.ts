@@ -66,6 +66,7 @@ export class SemanticChecker {
 	private readonly config: string;
 	private readonly leftFile: string;
 	private readonly rightFile: string;
+	private readonly store: string;
 	private readonly api: API;
 	private snapshot: Snapshot;
 	private readonly declarations: string[];
@@ -77,6 +78,7 @@ export class SemanticChecker {
 		this.config = path.join(this.directory, 'tsconfig.json');
 		this.leftFile = path.join(this.directory, 'left.svelte');
 		this.rightFile = path.join(this.directory, 'right.svelte');
+		this.store = path.join(this.directory, 'projections.json');
 		const modules = path.join(this.directory, 'node_modules');
 		fs.mkdirSync(modules);
 		for (const entry of fs.readdirSync(path.join(tools, 'node_modules'))) {
@@ -107,11 +109,11 @@ export class SemanticChecker {
 		this.writeConfig('initial');
 		fs.writeFileSync(this.leftFile, '');
 		fs.writeFileSync(this.rightFile, '');
-		for (const file of [this.leftFile, this.rightFile])
-			fs.writeFileSync(
-				`${file}.projection.json`,
-				JSON.stringify({ source: '', text: '', mappings: [] }),
-			);
+		const empty = { source: '', text: '', extension: '.ts', mappings: [] };
+		fs.writeFileSync(
+			this.store,
+			JSON.stringify({ files: { [this.leftFile]: empty, [this.rightFile]: empty } }),
+		);
 		const started = performance.now();
 		this.api = new API({ cwd: this.directory, collectTiming: true, runExternalCode: true });
 		this.snapshot = this.api.createSnapshot({ openProjects: [this.config] });
@@ -144,16 +146,24 @@ export class SemanticChecker {
 		fs.writeFileSync(this.rightFile, source);
 		if (oracle.map.version !== 3)
 			throw new Error('oracle returned an unsupported source map version');
-		const leftOutput = { source, text: projection.code, mappings: projection.mappings };
+		const leftOutput = {
+			source,
+			text: projection.code,
+			extension: '.ts',
+			mappings: projection.mappings,
+		};
 		const rightOutput = {
 			source,
 			text: oracle.code,
+			extension: '.ts',
 			mappings: oracleMappings(source, oracle.code, { ...oracle.map, version: 3 }),
 		};
 		const leftData = JSON.stringify(leftOutput),
 			rightData = JSON.stringify(rightOutput);
-		fs.writeFileSync(`${this.leftFile}.projection.json`, leftData);
-		fs.writeFileSync(`${this.rightFile}.projection.json`, rightData);
+		fs.writeFileSync(
+			this.store,
+			`{"files":{${JSON.stringify(this.leftFile)}:${leftData},${JSON.stringify(this.rightFile)}:${rightData}}}`,
+		);
 		// Mapper options are part of native transform identity, including defect-control changes.
 		this.writeConfig(createHash('sha256').update(leftData).update(rightData).digest('hex'));
 		const loadStarted = performance.now();
@@ -270,7 +280,11 @@ export class SemanticChecker {
 			JSON.stringify({
 				compilerOptions: COMPILER_OPTIONS,
 				contentMappers: [
-					{ package: 'rsvelte-semantic-mapper', extensions: ['.svelte'], options: { identity } },
+					{
+						package: 'rsvelte-semantic-mapper',
+						extensions: ['.svelte'],
+						options: { projections: this.store, identity },
+					},
 				],
 				files: [this.leftFile, this.rightFile, ...this.declarations],
 			}),

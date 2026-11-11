@@ -29,8 +29,8 @@ modules, but only the Svelte lint task selects them. Parse failures and unsuppor
 output file.
 
 The type-check view copies the original source with byte mappings. It does not need
-our subset parser. The current checker uses temporary `.ts` files: relative imports,
-declaration-file rules, and `.mts`/`.cts` module modes are not preserved yet.
+our subset parser. The checker reads each document at its own path, so relative imports,
+declaration-file rules and `.mts`/`.cts` module modes are the project's.
 
 JavaScript uses the same compile, format, and lint tasks. The type-check view marks
 JavaScript as unchecked, as it does for component scripts without type checking.

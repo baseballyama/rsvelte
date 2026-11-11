@@ -1,7 +1,7 @@
 //! Asks the installed TypeScript 7.1 through its API.
 
 use rsvelte_test_harness::NodePackages;
-use rsvelte_typescript_api::{DiagnosticKind, Session};
+use rsvelte_typescript_api::{DiagnosticKind, Layer, Session};
 
 #[test]
 fn reports_semantic_diagnostics_with_their_chains_in_utf16() {
@@ -22,9 +22,13 @@ fn reports_semantic_diagnostics_with_their_chains_in_utf16() {
     .unwrap();
     let (program, _) = NodePackages::locate().type_checker();
     let mut session = Session::start(&program, &[], &directory).unwrap();
-    let project = session.open(&[&config]).unwrap()[0];
+    let project = session
+        .open(&[&config], &Layer::default())
+        .unwrap()
+        .remove(0);
+    assert_eq!(project.root_files, std::slice::from_ref(&file));
     let found = session
-        .diagnostics(project, DiagnosticKind::Semantic, Some(&[&file]))
+        .diagnostics(&project, DiagnosticKind::Semantic, Some(&[&file]))
         .unwrap();
     session.release(project.snapshot).unwrap();
     drop(session);
@@ -43,4 +47,30 @@ fn reports_semantic_diagnostics_with_their_chains_in_utf16() {
     assert_eq!((d.pos, d.end), (19, 20));
     let start = d.start_position.unwrap();
     assert_eq!((start.line, start.character), (1, 4));
+}
+
+#[test]
+fn a_layer_supplies_files_the_disk_lacks() {
+    let directory = std::fs::canonicalize(std::env::temp_dir()).unwrap();
+    let root = directory.join(format!("rsvelte-api-layer-{}", std::process::id()));
+    assert!(!root.exists());
+    let (config, file) = (root.join("tsconfig.json"), root.join("a.ts"));
+    let layer = Layer {
+        files: vec![
+            (
+                config.clone(),
+                r#"{"compilerOptions":{"strict":true}}"#.to_owned(),
+            ),
+            (file.clone(), "export const n: number = 's';\n".to_owned()),
+        ],
+        links: Vec::new(),
+    };
+    let (program, _) = NodePackages::locate().type_checker();
+    let mut session = Session::start(&program, &[], &directory).unwrap();
+    let project = session.open(&[&config], &layer).unwrap().remove(0);
+    assert_eq!(project.root_files, std::slice::from_ref(&file));
+    let found = session
+        .diagnostics(&project, DiagnosticKind::Semantic, Some(&[&file]))
+        .unwrap();
+    assert_eq!(found.iter().map(|d| d.code).collect::<Vec<_>>(), [2322]);
 }
