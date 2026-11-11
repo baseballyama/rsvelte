@@ -146,7 +146,6 @@ impl Drop for Session {
 #[derive(Debug)]
 struct Resolver {
     session: Arc<Mutex<Session>>,
-    native: crate::native::Resolver,
 }
 
 impl FunctionResolver for Resolver {
@@ -155,9 +154,7 @@ impl FunctionResolver for Resolver {
         reference: &FunctionReference,
         contract: &'static TextContract,
     ) -> Result<TextFunction, CallError> {
-        let FunctionReference::Runtime { handle } = reference else {
-            return self.native.resolve(reference, contract);
-        };
+        let FunctionReference::Runtime { handle } = reference;
         let session = Arc::clone(&self.session);
         let handle = handle.clone();
         Ok(TextFunction::new(contract, move |arguments| {
@@ -235,9 +232,6 @@ impl Loader for ProcessLoader {
             configuration,
             functions: Arc::new(Resolver {
                 session: Arc::new(Mutex::new(session)),
-                native: crate::native::Resolver::new(
-                    path.parent().expect("canonical file has a parent"),
-                ),
             }),
         })
     }

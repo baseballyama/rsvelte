@@ -5,7 +5,7 @@ input, runs tasks through the kernel, and returns their output. Language trees a
 implementations live in `../languages/`; shared data and task scheduling live in
 `../language_independent/kernel/`. Before tasks run, a host loads the
 [configuration](configuration_loading/README.md): JSON, JS/TS or custom settings, and the
-runtime or native functions they name. Node is optional.
+runtime functions they name. Node is optional.
 
 | Host            | Who uses it                                                         | Interface                          |
 | --------------- | ------------------------------------------------------------------- | ---------------------------------- |

@@ -21,12 +21,12 @@ const DIAGNOSTIC_CASES = new Set([
 ]);
 const CASES = [
 	{
-		dir: 'crates/languages/vue/compile_svelte/tests/fixtures',
+		dir: 'crates/bridges/vue_to_svelte/tests/fixtures',
 		lang: 'cross-vue',
 		ext: '.vue',
 	},
 	{
-		dir: 'crates/languages/svelte/compile_vapor/tests/fixtures',
+		dir: 'crates/bridges/svelte_to_vue_vapor/tests/fixtures',
 		lang: 'cross-svelte',
 		ext: '.svelte',
 	},

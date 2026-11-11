@@ -15,8 +15,8 @@ export const CRATES: Record<string, string> = {
 	rsvelte_svelte_syntax: 'svelte',
 	rsvelte_typescript_check: 'typescript',
 	rsvelte_vue_syntax: 'vue',
-	rsvelte_vue_compile_svelte: 'svue',
-	rsvelte_svelte_compile_vapor: 'vuelte',
+	rsvelte_vue_to_svelte: 'svue',
+	rsvelte_svelte_to_vue_vapor: 'vuelte',
 };
 
 /** Every kernel module, plus the plugin code the guide uses as worked examples. */
@@ -81,12 +81,12 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		['vue/check', 'languages/vue/check/src', ['registration']],
 		[
 			'svue',
-			'languages/vue/compile_svelte/src',
+			'bridges/vue_to_svelte/src',
 			['lib', 'computation', 'compilation', 'compilation/template/attributes'],
 		],
 		[
 			'vuelte',
-			'languages/svelte/compile_vapor/src',
+			'bridges/svelte_to_vue_vapor/src',
 			['lib', 'computation', 'compilation/vapor/elements', 'compilation/template/bindings'],
 		],
 		['html/lint', 'languages/html/lint/src', ['button_type']],
