@@ -140,11 +140,11 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
 
 #[test]
 fn unsupported_semantics_are_reported_at_the_original_construct() {
-    let source = "<svelte:element this=\"p\"></svelte:element>";
+    let source = "<enhanced:img src=\"./a.png\" />";
     let component = parse(source).expect("valid Svelte source");
     let error = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
-        .expect_err("a dynamic element needs its own type semantics");
-    assert_eq!(error.span().text(source), "svelte:element");
+        .expect_err("a namespaced element needs its own type semantics");
+    assert_eq!(error.span().text(source), "enhanced:img");
 }
 
 #[test]

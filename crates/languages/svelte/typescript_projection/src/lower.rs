@@ -137,6 +137,8 @@ fn is_element(tag: &str) -> bool {
             | "svelte:body"
             | "svelte:document"
             | "svelte:fragment"
+            | "svelte:element"
+            | "svelte:boundary"
     ) || (tag.starts_with(|c: char| c.is_ascii_lowercase()) && !tag.contains(':'))
 }
 
@@ -326,9 +328,10 @@ impl Builder<'_> {
         children: Range,
     ) -> Result<NodeIdentifier> {
         let tag = name.text(self.source);
-        let dynamic = tag == "svelte:component";
+        // svelte2tsx passes `this` of these outside the props.
+        let dynamic = matches!(tag, "svelte:component" | "svelte:element");
         let component = match component {
-            None if dynamic => Some(self.dynamic_component(name, attributes)?),
+            None if tag == "svelte:component" => Some(self.dynamic_component(name, attributes)?),
             component => component,
         };
         let is_component = component.is_some();
@@ -397,7 +400,9 @@ impl Builder<'_> {
                 }
             }
         }
-        let snippets = self.snippet_props(children, is_component)?;
+        // `<svelte:boundary>`'s snippets are its props, as a component's are.
+        let snippet_props = is_component || tag == "svelte:boundary";
+        let snippets = self.snippet_props(children, snippet_props)?;
         let properties = self.finish_list(start);
         let properties = self.tree.push(Node::Object { properties });
         let (call, named) = if let Some(component) = component {
@@ -411,14 +416,14 @@ impl Builder<'_> {
             (self.slot_call(attributes, properties)?, None)
         } else {
             (
-                self.element_call(name, &directives.action_names, properties),
+                self.element_call(name, attributes, &directives.action_names, properties),
                 None,
             )
         };
         let lets = self.after_call(call, named, bindings, snippets, &directives);
         self.directives = directives;
         self.class_expressions(attributes);
-        self.element_children(children, is_component, lets)?;
+        self.element_children(children, snippet_props, lets)?;
         let body = self.finish_list(start);
         Ok(self.tree.push(Node::Block { body }))
     }

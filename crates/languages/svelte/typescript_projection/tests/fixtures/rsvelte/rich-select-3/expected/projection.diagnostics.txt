@@ -1,1 +1,0 @@
-error check_unsupported 6:3-6:18 not supported by the type-check projection yet: svelte: elements

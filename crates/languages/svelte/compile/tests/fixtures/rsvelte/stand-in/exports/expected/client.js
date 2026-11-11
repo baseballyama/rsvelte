@@ -4,14 +4,10 @@ export const answer = 42;
 export function double(n) {
 	return n * 2;
 }
+var root = $.from_html(`<enhanced:img src="./a.png"></enhanced:img>`);
 export default function Exports($$anchor) {
 	let value = "";
-	var fragment = $.comment();
-	var node = $.first_child(fragment);
-	$.element(node, () => "p", false, ($$element, $$anchor) => {
-		var text = $.text();
-		text.nodeValue = "";
-		$.append($$anchor, text);
-	});
-	$.append($$anchor, fragment);
+	var enhanced_img = root();
+	$.set_attribute(enhanced_img, "alt", value);
+	$.append($$anchor, enhanced_img);
 }
