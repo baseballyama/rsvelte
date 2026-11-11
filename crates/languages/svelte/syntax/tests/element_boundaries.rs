@@ -53,7 +53,8 @@ fn closing_names_keep_unicode_whitespace_and_error_positions() {
     let error = parse(source).expect_err("mismatched component closing name");
     assert_eq!(
         error.message,
-        "`</UI.Other>` attempted to close an element that was not open"
+        "`</UI.Other>` attempted to close an element that was not open\n\
+         https://svelte.dev/e/element_invalid_closing_tag"
     );
     assert_eq!(
         error.span.start_offset as usize,

@@ -47,10 +47,10 @@ const INITIAL_TOKEN_CAPACITY_LIMIT: usize = 8192;
 
 /// # Errors
 ///
-/// A `parse_error` [`Diagnostic`] at the first syntax error in the markup or the scripts, or at
-/// syntax this parser does not support. A style sheet's error alone is kept on
-/// [`Style::sheet`](crate::syntax_tree::Style::sheet); [`crate::fully_parsed`]
-/// reports it.
+/// A [`Diagnostic`] at the first syntax error in the markup or the scripts, with upstream's
+/// code, message and position, or `parse_error` at syntax this parser does not support. A style
+/// sheet's error alone is kept on [`Style::sheet`](crate::syntax_tree::Style::sheet);
+/// [`crate::fully_parsed`] reports it.
 pub fn parse(source_text: &str) -> ParseResult<Component> {
     let (javascript, template) = Tree::build(source_text, |builder| {
         let mut parser = Parser {
@@ -62,6 +62,7 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
             typescript: script::script_is_typescript(source_text),
             pending_children: buffer_pool::take_keyed::<Parser<'static, 'static>, _>(),
             unique_names: FxHashSet::default(),
+            meta_tags: 0,
             depth: 0,
         };
         // Upstream removes a leading byte order mark before parsing, so no node covers it.
@@ -80,18 +81,58 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
                 .as_ref()
                 .and_then(|style| style.sheet.as_ref().err())
                 .cloned()
-                .unwrap_or(e)
+                .unwrap_or_else(|| acorn_position(e))
         })?;
         Ok(parser.component)
     })?;
     Ok(template.into_component(javascript))
 }
 
-/// oxc's error, under the code upstream gives a JavaScript syntax error.
+/// oxc's error, under the code and in the words upstream gives a JavaScript syntax error. It
+/// keeps oxc's range, which the parser reads; [`parse`] reports Acorn's position.
 #[cold]
-fn javascript_error(mut e: Diagnostic) -> Diagnostic {
-    e.code = "js_parse_error".into();
+fn javascript_error(e: Diagnostic) -> Diagnostic {
+    let Diagnostic { message, span, .. } = e;
+    svelte_error("js_parse_error", acorn_message(&message), span)
+}
+
+/// Acorn reports a JavaScript syntax error at a position, not a range.
+#[cold]
+fn acorn_position(mut e: Diagnostic) -> Diagnostic {
+    if e.code == "js_parse_error" {
+        e.span = Span::new(e.span.start_offset, e.span.start_offset);
+    }
     e
+}
+
+/// Acorn's wording of the oxc errors that mean the same thing.
+fn acorn_message(message: &str) -> std::borrow::Cow<'_, str> {
+    if let Some(character) = message
+        .strip_prefix("Invalid Character `")
+        .and_then(|rest| rest.strip_suffix('`'))
+    {
+        return format!("Unexpected character '{character}'").into();
+    }
+    let unexpected = message == "Unexpected JSX expression"
+        || message.starts_with("Expected `") && message.contains("` but found `");
+    match message {
+        _ if unexpected => "Unexpected token".into(),
+        "Cannot assign to this expression" => "Assigning to rvalue".into(),
+        "Unterminated string" => "Unterminated string constant".into(),
+        _ => message.into(),
+    }
+}
+
+/// Upstream's error `code`, whose message ends with the link to its docs; an error of this
+/// parser's own, `parse_error`, has no docs page.
+#[cold]
+fn svelte_error(code: &'static str, message: impl std::fmt::Display, span: Span) -> Diagnostic {
+    let message = if code == "parse_error" {
+        message.to_string()
+    } else {
+        format!("{message}\nhttps://svelte.dev/e/{code}")
+    };
+    Diagnostic::error(code, message, span)
 }
 
 /// The component without its JavaScript, while the parser fills the arena.
@@ -163,8 +204,15 @@ impl Drop for Template {
 #[derive(Clone, Copy)]
 enum End<'a> {
     Eof,
-    Tag { name: &'a str, regular: bool },
-    Block,
+    /// The children of the element or block that starts at `start`.
+    Tag {
+        name: &'a str,
+        regular: bool,
+        start: u32,
+    },
+    Block {
+        start: u32,
+    },
 }
 
 struct Parser<'a, 'b> {
@@ -177,6 +225,8 @@ struct Parser<'a, 'b> {
     pending_children: Vec<TemplateNodeIdentifier>,
     /// Upstream's `unique_names` for the start tag being read.
     unique_names: FxHashSet<(attribute::Unique, &'a str)>,
+    /// The root-only meta tags read so far, one bit each; upstream allows each once.
+    meta_tags: u8,
     /// How many fragments are open.
     depth: u32,
 }
@@ -191,17 +241,44 @@ impl<'a> Parser<'a, '_> {
         }
     }
 
+    /// Upstream's error `code` at the current position.
     #[cold]
-    fn err<T>(&self, message: impl Into<String>) -> ParseResult<T> {
+    fn err<T>(&self, code: &'static str, message: impl std::fmt::Display) -> ParseResult<T> {
         Self::err_at(
             Span::new(self.position as u32, self.position as u32),
+            code,
             message,
         )
     }
 
     #[cold]
-    fn err_at<T>(span: Span, message: impl Into<String>) -> ParseResult<T> {
-        Err(Diagnostic::error("parse_error", message.into(), span))
+    fn err_at<T>(
+        span: Span,
+        code: &'static str,
+        message: impl std::fmt::Display,
+    ) -> ParseResult<T> {
+        Err(svelte_error(code, message, span))
+    }
+
+    /// Upstream's `expected_token`, which its `eat(token, true)` raises.
+    #[cold]
+    fn expected_token<T>(&self, token: &str) -> ParseResult<T> {
+        self.err("expected_token", format_args!("Expected token {token}"))
+    }
+
+    /// Upstream's `unexpected_eof`, at the end of the component without its trailing whitespace,
+    /// which upstream trims before it parses.
+    #[cold]
+    fn unexpected_eof<T>(&self) -> ParseResult<T> {
+        let end = self
+            .source_text
+            .trim_end_matches(is_ecmascript_whitespace)
+            .len() as u32;
+        Self::err_at(
+            Span::new(end, end),
+            "unexpected_eof",
+            "Unexpected end of input",
+        )
     }
 
     fn rest(&self) -> &'a str {
@@ -220,7 +297,7 @@ impl<'a> Parser<'a, '_> {
 
     fn require_ws(&mut self) -> ParseResult<()> {
         if !self.rest().starts_with(is_ecmascript_whitespace) {
-            return self.err("expected whitespace");
+            return self.err("expected_whitespace", "Expected whitespace");
         }
         self.skip_ws();
         Ok(())

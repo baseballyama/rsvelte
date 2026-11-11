@@ -15,6 +15,9 @@ pub(super) fn peek_tag_name(s: &str) -> &str {
     &s[..end]
 }
 
+const TAG_INVALID_NAME: &str = "Expected a valid element or component name. Components must have \
+                                a valid variable name or dot notation expression";
+
 /// Upstream's root-only meta tags.
 const ROOT_ONLY_META_TAGS: &[&str] = &[
     "svelte:head",
@@ -31,21 +34,45 @@ impl<'a> Parser<'a, '_> {
         let name = self.tag_name();
         let name_text = name.text(self.source_text);
         if name.is_empty() {
-            return self.err("expected a tag name");
+            if self.rest().is_empty() {
+                return self.unexpected_eof();
+            }
+            return self.err("tag_invalid_name", TAG_INVALID_NAME);
         }
         if at_root && matches!(name_text, "script" | "style") {
             self.script_or_style(start_offset, name_text)?;
             return Ok(None);
         }
         if name_text.starts_with("svelte:") && !META_TAGS.contains(&name_text) {
-            return Self::err_at(name, format!("`<{name_text}>` is not a valid meta tag"));
+            return Self::err_at(
+                name,
+                "svelte_meta_invalid_tag",
+                "Valid `<svelte:...>` tag names are svelte:head, svelte:options, svelte:window, \
+                 svelte:document, svelte:body, svelte:element, svelte:component, svelte:self, \
+                 svelte:fragment or svelte:boundary",
+            );
         }
         let component_name = is_component_name(name_text);
         if !is_valid_element_name(name_text) && !component_name {
-            return Self::err_at(name, format!("`<{name_text}>` is not a valid element name"));
+            return Self::err_at(name, "tag_invalid_name", TAG_INVALID_NAME);
         }
-        if ROOT_ONLY_META_TAGS.contains(&name_text) && !at_root {
-            return Self::err_at(name, format!("`<{name_text}>` must be at the top level"));
+        if let Some(index) = ROOT_ONLY_META_TAGS.iter().position(|t| *t == name_text) {
+            let start = Span::new(start_offset as u32, start_offset as u32);
+            if self.meta_tags & (1 << index) != 0 {
+                return Self::err_at(
+                    start,
+                    "svelte_meta_duplicate",
+                    format_args!("A component can only have one `<{name_text}>` element"),
+                );
+            }
+            if !at_root {
+                return Self::err_at(
+                    start,
+                    "svelte_meta_invalid_placement",
+                    format_args!("`<{name_text}>` tags cannot be inside elements or blocks"),
+                );
+            }
+            self.meta_tags |= 1 << index;
         }
         let component = component_name
             .then(|| self.component_reference(name))
@@ -63,6 +90,7 @@ impl<'a> Parser<'a, '_> {
             let children = self.fragment(End::Tag {
                 name: name_text,
                 regular,
+                start: start_offset as u32,
             })?;
             (children, self.end_tag(name_text, regular)?)
         };
@@ -125,15 +153,16 @@ impl<'a> Parser<'a, '_> {
             if regular {
                 return Ok(false);
             }
-            return self.err(format!(
-                "`</{closing}>` attempted to close an element that was not open"
-            ));
+            return self.err(
+                "element_invalid_closing_tag",
+                format_args!("`</{closing}>` attempted to close an element that was not open"),
+            );
         }
         self.eat_token(TokenType::EndTagOpen, 2);
         self.eat_token(TokenType::TagName, closing.len());
         self.skip_ws();
         if self.peek() != Some(b'>') {
-            return self.err("expected `>`");
+            return self.expected_token(">");
         }
         self.eat_token(TokenType::TagEnd, 1);
         Ok(true)
@@ -144,7 +173,7 @@ impl<'a> Parser<'a, '_> {
         loop {
             let rest = self.rest();
             if rest.is_empty() {
-                return self.err("`<textarea>` was left open");
+                return self.unexpected_eof();
             }
             if textarea_end(rest).is_some() {
                 break;
@@ -210,7 +239,7 @@ impl<'a> Parser<'a, '_> {
             None => self.empty_range(),
         };
         if self.rest().is_empty() {
-            return self.err(format!("expected `{close}`"));
+            return self.expected_token(close);
         }
         self.eat_token(TokenType::EndTagOpen, 2);
         self.tag_name();

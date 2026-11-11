@@ -353,7 +353,7 @@ fn pre_content_and_written_names_print_as_written() {
 fn what_svelte_rejects_is_refused() {
     assert_eq!(
         refusal("<svelte:head></svelte:head><svelte:head></svelte:head>\n").0,
-        "a root-only `svelte:` tag twice"
+        "a syntax error"
     );
     assert_eq!(
         refusal("<svelte:options runes>\n</svelte:options>\n").0,

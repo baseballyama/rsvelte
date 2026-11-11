@@ -94,7 +94,7 @@ fn debug_tags_keep_single_and_multiple_identifiers() {
 fn unterminated_values_report_the_utf8_byte_offset() {
     let source = "<div title=\"日本語🙂";
     let error = parse(source).expect_err("unterminated quote");
-    assert_eq!(error.message, "unexpected end of input");
+    assert_eq!(error.code, "unexpected_eof");
     assert_eq!(error.span.start_offset as usize, source.len());
 }
 

@@ -22,7 +22,7 @@ impl Parser<'_, '_> {
                 self.words(TokenType::AttributeText, start_offset);
             }
             match self.peek() {
-                None => return self.err("unexpected end of input"),
+                None => return self.unexpected_eof(),
                 Some(b'{') => self.attribute_expression()?,
                 Some(_) => return Ok(()),
             }
@@ -32,7 +32,10 @@ impl Parser<'_, '_> {
     fn attribute_expression(&mut self) -> ParseResult<()> {
         let after = super::whitespace::trim_whitespace_start(&self.rest()[1..]);
         if after.starts_with('#') || after.starts_with('@') {
-            return self.err("blocks and tags are not allowed in an attribute value");
+            return self.err(
+                "parse_error",
+                "blocks and tags are not allowed in an attribute value",
+            );
         }
         let start_offset = self.position;
         self.eat_token(TokenType::MustacheOpen, 1);
