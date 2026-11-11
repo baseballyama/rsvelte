@@ -808,20 +808,20 @@ export const usePageData = (site, pages, manager = self) => {
 };
 
 const deduplicate = (key) => (item, index, array) => array.findIndex((value) => value[key] === item[key]) === index;
-=== 319 src/lib/PageData.svelte.ts	warnings.json
+=== 318 src/lib/PageData.svelte.ts	warnings.json
 [
 	{
 		"code": "perf_avoid_inline_class",
 		"message": "Avoid 'new class' — instead, declare the class at the top level scope\nhttps://svelte.dev/e/perf_avoid_inline_class",
 		"start": {
-			"line": 26,
-			"column": 11,
-			"character": 3106
+			"line": 47,
+			"column": 8,
+			"character": 3291
 		},
 		"end": {
-			"line": 62,
-			"column": 8,
-			"character": 4114
+			"line": 85,
+			"column": 5,
+			"character": 4045
 		}
 	}
 ]
@@ -2517,20 +2517,20 @@ export const useSvelteWorker = (ready, loaded, work) => {
 		}
 	})();
 };
-=== 318 src/lib/workers/Worker.svelte.ts	warnings.json
+=== 317 src/lib/workers/Worker.svelte.ts	warnings.json
 [
 	{
 		"code": "perf_avoid_inline_class",
 		"message": "Avoid 'new class' — instead, declare the class at the top level scope\nhttps://svelte.dev/e/perf_avoid_inline_class",
 		"start": {
-			"line": 21,
-			"column": 11,
-			"character": 673
+			"line": 33,
+			"column": 8,
+			"character": 976
 		},
 		"end": {
-			"line": 43,
-			"column": 8,
-			"character": 1351
+			"line": 55,
+			"column": 5,
+			"character": 1403
 		}
 	}
 ]

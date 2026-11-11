@@ -1998,20 +1998,20 @@ export const useRenderer = () => {
 
 	return context;
 };
-=== 363 packages/core/src/lib/context/fragments/renderer.svelte.ts	warnings.json
+=== 365 packages/core/src/lib/context/fragments/renderer.svelte.ts	warnings.json
 [
 	{
 		"code": "state_referenced_locally",
 		"message": "This reference only captures the initial value of `opts`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
 		"start": {
-			"line": 68,
-			"column": 30,
-			"character": 3353
+			"line": 184,
+			"column": 28,
+			"character": 5549
 		},
 		"end": {
-			"line": 68,
-			"column": 34,
-			"character": 3357
+			"line": 184,
+			"column": 32,
+			"character": 5553
 		}
 	}
 ]
@@ -4817,14 +4817,14 @@ export const injectLayersPlugin = () => {
 		"code": "state_referenced_locally",
 		"message": "This reference only captures the initial value of `mergedCtx`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
 		"start": {
-			"line": 10,
-			"column": 45,
-			"character": 533
+			"line": 14,
+			"column": 63,
+			"character": 676
 		},
 		"end": {
-			"line": 10,
-			"column": 54,
-			"character": 542
+			"line": 14,
+			"column": 72,
+			"character": 685
 		}
 	}
 ]
