@@ -148,7 +148,8 @@ impl RuneWalk<'_> {
             && !destructured
             && match rune {
                 "$state" | "$state.raw" | "$derived" | "$derived.by" | "$props" | "$props.id"
-                | "$bindable" | "$effect.pending" | "$effect.tracking" | "$effect.root" => true,
+                | "$bindable" | "$effect.pending" | "$effect.tracking" | "$effect.root"
+                | "$state.eager" => true,
                 "$state.snapshot" => self.snapshot == Snapshot::Lowered,
                 "$host" => self.custom_element,
                 "$effect" | "$effect.pre" => {
