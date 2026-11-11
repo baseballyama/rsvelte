@@ -27,16 +27,31 @@ impl Printer<'_, '_, '_> {
         let mut root = c.children(c.root).to_vec();
         let mut hoisted = Vec::new();
         for script in c.module.iter().chain(&c.instance) {
-            self.refuse_script_language(&script.attributes)?;
             let comments = self.leading_comments(&mut root, script.span.start_offset);
-            let body = self.script_body(script.content)?;
+            let body = if self.ignores(&comments) {
+                self.preformatted(script.content)
+            } else {
+                self.refuse_script_language(&script.attributes)?;
+                self.script_body(script.content)?
+            };
             let tag = self.embed_tag("script", &script.attributes, body);
             let tag = self.with_comments(&comments, tag);
             hoisted.push((SortPart::Scripts, script.span, tag));
         }
         if let Some(style) = &c.style {
             let comments = self.leading_comments(&mut root, style.span.start_offset);
-            let body = self.style_body(style)?;
+            let body = if self.ignores(&comments) {
+                // The task formats only a component whose style sheet parsed.
+                if style.sheet.is_err() {
+                    return Err(Unsupported::at(
+                        "a style sheet that does not parse",
+                        style.content,
+                    ));
+                }
+                self.preformatted(style.content)
+            } else {
+                self.style_body(style)?
+            };
             let tag = self.embed_tag("style", &style.attributes, body);
             let tag = self.with_comments(&comments, tag);
             hoisted.push((SortPart::Styles, style.span, tag));
@@ -246,7 +261,13 @@ impl Printer<'_, '_, '_> {
         let mut after: Vec<Option<TemplateNodeIdentifier>> = Vec::new();
         let mut at = start;
         while let Some(&previous) = root.iter().find(|&&n| c.node(n).span().end_offset == at) {
-            if let TemplateNode::Comment { data, .. } = *c.node(previous) {
+            if let TemplateNode::Comment { data, .. } = *c.node(previous)
+                && !matches!(
+                    data.text(self.source_text)
+                        .trim_matches(is_ecmascript_whitespace),
+                    "prettier-ignore-start" | "prettier-ignore-end"
+                )
+            {
                 comments.push((previous, data));
                 if comments.len() != after.len() {
                     after.push(None);
@@ -271,6 +292,42 @@ impl Printer<'_, '_, '_> {
                 (data, empty_line)
             })
             .collect()
+    }
+
+    /// `embedTag` keeps the body as it is when the comment right above is `prettier-ignore`.
+    fn ignores(&self, comments: &[(Span, bool)]) -> bool {
+        comments.last().is_some_and(|&(data, _)| {
+            data.text(self.source_text)
+                .trim_matches(is_ecmascript_whitespace)
+                == "prettier-ignore"
+        })
+    }
+
+    /// `preformattedBody`: the text without its first and last line break, on a literal line.
+    fn preformatted(&mut self, content: Span) -> LayoutInstructionIdentifier {
+        let text = content.text(self.source_text);
+        if text.is_empty() {
+            return self.d().nil();
+        }
+        let blank = |c: char| matches!(c, '\t' | '\x0C' | '\r' | ' ');
+        let start = text
+            .find(|c: char| !blank(c))
+            .filter(|&i| text[i..].starts_with('\n'))
+            .map_or(0, |i| i + 1);
+        let text = &text[start..];
+        let end = text
+            .rfind(|c: char| !blank(c))
+            .filter(|&i| text[i..].starts_with('\n'))
+            .unwrap_or(text.len());
+        let mut parts = vec![self.d().literalline()];
+        for (i, line) in text[..end].split('\n').enumerate() {
+            if i > 0 {
+                parts.push(self.d().literalline());
+            }
+            parts.push(self.d().text(line.strip_suffix('\r').unwrap_or(line)));
+        }
+        parts.push(self.d().hardline());
+        self.cat(&parts)
     }
 
     /// `embedTag`'s moved comments, each on its own line above the tag.
@@ -316,9 +373,6 @@ impl Printer<'_, '_, '_> {
             let data = data
                 .text(self.source_text)
                 .trim_matches(is_ecmascript_whitespace);
-            if data.starts_with("prettier-ignore") {
-                return Err(Unsupported::at("prettier-ignore comments", span));
-            }
             for h in &hoisted {
                 let after = h.end_offset <= span.start_offset
                     && only_ws(

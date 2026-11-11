@@ -130,8 +130,8 @@ pass	printer/pre-element-with-code-element.html
 pass	printer/pre-element.html
 refused	printer/prettier-ignore-nested.html	prettier-ignore comments
 refused	printer/prettier-ignore-range.html	prettier-ignore comments
-refused	printer/prettier-ignore-script.html	prettier-ignore comments
-refused	printer/prettier-ignore-style.html	prettier-ignore comments
+pass	printer/prettier-ignore-script.html
+pass	printer/prettier-ignore-style.html
 pass	printer/raw-mustaches.html
 refused	printer/region-markers.html	`<!-- #endregion -->` after <script> or <style>
 pass	printer/require-pragma-missing.html
