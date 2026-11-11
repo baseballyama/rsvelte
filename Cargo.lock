@@ -1219,6 +1219,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_typescript_api"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_test_harness",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rsvelte_typescript_check"
 version = "0.0.0"
 dependencies = [

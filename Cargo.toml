@@ -40,6 +40,7 @@ rsvelte_typescript_format = { path = "crates/languages/typescript/format" }
 rsvelte_typescript_lint = { path = "crates/languages/typescript/lint" }
 rsvelte_typescript_content_mapper = { path = "crates/languages/typescript/content_mapper" }
 rsvelte_typescript_check = { path = "crates/languages/typescript/check" }
+rsvelte_typescript_api = { path = "crates/languages/typescript/api" }
 rsvelte_svelte_format = { path = "crates/languages/svelte/format" }
 rsvelte_svelte_lint = { path = "crates/languages/svelte/lint" }
 rsvelte_svelte_typescript_projection = { path = "crates/languages/svelte/typescript_projection" }
