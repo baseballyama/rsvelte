@@ -14,3 +14,4 @@ type __rsvelte_no_props = Record<string, never>;
 type __rsvelte_props_with_children<Props> = Props extends __rsvelte_no_props ? any : Props & { children?: any };
 type __rsvelte_store<T> = { subscribe: (run: (value: T) => any, invalidate?: any) => any };
 type __rsvelte_store_value<Store> = Store extends __rsvelte_store<infer T> ? T : Store;
+declare function __rsvelte_get_set<T>(get: (() => T) | null | undefined, set: (value: T) => void): T;

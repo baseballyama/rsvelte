@@ -1,1 +1,0 @@
-error check_unsupported 7:8-7:27 not supported by the type-check projection yet: bind: directives
