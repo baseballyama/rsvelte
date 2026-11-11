@@ -18,25 +18,7 @@ pub(super) fn prepare<'c, 'o>(
     let custom_element = facts.validated.custom_element.as_ref();
     let javascript = input.component.javascript;
     check_runes(input, res, target, custom_element.is_some())?;
-    let scoping = res.scoping();
-    // Upstream erases types before it builds scopes, so a type's name is free.
-    let declared = scoping
-        .symbol_ids()
-        .filter(|&s| {
-            let flags = scoping.symbol_flags(s);
-            flags.intersects(SymbolFlags::Value | SymbolFlags::Import) && !declared_in_type(res, s)
-        })
-        .map(|s| scoping.symbol_name(s));
-    let referenced = scoping
-        .root_unresolved_references()
-        .iter()
-        .filter(|(_, references)| {
-            references
-                .iter()
-                .any(|&r| scoping.get_reference(r).flags().is_value())
-        })
-        .map(|(name, _)| name.as_str());
-    let mut names = names::Names::new(declared, referenced);
+    let mut names = names(res);
     let each_index = each_index_names(input.component.compiler_syntax_tree, &mut names);
     let binding_groups = super::binding_groups::binding_groups(
         input.component.compiler_syntax_tree,
@@ -101,6 +83,29 @@ pub(super) fn prepare<'c, 'o>(
         custom_element,
         component_name,
     })
+}
+
+/// The names the source declares or reads, which a generated name avoids.
+pub(super) fn names(res: &Resolution) -> names::Names {
+    let scoping = res.scoping();
+    // Upstream erases types before it builds scopes, so a type's name is free.
+    let declared = scoping
+        .symbol_ids()
+        .filter(|&s| {
+            let flags = scoping.symbol_flags(s);
+            flags.intersects(SymbolFlags::Value | SymbolFlags::Import) && !declared_in_type(res, s)
+        })
+        .map(|s| scoping.symbol_name(s));
+    let referenced = scoping
+        .root_unresolved_references()
+        .iter()
+        .filter(|(_, references)| {
+            references
+                .iter()
+                .any(|&r| scoping.get_reference(r).flags().is_value())
+        })
+        .map(|(name, _)| name.as_str());
+    names::Names::new(declared, referenced)
 }
 
 /// Each `{#each}`'s `$$index` name. Upstream takes them from `scope.root.unique` while it builds
