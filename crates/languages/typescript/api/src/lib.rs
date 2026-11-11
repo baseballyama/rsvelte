@@ -1,7 +1,7 @@
 //! A client for the API of native TypeScript 7.1 (`tsc --api`): one checker process, asked over
 //! its stdin and stdout. Type checking and typed lint ask the same snapshot.
 
-use std::io::{BufReader, BufWriter};
+use std::io::{BufReader, BufWriter, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
@@ -135,7 +135,13 @@ impl Session {
             output: BufReader::new(output),
             program: name,
         };
-        session.request("initialize", b"null")?;
+        if let Err(e) = session.request("initialize", b"null") {
+            // A checker without the API mode prints its usage or errors instead of a message.
+            let mut printed = Vec::new();
+            drop(session.output.read_to_end(&mut printed));
+            let printed = String::from_utf8_lossy(&printed);
+            return Err(format!("{e}: {}", printed.trim()));
+        }
         Ok(session)
     }
 

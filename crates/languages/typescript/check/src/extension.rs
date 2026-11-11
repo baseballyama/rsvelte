@@ -21,7 +21,8 @@ pub const NEEDS_TYPE_CHECKER: &str =
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Options {
-    /// The program, then its own arguments, such as `["tsrs", "--fast"]`.
+    /// The program, then the arguments that start it, such as `["node", "tsc.js"]`. rsvelte
+    /// adds `--api`, so they are not compiler options.
     command: Vec<String>,
     /// The project's tsconfig.json; by default `tsconfig.json` next to the options, if any.
     tsconfig: Option<PathBuf>,

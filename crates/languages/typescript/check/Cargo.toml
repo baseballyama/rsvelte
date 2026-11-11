@@ -15,6 +15,7 @@ serde.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript_syntax.workspace = true
 rsvelte_typescript_content_mapper.workspace = true
+rsvelte_typescript_api.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

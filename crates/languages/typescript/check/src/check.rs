@@ -1,11 +1,8 @@
 //! Type checking with TypeScript's own checker.
 //!
-//! Native TypeScript 7.1 checks a batch. Content-mapped inputs receive diagnostics in original
-//! coordinates. Plain generated inputs use their language's mapping policy.
-//!
-//! `tsc` has no machine-readable output, so the pretty report is parsed: its header gives the
-//! start, its underline gives the end. The parser accepts only the shapes it knows and checks the
-//! count against tsc's own summary, so an unrecognised report is an error, never a dropped finding.
+//! Native TypeScript 7.1 checks a batch through its API, which answers with structured
+//! diagnostics. Content-mapped inputs receive them in original coordinates. Plain generated
+//! inputs use their language's mapping policy.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -20,19 +17,20 @@ use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
+use rsvelte_typescript_api::{DiagnosticKind, Position, Session};
 
-/// What a type checker must accept: rsvelte runs it in a directory with a generated
-/// `tsconfig.json` (with `contentMappers`) and reads the report it prints.
-pub(crate) const CONTRACT: &str = "a type checker with the command line of TypeScript 7.1 or later: \
-     `-p <dir> --pretty true --runExternalCode`, `contentMappers` in tsconfig.json, and its report";
+/// What a type checker must accept: rsvelte opens a generated `tsconfig.json` (with
+/// `contentMappers`) through the checker's API.
+pub(crate) const CONTRACT: &str = "a type checker with the API of TypeScript 7.1 or later: \
+     `--api --cwd <dir> --runExternalCode` and `contentMappers` in tsconfig.json";
 
-/// A type checker: `tsc` of TypeScript 7.1, or any product with the same command line
-/// (`CONTRACT`).
+/// A type checker: `tsc` of TypeScript 7.1, or any product with the same API (`CONTRACT`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TypeChecker {
     /// An absolute path, or a name looked up in `PATH`.
     pub program: PathBuf,
-    /// Passed before the arguments rsvelte adds, such as `--fast`.
+    /// Passed before the arguments rsvelte adds, such as a script for `node`. The API mode takes
+    /// no compiler options.
     pub arguments: Vec<String>,
 }
 
@@ -468,6 +466,8 @@ impl Tsc {
             RUN.fetch_add(1, Ordering::Relaxed)
         ));
         std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        // The checker names files by their real path, such as `/private/var` for `/var`.
+        let dir = std::fs::canonicalize(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
         let result = self.check_in(&dir, req);
         // Best effort: a leftover temporary directory does not affect the result.
         drop(std::fs::remove_dir_all(&dir));
@@ -500,25 +500,27 @@ impl Tsc {
             write(name, text)?;
         }
         write("tsconfig.json", &self.tsconfig_json(req))?;
-        let output = {
-            let _p = measurement::phase("ts.tsc");
-            Command::new(&self.checker.program)
-                .args(&self.checker.arguments)
-                .args(["-p", ".", "--pretty", "true", "--runExternalCode"])
-                .current_dir(dir)
-                .output()
-                .map_err(|e| format!("{}: {e}", self.checker))?
-        };
-        let stdout = String::from_utf8(output.stdout).map_err(|e| e.to_string())?;
-        if !matches!(output.status.code(), Some(0..=2)) || !output.stderr.is_empty() {
-            return Err(format!(
-                "{} exited with {}: {}{stdout}",
-                self.checker,
-                output.status,
-                String::from_utf8_lossy(&output.stderr)
-            ));
+        let failed = |e: String| format!("{e}; rsvelte needs {CONTRACT}");
+        let _p = measurement::phase("ts.tsc");
+        let mut session =
+            Session::start(&self.checker.program, &self.checker.arguments, dir).map_err(failed)?;
+        let config = dir.join("tsconfig.json");
+        let project = session.open(&[&config]).map_err(failed)?[0];
+        let paths: Vec<PathBuf> = (0..req.files.len())
+            .map(|i| dir.join(req.file_name(i)))
+            .collect();
+        let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
+        let mut found = session
+            .diagnostics(project, DiagnosticKind::Program, None)
+            .map_err(failed)?;
+        for kind in [DiagnosticKind::Syntactic, DiagnosticKind::Semantic] {
+            found.extend(
+                session
+                    .diagnostics(project, kind, Some(&files))
+                    .map_err(failed)?,
+            );
         }
-        let _p = measurement::phase("ts.report");
+        session.release(project.snapshot).map_err(failed)?;
         let lines: Vec<LineIndex> = req
             .files
             .iter()
@@ -532,10 +534,12 @@ impl Tsc {
                 )
             })
             .collect();
-        parse_report(&strip_ansi(&stdout), |file, line, column| {
-            lines.get(file).and_then(|l| l.offset(line, column))
-        })
-        .map_err(|e| format!("{}: {e}; rsvelte needs {CONTRACT}", self.checker))
+        found
+            .into_iter()
+            // The command line reports errors only; svelte-check's errors are the oracle.
+            .filter(|d| d.category == ERROR)
+            .map(|d| located(&d, &paths, &lines).ok_or_else(|| unlocated(&self.checker, &d)))
+            .collect()
     }
 
     fn tsconfig_json(&self, req: &CheckRequest) -> String {
@@ -576,8 +580,42 @@ impl Tsc {
     }
 }
 
-mod report;
-use report::{parse_report, strip_ansi};
+/// `DiagnosticCategory.Error`.
+const ERROR: u8 = 1;
+
+/// The document and byte range of a diagnostic in one of `paths`, whose texts `lines` index.
+fn located(
+    d: &rsvelte_typescript_api::Diagnostic,
+    paths: &[PathBuf],
+    lines: &[LineIndex],
+) -> Option<TypeScriptDiagnostic> {
+    let file = paths.iter().position(|p| Some(p) == d.file_name.as_ref())?;
+    let offset = |p: Option<Position>| {
+        let p = p?;
+        lines[file].offset(p.line + 1, p.character)
+    };
+    let (start, end) = (offset(d.start_position)?, offset(d.end_position)?);
+    (start <= end).then(|| TypeScriptDiagnostic {
+        file,
+        code: d.code,
+        message: d.flattened_message(),
+        span: Span::new(start, end),
+    })
+}
+
+/// A diagnostic outside every document, such as one in tsconfig.json, fails the whole check.
+fn unlocated(checker: &TypeChecker, d: &rsvelte_typescript_api::Diagnostic) -> String {
+    let at = d
+        .file_name
+        .as_ref()
+        .map_or_else(String::new, |f| format!("{}: ", f.display()));
+    format!(
+        "{checker}: {at}error TS{}: {}",
+        d.code,
+        d.flattened_message()
+    )
+}
+
 mod mapped;
 pub(crate) use mapped::ContentMappedInput;
 

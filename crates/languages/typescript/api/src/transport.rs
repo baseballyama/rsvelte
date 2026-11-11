@@ -1,7 +1,7 @@
 //! The framing of `tsc --api`: each message is a `MessagePack` array of three, `[type, method,
 //! payload]`, with the method and payload as `bin` fields.
 
-use std::io::{Read, Write};
+use std::io::{BufRead, Read, Write};
 
 const FIXARRAY3: u8 = 0x93;
 const UINT8: u8 = 0xCC;
@@ -52,9 +52,12 @@ fn bin_header(out: &mut Vec<u8>, len: usize) -> std::io::Result<()> {
     Ok(())
 }
 
-pub(crate) fn read(input: &mut impl Read) -> std::io::Result<Message> {
-    if byte(input)? != FIXARRAY3 {
-        return Err(invalid("expected a three-element array"));
+/// Leaves input that is not a message unread, so the caller can show what the checker printed.
+pub(crate) fn read(input: &mut impl BufRead) -> std::io::Result<Message> {
+    match input.fill_buf()?.first() {
+        Some(&FIXARRAY3) => input.consume(1),
+        Some(_) => return Err(invalid("expected a three-element array")),
+        None => return Err(std::io::ErrorKind::UnexpectedEof.into()),
     }
     let kind = match byte(input)? {
         k @ 0..=0x7F => k,

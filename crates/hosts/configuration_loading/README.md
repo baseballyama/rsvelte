@@ -44,7 +44,7 @@ from the configuration file.
 | `vue.check`        | `vue`: the package directory                                            |
 
 ```json
-{ "plugins": { "typescript.check": { "command": ["tsrs", "--fast"] } } }
+{ "plugins": { "typescript.check": { "command": ["tsrs"] } } }
 ```
 
 A program with a `/` starts from the configuration file. The host looks for a bare name in
