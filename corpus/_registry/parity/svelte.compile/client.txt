@@ -1,4 +1,4 @@
-# svelte.compile/client: 32248 match
+# svelte.compile/client: 32250 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_non_literal_default_is_printed_as_source/9f90227e63e25649.svelte	mismatch
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_let_that_opens_a_declaration_keeps_the_parsers_position/0215afc9063b8da6.svelte	mismatch
@@ -1898,7 +1898,6 @@ svelte/rsvelte-tests-core-3/store_read_in_regex_3647/a_store_read_spelled_as_cod
 svelte/rsvelte-tests-core-3/store_read_in_regex_3647/the_already_skipped_kinds_are_unchanged/488b0b8ffa0dfeb8.svelte	unexpected
 svelte/rsvelte-tests-core-3/store_ref_multibyte/store_ref_after_multibyte_identifier/f1307c3160c1d4a4.svelte	unexpected
 svelte/rsvelte-tests-core-3/store_rune_conflict_3597/another_rune_reference_still_enables_runes_mode/85dae5221dd8bfac.svelte	mismatch
-svelte/rsvelte-tests-core-3/store_rune_conflict_3597/module_state_keeps_module_proxy_lowering/0cffe17b5cfa94e5.svelte	refused
 svelte/rsvelte-tests-core-3/store_setter_source_read/a_bind_setter_reads_the_store_source_through_its_binding/8c7c820c0d7111a7.svelte	mismatch
 svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_double_quoted_value_is_content/16a88fbeb58ec9c8.svelte	refused
 svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_leading_comment_is_content/f9a9ddcdcef60879.svelte	refused
@@ -4508,6 +4507,5 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/before-update-in-legac
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-interop-derived/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-interop/Legacy.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/fine-grained-prop-reactive-statement/old.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/inspect-derived-2/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/legacy-runes-ambiguous-explicit-false/main.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/if-block-whitespace-legacy/input.svelte	refused
