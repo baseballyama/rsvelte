@@ -7,6 +7,8 @@ use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 
 #[path = "official_parity/errors.rs"]
 mod errors;
+#[path = "official_parity/exports.rs"]
+mod exports;
 
 /// The output, or the code of the diagnostic that refuses the source.
 fn compile(source: &str, target: Target) -> Result<String, String> {

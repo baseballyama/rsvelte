@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use oxc_allocator::{CloneIn, GetAllocator};
-use oxc_ast::ast::{BindingIdentifier, Expression, ObjectPropertyKind, PropertyKind, Statement};
+use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
 use oxc_semantic::SymbolId;
 use rsvelte_typescript_tree::Tree;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -76,7 +76,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
 
     pub(super) fn custom_element_registration(
         &mut self,
-        exports: &[&BindingIdentifier<'_>],
+        exports: &[crate::lower::script::Export<'_>],
     ) -> Option<Statement<'o>> {
         let b = self.b;
         let ce = self.custom_element.take()?;
@@ -84,7 +84,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let verbatim = |e: &Expression<'_>| e.clone_in(b.allocator());
         let props = b.object(self.custom_element_properties(ce.option(javascript, "props")));
         let slots = b.array([]);
-        let accessors = b.array(exports.iter().map(|name| b.string(&name.name)));
+        let accessors = b.array(exports.iter().map(|export| b.string(export.alias)));
         let shadow = match &ce.shadow {
             Shadow::Open => Some(b.object([b.init("mode", b.string("open"))])),
             Shadow::None => None,
