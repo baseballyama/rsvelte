@@ -3,7 +3,7 @@
 
 use oxc_ast::ast::{Expression, VariableDeclarationKind};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    CompilerNodeIdentifier, ElementKind, MetadataTag, StyleValue,
+    CompilerNodeIdentifier, ElementKind, MetadataTag, Part, StyleValue,
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
@@ -80,6 +80,9 @@ fn check_element(
         _ => None,
     };
     let attributes = tree.attributes(el.attributes);
+    if tag == Some("textarea") {
+        check_textarea(input, el)?;
+    }
     for a in attributes {
         let name = a.name.text(source);
         if let (Some(tag), &AttributeValue::Bind(target)) = (tag, &a.value)
@@ -142,6 +145,36 @@ fn check_element(
             _ => continue,
         };
         return unsupported(what, a.span);
+    }
+    Ok(())
+}
+
+/// Upstream moves a `<textarea>`'s content that is not one text into its `value`.
+fn check_textarea(input: &CompileInput<'_>, el: &Element) -> Result<(), Diagnostic> {
+    let tree = input.component.compiler_syntax_tree;
+    let source = input.component.source_text;
+    let attributes = tree.attributes(el.attributes);
+    let children = tree.children(el.children);
+    let text =
+        |&child: &CompilerNodeIdentifier| matches!(tree.node(child).kind, NodeKind::Text { .. });
+    if !children.is_empty()
+        && (children.len() > 1
+            || !children.iter().all(text)
+            || attribute_value(source, attributes, "value").is_some())
+    {
+        return unsupported(
+            "a `<textarea>` with content beside a `value`, or not one text",
+            el.name,
+        );
+    }
+    if let Some(AttributeValue::Interpolated(parts)) = attribute_value(source, attributes, "value")
+        && let Some(Part::Text(first)) = parts.first()
+        && matches!(
+            first.text(source).as_bytes(),
+            [b'\n', ..] | [b'\r', b'\n', ..]
+        )
+    {
+        return unsupported("a `<textarea>` value that starts with a newline", el.name);
     }
     Ok(())
 }

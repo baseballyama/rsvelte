@@ -1,7 +1,9 @@
 use oxc_ast::ast::Expression;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{Attribute, AttributeValue, ServerCompilationContext, is_boolean_attribute};
+use super::{
+    Attribute, AttributeValue, ServerCompilationContext, is_boolean_attribute, is_directive,
+};
 use crate::lower::bindings::{Lowering, attribute_value, property_of};
 use crate::lower::builder::Runtime;
 
@@ -25,7 +27,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             )
         };
         let skipped = match name {
-            "value" => tag == "select" || file(),
+            "value" => matches!(tag, "select" | "textarea") || file(),
             _ => property_of(name)
                 .is_none_or(|p| p.client_only || p.lowering == Lowering::ContentEditable),
         };
@@ -37,15 +39,33 @@ impl<'o> ServerCompilationContext<'_, 'o> {
 
     /// Upstream's `content`: the body a content binding renders in place of the children; the
     /// last one wins.
-    pub(super) fn element_body(&self, attributes: &[Attribute]) -> Option<Expression<'o>> {
+    pub(super) fn element_body(
+        &self,
+        tag: &str,
+        attributes: &[Attribute],
+    ) -> Option<Expression<'o>> {
         let b = self.b;
         let mut body = None;
         for a in attributes {
+            let name = a.name.text(self.source_text);
             let AttributeValue::Bind(e) = a.value else {
+                if tag == "textarea" && name == "value" && !is_directive(&a.value) {
+                    let value = match &a.value {
+                        // Upstream doubles a leading newline, which the parser drops.
+                        AttributeValue::Static(v)
+                            if v.starts_with('\n') || v.starts_with("\r\n") =>
+                        {
+                            b.string(&format!("\n{v}"))
+                        }
+                        _ => self.attribute_value(a, false, false),
+                    };
+                    body = Some(b.runtime("escape", [value]));
+                }
                 continue;
             };
-            let name = a.name.text(self.source_text);
-            if property_of(name).is_some_and(|p| p.lowering == Lowering::ContentEditable) {
+            if tag == "textarea" && name == "value" {
+                body = Some(b.runtime("escape", [self.bound(e)]));
+            } else if property_of(name).is_some_and(|p| p.lowering == Lowering::ContentEditable) {
                 let value = self.bound(e);
                 // `innerHTML` is the one binding upstream does not escape.
                 body = Some(if name == "innerHTML" {
