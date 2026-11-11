@@ -21,6 +21,8 @@ pub enum Node {
         prefix: NodeIdentifier,
         index: u32,
     },
+    /// svelte2tsx's `$name` for the store a binding at this span names, unmapped.
+    StoreSubscription(Span),
     TypeQuery(NodeIdentifier),
     TypeArguments {
         callee: NodeIdentifier,

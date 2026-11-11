@@ -142,6 +142,12 @@ impl Printer<'_> {
                 self.output.copy(self.source, span);
                 self.output.mark(span.end_offset);
             }
+            Node::StoreSubscription(store) => {
+                let name = store.text(self.source);
+                for part in [";let $", name, " = __rsvelte_store_get(", name, ");\n"] {
+                    self.output.push(part);
+                }
+            }
             Node::GeneratedIdentifier { prefix, index } => {
                 self.node(prefix);
                 write!(self.output.out, "{index}").expect("writing to a String cannot fail");

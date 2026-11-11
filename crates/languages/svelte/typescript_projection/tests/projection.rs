@@ -259,3 +259,28 @@ fn a_prop_default_that_reads_a_sibling_infers_no_cycle() {
         assert!(props.contains(expected), "{expected}\n{}", output.out);
     }
 }
+
+#[test]
+fn a_store_subscription_is_declared_where_svelte2tsx_declares_it() {
+    let source = "<script lang=\"ts\" module>let m = 1;</script>\
+                  <script lang=\"ts\">let a = 1; import { i } from \"./i\";\
+                  const w = i; function f() {} let { p } = $props();</script>\
+                  {$m}{$i}{$w}{$f}{$p}{$a}";
+    let (_, output) = project(source);
+    let out = &output.out;
+    let declaration =
+        |name: &str| out.find(&format!(";let ${name} = __rsvelte_store_get({name});"));
+    let declared = |name: &str| declaration(name).unwrap_or_else(|| panic!("${name}\n{out}"));
+    let at = |text: &str| out.find(text).unwrap_or_else(|| panic!("{text}\n{out}"));
+    // After the statement that binds the store, and an import's first in the instance.
+    assert!(declared("m") > at("let m = 1;"), "{out}");
+    assert!(declared("w") > at("const w = i;"), "{out}");
+    assert!(declared("p") > at("$props();"), "{out}");
+    assert!(declared("a") > at("let a = 1;"), "{out}");
+    assert!(
+        at("let m = 1;") < declared("i") && declared("i") < at("let a = 1;"),
+        "{out}"
+    );
+    // svelte2tsx declares none for a function.
+    assert_eq!(declaration("f"), None, "{out}");
+}
