@@ -38,3 +38,29 @@ fn each_render_argument_has_its_own_metadata() {
                   {@render row(f(y), y)}\n{@render row?.(y, f(y))}";
     assert_eq!(render_calls(source), [vec![true, false], vec![false, true]]);
 }
+
+#[test]
+fn a_render_tag_needs_no_context_for_its_call() {
+    let source = "<script>let { children, f } = $props();</script>{@render children?.()}";
+    let component = parse(source).expect("parses");
+    let lowered = lower(&component, source);
+    let res = resolve(
+        &component.javascript,
+        component.instance.as_ref().map(|s| s.program),
+        None,
+        &lowered,
+    );
+    let input = crate::svelte_input(&component, &lowered, source, "App.svelte");
+    assert!(!super::analyze(&input, &res).needs_context);
+    let with_call = "<script>let { children, f } = $props();</script>{@render children(f())}";
+    let component = parse(with_call).expect("parses");
+    let lowered = lower(&component, with_call);
+    let res = resolve(
+        &component.javascript,
+        component.instance.as_ref().map(|s| s.program),
+        None,
+        &lowered,
+    );
+    let input = crate::svelte_input(&component, &lowered, with_call, "App.svelte");
+    assert!(super::analyze(&input, &res).needs_context);
+}

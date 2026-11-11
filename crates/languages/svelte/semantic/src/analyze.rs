@@ -112,11 +112,41 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
         compiler_syntax_tree.component_references().collect();
     let mut expressions =
         FxHashMap::with_capacity_and_hasher(tree.expressions().len(), FxBuildHasher);
+    let renders: FxHashSet<ExpressionIdentifier> = compiler_syntax_tree
+        .nodes
+        .iter()
+        .filter_map(|node| match node.kind {
+            NodeKind::Render { expression } => Some(expression),
+            _ => None,
+        })
+        .collect();
     for (identifier, expression) in tree.expressions() {
         let mut walker = MetadataWalker::<true>::new(res, &mut values);
-        walker.visit_expression(expression);
-        needs_context |= walker.needs_context() && !references.contains(&identifier);
+        // Upstream's render tag visits its call's callee and each argument, never the call.
+        let call = renders
+            .contains(&identifier)
+            .then(|| render_call(expression))
+            .flatten();
+        let Some(call) = call else {
+            walker.visit_expression(expression);
+            needs_context |= walker.needs_context() && !references.contains(&identifier);
+            expressions.insert(identifier, walker.metadata());
+            continue;
+        };
+        walker.visit_expression(&call.callee);
+        needs_context |= walker.needs_context();
         expressions.insert(identifier, walker.metadata());
+        let arguments = call
+            .arguments
+            .iter()
+            .map(|argument| {
+                let mut walker = MetadataWalker::<true>::new(res, &mut values);
+                walker.visit_argument(argument);
+                needs_context |= walker.needs_context();
+                walker.metadata()
+            })
+            .collect();
+        analysis.render_arguments.insert(identifier, arguments);
     }
     let mut declarations = FxHashMap::default();
     for (identifier, declaration) in tree.declarations() {
@@ -124,30 +154,6 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
         walker.visit_variable_declaration(declaration);
         needs_context |= walker.needs_context();
         declarations.insert(identifier, walker.metadata());
-    }
-    for node in &compiler_syntax_tree.nodes {
-        let NodeKind::Render { expression } = node.kind else {
-            continue;
-        };
-        let call = match without_typescript(tree.get_expression(expression)) {
-            Expression::CallExpression(call) => Some(&**call),
-            Expression::ChainExpression(chain) => match &chain.expression {
-                ChainElement::CallExpression(call) => Some(&**call),
-                _ => None,
-            },
-            _ => None,
-        };
-        let Some(call) = call else { continue };
-        let arguments = call
-            .arguments
-            .iter()
-            .map(|argument| {
-                let mut walker = MetadataWalker::<true>::new(res, &mut values);
-                walker.visit_argument(argument);
-                walker.metadata()
-            })
-            .collect();
-        analysis.render_arguments.insert(expression, arguments);
     }
     analysis.expressions = expressions;
     analysis.declarations = declarations;
@@ -161,6 +167,18 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
 
     stylesheet::analyze(input, res, &mut analysis);
     analysis
+}
+
+/// Upstream `unwrap_optional` of a render tag's expression: the call it makes.
+fn render_call<'a>(e: &'a Expression<'a>) -> Option<&'a oxc_ast::ast::CallExpression<'a>> {
+    match without_typescript(e) {
+        Expression::CallExpression(call) => Some(call),
+        Expression::ChainExpression(chain) => match &chain.expression {
+            ChainElement::CallExpression(call) => Some(call),
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 #[cfg(test)]
