@@ -210,7 +210,9 @@ fn child_snippet_errors(
                 })
             })
         {
-            let message = "Cannot use explicit children snippet at the same time as implicit children content. Remove either the non-whitespace content or the children snippet block";
+            let message = "Cannot use explicit children snippet at the same time as implicit \
+                children content. Remove either the non-whitespace content or the children snippet \
+                block";
             out.push((at, error("snippet_conflict", message, node.span)));
         }
     }
@@ -260,7 +262,8 @@ pub(super) fn check_exports(
             if snippets.get(local.name.as_str()) == Some(&false) {
                 return invalid(
                     "snippet_invalid_export",
-                    "An exported snippet can only reference things declared in a `<script module>`, or other exportable snippets",
+                    "An exported snippet can only reference things declared in a `<script \
+                        module>`, or other exportable snippets",
                     span_of(specifier),
                 );
             }

@@ -54,33 +54,7 @@ impl RenderPlan {
             input,
             input.component.compiler_syntax_tree.root,
             Parent::Root,
-            input.preserve_whitespace
-                || input
-                    .component
-                    .compiler_syntax_tree
-                    .elements()
-                    .any(|(_, element)| {
-                        element.kind == ElementKind::Metadata(Some(MetadataTag::Options))
-                            && input
-                                .component
-                                .compiler_syntax_tree
-                                .attributes(element.attributes)
-                                .iter()
-                                .any(|attribute| {
-                                    attribute.name.text(input.component.source_text)
-                                        == "preserveWhitespace"
-                                        && match attribute.value {
-                                            AttributeValue::Boolean => true,
-                                            AttributeValue::Expression { expression, .. }
-                                            | AttributeValue::Shorthand(expression) => matches!(
-                                                input.component.javascript.get_expression(expression).get_inner_expression(),
-                                                oxc_ast::ast::Expression::BooleanLiteral(literal)
-                                                    if literal.value
-                                            ),
-                                            _ => false,
-                                        }
-                                })
-                    }),
+            preserves_whitespace(input),
         );
         plan
     }
@@ -259,6 +233,28 @@ impl RenderPlan {
         }
         identifier
     }
+}
+
+/// The `preserveWhitespace` option, or `<svelte:options preserveWhitespace>` set to true.
+fn preserves_whitespace(input: &CompileInput<'_>) -> bool {
+    let component = &input.component;
+    let (tree, javascript) = (&component.compiler_syntax_tree, &component.javascript);
+    input.preserve_whitespace
+        || tree.elements().any(|(_, element)| {
+            element.kind == ElementKind::Metadata(Some(MetadataTag::Options))
+                && tree.attributes(element.attributes).iter().any(|attribute| {
+                    attribute.name.text(component.source_text) == "preserveWhitespace"
+                        && match attribute.value {
+                            AttributeValue::Boolean => true,
+                            AttributeValue::Expression { expression, .. }
+                            | AttributeValue::Shorthand(expression) => matches!(
+                                javascript.get_expression(expression).get_inner_expression(),
+                                oxc_ast::ast::Expression::BooleanLiteral(literal) if literal.value
+                            ),
+                            _ => false,
+                        }
+                })
+        })
 }
 
 /// A component's children but its snippets, grouped by the slot they fill (upstream

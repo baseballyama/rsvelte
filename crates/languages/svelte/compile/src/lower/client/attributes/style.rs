@@ -1,5 +1,5 @@
 use oxc_ast::ast::Expression;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Modifiers, StyleValue};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Modifiers, Part, StyleValue};
 use rsvelte_svelte_semantic::resolve::BindingKind;
 
 use crate::lower::builder::Runtime;
@@ -88,8 +88,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             StyleValue::Static(v) => (self.b.string(v), false),
             // Upstream's analysis takes the name for state unless it is an ordinary binding.
             &StyleValue::Shorthand(expression) => {
-                let Expression::Identifier(identifier) =
-                    self.javascript.get_expression(expression).get_inner_expression()
+                let Expression::Identifier(identifier) = self
+                    .javascript
+                    .get_expression(expression)
+                    .get_inner_expression()
                 else {
                     unreachable!("a shorthand reads its name")
                 };
@@ -107,7 +109,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             // Upstream memoizes the whole chunk when a part calls.
             StyleValue::Interpolated(parts)
                 if parts.iter().any(|p| {
-                    matches!(p, rsvelte_svelte_semantic::compiler_syntax_tree::Part::Expression { expression, .. }
+                    matches!(p, Part::Expression { expression, .. }
                         if self.an.meta(*expression).has_call)
                 }) =>
             {
@@ -119,7 +121,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 let items = self.chunk_items(parts);
                 self.template_chunk(&items, memo, false)
             }
-            StyleValue::Empty => unreachable!("coverage refuses a `style:` directive without a value"),
+            StyleValue::Empty => unreachable!(
+                "coverage refuses a `style:` directive without a \
+                value"
+            ),
         }
     }
 }

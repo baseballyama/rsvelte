@@ -16,7 +16,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         };
         if self.clashes_with_the_script(identifier) {
             return unsupported(
-                "on the server, a snippet in elements named like a `let`, `const` or class of the script",
+                "on the server, a snippet in elements named like a `let`, `const` or class of the \
+                    script",
                 span_of(self.javascript.get_expression(snippet.name)),
             );
         }
