@@ -268,3 +268,42 @@ fn a_store_subscription_reads_the_store() {
         ["'state' is assigned a value but never used."]
     );
 }
+
+// A `$name` is a plain read of `name`, so ESLint's `isReadForItself` drops an update of it.
+#[test]
+fn a_store_updated_only_for_itself_is_unused() {
+    let store = "<script>import { writable } from 'svelte/store'; const count = writable(0);";
+    let assigned = ["'count' is assigned a value but never used."];
+    assert_eq!(
+        unused(&format!(
+            "{store} function f() {{ $count++; }} f();</script>"
+        )),
+        assigned
+    );
+    assert_eq!(unused(&format!("{store} $count += 1;</script>")), assigned);
+    assert_eq!(
+        unused(&format!(
+            "{store} function f() {{ $count = 1; $count++; }} f();</script>"
+        )),
+        assigned
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} const y = $count++; console.log(y);</script>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(&format!(
+            "{store} count.set(1); function f() {{ $count = 1; }} f();</script>"
+        )),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused(
+            "<script>import { count } from './store.js'; export function increment() { $count++; }\
+             </script>"
+        ),
+        ["'count' is defined but never used."]
+    );
+}

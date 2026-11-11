@@ -67,6 +67,7 @@ impl<'a> Rule<RuleContext<'a>> for NoUnusedVariables {
         rsvelte_typescript_lint::no_unused_variables(
             context.res.semantic(),
             |symbol| !aliases.contains(&symbol),
+            |_| &[],
             reporter,
         );
     }
