@@ -188,7 +188,7 @@ impl Walk<'_> {
                 resolution.writes(symbol) > 0
                     || exported
                     || resolution.initializer(symbol).is_some_and(|init| {
-                        matches!(init, Expression::CallExpression(call)
+                        matches!(crate::typescript::without_typescript(init), Expression::CallExpression(call)
                             if matches!(call.arguments.as_slice(), [only]
                                 if only.as_expression().is_some_and(|only| !resolution.should_proxy(only))))
                     })

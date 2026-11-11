@@ -334,3 +334,12 @@ fn a_script_comment_ignores_a_local_state_reference() {
         assert_eq!(compiled(&code), [], "{script}");
     }
 }
+
+#[test]
+fn a_cast_state_is_referenced_locally_as_the_bare_one_is() {
+    let bare = compiled("<script lang=\"ts\">let count = $state(0); let x = count;</script>{x}");
+    let cast =
+        compiled("<script lang=\"ts\">let count = $state(0) as number; let x = count;</script>{x}");
+    assert_eq!(bare.len(), 1);
+    assert_eq!(cast, bare);
+}
