@@ -14,6 +14,11 @@ pub enum Value {
     /// Some number.
     AnyNumber,
     AnyFunction,
+    /// The object of a regular expression literal, one per literal, and its `String(value)`.
+    RegExp {
+        literal: oxc_span::Span,
+        text: Box<str>,
+    },
     Unknown,
 }
 
@@ -21,8 +26,8 @@ impl PartialEq for Value {
     /// `Set` membership in JS: `SameValueZero`.
     fn eq(&self, other: &Self) -> bool {
         use Value::{
-            AnyFunction, AnyNumber, AnyString, BigInt, Boolean, Null, Number, String, Undefined,
-            Unknown,
+            AnyFunction, AnyNumber, AnyString, BigInt, Boolean, Null, Number, RegExp, String,
+            Undefined, Unknown,
         };
         match (self, other) {
             (String(a), String(b)) => a == b,
@@ -35,6 +40,7 @@ impl PartialEq for Value {
             | (AnyNumber, AnyNumber)
             | (AnyFunction, AnyFunction)
             | (Unknown, Unknown) => true,
+            (RegExp { literal: a, .. }, RegExp { literal: b, .. }) => a == b,
             _ => false,
         }
     }
@@ -66,6 +72,7 @@ impl Value {
             Self::Boolean(b) => b.to_string(),
             Self::Null => "null".into(),
             Self::Undefined => "undefined".into(),
+            Self::RegExp { text, .. } => text.to_string(),
             _ => unreachable!("only known values are rendered"),
         }
     }
@@ -78,7 +85,16 @@ impl Value {
             Self::Null => 0.0,
             Self::Undefined => f64::NAN,
             Self::String(s) => string_to_number(s),
+            Self::RegExp { text, .. } => string_to_number(text),
             _ => unreachable!("only known values are converted"),
+        }
+    }
+
+    /// `ToPrimitive(value)`: an object is its string.
+    pub(super) fn primitive(&self) -> std::borrow::Cow<'_, Self> {
+        match self {
+            Self::RegExp { text, .. } => std::borrow::Cow::Owned(Self::String(text.to_string())),
+            _ => std::borrow::Cow::Borrowed(self),
         }
     }
 
@@ -89,6 +105,7 @@ impl Value {
             Self::BigInt(n) => n.sign() != num_bigint::Sign::NoSign,
             Self::Boolean(b) => *b,
             Self::Null | Self::Undefined => false,
+            Self::RegExp { .. } => true,
             _ => unreachable!("only known values are tested"),
         }
     }
