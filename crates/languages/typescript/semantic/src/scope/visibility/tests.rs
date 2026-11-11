@@ -1,10 +1,10 @@
 use std::fmt::Write;
 
 use rsvelte_kernel::source::positions::Span;
-
-use super::super::{Atom, BindingIdentifier, ScopeIdentifier, Semantic, analyze_enclosed};
 use rsvelte_typescript_syntax::parser::parse_program;
 use rsvelte_typescript_syntax::syntax_tree::SyntaxTree;
+
+use super::super::{Atom, BindingIdentifier, ScopeIdentifier, Semantic, analyze_enclosed};
 
 /// The definition the index must agree with: the scope chain, walked.
 fn walk(s: &Semantic, mut scope: ScopeIdentifier, name: Atom) -> Option<BindingIdentifier> {

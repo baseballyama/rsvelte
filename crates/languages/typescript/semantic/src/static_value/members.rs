@@ -2,11 +2,10 @@
 
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
-use crate::number::number;
-
 use super::conversions::{join, to_integer, to_number, to_string, to_uint32};
 use super::operators::{power, same_value_zero, strict_equals};
 use super::{Global, Value};
+use crate::number::number;
 
 /// Names every object inherits, whose values (functions) this module cannot hold.
 const OBJECT_PROTOTYPE: [&str; 12] = [

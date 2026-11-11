@@ -10,6 +10,8 @@
 //! Both passes walk with a stack of steps rather than by recursion, so nesting depth costs heap,
 //! and each lookup and `var` takes constant time, so the cost stays linear in the tree.
 
+use std::sync::OnceLock;
+
 use rsvelte_kernel::index::{IndexVector, TypedIndex};
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::interning::Atom;
@@ -17,7 +19,6 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_syntax::operators::AssignmentOperator;
 use rsvelte_typescript_syntax::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, flag};
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::sync::OnceLock;
 
 newtype_index!(
     pub struct BindingIdentifier;

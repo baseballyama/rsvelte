@@ -1,12 +1,12 @@
 //! `css_unused_selector`: the selectors that no element matched.
 
-use crate::analyze::Analysis;
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple};
 use rsvelte_svelte_syntax::syntax_tree::Component;
 
 use super::found::{Found, Stage};
 use super::ignore::{extract, preceding_comment};
 use super::warning;
+use crate::analyze::Analysis;
 
 /// Whether the comment before `<style>` ignores `css_unused_selector`, the one `svelte-ignore`
 /// the style sheet reads. Its code warnings come just before the selectors'.

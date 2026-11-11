@@ -1,12 +1,11 @@
 //! Expression metadata, template dynamics, and stylesheet usage.
 
+use oxc_ast::ast::{ChainElement, Expression};
 use oxc_ast_visit::Visit;
+use oxc_semantic::ReferenceId;
 use rsvelte_kernel::index::IndexVector;
 use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
-
-use oxc_ast::ast::{ChainElement, Expression};
-use oxc_semantic::ReferenceId;
 
 use crate::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use crate::input::ComponentInput;

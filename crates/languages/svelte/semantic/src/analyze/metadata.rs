@@ -1,4 +1,3 @@
-use crate::typescript::without_typescript;
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, CallExpression, ChainElement, ChainExpression,
     ComputedMemberExpression, Expression, Function, IdentifierReference, NewExpression,
@@ -12,6 +11,7 @@ use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use super::ExpressionMetadata;
 use super::evaluation::BindingValues;
 use crate::resolve::{BindingKind, Resolution};
+use crate::typescript::without_typescript;
 
 /// Computes [`ExpressionMetadata`] the way upstream's analysis visitors do, and `needs_context`.
 pub(super) struct MetadataWalker<'r, 'walk, const COLLECT_METADATA: bool> {

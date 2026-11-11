@@ -107,7 +107,8 @@ fn token_texts(source_text: &str) -> Vec<&str> {
         .collect()
 }
 
-/// CR, LS and PS end a line as LF does: they close a `//` comment and allow ASI, also inside `/* */`.
+/// CR, LS and PS end a line as LF does: they close a `//` comment and allow ASI, also inside `/*
+/// */`.
 #[test]
 fn every_line_terminator_ends_a_line() {
     for terminator in ["\n", "\r", "\r\n", "\u{2028}", "\u{2029}"] {

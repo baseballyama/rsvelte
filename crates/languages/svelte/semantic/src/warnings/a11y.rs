@@ -3,13 +3,12 @@
 
 use std::borrow::Cow;
 
-use rustc_hash::FxHashMap;
-
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, Range, decode_attribute,
 };
+use rustc_hash::FxHashMap;
 
 mod elements;
 mod handlers;
@@ -18,7 +17,6 @@ mod tables;
 mod values;
 
 use elements::has_content;
-
 use values::number;
 
 /// An element and the attributes it must be named by: aria-query's `ARIARoleRelationConcept`.

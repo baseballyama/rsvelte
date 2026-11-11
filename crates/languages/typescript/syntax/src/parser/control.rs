@@ -312,7 +312,8 @@ impl Parser<'_, '_> {
     }
 
     /// Whether `type` starts a type-only specifier rather than being its name, as TypeScript's
-    /// `parseImportOrExportSpecifier` decides: `type as` and `type as as x` are, `type as x` is not.
+    /// `parseImportOrExportSpecifier` decides: `type as` and `type as as x` are, `type as x` is
+    /// not.
     fn starts_type_specifier(&self) -> bool {
         let next = self.peek();
         if !matches!(next.t, T::Identifier | T::String) {
