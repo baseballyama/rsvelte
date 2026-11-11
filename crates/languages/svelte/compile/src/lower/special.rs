@@ -1,7 +1,10 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
 
 use super::template::single_expression;
-use super::{AttributeValue, CompileInput, Diagnostic, NodeKind, Span, unsupported};
+use super::{
+    AttributeValue, CompileInput, CompilerNodeIdentifier, CompilerSyntaxTree, Diagnostic, Element,
+    NodeKind, Span, unsupported,
+};
 
 pub(super) fn validate(
     input: &CompileInput<'_>,
@@ -74,6 +77,9 @@ pub(super) fn validate(
             ElementKind::Metadata(Some(MetadataTag::Options)) => {
                 custom_element = validate_options(input, attributes)?;
             }
+            ElementKind::Metadata(Some(MetadataTag::Component | MetadataTag::SelfRef)) => {
+                validate_dynamic_component(tree, identifier, element)?;
+            }
             ElementKind::Metadata(Some(MetadataTag::Element)) => {
                 let Some(tag) = element.this else {
                     return invalid(
@@ -98,6 +104,42 @@ pub(super) fn validate(
     Ok(custom_element)
 }
 
+/// Upstream's parser checks `<svelte:component>`'s `this`, and its analysis where
+/// `<svelte:self>` may be.
+fn validate_dynamic_component(
+    tree: &CompilerSyntaxTree,
+    identifier: CompilerNodeIdentifier,
+    element: &Element,
+) -> Result<(), Diagnostic> {
+    if element.kind == ElementKind::Metadata(Some(MetadataTag::Component)) {
+        let this = element.this.map(|this| &tree.attributes[this]);
+        if this.is_none_or(|this| single_expression(&this.value).is_none()) {
+            return unsupported(
+                "`<svelte:component>` without a `this` expression",
+                element.name,
+            );
+        }
+        return Ok(());
+    }
+    let placed =
+        std::iter::successors(tree.node(identifier).parent, |&p| tree.node(p).parent).any(|p| {
+            match &tree.node(p).kind {
+                NodeKind::If { .. } | NodeKind::Each(_) | NodeKind::Snippet(_) => true,
+                NodeKind::Element(owner) => owner.kind == ElementKind::Component,
+                _ => false,
+            }
+        });
+    if placed {
+        return Ok(());
+    }
+    invalid(
+        "svelte_self_invalid_placement",
+        "`<svelte:self>` components can only exist inside `{#if}` blocks, `{#each}` blocks, \
+         `{#snippet}` blocks or slots passed to components",
+        tree.node(identifier).span,
+    )
+}
+
 fn validate_globals(
     source: &str,
     tag: MetadataTag,
@@ -118,10 +160,10 @@ fn validate_globals(
 }
 
 fn validate_placement(
-    tree: &super::CompilerSyntaxTree,
+    tree: &CompilerSyntaxTree,
     source: &str,
-    identifier: super::CompilerNodeIdentifier,
-    element: &super::Element,
+    identifier: CompilerNodeIdentifier,
+    element: &Element,
     seen: &mut u8,
 ) -> Result<(), Diagnostic> {
     if let ElementKind::Metadata(Some(

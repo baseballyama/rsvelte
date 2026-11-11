@@ -96,7 +96,7 @@ fn check_element(
     {
         return unsupported("a directive on `<slot>`", a.span);
     }
-    let component = el.kind == ElementKind::Component;
+    let component = el.kind.renders_component();
     let in_component = tree.node(identifier).parent.is_some_and(|parent| {
         matches!(&tree.node(parent).kind, NodeKind::Element(owner) if owner.kind.renders_component())
     });

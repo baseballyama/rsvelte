@@ -97,6 +97,8 @@ struct ServerCompilationContext<'c, 'o> {
     hoistable: &'c FxHashSet<SymbolId>,
     /// The component has an instance script, whose names its function declares.
     instance_script: bool,
+    /// The component's function, which `<svelte:self>` calls.
+    component_name: &'c str,
 }
 
 /// Upstream's condition for the `$$props` parameter.
@@ -153,6 +155,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         hoisted_snippets: Vec::new(),
         hoistable: &facts.validated.hoistable,
         instance_script: input.component.instance.is_some(),
+        component_name: &component_name,
     };
     let (mut snippets, template) =
         sx.fragment_parts(input.component.compiler_syntax_tree.root, |_| false)?;

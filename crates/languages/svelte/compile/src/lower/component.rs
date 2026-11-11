@@ -2,11 +2,12 @@
 //! in how they spell each prop, the children callback and the call.
 
 use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, ElementKind, Snippet};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, ElementKind, MetadataTag, Snippet};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
 use super::javascript::member_root;
 use super::snippets::{is_dynamic_render, render_call};
+use super::template::single_expression;
 use super::{
     Attribute, AttributeValue, BindingKind, Builder, CompilerNodeIdentifier, CompilerSyntaxTree,
     Diagnostic, Item, NodeKind, Resolution, Target,
@@ -92,6 +93,45 @@ pub(super) fn is_dynamic(res: &Resolution, reference: &Expression<'_>) -> bool {
             !matches!(reference, Expression::Identifier(_))
                 || res.binding(symbol).kind != BindingKind::Normal
         })
+}
+
+/// What a component element calls.
+#[derive(Clone, Copy)]
+pub(super) enum Callee {
+    /// A name or member chain read once.
+    Static(ExpressionIdentifier),
+    /// A component that may change: a dynamic name, or `<svelte:component this>`.
+    Dynamic(ExpressionIdentifier),
+    /// `<svelte:self>`: the component's own function.
+    OwnFunction,
+}
+
+pub(super) fn callee(
+    compiler_syntax_tree: &CompilerSyntaxTree,
+    javascript: &Tree,
+    res: &Resolution,
+    identifier: CompilerNodeIdentifier,
+) -> Callee {
+    let NodeKind::Element(element) = &compiler_syntax_tree.node(identifier).kind else {
+        unreachable!("a component element")
+    };
+    match element.kind {
+        ElementKind::Metadata(Some(MetadataTag::SelfRef)) => Callee::OwnFunction,
+        ElementKind::Metadata(Some(MetadataTag::Component)) => {
+            let this = element.this.expect("validation checked `this`");
+            let this = &compiler_syntax_tree.attributes[this].value;
+            Callee::Dynamic(single_expression(this).expect("validation checked `this`"))
+        }
+        _ => {
+            let reference = reference(compiler_syntax_tree, identifier);
+            let expression = javascript.get_expression(reference).get_inner_expression();
+            if is_dynamic(res, expression) {
+                Callee::Dynamic(reference)
+            } else {
+                Callee::Static(reference)
+            }
+        }
+    }
 }
 
 /// The component node's reference: its name as an identifier or a member chain.

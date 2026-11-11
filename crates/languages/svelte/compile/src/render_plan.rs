@@ -139,7 +139,7 @@ impl RenderPlan {
         self.source_regions.insert(children, identifier);
         for &node in tree.children(children) {
             match &tree.node(node).kind {
-                NodeKind::Element(element) if element.kind == ElementKind::Component => {
+                NodeKind::Element(element) if element.kind.renders_component() => {
                     self.region(input, element.children, Parent::Component, preserve);
                 }
                 NodeKind::Element(element) => {
