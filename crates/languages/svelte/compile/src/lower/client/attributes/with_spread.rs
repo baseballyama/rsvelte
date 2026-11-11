@@ -23,7 +23,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut values = Vec::with_capacity(attributes.len());
         let mut class_directives = Vec::new();
         let mut style_directives = Vec::new();
-        let is = self.template_is(identifier, attributes);
+        // A `<svelte:element>` has no template to hold its `is`.
+        let is = (tag != "svelte:element")
+            .then(|| self.template_is(identifier, attributes))
+            .flatten();
         for a in attributes {
             if is.is_some_and(|is| std::ptr::eq(is, a)) {
                 continue;
