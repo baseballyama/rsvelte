@@ -158,12 +158,7 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
         needs_context |= walker.needs_context();
         declarations.insert(identifier, walker.metadata());
     }
-    // Upstream's visitors also meet the calls in the template's patterns' defaults.
-    for (_, pattern) in tree.patterns() {
-        let mut walker = MetadataWalker::<true>::new(res, &mut values);
-        walker.visit_formal_parameter(pattern);
-        needs_context |= walker.needs_context();
-    }
+    // Upstream visits a snippet's parameters, but never the patterns of `{#each}` or `{:then}`.
     for (_, parameters) in tree.parameters() {
         let mut walker = MetadataWalker::<true>::new(res, &mut values);
         walker.visit_formal_parameters(parameters);
