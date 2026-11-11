@@ -43,7 +43,7 @@ impl Artifact for StyleSheetVerdict {
             .filter(|language| !language.is_empty())
             .unwrap_or("css");
         let dialect = match language {
-            "css" | "postcss" => Dialect::Css,
+            "css" | "postcss" => Dialect::Standard,
             "scss" => Dialect::Scss,
             _ => return StyleVerdict::UnknownLanguage(language.to_owned()),
         };

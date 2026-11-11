@@ -18,7 +18,7 @@ mod functions;
 
 /// A thin layer over [`AstBuilder`] for the nodes compilers write most.
 pub struct Builder<'o> {
-    ast: AstBuilder<'o>,
+    nodes: AstBuilder<'o>,
 }
 
 impl std::fmt::Debug for Builder<'_> {
@@ -31,13 +31,13 @@ impl<'o> GetAstBuilder<'o> for Builder<'o> {
     type Builder = AstBuilder<'o>;
 
     fn builder(&self) -> &AstBuilder<'o> {
-        &self.ast
+        &self.nodes
     }
 }
 
 impl<'o> GetAllocator<'o> for Builder<'o> {
     fn allocator(&self) -> &'o Allocator {
-        self.ast.allocator()
+        self.nodes.allocator()
     }
 }
 
@@ -45,7 +45,7 @@ impl<'o> Builder<'o> {
     #[must_use]
     pub fn new(allocator: &'o Allocator) -> Self {
         Self {
-            ast: AstBuilder::new(allocator),
+            nodes: AstBuilder::new(allocator),
         }
     }
 

@@ -8,7 +8,7 @@ use rsvelte_svelte_syntax::syntax_tree::{Component, Script, TemplateNode};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::Pattern;
-use crate::words::{is_js_space, words};
+use crate::words::{is_javascript_space, words};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Kind {
@@ -31,7 +31,7 @@ impl Kind {
 
 /// An `<!-- eslint-… -->` comment of the template.
 #[derive(Debug)]
-pub(crate) struct HtmlDirective {
+pub(crate) struct MarkupDirective {
     pub(crate) kind: Kind,
     /// The whole comment, `<!--` and `-->` included.
     pub(crate) comment: Span,
@@ -40,7 +40,7 @@ pub(crate) struct HtmlDirective {
 }
 
 /// The template's directive comments, as eslint-plugin-svelte's `comment-directive` reads them.
-pub(crate) fn html_directives(component: &Component, source: &str) -> Vec<HtmlDirective> {
+pub(crate) fn markup_directives(component: &Component, source: &str) -> Vec<MarkupDirective> {
     let mut out = Vec::new();
     for node in &component.nodes {
         let TemplateNode::Comment { span, data } = *node else {
@@ -49,7 +49,7 @@ pub(crate) fn html_directives(component: &Component, source: &str) -> Vec<HtmlDi
         let value = data.text(source);
         // Upstream keeps the text before a ` -- ` description and does not trim it.
         let text = &value[..justification_start(value).unwrap_or(value.len())];
-        let trimmed = text.trim_start_matches(is_js_space);
+        let trimmed = text.trim_start_matches(is_javascript_space);
         let at = text.len() - trimmed.len();
         let Some((kind, keyword)) = [
             Kind::DisableNextLine,
@@ -62,7 +62,7 @@ pub(crate) fn html_directives(component: &Component, source: &str) -> Vec<HtmlDi
         .find(|(_, keyword)| {
             trimmed
                 .strip_prefix(keyword)
-                .is_some_and(|rest| rest.is_empty() || rest.starts_with(is_js_space))
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with(is_javascript_space))
         }) else {
             continue;
         };
@@ -75,7 +75,7 @@ pub(crate) fn html_directives(component: &Component, source: &str) -> Vec<HtmlDi
         let names = &text[at + keyword.len()..];
         let base = data.start_offset + (at + keyword.len()) as u32;
         let rules = words(names, base);
-        out.push(HtmlDirective {
+        out.push(MarkupDirective {
             kind,
             comment: span,
             rules,
@@ -88,7 +88,7 @@ pub(crate) fn html_directives(component: &Component, source: &str) -> Vec<HtmlDi
 fn justification_start(value: &str) -> Option<usize> {
     let bytes = value.as_bytes();
     value.char_indices().find_map(|(i, c)| {
-        if !is_js_space(c) {
+        if !is_javascript_space(c) {
             return None;
         }
         let dashes = bytes[i + c.len_utf8()..]
@@ -96,7 +96,7 @@ fn justification_start(value: &str) -> Option<usize> {
             .take_while(|&&b| b == b'-')
             .count();
         let after = &value[i + c.len_utf8() + dashes..];
-        (dashes >= 2 && after.starts_with(is_js_space)).then_some(i)
+        (dashes >= 2 && after.starts_with(is_javascript_space)).then_some(i)
     })
 }
 
@@ -125,7 +125,7 @@ pub(crate) fn apply_javascript(
         .into_iter()
         .find_map(|kind| {
             let rest = part.strip_prefix(kind.keyword())?;
-            (rest.is_empty() || rest.starts_with(is_js_space)).then_some((kind, rest))
+            (rest.is_empty() || rest.starts_with(is_javascript_space)).then_some((kind, rest))
         }) else {
             continue;
         };
@@ -408,7 +408,7 @@ pub(crate) fn template<'a>(
     lines: &LineIndex,
 ) -> ProcessorDirectives<'a> {
     let mut out = ProcessorDirectives::default();
-    for directive in html_directives(component, source) {
+    for directive in markup_directives(component, source) {
         let comment = directive.comment;
         let targets: Vec<(Target<'a>, u32)> = if directive.rules.is_empty() {
             vec![(Target::All, comment.start_offset)]

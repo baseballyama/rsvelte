@@ -93,7 +93,7 @@ impl<'a> Parser<'a, '_> {
     /// What a directive's name (`fade`, `actions.tooltip`) refers to, as upstream builds it.
     fn directive_target(&mut self, directive: Span) -> ExpressionIdentifier {
         let text: &'a str = directive.text(self.source_text);
-        let ast = self.builder.ast();
+        let nodes = self.builder.nodes();
         let span_of = |offset: u32, part: &str| {
             let end = offset + u32::try_from(part.len()).expect("source positions use u32 bytes");
             oxc_span::Span::new(offset, end)
@@ -101,16 +101,16 @@ impl<'a> Parser<'a, '_> {
         let mut parts = text.split('.');
         let first = parts.next().unwrap_or(text);
         let mut span = span_of(directive.start_offset, first);
-        let mut target = Expression::new_identifier(span, first, &ast);
+        let mut target = Expression::new_identifier(span, first, &nodes);
         for part in parts {
             span = span_of(span.end + 1, part);
             let whole = oxc_span::Span::new(directive.start_offset, span.end);
             target = if is_valid_identifier(part) {
-                let property = IdentifierName::new(span, part, &ast);
-                Expression::new_static_member_expression(whole, target, property, false, &ast)
+                let property = IdentifierName::new(span, part, &nodes);
+                Expression::new_static_member_expression(whole, target, property, false, &nodes)
             } else {
-                let property = Expression::new_string_literal(span, part, None, &ast);
-                Expression::new_computed_member_expression(whole, target, property, false, &ast)
+                let property = Expression::new_string_literal(span, part, None, &nodes);
+                Expression::new_computed_member_expression(whole, target, property, false, &nodes)
             };
         }
         self.builder.keep_expression(target)

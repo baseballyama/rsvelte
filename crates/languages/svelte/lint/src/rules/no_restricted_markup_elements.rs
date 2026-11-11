@@ -2,7 +2,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 use serde::Deserialize;
 
-use super::markup::is_html;
+use super::markup::is_markup;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -59,7 +59,7 @@ fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
             Restriction::Group(group) => (group.elements, group.message),
         })
         .collect();
-    Ok(Box::new(NoRestrictedHtmlElements(restrictions)))
+    Ok(Box::new(NoRestrictedMarkupElements(restrictions)))
 }
 
 /// A name that `names` holds twice (the schema's `uniqueItems`).
@@ -73,9 +73,9 @@ fn repeated(names: &[String]) -> Option<&str> {
 
 /// Each option's names and its message.
 #[derive(Debug)]
-struct NoRestrictedHtmlElements(Vec<(Vec<String>, Option<String>)>);
+struct NoRestrictedMarkupElements(Vec<(Vec<String>, Option<String>)>);
 
-impl SvelteRule for NoRestrictedHtmlElements {
+impl SvelteRule for NoRestrictedMarkupElements {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let source = file.source();
@@ -87,7 +87,7 @@ impl SvelteRule for NoRestrictedHtmlElements {
                 continue;
             };
             let name = name.text(source);
-            if !is_html(name) {
+            if !is_markup(name) {
                 continue;
             }
             for (elements, message) in &self.0 {

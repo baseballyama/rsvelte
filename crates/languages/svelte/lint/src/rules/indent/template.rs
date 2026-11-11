@@ -54,16 +54,16 @@ impl<'a> Template<'_, 'a> {
         self.tree().get_pattern(pattern).span
     }
 
-    fn js_first(&self, node: Option<OxcSpan>) -> Option<Token> {
+    fn javascript_first(&self, node: Option<OxcSpan>) -> Option<Token> {
         self.first(script::span(node?))
     }
 
-    fn js_outer(&self, node: Option<OxcSpan>) -> Option<(Token, Token)> {
+    fn javascript_outer(&self, node: Option<OxcSpan>) -> Option<(Token, Token)> {
         self.tokens().outer(script::span(node?), 0)
     }
 
     /// The token after the node's last token.
-    fn js_after(&self, node: Option<OxcSpan>) -> Option<Token> {
+    fn javascript_after(&self, node: Option<OxcSpan>) -> Option<Token> {
         self.tokens().after_offset(node?.end)
     }
 
@@ -423,14 +423,14 @@ impl<'a> Template<'_, 'a> {
                         .list(&items, Item::Token(k), None, 1, false);
                 }
                 let tag_close = if let Some(key) = key {
-                    let key_tokens = self.js_outer(Some(self.expression_span(key)));
+                    let key_tokens = self.javascript_outer(Some(self.expression_span(key)));
                     self.offset(key_tokens.map(|(f, _)| f), 1, keyword);
                     let close = self.after(key_tokens.map(|(_, l)| l));
                     self.offset(close, 0, open);
                     close
                 } else {
                     let last = index_span.or(context_span).or(expression_span);
-                    let close = self.js_after(last);
+                    let close = self.javascript_after(last);
                     self.offset(close, 0, open);
                     close
                 };
@@ -460,7 +460,8 @@ impl<'a> Template<'_, 'a> {
             } => {
                 let (open, keyword) = self.head(open);
                 self.offset(keyword, 1, open);
-                let expression_tokens = self.js_outer(Some(self.expression_span(expression)));
+                let expression_tokens =
+                    self.javascript_outer(Some(self.expression_span(expression)));
                 self.offset(expression_tokens.map(|(f, _)| f), 1, keyword);
                 let close = self.after(expression_tokens.map(|(_, l)| l));
                 self.offset(close, 0, open);
@@ -530,7 +531,7 @@ impl<'a> Template<'_, 'a> {
             TemplateNode::Render { expression, .. } => {
                 let (open, keyword) = self.head(open);
                 self.offset(keyword, 1, open);
-                let first = self.js_first(Some(self.expression_span(expression)));
+                let first = self.javascript_first(Some(self.expression_span(expression)));
                 self.offset(first, 1, keyword);
                 self.visit_expression(expression);
             }
@@ -540,7 +541,7 @@ impl<'a> Template<'_, 'a> {
                 let declarators = &self.tree().get_declaration(declaration).declarations;
                 let first = declarators
                     .first()
-                    .and_then(|d| self.js_first(Some(d.span)));
+                    .and_then(|d| self.javascript_first(Some(d.span)));
                 self.offset(first, 1, open);
                 let close = self.tokens().last(span);
                 self.offset(close, 0, open);
@@ -550,7 +551,7 @@ impl<'a> Template<'_, 'a> {
             }
             TemplateNode::Declaration { declaration, .. } => {
                 let declaration = self.tree().get_declaration(declaration);
-                let first = self.js_first(Some(declaration.span));
+                let first = self.javascript_first(Some(declaration.span));
                 self.offset(first, 1, open);
                 let close = self.tokens().last(span);
                 self.offset(close, 0, open);

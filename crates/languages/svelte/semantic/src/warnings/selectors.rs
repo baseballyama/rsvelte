@@ -14,7 +14,7 @@ pub(super) fn ignored(component: &Component, source: &str, runes: bool, found: &
     component.style.as_ref().is_some_and(|style| {
         preceding_comment(component, source, style.span.start_offset).is_some_and(|data| {
             extract(data.start_offset, data.text(source), runes, |w| {
-                found.before(Stage::Css, 0, w);
+                found.before(Stage::Stylesheet, 0, w);
             })
             .iter()
             .any(|code| code == "css_unused_selector")
@@ -71,7 +71,7 @@ pub(super) fn unused_selector(
     // An unused selector inside `:is()` of an unused one is reported once, at the outer one.
     if !used && outer_used != Some(false) {
         out.push(
-            Stage::Css,
+            Stage::Stylesheet,
             0,
             warning(
                 "css_unused_selector",

@@ -47,26 +47,26 @@ impl Parser<'_> {
         if let Some(token) = self.returned.pop() {
             return Ok(Some(token));
         }
-        let pos = self.position;
-        let Some(c) = self.byte(pos) else {
+        let position = self.position;
+        let Some(c) = self.byte(position) else {
             return Ok(None);
         };
         let scss = self.scss();
         let ignore = !self.strict();
-        let next = self.byte(pos + 1);
+        let next = self.byte(position + 1);
         Ok(Some(match c {
             c if is_space(c) => {
-                let end = (pos..self.end)
+                let end = (position..self.end)
                     .find(|&i| !is_space(self.b[i]))
                     .unwrap_or(self.end);
-                self.token(Kind::Space, pos, end)
+                self.token(Kind::Space, position, end)
             }
-            b'[' | b'{' => self.token(Kind::Open(c), pos, pos + 1),
-            b']' | b'}' | b')' => self.token(Kind::Close(c), pos, pos + 1),
-            b':' => self.token(Kind::Colon, pos, pos + 1),
-            b';' => self.token(Kind::Semicolon, pos, pos + 1),
+            b'[' | b'{' => self.token(Kind::Open(c), position, position + 1),
+            b']' | b'}' | b')' => self.token(Kind::Close(c), position, position + 1),
+            b':' => self.token(Kind::Colon, position, position + 1),
+            b';' => self.token(Kind::Semicolon, position, position + 1),
             b',' if scss => {
-                let mut comma = self.token(Kind::Word, pos, pos + 1);
+                let mut comma = self.token(Kind::Word, position, position + 1);
                 comma.recorded_end += 1;
                 comma
             }
@@ -74,7 +74,7 @@ impl Parser<'_> {
                 let url = self.words.pop().is_some_and(|w| self.text(w) == "url");
                 if url && scss && !matches!(next, Some(b'\'' | b'"')) {
                     let mut depth = 1;
-                    let mut at = pos + 1;
+                    let mut at = position + 1;
                     while at < self.end {
                         match self.b[at] {
                             b'(' => depth += 1,
@@ -88,52 +88,54 @@ impl Parser<'_> {
                         }
                         at += 1;
                     }
-                    self.token(Kind::Brackets, pos, (at + 1).min(self.end))
+                    self.token(Kind::Brackets, position, (at + 1).min(self.end))
                 } else if url
                     && !scss
                     && next.is_none_or(|n| !is_space(n) && n != b'\'' && n != b'"')
                 {
-                    match self.closing(pos, b')') {
-                        Some(close) => self.token(Kind::Brackets, pos, close + 1),
-                        None if ignore => self.token(Kind::Brackets, pos, pos + 1),
-                        None => return thrown("Unclosed bracket", pos as u32),
+                    match self.closing(position, b')') {
+                        Some(close) => self.token(Kind::Brackets, position, close + 1),
+                        None if ignore => self.token(Kind::Brackets, position, position + 1),
+                        None => return thrown("Unclosed bracket", position as u32),
                     }
-                } else if !scss && self.last_bad_paren.is_some_and(|bad| pos <= bad) {
-                    self.token(Kind::Open(b'('), pos, pos + 1)
+                } else if !scss && self.last_bad_paren.is_some_and(|bad| position <= bad) {
+                    self.token(Kind::Open(b'('), position, position + 1)
                 } else {
-                    let close = self.next_close(pos + 1);
+                    let close = self.next_close(position + 1);
                     match close {
-                        Some(close) if self.next_bad(pos + 1).is_none_or(|bad| bad > close) => {
-                            self.token(Kind::Brackets, pos, close + 1)
+                        Some(close)
+                            if self.next_bad(position + 1).is_none_or(|bad| bad > close) =>
+                        {
+                            self.token(Kind::Brackets, position, close + 1)
                         }
                         _ => {
                             self.last_bad_paren = Some(close.unwrap_or(self.end));
-                            self.token(Kind::Open(b'('), pos, pos + 1)
+                            self.token(Kind::Open(b'('), position, position + 1)
                         }
                     }
                 }
             }
             b'\'' | b'"' => {
                 let close = if scss {
-                    self.scss_string(pos, c)?
+                    self.scss_string(position, c)?
                 } else {
-                    self.closing(pos, c)
+                    self.closing(position, c)
                 };
                 match close {
-                    Some(close) => self.token(Kind::String, pos, close + 1),
+                    Some(close) => self.token(Kind::String, position, close + 1),
                     None if ignore => {
-                        let end = if pos + 1 < self.end {
-                            self.char_end(pos + 1)
+                        let end = if position + 1 < self.end {
+                            self.char_end(position + 1)
                         } else {
                             self.end
                         };
-                        self.token(Kind::String, pos, end)
+                        self.token(Kind::String, position, end)
                     }
-                    None => return thrown("Unclosed string", pos as u32),
+                    None => return thrown("Unclosed string", position as u32),
                 }
             }
             b'@' => {
-                let end = (pos + 1..self.end)
+                let end = (position + 1..self.end)
                     .find(|&i| {
                         matches!(
                             self.b[i],
@@ -157,10 +159,10 @@ impl Parser<'_> {
                         )
                     })
                     .unwrap_or(self.end);
-                self.token(Kind::AtWord, pos, end.max(pos + 1))
+                self.token(Kind::AtWord, position, end.max(position + 1))
             }
             b'\\' => {
-                let mut at = pos;
+                let mut at = position;
                 let mut escape = true;
                 while self.byte(at + 1) == Some(b'\\') {
                     at += 1;
@@ -182,29 +184,29 @@ impl Parser<'_> {
                     }
                 }
                 let end = self.char_end(at);
-                self.token(Kind::Word, pos, end)
+                self.token(Kind::Word, position, end)
             }
             b'#' if scss && next == Some(b'{') => {
-                let end = self.interpolation(pos, pos)?;
-                self.token(Kind::Word, pos, end + 1)
+                let end = self.interpolation(position, position)?;
+                self.token(Kind::Word, position, end + 1)
             }
             b'/' if next == Some(b'*') => {
-                let close = self.find(pos + 2, |i| self.b[i..].starts_with(b"*/"));
+                let close = self.find(position + 2, |i| self.b[i..].starts_with(b"*/"));
                 match close {
-                    Some(close) => self.token(Kind::Comment, pos, close + 2),
-                    None if ignore => self.token(Kind::Comment, pos, self.end),
-                    None => return thrown("Unclosed comment", pos as u32),
+                    Some(close) => self.token(Kind::Comment, position, close + 2),
+                    None if ignore => self.token(Kind::Comment, position, self.end),
+                    None => return thrown("Unclosed comment", position as u32),
                 }
             }
             b'/' if scss && next == Some(b'/') => {
-                let end = (pos + 1..self.end)
+                let end = (position + 1..self.end)
                     .find(|&i| matches!(self.b[i], b'\n' | 0x0C | b'\r'))
                     .unwrap_or(self.end);
-                self.token(Kind::InlineComment, pos, end)
+                self.token(Kind::InlineComment, position, end)
             }
             _ => {
-                let end = self.word_end(pos + 1);
-                let token = self.token(Kind::Word, pos, end);
+                let end = self.word_end(position + 1);
+                let token = self.token(Kind::Word, position, end);
                 self.words.push(token);
                 token
             }
@@ -285,8 +287,8 @@ impl Parser<'_> {
     }
 
     /// `postcss-scss`'s string: `#{…}` inside it is skipped whole.
-    pub(super) fn scss_string(&self, pos: usize, quote: u8) -> R<Option<usize>> {
-        let mut at = pos;
+    pub(super) fn scss_string(&self, position: usize, quote: u8) -> R<Option<usize>> {
+        let mut at = position;
         let mut escaped = false;
         loop {
             at += 1;
@@ -301,7 +303,7 @@ impl Parser<'_> {
             } else if escaped {
                 escaped = false;
             } else if c == b'#' && self.byte(at + 1) == Some(b'{') {
-                at = self.interpolation(pos, at)?;
+                at = self.interpolation(position, at)?;
             }
         }
     }

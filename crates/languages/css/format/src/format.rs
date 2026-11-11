@@ -9,7 +9,7 @@ use rsvelte_stylesheet_syntax::syntax_tree::{Rule, RuleKind, StyleSheet};
 /// # Errors
 ///
 /// [`Unsupported`] if the style sheet contains a comment, which this printer does not place, or
-/// text prettier would rewrite (see [`verbatim`]).
+/// text prettier would rewrite (see `verbatim`).
 pub fn format(
     source_text: &str,
     sheet: &StyleSheet,

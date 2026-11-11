@@ -28,7 +28,7 @@ pub fn is_typescript(document: &Document) -> bool {
     matches!(extension(document), Some("ts" | "mts" | "cts"))
 }
 
-/// A `.jsx` or `.tsx` module. [`Parsed`] reads its JSX; the tasks [`matches`] selects do not.
+/// A `.jsx` or `.tsx` module. [`Parsed`] reads its JSX; the tasks [`matches()`] selects do not.
 #[must_use]
 pub fn is_jsx(document: &Document) -> bool {
     matches!(extension(document), Some("jsx" | "tsx"))

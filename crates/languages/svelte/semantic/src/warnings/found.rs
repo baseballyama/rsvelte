@@ -16,7 +16,7 @@ pub(super) enum Stage {
     /// After the walks, about the bindings they visited.
     Bindings,
     /// The style sheet's unused selectors, last.
-    Css,
+    Stylesheet,
 }
 
 impl Stage {

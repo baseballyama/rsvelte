@@ -169,7 +169,7 @@ fn check(component: &Component, lines: &Lines<'_>, options: &Options, reporter: 
             .as_ref()
             .map_or(&[][..], |sheet| &*sheet.comments);
         let count = count_inner(lines, style.span, options.skip_blank_lines, |line| {
-            options.skip_comments && css_comment_only(lines, comments, line)
+            options.skip_comments && stylesheet_comment_only(lines, comments, line)
         });
         report(reporter, "<style>", count, max, style.span);
     }
@@ -179,7 +179,7 @@ fn check(component: &Component, lines: &Lines<'_>, options: &Options, reporter: 
 }
 
 /// A line inside a style sheet that a comment covers and no other token starts on.
-fn css_comment_only(lines: &Lines<'_>, comments: &[Span], line: u32) -> bool {
+fn stylesheet_comment_only(lines: &Lines<'_>, comments: &[Span], line: u32) -> bool {
     let start = lines.start(line);
     let end = start + lines.text(line).len() as u32;
     let mut covered = false;

@@ -31,7 +31,8 @@
 		<code>Interner</code>
 		を提供するだけで、使うのは言語の側です。今使うのは、CSS の構文木
 		<code>rsvelte_stylesheet_syntax::StyleSheet</code> だけです。CSS の識別子や文字列は
-		<code>\31 a</code> のようにエスケープを含むことがあります。エスケープを解いた文字列はソースのどこにもないので、<code
+		<code>\31 a</code>
+		のようにエスケープを含むことがあります。エスケープを解いた文字列はソースのどこにもないので、<code
 			>Interner</code
 		>
 		に保存します。構文木は、ソースの範囲ごとにその Atom を表に記録します。エスケープを含まない名前は、ソースの範囲からそのまま読みます<Note

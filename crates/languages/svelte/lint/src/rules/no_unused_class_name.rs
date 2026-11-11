@@ -66,7 +66,7 @@ impl SvelteRule for NoUnusedClassName {
             else {
                 continue;
             };
-            if element_kind(node, source) != Some(ElementKind::Html) {
+            if element_kind(node, source) != Some(ElementKind::Markup) {
                 continue;
             }
             for attribute in component.attributes(*attributes) {
