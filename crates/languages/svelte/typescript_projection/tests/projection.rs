@@ -192,7 +192,7 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "    }\n",
             "  }\n",
             "};\n",
-            "export default __rsvelte_export_component<Record<string, never>, {}, \"\">();\n",
+            "export default __rsvelte_export_component<__rsvelte_no_props, {}, \"\">();\n",
         )
     );
     for mapping in output.mappings.iter().filter(|mapping| mapping.len > 0) {
@@ -324,7 +324,7 @@ fn component_content_passes_children_where_svelte2tsx_maps_them() {
 
 #[test]
 fn a_default_slot_lets_the_component_take_children_as_svelte2tsx_does() {
-    let widened = "__rsvelte_props_with_children<Record<string, never>>";
+    let widened = "__rsvelte_props_with_children<__rsvelte_no_props>";
     for (source, expected) in [
         ("<div><slot /></div>", true),
         ("<slot name=\"default\" />", true),

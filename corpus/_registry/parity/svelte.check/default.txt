@@ -1,4 +1,4 @@
-# svelte.check/default: 10975 match
+# svelte.check/default: 10976 match
 svelte/animotion/src/lib/components/action.svelte	mismatch
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -2106,7 +2106,6 @@ svelte/flowbite-svelte/src/routes/docs-examples/extend/tags/Default.svelte	refus
 svelte/flowbite-svelte/src/routes/docs-examples/extend/tags/Disabled.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/extend/tags/InputProps.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/extend/tour/+page.svelte	refused
-svelte/flowbite-svelte/src/routes/docs-examples/extend/virtual-list/LargeDataset.svelte	unexpected
 svelte/flowbite-svelte/src/routes/docs-examples/forms/checkbox/Advanced.svelte	mismatch
 svelte/flowbite-svelte/src/routes/docs-examples/forms/checkbox/CheckboxButton.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/checkbox/Group.svelte	refused

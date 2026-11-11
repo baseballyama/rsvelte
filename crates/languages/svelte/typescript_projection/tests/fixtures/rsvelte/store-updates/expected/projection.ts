@@ -15,4 +15,4 @@ import { writable } from 'svelte/store'; let a = $state(writable(1));;let $a!: _
     });
   }
 };
-export default __rsvelte_export_component<Record<string, never>, {}, "">();
+export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();

@@ -74,11 +74,8 @@ impl Builder<'_> {
             self.scratch[generated_start..].rotate_right(1);
         }
         let props = props.unwrap_or_else(|| {
-            let callee = self.tree.push(Node::Identifier("Record"));
-            let key = self.tree.push(Node::Identifier("string"));
-            let value = self.tree.push(Node::Identifier("never"));
-            let arguments = self.tree.list(&[key, value]);
-            self.tree.push(Node::TypeArguments { callee, arguments })
+            // A name of the prelude's, which no `Record` of the component's own can shadow.
+            self.tree.push(Node::Identifier("__rsvelte_no_props"))
         });
         let props = if self.has_default_slot() {
             let callee = self

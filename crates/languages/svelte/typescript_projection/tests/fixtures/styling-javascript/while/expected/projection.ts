@@ -9,4 +9,4 @@ const value="a";function run(x){while(x>2)x--;do{x++;}while(x<2);return x;}
     });
   }
 };
-export default __rsvelte_export_component<Record<string, never>, {}, "">();
+export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
