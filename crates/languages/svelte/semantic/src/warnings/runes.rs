@@ -91,8 +91,9 @@ pub(super) fn dollar_names(
     let scoping = resolution.scoping();
     let nodes = resolution.semantic().nodes();
     let mut found: Vec<(Raised, Span)> = Vec::new();
-    // TypeScript erases types; an enum stays, as a variable.
-    let erased = SymbolFlags::TypeAlias
+    // TypeScript erases types and `declare`d names; an enum stays, as a variable.
+    let erased = SymbolFlags::Ambient
+        | SymbolFlags::TypeAlias
         | SymbolFlags::Interface
         | SymbolFlags::TypeParameter
         | SymbolFlags::EnumMember
@@ -104,8 +105,17 @@ pub(super) fn dollar_names(
             continue;
         }
         let declaration = resolution.declaration(symbol);
-        let ancestors = || nodes.ancestor_kinds(scoping.symbol_declaration(symbol));
-        let is_parameter = ancestors().any(|kind| matches!(kind, AstKind::FormalParameter(_)));
+        let declaration_node = scoping.symbol_declaration(symbol);
+        let ancestors = || nodes.ancestor_kinds(declaration_node);
+        // A parameter's symbol is declared at the parameter node itself.
+        let is_parameter = std::iter::once(nodes.kind(declaration_node))
+            .chain(ancestors())
+            .any(|kind| {
+                matches!(
+                    kind,
+                    AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_)
+                )
+            });
         let type_only = flags.contains(SymbolFlags::Import)
             && ancestors().any(
                 |kind| matches!(kind, AstKind::ImportDeclaration(d) if d.import_kind.is_type()),
