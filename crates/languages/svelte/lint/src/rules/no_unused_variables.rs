@@ -1,8 +1,9 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{BindingIdentifier, BindingPattern, Expression, Statement};
-use oxc_semantic::{Reference, ReferenceId, Scoping, SymbolId};
+use oxc_semantic::{Reference, ReferenceId, ScopeId, Scoping, SymbolId};
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, NodeKind};
+use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::nodes;
@@ -46,12 +47,32 @@ fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     script_snippets(file, &mut reads);
     component_snippets(file, &mut skipped);
     shared_names(file, &mut skipped);
+    let bodies = snippet_bodies(file);
     rsvelte_typescript_lint::no_unused_variables(
         file.semantic(),
         |symbol| !skipped.contains(&symbol),
         |symbol| reads.get(&symbol).map_or(&[], Vec::as_slice),
+        |symbol| bodies.get(&symbol).copied(),
         reporter,
     );
+}
+
+/// The scope of each snippet's parameters and body, where `svelte-eslint-parser`'s function for
+/// it makes a reference to it a self-reference.
+fn snippet_bodies(file: &File<'_>) -> FxHashMap<SymbolId, ScopeId> {
+    let (Some(tree), Some(resolution)) = (file.normalized(), file.resolution()) else {
+        return FxHashMap::default();
+    };
+    tree.nodes
+        .iter_enumerated()
+        .filter(|(_, node)| matches!(node.kind, NodeKind::Snippet(_)))
+        .filter_map(|(identifier, _)| {
+            Some((
+                resolution.snippet(identifier)?,
+                resolution.template_scope(TemplateScope::Snippet(identifier))?,
+            ))
+        })
+        .collect()
 }
 
 /// `svelte-eslint-parser` declares a top-level snippet in the scripts' scope, where Svelte's

@@ -1,6 +1,4 @@
-use super::{
-    Embed, Kind2, LayoutInstructionIdentifier, PRINT_WIDTH, Printer, R, ROOT, Unsupported,
-};
+use super::{Embed, Kind2, LayoutInstructionIdentifier, Printer, R, ROOT};
 
 impl Printer<'_, '_, '_> {
     // ---- printer-html.js, print/element.js -------------------------------------------
@@ -65,28 +63,7 @@ impl Printer<'_, '_, '_> {
     pub(super) fn embedded(&mut self, embed: Embed) -> R<LayoutInstructionIdentifier> {
         match embed {
             Embed::Script(content) => self.script(content),
-            Embed::Style(index) => {
-                let style = &self.c.styles[index];
-                let stylesheet =
-                    rsvelte_stylesheet_format::format(self.source_text, &style.sheet, "", "  ")?;
-                if stylesheet
-                    .lines()
-                    .any(|l| rsvelte_document_printer::string_width(l) > PRINT_WIDTH)
-                {
-                    return Err(Unsupported::at(
-                        "a CSS line longer than the print width",
-                        style.span,
-                    ));
-                }
-                let mut parts = Vec::new();
-                for (j, line) in stylesheet.trim_end_matches('\n').split('\n').enumerate() {
-                    if j > 0 {
-                        parts.push(self.d().hardline());
-                    }
-                    parts.push(self.d().text(line));
-                }
-                Ok(self.cat(&parts))
-            }
+            Embed::Style(index) => self.style(self.c.styles[index].content),
             Embed::None => unreachable!("an embedding block"),
         }
     }

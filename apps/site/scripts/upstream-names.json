@@ -24,19 +24,19 @@
 		"reason": "The `cssHash` compile option"
 	},
 	{
-		"file": "languages/svelte/compile_vapor/src/compilation/template/options.rs",
+		"file": "bridges/svelte_to_vue_vapor/src/compilation/template/options.rs",
 		"name": "CssMode",
 		"upstream": "css?: 'injected' | 'external'",
 		"reason": "The values of the `css` compile option"
 	},
 	{
-		"file": "languages/svelte/compile_vapor/src/compilation/template/options.rs",
+		"file": "bridges/svelte_to_vue_vapor/src/compilation/template/options.rs",
 		"name": "Options::css_mode",
 		"upstream": "css?: 'injected' | 'external'",
 		"reason": "The `css` compile option"
 	},
 	{
-		"file": "languages/svelte/compile_vapor/src/compilation.rs",
+		"file": "bridges/svelte_to_vue_vapor/src/compilation.rs",
 		"name": "Translation::css_mode",
 		"upstream": "css?: 'injected' | 'external'",
 		"reason": "The `css` compile option"

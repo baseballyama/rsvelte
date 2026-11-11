@@ -493,6 +493,47 @@ Test in `rsvelte_markup_syntax`: `character_references::tests::html_follows_the_
   `slot` of its own. This crate resolves names as the compiler does.
   Test: `rsvelte_svelte_semantic` `resolve::tests::a_component_s_let_names_reach_its_default_slot_and_not_a_named_one`.
 
+## A component's `let:` names reach its own attributes (svelte-eslint-parser)
+
+- Case: `<Child message={message} let:message>` beside an instance `let message`, as in Svelte's
+  `runtime-runes/samples/slot-static` and svelte2tsx's `component-slot-shadowed-prop`.
+- Upstream resolves `{message}` to the `let:` name. So no-unused-vars reports the instance
+  `message`, or the `let:` name that only the attribute reads.
+- Correct: Svelte's compiler evaluates the attributes of a component without a static `slot`
+  outside its `let:` scope. This crate resolves names as the compiler does.
+  Test: `rsvelte_svelte_semantic` `resolve::tests::an_element_attribute_sees_its_let_names_and_a_component_one_only_with_a_slot`.
+
+## An each block's key sees a `{@const}` of the body (svelte-eslint-parser)
+
+- Case: `{#each things as thing (key)}{@const key = thing.id}…{/each}`, eslint-plugin-svelte's
+  own `valid-each-key/invalid/const-key01`.
+- Upstream resolves `key` to the `{@const}`, so no-unused-vars counts it as read.
+- Correct: Svelte 5.57.3 compiles the key to `(thing) => key`, a global.
+  Test: `rsvelte_svelte_semantic` `resolve::tests::an_each_key_does_not_see_a_const_of_the_body`.
+
+## Markup that svelte-eslint-parser does not read
+
+| Case                                                     | Upstream                        | Corpus units |
+| -------------------------------------------------------- | ------------------------------- | ------------ |
+| `<script` in a string: `` {@html `<script>…</script>`} `` | `Parsing error`                 | 9            |
+| Components named `Script` and `Style`                    | `Parsing error: Type expected.` | 1            |
+| `use:a.b`, `transition:a.b`, `class:A.B`, `style:a-b`    | `Parsing error`                 | 11           |
+| A one-line `<script>import … from '…'</script>`          | `Parsing error: ';' expected.`  | 1            |
+| `{@const x = (y)}`                                       | `Parsing error: ')' expected.`  | 2            |
+| `<template lang="pug">` with a `{a}`                     | no reference to `a`             | 1            |
+
+Svelte 5.57.3 compiles every one of them, so this crate lints them. The corpus skips their lint
+units (`corpus/_registry/units.toml`).
+
+## Rules that throw (`svelte/indent`, `svelte/consistent-selector-style`)
+
+- `svelte/indent` throws `Cannot read properties of null (reading 'range')` on 18 components of
+  `svelte-material-ui` and one of `threlte`.
+- `svelte/consistent-selector-style` throws `Unexpected '!'` on an HTML comment in `<style>`
+  (Svelte's `css/samples/comment-html`).
+- ESLint then reports nothing for the file. This crate reports every rule, and the corpus skips
+  these lint units.
+
 ## Svelte's compiler: what `svelte.compile` warns, which `svelte/valid-compile` reports
 
 These are behaviors of `svelte` 5.57.3 (`tools/oracle`) that `rsvelte_svelte_semantic`'s warnings do not

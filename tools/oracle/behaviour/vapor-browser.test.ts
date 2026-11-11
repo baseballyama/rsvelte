@@ -15,7 +15,7 @@ import { ROOT } from '../paths.ts';
 
 const CHROME =
 	process.env.RSVELTE_BROWSER ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const CASES = path.join(ROOT, 'crates/languages/svelte/compile_vapor/tests/fixtures');
+const CASES = path.join(ROOT, 'crates/bridges/svelte_to_vue_vapor/tests/fixtures');
 const SVELTE = fs.realpathSync(path.join(import.meta.dirname, '../node_modules/svelte'));
 const requireSvelte = createRequire(path.join(SVELTE, 'package.json'));
 const CLSX = requireSvelte.resolve('clsx').replace(/\.js$/, '.mjs');

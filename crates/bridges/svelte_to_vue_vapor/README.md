@@ -1,6 +1,6 @@
 # Svelte to Vue Vapor
 
-`rsvelte_svelte_compile_vapor` compiles supported Svelte 5 components to JavaScript for Vue
+`rsvelte_svelte_to_vue_vapor` compiles supported Svelte 5 components to JavaScript for Vue
 Vapor. It shares the Svelte trees and facts with the other Svelte tasks. The Rust backend builds
 a new JavaScript tree and prints it once.
 
@@ -33,7 +33,7 @@ Generated imports use `vue`, as a client bundler does. The fixture tools install
 as `vue-vapor`, which keeps it apart from the regular Vue oracle.
 
 ```sh
-cargo test -p rsvelte_svelte_compile_vapor
+cargo test -p rsvelte_svelte_to_vue_vapor
 mise exec -- node --test tools/oracle/behaviour/*.test.ts
 ```
 

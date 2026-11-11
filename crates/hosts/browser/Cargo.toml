@@ -25,8 +25,8 @@ rsvelte_svelte_syntax.workspace = true
 rsvelte_svelte_semantic.workspace = true
 rsvelte_vue_syntax.workspace = true
 rsvelte_vue_semantic.workspace = true
-rsvelte_vue_compile_svelte.workspace = true
-rsvelte_svelte_compile_vapor.workspace = true
+rsvelte_vue_to_svelte.workspace = true
+rsvelte_svelte_to_vue_vapor.workspace = true
 wasm-bindgen = "=0.2.126"
 
 [lints]
