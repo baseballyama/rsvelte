@@ -190,3 +190,31 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
         }
     }
 }
+
+/// Each name `pattern` binds, and whether a default value applies to it.
+pub(super) fn bound_names<'a>(
+    pattern: &'a BindingPattern<'a>,
+    default: bool,
+    f: &mut impl FnMut(&'a BindingIdentifier<'a>, bool),
+) {
+    match pattern {
+        BindingPattern::BindingIdentifier(binding) => f(binding, default),
+        BindingPattern::ObjectPattern(object) => {
+            for property in &object.properties {
+                bound_names(&property.value, default, f);
+            }
+            if let Some(rest) = &object.rest {
+                bound_names(&rest.argument, default, f);
+            }
+        }
+        BindingPattern::ArrayPattern(array) => {
+            for element in array.elements.iter().flatten() {
+                bound_names(element, default, f);
+            }
+            if let Some(rest) = &array.rest {
+                bound_names(&rest.argument, default, f);
+            }
+        }
+        BindingPattern::AssignmentPattern(assignment) => bound_names(&assignment.left, true, f),
+    }
+}

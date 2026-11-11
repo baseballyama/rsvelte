@@ -139,6 +139,18 @@
 ["svelte/svelte-render-scan/src/routes/+page.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
+["svelte/networking-toolbox/src/lib/components/tools/NSEC3Hash.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/svelte-commerce/src/lib/core/components/image/lazy-img.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/svelte-commerce/src/lib/core/components/image/lazy-img-with-zoom.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/syntaxfm-website/src/lib/transcript/Transcript.svelte".skip]
+"svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
 ["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte".skip]
 "svelte.compile" = "upstream bug: an `<svg>` beside a component makes the component's children svg, which drops the HTML whitespace between their components"
 

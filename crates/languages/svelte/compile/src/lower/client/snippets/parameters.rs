@@ -107,10 +107,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 }
 
-/// A snippet keeps an array its parameter destructures in a `var` derived, read with `$.get`.
-struct Hooks<'c, 'x, 'o> {
-    cx: &'c mut ClientCompilationContext<'x, 'o>,
-    declarations: &'c mut Vec<Statement<'o>>,
+/// A snippet or an `{#each}` keeps an array its pattern destructures in a `var` derived, read
+/// with `$.get`.
+pub(in crate::lower::client) struct Hooks<'c, 'x, 'o> {
+    pub(in crate::lower::client) cx: &'c mut ClientCompilationContext<'x, 'o>,
+    pub(in crate::lower::client) declarations: &'c mut Vec<Statement<'o>>,
 }
 
 impl<'o> Destructure<'o, 'o> for Hooks<'_, '_, 'o> {
