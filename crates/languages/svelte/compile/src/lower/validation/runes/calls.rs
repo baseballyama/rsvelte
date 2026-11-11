@@ -135,7 +135,9 @@ impl RuneWalk<'_> {
             && !destructured
             && match rune {
                 "$state" | "$state.raw" | "$derived" | "$derived.by" => !place.in_class,
-                "$props" | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
+                "$props" | "$props.id" | "$bindable" | "$effect.pending" | "$effect.tracking" => {
+                    true
+                }
                 "$host" => self.custom_element,
                 "$effect" | "$effect.pre" => {
                     matches!(place.parent, Parent::Statement(_)) || self.target == Target::Client

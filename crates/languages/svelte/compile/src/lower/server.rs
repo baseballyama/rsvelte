@@ -115,6 +115,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         instance,
         exports,
         component_name,
+        props_id,
         ..
     } = prepared;
     let mut sx = ServerCompilationContext {
@@ -154,6 +155,9 @@ pub(super) fn lower_prepared<'c, 'o>(
     body.extend(instance);
     body.extend(template);
     body.extend(bind_props(b, res, &exports));
+    if let Some(id) = &props_id {
+        body.insert(0, b.const_(id, b.runtime("props_id", [b.id("$$renderer")])));
+    }
     if an.needs_context {
         let callback = b.arrow_block(b.params(["$$renderer"]), body, false);
         let call = b.call(b.member(b.id("$$renderer"), "component"), [callback]);

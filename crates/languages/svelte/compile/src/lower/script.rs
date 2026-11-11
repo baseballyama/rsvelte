@@ -405,6 +405,22 @@ fn check_export<'t>(
 ///
 /// An `unsupported` [`Diagnostic`] for an export the instance script cannot lower, and
 /// upstream's errors for the exports it can.
+/// Upstream `analysis.props_id`: the name `const id = $props.id()` declares.
+pub(super) fn props_id(program: &Program<'_>, res: &Resolution) -> Option<String> {
+    program.body.iter().find_map(|statement| {
+        let Statement::VariableDeclaration(d) = statement else {
+            return None;
+        };
+        d.declarations.iter().find_map(|d| {
+            let init = d.init.as_ref()?;
+            (res.rune(init)?.0 == "$props.id")
+                .then(|| d.id.get_binding_identifier())
+                .flatten()
+                .map(|id| id.name.to_string())
+        })
+    })
+}
+
 pub(super) fn lower_script<'t, 'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
     program: &'t Program<'t>,
@@ -489,11 +505,16 @@ fn lower_declarator<'o>(
     hoisted: &mut Vec<Statement<'o>>,
     names: &mut Names,
 ) {
-    let props = d
+    let rune = d
         .init
         .as_ref()
-        .is_some_and(|init| rw.res.rune(init).is_some_and(|(rune, _)| rune == "$props"));
-    if !props {
+        .and_then(|init| rw.res.rune(init))
+        .map(|(rune, _)| rune);
+    // Upstream declares `$props.id()` first in the component instead.
+    if rune == Some("$props.id") {
+        return;
+    }
+    if rune != Some("$props") {
         out.push(rw.declarator(d));
         return;
     }
