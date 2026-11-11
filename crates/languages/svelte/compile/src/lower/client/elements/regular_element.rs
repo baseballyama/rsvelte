@@ -1,8 +1,8 @@
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
-    Memo, NodeKind, R, check_foreign_element, is_custom_element_node, is_customizable_select,
-    is_directive, is_load_error_element, unsupported,
+    Memo, NodeKind, R, is_custom_element_node, is_customizable_select, is_directive,
+    is_load_error_element, unsupported,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -35,16 +35,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
             return unsupported(&format!("rich content in `<{tag}>`"), el.name);
         }
-        let namespace = self.plan.namespace(identifier);
-        if namespace == crate::render_plan::Namespace::Html {
-            check_foreign_element(self.source_text, el.name)?;
-        }
-        let tag = if namespace == crate::render_plan::Namespace::Html {
+        let is_html = self.is_html(identifier);
+        let tag = if is_html {
             tag
         } else {
             el.name.text(self.source_text).to_owned()
         };
-        frag.tpl.push_element(&tag, namespace);
+        frag.tpl.push_element(&tag, is_html);
         if tag == "noscript" {
             frag.tpl.pop_element();
             return Ok(());

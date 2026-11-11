@@ -1,5 +1,4 @@
 use super::{escape_markup, is_void};
-use crate::render_plan::Namespace;
 
 /// The HTML of one fragment, built while its nodes are visited (upstream `Template`).
 #[derive(Default)]
@@ -13,7 +12,8 @@ pub(super) struct Template {
 enum TplNode {
     Element {
         name: String,
-        namespace: Namespace,
+        /// Upstream `is_html`, which lowercases the attribute names.
+        is_html: bool,
         attributes: Vec<(String, Option<String>)>,
         children: Vec<usize>,
     },
@@ -35,9 +35,9 @@ impl Template {
         i
     }
 
-    pub(super) fn push_element(&mut self, name: &str, namespace: Namespace) {
+    pub(super) fn push_element(&mut self, name: &str, is_html: bool) {
         let i = self.add(TplNode::Element {
-            namespace,
+            is_html,
             name: name.to_owned(),
             attributes: Vec::new(),
             children: Vec::new(),
@@ -95,7 +95,7 @@ impl Template {
             TplNode::Comment(None) => out.push_str("<!>"),
             TplNode::Element {
                 name,
-                namespace,
+                is_html,
                 attributes,
                 children,
             } => {
@@ -103,7 +103,7 @@ impl Template {
                 out.push_str(name);
                 for (k, v) in attributes {
                     out.push(' ');
-                    if *namespace == Namespace::Html {
+                    if *is_html {
                         out.push_str(&k.to_ascii_lowercase());
                     } else {
                         out.push_str(k);

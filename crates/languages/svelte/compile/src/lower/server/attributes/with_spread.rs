@@ -89,8 +89,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 }
                 _ => {}
             }
-            let mut name = if self.plan.namespace(identifier) == crate::render_plan::Namespace::Html
-            {
+            let mut name = if self.plan.named(identifier) == crate::render_plan::Namespace::Html {
                 raw_name.to_ascii_lowercase()
             } else {
                 raw_name.to_owned()
@@ -131,7 +130,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             None
         };
         let hash = hash.map(|h| b.string(&h));
-        let flags = if self.plan.namespace(identifier) != crate::render_plan::Namespace::Html {
+        let flags = if self.plan.named(identifier) != crate::render_plan::Namespace::Html {
             ELEMENT_IS_NAMESPACED | ELEMENT_PRESERVE_ATTRIBUTE_CASE
         } else if tag == "input" {
             ELEMENT_IS_INPUT

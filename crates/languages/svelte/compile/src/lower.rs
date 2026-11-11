@@ -244,5 +244,4 @@ use template::{
     event_attribute, has_dependency, is_behaviour, is_directive, is_dom_property,
     is_load_error_element, synthetic_value,
 };
-pub(crate) use validation::check_foreign_element;
 use validation::{check_runes, uses_slots};
