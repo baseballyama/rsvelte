@@ -79,6 +79,7 @@ pub(super) fn normalize_attribute(name: &str) -> String {
     alias.to_owned()
 }
 
+use binding_accessors::each_scopes;
 use template::Template;
 
 /// Per fragment: the template and the memoized expressions (`$0`, `$1`, …) of its render effect.
@@ -160,6 +161,8 @@ struct ClientCompilationContext<'c, 'o> {
     reads: FxHashMap<SymbolId, Read>,
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
     binding_groups: super::binding_groups::BindingGroups,
+    /// The scopes whose names a `bind:this` passes to its accessors; see [`each_scopes`].
+    each_scopes: FxHashSet<ScopeId>,
     /// Where a name of a tree this lowering built resolves when it is evaluated: the innermost
     /// `{#each}` or snippet scope.
     scope: ScopeId,
@@ -224,6 +227,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         reads: FxHashMap::default(),
         each_index,
         binding_groups,
+        each_scopes: each_scopes(input.component.compiler_syntax_tree, res),
         scope: res.instance_scope(),
         plan,
         identity,

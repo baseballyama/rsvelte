@@ -2,9 +2,10 @@ use oxc_ast::ast::{
     BindingIdentifier, ChainElement, Expression, IdentifierName, IdentifierReference,
 };
 use oxc_ast_visit::Visit;
-use oxc_semantic::SymbolId;
+use oxc_semantic::{ScopeId, SymbolId};
 use oxc_span::SPAN;
-use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerSyntaxTree, NodeKind};
+use rsvelte_svelte_semantic::resolve::{Resolution, TemplateScope};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rustc_hash::FxHashSet;
 
@@ -51,7 +52,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             _ => (source, None),
         };
-        let names = each_names(self.res, getter);
+        let names = each_names(self.res, &self.each_scopes, getter);
         let mut reads = self.reads.clone();
         for &(symbol, _) in &names {
             reads.insert(symbol, Read::Plain);
@@ -131,11 +132,37 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 }
 
-/// The names a `bind:this` target reads that an `{#each}` declares, in order. Upstream skips a
-/// name it has met before as anything, even a property key.
-fn each_names<'e>(res: &Resolution, e: &Expression<'e>) -> Vec<(SymbolId, &'e str)> {
+/// Upstream's scope of each `{#each}`, which holds its context, its index and the `{@const}`s
+/// of its body; this tree opens a scope for the context and another for the body.
+pub(super) fn each_scopes(tree: &CompilerSyntaxTree, res: &Resolution) -> FxHashSet<ScopeId> {
+    let mut scopes = FxHashSet::default();
+    for (identifier, node) in tree.nodes.iter_enumerated() {
+        if let NodeKind::Each(each) = &node.kind {
+            let opened = [
+                TemplateScope::Each(identifier),
+                TemplateScope::Fragment(each.body),
+            ];
+            scopes.extend(
+                opened
+                    .into_iter()
+                    .filter_map(|scope| res.template_scope(scope)),
+            );
+        }
+    }
+    scopes
+}
+
+/// The names a `bind:this` target reads that an `{#each}`'s scope declares, in order, except a
+/// signal, which the accessors read themselves. Upstream skips a name it has met before as
+/// anything, even a property key.
+fn each_names<'e>(
+    res: &Resolution,
+    each_scopes: &FxHashSet<ScopeId>,
+    e: &Expression<'e>,
+) -> Vec<(SymbolId, &'e str)> {
     struct Names<'r, 'e> {
         res: &'r Resolution,
+        each_scopes: &'r FxHashSet<ScopeId>,
         seen: FxHashSet<&'e str>,
         found: Vec<(SymbolId, &'e str)>,
     }
@@ -149,9 +176,13 @@ fn each_names<'e>(res: &Resolution, e: &Expression<'e>) -> Vec<(SymbolId, &'e st
             let name = it.name.as_str();
             if self.first(name)
                 && let Some(symbol) = self.res.symbol(it)
-                && matches!(
+                && self
+                    .each_scopes
+                    .contains(&self.res.scoping().symbol_scope_id(symbol))
+                && !self.res.is_state_source(symbol)
+                && !matches!(
                     self.res.binding(symbol).kind,
-                    BindingKind::Each | BindingKind::StaticIndex | BindingKind::KeyedIndex
+                    BindingKind::Derived | BindingKind::DerivedBy
                 )
             {
                 self.found.push((symbol, name));
@@ -168,6 +199,7 @@ fn each_names<'e>(res: &Resolution, e: &Expression<'e>) -> Vec<(SymbolId, &'e st
     }
     let mut names = Names {
         res,
+        each_scopes,
         seen: FxHashSet::default(),
         found: Vec::new(),
     };
