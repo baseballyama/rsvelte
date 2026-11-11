@@ -387,3 +387,31 @@ fn an_element_s_number_only_attribute_is_a_number_as_svelte2tsx_writes_it() {
         assert!(output.out.contains(text), "{text}\n{}", output.out);
     }
 }
+
+#[test]
+fn a_slot_s_attributes_are_its_props_and_not_an_element_s() {
+    let source = "<slot name=\"row\" {a} tabIndex=\"1\" /><slot b={1} />";
+    let (_, output) = project(source);
+    for text in [
+        "__rsvelte_slots()(\"row\", {\n",
+        "\"tabIndex\": \"1\",",
+        "__rsvelte_slots()(\"default\", {\n",
+        "\"b\": 1,",
+    ] {
+        assert!(output.out.contains(text), "{text}\n{}", output.out);
+    }
+    assert!(!output.out.contains("\"name\""), "{}", output.out);
+}
+
+#[test]
+fn a_component_s_slots_type_check_against_its_slots_interface() {
+    let source = "<script lang=\"ts\">interface $$Slots { row: { a: number } }</script><slot name=\"row\" a={1} />";
+    let (_, output) = project(source);
+    assert!(
+        output
+            .out
+            .contains("__rsvelte_slots<$$Slots>()(\"row\", {\n"),
+        "{}",
+        output.out
+    );
+}
