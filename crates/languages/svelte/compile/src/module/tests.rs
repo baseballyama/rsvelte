@@ -191,3 +191,13 @@ fn a_destructuring_assignment_writes_each_path_through_its_transform() {
     let compiled = compile("a.svelte.js", source, Target::Server);
     assert!(compiled.contains("[a, [o.d]] = [1, [2]];"), "{compiled}");
 }
+
+#[test]
+fn a_module_reads_a_rune_beside_a_binding_of_its_store_name() {
+    let compiled = compile(
+        "a.svelte.js",
+        "let effect = {};\n$effect.root(() => {});\n",
+        Target::Client,
+    );
+    assert!(compiled.contains("$.effect_root(() => {})"), "{compiled}");
+}

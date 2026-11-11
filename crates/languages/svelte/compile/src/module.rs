@@ -12,7 +12,7 @@ use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
 use rsvelte_svelte_semantic::input::ComponentInput;
-use rsvelte_svelte_semantic::resolve::resolve;
+use rsvelte_svelte_semantic::resolve::resolve_module;
 use rsvelte_svelte_semantic::warnings::module_warnings;
 use rsvelte_typescript_compile::print;
 use rsvelte_typescript_tree::Tree;
@@ -88,7 +88,7 @@ pub(crate) fn compiled(
         filename: &document.path,
         source_text: &document.text,
     });
-    let res = resolve(&javascript, None, Some(program), &compiler_syntax_tree);
+    let res = resolve_module(&javascript, program);
     let allocator = Allocator::default();
     let module = {
         let _p = measurement::phase(match target {
