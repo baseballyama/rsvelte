@@ -156,6 +156,12 @@ impl<'a> Host<'a> for ComponentHost<'_, 'a> {
     fn visit(&self, visitor: &mut HostVisitor<'_, 'a>) {
         if let Some(instance) = self.nested_instance {
             visitor.enter_scope(ScopeFlags::Function, &instance.scope_id);
+        }
+        // The instance script's `generics`, whose names its body and the template read.
+        for (_, parameters) in self.tree.type_parameters() {
+            visitor.visit_ts_type_parameter_declaration(parameters);
+        }
+        if let Some(instance) = self.nested_instance {
             visitor.visit_statements(&instance.body);
         }
         let mut roots = HostRoots {

@@ -331,3 +331,37 @@ fn a_script_reads_a_top_level_snippet() {
         ["'bar' is defined but never used."]
     );
 }
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0: a TypeScript instance script's `generics`
+// declare names its body reads and read names the scripts declare.
+#[test]
+fn generics_declare_and_read_names() {
+    assert_eq!(
+        unused(
+            "<script lang=\"ts\" generics=\"T extends Item = Fallback, U\">\
+             import type { Item, Fallback, Unused } from './x';\
+             let { a }: { a: T } = $props();</script>{a}"
+        ),
+        [
+            "'U' is defined but never used.",
+            "'Unused' is defined but never used."
+        ]
+    );
+    assert_eq!(
+        unused(
+            "<script lang=\"ts\" module>import type { Item } from './x'; type T = unknown;</script>\
+             <script lang=\"ts\" generics=\"T extends Item\">let { a }: { a: T } = $props();</script>{a}"
+        ),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script generics=\"T extends Item\">import { Item } from './x';</script>"),
+        ["'Item' is defined but never used."]
+    );
+    assert_eq!(
+        unused(
+            "<script lang=\"ts\" generics=\"T extends {\">import type { Item } from './x';</script>"
+        ),
+        ["'Item' is defined but never used."]
+    );
+}
