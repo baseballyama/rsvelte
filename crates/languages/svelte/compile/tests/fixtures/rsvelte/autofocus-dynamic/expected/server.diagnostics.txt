@@ -1,0 +1,12 @@
+warning a11y_autofocus 5:8-5:25 Avoid using autofocus
+    https://svelte.dev/e/a11y_autofocus
+warning a11y_autofocus 6:8-6:17 Avoid using autofocus
+    https://svelte.dev/e/a11y_autofocus
+warning a11y_autofocus 7:8-7:24 Avoid using autofocus
+    https://svelte.dev/e/a11y_autofocus
+warning a11y_autofocus 8:11-8:24 Avoid using autofocus
+    https://svelte.dev/e/a11y_autofocus
+warning a11y_autofocus 9:13-9:26 Avoid using autofocus
+    https://svelte.dev/e/a11y_autofocus
+warning a11y_autofocus 10:19-10:36 Avoid using autofocus
+    https://svelte.dev/e/a11y_autofocus

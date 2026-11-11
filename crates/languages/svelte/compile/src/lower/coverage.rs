@@ -7,66 +7,109 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
+use super::bindings::{Lowering, attribute_value, property_of};
 use super::javascript::member_root;
 use super::{
-    Attribute, AttributeValue, BindingKind, CompileInput, Diagnostic, Element, NodeKind,
-    Resolution, unsupported,
+    Attribute, AttributeValue, BindingKind, CompileInput, CompilerSyntaxTree, Diagnostic, Element,
+    NodeKind, Resolution, unsupported,
 };
 
 pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
-    for (identifier, node) in tree.nodes.iter_enumerated() {
+    let source = input.component.source_text;
+    let renders = tree
+        .nodes
+        .iter()
+        .any(|node| matches!(node.kind, NodeKind::Render { .. }));
+    for node in &tree.nodes {
         let what = match &node.kind {
             NodeKind::Text { .. }
             | NodeKind::Comment { .. }
             | NodeKind::Expression { .. }
             | NodeKind::If { .. }
             | NodeKind::Snippet(_)
-            | NodeKind::Render { .. } => None,
-            NodeKind::Each(each) => each
-                .context
-                .is_none()
-                .then_some("an `{#each}` block without `as`"),
+            | NodeKind::Key { .. }
+            | NodeKind::Await(_)
+            | NodeKind::Each(_)
+            | NodeKind::Debug { .. }
+            | NodeKind::Html { .. }
+            | NodeKind::Render { .. }
+            | NodeKind::Const { .. } => None,
+            // Upstream renders `<select>` and `<option>` content apart, which is not lowered.
+            NodeKind::Declaration { .. } => node.parent.and_then(|p| match &tree.node(p).kind {
+                NodeKind::Element(el)
+                    if matches!(el.name.text(source), "select" | "option" | "optgroup") =>
+                {
+                    Some("a declaration tag in `<select>` or `<option>`")
+                }
+                _ => None,
+            }),
+            // Upstream's `slot_snippet_conflict`.
+            NodeKind::Element(el) if el.kind == ElementKind::Slot && renders => {
+                Some("a `<slot>` beside a `{@render}` tag")
+            }
+            // Upstream reads a `<slot>`'s `let:` from the `$$slotProps` of the component content
+            // it is in, and from no binding outside one.
+            NodeKind::Element(el)
+                if el.kind == ElementKind::Slot
+                    && (tree.attributes(el.attributes).iter())
+                        .any(|a| matches!(a.value, AttributeValue::Let(_)))
+                    && !in_component_content(tree, node.parent) =>
+            {
+                Some("a `let:` on a `<slot>` outside a component's content")
+            }
             NodeKind::Element(el) => {
-                check_element(input, res, identifier, el)?;
+                check_element(input, res, el)?;
                 None
             }
-            NodeKind::Key { .. } => Some("a `{#key}` block"),
-            NodeKind::Await(_) => Some("an `{#await}` block"),
-            NodeKind::Html { .. } => Some("an `{@html}` tag"),
-            NodeKind::Const { .. } => Some("a `{@const}` tag"),
-            NodeKind::Debug { .. } => Some("a `{@debug}` tag"),
-            NodeKind::Declaration { .. } => Some("a declaration tag"),
         };
         if let Some(what) = what {
             return unsupported(what, node.span);
         }
     }
+    // Upstream's `slot_snippet_conflict`.
+    if let Some(render) = tree
+        .nodes
+        .iter()
+        .find(|node| matches!(node.kind, NodeKind::Render { .. }))
+        .filter(|_| super::uses_slots(res))
+    {
+        return unsupported("`$$slots` beside a `{@render}` tag", render.span);
+    }
     Ok(())
+}
+
+/// Whether `at` is in a component's content, which takes slot props, with no snippet between.
+fn in_component_content(tree: &CompilerSyntaxTree, mut at: Option<CompilerNodeIdentifier>) -> bool {
+    while let Some(identifier) = at {
+        let node = tree.node(identifier);
+        match &node.kind {
+            NodeKind::Element(el) if el.kind.renders_component() => return true,
+            NodeKind::Snippet(_) => return false,
+            _ => at = node.parent,
+        }
+    }
+    false
 }
 
 /// The element and component attributes this port does not lower yet.
 fn check_element(
     input: &CompileInput<'_>,
     res: &Resolution,
-    identifier: CompilerNodeIdentifier,
     el: &Element,
 ) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
-    // Upstream sets a custom element's attributes as properties, which is not lowered.
-    if super::is_custom_element_node(tree, source, el)
-        && let Some(a) = tree
-            .attributes(el.attributes)
-            .iter()
-            .find(|a| super::is_directive(&a.value) || a.name.text(source) != "is")
+    // Upstream's `slot_element_invalid_attribute`.
+    if el.kind == ElementKind::Slot
+        && let Some(a) = tree.attributes(el.attributes).iter().find(|a| {
+            super::is_directive(&a.value)
+                && !matches!(a.value, AttributeValue::Spread(_) | AttributeValue::Let(_))
+        })
     {
-        return unsupported("an attribute on a custom element", a.span);
+        return unsupported("a directive on `<slot>`", a.span);
     }
-    let component = el.kind == ElementKind::Component;
-    let in_component = tree.node(identifier).parent.is_some_and(|parent| {
-        matches!(&tree.node(parent).kind, NodeKind::Element(owner) if owner.kind.renders_component())
-    });
+    let component = el.kind.renders_component();
     // Upstream checks the element's name as written.
     let tag = match el.kind {
         ElementKind::Regular => Some(el.name.text(source)),
@@ -93,42 +136,32 @@ fn check_element(
             {
                 continue;
             }
-            AttributeValue::On { .. } => "an `on:` directive",
             AttributeValue::Style { .. } if matches!(&a.value, AttributeValue::Style { value, .. } if matches!(**value, StyleValue::Empty)) => {
                 "a `style:` directive without a value"
             }
-            // Upstream adds an empty `style` beside its own empty `class`, which this port does
-            // not.
-            AttributeValue::Style { .. } if tag == Some("svelte:element") => {
-                "a `style:` directive on `<svelte:element>`"
+            // Upstream's `<svelte:element>` passes its own on, which is not lowered.
+            AttributeValue::Let(_)
+                if !component
+                    && !matches!(
+                        el.kind,
+                        ElementKind::Regular
+                            | ElementKind::Slot
+                            | ElementKind::Metadata(Some(MetadataTag::Fragment))
+                    ) =>
+            {
+                "a `let:` directive"
             }
-            AttributeValue::Style { .. } if !component => continue,
-            AttributeValue::Let(_) => "a `let:` directive",
-            _ if !component => {
-                if name == "slot" && !super::is_directive(&a.value) && in_component {
-                    "a named slot"
-                } else {
-                    continue;
-                }
-            }
+            AttributeValue::Let(_) => continue,
+            _ if !component => continue,
             AttributeValue::Bind(target) if name == "this" => {
-                check_bind_this(input, res, a, target)?;
+                check_target(input, res, a, target)?;
                 continue;
             }
-            AttributeValue::Bind(_) if name == "group" => "`bind:group` on a component",
-            AttributeValue::Bind(target)
-                if !is_bindable(input, res, target, true) && !rejected(input, res, target) =>
-            {
-                "a component binding to anything but a `let`, `$state`, a prop or a member"
+            AttributeValue::Bind(target) => {
+                check_target(input, res, a, target)?;
+                continue;
             }
-            AttributeValue::Attach(_) => "an attachment on a component",
             AttributeValue::Class(_) => "a `class:` directive on a component",
-            AttributeValue::Bind(_) | AttributeValue::Spread(_) => continue,
-            _ if name.starts_with("--") => "a CSS custom property on a component",
-            _ if name == "slot" => "a `slot` attribute",
-            _ if name == "children" && has_content(input, el) => {
-                "a `children` prop beside the component's content"
-            }
             _ => continue,
         };
         return unsupported(what, a.span);
@@ -136,23 +169,9 @@ fn check_element(
     Ok(())
 }
 
-fn has_content(input: &CompileInput<'_>, el: &Element) -> bool {
-    let tree = input.component.compiler_syntax_tree;
-    tree.children(el.children).iter().any(|&child| {
-        let kind = &tree.node(child).kind;
-        !matches!(kind, NodeKind::Comment { .. })
-            && !kind.is_blank_text(input.component.source_text)
-    })
-}
-
-/// `$state` or a member of an `{#each}` item; a component also takes a `let`, a prop, or a
-/// member of any declared name.
-fn is_bindable(
-    input: &CompileInput<'_>,
-    res: &Resolution,
-    target: ExpressionIdentifier,
-    component: bool,
-) -> bool {
+/// Upstream's `bind_invalid_value` takes more: this is `$state`, a `$derived`, a prop, a
+/// `let`, a store, or a member of a declared name or of `$state`.
+fn is_bindable(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIdentifier) -> bool {
     let target = input
         .component
         .javascript
@@ -167,10 +186,12 @@ fn is_bindable(
         return res.is_store_subscription(&root.name);
     };
     match res.binding(symbol).kind {
-        BindingKind::State | BindingKind::RawState => true,
-        BindingKind::Each => member,
-        _ if !component => false,
-        BindingKind::Property | BindingKind::BindableProperty => true,
+        BindingKind::State
+        | BindingKind::RawState
+        | BindingKind::Derived
+        | BindingKind::DerivedBy
+        | BindingKind::Property
+        | BindingKind::BindableProperty => true,
         BindingKind::Normal => {
             member
                 || matches!(
@@ -180,6 +201,36 @@ fn is_bindable(
         }
         _ => member,
     }
+}
+
+fn is_accessors(input: &CompileInput<'_>, target: ExpressionIdentifier) -> bool {
+    matches!(
+        input
+            .component
+            .javascript
+            .get_expression(target)
+            .get_inner_expression(),
+        Expression::SequenceExpression(_)
+    )
+}
+
+/// A target that [`is_bindable`] takes, a getter and a setter, or one validation rejects.
+fn check_target(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    a: &Attribute,
+    target: ExpressionIdentifier,
+) -> Result<(), Diagnostic> {
+    if !is_accessors(input, target)
+        && !is_bindable(input, res, target)
+        && !rejected(input, res, target)
+    {
+        return unsupported(
+            "a binding to anything but a `let`, `$state`, `$derived`, a prop or a member",
+            a.span,
+        );
+    }
+    Ok(())
 }
 
 /// Upstream's `component_invalid_directive`, which the refusals below would hide.
@@ -203,32 +254,8 @@ fn rejected(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIdenti
     super::validation::rejects_binding(res, input.component.javascript.get_expression(target))
 }
 
-/// Upstream's `bind:this` takes what a component binding takes, on an element or a component.
-fn check_bind_this(
-    input: &CompileInput<'_>,
-    res: &Resolution,
-    a: &Attribute,
-    target: ExpressionIdentifier,
-) -> Result<(), Diagnostic> {
-    let accessors = matches!(
-        input
-            .component
-            .javascript
-            .get_expression(target)
-            .get_inner_expression(),
-        Expression::SequenceExpression(_)
-    );
-    if !accessors && !is_bindable(input, res, target, true) && !rejected(input, res, target) {
-        return unsupported(
-            "a `bind:this` to anything but a `let`, `$state`, a prop or a member",
-            a.span,
-        );
-    }
-    Ok(())
-}
-
 /// A supported property on a supported element, as upstream's `binding_properties` names it,
-/// with no `value`, `checked` or `group` beside it.
+/// with no `value` or `checked` attribute or `group` beside it.
 fn check_element_binding(
     input: &CompileInput<'_>,
     res: &Resolution,
@@ -240,13 +267,23 @@ fn check_element_binding(
     let source_text = input.component.source_text;
     let property = a.name.text(source_text);
     if property == "this" {
-        return check_bind_this(input, res, a, target);
+        return check_target(input, res, a, target);
     }
     if !supported_binding(source_text, tag, attributes, property) {
         return unsupported(&format!("`bind:{property}` on this `<{tag}>`"), a.span);
     }
+    // A group or a checkbox keeps its `value` apart, as `__value`.
+    let keeps_value = matches!(property, "group" | "checked");
     let beside = attributes.iter().any(|o| {
-        !std::ptr::eq(o, a) && matches!(o.name.text(source_text), "value" | "checked" | "group")
+        !std::ptr::eq(o, a)
+            && match o.name.text(source_text) {
+                "value" if !super::is_directive(&o.value) => {
+                    !keeps_value || matches!(o.value, AttributeValue::Interpolated(_))
+                }
+                "checked" => property != "group" && !super::is_directive(&o.value),
+                "group" => true,
+                _ => false,
+            }
     });
     if beside {
         return unsupported(
@@ -254,47 +291,68 @@ fn check_element_binding(
             a.span,
         );
     }
-    if !is_bindable(input, res, target, false) && !rejected(input, res, target) {
-        return unsupported(
-            "a binding to anything but `$state` or a member of `$state` or of an `{#each}` item",
-            a.span,
-        );
+    if property == "group" {
+        let source = input.component.javascript.get_expression(target);
+        let snippet = member_root(source.get_inner_expression())
+            .and_then(|root| res.symbol(root))
+            .is_some_and(|symbol| res.binding(symbol).kind == BindingKind::Snippet);
+        // Upstream rejects a group of a getter and a setter, or of a snippet's parameter.
+        if is_accessors(input, target) || snippet {
+            return unsupported("this `bind:group` target", a.span);
+        }
     }
-    Ok(())
+    check_target(input, res, a, target)
 }
 
-/// Upstream `binding_properties` that this port lowers, by element.
-///
-/// `bind:value` on `<input>` (not a checkbox, radio or file input) and `bind:checked` on a
-/// checkbox, with the `type` written as static text; `bind:value` on a `<select>` whose
-/// `multiple` is static.
+/// A `bind:` property that upstream's `BindDirective` analysis accepts on `tag`; this port
+/// raises none of the errors it would.
 fn supported_binding(
     source_text: &str,
     tag: &str,
     attributes: &[Attribute],
     property: &str,
 ) -> bool {
-    if tag != "input" && tag != "select" {
+    let Some(p) = property_of(property) else {
+        return false;
+    };
+    // Upstream checks `svelte:element` against each property's elements too.
+    if tag == "svelte:element" || p.elements.is_some_and(|e| !e.contains(&tag)) {
         return false;
     }
-    // Upstream rejects a `multiple` that is not static on a bound `<select>`.
-    let static_multiple = attributes.iter().all(|a| {
-        a.name.text(source_text) != "multiple"
-            || matches!(a.value, AttributeValue::Boolean | AttributeValue::Static(_))
-    });
-    let mut ty = Some("text");
-    for a in attributes {
-        if a.name.text(source_text) == "type" && !matches!(a.value, AttributeValue::Bind(_)) {
-            ty = match &a.value {
-                AttributeValue::Static(v) => Some(&**v),
-                _ => None,
-            };
+    if tag == "input" {
+        // Upstream takes only `bind:value` beside a `type` not written as text.
+        let ty = match attribute_value(source_text, attributes, "type") {
+            None => None,
+            Some(AttributeValue::Static(ty)) => Some(&**ty),
+            Some(AttributeValue::Boolean) => return false,
+            Some(_) => return property == "value",
+        };
+        let wanted = match property {
+            "checked" => Some("checkbox"),
+            "files" => Some("file"),
+            _ => ty,
+        };
+        if ty != wanted {
+            return false;
         }
     }
-    match (property, ty) {
-        ("value", Some(t)) if tag == "input" => !matches!(t, "checkbox" | "radio" | "file"),
-        ("value", _) => tag == "select" && static_multiple,
-        ("checked", Some(t)) => tag == "input" && t == "checkbox",
-        _ => false,
+    if tag == "select"
+        && attribute_value(source_text, attributes, "multiple")
+            .is_some_and(|m| !matches!(m, AttributeValue::Boolean | AttributeValue::Static(_)))
+    {
+        return false;
     }
+    if property == "offsetWidth" && rsvelte_svelte_syntax::names::is_svg(tag) {
+        return false;
+    }
+    if p.lowering == Lowering::ContentEditable {
+        let editable = attribute_value(source_text, attributes, "contenteditable");
+        if !matches!(
+            editable,
+            Some(AttributeValue::Boolean | AttributeValue::Static(_))
+        ) {
+            return false;
+        }
+    }
+    true
 }

@@ -48,11 +48,15 @@ impl<'o> Emitter<'_, 'o> {
         } else {
             content
         };
-        let render = b.arrow(b.params(["$$ssr_parent"]), content);
+        let render = b.arrow(b.parameters(["$$ssr_parent"]), content);
         let printed = b.call(b.member(b.id("_ctx"), "renderContent"), [b.id("_parent")]);
-        let push = b.stmt(b.call(b.id("_push"), [printed]));
-        let ssr_render =
-            b.function_expression(None, b.params(["_ctx", "_push", "_parent"]), [push], false);
+        let push = b.statement(b.call(b.id("_push"), [printed]));
+        let ssr_render = b.function_expression(
+            None,
+            b.parameters(["_ctx", "_push", "_parent"]),
+            [push],
+            false,
+        );
         fields.push(method(b, "ssrRender", ssr_render));
         b.object([b.init("renderContent", render)])
     }

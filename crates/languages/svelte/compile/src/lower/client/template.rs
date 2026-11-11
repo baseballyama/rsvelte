@@ -1,5 +1,4 @@
 use super::{escape_markup, is_void};
-use crate::render_plan::Namespace;
 
 /// The HTML of one fragment, built while its nodes are visited (upstream `Template`).
 #[derive(Default)]
@@ -8,12 +7,15 @@ pub(super) struct Template {
     roots: Vec<usize>,
     stack: Vec<usize>,
     pub(super) needs_import_node: bool,
+    /// Upstream `contains_script_tag`: the fragment must recreate its scripts so they run.
+    pub(super) contains_script: bool,
 }
 
 enum TplNode {
     Element {
         name: String,
-        namespace: Namespace,
+        /// Upstream `is_markup`, which lowercases the attribute names.
+        is_markup: bool,
         attributes: Vec<(String, Option<String>)>,
         children: Vec<usize>,
     },
@@ -35,9 +37,10 @@ impl Template {
         i
     }
 
-    pub(super) fn push_element(&mut self, name: &str, namespace: Namespace) {
+    pub(super) fn push_element(&mut self, name: &str, is_markup: bool) {
+        self.contains_script |= name == "script";
         let i = self.add(TplNode::Element {
-            namespace,
+            is_markup,
             name: name.to_owned(),
             attributes: Vec::new(),
             children: Vec::new(),
@@ -95,7 +98,7 @@ impl Template {
             TplNode::Comment(None) => out.push_str("<!>"),
             TplNode::Element {
                 name,
-                namespace,
+                is_markup,
                 attributes,
                 children,
             } => {
@@ -103,7 +106,7 @@ impl Template {
                 out.push_str(name);
                 for (k, v) in attributes {
                     out.push(' ');
-                    if *namespace == Namespace::Html {
+                    if *is_markup {
                         out.push_str(&k.to_ascii_lowercase());
                     } else {
                         out.push_str(k);

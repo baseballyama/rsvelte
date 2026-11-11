@@ -1,29 +1,33 @@
-use oxc_ast::ast::{Expression, PropertyKey};
+use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKey};
 
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
-    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo, R,
-    event_attribute, is_behaviour, normalize_attribute,
+    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo,
+    event_attribute, is_behaviour, is_directive, normalize_attribute,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_attribute_effect`: every attribute and spread, in order, as one object the
     /// runtime diffs, with its own memoized values.
     pub(in crate::lower::client) fn attribute_effect(
-        &mut self,
+        &self,
         identifier: CompilerNodeIdentifier,
         tag: &str,
         attributes: &[Attribute],
         node: &str,
         remove_defaults: bool,
         l: &mut Lists<'o>,
-    ) -> R<()> {
+    ) {
         let b = self.b;
         let mut memo = Memo::default();
         let mut values = Vec::with_capacity(attributes.len());
         let mut class_directives = Vec::new();
         let mut style_directives = Vec::new();
+        let is = self.template_is(identifier, attributes);
         for a in attributes {
+            if is.is_some_and(|is| std::ptr::eq(is, a)) {
+                continue;
+            }
             match a.value {
                 _ if is_behaviour(&a.value) => continue,
                 AttributeValue::Bind(_) => continue,
@@ -64,6 +68,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 values.push(b.init(name, value));
             }
         }
+        self.synthetic_attributes(
+            identifier,
+            attributes,
+            &class_directives,
+            &style_directives,
+            &mut values,
+        );
         if !class_directives.is_empty() {
             let props: Vec<_> = class_directives
                 .iter()
@@ -80,7 +91,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             values.push(b.property(key, b.object(props), true));
         }
         if !style_directives.is_empty() {
-            let (object, _) = self.style_directives(&style_directives, &mut memo)?;
+            let (object, _) = self.style_directives(&style_directives, &mut memo);
             let key = PropertyKey::from(b.member(b.id("$"), "STYLE"));
             values.push(b.property(key, object, true));
         }
@@ -104,7 +115,36 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 remove,
             ],
         );
-        l.initializer.push(b.stmt(call));
-        Ok(())
+        l.initializer.push(b.statement(call));
+    }
+
+    /// Upstream's analysis gives an element without a spread an empty `class` when it is scoped
+    /// or has class directives, and an empty `style` when it has style directives.
+    fn synthetic_attributes(
+        &self,
+        identifier: CompilerNodeIdentifier,
+        attributes: &[Attribute],
+        class_directives: &[&Attribute],
+        style_directives: &[&Attribute],
+        values: &mut Vec<ObjectPropertyKind<'o>>,
+    ) {
+        let b = self.b;
+        if attributes
+            .iter()
+            .any(|a| matches!(a.value, AttributeValue::Spread(_)))
+        {
+            return;
+        }
+        let has = |name: &str| {
+            attributes.iter().any(|a| {
+                !is_directive(&a.value) && a.name.text(self.source_text).eq_ignore_ascii_case(name)
+            })
+        };
+        if !has("class") && (self.an.scoped[identifier] || !class_directives.is_empty()) {
+            values.push(b.init("class", b.string("")));
+        }
+        if !has("style") && !style_directives.is_empty() {
+            values.push(b.init("style", b.string("")));
+        }
     }
 }

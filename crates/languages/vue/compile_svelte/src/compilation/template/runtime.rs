@@ -20,7 +20,12 @@ pub(super) fn include_boolean_attribute<'a>(
     );
     let empty = b.binary(b.id(&v), BinaryOperator::StrictEquality, b.string(""));
     let or = b.logical(truthy, LogicalOperator::Or, empty);
-    b.function_declaration(name, b.params([v.as_str()]), [b.return_(Some(or))], false)
+    b.function_declaration(
+        name,
+        b.parameters([v.as_str()]),
+        [b.return_(Some(or))],
+        false,
+    )
 }
 
 /// `function renderable(value) { return typeof value === 'string' || … ? value : undefined; }`
@@ -39,7 +44,12 @@ pub(super) fn renderable<'a>(b: &Builder<'a>, name: &str, names: &mut Names<'_>)
         is("boolean"),
     );
     let c = conditional(b, test, b.id(&v), b.id("undefined"));
-    b.function_declaration(name, b.params([v.as_str()]), [b.return_(Some(c))], false)
+    b.function_declaration(
+        name,
+        b.parameters([v.as_str()]),
+        [b.return_(Some(c))],
+        false,
+    )
 }
 
 /// `for (let i = 0; i < length; i++) body`.
@@ -137,10 +147,10 @@ pub(super) fn vmodel<'a>(
     let keys = names.fresh("keys");
     let hook = |hook: &str| {
         let callee = b.member(b.id(&dir), hook);
-        b.stmt(b.optional_call(callee, [b.id(&el), b.id(&binding), b.id(&vnode)]))
+        b.statement(b.optional_call(callee, [b.id(&el), b.id(&binding), b.id(&vnode)]))
     };
     let set_property = |object: &str, property: &str, value: Expression<'a>| {
-        b.stmt(b.assign_member(b.member(b.id(object), property), value))
+        b.statement(b.assign_member(b.member(b.id(object), property), value))
     };
 
     let bindings_declaration = b.const_(&bindings, b.new_(b.id("WeakMap"), []));
@@ -148,7 +158,7 @@ pub(super) fn vmodel<'a>(
     // The hooks.
     let vnode_object = b.object([b.init("props", b.id(&props))]);
     let created = b.block([
-        b.stmt(b.assign_name(
+        b.statement(b.assign_name(
             &binding,
             b.object([
                 b.init("value", b.id(&value)),
@@ -156,7 +166,7 @@ pub(super) fn vmodel<'a>(
                 b.init("modifiers", b.id(&modifiers)),
             ]),
         )),
-        b.stmt(b.call(
+        b.statement(b.call(
             b.member(b.id(&bindings), "set"),
             [b.id(&el), b.id(&binding)],
         )),
@@ -182,19 +192,22 @@ pub(super) fn vmodel<'a>(
         ),
         b.if_(is_new, created, Some(updated)),
     ];
-    let untracked = b.arrow_block(b.params([]), inner, false);
-    let attachment = b.arrow(b.params([el.as_str()]), b.call(b.id(untrack), [untracked]));
+    let untracked = b.arrow_block(b.parameters([]), inner, false);
+    let attachment = b.arrow(
+        b.parameters([el.as_str()]),
+        b.call(b.id(untrack), [untracked]),
+    );
     let body = [
         b.if_(
             b.member(b.id(&dir), "deep"),
-            b.stmt(b.call(b.id(&traverse), [b.id(&value)])),
+            b.statement(b.call(b.id(&traverse), [b.id(&value)])),
             None,
         ),
         b.return_(Some(attachment)),
     ];
     let vmodel = b.function_declaration(
         name,
-        b.params([
+        b.parameters([
             dir.as_str(),
             value.as_str(),
             modifiers.as_str(),
@@ -206,7 +219,7 @@ pub(super) fn vmodel<'a>(
 
     // traverse(value, seen = new Set())
     let recurse =
-        |argument: Expression<'a>| b.stmt(b.call(b.id(&traverse), [argument, b.id(&seen)]));
+        |argument: Expression<'a>| b.statement(b.call(b.id(&traverse), [argument, b.id(&seen)]));
     let not_object = b.binary(
         b.unary(UnaryOperator::Typeof, b.id(&value)),
         BinaryOperator::StrictInequality,
@@ -227,10 +240,10 @@ pub(super) fn vmodel<'a>(
     );
     let is_array = b.call(b.member(b.id("Array"), "isArray"), [b.id(&value)]);
     let each_item = b.arrow(
-        b.params([item.as_str()]),
+        b.parameters([item.as_str()]),
         b.call(b.id(&traverse), [b.id(&item), b.id(&seen)]),
     );
-    let for_each = b.stmt(b.call(b.member(b.id(&value), "forEach"), [each_item]));
+    let for_each = b.statement(b.call(b.member(b.id(&value), "forEach"), [each_item]));
     let instance = |class: &str| b.binary(b.id(&value), BinaryOperator::Instanceof, b.id(class));
     let collection = b.logical(instance("Set"), LogicalOperator::Or, instance("Map"));
     // `for (const key in value)` would visit inherited keys: a `for` over `Object.keys`.
@@ -257,7 +270,7 @@ pub(super) fn vmodel<'a>(
     let collection_branch = b.if_(collection, for_each, Some(object_branch));
     let body = [
         b.if_(skip, b.return_(None), None),
-        b.stmt(b.call(b.member(b.id(&seen), "add"), [b.id(&value)])),
+        b.statement(b.call(b.member(b.id(&seen), "add"), [b.id(&value)])),
         b.if_(is_array, for_array, Some(collection_branch)),
     ];
     let parameters = b.formal_parameters([

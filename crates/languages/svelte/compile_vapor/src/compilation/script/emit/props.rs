@@ -54,7 +54,7 @@ pub(super) fn prop_declarations<'t>(rw: &mut ScriptRewrite<'_, 't>, body: &mut V
             [
                 b.id("$$props"),
                 b.string(&key.name),
-                b.arrow(b.params([]), fallback),
+                b.arrow(b.parameters([]), fallback),
                 b.boolean(server),
                 b.boolean(info.kind == BindingKind::BindableProperty),
             ],

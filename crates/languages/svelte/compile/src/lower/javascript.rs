@@ -1,20 +1,18 @@
 use std::borrow::Cow;
 
-use oxc_ast::ast::{
-    BindingIdentifier, Expression, IdentifierReference, ObjectPropertyKind, PropertyKey,
-};
+use oxc_ast::ast::{Expression, IdentifierReference, ObjectPropertyKind, PropertyKey};
 use oxc_str::JSStr;
 
 use super::Builder;
 
-/// `{ name }` for each exported name, as both targets hand the exports over.
-pub(crate) fn export_properties<'o>(
+/// `alias: name` for each export, as the server hands the exports over.
+pub(super) fn export_properties<'o>(
     b: &Builder<'o>,
-    exports: &[&BindingIdentifier<'_>],
+    exports: &[super::script::Export<'_>],
 ) -> impl Iterator<Item = ObjectPropertyKind<'o>> {
     exports
         .iter()
-        .map(|name| b.init(&name.name, b.id(&name.name)))
+        .map(|export| b.init(export.alias, b.id(export.name)))
 }
 
 /// Upstream's `prop_alias`: the name a `$props()` key reads, `String(key.value)` for a literal.

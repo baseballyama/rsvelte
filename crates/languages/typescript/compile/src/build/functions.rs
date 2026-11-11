@@ -38,7 +38,7 @@ impl<'o> Builder<'o> {
         )
     }
 
-    pub fn params<'n>(
+    pub fn parameters<'n>(
         &self,
         names: impl IntoIterator<Item = &'n str>,
     ) -> ArenaBox<'o, FormalParameters<'o>> {

@@ -1,0 +1,1 @@
+error check_unsupported 2:2-2:7 not supported by the type-check projection yet: custom elements and svelte: elements

@@ -1,0 +1,14 @@
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './Imp.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 17
+		},
+		"end": {
+			"line": 1,
+			"character": 31
+		}
+	}
+]

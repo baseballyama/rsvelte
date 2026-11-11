@@ -27,7 +27,7 @@ pub(super) fn callback<'o>(
     if keeps_callee(res, source, created) {
         b.thunk(value)
     } else {
-        b.arrow(b.params([]), value)
+        b.arrow(b.parameters([]), value)
     }
 }
 

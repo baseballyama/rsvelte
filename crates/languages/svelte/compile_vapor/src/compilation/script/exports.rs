@@ -54,7 +54,7 @@ pub(super) fn expose<'t>(
         fields.push(b.accessor(
             oxc_ast::ast::PropertyKind::Get,
             name,
-            b.params([]),
+            b.parameters([]),
             [b.return_(Some(value))],
         ));
         let assignable = match res.declaration(symbol) {
@@ -67,10 +67,10 @@ pub(super) fn expose<'t>(
             fields.push(b.accessor(
                 oxc_ast::ast::PropertyKind::Set,
                 name,
-                b.params(["$$export_value"]),
-                [b.stmt(assignment)],
+                b.parameters(["$$export_value"]),
+                [b.statement(assignment)],
             ));
         }
     }
-    b.stmt(b.call(b.id("defineExpose"), [b.object(fields)]))
+    b.statement(b.call(b.id("defineExpose"), [b.object(fields)]))
 }

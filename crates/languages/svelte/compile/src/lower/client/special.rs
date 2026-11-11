@@ -26,8 +26,34 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         frag: &mut Frag<'o>,
         lists: &mut Lists<'o>,
     ) -> R<()> {
-        if let NodeKind::Snippet(_) = self.compiler_syntax_tree.node(identifier).kind {
-            return self.snippet(identifier);
+        match self.compiler_syntax_tree.node(identifier).kind {
+            NodeKind::Snippet(_) => return self.snippet(identifier),
+            NodeKind::Const { .. } => {
+                self.const_tag(identifier, lists);
+                return Ok(());
+            }
+            NodeKind::Declaration { declaration } => {
+                let lowered = self.declaration_tag(declaration);
+                lists.consts.extend(lowered);
+                return Ok(());
+            }
+            NodeKind::Debug { identifiers } => {
+                let b = self.b;
+                let tree = self.compiler_syntax_tree;
+                let body = crate::lower::debug_tag::debug_tag(
+                    b,
+                    tree,
+                    self.javascript,
+                    identifiers,
+                    |e| b.runtime("snapshot", [self.expression(e)]),
+                );
+                let effect = b.arrow_block(b.parameters([]), body, false);
+                lists
+                    .initializer
+                    .push(b.statement(b.runtime("template_effect", [effect])));
+                return Ok(());
+            }
+            _ => {}
         }
         self.special_element(identifier, "", frag, lists)
     }
@@ -47,7 +73,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         match element.kind {
             ElementKind::Metadata(Some(MetadataTag::Head)) => {
                 let body = self.fragment(element.children)?;
-                let callback = b.arrow_block(b.params(["$$anchor"]), body, false);
+                let callback = b.arrow_block(b.parameters(["$$anchor"]), body, false);
                 let hash = b.string(
                     self.identity
                         .head_hash
@@ -56,7 +82,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 );
                 lists
                     .initializer
-                    .push(b.stmt(b.runtime("head", [hash, callback])));
+                    .push(b.statement(b.runtime("head", [hash, callback])));
             }
             ElementKind::Title => self.title(element.children, lists),
             ElementKind::Metadata(Some(
@@ -70,7 +96,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 for attribute in tree.attributes(element.attributes) {
                     if matches!(attribute.value, AttributeValue::On { .. }) {
                         let call = self.event_directive(attribute, target, true, lists);
-                        lists.initializer.push(self.b.stmt(call));
+                        lists.initializer.push(self.b.statement(call));
                     } else if let Some(handler) = event_attribute(self.source_text, attribute) {
                         self.event_on(
                             attribute.name.text(self.source_text),
@@ -79,6 +105,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                             false,
                             lists,
                         );
+                    } else if let AttributeValue::Use { action, argument } = attribute.value {
+                        let call = self.action(action, argument, target);
+                        lists.initializer.push(b.statement(call));
+                    } else if let AttributeValue::Attach(e) = attribute.value {
+                        lists.initializer.push(b.statement(self.attach(e, target)));
                     } else if matches!(attribute.value, AttributeValue::Bind(_)) {
                         self.global_binding(attribute, tag, lists);
                     }
@@ -90,8 +121,18 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             ElementKind::Metadata(Some(MetadataTag::Element)) => {
                 return self.dynamic_element(identifier, node, frag, lists);
             }
-            ElementKind::Component => return self.component(identifier, node, false, frag, lists),
+            ElementKind::Component
+            | ElementKind::Metadata(Some(MetadataTag::Component | MetadataTag::SelfRef)) => {
+                return self.component(identifier, node, false, frag, lists);
+            }
             ElementKind::Metadata(Some(MetadataTag::Options)) => {}
+            ElementKind::Metadata(Some(MetadataTag::Fragment)) => {
+                let mut lets = self.let_directives(identifier, element)?;
+                lists.lets.append(&mut lets);
+                let body = self.fragment(element.children)?;
+                lists.initializer.extend(body);
+            }
+            ElementKind::Slot => return self.slot_element(identifier, node, frag, lists),
             _ => return unsupported("this special element", element.name),
         }
         Ok(())

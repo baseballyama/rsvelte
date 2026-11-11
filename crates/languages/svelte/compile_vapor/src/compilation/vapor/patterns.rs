@@ -53,7 +53,7 @@ impl<'o> Emitter<'_, 'o> {
                 let pattern = self.copy_pattern(&parameter.pattern);
                 let values = names.iter().map(|name| b.id(&name.name));
                 let getter = b.arrow_block(
-                    b.params([]),
+                    b.parameters([]),
                     [
                         b.declaration(
                             oxc_ast::ast::VariableDeclarationKind::Const,

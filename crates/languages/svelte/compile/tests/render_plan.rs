@@ -11,7 +11,7 @@ fn text(plan: &RenderPlan, children: Children) -> String {
         .iter()
         .filter_map(|item| match item {
             Item::Text { data, .. } => Some(data.as_ref()),
-            Item::Node(_) | Item::Expression(_) => None,
+            Item::Node(_) | Item::Expression(_) | Item::Comment => None,
         })
         .collect()
 }

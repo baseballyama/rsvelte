@@ -1,0 +1,8 @@
+warning a11y_click_events_have_key_events 5:1-5:83 Visible, non-interactive element `<my-el>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+    https://svelte.dev/e/a11y_click_events_have_key_events
+warning a11y_no_static_element_interactions 5:1-5:83 `<my-el>` with a click handler must have an ARIA role
+    https://svelte.dev/e/a11y_no_static_element_interactions
+warning attribute_avoid_is 9:6-9:17 The "is" attribute is not supported cross-browser and should be avoided
+    https://svelte.dev/e/attribute_avoid_is
+warning attribute_avoid_is 11:14-11:23 The "is" attribute is not supported cross-browser and should be avoided
+    https://svelte.dev/e/attribute_avoid_is

@@ -374,6 +374,27 @@ fn a_redeclared_var_s_initializer_is_its_last_declarator_s() {
 }
 
 #[test]
+fn a_module_file_reads_a_rune_beside_its_store_s_name_as_the_rune() {
+    use crate::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
+
+    let code = "let state = 1; let effect = 2;\nlet count = $state(0);\n$effect.root(() => {});\n";
+    let document =
+        rsvelte_kernel::source::document::Document::new("a.svelte.js".to_owned(), code.to_owned())
+            .expect("small");
+    let (tree, program) =
+        rsvelte_typescript_tree::Tree::program(&document, oxc_span::SourceType::mjs())
+            .expect("parses");
+    let module = super::resolve_module(&tree, program);
+    assert!(!module.is_store_subscription("$state"));
+    assert!(!module.is_store_subscription("$effect"));
+    // A component's module script subscribes to a store of that name, as upstream's does.
+    let empty = CompilerSyntaxTreeBuilder::new(code, 0, 0).finish(Children::default());
+    let component = resolve(&tree, None, Some(program), &empty);
+    assert!(component.is_store_subscription("$state"));
+    assert!(component.is_store_subscription("$effect"));
+}
+
+#[test]
 fn generics_bind_type_references_only() {
     let source = "<script lang=\"ts\" generics=\"T extends Item\">\
                   import type { Item } from './x'; let x = T; let y: T;</script>{T}";

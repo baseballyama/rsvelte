@@ -1,15 +1,24 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
 
 use super::template::single_expression;
-use super::{AttributeValue, CompileInput, Diagnostic, NodeKind, Span, unsupported};
+use super::{
+    AttributeValue, CompileInput, CompilerNodeIdentifier, CompilerSyntaxTree, Diagnostic, Element,
+    NodeKind, Span, unsupported,
+};
 
-pub(super) fn validate(
-    input: &CompileInput<'_>,
-) -> Result<Option<super::custom_element::CustomElement>, Diagnostic> {
+/// What `<svelte:options>` asks of the output.
+#[derive(Default)]
+pub(super) struct SvelteOptions {
+    pub(super) custom_element: Option<super::custom_element::CustomElement>,
+    /// `css="injected"`: the component adds its stylesheet when it renders.
+    pub(super) stylesheet_injected: bool,
+}
+
+pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
     let mut seen = 0_u8;
-    let mut custom_element = None;
+    let mut options = SvelteOptions::default();
     for (identifier, element) in tree.elements() {
         validate_placement(tree, source, identifier, element, &mut seen)?;
         let attributes = tree.attributes(element.attributes);
@@ -72,7 +81,10 @@ pub(super) fn validate(
                 validate_globals(source, tag, attributes)?;
             }
             ElementKind::Metadata(Some(MetadataTag::Options)) => {
-                custom_element = validate_options(input, attributes)?;
+                options = validate_options(input, attributes)?;
+            }
+            ElementKind::Metadata(Some(MetadataTag::Component | MetadataTag::SelfRef)) => {
+                validate_dynamic_component(tree, identifier, element)?;
             }
             ElementKind::Metadata(Some(MetadataTag::Element)) => {
                 let Some(tag) = element.this else {
@@ -84,18 +96,55 @@ pub(super) fn validate(
                 };
                 let tag = &tree.attributes[tag];
                 if !matches!(
-                    tag.value,
+                    &tag.value,
                     AttributeValue::Static(_)
                         | AttributeValue::Expression { .. }
                         | AttributeValue::Shorthand(_)
-                ) {
+                ) && !matches!(&tag.value, AttributeValue::Interpolated(parts) if !parts.is_empty())
+                {
                     return unsupported("this dynamic tag value", tag.span);
                 }
             }
             _ => {}
         }
     }
-    Ok(custom_element)
+    Ok(options)
+}
+
+/// Upstream's parser checks `<svelte:component>`'s `this`, and its analysis where
+/// `<svelte:self>` may be.
+fn validate_dynamic_component(
+    tree: &CompilerSyntaxTree,
+    identifier: CompilerNodeIdentifier,
+    element: &Element,
+) -> Result<(), Diagnostic> {
+    if element.kind == ElementKind::Metadata(Some(MetadataTag::Component)) {
+        let this = element.this.map(|this| &tree.attributes[this]);
+        if this.is_none_or(|this| single_expression(&this.value).is_none()) {
+            return unsupported(
+                "`<svelte:component>` without a `this` expression",
+                element.name,
+            );
+        }
+        return Ok(());
+    }
+    let placed =
+        std::iter::successors(tree.node(identifier).parent, |&p| tree.node(p).parent).any(|p| {
+            match &tree.node(p).kind {
+                NodeKind::If { .. } | NodeKind::Each(_) | NodeKind::Snippet(_) => true,
+                NodeKind::Element(owner) => owner.kind == ElementKind::Component,
+                _ => false,
+            }
+        });
+    if placed {
+        return Ok(());
+    }
+    invalid(
+        "svelte_self_invalid_placement",
+        "`<svelte:self>` components can only exist inside `{#if}` blocks, `{#each}` blocks, \
+         `{#snippet}` blocks or slots passed to components",
+        tree.node(identifier).span,
+    )
 }
 
 fn validate_globals(
@@ -108,8 +157,10 @@ fn validate_globals(
             if global_binding(tag, attribute.name.text(source)).is_none() {
                 return unsupported("this global binding", attribute.span);
             }
-        } else if !matches!(attribute.value, AttributeValue::On { .. })
-            && super::event_attribute(source, attribute).is_none()
+        } else if !matches!(
+            attribute.value,
+            AttributeValue::On { .. } | AttributeValue::Use { .. } | AttributeValue::Attach(_)
+        ) && super::event_attribute(source, attribute).is_none()
         {
             return unsupported("this global attribute", attribute.span);
         }
@@ -118,10 +169,10 @@ fn validate_globals(
 }
 
 fn validate_placement(
-    tree: &super::CompilerSyntaxTree,
+    tree: &CompilerSyntaxTree,
     source: &str,
-    identifier: super::CompilerNodeIdentifier,
-    element: &super::Element,
+    identifier: CompilerNodeIdentifier,
+    element: &Element,
     seen: &mut u8,
 ) -> Result<(), Diagnostic> {
     if let ElementKind::Metadata(Some(
@@ -171,13 +222,18 @@ fn validate_placement(
 fn validate_options(
     input: &CompileInput<'_>,
     attributes: &[super::Attribute],
-) -> Result<Option<super::custom_element::CustomElement>, Diagnostic> {
+) -> Result<SvelteOptions, Diagnostic> {
     let source = input.component.source_text;
-    let mut custom_element = None;
+    let mut options = SvelteOptions::default();
     for attribute in attributes {
         let name = attribute.name.text(source);
         if name == "customElement" {
-            custom_element = super::custom_element::parse(input, attribute)?;
+            options.custom_element = super::custom_element::parse(input, attribute)?;
+            continue;
+        }
+        if name == "css" && crate::input::static_string(input, &attribute.value) == Some("injected")
+        {
+            options.stylesheet_injected = true;
             continue;
         }
         if name == "namespace"
@@ -208,7 +264,7 @@ fn validate_options(
             return unsupported("this compiler option", attribute.span);
         }
     }
-    Ok(custom_element)
+    Ok(options)
 }
 
 pub(super) fn invalid<T>(code: &'static str, message: &str, span: Span) -> Result<T, Diagnostic> {

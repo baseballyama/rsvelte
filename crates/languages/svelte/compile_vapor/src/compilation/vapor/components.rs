@@ -59,7 +59,7 @@ impl<'a, 'o> Emitter<'a, 'o> {
                 "setTemplateRefBinding",
                 [b.id(&fragment), self.arrow(setter)],
             );
-            body.push(b.stmt(call));
+            body.push(b.statement(call));
         }
         b.id(&fragment)
     }

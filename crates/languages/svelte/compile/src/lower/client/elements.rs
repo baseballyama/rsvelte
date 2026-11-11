@@ -1,3 +1,4 @@
+mod customizable_select;
 mod element_children;
 mod input_defaults;
 mod regular_element;
@@ -8,6 +9,16 @@ use super::{
 };
 
 impl ClientCompilationContext<'_, '_> {
+    /// Upstream `is_markup` of an element: it stands in html and is no `<svg>`, so its tag and
+    /// attribute names are lowercased.
+    pub(super) fn is_markup(&self, identifier: CompilerNodeIdentifier) -> bool {
+        let NodeKind::Element(el) = &self.compiler_syntax_tree.node(identifier).kind else {
+            return false;
+        };
+        self.plan.namespace(identifier) == crate::render_plan::Namespace::Html
+            && el.name.text(self.source_text) != "svg"
+    }
+
     pub(super) fn is_static_element(&self, identifier: CompilerNodeIdentifier) -> bool {
         let NodeKind::Element(el) = &self.compiler_syntax_tree.node(identifier).kind else {
             return false;

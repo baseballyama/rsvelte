@@ -1,3 +1,1 @@
 # svelte.compile.warnings: 19487 match
-svelte/networking-toolbox/src/routes/about/legal/+layout.svelte	mismatch
-svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/Switch/+page.svelte	mismatch

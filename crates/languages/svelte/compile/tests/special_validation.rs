@@ -106,7 +106,8 @@ fn misplaced_runes_and_wrong_rune_arguments_raise_upstream_errors_on_both_target
             "function* g() { $inspect.trace(); }",
             "inspect_trace_generator",
         ),
-        ("function f() { $inspect.trace(); }", "unsupported"),
+        ("let x = $inspect(1);", "unsupported"),
+        ("function f(a) { if (a) $inspect(a); }", "unsupported"),
         ("let { a: { b } } = $props();", "props_invalid_pattern"),
         ("let { [k]: a } = $props();", "props_invalid_pattern"),
         ("let { a: [b] = [] } = $props();", "props_invalid_pattern"),
@@ -115,7 +116,6 @@ fn misplaced_runes_and_wrong_rune_arguments_raise_upstream_errors_on_both_target
             "props_invalid_pattern",
         ),
         ("let [a] = $props();", "props_invalid_identifier"),
-        ("export const id = $props.id();", "unsupported"),
         ("class K extends (await x) {}", "experimental_async"),
     ] {
         raises_on_both_targets(script, code);
@@ -153,22 +153,38 @@ fn runes_in_a_class_body_raise_upstream_errors_on_both_targets() {
             "state_invalid_placement",
         ),
         (
-            "class K { constructor() { this.x = $state(1); } }",
-            "unsupported",
-        ),
-        (
-            "class K { 'constructor'() { this.x = $state(1); } }",
-            "unsupported",
-        ),
-        (
-            "class K { constructor() { this[true] = $state(1); this[null] = $state(2); this[1n] = $state(3); } }",
-            "unsupported",
-        ),
-        (
             "class K { ['constructor']() { this.x = $state(1); } }",
             "state_invalid_placement",
         ),
-        ("class K { m() { let a = $state(1); } }", "unsupported"),
+        (
+            "class K { x = $state(1); x = $state(2); }",
+            "state_field_duplicate",
+        ),
+        (
+            "class K { constructor() { this.x = $state(1); this.x = $state(2); } }",
+            "state_field_duplicate",
+        ),
+        ("class K { x; x = $state(1); }", "duplicate_class_field"),
+        (
+            "class K { get x() {} x = $state(1); }",
+            "duplicate_class_field",
+        ),
+        (
+            "class K { x = 1; constructor() { this.x = $state(1); } }",
+            "duplicate_class_field",
+        ),
+        (
+            "class K { static x() {} static x() {} }",
+            "duplicate_class_field",
+        ),
+        (
+            "class K { constructor() { this.x = 1; this.x = $state(1); } }",
+            "state_field_invalid_assignment",
+        ),
+        (
+            "class K { constructor() { this.x++; this.x = $state(1); } }",
+            "state_field_invalid_assignment",
+        ),
     ] {
         raises_on_both_targets(script, code);
     }

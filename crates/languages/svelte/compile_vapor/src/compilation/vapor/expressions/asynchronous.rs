@@ -77,7 +77,8 @@ impl<'o> Emitter<'_, 'o> {
 
 /// `async ($$async_read) => body`.
 fn async_getter<'o>(b: &Builder<'o>, body: Expression<'o>) -> Expression<'o> {
-    let Expression::ArrowFunctionExpression(mut arrow) = b.arrow(b.params(["$$async_read"]), body)
+    let Expression::ArrowFunctionExpression(mut arrow) =
+        b.arrow(b.parameters(["$$async_read"]), body)
     else {
         unreachable!("an arrow")
     };
@@ -139,7 +140,10 @@ impl<'o> AsyncRewrite<'_, '_, 'o> {
         let b = self.b;
         let key = b.number(f64::from(self.next_key));
         self.next_key += 1;
-        b.call(b.id("$$async_read"), [key, b.arrow(b.params([]), value)])
+        b.call(
+            b.id("$$async_read"),
+            [key, b.arrow(b.parameters([]), value)],
+        )
     }
 
     fn normal(&mut self, it: &mut Expression<'o>) {
@@ -212,7 +216,7 @@ pub(crate) fn script_getter<'o>(b: &Builder<'o>, getter: Expression<'o>) -> Expr
         next_key: 0,
     };
     rewrite.visit_arrow_function_body(&mut arrow.body);
-    arrow.params = b.params(["$$async_read"]);
+    arrow.params = b.parameters(["$$async_read"]);
     arrow.r#async = true;
     Expression::ArrowFunctionExpression(arrow)
 }

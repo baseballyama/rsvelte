@@ -175,6 +175,38 @@ fn a_store_subscription_is_state_and_asks_of_its_store() {
 }
 
 #[test]
+fn no_selector_matches_an_element_inside_svelte_head() {
+    // From the official compiler: `*` scopes only the `<p>`, `meta` is unused, and `.x` scopes
+    // only the `<p>`, even through an `{#if}` inside the head.
+    for (style, scoped, used) in [
+        ("* { color: red }", &["<p"][..], true),
+        ("meta { color: red }", &[][..], false),
+        (".x { color: red }", &["<p"][..], true),
+    ] {
+        let source = format!(
+            "<svelte:head><meta class=\"x\" />\
+             {{#if a}}<span class=\"x\"></span>{{/if}}</svelte:head>\
+             <p class=\"x\"></p><style>{style}</style>"
+        );
+        let component = parse(&source).expect("parses");
+        let lowered = lower(&component, &source);
+        let res = resolve(&component.javascript, None, None, &lowered);
+        let input = crate::svelte_input(&component, &lowered, &source, "App.svelte");
+        let analysis = super::analyze(&input, &res);
+        let actual: Vec<&str> = lowered
+            .nodes
+            .iter_enumerated()
+            .filter(|&(identifier, _)| analysis.scoped[identifier])
+            .map(|(_, node)| {
+                &source[node.span.start_offset as usize..node.span.start_offset as usize + 2]
+            })
+            .collect();
+        assert_eq!(actual, scoped, "{style}");
+        assert_eq!(analysis.stylesheet_used, [used], "{style}");
+    }
+}
+
+#[test]
 fn a_custom_element_with_attributes_makes_its_parent_s_children_dynamic() {
     let dynamic = |source: &str| {
         let component = parse(source).expect("parses");

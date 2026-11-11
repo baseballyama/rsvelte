@@ -91,7 +91,7 @@ pub(crate) fn build<'t>(
                 .snippet(identifier)
                 .expect("a snippet name has a symbol");
             let name = format!("$$snippet_{}", symbol.index());
-            declarations.push(b.function_declaration(&name, b.params([]), [], false));
+            declarations.push(b.function_declaration(&name, b.parameters([]), [], false));
             snippet_names.insert(symbol, name);
         }
     }
@@ -100,7 +100,8 @@ pub(crate) fn build<'t>(
         stylesheet_hash,
         tree,
         b,
-        // Translation adds about one prop per node to the attributes: a directive, a key or a value.
+        // Translation adds about one prop per node to the attributes: a directive, a key or a
+        // value.
         vb: CompilerSyntaxTreeBuilder::new(
             compiler_syntax_tree.nodes.len(),
             compiler_syntax_tree.attributes.len() + compiler_syntax_tree.nodes.len(),
