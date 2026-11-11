@@ -137,7 +137,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             arguments.push(Some(self.anchor_arrow(fallback)));
         }
         l.initializer
-            .push(b.stmt(b.runtime_some("each", arguments)));
+            .push(b.statement(b.runtime_some("each", arguments)));
         Ok(())
     }
 

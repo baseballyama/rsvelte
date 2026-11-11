@@ -42,7 +42,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if let Some(name) = previous_id {
             set_style = b.assign_name(&name, set_style);
         }
-        let s = b.stmt(set_style);
+        let s = b.statement(set_style);
         if has_state {
             l.update.push(s);
         } else {

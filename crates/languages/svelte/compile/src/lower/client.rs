@@ -16,8 +16,8 @@ mod exports;
 mod expressions;
 mod fragments;
 mod global_bindings;
-mod html_tag;
 mod lets;
+mod markup_tag;
 mod slot_element;
 mod snippets;
 mod special;
@@ -121,12 +121,12 @@ impl<'o> Memo<'o> {
         self,
         b: &Builder<'o>,
     ) -> (ArenaBox<'o, FormalParameters<'o>>, Option<Expression<'o>>) {
-        let parameters = b.params(self.entries.iter().map(|m| m.name.as_str()));
+        let parameters = b.parameters(self.entries.iter().map(|m| m.name.as_str()));
         let thunks = (!self.entries.is_empty()).then(|| {
             b.array(
                 self.entries
                     .into_iter()
-                    .map(|m| b.arrow(b.params([]), m.value)),
+                    .map(|m| b.arrow(b.parameters([]), m.value)),
             )
         });
         (parameters, thunks)
@@ -285,7 +285,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     program.push(export_default(b, func));
     if !context.events.is_empty() {
         let names = b.array(context.events.iter().map(|e| b.string(e)));
-        program.push(b.stmt(b.runtime("delegate", [names])));
+        program.push(b.statement(b.runtime("delegate", [names])));
     }
     program.extend(registration);
     Ok(program)
@@ -352,10 +352,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let needs_context = self.an.needs_context || has_exports;
         let mut body = Vec::new();
         if needs_context {
-            body.push(b.stmt(b.runtime("push", [b.id("$$props"), b.boolean(true)])));
+            body.push(b.statement(b.runtime("push", [b.id("$$props"), b.boolean(true)])));
         }
         if stylesheet {
-            body.push(b.stmt(b.runtime("append_styles", [b.id("$$anchor"), b.id("$$css")])));
+            body.push(b.statement(b.runtime("append_styles", [b.id("$$anchor"), b.id("$$css")])));
         }
         let stores = self.store_setup();
         let cleanup = !stores.is_empty();
@@ -375,11 +375,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             } else if has_exports {
                 body.push(b.return_(Some(b.runtime("pop", [b.id("$$exports")]))));
             } else {
-                body.push(b.stmt(b.runtime("pop", [])));
+                body.push(b.statement(b.runtime("pop", [])));
             }
         }
         if cleanup {
-            body.push(b.stmt(b.call(b.id("$$cleanup"), [])));
+            body.push(b.statement(b.call(b.id("$$cleanup"), [])));
             if has_exports {
                 body.push(b.return_(Some(b.id("$$pop"))));
             }
@@ -395,6 +395,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if self.res.uses_props() || needs_context || self.needs_props {
             parameters.push("$$props");
         }
-        b.function_declaration(&self.component_name, b.params(parameters), body, false)
+        b.function_declaration(&self.component_name, b.parameters(parameters), body, false)
     }
 }

@@ -98,7 +98,7 @@ pub(super) fn lower_destructured_declaration<'o>(
     true
 }
 
-/// Upstream's destructured `$state` or `$state.raw`: the value in a `tmp`, each array the
+/// Upstream's destructured `$state` or `$state.raw`: the value in a `temporary`, each array the
 /// pattern holds in a derived on the client, then each name, a state where it is reassigned.
 pub(super) fn lower_destructured_state<'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
@@ -111,12 +111,12 @@ pub(super) fn lower_destructured_state<'o>(
     let Some((rune, argument)) = rw.res.rune(init.get_inner_expression()) else {
         unreachable!("the caller found the rune")
     };
-    let tmp = names.generate("tmp");
+    let temporary = names.generate("tmp");
     let value = argument.map_or_else(
         || b.void0(),
         |argument| rw.expression(argument.get_inner_expression()),
     );
-    out.push(b.declarator(b.binding(&tmp), Some(value)));
+    out.push(b.declarator(b.binding(&temporary), Some(value)));
     let client = rw.target == Target::Client;
     let mut paths = Vec::new();
     {
@@ -133,7 +133,7 @@ pub(super) fn lower_destructured_state<'o>(
             res: hooks.rw.res,
             hooks,
         };
-        walker.extract(&d.id, b.id(&tmp), false, &mut paths);
+        walker.extract(&d.id, b.id(&temporary), false, &mut paths);
     }
     for path in paths {
         let binding = path.binding.clone_in_with_semantic_ids(b.allocator());
@@ -202,7 +202,7 @@ pub(super) fn rune_value<'o>(
         "$state" | "$state.raw" => value.unwrap_or_else(|| b.void0()),
         "$derived" => {
             let value = value.expect("validation keeps a derived's argument");
-            let callback = b.arrow(b.params([]), value);
+            let callback = b.arrow(b.parameters([]), value);
             let callback = if lowering.keeps {
                 super::super::builder::unthunk(callback)
             } else {
@@ -307,7 +307,7 @@ impl<'a, 'o> Destructure<'a, 'o> for Hooks<'_, '_, 'o> {
             self.out.push(b.declarator(b.binding(&name), Some(value)));
             return b.id(&name);
         }
-        let derived = b.runtime("derived", [b.arrow(b.params([]), value)]);
+        let derived = b.runtime("derived", [b.arrow(b.parameters([]), value)]);
         self.out.push(b.declarator(b.binding(&name), Some(derived)));
         read_derived(self.rw, &name)
     }

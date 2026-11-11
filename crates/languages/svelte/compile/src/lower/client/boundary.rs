@@ -56,8 +56,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         body.extend(self.fragment_without(element.children, |kind| {
             matches!(kind, NodeKind::Snippet(_) | NodeKind::Const { .. })
         })?);
-        let callback = b.arrow_block(b.params(["$$anchor"]), body, false);
-        let statement = b.stmt(b.runtime("boundary", [b.id(node), props, callback]));
+        let callback = b.arrow_block(b.parameters(["$$anchor"]), body, false);
+        let statement = b.statement(b.runtime("boundary", [b.id(node), props, callback]));
         let statement = if declarations.is_empty() {
             statement
         } else {

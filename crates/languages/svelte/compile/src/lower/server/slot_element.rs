@@ -31,7 +31,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             None
         } else {
             let body = self.fragment(element.children)?;
-            Some(b.arrow_block(b.params([]), body, false))
+            Some(b.arrow_block(b.parameters([]), body, false))
         };
         let anchor = b.id("$$renderer");
         let call = slot_call(
@@ -44,7 +44,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             Target::Server,
         );
         template.push(Piece::Text(BLOCK_OPEN.into()));
-        template.push(Piece::Statement(b.stmt(call)));
+        template.push(Piece::Statement(b.statement(call)));
         template.push(Piece::Text(BLOCK_CLOSE.into()));
         Ok(())
     }

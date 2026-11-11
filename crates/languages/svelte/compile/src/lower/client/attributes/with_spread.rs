@@ -115,7 +115,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 remove,
             ],
         );
-        l.initializer.push(b.stmt(call));
+        l.initializer.push(b.statement(call));
     }
 
     /// Upstream's analysis gives an element without a spread an empty `class` when it is scoped

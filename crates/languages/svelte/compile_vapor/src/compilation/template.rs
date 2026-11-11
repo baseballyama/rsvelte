@@ -91,7 +91,7 @@ pub(crate) fn build<'t>(
                 .snippet(identifier)
                 .expect("a snippet name has a symbol");
             let name = format!("$$snippet_{}", symbol.index());
-            declarations.push(b.function_declaration(&name, b.params([]), [], false));
+            declarations.push(b.function_declaration(&name, b.parameters([]), [], false));
             snippet_names.insert(symbol, name);
         }
     }

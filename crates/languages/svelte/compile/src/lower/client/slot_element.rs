@@ -43,7 +43,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             None
         } else {
             let body = self.fragment(element.children)?;
-            Some(b.arrow_block(b.params(["$$anchor"]), body, false))
+            Some(b.arrow_block(b.parameters(["$$anchor"]), body, false))
         };
         l.initializer.extend(lets);
         let mut statements: Vec<_> = self.memo_deriveds(memo).collect();
@@ -56,7 +56,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             fallback,
             Target::Client,
         );
-        statements.push(b.stmt(call));
+        statements.push(b.statement(call));
         l.initializer.push(if statements.len() == 1 {
             statements.pop().expect("one statement")
         } else {

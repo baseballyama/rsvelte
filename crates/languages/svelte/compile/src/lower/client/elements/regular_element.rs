@@ -24,13 +24,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         l.lets.append(&mut lets);
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
         let custom_element = is_custom_element_node(compiler_syntax_tree, self.source_text, el);
-        let is_html = self.is_html(identifier);
-        let tag = if is_html {
+        let is_markup = self.is_markup(identifier);
+        let tag = if is_markup {
             tag
         } else {
             el.name.text(self.source_text).to_owned()
         };
-        frag.tpl.push_element(&tag, is_html);
+        frag.tpl.push_element(&tag, is_markup);
         if tag == "noscript" {
             frag.tpl.pop_element();
             return Ok(());
@@ -69,7 +69,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if is_load_error_element(&tag) && (has_spread || has_use || load_error_events) {
             let b = self.b;
             l.after
-                .push(b.stmt(b.runtime("replay_events", [b.id(node)])));
+                .push(b.statement(b.runtime("replay_events", [b.id(node)])));
         }
 
         self.element_body(identifier, node, directives, frag, l)?;
@@ -81,16 +81,16 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             // Chromium keeps an `auto` direction after the text changes unless it is set again.
             let b = self.b;
             let dir = || b.member(b.id(node), "dir");
-            l.update.push(b.stmt(b.assign_member(dir(), dir())));
+            l.update.push(b.statement(b.assign_member(dir(), dir())));
         }
         if tag == "selectedcontent" {
             let b = self.b;
             let assign = b.arrow(
-                b.params(["$$element"]),
+                b.parameters(["$$element"]),
                 b.assign_name(node, b.id("$$element")),
             );
             let call = b.runtime("selectedcontent", [b.id(node), assign]);
-            l.initializer.push(b.stmt(call));
+            l.initializer.push(b.statement(call));
         }
         if !has_spread {
             self.select_value(el, &tag, attribute_list, node, frag, l);

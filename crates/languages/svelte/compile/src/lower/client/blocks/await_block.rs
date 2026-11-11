@@ -50,7 +50,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             "await",
             vec![Some(b.id(node)), Some(promise), Some(pending), then, catch],
         );
-        l.initializer.push(b.stmt(call));
+        l.initializer.push(b.statement(call));
         Ok(())
     }
 
@@ -89,7 +89,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         self.scope = outer;
         declarations.extend(fragment?);
-        let parameters = b.params(parameters.iter().map(String::as_str));
+        let parameters = b.parameters(parameters.iter().map(String::as_str));
         Ok(b.arrow_block(parameters, declarations, false))
     }
 
@@ -117,7 +117,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             ),
             b.return_(Some(object)),
         ];
-        let derived = b.runtime("derived", [b.arrow_block(b.params([]), body, false)]);
+        let derived = b.runtime("derived", [b.arrow_block(b.parameters([]), body, false)]);
         let mut declarations =
             vec![b.declare(VariableDeclarationKind::Var, "$$value", Some(derived))];
         for binding in names {

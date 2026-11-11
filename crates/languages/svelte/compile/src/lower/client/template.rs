@@ -14,8 +14,8 @@ pub(super) struct Template {
 enum TplNode {
     Element {
         name: String,
-        /// Upstream `is_html`, which lowercases the attribute names.
-        is_html: bool,
+        /// Upstream `is_markup`, which lowercases the attribute names.
+        is_markup: bool,
         attributes: Vec<(String, Option<String>)>,
         children: Vec<usize>,
     },
@@ -37,10 +37,10 @@ impl Template {
         i
     }
 
-    pub(super) fn push_element(&mut self, name: &str, is_html: bool) {
+    pub(super) fn push_element(&mut self, name: &str, is_markup: bool) {
         self.contains_script |= name == "script";
         let i = self.add(TplNode::Element {
-            is_html,
+            is_markup,
             name: name.to_owned(),
             attributes: Vec::new(),
             children: Vec::new(),
@@ -98,7 +98,7 @@ impl Template {
             TplNode::Comment(None) => out.push_str("<!>"),
             TplNode::Element {
                 name,
-                is_html,
+                is_markup,
                 attributes,
                 children,
             } => {
@@ -106,7 +106,7 @@ impl Template {
                 out.push_str(name);
                 for (k, v) in attributes {
                     out.push(' ');
-                    if *is_html {
+                    if *is_markup {
                         out.push_str(&k.to_ascii_lowercase());
                     } else {
                         out.push_str(k);

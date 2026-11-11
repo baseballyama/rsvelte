@@ -36,7 +36,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 let target = b.member(b.id(node), "textContent");
                 child
                     .initializer
-                    .push(b.stmt(b.assign_member(target, value)));
+                    .push(b.statement(b.assign_member(target, value)));
             }
         } else if is_customizable_select(compiler_syntax_tree, self.source_text, el) {
             let namespace = self.plan.namespace(identifier);
@@ -48,7 +48,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             if content {
                 child
                     .initializer
-                    .push(b.stmt(b.runtime("hydrate_template", [b.id(node)])));
+                    .push(b.statement(b.runtime("hydrate_template", [b.id(node)])));
             }
             let needs_reset = content
                 || items.iter().any(|i| match i {
@@ -70,7 +70,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             if needs_reset && !self.fold_reset_into_child(&mut child.initializer, node) {
                 child
                     .initializer
-                    .push(b.stmt(b.runtime("reset", [b.id(node)])));
+                    .push(b.statement(b.runtime("reset", [b.id(node)])));
             }
         }
         Ok(child)

@@ -89,7 +89,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
         let asynchronous = is_async(&value) || assignments.iter().any(is_async);
         let mut statements: Vec<Statement<'o>> = (inserts.into_iter())
             .map(|(name, value)| b.var(&name, value))
-            .chain(assignments.into_iter().map(|a| b.stmt(a)))
+            .chain(assignments.into_iter().map(|a| b.statement(a)))
             .collect();
         if !standalone {
             statements.push(b.return_(Some(rhs.clone_in(b.allocator()))));
@@ -98,7 +98,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
             unreachable!("the value is a name or `$$value`")
         };
         let iife = b.arrow_block(
-            b.params([parameter.name.as_str()]),
+            b.parameters([parameter.name.as_str()]),
             statements,
             asynchronous,
         );
@@ -324,13 +324,13 @@ fn fallback<'o>(
         // Upstream's arrow drops the `async` of `async () => await x` when `x` does not await.
         let thunk = match fallback {
             Expression::AwaitExpression(awaited) if !is_async(&awaited.argument) => {
-                b.arrow(b.params([]), awaited.unbox().argument)
+                b.arrow(b.parameters([]), awaited.unbox().argument)
             }
             fallback => Expression::new_arrow_function_expression(
                 oxc_span::SPAN,
                 true,
                 None,
-                b.params([]),
+                b.parameters([]),
                 None,
                 oxc_ast::ast::ArrowFunctionBody::from(fallback),
                 b,
@@ -347,7 +347,7 @@ fn fallback<'o>(
         {
             call.unbox().callee
         }
-        fallback => b.arrow(b.params([]), fallback),
+        fallback => b.arrow(b.parameters([]), fallback),
     };
     b.runtime("fallback", [value, thunk, b.boolean(true)])
 }

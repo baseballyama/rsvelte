@@ -204,7 +204,7 @@ impl<'o> Gen<'_, '_, 'o> {
             Cg::Exp(e) => self.exp(*e),
             &Cg::Handler { exp, inline } => {
                 if inline {
-                    return b.arrow(b.params(["$event"]), self.exp(exp));
+                    return b.arrow(b.parameters(["$event"]), self.exp(exp));
                 }
                 let call = out::spread_call(b, self.exp(exp), b.id("args"));
                 let body = b.logical(self.exp(exp), LogicalOperator::And, call);
@@ -217,7 +217,7 @@ impl<'o> Gen<'_, '_, 'o> {
                     self.exp(target)
                 };
                 let body = b.assign_member(lhs, b.id("$event"));
-                b.arrow(b.params(["$event"]), body)
+                b.arrow(b.parameters(["$event"]), body)
             }
             &Cg::Function {
                 parameters,

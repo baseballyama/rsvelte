@@ -47,10 +47,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     identifiers,
                     |e| b.runtime("snapshot", [self.expression(e)]),
                 );
-                let effect = b.arrow_block(b.params([]), body, false);
+                let effect = b.arrow_block(b.parameters([]), body, false);
                 lists
                     .initializer
-                    .push(b.stmt(b.runtime("template_effect", [effect])));
+                    .push(b.statement(b.runtime("template_effect", [effect])));
                 return Ok(());
             }
             _ => {}
@@ -73,7 +73,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         match element.kind {
             ElementKind::Metadata(Some(MetadataTag::Head)) => {
                 let body = self.fragment(element.children)?;
-                let callback = b.arrow_block(b.params(["$$anchor"]), body, false);
+                let callback = b.arrow_block(b.parameters(["$$anchor"]), body, false);
                 let hash = b.string(
                     self.identity
                         .head_hash
@@ -82,7 +82,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 );
                 lists
                     .initializer
-                    .push(b.stmt(b.runtime("head", [hash, callback])));
+                    .push(b.statement(b.runtime("head", [hash, callback])));
             }
             ElementKind::Title => self.title(element.children, lists),
             ElementKind::Metadata(Some(
@@ -96,7 +96,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 for attribute in tree.attributes(element.attributes) {
                     if matches!(attribute.value, AttributeValue::On { .. }) {
                         let call = self.event_directive(attribute, target, true, lists);
-                        lists.initializer.push(self.b.stmt(call));
+                        lists.initializer.push(self.b.statement(call));
                     } else if let Some(handler) = event_attribute(self.source_text, attribute) {
                         self.event_on(
                             attribute.name.text(self.source_text),
@@ -107,9 +107,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                         );
                     } else if let AttributeValue::Use { action, argument } = attribute.value {
                         let call = self.action(action, argument, target);
-                        lists.initializer.push(b.stmt(call));
+                        lists.initializer.push(b.statement(call));
                     } else if let AttributeValue::Attach(e) = attribute.value {
-                        lists.initializer.push(b.stmt(self.attach(e, target)));
+                        lists.initializer.push(b.statement(self.attach(e, target)));
                     } else if matches!(attribute.value, AttributeValue::Bind(_)) {
                         self.global_binding(attribute, tag, lists);
                     }

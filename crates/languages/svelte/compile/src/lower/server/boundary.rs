@@ -40,9 +40,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         };
         if let Some(failed) = failed {
             let props = b.object([b.init("failed", failed)]);
-            let callback = b.arrow_block(b.params(["$$renderer"]), body, false);
+            let callback = b.arrow_block(b.parameters(["$$renderer"]), body, false);
             let call = b.call(b.member(b.id("$$renderer"), "boundary"), [props, callback]);
-            let statement = b.stmt(call);
+            let statement = b.statement(call);
             let statement = if declarations.is_empty() {
                 statement
             } else {
@@ -80,7 +80,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             let call = b.call(callee.clone_in(b.allocator()), [b.id("$$renderer")]);
             let pending = self.build_template(vec![
                 Piece::Text(BLOCK_OPEN_ELSE.into()),
-                Piece::Statement(b.stmt(call)),
+                Piece::Statement(b.statement(call)),
                 Piece::Text(BLOCK_CLOSE.into()),
             ]);
             if self.evaluate(expression).is_defined || pending_snippet.is_some() {

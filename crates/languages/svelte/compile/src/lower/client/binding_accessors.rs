@@ -77,11 +77,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let parameter = |name| b.parameter(b.binding(name));
         let get = match get {
             Expression::ArrowFunctionExpression(mut f) => {
-                f.params = b.params(ids.clone());
+                f.params = b.parameters(ids.clone());
                 Expression::ArrowFunctionExpression(f)
             }
             get if setter.is_some() => get,
-            get => b.arrow(b.params(ids.clone()), optional_chain(b, get)),
+            get => b.arrow(b.parameters(ids.clone()), optional_chain(b, get)),
         };
         let set = match set {
             Expression::ArrowFunctionExpression(mut f) => {
@@ -94,7 +94,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 Expression::ArrowFunctionExpression(f)
             }
             set if setter.is_some() => set,
-            set => b.arrow(b.params(std::iter::once("$$value").chain(ids)), set),
+            set => b.arrow(b.parameters(std::iter::once("$$value").chain(ids)), set),
         };
         let values = (!values.is_empty()).then(|| b.thunk(b.array(values)));
         b.runtime_some("bind_this", vec![Some(node), Some(set), Some(get), values])
@@ -115,7 +115,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         let b = self.b;
         let assignment = self.binding_assignment(expression, primitive);
-        crate::lower::builder::unthunk(b.arrow(b.params(["$$value"]), assignment))
+        crate::lower::builder::unthunk(b.arrow(b.parameters(["$$value"]), assignment))
     }
 
     /// `expression = $$value`, as the script rewrites an assignment to it.

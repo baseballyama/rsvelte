@@ -30,7 +30,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                         Some(VariableDeclarationKind::Let | VariableDeclarationKind::Var)
                     ) =>
                 {
-                    Some(b.stmt(b.assign_name(name, b.id("$$value"))))
+                    Some(b.statement(b.assign_name(name, b.id("$$value"))))
                 }
                 None => {
                     properties.push(b.init(alias, b.id(name)));
@@ -38,7 +38,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 }
                 Some(_) => match kind {
                     BindingKind::Property | BindingKind::BindableProperty => {
-                        Some(b.stmt(b.call(b.id(name), [b.id("$$value")])))
+                        Some(b.statement(b.call(b.id(name), [b.id("$$value")])))
                     }
                     BindingKind::State | BindingKind::RawState => {
                         let value = if kind == BindingKind::State {
@@ -46,7 +46,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                         } else {
                             b.id("$$value")
                         };
-                        Some(b.stmt(b.runtime("set", [b.id(name), value])))
+                        Some(b.statement(b.runtime("set", [b.id(name), value])))
                     }
                     _ => None,
                 },
@@ -54,7 +54,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             let value: Expression<'o> = value.unwrap_or_else(|| b.id(name));
             properties.push(b.getter(alias, value));
             if let Some(setter) = setter {
-                let parameters = b.params(["$$value"]);
+                let parameters = b.parameters(["$$value"]);
                 properties.push(b.accessor(
                     oxc_ast::ast::PropertyKind::Set,
                     alias,

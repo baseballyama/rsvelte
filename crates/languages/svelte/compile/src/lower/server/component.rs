@@ -31,7 +31,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             unreachable!("a component element")
         };
         let mut parts = Vec::new();
-        let mut css = Vec::new();
+        let mut custom_properties = Vec::new();
         for prop in props(
             tree.attributes(element.attributes),
             self.source_text,
@@ -59,9 +59,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                     let name = a.name.text(self.source_text);
                     parts.push(Entry::Property(b.init(name, value)));
                 }
-                Prop::CssProperty(a) => {
+                Prop::CustomProperty(a) => {
                     let value = self.attribute_value(a, false, false);
-                    css.push(b.init(a.name.text(self.source_text), value));
+                    custom_properties.push(b.init(a.name.text(self.source_text), value));
                 }
                 Prop::Spread(e) => parts.push(Entry::Spread(self.expression(e))),
                 Prop::Attach(_) => {}
@@ -69,7 +69,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                     let value = self.expression(target);
                     let source = self.javascript.get_expression(target);
                     let assignment = self.rewrite().binding_assignment(source, false);
-                    let setter = vec![b.stmt(assignment), set_settled(b, false)];
+                    let setter = vec![b.statement(assignment), set_settled(b, false)];
                     let name = a.name.text(self.source_text);
                     push_binding(b, &mut parts, name, value, setter);
                 }
@@ -94,7 +94,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             Callee::Static(reference) | Callee::Dynamic(reference) => self.expression(reference),
             Callee::OwnFunction => b.id(self.component_name),
         };
-        let statement = b.stmt(b.call(function, [b.id("$$renderer"), props]));
+        let statement = b.statement(b.call(function, [b.id("$$renderer"), props]));
         let dynamic = matches!(callee, Callee::Dynamic(_));
         let statement = if let Callee::Dynamic(reference) = callee {
             let test = self.expression(reference);
@@ -117,37 +117,38 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             declarations.push(statement);
             b.block(declarations)
         };
-        let has_css = !css.is_empty();
-        let statement = self.css_props(identifier, css, statement, dynamic);
+        let has_custom_properties = !custom_properties.is_empty();
+        let statement =
+            self.wrap_custom_properties(identifier, custom_properties, statement, dynamic);
         template.push(Piece::Statement(statement));
-        if !dynamic && !standalone && !has_css {
+        if !dynamic && !standalone && !has_custom_properties {
             template.push(Piece::Text(EMPTY_COMMENT.into()));
         }
         Ok(())
     }
 
     /// Upstream wraps a component with CSS custom properties in an element that holds them.
-    fn css_props(
+    fn wrap_custom_properties(
         &self,
         identifier: CompilerNodeIdentifier,
-        css: Vec<ObjectPropertyKind<'o>>,
+        custom_properties: Vec<ObjectPropertyKind<'o>>,
         statement: Statement<'o>,
         dynamic: bool,
     ) -> Statement<'o> {
-        if css.is_empty() {
+        if custom_properties.is_empty() {
             return statement;
         }
         let b = self.b;
-        let html = self.plan.namespace(identifier) != crate::render_plan::Namespace::Svg;
-        let render = b.arrow_block(b.params([]), [statement], false);
+        let in_markup = self.plan.namespace(identifier) != crate::render_plan::Namespace::Svg;
+        let render = b.arrow_block(b.parameters([]), [statement], false);
         let arguments = vec![
             Some(b.id("$$renderer")),
-            Some(b.boolean(html)),
-            Some(b.object(css)),
+            Some(b.boolean(in_markup)),
+            Some(b.object(custom_properties)),
             Some(render),
             dynamic.then(|| b.boolean(true)),
         ];
-        b.stmt(b.runtime_some("css_props", arguments))
+        b.statement(b.runtime_some("css_props", arguments))
     }
 
     /// `($$renderer, { prop, other: pattern })`: a slot's callback takes the props its `let:`

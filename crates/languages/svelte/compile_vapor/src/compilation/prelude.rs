@@ -59,7 +59,7 @@ pub(crate) fn statements<'t>(b: &Builder<'t>, source: &'static str) -> Vec<State
 /// A statement that stands for `source` in a translated script, which [`expand`] reads back.
 pub(crate) fn marker<'t>(b: &Builder<'t>, source: &'static str) -> Statement<'t> {
     parsed(source);
-    b.stmt(Expression::new_string_literal(SPAN, source, None, b))
+    b.statement(Expression::new_string_literal(SPAN, source, None, b))
 }
 
 /// The prelude `statement` stands for, or `None` for any other statement.

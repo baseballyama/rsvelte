@@ -57,7 +57,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             ]
         };
         let object = self.names.generate("computed_const");
-        let derived = b.runtime("derived", [b.arrow_block(b.params([]), body, false)]);
+        let derived = b.runtime("derived", [b.arrow_block(b.parameters([]), body, false)]);
         l.consts.push(b.const_(&object, derived));
         for binding in names {
             self.reads

@@ -72,8 +72,8 @@ impl T<'_, '_, '_, '_> {
         }
         let fallthrough = self.roots.contains(&k).then_some(self.attributes).flatten();
         let start_tag = node.span;
-        let kind = self.hir.element_kind(tag, parent);
-        let identifier = self.hir.node(
+        let kind = self.builder.element_kind(tag, parent);
+        let identifier = self.builder.node(
             SvelteNodeKind::Comment {
                 data: Span::default(),
             },
@@ -355,8 +355,8 @@ impl T<'_, '_, '_, '_> {
         } else if fallthrough.is_some() || !class.is_empty() {
             self.dynamic_class(&mut attributes, class, class_at, fallthrough, identifier);
         }
-        let attributes = self.hir.attributes(attributes);
-        self.hir.set_kind(
+        let attributes = self.builder.attributes(attributes);
+        self.builder.set_kind(
             identifier,
             SvelteNodeKind::Element(SvelteElement {
                 name,
@@ -377,8 +377,8 @@ impl T<'_, '_, '_, '_> {
         };
         let children = self.list(child_nodes, Some(identifier));
         self.select_model = outer;
-        let children = self.hir.children(&children?);
-        self.hir.set_element_children(identifier, children);
+        let children = self.builder.children(&children?);
+        self.builder.set_element_children(identifier, children);
         Ok(identifier)
     }
 }

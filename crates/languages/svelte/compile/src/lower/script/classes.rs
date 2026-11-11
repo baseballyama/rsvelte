@@ -166,7 +166,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
                 if field.rune == "$state" {
                     arguments.push(b.boolean(true));
                 }
-                let write = b.stmt(b.runtime("set", arguments));
+                let write = b.statement(b.runtime("set", arguments));
                 (b.runtime("get", [signal()]), "value", write)
             }
             Target::Server => {
@@ -179,14 +179,14 @@ impl<'o> ScriptRewrite<'_, 'o> {
                 b,
                 MethodDefinitionKind::Get,
                 getter,
-                b.params([]),
+                b.parameters([]),
                 b.return_(Some(read)),
             ),
             method(
                 b,
                 MethodDefinitionKind::Set,
                 setter,
-                b.params([parameter]),
+                b.parameters([parameter]),
                 write,
             ),
         ]

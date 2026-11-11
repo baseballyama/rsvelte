@@ -46,13 +46,19 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut memo = Memo::derived();
         let mut parts = Vec::new();
         let mut accessors = Vec::new();
-        let mut css = Vec::new();
+        let mut custom_properties = Vec::new();
         for prop in props(
             tree.attributes(element.attributes),
             self.source_text,
             self.javascript,
         ) {
-            self.push_prop(prop, &mut memo, &mut parts, &mut accessors, &mut css);
+            self.push_prop(
+                prop,
+                &mut memo,
+                &mut parts,
+                &mut accessors,
+                &mut custom_properties,
+            );
         }
         self.push_events(
             tree.attributes(element.attributes),
@@ -81,7 +87,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         let callbacks = slots
             .into_iter()
-            .map(|(name, body)| (name, b.params(["$$anchor", "$$slotProps"]), body))
+            .map(|(name, body)| (name, b.parameters(["$$anchor", "$$slotProps"]), body))
             .collect();
         let default = DefaultSlot::of(
             tree,
@@ -94,13 +100,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let props = props_expression(b, parts, Target::Client);
         statements.extend(self.memo_deriveds(memo));
         // Upstream mounts a component with CSS custom properties in an element that holds them.
-        let anchor = if css.is_empty() {
+        let anchor = if custom_properties.is_empty() {
             b.id(node)
         } else {
             b.member(b.id(node), "lastChild")
         };
         let call = self.instantiate(element, callee, intermediate, anchor, props);
-        statements.extend(self.mount(identifier, node, css, call, standalone, frag));
+        statements.extend(self.mount(identifier, node, custom_properties, call, standalone, frag));
         lists.initializer.append(&mut accessors);
         // Upstream declares a slot filler's own directives before it, where its attributes see
         // them.
@@ -121,17 +127,17 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         &self,
         identifier: CompilerNodeIdentifier,
         node: &str,
-        css: Vec<ObjectPropertyKind<'o>>,
+        custom_properties: Vec<ObjectPropertyKind<'o>>,
         call: Expression<'o>,
         standalone: bool,
         frag: &mut Frag<'o>,
     ) -> Vec<Statement<'o>> {
         let b = self.b;
-        if css.is_empty() {
+        if custom_properties.is_empty() {
             if !standalone {
                 frag.tpl.push_comment();
             }
-            vec![b.stmt(call)]
+            vec![b.statement(call)]
         } else {
             let svg = self.plan.namespace(identifier) == crate::render_plan::Namespace::Svg;
             frag.tpl
@@ -142,11 +148,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             frag.tpl.push_comment();
             frag.tpl.pop_element();
-            let properties = b.thunk(b.object(css));
+            let properties = b.thunk(b.object(custom_properties));
             vec![
-                b.stmt(b.runtime("css_props", [b.id(node), properties])),
-                b.stmt(call),
-                b.stmt(b.runtime("reset", [b.id(node)])),
+                b.statement(b.runtime("css_props", [b.id(node), properties])),
+                b.statement(call),
+                b.statement(b.runtime("reset", [b.id(node)])),
             ]
         }
     }
@@ -172,8 +178,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         match (callee, intermediate) {
             (Callee::Dynamic(reference), Some(intermediate)) => {
                 let inner = b.call(b.id(&intermediate), [b.id("$$anchor"), props]);
-                let inner = b.stmt(instance(inner));
-                let render = b.arrow_block(b.params(["$$anchor", &intermediate]), [inner], false);
+                let inner = b.statement(instance(inner));
+                let render =
+                    b.arrow_block(b.parameters(["$$anchor", &intermediate]), [inner], false);
                 let get = b.thunk(self.expression(reference));
                 b.runtime("component", [anchor, get, render])
             }
@@ -242,13 +249,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         memo: &mut Memo<'o>,
         parts: &mut Vec<Entry<'o>>,
         accessors: &mut Vec<Statement<'o>>,
-        css: &mut Vec<ObjectPropertyKind<'o>>,
+        custom_properties: &mut Vec<ObjectPropertyKind<'o>>,
     ) {
         let b = self.b;
         match prop {
-            Prop::CssProperty(a) => {
+            Prop::CustomProperty(a) => {
                 let (value, _) = self.attribute_value(a, memo, false);
-                css.push(b.init(a.name.text(self.source_text), value));
+                custom_properties.push(b.init(a.name.text(self.source_text), value));
             }
             Prop::Accessors(a, get, set) => {
                 let functions = (self.rewrite(get, true), self.rewrite(set, true));
@@ -277,7 +284,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                         b.logical(value, LogicalOperator::Or, b.member(b.id("$"), "noop"))
                     };
                     let call = b.call(callee, [b.id("$$node")]);
-                    value = b.arrow(b.params(["$$node"]), call);
+                    value = b.arrow(b.parameters(["$$node"]), call);
                 }
                 let key = PropertyKey::from(b.runtime("attachment", []));
                 parts.push(Entry::Property(b.property(key, value, true)));
@@ -293,7 +300,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             Prop::Bind(a, target) => {
                 let value = self.expression(target);
-                let setter = vec![b.stmt(self.binding_assignment(target, false))];
+                let setter = vec![b.statement(self.binding_assignment(target, false))];
                 let name = a.name.text(self.source_text);
                 // A store read through a binding tells the store it is bound.
                 let store = matches!(
@@ -301,18 +308,18 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     Expression::Identifier(identifier) if self.rewriter(true).is_store(identifier)
                 );
                 if store {
-                    let mark = b.stmt(b.runtime("mark_store_binding", []));
+                    let mark = b.statement(b.runtime("mark_store_binding", []));
                     let get = vec![mark, b.return_(Some(value))];
                     parts.push(Entry::Property(b.accessor(
                         PropertyKind::Get,
                         name,
-                        b.params([]),
+                        b.parameters([]),
                         get,
                     )));
                     parts.push(Entry::Property(b.accessor(
                         PropertyKind::Set,
                         name,
-                        b.params(["$$value"]),
+                        b.parameters(["$$value"]),
                         setter,
                     )));
                 } else {

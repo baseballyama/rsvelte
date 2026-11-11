@@ -83,9 +83,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             delegated,
         );
         if allow_delegation {
-            l.after.push(b.stmt(call));
+            l.after.push(b.statement(call));
         } else {
-            l.initializer.push(b.stmt(call));
+            l.initializer.push(b.statement(call));
         }
     }
 
@@ -116,7 +116,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     h = b.runtime("get", [b.id(&identifier)]);
                 }
                 let apply = b.optional_method_call(h, "apply", [b.this(), b.id("$$args")]);
-                b.rest_function("$$args", [b.stmt(apply)])
+                b.rest_function("$$args", [b.statement(apply)])
             }
         }
     }
@@ -204,7 +204,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         self.needs_props = true;
         let call = b.member(b.member(b.id("$"), "bubble_event"), "call");
         let call = b.call(call, [b.this(), b.id("$$props"), b.id("$$arg")]);
-        b.function_expression(None, b.params(["$$arg"]), [b.stmt(call)], false)
+        b.function_expression(None, b.parameters(["$$arg"]), [b.statement(call)], false)
     }
 
     fn global_event_target(&self, node: &str) -> Expression<'o> {
