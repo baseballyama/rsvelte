@@ -7,6 +7,8 @@ pub(super) struct Template {
     roots: Vec<usize>,
     stack: Vec<usize>,
     pub(super) needs_import_node: bool,
+    /// Upstream `contains_script_tag`: the fragment must recreate its scripts so they run.
+    pub(super) contains_script: bool,
 }
 
 enum TplNode {
@@ -36,6 +38,7 @@ impl Template {
     }
 
     pub(super) fn push_element(&mut self, name: &str, is_html: bool) {
+        self.contains_script |= name == "script";
         let i = self.add(TplNode::Element {
             is_html,
             name: name.to_owned(),

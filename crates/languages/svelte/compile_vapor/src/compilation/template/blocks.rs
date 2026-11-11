@@ -251,6 +251,8 @@ impl<'t> Template<'_, '_, 't> {
                     text.clear();
                     expressions.push(value);
                 }
+                // The runtime anchor after a lone `<script>`, which vapor output never had.
+                Item::Comment => {}
                 Item::Node(_) => unreachable!("a sequence holds text and expressions"),
             }
         }

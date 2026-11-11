@@ -127,6 +127,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 let initial = Prev::Call {
                     method: "first_child",
                     of: identifier.clone(),
+                    content: false,
                 };
                 self.process_children(items, initial, false, &mut frag, &mut l)?;
                 let mut flags = TEMPLATE_FRAGMENT;
@@ -258,6 +259,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             },
             vec![Some(t), flags_arg],
         );
+        let call = if tpl.contains_script {
+            b.runtime("with_script", [call])
+        } else {
+            call
+        };
         let identifier = self.names.unique(name);
         self.hoisted.push(b.var(&identifier, call));
         let read = b.id(&identifier);

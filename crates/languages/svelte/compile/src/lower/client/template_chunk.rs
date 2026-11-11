@@ -22,7 +22,9 @@ impl<'a, 'o> ClientCompilationContext<'a, 'o> {
                     continue;
                 }
                 Item::Expression(e) => *e,
-                Item::Node(_) => unreachable!("sequences hold text and expression tags"),
+                Item::Node(_) | Item::Comment => {
+                    unreachable!("sequences hold text and expression tags")
+                }
             };
             let source = self
                 .javascript

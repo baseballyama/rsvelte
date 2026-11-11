@@ -2,7 +2,7 @@ use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::Expression;
 
 use crate::lower::server::{
-    AttributeValue, CompilerNodeIdentifier, ElementKind, NodeKind, Piece, R,
+    AttributeValue, CompilerNodeIdentifier, Element, ElementKind, NodeKind, Piece, R,
     ServerCompilationContext, is_customizable_select, is_void, unsupported,
 };
 
@@ -21,9 +21,6 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             return self.special_element(identifier, template);
         }
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
-        if matches!(tag.as_str(), "script" | "style" | "template") {
-            return unsupported(&format!("`<{tag}>`"), el.name);
-        }
         if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
             return unsupported(&format!("rich content in `<{tag}>`"), el.name);
         }
@@ -48,6 +45,15 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         if select_special || tag == "option" {
             return self.select_element(identifier, el, &tag, template);
         }
+        if let Some(text) = self.raw_text(&tag, el) {
+            // Upstream pushes a `<script>` or `<style>` as a statement of its own.
+            let mut own = vec![Piece::Text(format!("<{tag}"))];
+            let attributes = compiler_syntax_tree.attributes(el.attributes);
+            self.element_attributes(identifier, &tag, attributes, &mut own);
+            own.push(Piece::Text(format!(">{text}</{tag}>")));
+            template.extend(self.build_template(own).into_iter().map(Piece::Statement));
+            return Ok(());
+        }
         template.push(Piece::Text(format!("<{tag}")));
         self.element_attributes(
             identifier,
@@ -57,6 +63,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         );
         let void = is_void(&tag);
         template.push(Piece::Text(if void { "/>".into() } else { ">".into() }));
+
         let cleaned = self.plan.fragment(el.children);
         let body = self.element_body(&tag, compiler_syntax_tree.attributes(el.attributes));
         if let Some(body) = body {
@@ -87,5 +94,22 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             template.push(Piece::Text(format!("</{tag}>")));
         }
         Ok(())
+    }
+}
+
+impl<'o> ServerCompilationContext<'_, 'o> {
+    /// The text of a `<script>` or `<style>`, which upstream writes as it is.
+    fn raw_text(&self, tag: &str, el: &Element) -> Option<&'o str> {
+        if !matches!(tag, "script" | "style") {
+            return None;
+        }
+        match self.compiler_syntax_tree.children(el.children) {
+            [] => Some(""),
+            &[only] => match &self.compiler_syntax_tree.node(only).kind {
+                NodeKind::Text { raw, .. } => Some(raw.text(self.source_text)),
+                _ => None,
+            },
+            _ => None,
+        }
     }
 }

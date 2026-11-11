@@ -29,10 +29,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             if !sequence.is_empty() {
                 self.flush_sequence(&std::mem::take(&mut sequence), &mut st, frag, l);
             }
-            let Item::Node(identifier) = item else {
-                unreachable!("text is part of a sequence")
+            let &Item::Node(identifier) = item else {
+                self.flush_node(&mut st, false, "node", l);
+                frag.tpl.push_comment();
+                continue;
             };
-            let identifier = *identifier;
             if self.is_static_element(identifier) {
                 st.skipped += 1;
                 self.visit(identifier, &st.prev_name(), frag, l)?;
@@ -76,10 +77,18 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let b = self.b;
         match prev {
             Prev::Identifier(name) => b.id(name),
-            Prev::Call { method, of } => b.runtime_some(
+            Prev::Call {
                 method,
-                vec![Some(b.id(of)), is_text.then(|| b.boolean(true))],
-            ),
+                of,
+                content,
+            } => {
+                let of = if *content {
+                    b.member(b.id(of), "content")
+                } else {
+                    b.id(of)
+                };
+                b.runtime_some(method, vec![Some(of), is_text.then(|| b.boolean(true))])
+            }
         }
     }
 

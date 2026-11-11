@@ -124,15 +124,19 @@ impl<'o> ScriptRewrite<'_, 'o> {
         let b = self.b;
         let info = self.res.binding(symbol);
         let x = || b.id_at(name, span);
+        // Upstream reads a `var` that may be read before its declaration runs safely.
+        let var = || {
+            (self.res.scoping().symbol_flags(symbol))
+                .contains(oxc_syntax::symbol::SymbolFlags::FunctionScopedVariable)
+        };
+        let get = || b.runtime(if var() { "safe_get" } else { "get" }, [x()]);
         match (self.target, info.kind) {
             (Target::Client, BindingKind::State | BindingKind::RawState)
                 if self.res.is_state_source(symbol) =>
             {
-                Some(b.runtime("get", [x()]))
+                Some(get())
             }
-            (Target::Client, BindingKind::Derived | BindingKind::DerivedBy) => {
-                Some(b.runtime("get", [x()]))
-            }
+            (Target::Client, BindingKind::Derived | BindingKind::DerivedBy) => Some(get()),
             (Target::Client, BindingKind::Property | BindingKind::BindableProperty) => {
                 if is_prop_source(self.res, self.accessors, symbol) {
                     return Some(b.call(x(), []));
@@ -157,6 +161,14 @@ impl<'o> ScriptRewrite<'_, 'o> {
                     Read::Call => Some(b.call(x(), [])),
                     Read::Field(object) => Some(b.member(b.runtime("get", [b.id(object)]), name)),
                 }
+            }
+            (Target::Server, BindingKind::Derived | BindingKind::DerivedBy) if var() => {
+                let Expression::CallExpression(mut call) = b.call(x(), []) else {
+                    unreachable!("a call builds a call")
+                };
+                call.optional = true;
+                let call = oxc_ast::ast::ChainElement::CallExpression(call);
+                Some(Expression::new_chain_expression(Span::default(), call, b))
             }
             (Target::Server, BindingKind::Derived | BindingKind::DerivedBy) => {
                 Some(b.call(x(), []))
@@ -429,6 +441,9 @@ pub(super) fn lower_script<'t, 'o>(
     let instance = matches!(context, ScriptContext::Instance { .. });
     let mut out = Vec::with_capacity(program.body.len());
     for statement in &program.body {
+        for _ in 0..writes::pattern_arrays(statement) {
+            names.generate("$$array");
+        }
         // Upstream erases the types before it analyzes the component.
         // A module's types are TypeScript's emit to erase, once it is lowered.
         if is_type_only(statement) && !matches!(context, ScriptContext::File) {

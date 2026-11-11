@@ -12,6 +12,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         for item in items {
             match item {
                 Item::Text { .. } | Item::Expression(_) => sequence.push(item),
+                Item::Comment => {
+                    self.flush(&mut sequence, template);
+                    template.push(Piece::Text("<!---->".into()));
+                }
                 Item::Node(identifier) => {
                     self.flush(&mut sequence, template);
                     match self.compiler_syntax_tree.node(*identifier).kind {
@@ -59,7 +63,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                         quasis.push(String::new());
                     }
                 }
-                Item::Node(_) => unreachable!("sequences hold text and expressions"),
+                Item::Node(_) | Item::Comment => {
+                    unreachable!("sequences hold text and expressions")
+                }
             }
         }
         template.push(Piece::Template(quasis, expressions));
