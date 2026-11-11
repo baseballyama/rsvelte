@@ -67,8 +67,8 @@ pub(super) fn is_dom_property(name: &str) -> bool {
         )
 }
 
-/// Upstream's `EACH_ITEM_REACTIVE` test: the collection reads a binding (references inside a
-/// function of the expression are not its dependencies).
+/// Upstream's `EACH_ITEM_REACTIVE` test: the collection reads a binding or a store subscription
+/// (references inside a function of the expression are not its dependencies).
 #[must_use]
 pub(super) fn has_dependency(res: &Resolution, e: &Expression<'_>) -> bool {
     struct Dependency<'r> {
@@ -77,7 +77,7 @@ pub(super) fn has_dependency(res: &Resolution, e: &Expression<'_>) -> bool {
     }
     impl<'a> Visit<'a> for Dependency<'_> {
         fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
-            self.found |= self.res.symbol(it).is_some();
+            self.found |= self.res.symbol(it).is_some() || self.res.is_store_subscription(&it.name);
         }
         fn visit_function(&mut self, _: &Function<'a>, _: ScopeFlags) {}
         fn visit_arrow_function_expression(&mut self, _: &ArrowFunctionExpression<'a>) {}

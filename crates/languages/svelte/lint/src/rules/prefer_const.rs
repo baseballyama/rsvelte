@@ -74,8 +74,6 @@ impl SvelteRule for PreferConst {
             ProgramStatements::InProgram
         };
         let props = props(file);
-        // TODO(oxc port): the shared rule visits programs only, so it no longer sees the functions
-        // and blocks in template expressions, which upstream checks too.
         rsvelte_typescript_lint::prefer_const(
             file.semantic(),
             &file.programs(),

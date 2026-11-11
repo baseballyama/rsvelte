@@ -13,7 +13,7 @@ use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::ProgramIdentifier;
 use rustc_hash::FxHashMap;
 
-use super::{Facts, Use, span};
+use super::{Facts, Use, roots, span};
 
 /// `ESLint`'s `prefer-const` options.
 #[derive(Clone, Copy, Debug, Default)]
@@ -40,8 +40,11 @@ enum Name<'a> {
     Undefined,
 }
 
-/// `ESLint`'s `prefer-const` over the `let` declarations of `programs` that `skip` does not
-/// exclude. A variable `written_by_host` (a Svelte prop, which its parent writes) is never const.
+/// `ESLint`'s `prefer-const` over the `let` declarations that `skip` does not exclude.
+///
+/// It reads `programs` and the parts of the tree outside them, such as a template's
+/// expressions. A variable `written_by_host` (a Svelte prop, which its parent writes) is never
+/// const.
 pub fn prefer_const(
     semantic: &Semantic,
     programs: &[ProgramIdentifier],
@@ -57,8 +60,8 @@ pub fn prefer_const(
         skip,
         variables: Vec::new(),
     };
-    for &program in programs {
-        collector.visit_program(semantic.tree().get_program(program));
+    for root in roots(semantic.tree(), programs) {
+        root.visit(&mut collector);
     }
     let variables = collector.variables;
     let mut groups: Vec<Vec<Option<NodeId>>> = Vec::new();
@@ -473,8 +476,10 @@ fn is_init_of_for(f: &Facts<'_>, declaration: NodeId) -> bool {
     f.parent(declaration).is_some_and(|p| {
         matches!(
             f.kind(p),
-            AstKind::ForStatement(s)
-                if matches!(&s.init, Some(ForStatementInit::VariableDeclaration(d)) if d.span == span)
+            AstKind::ForStatement(s) if matches!(
+                &s.init,
+                Some(ForStatementInit::VariableDeclaration(d)) if d.span == span
+            )
         )
     })
 }

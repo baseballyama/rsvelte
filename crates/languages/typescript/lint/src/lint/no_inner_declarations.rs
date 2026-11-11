@@ -7,7 +7,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::ProgramIdentifier;
 
-use super::{Facts, span};
+use super::{Facts, Root, roots, span};
 
 /// `ESLint`'s `no-inner-declarations` options.
 #[derive(Clone, Copy, Debug, Default)]
@@ -18,9 +18,11 @@ pub struct NoInnerDeclarationsOptions {
     pub disallow_block_scoped_functions: bool,
 }
 
-/// `ESLint`'s `no-inner-declarations` over `programs`, which are modules (strict code) or
-/// scripts. In strict code a function in a block is block-scoped and allowed unless the options
-/// disallow it.
+/// `ESLint`'s `no-inner-declarations` over `programs` and the parts of the tree outside them.
+///
+/// A program is a module (strict code) or a script; a host's part, such as a template's
+/// expression, is strict. In strict code a function in a block is block-scoped and allowed
+/// unless the options disallow it.
 pub fn no_inner_declarations(
     semantic: &Semantic,
     programs: &[ProgramIdentifier],
@@ -34,15 +36,19 @@ pub fn no_inner_declarations(
         reporter,
         contexts: Vec::new(),
     };
-    for &program in programs {
-        let program = semantic.tree().get_program(program);
+    for root in roots(semantic.tree(), programs) {
+        let strict = match &root {
+            Root::Program(program) => module || has_use_strict(&program.directives),
+            // A host's part runs in its component, which is a module.
+            _ => true,
+        };
         visitor.contexts.clear();
         visitor.contexts.push(Context {
-            strict: module || has_use_strict(&program.directives),
+            strict,
             body: "program",
             node: None,
         });
-        visitor.visit_program(program);
+        root.visit(&mut visitor);
     }
 }
 
@@ -104,7 +110,10 @@ impl<'a> Visit<'a> for Visitor<'_, '_, '_> {
             )),
             AstKind::ArrowFunctionExpression(arrow) => Some((
                 strict
-                    || matches!(&arrow.body, ArrowFunctionBody::FunctionBody(b) if has_use_strict(&b.directives)),
+                    || matches!(
+                        &arrow.body,
+                        ArrowFunctionBody::FunctionBody(b) if has_use_strict(&b.directives)
+                    ),
                 "function body",
                 arrow.node_id.get(),
             )),

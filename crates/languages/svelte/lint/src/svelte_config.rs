@@ -125,15 +125,18 @@ impl<'a> Evaluator<'a> {
             }
             Expression::ObjectExpression(object) => Evaluated::Object(object),
             Expression::Identifier(identifier) => {
+                let scoping = self.semantic.scoping();
                 let symbol = identifier
                     .reference_id
                     .get()
-                    .and_then(|reference| self.semantic.scoping().get_reference(reference).symbol_id());
-                return match symbol {
-                    Some(symbol) => self.identifier(symbol, depth + 1),
-                    None => (identifier.name == "undefined")
-                        .then_some(Evaluated::Static(Static::Undefined)),
-                };
+                    .and_then(|reference| scoping.get_reference(reference).symbol_id());
+                return symbol.map_or_else(
+                    || {
+                        (identifier.name == "undefined")
+                            .then_some(Evaluated::Static(Static::Undefined))
+                    },
+                    |symbol| self.identifier(symbol, depth + 1),
+                );
             }
             _ => return None,
         })
@@ -142,11 +145,16 @@ impl<'a> Evaluator<'a> {
     /// A `const` variable's value, through the pattern that declares it (`parseIdentifier`).
     fn identifier(&self, symbol: SymbolId, depth: usize) -> Option<Evaluated<'a>> {
         let scoping = self.semantic.scoping();
-        if !scoping.symbol_flags(symbol).contains(SymbolFlags::ConstVariable) {
+        if !scoping
+            .symbol_flags(symbol)
+            .contains(SymbolFlags::ConstVariable)
+        {
             return None;
         }
-        let AstKind::VariableDeclarator(declarator) =
-            self.semantic.nodes().kind(scoping.symbol_declaration(symbol))
+        let AstKind::VariableDeclarator(declarator) = self
+            .semantic
+            .nodes()
+            .kind(scoping.symbol_declaration(symbol))
         else {
             return None;
         };
@@ -174,7 +182,11 @@ impl<'a> Evaluator<'a> {
 
     /// The steps from `pattern` to `target`. As upstream, an object or array pattern looks only
     /// at its first named property or element.
-    fn steps(target: SymbolId, pattern: &'a BindingPattern<'a>, out: &mut Vec<Step<'a>>) -> Option<()> {
+    fn steps(
+        target: SymbolId,
+        pattern: &'a BindingPattern<'a>,
+        out: &mut Vec<Step<'a>>,
+    ) -> Option<()> {
         match pattern {
             BindingPattern::BindingIdentifier(identifier) => {
                 (identifier.symbol_id.get() == Some(target)).then_some(())
@@ -251,7 +263,10 @@ impl<'a> Evaluator<'a> {
         {
             return Some(name.name.as_str().to_owned());
         }
-        match self.to_static(&self.expression(key.as_expression()?, depth + 1)?, depth + 1)? {
+        match self.to_static(
+            &self.expression(key.as_expression()?, depth + 1)?,
+            depth + 1,
+        )? {
             Static::String(name) => Some(name),
             Static::Number(number) => Some(number_key(number)),
             Static::Boolean(value) => Some(value.to_string()),

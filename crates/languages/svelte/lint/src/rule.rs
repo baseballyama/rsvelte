@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use oxc_semantic::AstNodes;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Contribution;
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -12,7 +13,6 @@ use rsvelte_svelte_semantic::warnings::CompileWarnings;
 use rsvelte_svelte_semantic::{Lowered, Resolved, Warned};
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
-use oxc_semantic::AstNodes;
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree};
 use serde::de::DeserializeOwned;
@@ -205,7 +205,7 @@ impl<'a> File<'a> {
     }
 
     /// The JavaScript of the document: a component's scripts and template expressions, or a
-    /// module's program.
+    /// module's program. A node's `node_id` is the analysis's only after [`File::semantic`].
     #[must_use]
     pub const fn javascript(&self) -> &'a Tree {
         match self.parsed {
@@ -220,7 +220,8 @@ impl<'a> File<'a> {
     pub fn programs(&self) -> Vec<ProgramIdentifier> {
         match self.parsed {
             Source::Component(component) => {
-                let mut scripts: Vec<_> = component.module.iter().chain(&component.instance).collect();
+                let mut scripts: Vec<_> =
+                    component.module.iter().chain(&component.instance).collect();
                 scripts.sort_by_key(|script| script.span.start_offset);
                 scripts.iter().map(|script| script.program).collect()
             }

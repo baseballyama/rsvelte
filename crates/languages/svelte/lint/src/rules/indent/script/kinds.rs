@@ -5,7 +5,7 @@ use oxc_ast::ast::{ArrayExpressionElement, BindingPattern, Expression, FormalPar
 use oxc_parser::Kind;
 use oxc_span::{GetSpan, Span as OxcSpan};
 
-use super::{Script, annotated, parameter_spans};
+use super::{Script, parameter_spans};
 use crate::rules::indent::layout::Item;
 use crate::rules::indent::tokens::Token;
 
@@ -519,4 +519,9 @@ fn chain_link(kind: AstKind<'_>) -> Option<(OxcSpan, bool)> {
         AstKind::LogicalExpression(n) => Some((n.span, false)),
         _ => None,
     }
+}
+
+/// A binding pattern with its type annotation, which `ESTree` puts inside the pattern.
+fn annotated(pattern: &BindingPattern<'_>, annotation: Option<OxcSpan>) -> OxcSpan {
+    annotation.map_or_else(|| pattern.span(), |a| pattern.span().merge(a))
 }

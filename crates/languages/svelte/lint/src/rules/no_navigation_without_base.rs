@@ -1,14 +1,14 @@
-use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte_syntax::syntax_tree::{Part, decode_attribute};
 use oxc_ast::ast::{ChainElement, Expression};
 use oxc_semantic::{NodeId, SymbolId};
+use rsvelte_lint_runner::rule::Reporter;
+use rsvelte_svelte_syntax::syntax_tree::{Part, decode_attribute};
 
 use super::kit_navigation::{
-    Navigation, Options, Script, first_argument, first_part, has_scheme, leading_expression,
-    links, string, template,
+    Navigation, Options, Script, first_argument, first_part, has_scheme, leading_expression, links,
+    string, template,
 };
-use super::nodes::span;
 use super::kit_route::{BASE_VERSIONS, runs_for};
+use super::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -57,9 +57,9 @@ impl SvelteRule for NoNavigationWithoutBase {
             let Some(argument) = first_argument(call).filter(|_| !ignored) else {
                 continue;
             };
-            let allowed = argument.as_expression().is_some_and(|url| {
-                (allow_empty && check.is_empty(url)) || check.starts_with_base(url)
-            });
+            let allowed = argument
+                .as_expression()
+                .is_some_and(|url| (allow_empty && is_empty(url)) || check.starts_with_base(url));
             if !allowed {
                 reporter.range(message, span(argument));
             }
@@ -81,8 +81,8 @@ impl SvelteRule for NoNavigationWithoutBase {
                     let expression = script.tree.get_expression(expression);
                     (
                         check.starts_with_base(expression)
-                            || check.is_absolute(expression)
-                            || check.is_fragment(expression),
+                            || is_absolute(expression)
+                            || is_fragment(expression),
                         span,
                     )
                 }
@@ -117,7 +117,10 @@ impl<'a> Check<'_, 'a> {
             Expression::Identifier(identifier) => match self.script.initializer(identifier) {
                 Some((symbol, initializer)) if !visited.contains(&symbol) => {
                     visited.push(symbol);
-                    Some(self.prefix(initializer, visited).unwrap_or(node.node_id()))
+                    Some(
+                        self.prefix(initializer, visited)
+                            .unwrap_or_else(|| node.node_id()),
+                    )
                 }
                 _ => Some(node.node_id()),
             },
@@ -135,36 +138,36 @@ impl<'a> Check<'_, 'a> {
             _ => None,
         }
     }
+}
 
-    fn is_empty(&self, url: &'a Expression<'a>) -> bool {
-        string(url) == Some("")
-            || template(url)
-                .is_some_and(|(quasis, expressions)| expressions.is_empty() && quasis == [""])
-    }
+fn is_empty(url: &Expression<'_>) -> bool {
+    string(url) == Some("")
+        || template(url)
+            .is_some_and(|(quasis, expressions)| expressions.is_empty() && quasis == [""])
+}
 
-    fn is_absolute(&self, url: &'a Expression<'a>) -> bool {
-        match url {
-            Expression::BinaryExpression(binary) => {
-                self.is_absolute(&binary.left) || self.is_absolute(&binary.right)
-            }
-            Expression::StringLiteral(_) => string(url).is_some_and(has_scheme),
-            Expression::TemplateLiteral(_) => template(url).is_some_and(|(quasis, expressions)| {
-                expressions.iter().any(|e| self.is_absolute(e))
-                    || quasis.iter().any(|quasi| has_scheme(quasi))
-            }),
-            _ => false,
+fn is_absolute(url: &Expression<'_>) -> bool {
+    match url {
+        Expression::BinaryExpression(binary) => {
+            is_absolute(&binary.left) || is_absolute(&binary.right)
         }
+        Expression::StringLiteral(_) => string(url).is_some_and(has_scheme),
+        Expression::TemplateLiteral(_) => template(url).is_some_and(|(quasis, expressions)| {
+            expressions.iter().any(|e| is_absolute(e))
+                || quasis.iter().any(|quasi| has_scheme(quasi))
+        }),
+        _ => false,
     }
+}
 
-    fn is_fragment(&self, url: &'a Expression<'a>) -> bool {
-        match url {
-            Expression::BinaryExpression(binary) => self.is_fragment(&binary.left),
-            Expression::StringLiteral(_) => string(url).is_some_and(|url| url.starts_with('#')),
-            Expression::TemplateLiteral(_) => template(url).is_some_and(|(quasis, expressions)| {
-                expressions.first().is_some_and(|e| self.is_fragment(e))
-                    || quasis.first().is_some_and(|quasi| quasi.starts_with('#'))
-            }),
-            _ => false,
-        }
+fn is_fragment(url: &Expression<'_>) -> bool {
+    match url {
+        Expression::BinaryExpression(binary) => is_fragment(&binary.left),
+        Expression::StringLiteral(_) => string(url).is_some_and(|url| url.starts_with('#')),
+        Expression::TemplateLiteral(_) => template(url).is_some_and(|(quasis, expressions)| {
+            expressions.first().is_some_and(|e| is_fragment(e))
+                || quasis.first().is_some_and(|quasi| quasi.starts_with('#'))
+        }),
+        _ => false,
     }
 }

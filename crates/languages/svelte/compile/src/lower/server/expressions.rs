@@ -16,6 +16,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             res: self.res,
             template: None,
             shadows: None,
+            stores: &[],
+            untracked: None,
+            invalidates: None,
         }
     }
 

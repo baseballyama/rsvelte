@@ -5,17 +5,19 @@
 
 mod declarators;
 mod props;
+mod stores;
+mod writes;
 
 use crate::lower::builder::Runtime;
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::ast::{
-    Argument, AssignmentOperator, AssignmentTarget, BindingIdentifier, Declaration, Expression,
-    IdentifierReference, ImportDeclaration, ObjectProperty, Program, SimpleAssignmentTarget,
-    Statement, SwitchCase, UpdateOperator, VariableDeclaration, VariableDeclarationKind,
+    Argument, BindingIdentifier, Declaration, Expression, IdentifierReference, ImportDeclaration,
+    ObjectProperty, Program, Statement, SwitchCase, VariableDeclaration, VariableDeclarationKind,
     VariableDeclarator, WithClause, WithClauseKeyword,
 };
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::{ReferenceId, SymbolId};
+use oxc_span::Span;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_compile::strip::is_type_only;
@@ -36,6 +38,13 @@ pub(super) struct ScriptRewrite<'r, 'o> {
     pub template: Option<&'r FxHashMap<SymbolId, Read>>,
     /// A snippet a component holds and the outer name it shadows, which the client reads instead.
     pub shadows: Option<&'r FxHashMap<SymbolId, SymbolId>>,
+    /// The store subscriptions (`$name`).
+    pub stores: &'r [String],
+    /// The store subscription a client mutation reads untracked (upstream's `mutate` transform).
+    pub untracked: Option<ReferenceId>,
+    /// The `{#each}` items of a store's collection, with the subscription a mutation of each
+    /// invalidates.
+    pub invalidates: Option<&'r FxHashMap<SymbolId, &'r str>>,
 }
 
 /// How a name the template declares is read on the client.
@@ -86,12 +95,20 @@ impl<'o> ScriptRewrite<'_, 'o> {
         {
             return Some(b.id("$$props"));
         }
+        if self.is_store(identifier) {
+            return Some(self.store_read(identifier));
+        }
         let symbol = self.res.symbol(identifier)?;
         let symbol = (self.shadows.and_then(|m| m.get(&symbol)))
             .copied()
             .unwrap_or(symbol);
+        self.read_symbol(symbol, &identifier.name, identifier.span)
+    }
+
+    fn read_symbol(&self, symbol: SymbolId, name: &str, span: Span) -> Option<Expression<'o>> {
+        let b = self.b;
         let info = self.res.binding(symbol);
-        let x = || b.id_at(&identifier.name, identifier.span);
+        let x = || b.id_at(name, span);
         match (self.target, info.kind) {
             (Target::Client, BindingKind::State | BindingKind::RawState)
                 if self.res.is_state_source(symbol) =>
@@ -130,115 +147,6 @@ impl<'o> ScriptRewrite<'_, 'o> {
             }
             _ => None,
         }
-    }
-
-    /// The rewritten assignment `it`, or `None` when it stays as written.
-    fn assign(&mut self, it: &mut Expression<'o>) -> Option<Expression<'o>> {
-        let Expression::AssignmentExpression(assignment) = it else {
-            return None;
-        };
-        if self.target != Target::Client {
-            return None;
-        }
-        let b = self.b;
-        let AssignmentTarget::AssignmentTargetIdentifier(target) = &assignment.left else {
-            let member = assignment.left.as_member_expression()?;
-            let prop = bindable_root(self.res, self.accessors, member.object())
-                .map(|root| b.id_at(&root.name, root.span))?;
-            walk_mut::walk_assignment_expression(self, assignment);
-            return Some(b.call(prop, [it.take_in(b), b.boolean(true)]));
-        };
-        let symbol = self.res.symbol(target)?;
-        let info = self.res.binding(symbol);
-        let state = self.res.is_state_source(symbol)
-            || matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
-        let prop = is_prop_source(self.res, self.accessors, symbol);
-        if !state && !prop {
-            return None;
-        }
-        let operator = assignment.operator;
-        let proxy = info.kind == BindingKind::State
-            && matches!(
-                operator,
-                AssignmentOperator::Assign
-                    | AssignmentOperator::LogicalOr
-                    | AssignmentOperator::LogicalAnd
-                    | AssignmentOperator::LogicalNullish
-            )
-            && self.res.should_proxy(&assignment.right);
-        let x = b.id_at(&target.name, target.span);
-        let current = (operator != AssignmentOperator::Assign).then(|| self.read(target));
-        let mut value = assignment.right.take_in(b);
-        self.visit_expression(&mut value);
-        // Upstream `build_assignment_value`: `a += b` assigns `a + b`, read through the transform.
-        let value = match current {
-            None => value,
-            Some(current) => {
-                let current = current?;
-                match (
-                    operator.to_logical_operator(),
-                    operator.to_binary_operator(),
-                ) {
-                    (Some(l), _) => b.logical(current, l, value),
-                    (None, Some(binary)) => b.binary(current, binary, value),
-                    (None, None) => unreachable!("a compound assignment has an operator"),
-                }
-            }
-        };
-        if prop {
-            return Some(b.call(x, [value]));
-        }
-        let mut arguments = vec![x, value];
-        if proxy {
-            arguments.push(b.boolean(true));
-        }
-        Some(b.runtime("set", arguments))
-    }
-
-    fn update(&mut self, it: &mut Expression<'o>) -> Option<Expression<'o>> {
-        let Expression::UpdateExpression(update) = it else {
-            return None;
-        };
-        let b = self.b;
-        let SimpleAssignmentTarget::AssignmentTargetIdentifier(argument) = &update.argument else {
-            if self.target != Target::Client {
-                return None;
-            }
-            let member = update.argument.as_member_expression()?;
-            let prop = bindable_root(self.res, self.accessors, member.object())
-                .map(|root| b.id_at(&root.name, root.span))?;
-            walk_mut::walk_update_expression(self, update);
-            return Some(b.call(prop, [it.take_in(b), b.boolean(true)]));
-        };
-        let symbol = self.res.symbol(argument)?;
-        let info = self.res.binding(symbol);
-        let derived = matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
-        if self.target == Target::Server && !derived {
-            return None;
-        }
-        let prefix = update.prefix;
-        let name = if self.target == Target::Server {
-            if prefix {
-                "update_derived_pre"
-            } else {
-                "update_derived"
-            }
-        } else if self.res.is_state_source(symbol) || derived {
-            if prefix { "update_pre" } else { "update" }
-        } else if is_prop_source(self.res, self.accessors, symbol) {
-            if prefix {
-                "update_pre_prop"
-            } else {
-                "update_prop"
-            }
-        } else {
-            return None;
-        };
-        let mut arguments = vec![b.id_at(&argument.name, argument.span)];
-        if update.operator == UpdateOperator::Decrement {
-            arguments.push(b.number(-1.0));
-        }
-        Some(b.runtime(name, arguments))
     }
 
     /// A rune call's lowering, or `None` when `it` is no rune this rewrite lowers.
@@ -280,21 +188,25 @@ fn arguments_to_expressions<'o>(
     })
 }
 
-impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
-    fn visit_expression(&mut self, it: &mut Expression<'o>) {
+impl<'o> ScriptRewrite<'_, 'o> {
+    fn rewrite_expression(&mut self, it: &mut Expression<'o>) {
         let rewritten = match it {
             Expression::Identifier(identifier) => match self.read(identifier) {
                 Some(e) => e,
                 None => return,
             },
-            Expression::AssignmentExpression(_) => match self.assign(it) {
-                Some(e) => e,
-                None => return walk_mut::walk_expression(self, it),
-            },
-            Expression::UpdateExpression(_) => match self.update(it) {
-                Some(e) => e,
-                None => return walk_mut::walk_expression(self, it),
-            },
+            Expression::AssignmentExpression(_) => {
+                match self.store_assign(it).or_else(|| self.assign(it)) {
+                    Some(e) => e,
+                    None => return walk_mut::walk_expression(self, it),
+                }
+            }
+            Expression::UpdateExpression(_) => {
+                match self.store_update(it).or_else(|| self.update(it)) {
+                    Some(e) => e,
+                    None => return walk_mut::walk_expression(self, it),
+                }
+            }
             Expression::CallExpression(_) => match self.rune(it) {
                 Some(e) => e,
                 None => return walk_mut::walk_expression(self, it),
@@ -302,6 +214,18 @@ impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
             _ => return walk_mut::walk_expression(self, it),
         };
         *it = rewritten;
+    }
+}
+
+impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
+    fn visit_expression(&mut self, it: &mut Expression<'o>) {
+        // Upstream's `mutate` transform of an `{#each}` item of a store's collection.
+        if let Some(invalidate) = self.invalidation(it) {
+            self.rewrite_expression(it);
+            *it = self.b.sequence([it.take_in(self.b), invalidate]);
+            return;
+        }
+        self.rewrite_expression(it);
     }
 
     fn visit_object_property(&mut self, it: &mut ObjectProperty<'o>) {
