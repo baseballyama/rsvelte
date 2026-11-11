@@ -1478,14 +1478,18 @@ dependencies = [
 name = "rsvelte_vue_compile_svelte"
 version = "0.0.0"
 dependencies = [
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_visit",
+ "oxc_semantic",
+ "oxc_span",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
  "rsvelte_svelte_compile",
  "rsvelte_svelte_semantic",
  "rsvelte_test_harness",
  "rsvelte_typescript_compile",
- "rsvelte_typescript_semantic",
- "rsvelte_typescript_syntax",
+ "rsvelte_typescript_tree",
  "rsvelte_vue_semantic",
  "rsvelte_vue_syntax",
  "rustc-hash",

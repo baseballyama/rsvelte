@@ -1,18 +1,21 @@
 //! The template: Vue's HIR to Svelte's.
 
-use rsvelte_kernel::source::positions::{SourceLocation, Span};
+use oxc_allocator::{CloneIn, GetAllocator};
+use oxc_ast::ast::{
+    Argument, AssignmentOperator, AssignmentTarget, BinaryOperator, Expression, LogicalOperator,
+    SimpleAssignmentTarget, Statement, UnaryOperator,
+};
+use oxc_semantic::SymbolId;
+use oxc_span::{GetSpan, SPAN};
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_compile::Target;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     self as svelte, Attribute, AttributeValue, Branch,
     CompilerNodeIdentifier as SvelteNodeIdentifier, CompilerSyntaxTreeBuilder, Each,
     Element as SvelteElement, NodeKind as SvelteNodeKind,
 };
-use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind};
-use rsvelte_typescript_syntax::operators::{
-    AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator,
-};
-use rsvelte_typescript_syntax::syntax_tree::flag;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_compile::build::Builder;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, Directive, Element, NodeKind, Property,
     PropertyKind, TagType,
@@ -20,15 +23,16 @@ use rsvelte_vue_semantic::compiler_syntax_tree::{
 use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 use rustc_hash::FxHashMap;
 
-use crate::context::{Class, Helper, Info, Names, R, Rewriter, span_of, unsupported};
+use crate::context::{
+    Class, Declared, Helper, Info, Names, R, Rewriter, output_span, span_of, unsupported,
+};
 
 /// The translated template, and the declarations the instance script needs for it.
 #[derive(Debug)]
-pub(crate) struct Template {
+pub(crate) struct Template<'a> {
     pub(crate) compiler_syntax_tree: svelte::CompilerSyntaxTree,
-    pub(crate) expressions: Vec<NodeIdentifier>,
     /// Statements that go before the script's own.
-    pub(crate) hoisted: Vec<NodeIdentifier>,
+    pub(crate) hoisted: Vec<Statement<'a>>,
 }
 
 /// runtime-core `getChildRoot` / `filterSingleRoot` in development: the elements that receive the
@@ -112,7 +116,7 @@ fn directive<'h>(
         })
 }
 
-fn expression_of(d: &Directive, span: Span) -> R<NodeIdentifier> {
+fn expression_of(d: &Directive, span: Span) -> R<ExpressionIdentifier> {
     match d.exp {
         DirectiveExpression::Expression(e) => Ok(e),
         _ => Err(unsupported("a directive without a value", span)),
@@ -122,20 +126,20 @@ fn expression_of(d: &Directive, span: Span) -> R<NodeIdentifier> {
 /// # Errors
 ///
 /// A refusal for what the template does that svue does not translate.
-pub(crate) fn translate(
+pub(crate) fn translate<'a>(
     info: &Info<'_>,
     compiler_syntax_tree: Option<&CompilerSyntaxTree>,
     roots: &[CompilerNodeIdentifier],
     attributes: Option<&str>,
-    to: &mut SyntaxTree,
-    names: &mut Names,
-) -> R<Template> {
-    let mut b = CompilerSyntaxTreeBuilder::new(info.source_text, 0, 0);
+    tree: &mut rsvelte_typescript_tree::Builder<'a>,
+    b: &Builder<'a>,
+    names: &mut Names<'_>,
+) -> R<Template<'a>> {
+    let mut hir = CompilerSyntaxTreeBuilder::new(info.source_text, 0, 0);
     let Some(vue_tree) = compiler_syntax_tree else {
-        let root = b.children(&[]);
+        let root = hir.children(&[]);
         return Ok(Template {
-            compiler_syntax_tree: b.finish(root),
-            expressions: Vec::new(),
+            compiler_syntax_tree: hir.finish(root),
             hoisted: Vec::new(),
         });
     };
@@ -143,10 +147,10 @@ pub(crate) fn translate(
         info,
         vue_tree,
         source_text: info.source_text,
-        to,
-        names,
+        tree,
         b,
-        expressions: Vec::new(),
+        names,
+        hir,
         aliases: FxHashMap::default(),
         roots,
         attributes,
@@ -157,58 +161,70 @@ pub(crate) fn translate(
         renderable: None,
     };
     let root = t.list(vue_tree.root(), None)?;
-    let root = t.b.children(&root);
-    let T {
-        b,
-        expressions,
-        hoisted,
-        ..
-    } = t;
+    let root = t.hir.children(&root);
+    let T { hir, hoisted, .. } = t;
     Ok(Template {
-        compiler_syntax_tree: b.finish(root),
-        expressions,
+        compiler_syntax_tree: hir.finish(root),
         hoisted,
     })
 }
 
-struct T<'a, 'i> {
-    info: &'a Info<'i>,
-    vue_tree: &'a CompilerSyntaxTree,
-    source_text: &'a str,
-    to: &'a mut SyntaxTree,
-    names: &'a mut Names,
-    b: CompilerSyntaxTreeBuilder<'a>,
-    expressions: Vec<NodeIdentifier>,
+struct T<'t, 'v, 'n, 'a> {
+    info: &'t Info<'v>,
+    vue_tree: &'t CompilerSyntaxTree,
+    source_text: &'v str,
+    tree: &'t mut rsvelte_typescript_tree::Builder<'a>,
+    b: &'t Builder<'a>,
+    names: &'t mut Names<'n>,
+    hir: CompilerSyntaxTreeBuilder<'v>,
     /// The aliases of the enclosing `v-for`s with more than one: read through their block's entry.
-    aliases: FxHashMap<BindingIdentifier, (String, u32)>,
-    roots: &'a [CompilerNodeIdentifier],
-    attributes: Option<&'a str>,
+    aliases: FxHashMap<SymbolId, (String, u32)>,
+    roots: &'t [CompilerNodeIdentifier],
+    attributes: Option<&'t str>,
     /// On the server, inside a `<select v-model>`: the model.
-    select_model: Option<NodeIdentifier>,
-    hoisted: Vec<NodeIdentifier>,
+    select_model: Option<ExpressionIdentifier>,
+    hoisted: Vec<Statement<'a>>,
     vmodel: Option<String>,
     boolean_attribute: Option<String>,
     renderable: Option<String>,
 }
 
-impl T<'_, '_> {
+impl<'a> T<'_, '_, '_, 'a> {
     /// A template expression, rewritten.
-    fn expression(&mut self, e: NodeIdentifier) -> R<NodeIdentifier> {
-        let aliases = std::mem::take(&mut self.aliases);
-        let out = Rewriter::new(self.info, true, &aliases).copy(self.to, e);
-        self.aliases = aliases;
-        out
+    fn expression(&self, e: ExpressionIdentifier) -> R<Expression<'a>> {
+        Rewriter::new(self.info, self.b, true, &self.aliases)
+            .expression(self.info.from.get_expression(e))
     }
 
-    fn root_expression(&mut self, e: NodeIdentifier) -> NodeIdentifier {
-        self.expressions.push(e);
-        e
+    /// Keeps an expression the HIR refers to, its types erased.
+    fn keep(&mut self, mut e: Expression<'a>) -> ExpressionIdentifier {
+        if self.info.typescript {
+            oxc_ast_visit::VisitMut::visit_expression(
+                &mut rsvelte_typescript_compile::strip::Strip::new(self.b.allocator()),
+                &mut e,
+            );
+        }
+        self.tree.keep_expression(e)
     }
 
-    fn helper(&mut self, h: Helper) -> NodeIdentifier {
-        let name = self.names.helper(self.info.from, h);
-        self.to.identifier(&name)
+    fn helper(&mut self, h: Helper) -> Expression<'a> {
+        let name = self.names.helper(h);
+        self.b.id(&name)
     }
+
+    fn copy(&self, e: &Expression<'a>) -> Expression<'a> {
+        e.clone_in(self.b.allocator())
+    }
+}
+
+/// `test ? consequent : alternate`.
+fn conditional<'a>(
+    b: &Builder<'a>,
+    test: Expression<'a>,
+    consequent: Expression<'a>,
+    alternate: Expression<'a>,
+) -> Expression<'a> {
+    Expression::new_conditional_expression(SPAN, test, consequent, alternate, b)
 }
 
 /// `@vue/shared`'s `isBooleanAttr` with `isSpecialBooleanAttr`.

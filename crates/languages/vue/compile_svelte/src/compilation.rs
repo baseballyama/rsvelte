@@ -4,22 +4,21 @@ pub(crate) mod template;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_compile::{CompileInput, Target};
-use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 
 /// The component as the Svelte compiler reads it: a runes instance program and a Svelte HIR, in a
 /// tree of their own over the `.vue` document's text.
 #[derive(Debug)]
 pub struct Translation {
-    pub javascript: SyntaxTree,
-    pub program: NodeIdentifier,
+    /// The instance program and every expression the HIR names.
+    pub javascript: Tree,
+    pub program: ProgramIdentifier,
     pub compiler_syntax_tree: rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree,
-    /// Every template expression, in document order.
-    pub template_expressions: Vec<NodeIdentifier>,
 }
 
 impl Translation {
     #[must_use]
-    pub(crate) fn compile_input<'a>(
+    pub(crate) const fn compile_input<'a>(
         &'a self,
         source_text: &'a str,
         filename: &'a str,
@@ -27,11 +26,10 @@ impl Translation {
         CompileInput {
             component: rsvelte_svelte_semantic::input::ComponentInput {
                 javascript: &self.javascript,
-                program: self.program,
+                instance: Some(self.program),
                 module: None,
                 compiler_syntax_tree: &self.compiler_syntax_tree,
                 style: None,
-                template_expressions: &self.template_expressions,
                 source_text,
                 filename,
             },
