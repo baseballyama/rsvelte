@@ -60,6 +60,7 @@ pub(super) fn prepare<'c, 'o>(
         untracked: None,
         invalidates: None,
         primitive: false,
+        classes: script::Classes::default(),
     };
     if let Some(program) = input.component.module {
         let statements = script::lower_script(

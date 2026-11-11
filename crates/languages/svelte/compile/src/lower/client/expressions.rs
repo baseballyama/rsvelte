@@ -39,6 +39,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             untracked: None,
             invalidates: Some(&self.invalidates),
             primitive: false,
+            classes: crate::lower::script::Classes::default(),
         }
     }
 

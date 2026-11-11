@@ -7,6 +7,7 @@
 mod binding_groups;
 mod bindings;
 mod builder;
+mod class_fields;
 mod client;
 mod component;
 mod coverage;

@@ -3,22 +3,25 @@
 //! The rewrite runs over a copy of the input in the output arena: the copy keeps the analysis's
 //! reference and symbol ids, so each identifier still resolves through [`Resolution`].
 
+mod classes;
 mod declarators;
 mod exports;
 mod props;
 mod stores;
 mod writes;
 
+pub(super) use classes::Classes;
 pub(super) use exports::Export;
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::ast::{
-    Argument, Declaration, Expression, IdentifierReference, ImportDeclaration, ObjectProperty,
-    Program, Statement, SwitchCase, VariableDeclaration, VariableDeclarator, WithClause,
-    WithClauseKeyword,
+    Argument, ArrowFunctionExpression, ClassBody, Declaration, Expression, Function,
+    IdentifierReference, ImportDeclaration, MethodDefinition, ObjectProperty, Program, Statement,
+    SwitchCase, VariableDeclaration, VariableDeclarator, WithClause, WithClauseKeyword,
 };
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::{ReferenceId, SymbolId};
 use oxc_span::Span;
+use oxc_syntax::scope::ScopeFlags;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_compile::strip::is_type_only;
@@ -49,6 +52,7 @@ pub(super) struct ScriptRewrite<'r, 'o> {
     pub invalidates: Option<&'r FxHashMap<SymbolId, &'r str>>,
     /// The value written is an element's, which upstream never proxies.
     pub primitive: bool,
+    pub classes: Classes,
 }
 
 /// How a name the template declares is read on the client.
@@ -207,14 +211,24 @@ impl<'o> ScriptRewrite<'_, 'o> {
                 Some(e) => e,
                 None => return,
             },
+            Expression::PrivateFieldExpression(_) => match self.class_read(it) {
+                Some(e) => e,
+                None => return walk_mut::walk_expression(self, it),
+            },
             Expression::AssignmentExpression(_) => {
-                match self.store_assign(it).or_else(|| self.assign(it)) {
+                match (self.class_assign(it))
+                    .or_else(|| self.store_assign(it))
+                    .or_else(|| self.assign(it))
+                {
                     Some(e) => e,
                     None => return walk_mut::walk_expression(self, it),
                 }
             }
             Expression::UpdateExpression(_) => {
-                match self.store_update(it).or_else(|| self.update(it)) {
+                match (self.class_update(it))
+                    .or_else(|| self.store_update(it))
+                    .or_else(|| self.update(it))
+                {
                     Some(e) => e,
                     None => return walk_mut::walk_expression(self, it),
                 }
@@ -289,6 +303,22 @@ impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
             return;
         }
         walk_mut::walk_statement(self, it);
+    }
+
+    fn visit_class_body(&mut self, it: &mut ClassBody<'o>) {
+        self.class_body(it);
+    }
+
+    fn visit_method_definition(&mut self, it: &mut MethodDefinition<'o>) {
+        self.class_method(it);
+    }
+
+    fn visit_function(&mut self, it: &mut Function<'o>, flags: ScopeFlags) {
+        self.class_function(it, flags);
+    }
+
+    fn visit_arrow_function_expression(&mut self, it: &mut ArrowFunctionExpression<'o>) {
+        self.class_arrow(it);
     }
 
     // Upstream lowers a state or derived declaration in a nested function the same way.

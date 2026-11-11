@@ -3,7 +3,7 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
     AssignmentOperator, AssignmentTarget, BindingPattern, Expression, ForStatementLeft,
-    MethodDefinitionKind, Statement, VariableDeclaration, VariableDeclarator,
+    MemberExpression, MethodDefinitionKind, Statement, VariableDeclaration, VariableDeclarator,
 };
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
@@ -21,6 +21,15 @@ mod calls;
 use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
 
 use super::state_invalid_placement;
+use crate::lower::class_fields::{ClassFields, StateField, class_fields, key_name, member_name};
+
+fn state_field_invalid_assignment<T>(span: Span) -> Result<T, Diagnostic> {
+    crate::lower::special::invalid(
+        "state_field_invalid_assignment",
+        "Cannot assign to a state field before its declaration",
+        span,
+    )
+}
 
 /// Where a node sits, as far as upstream's rune checks ask.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -67,7 +76,6 @@ struct Body {
 #[derive(Clone, Copy)]
 struct Place {
     parent: Parent,
-    in_class: bool,
     module: bool,
     /// Upstream evaluates it when the component renders: the instance's top level or a
     /// template expression, outside any function.
@@ -95,6 +103,8 @@ struct RuneWalk<'a> {
     error: Option<Diagnostic>,
     /// The first rune this port does not lower, refused only when upstream raises nothing later.
     refused: Option<Diagnostic>,
+    /// The state fields of the classes the walk is inside, innermost last.
+    classes: Vec<ClassFields>,
 }
 
 /// A template root: an expression, or a `{@const}` declaration.
@@ -105,9 +115,9 @@ enum Root<'a> {
 }
 
 /// Raises upstream's rune placement, rune argument and assignment errors, a `bind:` target's
-/// among them, then refuses a rune call this port does not lower, a state rune in a class body
-/// (class fields are not lowered yet), and on the server an `$effect` that is not a statement of
-/// its own (upstream only drops it as an `ExpressionStatement`).
+/// among them, and its class field errors, then refuses a rune call this port does not lower,
+/// and on the server an `$effect` that is not a statement of its own (upstream only drops it as
+/// an `ExpressionStatement`).
 ///
 /// # Errors
 ///
@@ -121,7 +131,6 @@ pub(in crate::lower) fn check_runes(
     let javascript = input.component.javascript;
     let place = |module, rendering| Place {
         parent: Parent::Other,
-        in_class: false,
         module,
         rendering,
     };
@@ -135,6 +144,7 @@ pub(in crate::lower) fn check_runes(
         frames: Vec::new(),
         error: None,
         refused: None,
+        classes: Vec::new(),
     };
     if let Some(module) = input.component.module {
         walk.root = place(true, false);
@@ -192,6 +202,14 @@ pub(in crate::lower) fn check_runes(
 
 impl<'a> Visit<'a> for RuneWalk<'a> {
     fn enter_node(&mut self, kind: AstKind<'a>) {
+        // Upstream analyzes a class body before what it holds.
+        if let AstKind::ClassBody(body) = kind {
+            let fields = class_fields(self.res, body).unwrap_or_else(|error| {
+                self.error.get_or_insert(error);
+                ClassFields::default()
+            });
+            self.classes.push(fields);
+        }
         let (place, parent) = match self.frames.last() {
             Some(frame) => (place_of(frame, kind), Some(frame.kind)),
             None => (self.root, None),
@@ -207,7 +225,10 @@ impl<'a> Visit<'a> for RuneWalk<'a> {
         self.frames.push(Frame { kind, place, rune });
     }
 
-    fn leave_node(&mut self, _kind: AstKind<'a>) {
+    fn leave_node(&mut self, kind: AstKind<'a>) {
+        if matches!(kind, AstKind::ClassBody(_)) {
+            self.classes.pop();
+        }
         self.frames.pop();
     }
 
@@ -296,11 +317,13 @@ impl<'a> RuneWalk<'a> {
                 check_assignment(fixed_simple(res, &update.argument, true), false, || {
                     span_of(update)
                 })?;
+                self.check_field_assignment(update.argument.as_member_expression(), update.span)?;
             }
             AstKind::AssignmentExpression(assign) => {
                 check_assignment(fixed_target(res, &assign.left, true), false, || {
                     span_of(assign)
                 })?;
+                self.check_field_assignment(assign.left.as_member_expression(), assign.span)?;
                 if matches!(
                     assign.left,
                     AssignmentTarget::ArrayAssignmentTarget(_)
@@ -309,12 +332,58 @@ impl<'a> RuneWalk<'a> {
                     self.check_pattern_assignment(span_of(assign), &assign.left, self.target)?;
                 }
             }
+            AstKind::PropertyDefinition(p) if p.value.is_some() => {
+                let field = key_name(&p.key).and_then(|name| self.declared_later(&name, p.span));
+                if field.is_some() {
+                    return state_field_invalid_assignment(span_of(p));
+                }
+            }
             // Upstream prints any non-plain head as invalid JavaScript, on the server too.
             AstKind::ForInStatement(f) => self.check_head(span_of(f), &f.left)?,
             AstKind::ForOfStatement(f) => self.check_head(span_of(f), &f.left)?,
             _ => {}
         }
         Ok(None)
+    }
+
+    /// The state field `name` of the innermost class, when a node at `at` other than its
+    /// declaration comes before it.
+    fn declared_later(&self, name: &str, at: oxc_span::Span) -> Option<&StateField> {
+        let field = self.classes.last()?.get(name)?;
+        (field.at != at && at.start < field.at.start).then_some(field)
+    }
+
+    /// Upstream `validate_assignment`: the constructor writes `this.x` before the assignment
+    /// that declares the state field `x`.
+    fn check_field_assignment(
+        &self,
+        target: Option<&MemberExpression<'_>>,
+        at: oxc_span::Span,
+    ) -> Result<(), Diagnostic> {
+        let Some(target) = target else {
+            return Ok(());
+        };
+        if !matches!(target.object(), Expression::ThisExpression(_)) {
+            return Ok(());
+        }
+        let Some(field) = member_name(target).and_then(|name| self.declared_later(&name, at))
+        else {
+            return Ok(());
+        };
+        let function = (self.frames.iter()).rposition(|f| {
+            matches!(
+                f.kind,
+                AstKind::Function(_) | AstKind::ArrowFunctionExpression(_)
+            )
+        });
+        let in_constructor = function.and_then(|i| i.checked_sub(1)).is_some_and(|i| {
+            matches!(self.frames[i].kind,
+                AstKind::MethodDefinition(m) if m.kind == MethodDefinitionKind::Constructor)
+        });
+        if field.constructor && in_constructor {
+            return state_field_invalid_assignment(Span::new(at.start, at.end));
+        }
+        Ok(())
     }
 
     fn check_head(&self, span: Span, left: &ForStatementLeft<'_>) -> Result<(), Diagnostic> {
@@ -341,7 +410,6 @@ fn place_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Place {
     }
     Place {
         parent: parent_of(frame, kind),
-        in_class: place.in_class || matches!(frame.kind, AstKind::Class(_)),
         module: place.module,
         // A class's heritage and computed keys run where the class is defined.
         rendering: place.rendering

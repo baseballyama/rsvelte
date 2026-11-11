@@ -142,10 +142,8 @@ impl RuneWalk<'_> {
         let supported = lowered
             && !destructured
             && match rune {
-                "$state" | "$state.raw" | "$derived" | "$derived.by" => !place.in_class,
-                "$props" | "$props.id" | "$bindable" | "$effect.pending" | "$effect.tracking" => {
-                    true
-                }
+                "$state" | "$state.raw" | "$derived" | "$derived.by" | "$props" | "$props.id"
+                | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
                 "$host" => self.custom_element,
                 "$effect" | "$effect.pre" => {
                     matches!(place.parent, Parent::Statement(_)) || self.target == Target::Client
@@ -155,9 +153,7 @@ impl RuneWalk<'_> {
         if supported || self.refused.is_some() {
             return;
         }
-        let what = if place.in_class {
-            format!("`{rune}` in a class body")
-        } else if !lowered {
+        let what = if !lowered {
             format!("`{rune}` in an optional chain")
         } else if destructured {
             format!("a destructured `{rune}` declaration")
