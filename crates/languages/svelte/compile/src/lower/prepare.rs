@@ -52,6 +52,7 @@ pub(super) fn prepare<'c, 'o>(
         stores: &facts.validated.stores,
         untracked: None,
         invalidates: None,
+        primitive: false,
     };
     if let Some(program) = input.component.module {
         let statements = script::lower_script(

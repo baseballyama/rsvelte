@@ -2,8 +2,8 @@ use crate::lower::builder::Runtime;
 use oxc_ast::ast::{Expression, PropertyKind};
 
 use super::super::component::{
-    Entry, Prop, child_snippets, is_dynamic, props, props_expression, push_binding, push_children,
-    reference,
+    Entry, Prop, bind_this, child_snippets, is_dynamic, props, props_expression, push_binding,
+    push_children, reference,
 };
 use super::super::derived::{Created, callback};
 use super::{
@@ -37,7 +37,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         .then(|| self.names.generate(element.name.text(self.source_text)));
         let mut memo = Memo::derived();
         let mut parts = Vec::new();
-        for prop in props(tree.attributes(element.attributes)) {
+        for prop in props(tree.attributes(element.attributes), self.source_text) {
             self.push_prop(prop, &mut memo, &mut parts);
         }
         let (mut statements, snippets) =
@@ -61,13 +61,19 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             let thunk = callback(b, self.res, Some(source), m.value, Created::Template);
             b.let_(&m.name, Some(b.runtime("derived", [thunk])))
         }));
+        let this = bind_this(tree.attributes(element.attributes), self.source_text);
+        let instance = |call| match this {
+            Some(target) => self.bind_this(target, call, false),
+            None => call,
+        };
         let call = if let Some(intermediate) = intermediate {
-            let inner = b.stmt(b.call(b.id(&intermediate), [b.id("$$anchor"), props]));
+            let inner = b.call(b.id(&intermediate), [b.id("$$anchor"), props]);
+            let inner = b.stmt(instance(inner));
             let render = b.arrow_block(b.params(["$$anchor", &intermediate]), [inner], false);
             let get = b.thunk(self.expression(reference));
             b.runtime("component", [b.id(node), get, render])
         } else {
-            b.call(self.expression(reference), [b.id(node), props])
+            instance(b.call(self.expression(reference), [b.id(node), props]))
         };
         statements.push(b.stmt(call));
         if !standalone {

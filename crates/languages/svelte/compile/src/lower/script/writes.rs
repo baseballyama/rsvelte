@@ -1,6 +1,6 @@
 //! Upstream's `assign`, `mutate` and `update` transforms of state, deriveds and props.
 
-use oxc_allocator::TakeIn;
+use oxc_allocator::{CloneIn, GetAllocator, TakeIn};
 use oxc_ast::ast::{
     AssignmentOperator, AssignmentTarget, Expression, SimpleAssignmentTarget, UpdateOperator,
 };
@@ -12,6 +12,29 @@ use super::{ScriptRewrite, bindable_root, is_prop_source};
 use crate::lower::builder::Runtime;
 
 impl<'o> ScriptRewrite<'_, 'o> {
+    /// `target = $$value`, rewritten: the setter of a binding to `target`.
+    pub(in crate::lower) fn binding_assignment(
+        &mut self,
+        target: &Expression<'_>,
+        primitive: bool,
+    ) -> Expression<'o> {
+        let b = self.b;
+        let target = match target
+            .get_inner_expression()
+            .clone_in_with_semantic_ids(b.allocator())
+        {
+            Expression::Identifier(identifier) => {
+                SimpleAssignmentTarget::AssignmentTargetIdentifier(identifier)
+            }
+            member => SimpleAssignmentTarget::from(member.into_member_expression()),
+        };
+        let mut assignment = b.assign(AssignmentOperator::Assign, target.into(), b.id("$$value"));
+        self.primitive = primitive;
+        self.visit_expression(&mut assignment);
+        self.primitive = false;
+        assignment
+    }
+
     /// The rewritten assignment `it`, or `None` when it stays as written.
     pub(super) fn assign(&mut self, it: &mut Expression<'o>) -> Option<Expression<'o>> {
         let Expression::AssignmentExpression(assignment) = it else {
@@ -37,7 +60,8 @@ impl<'o> ScriptRewrite<'_, 'o> {
             return None;
         }
         let operator = assignment.operator;
-        let proxy = info.kind == BindingKind::State
+        let proxy = !self.primitive
+            && info.kind == BindingKind::State
             && matches!(
                 operator,
                 AssignmentOperator::Assign

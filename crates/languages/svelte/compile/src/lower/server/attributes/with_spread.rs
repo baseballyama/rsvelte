@@ -47,7 +47,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         for a in list {
             let raw_name = a.name.text(self.source_text);
             match a.value {
-                AttributeValue::Bind(_) if tag == "svelte:element" && raw_name == "this" => {
+                AttributeValue::Bind(_) if raw_name == "this" => {
                     continue;
                 }
                 AttributeValue::Bind(e) => {

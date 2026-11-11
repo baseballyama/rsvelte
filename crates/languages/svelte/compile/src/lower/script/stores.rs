@@ -1,6 +1,6 @@
 //! Upstream's `store_sub` transforms: a `$name` reads, writes and updates the store `name`.
 
-use oxc_allocator::{CloneIn, GetAllocator, TakeIn};
+use oxc_allocator::TakeIn;
 use oxc_ast::ast::{
     AssignmentOperator, AssignmentTarget, Expression, Ident, IdentifierReference,
     SimpleAssignmentTarget, UpdateOperator,
@@ -98,18 +98,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
         if !self.is_store(root) {
             return None;
         }
-        let b = self.b;
-        let target = match target
-            .get_inner_expression()
-            .clone_in_with_semantic_ids(b.allocator())
-        {
-            Expression::Identifier(identifier) => {
-                SimpleAssignmentTarget::AssignmentTargetIdentifier(identifier)
-            }
-            member => SimpleAssignmentTarget::from(member.into_member_expression()),
-        };
-        let mut assignment = b.assign(AssignmentOperator::Assign, target.into(), b.id("$$value"));
-        self.store_assign(&mut assignment)
+        Some(self.binding_assignment(target, false))
     }
 
     /// `$.invalidate_store($$stores, '$name')` after a write through a member of an `{#each}` item
