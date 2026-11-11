@@ -184,12 +184,12 @@ pass	printer/style-directive.html
 pass	printer/style-inside-comment.html
 refused	printer/style-inside-element.html	<script> or <style> inside an element
 pass	printer/style-inside-script.html
-refused	printer/style-lang-less.html	a style language other than CSS
-refused	printer/style-lang-scss.html	a style language other than CSS
+refused	printer/style-lang-less.html	a Less, Sass or Stylus style
+refused	printer/style-lang-scss.html	a Less, Sass or Stylus style
 refused	printer/style-script-commented-out.html	comments attached to <script> or <style>
-refused	printer/style-scripts-snipping-spans.html	a style language other than CSS
-refused	printer/style-type-less.html	a style language other than CSS
-refused	printer/style-type-scss.html	a style language other than CSS
+refused	printer/style-scripts-snipping-spans.html	a Less, Sass or Stylus style
+refused	printer/style-type-less.html	a Less, Sass or Stylus style
+refused	printer/style-type-scss.html	a Less, Sass or Stylus style
 pass	printer/style-unclosed-inside-script.html
 pass	printer/style-with-attributes.html
 pass	printer/style.html
@@ -241,7 +241,7 @@ pass	formatting/attributes-bracket-same-line
 pass	formatting/attributes-class
 pass	formatting/attributes-newline
 pass	formatting/attributes-no-newline
-refused	formatting/attributes-without-quotes	a style language other than CSS
+refused	formatting/attributes-without-quotes	<script> or <style> inside an element
 pass	formatting/block-element-break-children
 pass	formatting/block-element-break-long
 pass	formatting/block-element-break-long-whitespace

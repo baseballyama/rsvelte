@@ -441,11 +441,23 @@ impl Printer<'_, '_, '_> {
         &mut self,
         style: &rsvelte_svelte_syntax::syntax_tree::Style,
     ) -> R<LayoutInstructionIdentifier> {
-        if let Some((n, _)) = style.attributes.iter().find(|(n, v)| {
-            matches!(n.text(self.source_text), "lang" | "type")
-                && v.is_some_and(|v| v.text(self.source_text) != "css")
-        }) {
-            return Err(Unsupported::at("a style language other than CSS", *n));
+        // The plugin's `getLangAttribute`: `lang`, else `type`, without a `text/` prefix.
+        let language = ["lang", "type"].iter().find_map(|&name| {
+            style
+                .attributes
+                .iter()
+                .find(|(n, _)| n.text(self.source_text) == name)
+                .and_then(|&(n, v)| Some((n, v?.text(self.source_text))))
+                .filter(|(_, value)| !value.is_empty())
+        });
+        // Prettier formats any other language, such as `postcss`, with its CSS parser.
+        if let Some((n, language)) = language
+            && matches!(
+                language.strip_prefix("text/").unwrap_or(language),
+                "less" | "scss" | "sass" | "styl" | "stylus"
+            )
+        {
+            return Err(Unsupported::at("a Less, Sass or Stylus style", n));
         }
         // The task formats only a component whose style sheet parsed.
         if style.sheet.is_err() {
