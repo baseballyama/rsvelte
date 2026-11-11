@@ -208,22 +208,21 @@ impl<'r, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'r, 'walk, COLLECT_
         }
         // A whole optional chain as the callee is upstream's `ChainExpression`.
         let chain = matches!(call.callee, Expression::ChainExpression(_));
-        if rune.is_none() {
-            if chain || !self.is_safe(&call.callee) {
-                self.needs_context = true;
-            }
-            if COLLECT_METADATA && (chain || !self.is_pure(&call.callee) || self.deps > 0) {
-                self.meta.has_call = true;
-                self.meta.has_state = true;
-            }
-        } else if rune == Some("$effect.pending") {
+        if rune.is_none() && (chain || !self.is_safe(&call.callee)) {
+            self.needs_context = true;
+        }
+        if matches!(rune, Some("$effect" | "$effect.pre" | "$bindable")) {
+            self.needs_context = true;
+        }
+        if rune == Some("$effect.pending") {
             self.meta.has_state = true;
-        } else if COLLECT_METADATA && rune == Some("$effect.tracking") {
-            // Upstream's `is_pure` calls it impure, so it is read inside an effect.
+        }
+        // Upstream asks this of every call, a rune's too: a rune's callee is pure, but for
+        // `$effect.tracking`, and state read around it still makes it a call.
+        let impure = chain || rune == Some("$effect.tracking") || !self.is_pure(&call.callee);
+        if COLLECT_METADATA && (impure || self.deps > 0) {
             self.meta.has_call = true;
             self.meta.has_state = true;
-        } else if matches!(rune, Some("$effect" | "$effect.pre" | "$bindable")) {
-            self.needs_context = true;
         }
     }
 }
