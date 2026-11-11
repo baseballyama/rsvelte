@@ -5,7 +5,7 @@ let {value=true}: typeof __rsvelte_public_props0= $props();
 const __rsvelte_public_props0 = __rsvelte_props({}, {
   value: true,
 }, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:options", {
       "customelement": "my-element",

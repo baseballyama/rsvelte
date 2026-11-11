@@ -16,7 +16,7 @@ const t = (p, v = p(), w = f(), z = (() => 2)()): ReturnType<import('svelte').Sn
 const __rsvelte_public_props0 = __rsvelte_props({
   f: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   __rsvelte_ensure_snippet(t(1));
 };
 const SnippetParameterDefaultProps__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();

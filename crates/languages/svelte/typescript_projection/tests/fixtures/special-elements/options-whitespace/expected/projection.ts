@@ -1,5 +1,5 @@
 ;
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:options", {
       "preservewhitespace": true,

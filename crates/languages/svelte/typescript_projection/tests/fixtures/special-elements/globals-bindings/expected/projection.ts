@@ -2,7 +2,7 @@
 let w = $state(0); let scroll = $state(0); let online = $state(true); let active = $state(null); let visibility = $state("visible"); let ratio = $state(1);
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:window", {
       "bind:innerWidth": w,

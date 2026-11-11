@@ -20,7 +20,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("h1", {});
   }

@@ -5,7 +5,7 @@
 
 ;
 
-() => {
+async () => {
   {
     const __rsvelte_action0 = __sveltets_2_ensureAction(lock(svelteHTML.mapElementTag("body"), (locked)));
     const __rsvelte_action1 = __sveltets_2_ensureAction(tip(svelteHTML.mapElementTag("body")));

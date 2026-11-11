@@ -2,7 +2,7 @@
 let show = $state(true);
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:head", {});
     if (show) {

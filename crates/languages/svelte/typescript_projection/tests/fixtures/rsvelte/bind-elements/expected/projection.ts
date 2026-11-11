@@ -21,7 +21,7 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
   open: __rsvelte_untyped_prop(),
   w: __rsvelte_untyped_prop(),
 }, false);
-() => {
+async () => {
   {
     const __rsvelte_element0 = svelteHTML.createElement("video", {
       "bind:currentTime": t,

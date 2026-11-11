@@ -7,7 +7,7 @@
 
 ;
 
-() => {
+async () => {
   {
     for (let [i, item] of __rsvelte_each(items)) {
       const key = item.id;

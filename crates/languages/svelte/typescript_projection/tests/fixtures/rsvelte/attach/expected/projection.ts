@@ -17,7 +17,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("div", {
       [Symbol("@attach")]: tooltip,

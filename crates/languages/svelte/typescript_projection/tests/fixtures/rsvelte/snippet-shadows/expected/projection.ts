@@ -11,7 +11,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
   item: __rsvelte_untyped_prop(),
   label: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   if (label) {
     {
       svelteHTML.createElement("div", {});
@@ -65,7 +65,9 @@ const __rsvelte_public_props0 = __rsvelte_props({
     const __rsvelte_component_0 = __rsvelte_component(List);
     __rsvelte_component_0(__rsvelte_internals(), {
       label: () => {
-        __rsvelte_ensure_snippet(label?.());
+        async () => {
+          __rsvelte_ensure_snippet(label?.());
+        };
         return __rsvelte_snippet_return;
       },
     });

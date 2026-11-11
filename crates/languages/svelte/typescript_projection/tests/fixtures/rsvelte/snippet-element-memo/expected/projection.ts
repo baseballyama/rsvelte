@@ -5,7 +5,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("span", {
       "class": `b ${o.t.toLowerCase()}`,

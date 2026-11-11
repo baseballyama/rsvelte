@@ -1,5 +1,5 @@
 ;
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:window", {
       "on:resize": undefined,

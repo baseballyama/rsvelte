@@ -2,7 +2,7 @@
 const f=(x=`a${1}`)=>x;
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": f(),

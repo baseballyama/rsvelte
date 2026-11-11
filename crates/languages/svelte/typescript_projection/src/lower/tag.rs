@@ -1,7 +1,8 @@
 //! svelte2tsx's `{#key}`, `{#snippet}`, `{@render}` and `{@debug}`.
 
 use oxc_span::GetSpan;
-use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
+use rsvelte_svelte_syntax::syntax_tree::{Range, TemplateNode};
+use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier};
 
 use super::{Builder, Node, Result, SourceExpression, source_expression};
 
@@ -61,7 +62,79 @@ impl Builder<'_> {
                     body,
                 }
             }
+            TemplateNode::Await {
+                expression,
+                value,
+                error,
+                pending,
+                then,
+                catch,
+                ..
+            } => self.await_block(expression, value, error, [pending, then, catch])?,
             _ => unreachable!("only tags reach here"),
+        })
+    }
+
+    /// svelte2tsx's `handleAwait`: the pending branch, then the awaited value in a `try` when
+    /// there is a `catch`.
+    fn await_block(
+        &mut self,
+        expression: ExpressionIdentifier,
+        value: Option<PatternIdentifier>,
+        error: Option<PatternIdentifier>,
+        [pending, then, catch]: [Range; 3],
+    ) -> Result<Node> {
+        let start = self.scratch.len();
+        if let Some(pending) = pending.present() {
+            self.append_children(pending)?;
+        }
+        let try_start = self.scratch.len();
+        let awaited = self.expression_source(expression, None);
+        let awaited = self.tree.push(Node::Await(awaited));
+        let then = then.present();
+        if let Some(value) = value {
+            let name = self.tree.push(Node::Identifier("__rsvelte_awaited"));
+            self.scratch.push(self.tree.push(Node::Const {
+                name,
+                value: awaited,
+            }));
+            let block = self.scratch.len();
+            let pattern = self.component.javascript.get_pattern(value).span;
+            let pattern = self.source(pattern, None);
+            self.scratch.push(self.tree.push(Node::Const {
+                name: pattern,
+                value: name,
+            }));
+            if let Some(then) = then {
+                self.append_children(then)?;
+            }
+            let body = self.finish_list(block);
+            self.scratch.push(self.tree.push(Node::Block { body }));
+        } else {
+            self.scratch.push(self.tree.push(Node::Statement(awaited)));
+            if let Some(then) = then {
+                self.append_children(then)?;
+            }
+        }
+        let catch = catch.present();
+        if error.is_some() || catch.is_some() {
+            let body = self.finish_list(try_start);
+            let handler = self.scratch.len();
+            if let Some(error) = error {
+                let pattern = self.component.javascript.get_pattern(error).span;
+                let name = self.source(pattern, None);
+                let value = self.tree.push(Node::Identifier("__rsvelte_untyped_prop()"));
+                self.scratch
+                    .push(self.tree.push(Node::Const { name, value }));
+            }
+            if let Some(catch) = catch {
+                self.append_children(catch)?;
+            }
+            let catch = self.finish_list(handler);
+            self.scratch.push(self.tree.push(Node::Try { body, catch }));
+        }
+        Ok(Node::Block {
+            body: self.finish_list(start),
         })
     }
 }

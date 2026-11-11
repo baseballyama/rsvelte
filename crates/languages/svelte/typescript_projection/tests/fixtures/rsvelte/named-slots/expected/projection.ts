@@ -5,12 +5,14 @@
 
 ;
 
-() => {
+async () => {
   {
     const __rsvelte_component_0 = __rsvelte_component(C);
     __rsvelte_component_0(__rsvelte_internals(), {
       children: __rsvelte_children,
       foo: () => {
+        async () => {
+        };
         return __rsvelte_snippet_return;
       },
     });

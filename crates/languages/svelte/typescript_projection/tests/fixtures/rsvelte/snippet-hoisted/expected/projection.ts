@@ -33,7 +33,7 @@ const calls_plain = (): ReturnType<import('svelte').Snippet> => {
 const __rsvelte_public_props0 = __rsvelte_props({
   name: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   __rsvelte_ensure_snippet(plain());
   {
     svelteHTML.createElement("p", {});

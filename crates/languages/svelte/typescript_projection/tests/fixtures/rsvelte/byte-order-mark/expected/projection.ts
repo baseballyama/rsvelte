@@ -2,7 +2,7 @@
 let x: number = "a";
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {});
     (x);

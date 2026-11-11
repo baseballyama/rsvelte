@@ -9,7 +9,7 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
   focus: false,
   a: true,
 }, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("input", {
       "autofocus": focus,

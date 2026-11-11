@@ -52,9 +52,9 @@ the same AST lowering. It parses each transform input once and emits UTF-8 span 
 The projection also handles JavaScript and scriptless components. Unsupported type semantics
 return their original source range.
 
-- Template checks cover the `if`, `each`, `key` and `snippet` blocks and the `@const`,
-  `@render`, `@html` and `@debug` tags. Snippets come first in their parent, and the root's
-  follow the instance script's imports, as svelte2tsx moves them.
+- Template checks cover every block and the `@const`, `@render`, `@html` and `@debug` tags.
+  Snippets come first in their parent, and the root's follow the instance script's imports, as
+  svelte2tsx moves them. The template is `async`, as svelte2tsx's render function is.
 - They cover custom elements and the `svelte:` elements that svelte2tsx writes as elements,
   such as `svelte:head` and `svelte:window`.
 - They also cover Svelte 5 component props without children, and `class:` and `bind:` on
@@ -74,7 +74,6 @@ Still unsupported:
 - Generic component contracts and untyped whole-object `$props()` bindings
 - Component children, `let:`, directives on components, and the check that a component's prop
   is bindable
-- Await blocks
 
 This is not a complete Svelte type projection.
 

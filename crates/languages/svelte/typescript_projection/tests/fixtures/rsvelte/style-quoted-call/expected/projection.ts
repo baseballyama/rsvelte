@@ -10,7 +10,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
   x: __rsvelte_untyped_prop(),
   items: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("div", {});
     __sveltets_2_ensureType(String, Number, `${f(x) + n}px`);

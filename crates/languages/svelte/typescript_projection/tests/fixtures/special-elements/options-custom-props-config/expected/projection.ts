@@ -7,7 +7,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
 }, {
   enabled: false,
 }, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:options", {
       "customelement": {tag:"my-element",props:{enabled:{reflect:true},count:{type:"Number",attribute:"data-count"}}},

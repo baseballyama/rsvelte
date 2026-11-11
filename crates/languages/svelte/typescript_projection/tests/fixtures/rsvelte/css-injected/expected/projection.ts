@@ -8,7 +8,7 @@
 const __rsvelte_public_props0 = __rsvelte_props({
   children: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:options", {
       "css": "injected",

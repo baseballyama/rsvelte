@@ -8,7 +8,7 @@ function change() { rest.other=1; rest.count++; let x; x=rest.other; return rest
 const __rsvelte_public_props0 = __rsvelte_props({
   value: __rsvelte_untyped_prop(),
 }, {}, true);
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:options", {
       "customelement": "my-element",

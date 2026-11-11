@@ -6,7 +6,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("div", {
       "class": { active, [tone]: level > 1 },

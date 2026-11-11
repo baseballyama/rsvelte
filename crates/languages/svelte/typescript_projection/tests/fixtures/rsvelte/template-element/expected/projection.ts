@@ -2,7 +2,7 @@
 let x = $state(1);
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("template", {
       "id": "t",

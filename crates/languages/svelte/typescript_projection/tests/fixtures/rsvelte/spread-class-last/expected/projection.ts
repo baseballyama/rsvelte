@@ -15,7 +15,7 @@
 const __rsvelte_public_props0 = __rsvelte_props({}, {
   own: 'a',
 }, true);
-() => {
+async () => {
   {
     svelteHTML.createElement("input", {
       "type": "text",

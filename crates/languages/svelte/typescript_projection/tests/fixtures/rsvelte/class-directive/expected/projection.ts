@@ -11,7 +11,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("div", {});
     (active);

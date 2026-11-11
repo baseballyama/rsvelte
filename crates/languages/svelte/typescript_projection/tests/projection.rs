@@ -181,7 +181,7 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
     assert_eq!(
         output.out,
         concat!(
-            ";\n() => {\n",
+            ";\nasync () => {\n",
             "  if (ready) {\n",
             "    {\n",
             "      svelteHTML.createElement(\"p\", {\n",
@@ -207,7 +207,7 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
 fn template_nodes(tree: &SyntaxTree) -> &[NodeIdentifier] {
     for &identifier in tree.children(tree.root()) {
         if let Node::Statement(value) = tree.node(identifier)
-            && let Node::Arrow { body } = tree.node(value)
+            && let Node::Template(body) = tree.node(value)
         {
             return tree.children(body);
         }

@@ -7,7 +7,7 @@
 
 ;
 
-() => {
+async () => {
   {
     for (let [, group] of __rsvelte_each(groups)) {
       {

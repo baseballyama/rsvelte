@@ -5,7 +5,7 @@ export const value="a";export function get(){return value;}
 const local=get();
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": local,

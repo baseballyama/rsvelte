@@ -8,7 +8,7 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
   value: __rsvelte_untyped_prop(),
   text: 'x',
 }, true);
-() => {
+async () => {
   {
     svelteHTML.createElement("button", {
       ...(properties),

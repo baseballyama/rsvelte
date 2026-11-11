@@ -2,7 +2,7 @@
 import "./custom-button.js";
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:options", {
       "customelement": "my-element",

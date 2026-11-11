@@ -32,7 +32,7 @@ const c = (): ReturnType<import('svelte').Snippet> => {
 
 ;
 
-() => {
+async () => {
   __rsvelte_ensure_snippet(a());
   __rsvelte_ensure_snippet(b());
   __rsvelte_ensure_snippet(c());

@@ -2,7 +2,7 @@
 let name="a";const obj={get name(){return name;},set name(value){name=value;}};
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": obj.name,

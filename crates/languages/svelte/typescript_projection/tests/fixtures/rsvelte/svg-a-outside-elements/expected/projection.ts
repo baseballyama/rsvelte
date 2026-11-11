@@ -4,7 +4,7 @@
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("svg", {});
     const link = (): ReturnType<import('svelte').Snippet> => {

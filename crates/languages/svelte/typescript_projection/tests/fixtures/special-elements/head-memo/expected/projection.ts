@@ -2,7 +2,7 @@
 let title = $state("A"); function value() { return title; }
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:head", {});
     {

@@ -9,7 +9,7 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
   items: __rsvelte_array_prop(),
   fill: 'red',
 }, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("g", {
       "class": "axis",

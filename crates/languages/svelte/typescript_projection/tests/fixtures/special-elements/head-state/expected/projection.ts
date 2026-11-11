@@ -2,7 +2,7 @@
 let title = $state("Hello");
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:head", {});
     {

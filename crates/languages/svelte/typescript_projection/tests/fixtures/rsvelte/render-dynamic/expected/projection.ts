@@ -7,7 +7,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
   footer: __rsvelte_untyped_prop(),
   items: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   __rsvelte_ensure_snippet(header());
   {
     svelteHTML.createElement("div", {});

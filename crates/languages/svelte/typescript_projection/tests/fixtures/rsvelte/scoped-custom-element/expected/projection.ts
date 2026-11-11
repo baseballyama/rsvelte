@@ -5,7 +5,7 @@ let c = $state('a'); let { p }: typeof __rsvelte_public_props0 = $props();
 const __rsvelte_public_props0 = __rsvelte_props({
   p: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("my-el", {});
   }

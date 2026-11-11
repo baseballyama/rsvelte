@@ -8,7 +8,7 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
   items: __rsvelte_array_prop(),
   config: __rsvelte_record_prop(),
 }, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("button", {
       "type": "button",

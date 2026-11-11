@@ -16,7 +16,7 @@ const s = (): ReturnType<import('svelte').Snippet> => {
 
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {});
   }

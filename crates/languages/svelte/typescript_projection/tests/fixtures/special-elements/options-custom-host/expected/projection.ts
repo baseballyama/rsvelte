@@ -3,7 +3,7 @@ let {}: typeof __rsvelte_public_props0=$props();let host=$host()
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({}, {}, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:options", {
       "customelement": "my-element",

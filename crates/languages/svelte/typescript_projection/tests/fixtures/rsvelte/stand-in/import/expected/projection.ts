@@ -7,7 +7,7 @@
 
 ;
 
-() => {
+async () => {
   {
     __rsvelte_component(Exports)(__rsvelte_internals(), {});
   }

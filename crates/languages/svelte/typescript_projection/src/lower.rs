@@ -67,7 +67,7 @@ pub fn lower<'a>(
     }
     let body = builder.finish_list(start);
     if !builder.tree.children(body).is_empty() {
-        let value = builder.tree.push(Node::Arrow { body });
+        let value = builder.tree.push(Node::Template(body));
         builder
             .scratch
             .push(builder.tree.push(Node::Statement(value)));
@@ -278,8 +278,8 @@ impl Builder<'_> {
             TemplateNode::Key { .. }
             | TemplateNode::Render { .. }
             | TemplateNode::Debug { .. }
-            | TemplateNode::Snippet { .. } => self.tag(identifier)?,
-            TemplateNode::Await { span, .. } => return Err(Unsupported::at("blocks", span)),
+            | TemplateNode::Snippet { .. }
+            | TemplateNode::Await { .. } => self.tag(identifier)?,
         };
         Ok(Some(self.tree.push(node)))
     }

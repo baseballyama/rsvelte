@@ -18,7 +18,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
   items: __rsvelte_untyped_prop(),
   header: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("div", {});
     __rsvelte_ensure_snippet(row(format(items), () => count++));

@@ -30,7 +30,7 @@ const typed = (item: Item): ReturnType<import('svelte').Snippet> => {
 
 ;
 
-() => {
+async () => {
   __rsvelte_ensure_snippet(reaches());
   __rsvelte_ensure_snippet(typed({ label: 'a' }));
 };

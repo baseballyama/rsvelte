@@ -6,7 +6,7 @@
 
 ;
 
-() => {
+async () => {
   const t = (p, v = p(), w = g(), z = g(1)): ReturnType<import('svelte').Snippet> => {
     async () => {
       (v);

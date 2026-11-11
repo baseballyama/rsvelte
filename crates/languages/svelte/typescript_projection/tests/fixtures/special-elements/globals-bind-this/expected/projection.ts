@@ -2,7 +2,7 @@
 let win = $state(); let doc = $state(); let body = $state();
 ;
 
-() => {
+async () => {
   {
     win = svelteHTML.createElement("svelte:window", {});
   }

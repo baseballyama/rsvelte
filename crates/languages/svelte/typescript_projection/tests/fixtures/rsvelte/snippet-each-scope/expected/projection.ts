@@ -4,7 +4,7 @@
 
 ;
 
-() => {
+async () => {
   {
     for (let [, x] of __rsvelte_each([1])) {
       const s = (): ReturnType<import('svelte').Snippet> => {

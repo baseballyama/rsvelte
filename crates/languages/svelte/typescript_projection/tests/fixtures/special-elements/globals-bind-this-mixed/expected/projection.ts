@@ -2,7 +2,7 @@
 let win = $state(); let n = $state(0);
 ;
 
-() => {
+async () => {
   {
     win = svelteHTML.createElement("svelte:window", {
       "onclick": () => n++,

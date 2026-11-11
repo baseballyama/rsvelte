@@ -6,7 +6,7 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
   width: __rsvelte_untyped_prop(),
   x: __rsvelte_untyped_prop(),
 }, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:window", {
       "bind:innerWidth": width,

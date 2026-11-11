@@ -11,7 +11,7 @@
 
 ;
 
-() => {
+async () => {
   {
     for (let [, cheese] of __rsvelte_each(cheese)) {
       {

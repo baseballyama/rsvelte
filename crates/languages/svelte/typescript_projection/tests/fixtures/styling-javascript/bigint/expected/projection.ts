@@ -2,7 +2,7 @@
 const value=123n;
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": value,

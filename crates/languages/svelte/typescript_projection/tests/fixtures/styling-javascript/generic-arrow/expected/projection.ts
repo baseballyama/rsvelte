@@ -2,7 +2,7 @@
 const identity=<T,>(value:T):T=>value;const value=identity("a");
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": value,

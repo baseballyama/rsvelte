@@ -2,7 +2,7 @@
 const value="a";export {value as name};export {other} from "./other.js";export * from "./x.js";
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": value,

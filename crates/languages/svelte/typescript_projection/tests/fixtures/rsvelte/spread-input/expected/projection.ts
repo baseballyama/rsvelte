@@ -7,7 +7,7 @@
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({}, {}, true);
-() => {
+async () => {
   {
     svelteHTML.createElement("input", {
       ...(attrs),

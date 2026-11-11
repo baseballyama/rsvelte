@@ -9,7 +9,7 @@
 
 ;
 
-() => {
+async () => {
   {
     const __rsvelte_action0 = __sveltets_2_ensureAction(first(svelteHTML.mapElementTag("input")));
     const __rsvelte_action1 = __sveltets_2_ensureAction(second(svelteHTML.mapElementTag("input"), (1)));

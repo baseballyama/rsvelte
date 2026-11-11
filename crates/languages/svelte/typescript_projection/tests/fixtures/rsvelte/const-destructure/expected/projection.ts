@@ -8,7 +8,7 @@
 const __rsvelte_public_props0 = __rsvelte_props({
   items: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   {
     for (let [, item] of __rsvelte_each(items)) {
       const { width, height } = item.size;

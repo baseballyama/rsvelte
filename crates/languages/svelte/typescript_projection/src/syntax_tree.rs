@@ -121,6 +121,15 @@ pub enum Node {
     /// A statement whose findings TypeScript drops, as svelte2tsx's ignore comments do.
     Ignored(NodeIdentifier),
     Parenthesized(NodeIdentifier),
+    /// `await (value)`.
+    Await(NodeIdentifier),
+    /// `try { body } catch { catch }`, as svelte2tsx writes an `{#await}` with a `catch`.
+    Try {
+        body: Range,
+        catch: Range,
+    },
+    /// The template's function, which is `async` as svelte2tsx's render function is.
+    Template(Range),
     /// Statements on lines of their own inside a script.
     Statements(Range),
     /// A `{#snippet}` outside a component's children, as svelte2tsx's `const` of an arrow.

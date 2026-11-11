@@ -17,7 +17,7 @@ const s = ({ p = q, q }, r = q, t): ReturnType<import('svelte').Snippet> => {
 const __rsvelte_public_props0 = __rsvelte_props({
   items: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   if (items) {
     const a = b;
     const f = () => b;

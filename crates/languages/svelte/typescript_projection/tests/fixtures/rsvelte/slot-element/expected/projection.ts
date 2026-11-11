@@ -9,7 +9,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
   items: __rsvelte_untyped_prop(),
   rest: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("ul", {});
     {

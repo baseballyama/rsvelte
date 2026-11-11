@@ -2,7 +2,7 @@
 let pattern=$state(/a/g);
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": pattern.test("a") ? "a" : "b",

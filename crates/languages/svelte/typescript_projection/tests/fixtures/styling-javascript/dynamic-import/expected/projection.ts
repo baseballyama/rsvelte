@@ -2,7 +2,7 @@
 const value="a";async function load(){return import("./x.js");}
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("p", {
       "class": value,

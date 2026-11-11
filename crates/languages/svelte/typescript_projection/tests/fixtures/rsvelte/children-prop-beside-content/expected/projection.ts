@@ -2,7 +2,7 @@
 import A from './A.svelte'; let x = $state(1);
 ;
 
-() => {
+async () => {
   {
     __rsvelte_component(A)(__rsvelte_internals(), {
       children: __rsvelte_children,

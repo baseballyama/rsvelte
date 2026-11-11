@@ -2,7 +2,7 @@
 function handler(event) { console.log(event.type); }
 ;
 
-() => {
+async () => {
   {
     svelteHTML.createElement("svelte:window", {
       "onclick": handler,

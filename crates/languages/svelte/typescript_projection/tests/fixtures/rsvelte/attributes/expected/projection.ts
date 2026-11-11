@@ -8,7 +8,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
   href: __rsvelte_untyped_prop(),
   label: __rsvelte_untyped_prop(),
 }, {}, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("a", {
       href,

@@ -10,7 +10,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
 }, {
   v: 1,
 }, false);
-() => {
+async () => {
   {
     svelteHTML.createElement("my-el", {
       "a": "1",
