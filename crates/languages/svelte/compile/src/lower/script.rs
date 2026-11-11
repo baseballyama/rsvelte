@@ -158,9 +158,9 @@ impl<'o> ScriptRewrite<'_, 'o> {
                 | BindingKind::Snippet
                 | BindingKind::Template,
             ) => {
-                let Some(read) = self.template.and_then(|m| m.get(&symbol)) else {
-                    unreachable!("a template name is read only inside its block")
-                };
+                // Upstream reads a name it has not given a transform yet, a later `{@const}`, as it
+                // is.
+                let read = self.template.and_then(|m| m.get(&symbol))?;
                 match read {
                     Read::Plain => None,
                     Read::Get => Some(b.runtime("get", [x()])),

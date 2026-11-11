@@ -66,9 +66,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             pattern => (None, pattern),
         };
         let keyed = each.keyed(javascript);
-        if let Some(pattern) = destructured {
-            self.check_destructured(pattern)?;
-        }
         let index = each
             .index
             .and_then(|i| javascript.get_pattern(i).pattern.get_binding_identifier());
