@@ -53,7 +53,8 @@ The projection also handles JavaScript and scriptless components. Unsupported ty
 return their original source range.
 
 - Template checks cover `if`, `each` and `@const`. They also cover Svelte 5 component props
-  without children, `class:` and DOM `bind:this`.
+  without children, `class:` and `bind:` on elements and components. A bound variable reads as
+  its declared type, as svelte2tsx widens it.
 - Public component contracts include annotated props and defaults inferred from object
   destructuring. They also include instance function and constant exports, and `$bindable()`
   keys.
@@ -63,7 +64,8 @@ return their original source range.
 Still unsupported:
 
 - Generic component contracts and untyped whole-object `$props()` bindings
-- Component children, other bindings and directives
+- Component children, directives other than `class:` and `bind:`, and the check that a
+  component's prop is bindable
 - Snippets and await blocks
 
 This is not a complete Svelte type projection.

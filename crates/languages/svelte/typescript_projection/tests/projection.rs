@@ -140,11 +140,11 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
 
 #[test]
 fn unsupported_semantics_are_reported_at_the_original_construct() {
-    let source = "<input bind:value={value}>";
+    let source = "<p>{@html value}</p>";
     let component = parse(source).expect("valid Svelte source");
     let error = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
-        .expect_err("bindings need their own type semantics");
-    assert_eq!(error.span().text(source), "bind:value={value}");
+        .expect_err("special tags need their own type semantics");
+    assert_eq!(error.span().text(source), "{@html value}");
 }
 
 #[test]

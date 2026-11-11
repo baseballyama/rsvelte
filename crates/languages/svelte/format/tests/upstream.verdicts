@@ -124,7 +124,7 @@ pass	printer/long-control-blocks-dont-break.html
 unmeasured	printer/markdown.md
 pass	printer/nbsp-preservation.html
 pass	printer/nested-destructuring.html
-refused	printer/no-tag-snippings.html	<script> or <style> inside an element
+refused	printer/no-tag-snippings.html	a script language other than JavaScript
 pass	printer/pre-element-inside-other-element.html
 pass	printer/pre-element-with-code-element.html
 pass	printer/pre-element.html
@@ -138,13 +138,13 @@ pass	printer/require-pragma-missing.html
 pass	printer/s-after-style-tag.html
 pass	printer/script-and-module.html
 pass	printer/script-and-style.html
-refused	printer/script-attributes-multiline.html	<script> or <style> inside an element
+pass	printer/script-attributes-multiline.html
 pass	printer/script-inside-comment.html
-refused	printer/script-inside-element.html	<script> or <style> inside an element
+pass	printer/script-inside-element.html
 fail	printer/script-lang-typescript.html
 pass	printer/script-only.html
-refused	printer/script-style-inside-element-comment.html	<script> or <style> inside an element
-refused	printer/script-style-script-snipping.html	<script> or <style> inside an element
+pass	printer/script-style-inside-element-comment.html
+pass	printer/script-style-script-snipping.html
 pass	printer/script-tag-generics.html
 fail	printer/script-type-typescript.html
 pass	printer/script-with-html-comment-and-style.html
@@ -182,7 +182,7 @@ pass	printer/sort-order-styles-scripts-options-markup.html
 pass	printer/spread.html
 pass	printer/style-directive.html
 pass	printer/style-inside-comment.html
-refused	printer/style-inside-element.html	<script> or <style> inside an element
+pass	printer/style-inside-element.html
 pass	printer/style-inside-script.html
 pass	printer/style-lang-less.html
 pass	printer/style-lang-scss.html
@@ -201,7 +201,7 @@ pass	printer/svelte-element-static-tag.html
 pass	printer/svelte-element.html
 pass	printer/svelte-fragment-element.html
 pass	printer/svelte-head-element.html
-refused	printer/svelte-head-script-content.html	<script> or <style> inside an element
+pass	printer/svelte-head-script-content.html
 pass	printer/svelte-options-element.html
 pass	printer/svelte-self-element.html
 pass	printer/svelte-window-element.html
@@ -241,7 +241,7 @@ pass	formatting/attributes-bracket-same-line
 pass	formatting/attributes-class
 pass	formatting/attributes-newline
 pass	formatting/attributes-no-newline
-refused	formatting/attributes-without-quotes	<script> or <style> inside an element
+pass	formatting/attributes-without-quotes
 pass	formatting/block-element-break-children
 pass	formatting/block-element-break-long
 pass	formatting/block-element-break-long-whitespace
@@ -287,7 +287,7 @@ pass	formatting/prettier-ignore-ranges-and-lines
 refused	formatting/region-markers	`<!-- #endregion -->` after <script> or <style>
 pass	formatting/require-pragma-present
 pass	formatting/script-only-extra-whitespace
-refused	formatting/script-style-tags-multiple-nested	<script> or <style> inside an element
+pass	formatting/script-style-tags-multiple-nested
 pass	formatting/scripts-styles-empty-handling
 pass	formatting/scripts-styles-text-handling
 pass	formatting/single-attribute-per-line

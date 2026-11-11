@@ -21,13 +21,6 @@ fn refusal_with<'s>(source_text: &'s str, options: &Options) -> (&'static str, O
 #[test]
 fn a_refusal_points_at_the_construct() {
     assert_eq!(
-        refusal("<p>a</p>\n<svelte:head><script>a</script></svelte:head>\n"),
-        (
-            "<script> or <style> inside an element",
-            Some("<script>a</script>")
-        )
-    );
-    assert_eq!(
         refusal("{#each xs as {a: b = 1}}{b}{/each}\n"),
         (
             "a renamed property with a default in a block's pattern",
@@ -189,10 +182,6 @@ fn a_doctype_and_empty_inline_elements_print_as_the_plugin_prints_them() {
 
 #[test]
 fn what_the_template_printer_cannot_place_yet_is_refused() {
-    assert_eq!(
-        refusal("<div><script>a</script></div>\n").0,
-        "<script> or <style> inside an element"
-    );
     assert_eq!(
         refusal("<p>{/* a */ x}</p>\n"),
         ("comments in the template's JavaScript", Some("/* a */"))
@@ -421,4 +410,41 @@ fn prettier_ignore_keeps_the_next_sibling_as_the_plugin_does() {
         formatted("<div><!-- prettier-ignore --></div>\n<p   class=\"a\"   >x</p>\n"),
         "<div><!-- prettier-ignore --></div>\n<p class=\"a\">x</p>\n"
     );
+}
+
+#[test]
+fn a_script_or_style_inside_an_element_is_embedded_as_the_plugin_embeds_it() {
+    for (input, expected) in [
+        (
+            "<p>a</p>\n<svelte:head><script>a</script></svelte:head>\n",
+            "<p>a</p>\n<svelte:head\n  ><script>\n    a;\n  </script></svelte:head\n>\n",
+        ),
+        (
+            "<div><style>p {\ncolor:red}</style></div>\n",
+            "<div>\n  <style>\n    p {\n      color: red;\n    }\n  </style>\n</div>\n",
+        ),
+        (
+            "<svelte:head><script src={url} defer></script></svelte:head>\n",
+            "<svelte:head><script src={url} defer></script></svelte:head>\n",
+        ),
+        // A `prettier-ignore` comment keeps the body, which the plugin prints on literal lines.
+        (
+            "<div>\n<!-- prettier-ignore -->\n<script>a  =  1</script>\n</div>\n",
+            "<div>\n  <!-- prettier-ignore -->\n  <script>\na  =  1\n  </script>\n</div>\n",
+        ),
+        (
+            "<div><style lang=\"stylus\">p\n  color red</style></div>\n",
+            "<div>\n  <style lang=\"stylus\">\np\n  color red\n  </style>\n</div>\n",
+        ),
+        (
+            "<div><script type=\"text/typescript\">let a:number=1</script></div>\n",
+            "<div>\n  <script type=\"text/typescript\">\n    let a: number = 1;\n  </script>\n</div>\n",
+        ),
+        (
+            "<div><style lang=\"scss\">p {\na {\ncolor:red}}</style></div>\n",
+            "<div>\n  <style lang=\"scss\">\n    p {\n      a {\n        color: red;\n      }\n    }\n  </style>\n</div>\n",
+        ),
+    ] {
+        assert_eq!(formatted(input), expected, "{input:?}");
+    }
 }

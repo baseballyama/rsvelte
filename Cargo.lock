@@ -1436,6 +1436,7 @@ dependencies = [
  "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
+ "rsvelte_stylesheet_syntax",
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",

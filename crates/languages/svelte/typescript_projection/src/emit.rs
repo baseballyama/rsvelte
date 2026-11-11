@@ -137,6 +137,18 @@ impl Printer<'_> {
                 self.node(value);
                 self.output.push(",\n");
             }
+            Node::UnmappedSource(span) => self.output.push(span.text(self.source)),
+            Node::Ignored(statement) => {
+                self.output.push("// @ts-ignore\n");
+                self.indentation();
+                self.node(statement);
+                self.output.push(";\n");
+            }
+            Node::Parenthesized(value) => {
+                self.output.push("(");
+                self.node(value);
+                self.output.push(")");
+            }
             Node::Boolean => self.output.push("true"),
             Node::String { parts, template } => self.string(parts, template),
             Node::Text(_) => unreachable!("text is printed only inside a string literal"),
