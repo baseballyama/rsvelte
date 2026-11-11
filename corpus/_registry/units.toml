@@ -200,6 +200,7 @@
 
 ["svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/Switch/+page.svelte".skip]
 "svelte.compile" = "upstream bug: a `svelte-ignore` comment with a legacy name among a component's children warns `legacy_code` twice when more than one node follows it"
+"svelte.compile.warnings" = "upstream bug: a `svelte-ignore` comment with a legacy name among a component's children warns `legacy_code` twice when more than one node follows it"
 
 ["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte".skip]
 "svelte.compile" = "upstream bug: an `<svg>` beside a component makes the component's children svg, which drops the HTML whitespace between their components"
