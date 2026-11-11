@@ -8,7 +8,6 @@ mod props;
 mod stores;
 mod writes;
 
-use crate::lower::builder::Runtime;
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::ast::{
     Argument, BindingIdentifier, Declaration, Expression, IdentifierReference, ImportDeclaration,
@@ -26,6 +25,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use super::javascript::member_root;
 use super::names::Names;
 use super::{Builder, Target, span_of, unsupported};
+use crate::lower::builder::Runtime;
 
 pub(super) struct ScriptRewrite<'r, 'o> {
     pub b: &'r Builder<'o>,
@@ -45,6 +45,8 @@ pub(super) struct ScriptRewrite<'r, 'o> {
     /// The `{#each}` items of a store's collection, with the subscription a mutation of each
     /// invalidates.
     pub invalidates: Option<&'r FxHashMap<SymbolId, &'r str>>,
+    /// The value written is an element's, which upstream never proxies.
+    pub primitive: bool,
 }
 
 /// How a name the template declares is read on the client.
@@ -105,7 +107,12 @@ impl<'o> ScriptRewrite<'_, 'o> {
         self.read_symbol(symbol, &identifier.name, identifier.span)
     }
 
-    fn read_symbol(&self, symbol: SymbolId, name: &str, span: Span) -> Option<Expression<'o>> {
+    pub(in crate::lower) fn read_symbol(
+        &self,
+        symbol: SymbolId,
+        name: &str,
+        span: Span,
+    ) -> Option<Expression<'o>> {
         let b = self.b;
         let info = self.res.binding(symbol);
         let x = || b.id_at(name, span);

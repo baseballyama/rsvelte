@@ -1,7 +1,6 @@
 //! What a component call passes, in upstream `build_component`'s order. The targets differ only
 //! in how they spell each prop, the children callback and the call.
 
-use crate::lower::builder::Runtime;
 use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, ElementKind, Snippet};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
@@ -12,6 +11,7 @@ use super::{
     Attribute, AttributeValue, BindingKind, Builder, CompilerNodeIdentifier, CompilerSyntaxTree,
     Diagnostic, Item, NodeKind, Resolution, Target,
 };
+use crate::lower::builder::Runtime;
 
 #[derive(Clone, Copy)]
 pub(super) enum Prop<'t> {
@@ -23,17 +23,32 @@ pub(super) enum Prop<'t> {
 }
 
 /// Values and spreads as written, then bindings, so that a spread cannot overwrite a binding.
-pub(super) fn props(attributes: &[Attribute]) -> impl Iterator<Item = Prop<'_>> {
+/// `bind:this` is no prop; see [`bind_this`].
+pub(super) fn props<'t>(
+    attributes: &'t [Attribute],
+    source_text: &'t str,
+) -> impl Iterator<Item = Prop<'t>> {
     let values = attributes.iter().filter_map(|a| match a.value {
         AttributeValue::Bind(_) => None,
         AttributeValue::Spread(e) => Some(Prop::Spread(e)),
         _ => Some(Prop::Value(a)),
     });
     let bindings = attributes.iter().filter_map(|a| match a.value {
-        AttributeValue::Bind(e) => Some(Prop::Bind(a, e)),
+        AttributeValue::Bind(e) if a.name.text(source_text) != "this" => Some(Prop::Bind(a, e)),
         _ => None,
     });
     values.chain(bindings)
+}
+
+/// The target of a component's `bind:this`, which the client binds to the instance.
+pub(super) fn bind_this(
+    attributes: &[Attribute],
+    source_text: &str,
+) -> Option<ExpressionIdentifier> {
+    attributes.iter().find_map(|a| match a.value {
+        AttributeValue::Bind(e) if a.name.text(source_text) == "this" => Some(e),
+        _ => None,
+    })
 }
 
 /// Upstream `metadata.dynamic`: the component may change, so it is read through `$.component` on

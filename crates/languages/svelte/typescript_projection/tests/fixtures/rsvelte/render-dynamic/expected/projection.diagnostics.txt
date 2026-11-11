@@ -1,0 +1,1 @@
+error check_unsupported 2:1-2:19 not supported by the type-check projection yet: special tags

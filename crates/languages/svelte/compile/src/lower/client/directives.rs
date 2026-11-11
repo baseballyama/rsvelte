@@ -1,10 +1,9 @@
-use crate::lower::builder::Runtime;
 use oxc_ast::ast::Expression;
+use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
-
 use super::{Attribute, AttributeValue, ClientCompilationContext, Lists};
+use crate::lower::builder::Runtime;
 
 const TRANSITION_IN: u32 = 1;
 const TRANSITION_OUT: u32 = 1 << 1;
@@ -37,11 +36,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                         directives.after.push(b.stmt(call));
                     }
                 }
-                AttributeValue::Bind(expression)
-                    if tag == "svelte:element" && a.name.text(self.source_text) == "this" =>
-                {
-                    let (get, set) = self.bind_this_accessors(expression);
-                    let call = b.runtime("bind_this", [b.id(node), set, get]);
+                AttributeValue::Bind(expression) if a.name.text(self.source_text) == "this" => {
+                    let call = self.bind_this(expression, b.id(node), tag != "svelte:element");
                     directives.initializer.push(b.stmt(call));
                 }
                 AttributeValue::Bind(_) => {

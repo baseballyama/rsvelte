@@ -68,6 +68,7 @@ fn hash(value: &Value) -> u64 {
         }
         Value::BigInt(value) => value.hash(&mut hasher),
         Value::Boolean(value) => value.hash(&mut hasher),
+        Value::RegExp { literal, .. } => (literal.start, literal.end).hash(&mut hasher),
         Value::Null
         | Value::Undefined
         | Value::AnyString

@@ -22,6 +22,13 @@ impl Evaluator<'_> {
             }
             Expression::BooleanLiteral(b) => add(values, Value::Boolean(b.value)),
             Expression::NullLiteral(_) => add(values, Value::Null),
+            Expression::RegExpLiteral(r) => add(
+                values,
+                Value::RegExp {
+                    literal: r.span,
+                    text: format!("/{}/{}", r.regex.pattern.text, r.regex.flags).into(),
+                },
+            ),
             Expression::Identifier(identifier) => self.identifier(identifier, values),
             Expression::BinaryExpression(b) => {
                 self.binary_expression(b.operator, &b.left, &b.right, values);

@@ -21,6 +21,7 @@ mod special;
 mod stores;
 mod template;
 
+pub(crate) use builder::Builder;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{BindingIdentifier, Program, Statement};
 use oxc_ast_visit::VisitMut;
@@ -41,7 +42,6 @@ pub use crate::input::{CompileInput, Target};
 pub(crate) use crate::markup::escape_markup;
 use crate::render_plan::RenderPlan;
 pub use crate::render_plan::{Cleaned, Item, Parent, clean_nodes};
-pub(crate) use builder::Builder;
 
 /// # Errors
 /// Returns the first diagnostic from validation or target lowering.

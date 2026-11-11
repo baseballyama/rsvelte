@@ -2,10 +2,9 @@ use oxc_ast::ast::Statement;
 use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, Snippet};
 
-use crate::lower::{span_of, unsupported};
-
 use super::super::snippets::{Place, place, render_arguments, render_call, snippet_name};
 use super::{CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind, Piece, R, ServerCompilationContext};
+use crate::lower::{span_of, unsupported};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `SnippetBlock`: a top-level snippet that reads only module-level names is

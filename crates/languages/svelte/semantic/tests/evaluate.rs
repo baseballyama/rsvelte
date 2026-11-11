@@ -156,3 +156,38 @@ fn types_around_a_binding_and_its_initial_fold_away() {
         evaluate("let count = $state(1)!; let double = $derived(count! * 2)!; double! as number;");
     assert_eq!(folded.value, Value::Number(2.0));
 }
+
+#[test]
+fn a_regular_expression_is_one_known_object_per_literal() {
+    let string = |s: &str| Value::String(s.into());
+    // From the official compiler's server output.
+    for (source, expected) in [
+        ("const re = /a[/]b/ig; String(re);", string("/a[/]b/gi")),
+        ("const re = /a[/]b/ig; re + 1;", string("/a[/]b/gi1")),
+        (
+            "const re = /a[/]b/ig; re == '/a[/]b/gi';",
+            Value::Boolean(true),
+        ),
+        ("const re = /a[/]b/ig; re === re;", Value::Boolean(true)),
+        (
+            "const re = /x/; const other = /x/; re === other;",
+            Value::Boolean(false),
+        ),
+        (
+            "const re = /x/; const other = /x/; re == other;",
+            Value::Boolean(false),
+        ),
+        ("const re = /x/; typeof re;", string("object")),
+        ("const re = /x/; !re;", Value::Boolean(false)),
+        ("const re = /x/; re < 'b';", Value::Boolean(true)),
+    ] {
+        assert_eq!(evaluate(source).value, expected, "{source}");
+    }
+    assert!(evaluate("/x/;").is_known);
+    assert_eq!(
+        evaluate("const re = /x/; -re;")
+            .value
+            .to_javascript_string(),
+        "NaN"
+    );
+}

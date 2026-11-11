@@ -5,7 +5,7 @@ use rsvelte_kernel::computation::task::TaskOutput;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_check::{TypeScriptDocument, TypeScriptView};
 use rsvelte_typescript_semantic::Resolved;
-use rsvelte_typescript_syntax::Parsed;
+use rsvelte_typescript_tree::Parsed;
 
 fn registry() -> Registry {
     let mut registry = Registry::new();
@@ -13,6 +13,7 @@ fn registry() -> Registry {
     rsvelte_typescript_format::register(&mut registry);
     rsvelte_typescript_lint::register(&mut registry);
     rsvelte_typescript_check::register(&mut registry);
+    rsvelte_typescript_semantic::register(&mut registry);
     registry
 }
 
@@ -56,7 +57,7 @@ fn javascript_and_typescript_extensions_select_shared_tasks() {
     ] {
         let document = registry.document(path, "").expect("valid text");
         assert_eq!(
-            rsvelte_typescript_syntax::matches(&document),
+            rsvelte_typescript_tree::matches(&document),
             selected,
             "{path}"
         );
@@ -89,12 +90,13 @@ fn compilation_erases_types_and_keeps_runtime_statements() {
         concat!(
             "import type { Props } from './props';\n",
             "interface Result { value: string }\n",
-            "export const value: string = 'hello';"
+            // Quoted as the printer quotes, so only the types differ.
+            "export const value: string = \"hello\";"
         ),
         "ts.compile/default",
     );
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert_eq!(output.files[0].text, "export const value = 'hello';\n");
+    assert_eq!(output.files[0].text, "export const value = \"hello\";\n");
 }
 
 #[test]
@@ -229,9 +231,9 @@ fn type_check_view_keeps_all_source_and_maps_utf8_offsets() {
 }
 
 #[test]
-fn type_check_view_does_not_depend_on_the_subset_parser() {
+fn type_check_view_does_not_depend_on_the_parser() {
     let registry = registry();
-    let source = "declare function open(): Disposable;\nusing resource = open();";
+    let source = "export const value: number = ;\n";
     let document = registry.document("input.ts", source).expect("valid text");
     let context = DocumentContext::new(&document, registry.artifacts());
     let view = context
@@ -245,7 +247,7 @@ fn type_check_view_does_not_depend_on_the_subset_parser() {
     assert_eq!(projection.out, source);
     assert!(
         context.get::<Parsed>().is_err(),
-        "positive control: this syntax exceeds the parser subset"
+        "positive control: the parser rejects this source"
     );
 }
 

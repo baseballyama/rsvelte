@@ -3,7 +3,6 @@ mod style;
 mod with_spread;
 mod without_spread;
 
-use crate::lower::builder::Runtime;
 use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
@@ -11,6 +10,7 @@ use super::{
     Attribute, AttributeValue, Part, ServerCompilationContext, decode_attribute, escape_markup,
     known_string, needs_clsx,
 };
+use crate::lower::builder::Runtime;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_attribute_value` (server), with text as written: an element's caller
