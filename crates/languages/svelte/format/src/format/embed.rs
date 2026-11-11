@@ -305,6 +305,7 @@ impl Printer<'_, '_, '_> {
 
     /// `preformattedBody`: the text without its first and last line break, on a literal line.
     fn preformatted(&mut self, content: Span) -> LayoutInstructionIdentifier {
+        self.embedder.kept.push(content);
         let text = content.text(self.source_text);
         if text.is_empty() {
             return self.d().nil();
