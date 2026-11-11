@@ -34,7 +34,8 @@ mod updates;
 use exports::unused_exports;
 use found::Found;
 pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
-use runes::{custom_element, dollar_names, rune_placement, runes};
+pub use runes::dollar_name_errors;
+use runes::{custom_element, rune_placement, runes};
 use selectors::unused_selectors;
 use template::Template;
 
@@ -301,7 +302,13 @@ pub fn warnings(
     };
     deprecated_tag(component, source, &mut out.errors);
     let runes = runes(component, resolution, source, &out.awaits, options.runes);
-    dollar_names(component, resolution, source, runes, &mut out.errors);
+    out.errors.extend(dollar_name_errors(
+        &component.javascript,
+        component.instance.as_ref().map(|s| s.program),
+        component.module.as_ref().map(|s| s.program),
+        resolution,
+        runes,
+    ));
     if runes {
         rune_placement(component, resolution, &mut out.errors);
     }
