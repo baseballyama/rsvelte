@@ -7,15 +7,15 @@ use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_kernel::source::tokens::TokenKind;
-use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
+use rsvelte_kernel::source::tokens::{TokenKind, Tokens};
+use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode, TokenType};
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier, Tree,
 };
 
 use super::found::{Found, Stage};
 use super::fuzzymatch::fuzzymatch;
-use super::{CompileWarnings, Section, span as document_span, warning};
+use super::{CompileWarnings, Scripts, Section, span as document_span, warning};
 use crate::compiler_syntax_tree::CompilerSyntaxTree;
 use crate::resolve::{Roots, TemplateName, TemplateScope};
 
@@ -156,14 +156,9 @@ pub(super) fn regions(
             });
         }
     }
-    script_regions(
-        component,
-        compiler_syntax_tree,
-        source,
-        runes,
-        found,
-        &mut out,
-    );
+    let scripts = Scripts::of(component);
+    let template = Some((compiler_syntax_tree, &component.tokens));
+    script_regions(&scripts, template, source, runes, found, &mut out);
     fragment_regions(component, source, runes, component.root, found, &mut out);
     for node in &component.nodes {
         for range in child_ranges(node) {
@@ -263,22 +258,33 @@ fn fragment_regions(
     }
 }
 
+/// The nodes a `svelte-ignore` covers in a module file.
+pub(super) fn module_regions(
+    scripts: &Scripts<'_>,
+    source: &str,
+    found: &mut Found,
+) -> Vec<Region> {
+    let mut out = Vec::new();
+    script_regions(scripts, None, source, true, found, &mut out);
+    out
+}
+
 /// The JavaScript comments as `acorn`'s `add_comments` attaches them: a leading comment to the
 /// first node after it, unless it trails the node before it on the same line or ends a body.
+/// `template` is a component's template and its tokens.
 fn script_regions(
-    component: &Component,
-    compiler_syntax_tree: &CompilerSyntaxTree,
+    scripts: &Scripts<'_>,
+    template: Option<(&CompilerSyntaxTree, &Tokens<TokenType>)>,
     source: &str,
     runes: bool,
     found: &mut Found,
     out: &mut Vec<Region>,
 ) {
-    let javascript = &component.javascript;
+    let javascript = scripts.javascript;
     // The programs keep their own comments; the tree keeps the template's.
-    let programs = [component.module.as_ref(), component.instance.as_ref()]
-        .into_iter()
-        .flatten()
-        .flat_map(|script| javascript.get_program(script.program).comments.iter());
+    let programs = scripts
+        .sections()
+        .flat_map(|(_, script)| javascript.get_program(script.program).comments.iter());
     let mut ignores: Vec<Span> = javascript
         .comments()
         .iter()
@@ -291,7 +297,7 @@ fn script_regions(
     }
     ignores.sort_unstable_by_key(|c| c.start_offset);
     let mut attach = Attach {
-        component,
+        tokens: template.map(|(_, tokens)| tokens),
         tree: javascript,
         source,
         runes,
@@ -302,19 +308,16 @@ fn script_regions(
         section: Section::Module,
         entered: Vec::new(),
     };
-    let roots = [
-        (Section::Module, component.module.as_ref()),
-        (Section::Instance, component.instance.as_ref()),
-    ];
-    for (section, script) in roots {
-        let Some(script) = script else { continue };
+    for (section, script) in scripts.sections() {
         attach.section = section;
         attach.skip_before(script.content.start_offset);
         attach.visit_program(javascript.get_program(script.program));
         attach.skip_before(script.content.end_offset);
     }
-    attach.section = Section::Template;
-    crate::resolve::walk(compiler_syntax_tree, compiler_syntax_tree.root, &mut attach);
+    if let Some((compiler_syntax_tree, _)) = template {
+        attach.section = Section::Template;
+        crate::resolve::walk(compiler_syntax_tree, compiler_syntax_tree.root, &mut attach);
+    }
 }
 
 /// A comment's text without its delimiters.
@@ -334,7 +337,8 @@ struct Entered {
 }
 
 struct Attach<'a, 'f> {
-    component: &'a Component,
+    /// The template's tokens, which only a template root asks for.
+    tokens: Option<&'a Tokens<TokenType>>,
     tree: &'a Tree,
     source: &'a str,
     runes: bool,
@@ -363,8 +367,8 @@ impl Attach<'_, '_> {
         let span = document_span(at);
         while let Some(&comment) = self.comments.get(self.next) {
             let between = self
-                .component
                 .tokens
+                .expect("a template root has the template's tokens")
                 .from_offset(comment.end_offset)
                 .iter()
                 .take_while(|t| t.span.start_offset < span.start_offset);
