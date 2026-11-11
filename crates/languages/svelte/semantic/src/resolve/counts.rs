@@ -1,9 +1,10 @@
-use oxc_ast::ast::{Expression, Program, SimpleAssignmentTarget};
+use oxc_ast::ast::{Expression, ModuleExportName, Program, SimpleAssignmentTarget, Statement};
 use oxc_ast_visit::{Visit, walk};
-use oxc_semantic::{ReferenceFlags, Scoping};
+use oxc_semantic::{ReferenceFlags, Scoping, SymbolId};
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier, Tree,
 };
+use rustc_hash::FxHashMap;
 
 use super::walk::{Recorded, Roots, TemplateName, TemplateScope};
 use crate::typescript::without_typescript;
@@ -15,6 +16,38 @@ pub struct Counts {
     pub reads: Vec<u32>,
     pub writes: Vec<u32>,
     pub mutations: Vec<u32>,
+    /// Each binding the instance's `export { … }` names, with where its first specifier starts.
+    pub exported: FxHashMap<SymbolId, u32>,
+}
+
+impl Counts {
+    /// Upstream `binding.reassigned` once runes-mode analysis is done: written, or exported by
+    /// the instance's `export { … }`. Legacy components compile with the official compiler.
+    #[must_use]
+    pub fn reassigned(&self, symbol: SymbolId) -> bool {
+        self.writes[symbol.index()] > 0 || self.exported.contains_key(&symbol)
+    }
+}
+
+/// Upstream's `ExportSpecifier` visitor marks the instance's exported bindings reassigned.
+fn exported(scoping: &Scoping, instance: Option<&Program<'_>>) -> FxHashMap<SymbolId, u32> {
+    let mut out = FxHashMap::default();
+    for statement in instance.into_iter().flat_map(|program| &program.body) {
+        let Statement::ExportNamedDeclaration(export) = statement else {
+            continue;
+        };
+        for specifier in &export.specifiers {
+            if let ModuleExportName::IdentifierReference(local) = &specifier.local
+                && let Some(symbol) = local
+                    .reference_id
+                    .get()
+                    .and_then(|reference| scoping.get_reference(reference).symbol_id())
+            {
+                out.entry(symbol).or_insert(specifier.span.start);
+            }
+        }
+    }
+    out
 }
 
 /// Marks what `bind:` assigns as written, which the builder saw as a read only.
@@ -56,6 +89,7 @@ pub(super) fn count(
     tree: &Tree,
     scoping: &Scoping,
     programs: &[&Program<'_>],
+    instance: Option<&Program<'_>>,
     template: &Recorded,
 ) -> Counts {
     let symbols = scoping.symbols_len();
@@ -63,6 +97,7 @@ pub(super) fn count(
         reads: vec![0; symbols],
         writes: vec![0; symbols],
         mutations: vec![0; symbols],
+        exported: exported(scoping, instance),
     };
     for symbol in scoping.symbol_ids() {
         for reference in scoping.get_resolved_references(symbol) {

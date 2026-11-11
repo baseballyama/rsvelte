@@ -157,7 +157,7 @@
 	</ul>
 </div>
 
-<LexerHistory code={data.code} />
+<LexerHistory />
 
 <div class="prose-learn">
 	<ul>

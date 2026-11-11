@@ -1,23 +1,8 @@
-<script lang="ts">
-	import Code from '#lib/components/Code.svelte';
-	import type { ComponentProps } from 'svelte';
-
-	type Excerpt = ComponentProps<typeof Code>['item'];
-
-	let { code }: { code: Record<'parserClose' | 'punct' | 'punctTest' | 'recorded', Excerpt> } =
-		$props();
-</script>
-
-<Code item={code.punct} />
-
 <div class="prose-learn">
 	<p>
-		テストは古い演算子の表を正解として残します。演算子に使う文字でできた 4
-		バイトまでのすべての文字列で、分岐の答えが表と一致するかを確かめます。
+		JavaScript と TypeScript の構文解析を oxc に任せたとき、この字句解析器は消しました。
 	</p>
 </div>
-
-<Code item={code.punctTest} />
 
 <div class="prose-learn">
 	<ul>
@@ -53,14 +38,11 @@
 			<strong>構文解析のリストを一本のスタックに</strong>（コミット
 			<code>d5060ddc01</code>、割り当て −8.1%）。
 			以前は、文や引数などのリストごとに配列を作り、構文木にコピーしていました。そのため 1
-			ラウンドで 23.5 万回の割り当てがありました。今は <code>SyntaxTree</code>
-			が持つ一本のスタックに積みます。リストは入れ子になるので、最後に開いたリストが常に一番上にあります。閉じるときは、スタックの上から要素を作って取り除きます。成功した構文解析がすべてのリストを閉じたかは、debug
-			ビルドで確かめます。
+			ラウンドで 23.5 万回の割り当てがありました。この変更で、要素を構文木の一本のスタックへ積むようにしました。リストは入れ子になるので、最後に開いたリストが常に一番上にあります。閉じるときは、そのリストの要素をスタックの上から取り出し、構文木に移しました。この構文解析器も、oxc
+			へ移したときに消しました。
 		</li>
 	</ul>
 </div>
-
-<Code item={code.parserClose} />
 
 <div class="prose-learn">
 	<ul>
@@ -74,9 +56,7 @@
 			−19%）。
 			以前は、テンプレートの式ごとにトークンとコメントをベクタに集めて渡していました。どちらも
 			JavaScript のパーサが記録したものです。この量は 1 ラウンドで 36 メガバイト、全確保バイトの 5
-			分の 1 でした。今は両方をイテレータで位置の順に合流させながら渡します。
+			分の 1 でした。この変更で、両方をイテレータで位置の順に合流させながら渡すようにしました。
 		</li>
 	</ul>
 </div>
-
-<Code item={code.recorded} />

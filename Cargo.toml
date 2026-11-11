@@ -22,7 +22,6 @@ rsvelte_kernel = { path = "crates/language_independent/kernel" }
 rsvelte_corpus = { path = "crates/language_independent/corpus" }
 rsvelte_test_harness = { path = "crates/language_independent/test_harness" }
 rsvelte_document_printer = { path = "crates/language_independent/document_printer" }
-rsvelte_typescript_syntax = { path = "crates/languages/typescript/syntax" }
 rsvelte_typescript_tree = { path = "crates/languages/typescript/tree" }
 rsvelte_typescript_semantic = { path = "crates/languages/typescript/semantic" }
 rsvelte_stylesheet_syntax = { path = "crates/languages/css/syntax" }

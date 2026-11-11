@@ -110,7 +110,7 @@
 		と <code>ScopeIdentifier</code>
 		は型付きの番号になりました。ルートのスコープの親も、番兵（「値なし」を表す特別な値）の
 		<code>u32::MAX</code>
-		から <code>None</code> に変わりました。
+		から <code>None</code> に変わりました。このスコープ解析は、後で oxc の解析に置き換えて消しました。
 	</p>
 	<p>
 		例外は、ノードごとの束縛の表です。今も生の <code>u32</code> に番兵 <code>u32::MAX</code>

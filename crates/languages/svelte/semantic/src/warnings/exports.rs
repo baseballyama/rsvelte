@@ -10,31 +10,6 @@ use super::found::{Found, Stage};
 use super::{span, warning};
 use crate::resolve::Resolution;
 
-/// In runes mode, each binding the instance's `export { … }` names, with where the specifier
-/// starts: upstream's `ExportSpecifier` visitor marks it reassigned from there on.
-pub(super) fn exported_by_specifier(
-    component: &Component,
-    resolution: &Resolution,
-) -> FxHashMap<SymbolId, u32> {
-    let mut out = FxHashMap::default();
-    let Some(instance) = &component.instance else {
-        return out;
-    };
-    for statement in &component.javascript.get_program(instance.program).body {
-        let Statement::ExportNamedDeclaration(export) = statement else {
-            continue;
-        };
-        for specifier in &export.specifiers {
-            if let ModuleExportName::IdentifierReference(local) = &specifier.local
-                && let Some(symbol) = resolution.symbol(local)
-            {
-                out.entry(symbol).or_insert(specifier.span.start);
-            }
-        }
-    }
-    out
-}
-
 /// `export_let_unused`: in legacy mode, an `export let` nothing reads or writes.
 pub(super) fn unused_exports(
     component: &Component,

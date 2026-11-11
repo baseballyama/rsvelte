@@ -23,7 +23,7 @@ pub(super) fn classify<'a>(
         .map(|symbol| BindingInformation {
             kind: BindingKind::Normal,
             // Upstream `Binding.is_function`: never updated, and initialised with a function.
-            is_function: counts.writes[symbol.index()] == 0
+            is_function: !counts.reassigned(symbol)
                 && counts.mutations[symbol.index()] == 0
                 && (scoping.symbol_flags(symbol).contains(SymbolFlags::Function)
                     || initializer(semantic, symbol).is_some_and(|i| {

@@ -16,12 +16,12 @@ describe('pool model', () => {
 	it('takes the most recently given buffer, whatever its size', () => {
 		const steps = simulate([10, 1000], true);
 		const firstTakeOfDoc1 = steps.find((s) => s.doc === 1 && s.event.kind === 'take')!;
-		// The last give of document 0 was the parsed tree (the smallest), so it comes back first.
+		// Document 0's small buffer comes back although document 1 needs far more.
 		expect(firstTakeOfDoc1.event.kind === 'take' && firstTakeOfDoc1.event.got).toBe(16);
 	});
 
 	it('frees a buffer that would take the pool past its budget, as MAXIMUM_BYTES does', () => {
-		const steps = simulate([100, 100], true, 200);
+		const steps = simulate([100, 100], true, 100);
 		const gives = steps
 			.filter((s) => s.event.kind === 'give')
 			.map((s) => s.event.kind === 'give' && s.event.why);

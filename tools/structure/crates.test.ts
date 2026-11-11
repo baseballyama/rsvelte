@@ -109,7 +109,6 @@ test('every workspace crate has a role from its path', () => {
 		'rsvelte_markup_syntax',
 		'rsvelte_stylesheet_syntax',
 		'rsvelte_svelte_syntax',
-		'rsvelte_typescript_syntax',
 		'rsvelte_typescript_tree',
 		'rsvelte_vue_syntax',
 	]);
@@ -227,7 +226,7 @@ test('support, plugin and host boundaries reject injected dependencies', () => {
 		['rsvelte_svelte_compile', 'rsvelte_example_plugin'],
 		['rsvelte_example_plugin', 'rsvelte_command_line'],
 		['rsvelte_plugin_interface', 'rsvelte_configuration_loading'],
-		['rsvelte_typescript_content_mapper', 'rsvelte_typescript_syntax'],
+		['rsvelte_typescript_content_mapper', 'rsvelte_typescript_tree'],
 		['rsvelte_svelte_lint', 'rsvelte_command_line'],
 		['rsvelte_vue_compile_svelte', 'rsvelte_kernel_browser'],
 		['rsvelte_command_line', 'rsvelte_kernel_browser'],

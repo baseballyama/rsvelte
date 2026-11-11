@@ -1429,18 +1429,9 @@ dependencies = [
  "oxc_semantic",
  "oxc_span",
  "rsvelte_kernel",
- "rsvelte_typescript_syntax",
  "rsvelte_typescript_tree",
  "rustc-hash",
  "self_cell",
-]
-
-[[package]]
-name = "rsvelte_typescript_syntax"
-version = "0.0.0"
-dependencies = [
- "rsvelte_kernel",
- "rustc-hash",
 ]
 
 [[package]]

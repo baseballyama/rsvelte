@@ -24,8 +24,8 @@
 <div class="prose-learn">
 	<H2 id="idea" />
 	<p>
-		<code>rsvelte_typescript_syntax</code> の構文木 <code>SyntaxTree</code>
-		は、ノードの種類、フラグ、データ、位置などを列ごとのベクタに持ちます。文書を一つパースすると、各ベクタはノードの数まで伸び、伸びるたびに確保し直します。文書が終わると木は捨てられ、次の文書でまた
+		Svelte のテンプレートの構文木 <code>Component</code>
+		は、ノード、子の並び、属性などを列ごとのベクタに持ちます。文書を一つパースすると、各ベクタはノードの数まで伸び、伸びるたびに確保し直します。文書が終わると木は捨てられ、次の文書でまた
 		0 から伸ばします。
 	</p>
 	<p>
@@ -83,7 +83,7 @@
 	<p>
 		そこで、持ち主の型も鍵に含める <code>take_keyed::&lt;K, T&gt;</code> と <code>give_keyed</code>
 		を足しました。<code>K</code>
-		は構造体そのもの（<code>SyntaxTree</code>、<Term name="LayoutInstructions" />、<code
+		は構造体そのもの（<Term name="LayoutInstructions" />、<code
 			>Component</code
 		>、<code>Interner</code>）です。同じ持ち主の同じ型の列だけが、保存先を共有します。<code
 			>String</code
@@ -99,22 +99,22 @@
 
 <div class="prose-learn">
 	<p>
-		一つの持ち主が、同じ型の列を複数持つこともあります。<code>SyntaxTree</code>
-		では、<code>extra</code> とパーサの作業用スタック <code>scratch</code> が、どちらも
-		<code>Vec&lt;NodeIdentifier&gt;</code>
+		一つの持ち主が、同じ型の列を複数持つこともあります。<code>Interner</code>
+		では、大きさの違う二つの列、名前の終わりの位置 <code>ends</code> とハッシュ表 <code>table</code> が、どちらも
+		<code>Vec&lt;u32&gt;</code>
 		です。保存先は後入れ先出しなので、借りた順の逆に返せば、次の文書でもそれぞれが自分の大きさのバッファを受け取ります。
 	</p>
 </div>
 
-<Code item={data.code.syntaxTreeDrop} />
+<Code item={data.code.internerDrop} />
 <Code item={data.code.keyedTest} />
 
 <div class="prose-learn">
 	<p>
-		鍵を持ち主ごとに分けたのは、コミット <code>20f5846343</code> の変更です。この変更で、<code
-			>SyntaxTree</code
-		>、<code>LayoutInstructions</code>、<code>Component</code>、<code>Interner</code>
-		が、それぞれ自分の保存先を使うようになりました。
+		鍵を持ち主ごとに分けたのは、コミット <code>20f5846343</code> の変更です。<code
+			>LayoutInstructions</code
+		>、<code>Component</code>、<code>Interner</code>
+		と当時の JavaScript の構文木が、それぞれ自分の保存先を持ちました。
 	</p>
 	<p>
 		1 ラウンドは、全ファイルを一通り処理する 1 回です（<a href="/learn/measure#counters">14 章</a
@@ -168,7 +168,7 @@
 <div class="prose-learn">
 	<p>
 		<code>take</code>
-		は、容量に関係なく、最後に返されたベクタを渡します（後入れ先出し）。図で文書 3（ノード 300）の最初の
+		は、容量に関係なく、最後に返されたベクタを渡します（後入れ先出し）。図で文書 3（ノード 300）の
 		<code>take</code>
 		を見ると、直前の文書がパースに使った小さなベクタを受け取り、そこから伸ばし直しています<Note
 			>容量の大きいものから渡す、必要な大きさに近いものを選ぶ、といった工夫はしていません。試すなら、効果を測ってから入れます。</Note
@@ -196,12 +196,6 @@
 	<H2 id="users" />
 	<p>プールを使う主な構造は次のとおりです。</p>
 	<ul>
-		<li>
-			<code>rsvelte_typescript_syntax::SyntaxTree</code
-			>：構文木の列、文字列、コメント、型の表、パーサの作業用スタック（<a
-				href="/learn/polish#history">15 章</a
-			>）。
-		</li>
 		<li>
 			<code>Tokens&lt;K&gt;</code>：トークン表（<a href="/learn/kernel/layers#tokens">05 章</a
 			>）。鍵は要素の型 <code>Token&lt;K&gt;</code> だけです。<code>Token&lt;K&gt;</code>

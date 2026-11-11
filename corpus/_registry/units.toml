@@ -159,3 +159,6 @@
 
 ["svelte/runed/sites/docs/src/lib/components/demos/scroll-state.svelte".skip]
 "svelte.compile/client" = "upstream bug: an element that holds a {#snippet} shares its parent's memoizer, so the parent's template_effect also takes the values the element's own effect memoized, as parameters it never reads"
+
+["svelte/networking-toolbox/src/lib/components/tools/ReversePTRGenerator.svelte".skip]
+"svelte.compile/client" = "upstream bug: an element that holds a {#snippet} shares its parent's memoizer, so the parent's template_effect also takes the values the element's own effect memoized, as parameters it never reads"

@@ -6,7 +6,7 @@
 	let enabled = $state(true);
 	let tight = $state(false);
 	let step = $state(0);
-	// The control of e8eef831d3 shrank the budget until it bound; here, below one lowered tree.
+	// The control of e8eef831d3 shrank the budget until it bound; here, below the largest tree's buffer.
 	const TIGHT = 400;
 
 	const budget = $derived(tight ? TIGHT : Infinity);
@@ -110,9 +110,8 @@
 		</div>
 	</div>
 	{#snippet caption()}
-		模型です。<code>rsvelte_typescript_syntax::SyntaxTree</code>
-		の列の一つ（一つの鍵）だけを追います。木を作って捨てる順序は、実際の Svelte プラグインと同じです。パースした木は文書の終わりまで残ります。コンパイルの出力先ごとに作る木は、出力した後に捨てます。ノード数は例です。出力用の木のノード数も、パースした木の
-		1.6 倍（ブラウザ向け）と 1.3 倍（サーバー向け）と仮に決めています。図の「予算」は要素の数で数えます。本物の
+		模型です。<code>Component</code>
+		の列の一つ（一つの鍵）だけを追います。文書ごとに木を一つパースし、文書の終わりに捨てます。ノード数は例です。図の「予算」は要素の数で数えます。本物の
 		<code>MAXIMUM_BYTES</code> は、スレッドのすべての鍵を合わせたバイト数（64 MiB）です。
 	{/snippet}
 </Figure>

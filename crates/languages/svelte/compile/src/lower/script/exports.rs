@@ -1,6 +1,5 @@
 //! The names the instance script exports, which become the component's exports.
 
-use oxc_ast::AstKind;
 use oxc_ast::ast::{
     Declaration, ExportNamedDeclaration, ModuleExportName, Statement, VariableDeclarationKind,
 };
@@ -84,7 +83,8 @@ pub(super) fn check_specifiers<'t>(
         };
         let alias = specifier.exported.name().as_str();
         let symbol = res.symbol(local);
-        if alias == "default" || symbol.is_some_and(|symbol| reassigned_by_export(res, symbol)) {
+        // Upstream raises `module_illegal_default_export`.
+        if alias == "default" {
             return unsupported("this export from the instance script", span_of(specifier));
         }
         exports.push(Export {
@@ -94,26 +94,4 @@ pub(super) fn check_specifiers<'t>(
         });
     }
     Ok(())
-}
-
-/// Upstream's `ExportSpecifier` marks its binding reassigned, which makes a `$state`, a prop or
-/// a `let` that nothing else writes a signal or a dynamic value.
-fn reassigned_by_export(res: &Resolution, symbol: SymbolId) -> bool {
-    if res.writes(symbol) > 0 {
-        return false;
-    }
-    match res.binding(symbol).kind {
-        BindingKind::State
-        | BindingKind::RawState
-        | BindingKind::Property
-        | BindingKind::BindableProperty => true,
-        // Upstream declares a class as a `let`.
-        BindingKind::Normal => {
-            matches!(res.declaration(symbol), AstKind::Class(_))
-                || res
-                    .variable_kind(symbol)
-                    .is_some_and(|kind| kind != VariableDeclarationKind::Const)
-        }
-        _ => false,
-    }
 }
