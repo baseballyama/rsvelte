@@ -364,16 +364,13 @@ fn a_component_s_snippets_are_props_after_its_attributes_as_svelte2tsx_passes_th
         .lookup_span(Span::new(head, head + 4))
         .expect("mapped");
     assert_eq!(mapped.text(source), "head");
-    // Snippets that are not a component's children still refuse.
-    let error = rsvelte_svelte_typescript_projection::lower_alone(
-        &parse("{#snippet s()}{/snippet}").expect("valid"),
-        "{#snippet s()}{/snippet}",
-    )
-    .expect_err("a template snippet is not projected yet");
-    assert_eq!(
-        error.span().text("{#snippet s()}{/snippet}"),
-        "{#snippet s()}{/snippet}"
-    );
+    // A snippet elsewhere is a constant, before the other children of its parent.
+    let source = "<div>{@render s()}{#snippet s()}{/snippet}</div>";
+    let (_, output) = project(source);
+    let out = &output.out;
+    let declared = out.find("const s = (): ReturnType<import('svelte').Snippet>");
+    let rendered = out.find("__rsvelte_ensure_snippet(s())");
+    assert!(declared.is_some() && declared < rendered, "{out}");
 }
 
 #[test]

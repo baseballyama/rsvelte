@@ -3,6 +3,7 @@ mod binding;
 mod children;
 mod contract;
 mod directive;
+mod tag;
 
 use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;
@@ -40,9 +41,31 @@ pub fn lower<'a>(
         attachment_key: None,
         component_name: None,
         directives: directive::Directives::default(),
+        root_snippets: None,
     };
+    // svelte2tsx moves the root's snippets after the instance script's imports, or leaves them in
+    // place without an instance script.
+    let instance = component.instance.is_some();
+    if instance {
+        let start = builder.scratch.len();
+        builder.append_matching(component.root, true)?;
+        let snippets = builder.finish_list(start);
+        if snippets.len != 0 {
+            builder.root_snippets = Some(builder.tree.push(Node::Statements(snippets)));
+        }
+    }
     let contract = builder.scripts()?;
-    let body = builder.children(component.root)?;
+    let start = builder.scratch.len();
+    if instance {
+        builder.append_matching(component.root, false)?;
+    } else {
+        for &identifier in component.children(component.root) {
+            if let Some(node) = builder.node(identifier)? {
+                builder.scratch.push(node);
+            }
+        }
+    }
+    let body = builder.finish_list(start);
     if !builder.tree.children(body).is_empty() {
         let value = builder.tree.push(Node::Arrow { body });
         builder
@@ -86,6 +109,8 @@ struct Builder<'a> {
     component_name: Option<NodeIdentifier>,
     /// Reused for each element, as elements' directives are done before their children.
     directives: directive::Directives,
+    /// The root's snippets, which the instance script holds after its imports.
+    root_snippets: Option<NodeIdentifier>,
 }
 
 /// The source text at `at`, whose mapping ends at `end` when that is not its own end.
@@ -146,9 +171,22 @@ impl Builder<'_> {
         Ok(self.finish_list(start))
     }
 
+    /// The children with their snippets first, as svelte2tsx hoists them.
     fn append_children(&mut self, range: Range) -> Result<()> {
+        self.append_matching(range, true)?;
+        self.append_matching(range, false)
+    }
+
+    /// The children that are snippets, or those that are not.
+    fn append_matching(&mut self, range: Range, snippets: bool) -> Result<()> {
         for &identifier in self.component.children(range) {
-            if let Some(node) = self.node(identifier)? {
+            let snippet = matches!(
+                self.component.node(identifier),
+                TemplateNode::Snippet { .. }
+            );
+            if snippet == snippets
+                && let Some(node) = self.node(identifier)?
+            {
                 self.scratch.push(node);
             }
         }
@@ -237,47 +275,13 @@ impl Builder<'_> {
                 let declaration = self.source(at, None);
                 Node::Statement(declaration)
             }
-            TemplateNode::Key { .. } | TemplateNode::Render { .. } | TemplateNode::Debug { .. } => {
-                self.tag(identifier)?
-            }
-            TemplateNode::Await { span, .. } | TemplateNode::Snippet { span, .. } => {
-                return Err(Unsupported::at("blocks", span));
-            }
+            TemplateNode::Key { .. }
+            | TemplateNode::Render { .. }
+            | TemplateNode::Debug { .. }
+            | TemplateNode::Snippet { .. } => self.tag(identifier)?,
+            TemplateNode::Await { span, .. } => return Err(Unsupported::at("blocks", span)),
         };
         Ok(Some(self.tree.push(node)))
-    }
-
-    /// `{#key}`, `{@render}` and `{@debug}`, as svelte2tsx writes them.
-    fn tag(&mut self, identifier: u32) -> Result<Node> {
-        Ok(match *self.component.node(identifier) {
-            TemplateNode::Key {
-                expression, body, ..
-            } => {
-                let start = self.scratch.len();
-                let value = source_expression(self.expression(expression).span(), None);
-                self.scratch.push(self.tree.push(Node::Expression(value)));
-                self.append_children(body)?;
-                let body = self.finish_list(start);
-                Node::Block { body }
-            }
-            TemplateNode::Render { expression, .. } => {
-                let callee = self.tree.push(Node::Identifier("__rsvelte_ensure_snippet"));
-                let value = self.expression_source(expression, None);
-                let arguments = self.tree.list(&[value]);
-                let call = self.tree.push(Node::Call { callee, arguments });
-                Node::Statement(call)
-            }
-            TemplateNode::Debug { identifiers, .. } => {
-                let start = self.scratch.len();
-                for &identifier in self.component.debug_identifiers(identifiers) {
-                    let value = source_expression(self.expression(identifier).span(), None);
-                    self.scratch.push(self.tree.push(Node::Expression(value)));
-                }
-                let body = self.finish_list(start);
-                Node::Block { body }
-            }
-            _ => unreachable!("only tags reach here"),
-        })
     }
 
     fn element(
@@ -390,16 +394,12 @@ impl Builder<'_> {
     }
 
     /// An element's children; a component's snippets are already its props.
+    /// A component's snippets are its props; an element's come first.
     fn element_children(&mut self, children: Range, is_component: bool) -> Result<()> {
-        for &child in self.component.children(children) {
-            let snippet = matches!(self.component.node(child), TemplateNode::Snippet { .. });
-            if !(is_component && snippet)
-                && let Some(node) = self.node(child)?
-            {
-                self.scratch.push(node);
-            }
+        if !is_component {
+            self.append_matching(children, true)?;
         }
-        Ok(())
+        self.append_matching(children, false)
     }
 
     /// `__rsvelte_component(C)(internals, properties)`, with the name it gives the component when

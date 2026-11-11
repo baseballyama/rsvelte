@@ -158,6 +158,7 @@ impl Printer<'_> {
                 self.node(value);
                 self.output.push(")");
             }
+            node @ (Node::Snippet { .. } | Node::Statements(_)) => self.snippet(node),
             Node::Boolean => self.output.push("true"),
             Node::String { parts, template } => self.string(parts, template),
             Node::Text(_) => unreachable!("text is printed only inside a string literal"),
@@ -323,6 +324,46 @@ impl Printer<'_> {
         for _ in 0..self.indent {
             self.output.push("  ");
         }
+    }
+
+    /// A snippet, or the root's snippets. The arrow's inner `async` function lets the body hold
+    /// `{#await}`.
+    fn snippet(&mut self, node: Node) {
+        let Node::Snippet {
+            name,
+            type_parameters,
+            parameters,
+            body,
+        } = node
+        else {
+            if let Node::Statements(statements) = node {
+                self.output.push("\n");
+                self.children(statements);
+            }
+            return;
+        };
+        self.output.push("const ");
+        self.node(name);
+        self.output.push(" = ");
+        if let Some(type_parameters) = type_parameters {
+            self.node(type_parameters);
+        }
+        match parameters {
+            Some(parameters) => self.node(parameters),
+            None => self.output.push("()"),
+        }
+        self.output
+            .push(": ReturnType<import('svelte').Snippet> => {\n");
+        self.indent += 1;
+        self.indentation();
+        self.output.push("async () => {\n");
+        self.body(body);
+        self.output.push("};\n");
+        self.indentation();
+        self.output.push("return __rsvelte_snippet_return;\n");
+        self.indent -= 1;
+        self.indentation();
+        self.output.push("};\n");
     }
 
     fn body(&mut self, body: Range) {

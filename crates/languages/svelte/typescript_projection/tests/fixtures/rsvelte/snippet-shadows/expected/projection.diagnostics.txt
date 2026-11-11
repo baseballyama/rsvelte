@@ -1,1 +1,0 @@
-error check_unsupported 8:7-8:48 not supported by the type-check projection yet: blocks

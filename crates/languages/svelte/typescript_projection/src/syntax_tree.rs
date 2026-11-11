@@ -121,6 +121,15 @@ pub enum Node {
     /// A statement whose findings TypeScript drops, as svelte2tsx's ignore comments do.
     Ignored(NodeIdentifier),
     Parenthesized(NodeIdentifier),
+    /// Statements on lines of their own inside a script.
+    Statements(Range),
+    /// A `{#snippet}` outside a component's children, as svelte2tsx's `const` of an arrow.
+    Snippet {
+        name: NodeIdentifier,
+        type_parameters: Option<NodeIdentifier>,
+        parameters: Option<NodeIdentifier>,
+        body: Range,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]

@@ -39,6 +39,18 @@ impl Builder<'_> {
                 return Err(Unsupported::at("generic component contracts", name));
             }
             let program = self.component.javascript.get_program(script.program);
+            if let Some(snippets) = self.root_snippets.take() {
+                let after_imports = program
+                    .body
+                    .iter()
+                    .take_while(|s| matches!(s, Statement::ImportDeclaration(_)))
+                    .last()
+                    .map_or(script.content.start_offset, |s| s.span().end);
+                edits.push(Edit {
+                    span: Span::new(after_imports, after_imports),
+                    replacement: Some(snippets),
+                });
+            }
             for statement in &program.body {
                 let Some(declaration) =
                     self.instance_export(statement, &mut exports, &mut edits)?
@@ -148,6 +160,23 @@ impl Builder<'_> {
                     "instance default exports",
                     span(export.span),
                 ));
+            }
+            // svelte2tsx's `handleExportDeclaration`: `export { a, b as c }` exports `a` and `c`.
+            Statement::ExportNamedDeclaration(named) if named.export_kind.is_value() => {
+                for specifier in &named.specifiers {
+                    if specifier.export_kind.is_type() {
+                        continue;
+                    }
+                    let local = self.source(specifier.local.span(), None);
+                    let name = self.source(specifier.exported.span(), None);
+                    let value = self.tree.push(Node::TypeQuery(local));
+                    exports.push(self.tree.push(Node::TypeProperty { name, value }));
+                }
+                edits.push(Edit {
+                    span: span(named.span),
+                    replacement: None,
+                });
+                return Ok(None);
             }
             _ => return Ok(None),
         };
