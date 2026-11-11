@@ -66,6 +66,15 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             return unsupported(what, node.span);
         }
     }
+    // Upstream's `slot_snippet_conflict`.
+    if let Some(render) = tree
+        .nodes
+        .iter()
+        .find(|node| matches!(node.kind, NodeKind::Render { .. }))
+        .filter(|_| super::uses_slots(res))
+    {
+        return unsupported("`$$slots` beside a `{@render}` tag", render.span);
+    }
     Ok(())
 }
 

@@ -50,7 +50,7 @@ use super::slot_element::has_slot_element;
 use super::{
     Builder, Item, Prepared, Target, check_foreign_element, escape_markup, event_attribute,
     has_dependency, is_behaviour, is_custom_element_node, is_customizable_select, is_directive,
-    is_load_error_element, needs_clsx, synthetic_value, unsupported,
+    is_load_error_element, needs_clsx, synthetic_value, unsupported, uses_slots,
 };
 use crate::lower::builder::Runtime;
 use crate::render_plan::RenderPlan;
@@ -237,7 +237,8 @@ pub(super) fn lower_prepared<'c, 'o>(
         custom_element,
         rest_reads: &facts.validated.rest_reads,
         needs_props: res.unresolved_names().any(|name| name == "$host")
-            || has_slot_element(input.component.compiler_syntax_tree),
+            || has_slot_element(input.component.compiler_syntax_tree)
+            || uses_slots(res),
         snippets: Vec::new(),
         module_snippets: Vec::new(),
         instance_snippets: Vec::new(),
@@ -374,6 +375,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             if has_exports {
                 body.push(b.return_(Some(b.id("$$pop"))));
             }
+        }
+        if uses_slots(self.res) {
+            let slots = b.runtime("sanitize_slots", [b.id("$$props")]);
+            body.insert(0, b.const_("$$slots", slots));
         }
         if let Some(id) = props_id {
             body.insert(0, b.const_(id, b.runtime("props_id", [])));

@@ -183,7 +183,6 @@ pub(crate) fn validate(
     snippets::check_exports(input, res, &hoistable)?;
     coverage::check(input, res)?;
     validation::check_typescript(input)?;
-    check_slots(res)?;
     let rest_reads = rest_reads::build(res, custom_element.is_some());
     Ok(ValidatedOptions {
         custom_element,
@@ -244,4 +243,4 @@ use template::{
     is_load_error_element, synthetic_value,
 };
 pub(crate) use validation::check_foreign_element;
-use validation::{check_runes, check_slots};
+use validation::{check_runes, uses_slots};

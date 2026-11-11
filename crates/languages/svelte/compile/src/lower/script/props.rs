@@ -17,13 +17,19 @@ pub(super) fn server_props_pattern<'o>(
     pattern: &BindingPattern<'_>,
 ) -> BindingPattern<'o> {
     let b = rw.b;
+    // A component that reads `$$slots` declares it, so the pattern takes another name.
+    let slots = if crate::lower::uses_slots(rw.res) {
+        "$$slots_"
+    } else {
+        "$$slots"
+    };
     let hidden = || {
-        ["$$slots", "$$events"].map(|name| {
+        [("$$slots", slots), ("$$events", "$$events")].map(|(key, name)| {
             BindingProperty::new(
                 SPAN,
-                PropertyKey::new_static_identifier(SPAN, name, b),
+                PropertyKey::new_static_identifier(SPAN, key, b),
                 b.binding(name),
-                true,
+                key == name,
                 false,
                 b,
             )
