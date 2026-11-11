@@ -33,13 +33,10 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             | NodeKind::Snippet(_)
             | NodeKind::Key { .. }
             | NodeKind::Await(_)
+            | NodeKind::Each(_)
             | NodeKind::Render { .. } => None,
             // Upstream passes a `svelte-ignore hydration_html_changed` on to `$.html`.
             NodeKind::Html { .. } => ignores_html_changes.then_some("an ignored `{@html}` change"),
-            NodeKind::Each(each) => each
-                .context
-                .is_none()
-                .then_some("an `{#each}` block without `as`"),
             // Upstream's `slot_snippet_conflict`.
             NodeKind::Element(el) if el.kind == ElementKind::Slot && renders => {
                 Some("a `<slot>` beside a `{@render}` tag")
