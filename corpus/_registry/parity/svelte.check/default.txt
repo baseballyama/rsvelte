@@ -1,4 +1,4 @@
-# svelte.check/default: 17369 match
+# svelte.check/default: 17371 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/animotion/src/lib/components/slides.svelte	mismatch
 svelte/animotion/src/lib/components/transition.svelte	refused
@@ -1549,7 +1549,6 @@ svelte/svelte-material-ui/packages/badge/src/Badge.svelte	refused
 svelte/svelte-material-ui/packages/banner/src/Banner.svelte	refused
 svelte/svelte-material-ui/packages/bottom-app-bar/src/AutoAdjust.svelte	refused
 svelte/svelte-material-ui/packages/bottom-app-bar/src/BottomAppBar.svelte	refused
-svelte/svelte-material-ui/packages/bottom-app-bar/src/Section.svelte	mismatch
 svelte/svelte-material-ui/packages/button/src/Button.svelte	refused
 svelte/svelte-material-ui/packages/button/src/Group.svelte	refused
 svelte/svelte-material-ui/packages/card/src/ActionButtons.svelte	refused
@@ -1631,7 +1630,6 @@ svelte/svelte-material-ui/packages/paper/src/Title.svelte	refused
 svelte/svelte-material-ui/packages/radio/src/Radio.svelte	refused
 svelte/svelte-material-ui/packages/segmented-button/src/Segment.svelte	refused
 svelte/svelte-material-ui/packages/segmented-button/src/SegmentedButton.svelte	refused
-svelte/svelte-material-ui/packages/select/src/Option.svelte	mismatch
 svelte/svelte-material-ui/packages/select/src/Select.svelte	refused
 svelte/svelte-material-ui/packages/select/src/helper-text/HelperText.svelte	refused
 svelte/svelte-material-ui/packages/select/src/icon/Icon.svelte	refused
