@@ -159,6 +159,9 @@
 ["svelte/syntaxfm-website/src/lib/transcript/Transcript.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
+["svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block-shadowed/input.svelte".skip]
+"svelte.compile/client" = "upstream bug: a `{:catch}` branch shares its parent's transforms, so its error's `$.get` read leaks by name to the blocks after it"
+
 ["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte".skip]
 "svelte.compile" = "upstream bug: an `<svg>` beside a component makes the component's children svg, which drops the HTML whitespace between their components"
 
