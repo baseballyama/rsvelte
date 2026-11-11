@@ -29,22 +29,5 @@ export default function Const_beside_snippet($$renderer, $$props) {
 				}
 			});
 		}
-		$$renderer.push(`<!----> `);
-		{
-			function prop($$renderer) {
-				$$renderer.push(`<!---->bar`);
-			}
-			Component($$renderer, {
-				prop,
-				children: ($$renderer) => {
-					const bar = "bar";
-				},
-				$$slots: {
-					prop: true,
-					default: true
-				}
-			});
-		}
-		$$renderer.push(`<!---->`);
 	});
 }

@@ -254,3 +254,27 @@ fn a_name_given_twice_in_a_start_tag_is_attribute_duplicate() {
         }
     }
 }
+
+#[test]
+fn a_textarea_end_tag_runs_to_its_first_greater_than_sign() {
+    let source = "<textarea>a</textaread >asdf</textarea\n\n\n</textarea\n\n><p>x</p>";
+    let component = parse(source).expect("textarea");
+    component.tokens.check_lossless(source).expect("all bytes");
+    let [textarea, p] = component.children(component.root) else {
+        panic!("a textarea and a paragraph");
+    };
+    let TemplateNode::Element { children, span, .. } = component.nodes[*textarea as usize] else {
+        panic!("an element");
+    };
+    let [text] = component.children(children) else {
+        panic!("one text");
+    };
+    assert_eq!(
+        component.nodes[*text as usize].span().text(source),
+        "a</textaread >asdf"
+    );
+    assert_eq!(span.end_offset, 54);
+    assert_eq!(component.nodes[*p as usize].span().start_offset, 54);
+    // Without whitespace after the name it is text, as in upstream's parse.
+    parse("<textarea>a</textareax>b</textarea></textarea\t>").unwrap_err();
+}

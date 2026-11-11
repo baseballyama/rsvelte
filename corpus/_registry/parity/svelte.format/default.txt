@@ -1,4 +1,4 @@
-# svelte.format/default: 18895 match
+# svelte.format/default: 18896 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -550,7 +550,6 @@ svelte/svelte/packages/svelte/tests/parser-legacy/samples/dynamic-element-string
 svelte/svelte/packages/svelte/tests/parser-legacy/samples/generic-snippets/input.svelte	refused
 svelte/svelte/packages/svelte/tests/parser-legacy/samples/javascript-comments/input.svelte	refused
 svelte/svelte/packages/svelte/tests/parser-legacy/samples/style-inside-head/input.svelte	refused
-svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/parser-modern/samples/comment-before-function-binding/input.svelte	refused
 svelte/svelte/packages/svelte/tests/parser-modern/samples/comment-in-tag/input.svelte	refused
 svelte/svelte/packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte	mismatch
