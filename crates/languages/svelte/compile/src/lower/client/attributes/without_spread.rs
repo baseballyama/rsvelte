@@ -78,7 +78,16 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     l,
                 );
             } else if attribute_name == "autofocus" {
-                return unsupported("a dynamic `autofocus` attribute", a.span);
+                // Upstream reads the value once, unmemoized, when the element is created.
+                let value = match &a.value {
+                    AttributeValue::Boolean => self.b.boolean(true),
+                    AttributeValue::Static(v) => self.b.string(v),
+                    &(AttributeValue::Expression { expression, .. }
+                    | AttributeValue::Shorthand(expression)) => self.expression(expression),
+                    _ => return unsupported("an interpolated `autofocus` attribute", a.span),
+                };
+                let focus = self.b.runtime("autofocus", [self.b.id(node), value]);
+                l.initializer.push(self.b.stmt(focus));
             } else if attribute_name == "style" {
                 self.set_style(node, Some(a), &style_directives, &mut frag.memo, l)?;
             } else {
