@@ -1,15 +1,14 @@
 use std::borrow::Cow;
 
+use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType, decode_attribute, decode_text};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use serde::Deserialize;
 
-use super::expressions::Expressions;
 use super::markup::{Holder, Mustache, for_each_mustache, has_comment, part_span, parts, quote};
-use super::node_span;
+use super::nodes;
 use super::string_escape::has_useful_escape;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -46,12 +45,8 @@ impl SvelteRule for NoUselessMustaches {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let source = file.source();
-        let expressions = Expressions::new(&component.javascript, source);
         for_each_mustache(component, source, |mustache| {
-            // `{'a' as string}` is not a literal to ESTree.
-            if !expressions.asserted(mustache.expression) {
-                self.verify(component, source, mustache, reporter);
-            }
+            self.verify(component, source, mustache, reporter);
         });
     }
 }
@@ -64,18 +59,17 @@ impl NoUselessMustaches {
         mustache: Mustache<'_>,
         reporter: &mut Reporter<'_>,
     ) {
-        let javascript = &component.javascript;
-        let expression = mustache.expression;
+        let expression = component.javascript.get_expression(mustache.expression);
         // The literal as written, quotes included.
-        let text = node_span(javascript, expression).text(source);
-        let raw = match javascript.kind(expression) {
+        let text = nodes::text(expression, source);
+        // `{'a' as string}` is an assertion, not a literal, to ESTree.
+        let raw = match expression {
             _ if matches!(mustache.holder, Holder::Raw) => return,
-            Kind::String => &text[1..text.len() - 1],
-            Kind::Template {
-                quasis: &[quasi],
-                expressions: &[],
-            } => {
-                let raw = javascript.str_value(quasi, source);
+            Expression::StringLiteral(_) => &text[1..text.len() - 1],
+            Expression::TemplateLiteral(template)
+                if template.quasis.len() == 1 && template.expressions.is_empty() =>
+            {
+                let raw = nodes::text(&template.quasis[0], source);
                 if raw.contains(['\n', '\r']) {
                     return;
                 }
@@ -83,7 +77,7 @@ impl NoUselessMustaches {
             }
             _ => return,
         };
-        let comment = has_comment(javascript, mustache.span);
+        let comment = has_comment(component, mustache.span);
         if self.ignore_includes_comment && comment {
             return;
         }
@@ -97,7 +91,7 @@ impl NoUselessMustaches {
         let fix = if comment || escape {
             None
         } else {
-            literal_value(javascript, source, expression)
+            literal_value(expression)
                 .and_then(|value| fix(component, source, mustache, text, &value))
         };
         let report = Report::range(
@@ -229,19 +223,18 @@ fn unescape(text: &str) -> String {
     out
 }
 
-/// The string a string or template literal holds.
-fn literal_value(javascript: &SyntaxTree, source: &str, literal: NodeIdentifier) -> Option<String> {
-    match javascript.kind(literal) {
-        Kind::String => Some(javascript.str_value(literal, source).to_owned()),
-        Kind::Template {
-            quasis: &[quasi], ..
-        } => {
-            let raw = javascript.str_value(quasi, source);
-            Some(
-                rsvelte_typescript_syntax::lexer::decode_string(raw)
-                    .unwrap_or_else(|| raw.to_owned()),
-            )
-        }
+/// The string a string or template literal holds; `None` for a lone surrogate or an invalid
+/// escape, which no markup decodes to.
+fn literal_value(literal: &Expression<'_>) -> Option<String> {
+    match literal {
+        Expression::StringLiteral(string) => string.value.as_str().map(str::to_owned),
+        Expression::TemplateLiteral(template) => template
+            .quasis
+            .first()?
+            .value
+            .cooked?
+            .as_str()
+            .map(str::to_owned),
         _ => None,
     }
 }

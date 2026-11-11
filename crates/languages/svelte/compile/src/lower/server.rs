@@ -20,7 +20,7 @@ mod special;
 use crate::lower::builder::Runtime;
 use std::borrow::Cow;
 
-use events::{capture_event, push_captured_events};
+use events::{capture_event, capture_load_events, push_captured_events};
 use oxc_ast::ast::{
     BindingIdentifier, ExportDefaultDeclarationKind, Expression, ImportDeclarationSpecifier,
     ImportOrExportKind, Statement, StringLiteral, UnaryOperator, VariableDeclarationKind,
@@ -43,8 +43,8 @@ use super::names::Names;
 use super::script::ScriptRewrite;
 use super::{
     Builder, Item, Prepared, Target, check_foreign_element, escape_markup, event_attribute,
-    is_boolean_attribute, is_customizable_select, is_directive, is_load_error_element, needs_clsx,
-    synthetic_value, unsupported,
+    is_behaviour, is_boolean_attribute, is_customizable_select, is_directive,
+    is_load_error_element, needs_clsx, synthetic_value, unsupported,
 };
 use crate::render_plan::RenderPlan;
 

@@ -2,8 +2,8 @@ use crate::lower::builder::Runtime;
 use oxc_ast::ast::{Expression, PropertyKey};
 
 use crate::lower::client::{
-    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo,
-    event_attribute, normalize_attribute,
+    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Lists, Memo, R,
+    event_attribute, is_behaviour, normalize_attribute,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -17,18 +17,22 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         node: &str,
         remove_defaults: bool,
         l: &mut Lists<'o>,
-    ) {
+    ) -> R<()> {
         let b = self.b;
         let mut memo = Memo::default();
         let mut values = Vec::with_capacity(attributes.len());
         let mut class_directives = Vec::new();
+        let mut style_directives = Vec::new();
         for a in attributes {
             match a.value {
-                AttributeValue::Bind(_) | AttributeValue::Attach(_) | AttributeValue::On { .. } => {
-                    continue;
-                }
+                _ if is_behaviour(&a.value) => continue,
+                AttributeValue::Bind(_) => continue,
                 AttributeValue::Class(_) => {
                     class_directives.push(a);
+                    continue;
+                }
+                AttributeValue::Style { .. } => {
+                    style_directives.push(a);
                     continue;
                 }
                 AttributeValue::Spread(e) => {
@@ -75,6 +79,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             let key = PropertyKey::from(b.member(b.id("$"), "CLASS"));
             values.push(b.property(key, b.object(props), true));
         }
+        if !style_directives.is_empty() {
+            let (object, _) = self.style_directives(&style_directives, &mut memo)?;
+            let key = PropertyKey::from(b.member(b.id("$"), "STYLE"));
+            values.push(b.property(key, object, true));
+        }
         let object = b.object(values);
         let (parameters, sync) = memo.into_effect(b);
         let arrow = b.arrow(parameters, object);
@@ -96,5 +105,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             ],
         );
         l.initializer.push(b.stmt(call));
+        Ok(())
     }
 }

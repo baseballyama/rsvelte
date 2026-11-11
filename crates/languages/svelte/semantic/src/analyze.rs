@@ -6,6 +6,7 @@ use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use oxc_ast::ast::{ChainElement, Expression};
+use oxc_semantic::ReferenceId;
 
 use crate::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
 use crate::input::ComponentInput;
@@ -31,6 +32,9 @@ pub struct ExpressionMetadata {
     pub has_state: bool,
     pub has_call: bool,
     pub has_member: bool,
+    /// The first store subscription among the dependencies (upstream's first `store_sub`
+    /// binding), which an `{#each}` over it invalidates.
+    pub first_store_subscription: Option<ReferenceId>,
 }
 
 #[derive(Debug)]

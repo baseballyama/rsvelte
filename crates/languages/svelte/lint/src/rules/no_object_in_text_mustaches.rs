@@ -1,8 +1,6 @@
+use oxc_ast::ast::Expression;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript_syntax::Kind;
-use rsvelte_typescript_syntax::syntax_tree::Class;
 
-use super::expressions::Expressions;
 use super::markup::{Holder, for_each_mustache, parts};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -23,13 +21,14 @@ struct NoObjectInTextMustaches;
 impl SvelteRule for NoObjectInTextMustaches {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        let expressions = Expressions::new(&component.javascript, file.source());
         for_each_mustache(component, file.source(), |mustache| {
-            let phrase = match expressions.kind(mustache.expression) {
-                Some(Kind::Object(_)) => "object",
-                Some(Kind::Array(_)) => "array",
-                Some(Kind::Arrow { .. } | Kind::Function { .. }) => "function",
-                Some(Kind::Class(Class::Definition { .. })) => "class",
+            let phrase = match component.javascript.get_expression(mustache.expression) {
+                Expression::ObjectExpression(_) => "object",
+                Expression::ArrayExpression(_) => "array",
+                Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_) => {
+                    "function"
+                }
+                Expression::ClassExpression(_) => "class",
                 _ => return,
             };
             // The whole value of an attribute may be a prop that takes an object.

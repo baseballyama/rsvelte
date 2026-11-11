@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use oxc_ast::ast::{BindingIdentifier, BindingPattern, Declaration, Statement};
 
+use super::nodes::span;
 use super::kit_route::route_file;
 use crate::LintSettings;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
@@ -34,24 +35,21 @@ impl SvelteRule for NoExportLoad {
         if route_file(&self.settings, file, reporter).is_none() {
             return;
         }
-        let tree = &component.javascript;
-        let Kind::Program(statements) = tree.kind(module.program) else {
-            return;
-        };
-        for &statement in statements {
-            let Kind::ExportNamed(declaration) = tree.kind(statement) else {
+        let program = component.javascript.get_program(module.program);
+        for statement in &program.body {
+            let Statement::ExportDeclaration(export) = statement else {
                 continue;
             };
-            match tree.kind(declaration) {
-                Kind::Function {
-                    name: Some(name),
-                    declaration: true,
-                    ..
-                } => report_load(tree, name, reporter),
-                Kind::VariableDeclaration { declarations, .. } => {
-                    for &declarator in declarations {
-                        if let Kind::Declarator { identifier, .. } = tree.kind(declarator) {
-                            report_load(tree, identifier, reporter);
+            match &export.declaration {
+                Declaration::FunctionDeclaration(function) => {
+                    if let Some(name) = &function.id {
+                        report_load(name, reporter);
+                    }
+                }
+                Declaration::VariableDeclaration(declaration) => {
+                    for declarator in &declaration.declarations {
+                        if let BindingPattern::BindingIdentifier(name) = &declarator.id {
+                            report_load(name, reporter);
                         }
                     }
                 }
@@ -61,16 +59,11 @@ impl SvelteRule for NoExportLoad {
     }
 }
 
-fn report_load(tree: &SyntaxTree, identifier: NodeIdentifier, reporter: &mut Reporter<'_>) {
-    if tree
-        .atom(identifier)
-        .is_some_and(|atom| tree.atoms.get(atom) == "load")
-    {
+fn report_load(identifier: &BindingIdentifier<'_>, reporter: &mut Reporter<'_>) {
+    if identifier.name == "load" {
         reporter.range(
             "disallow exporting load functions in `*.svelte` module in SvelteKit page components.",
-            tree.source_location(identifier)
-                .span()
-                .expect("a source node has a span"),
+            span(identifier),
         );
     }
 }

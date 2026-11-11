@@ -2,12 +2,14 @@ use crate::lower::builder::Runtime;
 use oxc_ast::ast::{BindingIdentifier, Expression, Statement};
 use oxc_semantic::SymbolId;
 use oxc_span::GetSpan;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Each;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, Each, ElementKind, MetadataTag,
+};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 
 use crate::lower::client::{
-    ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R, Read, dependencies,
-    unsupported,
+    ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R, Read,
+    has_dependency, unsupported,
 };
 use crate::lower::span_of;
 
@@ -16,6 +18,8 @@ const EACH_ITEM_REACTIVE: u32 = 1;
 const EACH_INDEX_REACTIVE: u32 = 1 << 1;
 
 const EACH_IS_CONTROLLED: u32 = 1 << 2;
+
+const EACH_IS_ANIMATED: u32 = 1 << 3;
 
 const EACH_ITEM_IMMUTABLE: u32 = 1 << 4;
 
@@ -138,20 +142,39 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             let key = javascript.get_expression(k).get_inner_expression();
             matches!(key, Expression::Identifier(k) if k.name == context.name)
         });
-        let collection = javascript.get_expression(each.collection);
-        let dependencies = dependencies(self.res, collection.get_inner_expression());
         // A store's items may be mutated in place, so they are read again.
-        let store = dependencies.store.is_some();
-        if dependencies.any && (!key_is_item || store) {
+        let store = self
+            .an
+            .meta(each.collection)
+            .first_store_subscription
+            .is_some();
+        let collection = javascript.get_expression(each.collection);
+        if (!key_is_item || store) && has_dependency(self.res, collection.get_inner_expression()) {
             flags |= EACH_ITEM_REACTIVE;
         }
         if !store {
             flags |= EACH_ITEM_IMMUTABLE;
         }
+        if each.key.is_some() && self.animated(each) {
+            flags |= EACH_IS_ANIMATED;
+        }
         if controlled {
             flags |= EACH_IS_CONTROLLED;
         }
         flags
+    }
+
+    /// Whether an element of the body has `animate:`, which only a keyed block's sole child may.
+    fn animated(&self, each: &Each) -> bool {
+        let tree = self.compiler_syntax_tree;
+        tree.children(each.body).iter().any(|&child| {
+            matches!(&tree.node(child).kind, NodeKind::Element(el)
+                if matches!(el.kind, ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element)))
+                    && tree
+                        .attributes(el.attributes)
+                        .iter()
+                        .any(|a| matches!(a.value, AttributeValue::Animate { .. })))
+        })
     }
 
     /// Upstream passes the collection to the render function when a name the block declares, in
@@ -216,9 +239,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if let Some(symbol) = bindings.item {
             self.reads
                 .insert(symbol, Read::get_if(flags & EACH_ITEM_REACTIVE != 0));
-            let collection = self.javascript.get_expression(each.collection);
-            if let Some(store) = dependencies(self.res, collection.get_inner_expression()).store {
-                self.invalidates.insert(symbol, store);
+            if let Some(store) = self.an.meta(each.collection).first_store_subscription {
+                let span = self.res.reference_span(store);
+                self.invalidates.insert(
+                    symbol,
+                    &self.source_text[span.start as usize..span.end as usize],
+                );
             }
         }
         if let Some(symbol) = bindings.index {

@@ -238,16 +238,29 @@ fn element(
     if let Some(this) = el.this {
         attribute(&compiler_syntax_tree.attributes[this].value, roots);
     }
-    let mut lets = false;
-    for a in compiler_syntax_tree.attributes(el.attributes) {
-        if matches!(a.value, AttributeValue::Let(_)) {
-            lets = true;
-        } else {
+    let lets = compiler_syntax_tree
+        .attributes(el.attributes)
+        .iter()
+        .any(|a| matches!(a.value, AttributeValue::Let(_)));
+    if !lets {
+        for a in compiler_syntax_tree.attributes(el.attributes) {
             attribute(&a.value, roots);
         }
-    }
-    if !lets {
         return walk(compiler_syntax_tree, el.children, roots);
+    }
+    // An element's own attributes see its `let:` names, and so does a component's with a static
+    // `slot`; another component reads its attributes outside them (upstream `create_scopes`).
+    let outside =
+        el.kind.renders_component() && !compiler_syntax_tree.has_static_slot(el.attributes);
+    let others = |roots: &mut dyn FnMut(&AttributeValue)| {
+        for a in compiler_syntax_tree.attributes(el.attributes) {
+            if !matches!(a.value, AttributeValue::Let(_)) {
+                roots(&a.value);
+            }
+        }
+    };
+    if outside {
+        others(&mut |value| attribute(value, roots));
     }
     roots.enter(TemplateScope::Let(identifier));
     for (attribute, a) in el
@@ -258,6 +271,9 @@ fn element(
         if matches!(a.value, AttributeValue::Let(_)) {
             roots.name(TemplateName::Let(attribute));
         }
+    }
+    if !outside {
+        others(&mut |value| attribute(value, roots));
     }
     walk(compiler_syntax_tree, el.children, roots);
     roots.leave();

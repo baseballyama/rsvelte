@@ -1,7 +1,7 @@
+use oxc_ast::ast::Argument;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript_syntax::Kind;
 
-use super::javascript::span;
+use super::nodes::span;
 use super::svelte_store::store_calls;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -21,25 +21,19 @@ struct RequireStoresInit;
 
 impl SvelteRule for RequireStoresInit {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let javascript = file.javascript();
         for (call, name) in store_calls(file, &["writable", "readable", "derived"]) {
-            let Kind::Call { arguments, .. } = javascript.kind(call) else {
-                continue;
-            };
             let required = if name == "derived" { 3 } else { 1 };
-            if arguments.len() >= required
-                || arguments
+            if call.arguments.len() >= required
+                || call
+                    .arguments
                     .iter()
-                    .any(|&argument| matches!(javascript.kind(argument), Kind::Spread(_)))
+                    .any(|argument| matches!(argument, Argument::SpreadElement(_)))
             {
                 continue;
             }
             reporter.report(
-                Report::range(
-                    "Always set a default value for svelte stores.",
-                    span(javascript, call),
-                )
-                .message_id("storeDefaultValue"),
+                Report::range("Always set a default value for svelte stores.", span(call))
+                    .message_id("storeDefaultValue"),
             );
         }
     }

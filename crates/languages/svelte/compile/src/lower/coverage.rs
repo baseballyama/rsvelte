@@ -3,7 +3,7 @@
 
 use oxc_ast::ast::{Expression, VariableDeclarationKind};
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    CompilerNodeIdentifier, ElementKind, MetadataTag,
+    CompilerNodeIdentifier, ElementKind, MetadataTag, StyleValue,
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
@@ -85,12 +85,23 @@ fn check_element(
             check_component_attribute(a)?;
         }
         let what = match a.value {
-            AttributeValue::On { .. } if !component && el.kind != ElementKind::Regular => continue,
+            AttributeValue::On { .. }
+            | AttributeValue::Use { .. }
+            | AttributeValue::Transition { .. }
+            | AttributeValue::Animate { .. }
+                if !component =>
+            {
+                continue;
+            }
             AttributeValue::On { .. } => "an `on:` directive",
-            AttributeValue::Use { .. } => "a `use:` directive",
-            AttributeValue::Transition { .. } => "a transition",
-            AttributeValue::Animate { .. } => "an `animate:` directive",
-            AttributeValue::Style { .. } => "a `style:` directive",
+            AttributeValue::Style { .. } if matches!(&a.value, AttributeValue::Style { value, .. } if matches!(**value, StyleValue::Empty)) => {
+                "a `style:` directive without a value"
+            }
+            // Upstream adds an empty `style` beside its own empty `class`, which this port does not.
+            AttributeValue::Style { .. } if tag == Some("svelte:element") => {
+                "a `style:` directive on `<svelte:element>`"
+            }
+            AttributeValue::Style { .. } if !component => continue,
             AttributeValue::Let(_) => "a `let:` directive",
             _ if !component => {
                 if name == "slot" && !super::is_directive(&a.value) && in_component {

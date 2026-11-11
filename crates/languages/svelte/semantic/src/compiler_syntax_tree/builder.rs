@@ -1,9 +1,9 @@
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{
-    Attribute, AttributeIdentifier, Branch, Branches, Children, CompilerNodeIdentifier,
-    CompilerSyntaxTree, CompilerSyntaxTreeBuilder, ElementKind, IndexRange, IndexVector,
-    MetadataTag, Node, NodeKind, NodeList, Span, TemplateNodeIdentifier, decode_text,
+    Attribute, AttributeIdentifier, AttributeValue, Branch, Branches, Children,
+    CompilerNodeIdentifier, CompilerSyntaxTree, CompilerSyntaxTreeBuilder, ElementKind, IndexRange,
+    IndexVector, MetadataTag, Node, NodeKind, NodeList, Span, TemplateNodeIdentifier, decode_text,
     is_component_name,
 };
 
@@ -20,6 +20,7 @@ impl<'s> CompilerSyntaxTreeBuilder<'s> {
                 branches: Vec::new(),
                 debug_identifiers: Vec::new(),
                 component_references: Vec::new(),
+                static_slots: Vec::new(),
                 root: Children::default(),
             },
         }
@@ -61,7 +62,12 @@ impl<'s> CompilerSyntaxTreeBuilder<'s> {
     ) -> IndexRange<AttributeIdentifier> {
         let first = self.compiler_syntax_tree.attributes.next_identifier();
         for a in attributes {
-            self.compiler_syntax_tree.attributes.push(a);
+            let slot = a.name.text(self.source_text) == "slot"
+                && matches!(a.value, AttributeValue::Static(_));
+            let identifier = self.compiler_syntax_tree.attributes.push(a);
+            if slot {
+                self.compiler_syntax_tree.static_slots.push(identifier);
+            }
         }
         IndexRange::new(
             first,

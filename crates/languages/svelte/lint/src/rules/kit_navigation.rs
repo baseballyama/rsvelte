@@ -1,12 +1,18 @@
 //! What the `SvelteKit` navigation rules share: the uses of `$app/navigation` and `$app/paths`,
 //! the `href` of each `<a>`, and the URL shapes they accept.
 
+use oxc_ast::AstKind;
+use oxc_ast::ast::{
+    Argument, AssignmentTarget, AssignmentTargetMaybeDefault,
+    BindingPattern, CallExpression, Expression, IdentifierReference,
+};
+use oxc_semantic::{NodeId, SymbolId};
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode,
 };
-use rsvelte_typescript_semantic::reference_tracker::import_references;
-use rsvelte_typescript_semantic::scope::{BindingIdentifier, Semantic};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::reference_tracker::{TrackedReference, import_references};
+use rsvelte_typescript_semantic::semantic::Semantic;
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 use serde::Deserialize;
 
 use crate::rule::File;
@@ -38,41 +44,31 @@ pub(super) enum Navigation {
 
 /// The document's JavaScript, its scopes and its text.
 pub(super) struct Script<'a> {
-    pub(super) tree: &'a SyntaxTree,
-    pub(super) sem: &'a Semantic,
+    pub(super) tree: &'a Tree,
+    semantic: &'a Semantic,
     pub(super) source: &'a str,
-    programs: Vec<NodeIdentifier>,
-    parents: &'a [NodeIdentifier],
+    programs: Vec<ProgramIdentifier>,
 }
 
 impl<'a> Script<'a> {
     pub(super) fn new(file: &File<'a>) -> Self {
-        let programs = match (file.component(), file.module()) {
-            (Some(component), _) => component
-                .module
-                .iter()
-                .map(|script| script.program)
-                .chain([component.program])
-                .collect(),
-            (None, Some(module)) => vec![module.root],
-            (None, None) => Vec::new(),
-        };
         Self {
             tree: file.javascript(),
-            sem: file.semantic(),
+            semantic: file.semantic(),
             source: file.source(),
-            programs,
-            parents: file.parents(),
+            programs: file.programs(),
         }
     }
 
     /// The calls of `goto`, `pushState` and `replaceState` of `$app/navigation`.
-    pub(super) fn navigation_calls(&self) -> Vec<(Navigation, NodeIdentifier)> {
+    pub(super) fn navigation_calls(&self) -> Vec<(Navigation, &'a CallExpression<'a>)> {
+        let nodes = self.semantic.nodes();
         self.imports("$app/navigation", &["goto", "pushState", "replaceState"])
             .into_iter()
             .filter_map(|reference| {
-                let call = reference.call?;
-                matches!(self.tree.kind(call), Kind::Call { .. }).then_some(())?;
+                let AstKind::CallExpression(call) = nodes.kind(reference.call?) else {
+                    return None;
+                };
                 let navigation = match reference.name {
                     "goto" => Navigation::Goto,
                     "pushState" => Navigation::PushState,
@@ -83,34 +79,51 @@ impl<'a> Script<'a> {
             .collect()
     }
 
-    /// The call's first argument, if any.
-    pub(super) fn first_argument(&self, call: NodeIdentifier) -> Option<NodeIdentifier> {
-        match self.tree.kind(call) {
-            Kind::Call { arguments, .. } => arguments.first().copied(),
-            _ => None,
-        }
-    }
-
-    /// The expressions that read `exports` of `$app/paths`, sorted for [`Script::reads`]: the
+    /// The expressions that read `exports` of `$app/paths`, sorted for a binary search: the
     /// tracker's, and the reads of a variable destructured from the module's namespace.
-    pub(super) fn path_reads(&self, exports: &[&str]) -> Vec<NodeIdentifier> {
+    pub(super) fn path_reads(&self, exports: &[&str]) -> Vec<NodeId> {
+        let scoping = self.semantic.scoping();
+        let nodes = self.semantic.nodes();
         let mut reads = Vec::new();
         for reference in self.imports("$app/paths", exports) {
             reads.push(reference.node);
             // The tracker reports `base` in `const { base } = paths` but not what reads it.
-            let Kind::Property { value, .. } = self.tree.kind(reference.node) else {
-                continue;
+            let symbol = match nodes.kind(reference.node) {
+                AstKind::BindingProperty(property) => {
+                    let mut target = &property.value;
+                    while let BindingPattern::AssignmentPattern(assignment) = target {
+                        target = &assignment.left;
+                    }
+                    match target {
+                        BindingPattern::BindingIdentifier(identifier) => identifier.symbol_id.get(),
+                        _ => None,
+                    }
+                }
+                AstKind::AssignmentTargetPropertyIdentifier(property) => {
+                    self.symbol(&property.binding)
+                }
+                AstKind::AssignmentTargetPropertyProperty(property) => {
+                    let target = match &property.binding {
+                        AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(default) => {
+                            &default.binding
+                        }
+                        target => target.to_assignment_target(),
+                    };
+                    match target {
+                        AssignmentTarget::AssignmentTargetIdentifier(identifier) => {
+                            self.symbol(identifier)
+                        }
+                        _ => None,
+                    }
+                }
+                _ => None,
             };
-            let mut target = value;
-            while let Kind::AssignPattern(left, _) = self.tree.kind(target) {
-                target = left;
-            }
-            if let Some(binding) = self.sem.binding_of(target) {
+            if let Some(symbol) = symbol {
                 reads.extend(
-                    self.sem
-                        .references_to(binding)
-                        .filter(|r| r.read)
-                        .map(|r| r.node),
+                    scoping
+                        .get_resolved_references(symbol)
+                        .filter(|r| r.is_read())
+                        .map(oxc_semantic::Reference::node_id),
                 );
             }
         }
@@ -119,80 +132,74 @@ impl<'a> Script<'a> {
         reads
     }
 
-    fn imports<'e>(
-        &self,
-        specifier: &str,
-        exports: &[&'e str],
-    ) -> Vec<rsvelte_typescript_semantic::reference_tracker::TrackedReference<'e>> {
-        import_references(
-            self.tree,
-            self.sem,
-            self.parents,
-            self.source,
-            &self.programs,
-            specifier,
-            exports,
-        )
+    fn imports<'e>(&self, specifier: &str, exports: &[&'e str]) -> Vec<TrackedReference<'e>> {
+        import_references(self.semantic, &self.programs, specifier, exports)
     }
 
-    pub(super) fn span(&self, node: NodeIdentifier) -> rsvelte_kernel::source::positions::Span {
-        self.tree
-            .source_location(node)
-            .span()
-            .expect("a source node has a span")
+    fn symbol(&self, identifier: &IdentifierReference<'_>) -> Option<SymbolId> {
+        let reference = identifier.reference_id.get()?;
+        self.semantic.scoping().get_reference(reference).symbol_id()
     }
 
     /// `const name = initializer` for an identifier that reads such a constant (or variable):
-    /// its binding and the initializer. A destructured name has none.
+    /// its symbol and the initializer. A destructured name has none.
     pub(super) fn initializer(
         &self,
-        identifier: NodeIdentifier,
-    ) -> Option<(BindingIdentifier, NodeIdentifier)> {
-        let binding = self.sem.binding_of(identifier)?;
-        let declared = &self.sem.bindings[binding];
-        match self.tree.kind(declared.declaration?) {
-            Kind::Declarator {
-                identifier: name,
-                initializer: Some(initializer),
-            } if name == declared.node => Some((binding, initializer)),
+        identifier: &IdentifierReference<'_>,
+    ) -> Option<(SymbolId, &'a Expression<'a>)> {
+        let symbol = self.symbol(identifier)?;
+        let declaration = self.semantic.scoping().symbol_declaration(symbol);
+        match self.semantic.nodes().kind(declaration) {
+            AstKind::VariableDeclarator(declarator) => match (&declarator.id, &declarator.init) {
+                (BindingPattern::BindingIdentifier(name), Some(initializer))
+                    if name.symbol_id.get() == Some(symbol) =>
+                {
+                    Some((symbol, initializer))
+                }
+                _ => None,
+            },
             _ => None,
         }
     }
+}
 
-    pub(super) fn string(&self, node: NodeIdentifier) -> Option<&'a str> {
-        matches!(self.tree.kind(node), Kind::String).then(|| self.tree.str_value(node, self.source))
-    }
+/// The call's first argument, if any; a spread is no expression.
+pub(super) fn first_argument<'a>(call: &'a CallExpression<'a>) -> Option<&'a Argument<'a>> {
+    call.arguments.first()
+}
 
-    /// A template literal's quasis (raw) and expressions.
-    pub(super) fn template(
-        &self,
-        node: NodeIdentifier,
-    ) -> Option<(Vec<&'a str>, &'a [NodeIdentifier])> {
-        let Kind::Template {
-            quasis,
-            expressions,
-        } = self.tree.kind(node)
-        else {
-            return None;
-        };
-        Some((
-            quasis
-                .iter()
-                .map(|&quasi| self.tree.str_value(quasi, self.source))
-                .collect(),
-            expressions,
-        ))
+pub(super) fn string<'a>(node: &Expression<'a>) -> Option<&'a str> {
+    match node {
+        Expression::StringLiteral(string) => string.value.as_str(),
+        _ => None,
     }
+}
 
-    /// The first expression of a template literal that starts with one (`${x}…`); `None` when it
-    /// starts with text or has no expression.
-    pub(super) fn leading_expression(&self, node: NodeIdentifier) -> Option<NodeIdentifier> {
-        let (quasis, expressions) = self.template(node)?;
-        if quasis.first().is_some_and(|quasi| !quasi.is_empty()) {
-            return None;
-        }
-        expressions.first().copied()
+/// A template literal's quasis (raw) and expressions.
+pub(super) fn template<'a>(
+    node: &'a Expression<'a>,
+) -> Option<(Vec<&'a str>, &'a [Expression<'a>])> {
+    let Expression::TemplateLiteral(template) = node else {
+        return None;
+    };
+    Some((
+        template
+            .quasis
+            .iter()
+            .map(|quasi| quasi.value.raw.as_str())
+            .collect(),
+        &template.expressions,
+    ))
+}
+
+/// The first expression of a template literal that starts with one (`${x}…`); `None` when it
+/// starts with text or has no expression.
+pub(super) fn leading_expression<'a>(node: &'a Expression<'a>) -> Option<&'a Expression<'a>> {
+    let (quasis, expressions) = template(node)?;
+    if quasis.first().is_some_and(|quasi| !quasi.is_empty()) {
+        return None;
     }
+    expressions.first()
 }
 
 /// The `href` of an `<a>`, with the element's attributes.

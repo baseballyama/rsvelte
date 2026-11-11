@@ -1,18 +1,18 @@
 //! Inline styles: a `style` attribute's value and the string literals in its expressions, as
 //! `PostCSS` declarations. The rules that read inline styles share them.
 
+use oxc_ast::ast::Expression;
+use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_stylesheet_syntax::postcss::{self, InlineNode};
+use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part,
 };
-use rsvelte_typescript_syntax::syntax_tree::{Kind, Tag};
-use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
-
-use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
-use rsvelte_svelte_syntax::Parsed;
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::markup::part_span;
+use super::nodes;
 use crate::rule::File;
 
 /// The inline style of every `style` attribute, by index in [`Component::attributes`]; `None` for
@@ -86,7 +86,7 @@ pub(super) fn expression_of_hole(
     component: &Component,
     attribute: &Attribute,
     index: u32,
-) -> NodeIdentifier {
+) -> ExpressionIdentifier {
     let AttributeValue::Parts(parts) = attribute.value else {
         unreachable!("a hole is a part of the value");
     };
@@ -103,47 +103,37 @@ pub(super) fn expression_of_hole(
 
 /// The string and template literals `expression` may evaluate to, through conditionals and
 /// logical operators.
-pub(super) fn literals(
-    javascript: &SyntaxTree,
-    expression: NodeIdentifier,
-    out: &mut Vec<NodeIdentifier>,
-) {
-    match javascript.kind(expression) {
-        Kind::String | Kind::Template { .. } => out.push(expression),
-        Kind::Conditional {
-            consequent,
-            alternate,
-            ..
-        } => {
-            literals(javascript, consequent, out);
-            literals(javascript, alternate, out);
+fn literals<'e>(expression: &'e Expression<'e>, out: &mut Vec<&'e Expression<'e>>) {
+    match expression {
+        Expression::StringLiteral(_) | Expression::TemplateLiteral(_) => out.push(expression),
+        Expression::ConditionalExpression(conditional) => {
+            literals(&conditional.consequent, out);
+            literals(&conditional.alternate, out);
         }
-        Kind::Logical(_, left, right) => {
-            literals(javascript, left, out);
-            literals(javascript, right, out);
+        Expression::LogicalExpression(logical) => {
+            literals(&logical.left, out);
+            literals(&logical.right, out);
         }
         _ => {}
     }
 }
 
 /// The inline style a string or template literal holds; a template's expressions are holes.
-pub(super) fn literal_style(
-    javascript: &SyntaxTree,
-    source: &str,
-    literal: NodeIdentifier,
-) -> Option<Vec<InlineNode>> {
-    let span = javascript.source_location(literal).span()?;
+pub(super) fn literal_style(source: &str, literal: &Expression<'_>) -> Option<Vec<InlineNode>> {
+    let span = nodes::span(literal);
     let content = Span::new(span.start_offset + 1, span.end_offset - 1);
-    let holes: Vec<Span> = match javascript.kind(literal) {
-        Kind::Template { quasis, .. } => quasis
+    let holes: Vec<Span> = match literal {
+        Expression::TemplateLiteral(template) => template
+            .quasis
             .windows(2)
-            .filter_map(|pair| {
-                let before = javascript.source_location(pair[0]).span()?;
-                let after = javascript.source_location(pair[1]).span()?;
-                Some(Span::new(before.end_offset, after.start_offset))
+            .map(|pair| {
+                Span::new(
+                    nodes::span(&pair[0]).end_offset,
+                    nodes::span(&pair[1]).start_offset,
+                )
             })
             .collect(),
-        _ if javascript.tag(literal) == Tag::String => Vec::new(),
+        Expression::StringLiteral(_) => Vec::new(),
         _ => return None,
     };
     postcss::inline(source, content, &holes)
@@ -179,7 +169,8 @@ pub(super) fn property_sets<'a>(
                     InlineNode::Hole { index, .. } => {
                         set.clear();
                         let expression = expression_of_hole(component, attribute, *index);
-                        expression_properties(&component.javascript, source, expression, &mut set);
+                        let expression = component.javascript.get_expression(expression);
+                        expression_properties(source, expression, &mut set);
                         visit(&set);
                     }
                     InlineNode::Comment(_) => {}
@@ -192,23 +183,22 @@ pub(super) fn property_sets<'a>(
 /// The declarations of every literal `expression` may be, and of the literals its templates'
 /// expressions may be.
 fn expression_properties<'a>(
-    javascript: &SyntaxTree,
     source: &'a str,
-    expression: NodeIdentifier,
+    expression: &Expression<'_>,
     out: &mut Vec<Property<'a>>,
 ) {
     let mut found = Vec::new();
-    literals(javascript, expression, &mut found);
+    literals(expression, &mut found);
     for literal in found {
-        let Some(nodes) = literal_style(javascript, source, literal) else {
+        let Some(nodes) = literal_style(source, literal) else {
             continue;
         };
         for node in nodes {
             match node {
                 InlineNode::Declaration(d) => out.push((d.property.text(source), d.property)),
                 InlineNode::Hole { index, .. } => {
-                    if let Kind::Template { expressions, .. } = javascript.kind(literal) {
-                        expression_properties(javascript, source, expressions[index as usize], out);
+                    if let Expression::TemplateLiteral(template) = literal {
+                        expression_properties(source, &template.expressions[index as usize], out);
                     }
                 }
                 InlineNode::Comment(_) => {}

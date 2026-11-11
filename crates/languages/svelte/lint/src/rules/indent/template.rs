@@ -1,14 +1,16 @@
 //! How the markup lays out its tokens: elements, attributes, blocks and tags.
 
+use oxc_ast_visit::Visit;
+use oxc_parser::Kind;
+use oxc_span::{GetSpan, Span as OxcSpan};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     Component, Range, Script as ScriptElement, TemplateNode, TemplateNodeIdentifier, TokenType,
 };
-use rsvelte_typescript_syntax::lexer::T;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
+use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier, Tree};
 
 use super::layout::Item;
-use super::script::Script;
+use super::script::{self, Script};
 use super::tokens::{Token, Tokens};
 
 pub(super) struct Template<'s, 'a> {
@@ -40,29 +42,40 @@ impl<'a> Template<'_, 'a> {
         self.tokens().after(token?)
     }
 
-    fn js_span(&self, node: NodeIdentifier) -> Option<Span> {
-        if node.is_none() {
-            return None;
-        }
-        self.script.span(node)
+    const fn tree(&self) -> &'a Tree {
+        &self.component.javascript
     }
 
-    fn js_first(&self, node: NodeIdentifier) -> Option<Token> {
-        self.first(self.js_span(node)?)
+    fn expression_span(&self, expression: ExpressionIdentifier) -> OxcSpan {
+        self.tree().get_expression(expression).span()
     }
 
-    fn js_outer(&self, node: NodeIdentifier) -> Option<(Token, Token)> {
-        self.tokens().outer(self.js_span(node)?, 0)
+    fn pattern_span(&self, pattern: PatternIdentifier) -> OxcSpan {
+        self.tree().get_pattern(pattern).span
+    }
+
+    fn js_first(&self, node: Option<OxcSpan>) -> Option<Token> {
+        self.first(script::span(node?))
+    }
+
+    fn js_outer(&self, node: Option<OxcSpan>) -> Option<(Token, Token)> {
+        self.tokens().outer(script::span(node?), 0)
     }
 
     /// The token after the node's last token.
-    fn js_after(&self, node: NodeIdentifier) -> Option<Token> {
-        self.tokens().after_offset(self.js_span(node)?.end_offset)
+    fn js_after(&self, node: Option<OxcSpan>) -> Option<Token> {
+        self.tokens().after_offset(node?.end)
     }
 
-    fn visit_js(&mut self, node: NodeIdentifier) {
-        if !node.is_none() {
-            self.script.visit(node);
+    fn visit_expression(&mut self, expression: ExpressionIdentifier) {
+        self.script
+            .visit_expression(self.tree().get_expression(expression));
+    }
+
+    fn visit_pattern(&mut self, pattern: Option<PatternIdentifier>) {
+        if let Some(pattern) = pattern {
+            self.script
+                .visit_formal_parameter(self.tree().get_pattern(pattern));
         }
     }
 
@@ -115,14 +128,9 @@ impl<'a> Template<'_, 'a> {
     fn script_element(&mut self, script: &ScriptElement) {
         let start_tag = Span::new(script.span.start_offset, script.content.start_offset);
         let end_tag = Span::new(script.content.end_offset, script.span.end_offset);
-        let statements: &[NodeIdentifier] = match self.script.javascript.kind(script.program) {
-            Kind::Program(statements) => statements,
-            _ => &[],
-        };
-        let items: Vec<Option<Item>> = statements
-            .iter()
-            .map(|&s| self.js_span(s).map(Item::Node))
-            .collect();
+        let program = self.tree().get_program(script.program);
+        let directives = program.directives.iter().map(|d| d.span);
+        let items = Script::items(directives.chain(program.body.iter().map(GetSpan::span)));
         let offset = u32::from(self.script.layout.options.indent_script);
         self.script.layout.list(
             &items,
@@ -140,8 +148,11 @@ impl<'a> Template<'_, 'a> {
         for (span, name, _) in &attributes {
             self.attribute(*span, *name, &[], true);
         }
-        for &statement in statements {
-            self.script.visit(statement);
+        for directive in &program.directives {
+            self.script.visit_directive(directive);
+        }
+        for statement in &program.body {
+            self.script.visit_statement(statement);
         }
         self.end_tag(end_tag);
     }
@@ -368,7 +379,7 @@ impl<'a> Template<'_, 'a> {
             TemplateNode::Comment { .. } => {}
             TemplateNode::Expression { expression, .. } | TemplateNode::Html { expression, .. } => {
                 let close = self.tokens().last(span);
-                let item = self.js_span(expression).map(Item::Node);
+                let item = Some(Script::item(self.expression_span(expression)));
                 if let Some(o) = open {
                     self.script.layout.list(
                         &[item],
@@ -378,7 +389,7 @@ impl<'a> Template<'_, 'a> {
                         false,
                     );
                 }
-                self.visit_js(expression);
+                self.visit_expression(expression);
             }
             TemplateNode::Element {
                 name,
@@ -401,23 +412,25 @@ impl<'a> Template<'_, 'a> {
             } => {
                 let (open, keyword) = self.head(open);
                 self.offset(keyword, 1, open);
-                let items = [expression, context, index].map(|n| self.js_span(n).map(Item::Node));
+                let expression_span = Some(self.expression_span(expression));
+                let context_span = context.map(|p| self.pattern_span(p));
+                let index_span = index.map(|p| self.pattern_span(p));
+                let items =
+                    [expression_span, context_span, index_span].map(|n| n.map(Script::item));
                 if let Some(k) = keyword {
                     self.script
                         .layout
                         .list(&items, Item::Token(k), None, 1, false);
                 }
-                let tag_close = if key.is_none() {
-                    let last = [index, context, expression]
-                        .into_iter()
-                        .find(|n| !n.is_none());
-                    let close = last.and_then(|n| self.js_after(n));
+                let tag_close = if let Some(key) = key {
+                    let key_tokens = self.js_outer(Some(self.expression_span(key)));
+                    self.offset(key_tokens.map(|(f, _)| f), 1, keyword);
+                    let close = self.after(key_tokens.map(|(_, l)| l));
                     self.offset(close, 0, open);
                     close
                 } else {
-                    let key_tokens = self.js_outer(key);
-                    self.offset(key_tokens.map(|(f, _)| f), 1, keyword);
-                    let close = self.after(key_tokens.map(|(_, l)| l));
+                    let last = index_span.or(context_span).or(expression_span);
+                    let close = self.js_after(last);
                     self.offset(close, 0, open);
                     close
                 };
@@ -431,10 +444,12 @@ impl<'a> Template<'_, 'a> {
                     None
                 };
                 self.closing(span, open);
-                self.visit_js(expression);
-                self.visit_js(context);
-                self.visit_js(index);
-                self.visit_js(key);
+                self.visit_expression(expression);
+                self.visit_pattern(context);
+                self.visit_pattern(index);
+                if let Some(key) = key {
+                    self.visit_expression(key);
+                }
                 self.visit_children(body);
                 if has_fallback {
                     self.else_block(else_open, fallback);
@@ -445,13 +460,13 @@ impl<'a> Template<'_, 'a> {
             } => {
                 let (open, keyword) = self.head(open);
                 self.offset(keyword, 1, open);
-                let expression_tokens = self.js_outer(expression);
+                let expression_tokens = self.js_outer(Some(self.expression_span(expression)));
                 self.offset(expression_tokens.map(|(f, _)| f), 1, keyword);
                 let close = self.after(expression_tokens.map(|(_, l)| l));
                 self.offset(close, 0, open);
                 self.block_children(body, open);
                 self.closing(span, open);
-                self.visit_js(expression);
+                self.visit_expression(expression);
                 self.visit_children(body);
             }
             TemplateNode::Await {
@@ -473,29 +488,26 @@ impl<'a> Template<'_, 'a> {
                 self.offset(keyword, 1, open);
                 let snippet_name = self.after(keyword);
                 self.offset(snippet_name, 1, keyword);
-                let parameters = component.javascript_list(parameters);
+                let parameters = parameters.map(|p| self.tree().get_parameters(p));
+                let spans = parameters.map_or_else(Vec::new, |p| script::parameter_spans(None, p));
                 let tokens = self.tokens();
-                let is_left = |t: Token| tokens.is(t, T::LParen);
-                let left = match parameters.first() {
-                    Some(&p) => self
-                        .js_span(p)
-                        .and_then(|s| tokens.before_matching(s.start_offset, is_left)),
-                    // Upstream searches back from the block's end and can take a `(` in the body.
-                    None => snippet_name
-                        .and_then(|n| tokens.after_matching(tokens.span(n).end_offset, is_left)),
-                };
-                let from = parameters
+                let is_left = |t: Token| tokens.is(t, Kind::LParen);
+                // Upstream searches back from the block's end and can take a `(` in the body.
+                let left = spans.first().map_or_else(
+                    || {
+                        snippet_name
+                            .and_then(|n| tokens.after_matching(tokens.span(n).end_offset, is_left))
+                    },
+                    |p| tokens.before_matching(p.start, is_left),
+                );
+                let from = spans
                     .last()
-                    .and_then(|&p| self.js_span(p))
-                    .map(|s| s.end_offset)
+                    .map(|s| s.end)
                     .or_else(|| left.map(|l| tokens.span(l).end_offset));
                 let right =
-                    from.and_then(|f| tokens.after_matching(f, |t| tokens.is(t, T::RParen)));
+                    from.and_then(|f| tokens.after_matching(f, |t| tokens.is(t, Kind::RParen)));
                 self.offset(left, 1, snippet_name);
-                let items: Vec<Option<Item>> = parameters
-                    .iter()
-                    .map(|&p| self.js_span(p).map(Item::Node))
-                    .collect();
+                let items = Script::items(spans);
                 if let Some(l) = left {
                     self.script.layout.list(
                         &items,
@@ -509,48 +521,44 @@ impl<'a> Template<'_, 'a> {
                 self.offset(close, 0, open);
                 self.block_children(body, open);
                 self.closing(span, open);
-                self.visit_js(name);
-                for &p in parameters {
-                    self.visit_js(p);
+                self.visit_expression(name);
+                if let Some(parameters) = parameters {
+                    self.script.visit_formal_parameters(parameters);
                 }
                 self.visit_children(body);
             }
             TemplateNode::Render { expression, .. } => {
                 let (open, keyword) = self.head(open);
                 self.offset(keyword, 1, open);
-                let first = self.js_first(expression);
+                let first = self.js_first(Some(self.expression_span(expression)));
                 self.offset(first, 1, keyword);
-                self.visit_js(expression);
+                self.visit_expression(expression);
             }
             TemplateNode::Const { declaration, .. } => {
                 let (open, keyword) = self.head(open);
                 self.offset(keyword, 1, open);
-                let declarators: &[NodeIdentifier] = match self.script.javascript.kind(declaration)
-                {
-                    Kind::VariableDeclaration { declarations, .. } => declarations,
-                    _ => &[],
-                };
-                let first = declarators.first().and_then(|&d| self.js_first(d));
+                let declarators = &self.tree().get_declaration(declaration).declarations;
+                let first = declarators
+                    .first()
+                    .and_then(|d| self.js_first(Some(d.span)));
                 self.offset(first, 1, open);
                 let close = self.tokens().last(span);
                 self.offset(close, 0, open);
-                for &d in declarators {
-                    self.visit_js(d);
+                for d in declarators {
+                    self.script.visit_variable_declarator(d);
                 }
             }
             TemplateNode::Declaration { declaration, .. } => {
-                let first = self.js_first(declaration);
+                let declaration = self.tree().get_declaration(declaration);
+                let first = self.js_first(Some(declaration.span));
                 self.offset(first, 1, open);
                 let close = self.tokens().last(span);
                 self.offset(close, 0, open);
-                self.visit_js(declaration);
+                self.script.visit_variable_declaration(declaration);
             }
             TemplateNode::Debug { identifiers, .. } => {
-                let identifiers = component.javascript_list(identifiers);
-                let items: Vec<Option<Item>> = identifiers
-                    .iter()
-                    .map(|&p| self.js_span(p).map(Item::Node))
-                    .collect();
+                let identifiers = component.debug_identifiers(identifiers);
+                let items = Script::items(identifiers.iter().map(|&i| self.expression_span(i)));
                 let close = self.tokens().last(span);
                 if let Some(o) = open {
                     self.script.layout.list(
@@ -562,7 +570,7 @@ impl<'a> Template<'_, 'a> {
                     );
                 }
                 for &i in identifiers {
-                    self.visit_js(i);
+                    self.visit_expression(i);
                 }
             }
         }

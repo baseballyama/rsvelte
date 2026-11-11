@@ -58,14 +58,17 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let remove_defaults = el.name.text(self.source_text) == "input"
             && self.remove_input_defaults(attribute_list, has_spread, node, l);
         if has_spread {
-            self.attribute_effect(identifier, &tag, attribute_list, node, remove_defaults, l);
+            self.attribute_effect(identifier, &tag, attribute_list, node, remove_defaults, l)?;
         } else {
             self.element_attributes(identifier, &tag, attribute_list, node, frag, l)?;
         }
         let load_error_events = attribute_list.iter().any(|a| {
             !is_directive(&a.value) && matches!(a.name.text(self.source_text), "onload" | "onerror")
         });
-        if is_load_error_element(&tag) && (has_spread || load_error_events) {
+        let has_use = attribute_list
+            .iter()
+            .any(|a| matches!(a.value, AttributeValue::Use { .. }));
+        if is_load_error_element(&tag) && (has_spread || has_use || load_error_events) {
             let b = self.b;
             l.after
                 .push(b.stmt(b.runtime("replay_events", [b.id(node)])));

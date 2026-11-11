@@ -1,11 +1,15 @@
+use oxc_ast::AstKind;
+use oxc_ast::ast::Expression;
+use oxc_semantic::ReferenceId;
+use oxc_span::GetSpan;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_semantic::legacy::Variable;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
-use rsvelte_typescript_syntax::Kind;
 use rustc_hash::FxHashSet;
 
-use super::javascript::span;
-use super::legacy_reactivity::{is_html_element, legacy, property_name};
+use super::legacy_reactivity::{expression_node, is_html_element, legacy, property_name};
+use super::nodes::span;
+use super::svelte_store::is_value;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -75,47 +79,59 @@ impl SvelteRule for NoDomManipulating {
                 }
                 if let AttributeValue::Parts(parts) = attribute.value
                     && let [Part::Expression { expression, .. }] = component.parts(parts)
-                    && javascript.is_identifier(*expression)
+                    && let expression = javascript.get_expression(*expression)
+                    && matches!(expression, Expression::Identifier(_))
                 {
-                    bound.insert(*expression);
+                    bound.insert(expression_node(expression));
                 }
             }
         }
         if bound.is_empty() {
             return;
         }
-        let sem = file.semantic();
+        let semantic = file.semantic();
+        let scoping = semantic.scoping();
+        let nodes = semantic.nodes();
         let legacy = legacy(file);
-        let variables: FxHashSet<Variable> = sem
-            .references
-            .iter()
-            .zip(&legacy.references)
-            .filter(|(reference, _)| bound.contains(&reference.node))
+        let references = || {
+            (0..scoping.references_len())
+                .map(ReferenceId::from_usize)
+                .map(|id| (scoping.get_reference(id), legacy.references[id.index()]))
+                .filter(|(reference, _)| is_value(reference))
+        };
+        let variables: FxHashSet<Variable> = references()
+            .filter(|(reference, _)| bound.contains(&reference.node_id()))
             .filter_map(|(_, top)| top.map(|top| top.variable))
             .collect();
-        let parents = file.parents();
-        for (reference, top) in sem.references.iter().zip(&legacy.references) {
+        for (reference, top) in references() {
             if !top.is_some_and(|top| variables.contains(&top.variable)) {
                 continue;
             }
-            let member = parents[reference.node.index()];
-            if member.is_none() {
+            let identifier = reference.node_id();
+            let member = nodes.parent_id(identifier);
+            let member_kind = nodes.kind(member);
+            let object = match member_kind {
+                AstKind::StaticMemberExpression(member) => &member.object,
+                AstKind::ComputedMemberExpression(member) => &member.object,
+                _ => continue,
+            };
+            if expression_node(object) != identifier {
                 continue;
             }
-            if !matches!(javascript.kind(member), Kind::Member { object, .. } if object == reference.node)
-            {
-                continue;
-            }
-            let Some(name) = property_name(javascript, source, member) else {
+            let Some(name) = property_name(member_kind) else {
                 continue;
             };
-            let parent = parents[member.index()];
-            if parent.is_none() {
+            let parent = nodes.parent_id(member);
+            if parent == member {
                 continue;
             }
-            let manipulates = match javascript.kind(parent) {
-                Kind::Call { callee, .. } => callee == member && METHODS.contains(&name),
-                Kind::Assign(_, left, _) => left == member && PROPERTIES.contains(&name),
+            let manipulates = match nodes.kind(parent) {
+                AstKind::CallExpression(call) => {
+                    expression_node(&call.callee) == member && METHODS.contains(&name)
+                }
+                AstKind::AssignmentExpression(assignment) => {
+                    assignment.left.span() == member_kind.span() && PROPERTIES.contains(&name)
+                }
                 _ => false,
             };
             if manipulates {
@@ -124,7 +140,7 @@ impl SvelteRule for NoDomManipulating {
                         "Don't manipulate the DOM directly. The Svelte runtime can get confused \
                          if there is a difference between the actual DOM and the DOM expected by \
                          the Svelte runtime.",
-                        span(javascript, member),
+                        span(&member_kind),
                     )
                     .message_id("disallowManipulateDOM"),
                 );

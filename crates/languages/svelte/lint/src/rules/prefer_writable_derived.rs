@@ -1,10 +1,13 @@
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript_semantic::scope::DeclarationKind;
-use rsvelte_typescript_syntax::operators::AssignmentOperator;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use oxc_ast::AstKind;
+use oxc_ast::ast::{
+    Argument, AssignmentOperator, AssignmentTarget, CallExpression, Expression, FunctionBody,
+    IdentifierReference, Statement,
+};
 
-use super::nodes::{is_named, span, text, walk};
+use super::javascript::walk;
+use super::nodes::{is_named, span, text};
 use super::runes::runes_or_undetermined;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -27,47 +30,43 @@ impl SvelteRule for PreferWritableDerived {
         if !runes_or_undetermined(file) {
             return;
         }
-        let tree = file.javascript();
         let source = file.source();
-        let sem = file.semantic();
-        walk(file, |call| {
-            let Some((target, value)) = effect_assignment(tree, call) else {
+        let semantic = file.semantic();
+        let scoping = semantic.scoping();
+        walk(file, |node| {
+            let AstKind::CallExpression(call) = node.kind() else {
                 return;
             };
-            let Some(binding) = sem.binding_of(target).map(|b| &sem.bindings[b]) else {
+            let Some((target, value)) = effect_assignment(call) else {
                 return;
             };
-            if !matches!(
-                binding.kind,
-                DeclarationKind::Variable | DeclarationKind::Let | DeclarationKind::Const
-            ) {
-                return;
-            }
-            let Some(declarator) = binding.declaration else {
-                return;
-            };
-            let Kind::Declarator {
-                initializer: Some(initializer),
-                ..
-            } = tree.kind(declarator)
+            let Some(symbol) = target
+                .reference_id
+                .get()
+                .and_then(|reference| scoping.get_reference(reference).symbol_id())
             else {
                 return;
             };
-            let Kind::Call { callee, .. } = tree.kind(initializer) else {
+            let AstKind::VariableDeclarator(declarator) =
+                semantic.nodes().kind(scoping.symbol_declaration(symbol))
+            else {
                 return;
             };
-            if !is_named(tree, callee, "$state") {
+            let Some(initializer @ Expression::CallExpression(state)) = &declarator.init else {
+                return;
+            };
+            if !is_named(&state.callee, "$state") {
                 return;
             }
             let mut fix = Fix::replace(
-                span(tree, initializer),
-                format!("$derived({})", text(tree, value, source)),
+                span(initializer),
+                format!("$derived({})", text(value, source)),
             );
-            fix.push(span(tree, call), "");
+            fix.push(span(call), "");
             reporter.report(
                 Report::range(
                     "Prefer using writable $derived instead of $state and $effect",
-                    span(tree, declarator),
+                    span(declarator),
                 )
                 .message_id("unexpected")
                 .suggest(Suggestion {
@@ -81,53 +80,60 @@ impl SvelteRule for PreferWritableDerived {
 }
 
 /// `$effect(() => { target = value; })` or `$effect.pre(…)` → (`target`, `value`).
-fn effect_assignment(
-    tree: &SyntaxTree,
-    call: NodeIdentifier,
-) -> Option<(NodeIdentifier, NodeIdentifier)> {
-    let Kind::Call {
-        callee,
-        arguments: &[argument],
-        ..
-    } = tree.kind(call)
-    else {
+fn effect_assignment<'a>(
+    call: &'a CallExpression<'a>,
+) -> Option<(&'a IdentifierReference<'a>, &'a Expression<'a>)> {
+    let [argument] = call.arguments.as_slice() else {
         return None;
     };
-    let is_effect = match tree.kind(callee) {
-        Kind::Identifier(_) => is_named(tree, callee, "$effect"),
-        Kind::Member {
-            object, property, ..
-        } => is_named(tree, object, "$effect") && is_named(tree, property, "pre"),
+    let is_effect = match &call.callee {
+        callee @ Expression::Identifier(_) => is_named(callee, "$effect"),
+        Expression::StaticMemberExpression(member) => {
+            is_named(&member.object, "$effect") && member.property.name == "pre"
+        }
+        Expression::ComputedMemberExpression(member) => {
+            is_named(&member.object, "$effect") && is_named(&member.expression, "pre")
+        }
         _ => false,
     };
     if !is_effect {
         return None;
     }
-    let (Kind::Arrow {
-        parameters: [],
-        body,
-        expression_body: false,
-        ..
-    }
-    | Kind::Function {
-        parameters: [],
-        body,
-        declaration: false,
-        ..
-    }) = tree.kind(argument)
-    else {
-        return None;
-    };
-    let Kind::Block(&[statement]) = tree.kind(body) else {
-        return None;
-    };
-    let Kind::ExpressionStatement(expression) = tree.kind(statement) else {
-        return None;
-    };
-    match tree.kind(expression) {
-        Kind::Assign(AssignmentOperator::Assign, target, value) if tree.is_identifier(target) => {
-            Some((target, value))
+    let body = match argument {
+        Argument::ArrowFunctionExpression(arrow)
+            if arrow.params.items.is_empty() && arrow.params.rest.is_none() =>
+        {
+            arrow.body.as_function_body()?
         }
+        Argument::FunctionExpression(function)
+            if function.params.items.is_empty() && function.params.rest.is_none() =>
+        {
+            function.body.as_deref()?
+        }
+        _ => return None,
+    };
+    let Statement::ExpressionStatement(statement) = only_statement(body)? else {
+        return None;
+    };
+    match &statement.expression {
+        Expression::AssignmentExpression(assignment)
+            if assignment.operator == AssignmentOperator::Assign =>
+        {
+            match &assignment.left {
+                AssignmentTarget::AssignmentTargetIdentifier(target) => {
+                    Some((target, &assignment.right))
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+/// The one statement of a body, a directive counting as a statement as in `ESTree`.
+fn only_statement<'a>(body: &'a FunctionBody<'a>) -> Option<&'a Statement<'a>> {
+    match (body.directives.as_slice(), body.statements.as_slice()) {
+        ([], [statement]) => Some(statement),
         _ => None,
     }
 }

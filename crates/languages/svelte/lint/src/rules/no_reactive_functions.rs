@@ -1,9 +1,10 @@
+use oxc_ast::ast::{Expression, Statement};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TokenType;
-use rsvelte_typescript_syntax::Kind;
 
+use super::nodes::span;
 use super::reactive_statements::{between, reactive_statements};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -24,25 +25,21 @@ struct NoReactiveFunctions;
 impl SvelteRule for NoReactiveFunctions {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        let javascript = &component.javascript;
         let tokens = &component.tokens;
         for (statement, body) in reactive_statements(component, file.source()) {
-            let Kind::ExpressionStatement(expression) = javascript.kind(body) else {
+            let Statement::ExpressionStatement(expression) = body else {
                 continue;
             };
-            let Kind::Assign(_, _, right) = javascript.kind(expression) else {
+            let Expression::AssignmentExpression(assignment) = &expression.expression else {
                 continue;
             };
             if !matches!(
-                javascript.kind(right),
-                Kind::Function { .. } | Kind::Arrow { .. }
+                assignment.right,
+                Expression::FunctionExpression(_) | Expression::ArrowFunctionExpression(_)
             ) {
                 continue;
             }
-            let span = javascript
-                .source_location(statement)
-                .span()
-                .expect("a parsed statement");
+            let span = span(statement);
             let mut report = Report::range(
                 "Do not create functions inside reactive statements unless absolutely necessary.",
                 span,

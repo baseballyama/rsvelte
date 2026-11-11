@@ -5,7 +5,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, Range, TemplateNode, TokenType,
 };
-use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_tree::PatternIdentifier;
 use serde::Deserialize;
 
 use super::markup::{is_special_this, whitespace_after, whitespace_before};
@@ -215,8 +215,8 @@ impl Checker<'_> {
     fn await_block(
         &self,
         span: Span,
-        value: NodeIdentifier,
-        error: NodeIdentifier,
+        value: Option<PatternIdentifier>,
+        error: Option<PatternIdentifier>,
         [pending, then, catch]: [Range; 3],
         out: &mut Vec<Braces>,
     ) {
@@ -231,7 +231,7 @@ impl Checker<'_> {
             let Some(branch) = branch.present() else {
                 continue;
             };
-            let has_pattern = pattern != NodeIdentifier::NONE;
+            let has_pattern = pattern.is_some();
             if inline {
                 out.push(self.tag(span.start_offset, Some(header), has_pattern));
                 inline = false;

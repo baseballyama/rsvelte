@@ -1,9 +1,13 @@
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_syntax::syntax_tree::{Part, decode_attribute};
-use rsvelte_typescript_semantic::scope::BindingIdentifier;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
+use oxc_ast::ast::{ChainElement, Expression};
+use oxc_semantic::{NodeId, SymbolId};
 
-use super::kit_navigation::{Navigation, Options, Script, first_part, has_scheme, links};
+use super::kit_navigation::{
+    Navigation, Options, Script, first_argument, first_part, has_scheme, leading_expression,
+    links, string, template,
+};
+use super::nodes::span;
 use super::kit_route::{BASE_VERSIONS, runs_for};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -50,11 +54,14 @@ impl SvelteRule for NoNavigationWithoutBase {
                     true,
                 ),
             };
-            let Some(url) = script.first_argument(call).filter(|_| !ignored) else {
+            let Some(argument) = first_argument(call).filter(|_| !ignored) else {
                 continue;
             };
-            if (!allow_empty || !check.is_empty(url)) && !check.starts_with_base(url) {
-                reporter.range(message, script.span(url));
+            let allowed = argument.as_expression().is_some_and(|url| {
+                (allow_empty && check.is_empty(url)) || check.starts_with_base(url)
+            });
+            if !allowed {
+                reporter.range(message, span(argument));
             }
         }
         let Some(component) = file.component().filter(|_| !self.0.ignore_links) else {
@@ -70,12 +77,15 @@ impl SvelteRule for NoNavigationWithoutBase {
                     let url = decode_attribute(span.text(script.source));
                     (has_scheme(&url) || url.starts_with('#'), *span)
                 }
-                Some(&Part::Expression { expression, span }) => (
-                    check.starts_with_base(expression)
-                        || check.is_absolute(expression)
-                        || check.is_fragment(expression),
-                    span,
-                ),
+                Some(&Part::Expression { expression, span }) => {
+                    let expression = script.tree.get_expression(expression);
+                    (
+                        check.starts_with_base(expression)
+                            || check.is_absolute(expression)
+                            || check.is_fragment(expression),
+                        span,
+                    )
+                }
                 None => continue,
             };
             if !allowed {
@@ -91,65 +101,67 @@ impl SvelteRule for NoNavigationWithoutBase {
 struct Check<'s, 'a> {
     script: &'s Script<'a>,
     /// What reads `base`, sorted.
-    base: &'s [NodeIdentifier],
+    base: &'s [NodeId],
 }
 
-impl Check<'_, '_> {
-    fn starts_with_base(&self, url: NodeIdentifier) -> bool {
+impl<'a> Check<'_, 'a> {
+    fn starts_with_base(&self, url: &'a Expression<'a>) -> bool {
         self.prefix(url, &mut Vec::new())
             .is_some_and(|prefix| self.base.binary_search(&prefix).is_ok())
     }
 
     /// The variable or member a URL starts with, following constants.
-    fn prefix(
-        &self,
-        node: NodeIdentifier,
-        visited: &mut Vec<BindingIdentifier>,
-    ) -> Option<NodeIdentifier> {
-        let script = self.script;
-        match script.tree.kind(node) {
-            Kind::Binary(_, left, _) => self.prefix(left, visited),
-            Kind::Identifier(_) => match script.initializer(node) {
-                Some((binding, initializer)) if !visited.contains(&binding) => {
-                    visited.push(binding);
-                    Some(self.prefix(initializer, visited).unwrap_or(node))
+    fn prefix(&self, node: &'a Expression<'a>, visited: &mut Vec<SymbolId>) -> Option<NodeId> {
+        match node {
+            Expression::BinaryExpression(binary) => self.prefix(&binary.left, visited),
+            Expression::Identifier(identifier) => match self.script.initializer(identifier) {
+                Some((symbol, initializer)) if !visited.contains(&symbol) => {
+                    visited.push(symbol);
+                    Some(self.prefix(initializer, visited).unwrap_or(node.node_id()))
                 }
-                _ => Some(node),
+                _ => Some(node.node_id()),
             },
-            Kind::Member { .. } => Some(node),
-            Kind::Template { .. } => self.prefix(script.leading_expression(node)?, visited),
+            Expression::StaticMemberExpression(_)
+            | Expression::ComputedMemberExpression(_)
+            | Expression::PrivateFieldExpression(_) => Some(node.node_id()),
+            // `a?.b` is a member too, as `ESTree` keeps it inside its chain.
+            Expression::ChainExpression(chain) => match &chain.expression {
+                ChainElement::StaticMemberExpression(member) => Some(member.node_id()),
+                ChainElement::ComputedMemberExpression(member) => Some(member.node_id()),
+                ChainElement::PrivateFieldExpression(member) => Some(member.node_id()),
+                _ => None,
+            },
+            Expression::TemplateLiteral(_) => self.prefix(leading_expression(node)?, visited),
             _ => None,
         }
     }
 
-    fn is_empty(&self, url: NodeIdentifier) -> bool {
-        let script = self.script;
-        script.string(url) == Some("")
-            || script
-                .template(url)
+    fn is_empty(&self, url: &'a Expression<'a>) -> bool {
+        string(url) == Some("")
+            || template(url)
                 .is_some_and(|(quasis, expressions)| expressions.is_empty() && quasis == [""])
     }
 
-    fn is_absolute(&self, url: NodeIdentifier) -> bool {
-        let script = self.script;
-        match script.tree.kind(url) {
-            Kind::Binary(_, left, right) => self.is_absolute(left) || self.is_absolute(right),
-            Kind::String => has_scheme(script.tree.str_value(url, script.source)),
-            Kind::Template { .. } => script.template(url).is_some_and(|(quasis, expressions)| {
-                expressions.iter().any(|&e| self.is_absolute(e))
+    fn is_absolute(&self, url: &'a Expression<'a>) -> bool {
+        match url {
+            Expression::BinaryExpression(binary) => {
+                self.is_absolute(&binary.left) || self.is_absolute(&binary.right)
+            }
+            Expression::StringLiteral(_) => string(url).is_some_and(has_scheme),
+            Expression::TemplateLiteral(_) => template(url).is_some_and(|(quasis, expressions)| {
+                expressions.iter().any(|e| self.is_absolute(e))
                     || quasis.iter().any(|quasi| has_scheme(quasi))
             }),
             _ => false,
         }
     }
 
-    fn is_fragment(&self, url: NodeIdentifier) -> bool {
-        let script = self.script;
-        match script.tree.kind(url) {
-            Kind::Binary(_, left, _) => self.is_fragment(left),
-            Kind::String => script.tree.str_value(url, script.source).starts_with('#'),
-            Kind::Template { .. } => script.template(url).is_some_and(|(quasis, expressions)| {
-                expressions.first().is_some_and(|&e| self.is_fragment(e))
+    fn is_fragment(&self, url: &'a Expression<'a>) -> bool {
+        match url {
+            Expression::BinaryExpression(binary) => self.is_fragment(&binary.left),
+            Expression::StringLiteral(_) => string(url).is_some_and(|url| url.starts_with('#')),
+            Expression::TemplateLiteral(_) => template(url).is_some_and(|(quasis, expressions)| {
+                expressions.first().is_some_and(|e| self.is_fragment(e))
                     || quasis.first().is_some_and(|quasi| quasi.starts_with('#'))
             }),
             _ => false,

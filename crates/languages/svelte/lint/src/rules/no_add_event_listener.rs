@@ -1,11 +1,11 @@
+use oxc_ast::AstKind;
+use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
-use rustc_hash::FxHashMap;
 
-use super::javascript::{span, walk};
+use super::javascript::walk;
+use super::nodes::span;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -24,44 +24,38 @@ struct NoAddEventListener;
 
 impl SvelteRule for NoAddEventListener {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let javascript = file.javascript();
         let source = file.source();
-        let named = |node| {
-            javascript.atom(node).map(|atom| javascript.atoms.get(atom)) == Some("addEventListener")
-        };
-        let mut typed: Option<FxHashMap<NodeIdentifier, Span>> = None;
-        walk(file, |call| {
-            let Kind::Call { callee, .. } = javascript.kind(call) else {
+        walk(file, |node| {
+            let AstKind::CallExpression(call) = node.kind() else {
                 return;
             };
-            let object = match javascript.kind(callee) {
-                Kind::Member {
-                    object, property, ..
-                } if named(property) => Some(object),
-                Kind::Identifier(_) if named(callee) => None,
+            // A cast callee is a `TSAsExpression`, which is neither a member nor a name.
+            let object = match &call.callee {
+                Expression::StaticMemberExpression(member)
+                    if member.property.name == "addEventListener" =>
+                {
+                    Some(&member.object)
+                }
+                // `property.name` is also an identifier's name inside brackets.
+                Expression::ComputedMemberExpression(member)
+                    if matches!(&member.expression, Expression::Identifier(property)
+                        if property.name == "addEventListener") =>
+                {
+                    Some(&member.object)
+                }
+                Expression::Identifier(callee) if callee.name == "addEventListener" => None,
                 _ => return,
             };
-            let typed = typed.get_or_insert_with(|| typed_spans(javascript));
-            let typed_span = |node| {
-                typed
-                    .get(&node)
-                    .copied()
-                    .unwrap_or_else(|| span(javascript, node))
-            };
-            let target = object.map_or("window", |object| typed_span(object).text(source));
-            // A cast callee is a `TSAsExpression`, which is neither a member nor a name.
-            if typed_span(callee) != span(javascript, callee) {
-                return;
-            }
-            let callee_span = span(javascript, callee);
+            let target = object.map_or("window", |object| span(object).text(source));
+            let callee = span(&call.callee);
             let mut report = Report::range(
                 "Do not use `addEventListener`. Use the `on` function from `svelte/events` \
                  instead.",
-                span(javascript, call),
+                span(call),
             )
             .message_id("unexpected");
-            if let Some(open) = next_token(file, callee_span.end_offset) {
-                let mut fix = Fix::replace(callee_span, "on");
+            if let Some(open) = next_token(source, callee.end_offset) {
+                let mut fix = Fix::replace(callee, "on");
                 fix.push(
                     Span::new(open.end_offset, open.end_offset),
                     format!("{target}, "),
@@ -77,31 +71,27 @@ impl SvelteRule for NoAddEventListener {
     }
 }
 
-/// The span of each node that type syntax wraps (`e as T`, `e!`, `<T>e`), with that syntax, as
-/// `ESTree`'s node for the cast spans it.
-fn typed_spans(javascript: &SyntaxTree) -> FxHashMap<NodeIdentifier, Span> {
-    let mut out: FxHashMap<NodeIdentifier, Span> = FxHashMap::default();
-    for syntax in &javascript.typescript {
-        let wraps_end = match syntax.kind {
-            TypeScriptKind::As | TypeScriptKind::Satisfies | TypeScriptKind::NonNull => true,
-            TypeScriptKind::Assertion => false,
-            _ => continue,
-        };
-        let at = out
-            .entry(syntax.node)
-            .or_insert_with(|| span(javascript, syntax.node));
-        if wraps_end {
-            at.end_offset = at.end_offset.max(syntax.span.end_offset);
+/// The token after a callee, past whitespace and comments: `(`, `?.` or the `<` of type
+/// arguments.
+fn next_token(source: &str, offset: u32) -> Option<Span> {
+    let rest = source.get(offset as usize..)?;
+    let mut at = 0;
+    loop {
+        let text = &rest[at..];
+        let trimmed = text.trim_start();
+        at += text.len() - trimmed.len();
+        if trimmed.starts_with("//") {
+            at += trimmed.find('\n')?;
+        } else if let Some(comment) = trimmed.strip_prefix("/*") {
+            at += 2 + comment.find("*/")? + 2;
         } else {
-            at.start_offset = at.start_offset.min(syntax.span.start_offset);
+            let length = if trimmed.starts_with("?.") {
+                2
+            } else {
+                trimmed.chars().next()?.len_utf8()
+            };
+            let start = offset + u32::try_from(at).ok()?;
+            return Some(Span::new(start, start + u32::try_from(length).ok()?));
         }
     }
-    out
-}
-
-/// The first token, not a comment, at or after `offset`.
-fn next_token(file: &File<'_>, offset: u32) -> Option<Span> {
-    let javascript = file.javascript();
-    let tokens = &javascript.tokens;
-    tokens.after(offset).map(|token| tokens.get(token).span)
 }

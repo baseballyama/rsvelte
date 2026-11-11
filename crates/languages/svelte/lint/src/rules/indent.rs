@@ -80,13 +80,7 @@ impl SvelteRule for Indent {
         );
         let mut layout = Layout::new(tokens, self.0);
         template::Template {
-            script: script::Script {
-                layout: &mut layout,
-                javascript: &component.javascript,
-                parents: file.parents(),
-                annotations: script::annotations(&component.javascript),
-                typescript: script::typescript(&component.javascript),
-            },
+            script: script::Script::new(&mut layout),
             component,
         }
         .visit();
