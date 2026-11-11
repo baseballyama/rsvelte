@@ -8,7 +8,8 @@ use super::{NodeIdentifier, Parser, R, SyntaxTree, T};
 ///
 /// # Errors
 ///
-/// [`ParseError`](super::ParseError) at the first lexical or syntax error, or at syntax this parser does not support.
+/// [`ParseError`](super::ParseError) at the first lexical or syntax error, or at syntax this parser
+/// does not support.
 pub fn parse_program(
     syntax_tree: &mut SyntaxTree,
     source_text: &str,
@@ -27,7 +28,8 @@ pub fn parse_program(
 ///
 /// # Errors
 ///
-/// [`ParseError`](super::ParseError) at the first lexical or syntax error, or at syntax this parser does not support.
+/// [`ParseError`](super::ParseError) at the first lexical or syntax error, or at syntax this parser
+/// does not support.
 pub fn parse_jsx_program(
     syntax_tree: &mut SyntaxTree,
     source_text: &str,
@@ -54,7 +56,8 @@ fn program(mut p: Parser<'_, '_>, range: Span) -> R<NodeIdentifier> {
 ///
 /// # Errors
 ///
-/// [`ParseError`](super::ParseError) at the first lexical or syntax error, or if a token follows the expression.
+/// [`ParseError`](super::ParseError) at the first lexical or syntax error, or if a token follows
+/// the expression.
 pub fn parse_expression(
     syntax_tree: &mut SyntaxTree,
     source_text: &str,
@@ -76,7 +79,8 @@ pub fn parse_expression(
 ///
 /// # Errors
 ///
-/// [`ParseError`](super::ParseError) at the first lexical or syntax error, or if a token follows the list.
+/// [`ParseError`](super::ParseError) at the first lexical or syntax error, or if a token follows
+/// the list.
 pub fn parse_parameters(
     syntax_tree: &mut SyntaxTree,
     source_text: &str,
@@ -106,7 +110,8 @@ pub fn parse_parameters(
 ///
 /// # Errors
 ///
-/// [`ParseError`](super::ParseError) at the first lexical or syntax error before the expression ends.
+/// [`ParseError`](super::ParseError) at the first lexical or syntax error before the expression
+/// ends.
 pub fn parse_expression_prefix(
     syntax_tree: &mut SyntaxTree,
     source_text: &str,
@@ -137,7 +142,8 @@ pub fn parse_expression_prefix(
 ///
 /// # Errors
 ///
-/// [`ParseError`](super::ParseError) at the first lexical or syntax error before the declaration ends.
+/// [`ParseError`](super::ParseError) at the first lexical or syntax error before the declaration
+/// ends.
 pub fn parse_declaration_prefix(
     syntax_tree: &mut SyntaxTree,
     source_text: &str,

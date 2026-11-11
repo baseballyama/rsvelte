@@ -1,7 +1,8 @@
 //! The tokens only JSX has, lexed on the parser's request.
 
-use super::{LexedToken, Lexer, R, T, is_identifier_continue};
 use rsvelte_kernel::source::positions::Span;
+
+use super::{LexedToken, Lexer, R, T, is_identifier_continue};
 
 impl Lexer<'_> {
     /// JSX text from the current position up to the next `{` or `<`.

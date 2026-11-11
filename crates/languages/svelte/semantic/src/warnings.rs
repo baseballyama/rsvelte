@@ -134,15 +134,6 @@ impl CompileWarnings {
 }
 
 impl CompileWarnings {
-    /// The warnings `compile` returns: those no `svelte-ignore` of the compiler's covers.
-    pub fn compiled(&self) -> impl Iterator<Item = &Diagnostic> {
-        self.warnings
-            .iter()
-            .zip(&self.ignored)
-            .filter(|(_, ignored)| !**ignored)
-            .map(|(warning, _)| warning)
-    }
-
     /// The warning codes this module checks.
     pub const CODES: &[&str] = &[
         "a11y_accesskey",
@@ -220,10 +211,18 @@ impl CompileWarnings {
         "svelte_self_deprecated",
         "unknown_code",
     ];
-
     /// Every code Svelte warns with, the runtime warnings `svelte-ignore` also names included: a
     /// `svelte-ignore` of another code ignores nothing.
     pub const SVELTE_CODES: &[&str] = &include!("warnings/vendor/codes.rs");
+
+    /// The warnings `compile` returns: those no `svelte-ignore` of the compiler's covers.
+    pub fn compiled(&self) -> impl Iterator<Item = &Diagnostic> {
+        self.warnings
+            .iter()
+            .zip(&self.ignored)
+            .filter(|(_, ignored)| !**ignored)
+            .map(|(warning, _)| warning)
+    }
 }
 
 /// `SlotElement`'s check of a `<slot>`'s `name`, given its static text (`None` for any other
@@ -410,6 +409,7 @@ fn top_level_awaits(component: &Component, compiler_syntax_tree: &CompilerSyntax
                 _ => {}
             }
         }
+
         fn leave_node(&mut self, kind: AstKind<'a>) {
             if matches!(
                 kind,
@@ -423,20 +423,27 @@ fn top_level_awaits(component: &Component, compiler_syntax_tree: &CompilerSyntax
         fn expression(&mut self, expression: ExpressionIdentifier) {
             self.visit_expression(self.tree.get_expression(expression));
         }
+
         fn bound(&mut self, expression: ExpressionIdentifier) {
             self.expression(expression);
         }
+
         fn declaration(&mut self, declaration: DeclarationIdentifier) {
             self.visit_variable_declaration(self.tree.get_declaration(declaration));
         }
+
         fn pattern(&mut self, pattern: PatternIdentifier) {
             self.visit_formal_parameter(self.tree.get_pattern(pattern));
         }
+
         fn parameters(&mut self, parameters: ParametersIdentifier) {
             self.visit_formal_parameters(self.tree.get_parameters(parameters));
         }
+
         fn name(&mut self, _: TemplateName) {}
+
         fn enter(&mut self, _: TemplateScope) {}
+
         fn leave(&mut self) {}
     }
     let tree = &component.javascript;

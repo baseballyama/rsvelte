@@ -67,24 +67,31 @@ impl Roots for Vec<Root> {
     fn expression(&mut self, expression: ExpressionIdentifier) {
         self.push(Root::Expression(expression));
     }
+
     fn bound(&mut self, expression: ExpressionIdentifier) {
         self.push(Root::Bound(expression));
     }
+
     fn declaration(&mut self, declaration: DeclarationIdentifier) {
         self.push(Root::Declaration(declaration));
     }
+
     fn pattern(&mut self, pattern: PatternIdentifier) {
         self.push(Root::Pattern(pattern));
     }
+
     fn parameters(&mut self, parameters: ParametersIdentifier) {
         self.push(Root::Parameters(parameters));
     }
+
     fn name(&mut self, name: TemplateName) {
         self.push(Root::Name(name));
     }
+
     fn enter(&mut self, scope: TemplateScope) {
         self.push(Root::Enter(scope));
     }
+
     fn leave(&mut self) {
         self.push(Root::Leave);
     }

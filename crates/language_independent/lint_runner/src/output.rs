@@ -15,7 +15,8 @@ const FINDING_BYTES: usize = 200;
 /// `lines` counts lines as `ESLint` does, with
 /// [`LineBreaks::Ecmascript`](rsvelte_kernel::source::positions::LineBreaks).
 ///
-/// `end` is `null` for a finding without one ([`has_end`](rsvelte_kernel::diagnostics::Diagnostic::has_end)).
+/// `end` is `null` for a finding without one
+/// ([`has_end`](rsvelte_kernel::diagnostics::Diagnostic::has_end)).
 ///
 /// `rules` are the rules that ran, so a comparison can tell a rule that found nothing from one
 /// that was never run.
