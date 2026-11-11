@@ -122,8 +122,7 @@ struct RuneWalk<'a> {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Snapshot {
     Lowered,
-    /// Upstream passes a `svelte-ignore state_snapshot_uncloneable` on to `$.snapshot`, and the
-    /// analysis does not yet count a template's call as one the client memoizes in an effect.
+    /// Upstream passes a `svelte-ignore state_snapshot_uncloneable` on to `$.snapshot`.
     Refused,
 }
 
@@ -220,9 +219,6 @@ pub(in crate::lower) fn check_runes(
     // The tree keeps them in the order the parser met them, which is not the document's.
     template.sort_by_key(|&(start, _)| start);
     walk.root = place(false, true);
-    if target == Target::Client {
-        walk.snapshot = Snapshot::Refused;
-    }
     for (_, root) in template {
         if walk.error.is_some() {
             break;
