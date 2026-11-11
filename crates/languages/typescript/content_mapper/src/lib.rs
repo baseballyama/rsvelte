@@ -13,7 +13,8 @@ struct Request {
     id: RequestId,
     method: String,
     // Decoded per method: `flatten` cannot carry the raw `options` of `openProject`.
-    params: Box<RawValue>,
+    #[serde(rename = "params")]
+    parameters: Box<RawValue>,
 }
 
 #[derive(Deserialize)]
@@ -24,20 +25,20 @@ enum RequestId {
 }
 
 enum Method {
-    Initialize(InitializeParams),
-    OpenProject(OpenProjectParams),
-    CloseProject(ProjectParams),
-    Transform(TransformParams),
+    Initialize(InitializeParameters),
+    OpenProject(OpenProjectParameters),
+    CloseProject(ProjectParameters),
+    Transform(TransformParameters),
 }
 
 #[derive(Deserialize)]
-struct InitializeParams {
+struct InitializeParameters {
     #[serde(rename = "positionEncodings")]
     position_encodings: Vec<String>,
 }
 
 #[derive(Deserialize)]
-struct OpenProjectParams {
+struct OpenProjectParameters {
     #[serde(rename = "projectHandle")]
     project_handle: String,
     /// `contentMappers[].options` of the project's tsconfig, as written.
@@ -45,13 +46,13 @@ struct OpenProjectParams {
 }
 
 #[derive(Deserialize)]
-struct ProjectParams {
+struct ProjectParameters {
     #[serde(rename = "projectHandle")]
     project_handle: String,
 }
 
 #[derive(Deserialize)]
-struct TransformParams {
+struct TransformParameters {
     #[serde(rename = "fileName")]
     file_name: String,
     content: String,
@@ -61,12 +62,12 @@ struct TransformParams {
 
 impl Request {
     fn method(&self) -> Result<Method, Box<dyn std::error::Error>> {
-        let params = self.params.get();
+        let parameters = self.parameters.get();
         Ok(match self.method.as_str() {
-            "initialize" => Method::Initialize(serde_json::from_str(params)?),
-            "openProject" => Method::OpenProject(serde_json::from_str(params)?),
-            "closeProject" => Method::CloseProject(serde_json::from_str(params)?),
-            "transform" => Method::Transform(serde_json::from_str(params)?),
+            "initialize" => Method::Initialize(serde_json::from_str(parameters)?),
+            "openProject" => Method::OpenProject(serde_json::from_str(parameters)?),
+            "closeProject" => Method::CloseProject(serde_json::from_str(parameters)?),
+            "transform" => Method::Transform(serde_json::from_str(parameters)?),
             other => return Err(format!("unknown method `{other}`").into()),
         })
     }
@@ -110,7 +111,7 @@ fn serve_on(
         }
         let method = request.method()?;
         // A file that cannot be transformed fails alone; the session goes on for the others.
-        if let Method::Transform(TransformParams {
+        if let Method::Transform(TransformParameters {
             file_name,
             content,
             project_handle,
@@ -141,7 +142,7 @@ fn serve_on(
         let mut response = response_to(&request.id);
         response.key("result");
         match method {
-            Method::Initialize(InitializeParams { position_encodings }) => {
+            Method::Initialize(InitializeParameters { position_encodings }) => {
                 if !position_encodings
                     .iter()
                     .any(|encoding| encoding == "utf-8")
@@ -157,7 +158,7 @@ fn serve_on(
                     .write_string(diagnostic_source)
                     .end_object();
             }
-            Method::OpenProject(OpenProjectParams {
+            Method::OpenProject(OpenProjectParameters {
                 project_handle,
                 options,
             }) if initialized => {
@@ -168,7 +169,7 @@ fn serve_on(
                     .write_string("")
                     .end_object();
             }
-            Method::CloseProject(ProjectParams { project_handle }) if initialized => {
+            Method::CloseProject(ProjectParameters { project_handle }) if initialized => {
                 projects.remove(&project_handle);
                 response.null();
             }
