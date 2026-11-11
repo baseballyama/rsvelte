@@ -481,6 +481,18 @@ missing from the branch that matches a run of letters. Of 199924 generated attri
 the spec.
 Test in `rsvelte_markup_syntax`: `character_references::tests::html_follows_the_spec_where_compiler_core_does_not`.
 
+## A component's `let:` names reach its named slots (svelte-eslint-parser)
+
+- Case: `<C let:x><p slot="a">{x}</p></C>` beside an instance `let x`, as in Svelte's own
+  `runtime-legacy/samples/component-slot-let-scope` and `component-slot-let-scope-3` and
+  `runtime-runes/samples/component-let-directive`, and in five corpus apps.
+- Upstream resolves `{x}` to the `let:` name. So no-unused-vars reports the instance `x`, or
+  misses a `let:` name that only a named slot reads.
+- Correct: Svelte's `create_scopes` gives a child with a static `slot` a scope of the component's
+  outer one. That scope lacks the component's `let:` names, unless the component has a static
+  `slot` of its own. This crate resolves names as the compiler does.
+  Test: `rsvelte_svelte_semantic` `resolve::tests::a_component_s_let_names_reach_its_default_slot_and_not_a_named_one`.
+
 ## Svelte's compiler: what `svelte.compile` warns, which `svelte/valid-compile` reports
 
 These are behaviors of `svelte` 5.57.3 (`tools/oracle`) that `rsvelte_svelte_semantic`'s warnings do not

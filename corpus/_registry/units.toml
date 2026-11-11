@@ -124,3 +124,27 @@
 
 ["svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/avatar/svelte/filter.svelte".skip]
 "svelte.compile" = "upstream bug: an `<svg>` beside a component makes the component's children svg, which drops the HTML whitespace between their components"
+
+["svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/component-named-slot/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/smelte/src/routes/components/lists.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/smelte/src/routes/components/tabs.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/Menu/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/ToggleButton/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/svelte/packages/svelte/tests/runtime-legacy/samples/component-slot-let-scope-3/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/svelte/packages/svelte/tests/runtime-legacy/samples/component-slot-let-scope/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/component-let-directive/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives a component's `let:` names to its children with a static `slot`, which Svelte's compiler resolves outside them, so no-unused-vars reads the wrong binding"

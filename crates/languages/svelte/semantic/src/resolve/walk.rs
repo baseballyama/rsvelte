@@ -125,21 +125,39 @@ impl Recorded {
 /// Walks the template's roots. Fragments nest through here, so the stack grows as deep as the
 /// markup does.
 pub fn walk(compiler_syntax_tree: &CompilerSyntaxTree, list: Children, roots: &mut impl Roots) {
-    rsvelte_kernel::performance::stack::grow(|| fragment(compiler_syntax_tree, list, roots));
+    walk_where(compiler_syntax_tree, list, |_| true, roots);
 }
 
-fn fragment(compiler_syntax_tree: &CompilerSyntaxTree, list: Children, roots: &mut impl Roots) {
+/// [`walk`] over the children `keep` accepts.
+fn walk_where(
+    compiler_syntax_tree: &CompilerSyntaxTree,
+    list: Children,
+    keep: impl Fn(CompilerNodeIdentifier) -> bool,
+    roots: &mut impl Roots,
+) {
+    rsvelte_kernel::performance::stack::grow(|| {
+        fragment(compiler_syntax_tree, list, &keep, roots);
+    });
+}
+
+fn fragment(
+    compiler_syntax_tree: &CompilerSyntaxTree,
+    list: Children,
+    keep: &impl Fn(CompilerNodeIdentifier) -> bool,
+    roots: &mut impl Roots,
+) {
     let children = compiler_syntax_tree.children(list);
     let declares = children.iter().any(|&c| {
-        matches!(
-            compiler_syntax_tree.node(c).kind,
-            NodeKind::Const { .. } | NodeKind::Declaration { .. } | NodeKind::Snippet(_)
-        )
+        keep(c)
+            && matches!(
+                compiler_syntax_tree.node(c).kind,
+                NodeKind::Const { .. } | NodeKind::Declaration { .. } | NodeKind::Snippet(_)
+            )
     });
     if declares {
         roots.enter(TemplateScope::Fragment(list));
     }
-    for &identifier in children {
+    for &identifier in children.iter().filter(|&&c| keep(c)) {
         node(compiler_syntax_tree, identifier, roots);
     }
     if declares {
@@ -281,9 +299,19 @@ fn element(
     }
     if !outside {
         others(&mut |value| attribute(value, roots));
+        walk(compiler_syntax_tree, el.children, roots);
+        roots.leave();
+        return;
     }
-    walk(compiler_syntax_tree, el.children, roots);
+    // A child with a static `slot` gets a scope of the component's outer one, without its
+    // `let:` names, which only the default slot sees (upstream `create_scopes`).
+    let slotted = |c: CompilerNodeIdentifier| match &compiler_syntax_tree.node(c).kind {
+        NodeKind::Element(child) => compiler_syntax_tree.has_static_slot(child.attributes),
+        _ => false,
+    };
+    walk_where(compiler_syntax_tree, el.children, |c| !slotted(c), roots);
     roots.leave();
+    walk_where(compiler_syntax_tree, el.children, slotted, roots);
 }
 
 fn attribute(value: &AttributeValue, roots: &mut impl Roots) {
