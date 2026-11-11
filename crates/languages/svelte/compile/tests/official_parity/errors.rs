@@ -466,3 +466,33 @@ fn a_snippet_name_raises_upstreams_error_where_upstream_does_in_its_order() {
         }
     }
 }
+
+#[test]
+fn a_snippet_upstream_declares_beside_a_let_of_its_name_is_refused_on_the_server() {
+    // Upstream's server output declares both in the component's function, which does not parse.
+    for (source, server) in [
+        (
+            "<script>let { label } = $props();</script><p>{#snippet label()}x{/snippet}{@render label()}</p>",
+            Some("unsupported"),
+        ),
+        (
+            "<script>class label {}</script><p><b>{#snippet label()}x{/snippet}{@render label()}</b></p>",
+            Some("unsupported"),
+        ),
+        (
+            "<script>import label from './l.js';</script><p>{#snippet label()}x{/snippet}{@render label()}</p>",
+            None,
+        ),
+        (
+            "<script>let { label } = $props();</script>{#if 1}{#snippet label()}x{/snippet}{@render label()}{/if}",
+            None,
+        ),
+    ] {
+        assert_eq!(compile(source, Target::Client).err(), None, "{source}");
+        assert_eq!(
+            compile(source, Target::Server).err().as_deref(),
+            server,
+            "{source}"
+        );
+    }
+}

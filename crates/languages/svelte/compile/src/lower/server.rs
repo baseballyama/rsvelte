@@ -90,6 +90,8 @@ struct ServerCompilationContext<'c, 'o> {
     /// Top-level snippets that read only module-level names, declared beside the component.
     hoisted_snippets: Vec<Statement<'o>>,
     hoistable: &'c FxHashSet<SymbolId>,
+    /// The component has an instance script, whose names its function declares.
+    instance_script: bool,
 }
 
 pub(super) fn lower_prepared<'c, 'o>(
@@ -129,6 +131,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         snippets: Vec::new(),
         hoisted_snippets: Vec::new(),
         hoistable: &facts.validated.hoistable,
+        instance_script: input.component.instance.is_some(),
     };
     let (mut snippets, template) =
         sx.fragment_parts(input.component.compiler_syntax_tree.root, |_| false)?;
