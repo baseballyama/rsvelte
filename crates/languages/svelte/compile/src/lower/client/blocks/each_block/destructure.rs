@@ -1,7 +1,6 @@
 use oxc_ast::ast::{BindingPattern, IdentifierReference, Statement};
 use oxc_ast_visit::Visit;
 use oxc_semantic::SymbolId;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Each;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rustc_hash::FxHashSet;
 
@@ -81,16 +80,7 @@ fn reads_later_name(res: &Resolution, pattern: &BindingPattern<'_>) -> bool {
 }
 
 impl<'o> ClientCompilationContext<'_, 'o> {
-    pub(super) fn check_destructured(&self, each: &Each, pattern: &BindingPattern<'_>) -> R<()> {
-        // Upstream invalidates the store after a write through a destructured name.
-        if self
-            .an
-            .meta(each.collection)
-            .first_store_subscription
-            .is_some()
-        {
-            return unsupported("a destructuring `{#each}` over a store", span_of(pattern));
-        }
+    pub(super) fn check_destructured(&self, pattern: &BindingPattern<'_>) -> R<()> {
         if reads_later_name(self.res, pattern) {
             return unsupported(
                 "a destructuring `{#each}` default that reads a name bound there or later",

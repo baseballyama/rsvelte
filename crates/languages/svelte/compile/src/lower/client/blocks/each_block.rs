@@ -67,7 +67,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         let keyed = each.keyed(javascript);
         if let Some(pattern) = destructured {
-            self.check_destructured(each, pattern)?;
+            self.check_destructured(pattern)?;
         }
         let index = each
             .index
@@ -262,16 +262,21 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         flags: u32,
         destructured: Option<&'o BindingPattern<'o>>,
     ) -> R<Vec<Statement<'o>>> {
+        // Upstream invalidates the store after a write through the item or a name it destructures.
+        let store = (self.an.meta(each.collection).first_store_subscription).map(|store| {
+            let span = self.res.reference_span(store);
+            &self.source_text[span.start as usize..span.end as usize]
+        });
+        let destructured_names = destructured.map(destructure::names).unwrap_or_default();
+        let item_names = bindings.item.into_iter();
+        if let Some(store) = store {
+            for symbol in item_names.chain(destructured_names.iter().map(|&(symbol, _)| symbol)) {
+                self.invalidates.insert(symbol, store);
+            }
+        }
         if let Some(symbol) = bindings.item {
             self.reads
                 .insert(symbol, Read::get_if(flags & EACH_ITEM_REACTIVE != 0));
-            if let Some(store) = self.an.meta(each.collection).first_store_subscription {
-                let span = self.res.reference_span(store);
-                self.invalidates.insert(
-                    symbol,
-                    &self.source_text[span.start as usize..span.end as usize],
-                );
-            }
         }
         if let Some(symbol) = bindings.index {
             self.reads
