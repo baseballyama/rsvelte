@@ -111,7 +111,15 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     } else if let AttributeValue::Attach(e) = attribute.value {
                         lists.initializer.push(b.statement(self.attach(e, target)));
                     } else if matches!(attribute.value, AttributeValue::Bind(_)) {
-                        self.global_binding(attribute, tag, lists);
+                        self.global_binding(
+                            attribute,
+                            tree.attributes(element.attributes),
+                            tag,
+                            lists,
+                        );
+                    } else {
+                        // Upstream drops a `style:` or `class:` here, having no element to set.
+                        lists.after.extend(self.motion(attribute, target));
                     }
                 }
             }

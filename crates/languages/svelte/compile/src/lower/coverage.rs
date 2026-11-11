@@ -315,8 +315,8 @@ fn supported_binding(
     let Some(p) = property_of(property) else {
         return false;
     };
-    // Upstream checks `svelte:element` against each property's elements too.
-    if tag == "svelte:element" || p.elements.is_some_and(|e| !e.contains(&tag)) {
+    // Upstream checks `svelte:element` against each property's elements too, by that name.
+    if p.elements.is_some_and(|e| !e.contains(&tag)) {
         return false;
     }
     if tag == "input" {
