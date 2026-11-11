@@ -163,7 +163,13 @@ pub fn resolve(
         let instance_scope = instance
             .and_then(|p| tree.get_program(p).scope_id.get())
             .unwrap_or_else(|| scoping.root_scope_id());
-        let counts = counts::count(tree, scoping, &programs, &template);
+        let counts = counts::count(
+            tree,
+            scoping,
+            &programs,
+            instance.map(|p| tree.get_program(p)),
+            &template,
+        );
         let subscribed = runes::subscribed(semantic, instance_scope);
         let bindings =
             classify::classify(semantic, &subscribed, &counts, compiler_syntax_tree, &names);
@@ -379,6 +385,18 @@ impl Resolution {
         self.counts().writes[symbol.index()]
     }
 
+    /// See [`Counts::reassigned`].
+    #[must_use]
+    pub fn reassigned(&self, symbol: SymbolId) -> bool {
+        self.counts().reassigned(symbol)
+    }
+
+    /// See [`Counts::exported`].
+    #[must_use]
+    pub fn exported_by_specifier(&self) -> &FxHashMap<SymbolId, u32> {
+        &self.counts().exported
+    }
+
     #[must_use]
     pub fn mutations(&self, symbol: SymbolId) -> u32 {
         self.counts().mutations[symbol.index()]
@@ -431,7 +449,7 @@ impl Resolution {
         matches!(
             self.binding(symbol).kind,
             BindingKind::State | BindingKind::RawState
-        ) && self.writes(symbol) > 0
+        ) && self.reassigned(symbol)
     }
 
     /// Upstream `is_prop_source`, runes mode.
@@ -441,7 +459,7 @@ impl Resolution {
         matches!(
             info.kind,
             BindingKind::Property | BindingKind::BindableProperty
-        ) && (self.writes(symbol) > 0 || info.initial.is_some() || self.mutations(symbol) > 0)
+        ) && (self.reassigned(symbol) || info.initial.is_some() || self.mutations(symbol) > 0)
     }
 
     /// Upstream `should_proxy`: whether `$state(e)` makes a deep proxy of `e`'s value.
@@ -474,7 +492,7 @@ fn proxyable(res: Option<&Resolution>, e: &Expression<'_>) -> bool {
             let Some(symbol) = res.symbol(identifier) else {
                 return true;
             };
-            if res.writes(symbol) > 0 {
+            if res.reassigned(symbol) {
                 return true;
             }
             let info = res.binding(symbol);

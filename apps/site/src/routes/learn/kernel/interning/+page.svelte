@@ -21,18 +21,20 @@
 <div class="prose-learn">
 	<H2 id="why" />
 	<p>
-		スコープ解析は「この名前はどの宣言を指すか」を何度も調べます。名前を <code>String</code>
-		のまま持つと、比べるたびに文字列を比べ、ノードごとに文字列を確保します。インターンすると、同じ名前は同じ
-		<dfn>Atom</dfn>（中身は <code>u32</code>）になり、比較は整数の比較で済みます。
+		名前を <code>String</code>
+		のまま一つずつ持つと、名前ごとに文字列を確保します。インターンすると、同じ名前は同じ
+		<dfn>Atom</dfn>（中身は <code>u32</code>）になり、文字はすべて一本のバッファに並びます。Atom
+		同士の比較は、整数の比較で済みます。
 	</p>
 	<p>
 		名前を Atom に置き換える型が、カーネルの <code>Interner</code> です。カーネルは
 		<code>Interner</code>
-		を提供するだけで、使うのは言語の側です。今は <code>rsvelte_typescript_syntax</code>
-		と <code>rsvelte_stylesheet_syntax</code> の <code>SyntaxTree</code>
-		が一つずつ持ちます。スコープ解析は
-		<code>(ScopeIdentifier, Atom)</code>
-		をキーに束縛を引きます<Note
+		を提供するだけで、使うのは言語の側です。今使うのは、CSS の構文木
+		<code>rsvelte_stylesheet_syntax::StyleSheet</code> だけです。CSS の識別子や文字列は
+		<code>\31 a</code> のようにエスケープを含むことがあります。エスケープを解いた文字列はソースのどこにもないので、<code
+			>Interner</code
+		>
+		に保存します。構文木は、ソースの範囲ごとにその Atom を表に記録します。エスケープを含まない名前は、ソースの範囲からそのまま読みます<Note
 			><code>Interner</code> は文書ごとに作ります。文書をまたいで Atom を比べることはありません。</Note
 		>。
 	</p>

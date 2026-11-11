@@ -202,3 +202,9 @@ fn props_id_is_some_string_and_effect_tracking_either_boolean() {
         [Value::Boolean(false), Value::Boolean(true)]
     );
 }
+
+#[test]
+fn an_exported_binding_is_not_constant() {
+    assert!(evaluate("let klass = ''; klass;").is_known);
+    assert!(!evaluate("let klass = ''; export { klass }; klass;").is_known);
+}

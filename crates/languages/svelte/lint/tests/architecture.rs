@@ -281,7 +281,6 @@ fn lint_does_not_register_type_services() {
             "svelte.semantic",
             "svelte.syntax",
             "typescript.semantic",
-            "typescript.syntax",
             "typescript.tree"
         ]
     );

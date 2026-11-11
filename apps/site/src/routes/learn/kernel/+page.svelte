@@ -391,7 +391,7 @@
 			埋め込む側の言語が開くスコープ：スクリプトを埋め込む側の言語（Vue
 			のテンプレートなど）は、スコープの根を渡せます。スコープ解析（<code
 				>rsvelte_typescript_semantic</code
-			>）は、それを木として受け取ります。Vue の <code>v-for</code> は、テンプレートが開くスコープです。
+			>）は、それを <code>oxc_semantic::Host</code> として受け取ります。Vue の <code>v-for</code> は、テンプレートが開くスコープです。
 		</li>
 		<li>
 			終端のない診断：ESLint の報告には位置が一点だけのものがあり、コード検査の書き出しはその終端を <code

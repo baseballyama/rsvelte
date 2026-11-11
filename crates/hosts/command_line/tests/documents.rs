@@ -194,8 +194,8 @@ fn parse_and_scope_facts_are_cached_in_one_document() {
             .get::<Resolved>()
             .as_ref()
             .expect("valid parse")
-            .bindings
-            .len(),
+            .scoping()
+            .symbols_len(),
         1
     );
 }

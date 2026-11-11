@@ -38,7 +38,7 @@ impl Evaluator<'_> {
             info.kind,
             BindingKind::Property | BindingKind::BindableProperty | BindingKind::RestProperty
         );
-        let updated = self.res.writes(symbol) > 0 || self.res.mutations(symbol) > 0;
+        let updated = self.res.reassigned(symbol) || self.res.mutations(symbol) > 0;
         if !updated && !is_prop {
             if self
                 .res
