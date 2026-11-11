@@ -22,8 +22,10 @@ pub(super) fn slot_attributes<'t>(
     attributes: &'t [Attribute],
     source_text: &'t str,
 ) -> impl Iterator<Item = SlotAttribute<'t>> {
-    attributes.iter().filter_map(move |a| match a.value {
-        AttributeValue::Spread(e) => Some(SlotAttribute::Spread(e)),
+    attributes.iter().filter_map(move |a| match &a.value {
+        &AttributeValue::Spread(e) => Some(SlotAttribute::Spread(e)),
+        // A `let:` is the client's to declare, and upstream allows no other directive here.
+        value if super::template::is_directive(value) => None,
         _ => match a.name.text(source_text) {
             "name" => Some(SlotAttribute::Name(a)),
             "slot" => None,

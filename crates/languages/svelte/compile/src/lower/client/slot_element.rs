@@ -20,6 +20,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             unreachable!("a slot element")
         };
         frag.tpl.push_comment();
+        // Before the attributes, which may read them.
+        let lets = self.let_directives(identifier, element)?;
         let mut memo = Memo::derived();
         let (mut name, mut properties, mut spreads) = (None, Vec::new(), Vec::new());
         for attribute in slot_attributes(tree.attributes(element.attributes), self.source_text) {
@@ -43,6 +45,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             let body = self.fragment(element.children)?;
             Some(b.arrow_block(b.params(["$$anchor"]), body, false))
         };
+        l.initializer.extend(lets);
         let mut statements: Vec<_> = self.memo_deriveds(memo).collect();
         let call = slot_call(
             b,

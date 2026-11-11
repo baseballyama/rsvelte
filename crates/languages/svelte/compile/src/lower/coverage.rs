@@ -10,8 +10,8 @@ use rsvelte_typescript_tree::ExpressionIdentifier;
 use super::bindings::{Lowering, attribute_value, property_of};
 use super::javascript::member_root;
 use super::{
-    Attribute, AttributeValue, BindingKind, CompileInput, Diagnostic, Element, NodeKind,
-    Resolution, unsupported,
+    Attribute, AttributeValue, BindingKind, CompileInput, CompilerSyntaxTree, Diagnostic, Element,
+    NodeKind, Resolution, unsupported,
 };
 
 pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
@@ -48,6 +48,16 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             NodeKind::Element(el) if el.kind == ElementKind::Slot && renders => {
                 Some("a `<slot>` beside a `{@render}` tag")
             }
+            // Upstream reads a `<slot>`'s `let:` from the `$$slotProps` of the component content
+            // it is in, and from no binding outside one.
+            NodeKind::Element(el)
+                if el.kind == ElementKind::Slot
+                    && (tree.attributes(el.attributes).iter())
+                        .any(|a| matches!(a.value, AttributeValue::Let(_)))
+                    && !in_component_content(tree, node.parent) =>
+            {
+                Some("a `let:` on a `<slot>` outside a component's content")
+            }
             NodeKind::Element(el) => {
                 check_element(input, res, el)?;
                 // A component's snippet that reads a `{@const}` beside it is not lowered.
@@ -76,6 +86,19 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
         return unsupported("`$$slots` beside a `{@render}` tag", render.span);
     }
     Ok(())
+}
+
+/// Whether `at` is in a component's content, which takes slot props, with no snippet between.
+fn in_component_content(tree: &CompilerSyntaxTree, mut at: Option<CompilerNodeIdentifier>) -> bool {
+    while let Some(identifier) = at {
+        let node = tree.node(identifier);
+        match &node.kind {
+            NodeKind::Element(el) if el.kind.renders_component() => return true,
+            NodeKind::Snippet(_) => return false,
+            _ => at = node.parent,
+        }
+    }
+    false
 }
 
 /// The element and component attributes this port does not lower yet.
@@ -128,12 +151,14 @@ fn check_element(
             AttributeValue::Style { .. } if matches!(&a.value, AttributeValue::Style { value, .. } if matches!(**value, StyleValue::Empty)) => {
                 "a `style:` directive without a value"
             }
-            // Upstream's `<slot>` and `<svelte:element>` pass theirs on, which is not lowered.
+            // Upstream's `<svelte:element>` passes its own on, which is not lowered.
             AttributeValue::Let(_)
                 if !component
                     && !matches!(
                         el.kind,
-                        ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Fragment))
+                        ElementKind::Regular
+                            | ElementKind::Slot
+                            | ElementKind::Metadata(Some(MetadataTag::Fragment))
                     ) =>
             {
                 "a `let:` directive"
