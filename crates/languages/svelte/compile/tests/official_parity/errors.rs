@@ -547,3 +547,28 @@ fn a_binding_upstream_rejects_on_its_element_is_refused_on_both_targets() {
         }
     }
 }
+
+#[test]
+fn textarea_content_beside_a_value_is_textarea_invalid_content_on_both_targets() {
+    let script = "<script>let a = 1;</script>\n";
+    for (markup, expected) in [
+        (
+            "<div><textarea value=\"x\">a</textarea></div>",
+            Some((33, 65)),
+        ),
+        // The parser has moved this content into a second `value`.
+        ("<textarea value=\"x\">{a} b</textarea>", Some((28, 64))),
+        ("<textarea>{a} b</textarea>", None),
+    ] {
+        let source = format!("{script}{markup}");
+        for target in [Target::Client, Target::Server] {
+            let actual = compile_at(&source, target).err();
+            let actual = actual.as_ref().map(|(code, span)| (code.as_str(), *span));
+            assert_eq!(
+                actual,
+                expected.map(|span| ("textarea_invalid_content", span)),
+                "{markup} on {target:?}"
+            );
+        }
+    }
+}

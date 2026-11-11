@@ -213,6 +213,20 @@ fn element<'a>(
     {
         slots::check(input, slot, node.parent.filter(|_| fills), slots)?;
     }
+    // The parser has moved content but one text into a `value` after the element's own.
+    let values = (attributes.iter())
+        .filter(|a| !is_directive(&a.value) && a.name.text(source) == "value")
+        .count();
+    if el.kind == ElementKind::Regular
+        && el.name.text(source) == "textarea"
+        && values > usize::from(tree.children(el.children).is_empty())
+    {
+        return invalid(
+            "textarea_invalid_content",
+            "A `<textarea>` can have either a value attribute or (equivalently) child content, but not both",
+            node.span,
+        );
+    }
     let placement = element_placement(input, identifier, el, placement)?;
     for a in attributes {
         if let AttributeValue::Bind(target) = a.value

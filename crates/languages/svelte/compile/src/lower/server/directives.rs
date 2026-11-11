@@ -2,7 +2,8 @@ use oxc_ast::ast::{BinaryOperator, Expression};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{
-    Attribute, AttributeValue, ServerCompilationContext, is_boolean_attribute, is_directive,
+    Attribute, AttributeValue, Part, ServerCompilationContext, decode_attribute,
+    is_boolean_attribute, is_directive,
 };
 use crate::lower::bindings::{Lowering, attribute_value, property_of};
 use crate::lower::builder::Runtime;
@@ -81,10 +82,16 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 if tag == "textarea" && name == "value" && !is_directive(&a.value) {
                     let value = match &a.value {
                         // Upstream doubles a leading newline, which the parser drops.
-                        AttributeValue::Static(v)
-                            if v.starts_with('\n') || v.starts_with("\r\n") =>
-                        {
+                        AttributeValue::Static(v) if starts_with_newline(v) => {
                             b.string(&format!("\n{v}"))
+                        }
+                        AttributeValue::Interpolated(parts)
+                            if let Some(Part::Text(t)) = parts.first()
+                                && starts_with_newline(&decode_attribute(
+                                    t.text(self.source_text),
+                                )) =>
+                        {
+                            self.interpolated_after("\n", parts, false)
                         }
                         _ => self.attribute_value(a, false, false),
                     };
@@ -132,4 +139,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         }
         Some(b.runtime("attr", arguments))
     }
+}
+
+/// Upstream's `regex_starts_with_newline`.
+fn starts_with_newline(text: &str) -> bool {
+    text.starts_with('\n') || text.starts_with("\r\n")
 }
