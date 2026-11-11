@@ -177,7 +177,7 @@ fn thread_time() -> std::time::Duration {
 #[test]
 fn a_components_snippets_compile_in_time_linear_in_their_number() {
     // Checking each of a component's snippets against all its attributes and children is
-    // quadratic, which makes twice the snippets cost about four times as much.
+    // quadratic: four times the snippets cost about sixteen times as much, and linear work four.
     let markup = |n: usize| {
         let attributes: Vec<String> = (0..n).map(|i| format!(" a{i}={{x}}")).collect();
         let snippets: Vec<String> = (0..n)
@@ -188,10 +188,27 @@ fn a_components_snippets_compile_in_time_linear_in_their_number() {
             "<script>import C from './C.svelte'; let x = $state(0);</script><C{attributes}>{snippets}</C>"
         )
     };
-    let (short, long) = (markup(3000), markup(6000));
+    let (short, long) = (markup(1500), markup(6000));
+    // Only the compile is timed: the parser's own growth is not the compiler's.
     let time = |source: &str| {
+        let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
+        let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
+        let input = CompileInput::from(rsvelte_svelte_semantic::svelte_input(
+            &component,
+            &tree,
+            source,
+            "App.svelte",
+        ));
+        let resolution = rsvelte_svelte_semantic::resolve::resolve(
+            &component.javascript,
+            component.instance.as_ref().map(|s| s.program),
+            component.module.as_ref().map(|s| s.program),
+            &tree,
+        );
+        let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
         let start = thread_time();
-        stages(source, Stage::Compile);
+        rsvelte_svelte_compile::compile_input(&input, &resolution, &analysis, Target::Client)
+            .expect("compiles");
         thread_time().saturating_sub(start)
     };
     // Alternating the sizes lets both meet the same machine.
@@ -201,7 +218,7 @@ fn a_components_snippets_compile_in_time_linear_in_their_number() {
         long_time = long_time.min(time(&long));
     }
     assert!(
-        long_time < 3 * short_time,
-        "3000 snippets took {short_time:?}, 6000 took {long_time:?}"
+        long_time < 8 * short_time,
+        "1500 snippets took {short_time:?}, 6000 took {long_time:?}"
     );
 }
