@@ -33,7 +33,8 @@ impl Printer<'_, '_, '_> {
                 self.refuse_script_language(&script.attributes)?;
                 self.script_body(script.content)?
             };
-            let tag = self.embed_tag("script", &script.attributes, body);
+            let attributes = self.tag_attributes(&script.attributes);
+            let tag = self.embed_tag("script", attributes, body);
             let tag = self.with_comments(&comments, tag);
             hoisted.push((SortPart::Scripts, script.span, tag));
         }
@@ -44,9 +45,10 @@ impl Printer<'_, '_, '_> {
             let body = if self.ignores(&comments) || self.unsupported(&style.attributes) {
                 self.preformatted(style.content)
             } else {
-                self.style_body(style)?
+                self.style_body(style.content, &style.attributes, style.sheet.is_ok())?
             };
-            let tag = self.embed_tag("style", &style.attributes, body);
+            let attributes = self.tag_attributes(&style.attributes);
+            let tag = self.embed_tag("style", attributes, body);
             let tag = self.with_comments(&comments, tag);
             hoisted.push((SortPart::Styles, style.span, tag));
         }
@@ -434,14 +436,9 @@ impl Printer<'_, '_, '_> {
         out
     }
 
-    /// `embedTag` for a top-level `<script>` / `<style>`.
-    pub(super) fn embed_tag(
-        &mut self,
-        tag: &'static str,
-        attributes: &[TagAttributes],
-        body: LayoutInstructionIdentifier,
-    ) -> LayoutInstructionIdentifier {
-        let mut inner = Vec::new();
+    /// A root `<script>` / `<style>`'s attributes, each after its attribute line.
+    fn tag_attributes(&mut self, attributes: &[TagAttributes]) -> Vec<LayoutInstructionIdentifier> {
+        let mut inner = Vec::with_capacity(attributes.len() + 1);
         let many = attributes.len() > 1;
         for &(name, value) in attributes {
             let line = self.attribute_line(many);
@@ -461,6 +458,17 @@ impl Printer<'_, '_, '_> {
             };
             inner.push(self.cat(&[line, a]));
         }
+        inner
+    }
+
+    /// `embedTag`: the tag with its printed `attributes`, each after its attribute line, and
+    /// `body`.
+    pub(super) fn embed_tag(
+        &mut self,
+        tag: &'static str,
+        mut inner: Vec<LayoutInstructionIdentifier>,
+        body: LayoutInstructionIdentifier,
+    ) -> LayoutInstructionIdentifier {
         if !self.options.bracket_same_line {
             let soft = self.d().softline();
             inner.push(self.d().dedent(soft));
@@ -506,4 +514,5 @@ impl Printer<'_, '_, '_> {
 }
 
 mod language;
+mod nested;
 mod options;

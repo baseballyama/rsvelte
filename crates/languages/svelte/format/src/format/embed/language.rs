@@ -1,30 +1,37 @@
 //! Which printer a script or style body goes to, by the language its tag names.
 
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 
 use super::super::javascript::{Adjust, Part as JavaScriptPart};
-use super::{LayoutInstructionIdentifier, Printer, R, Span, TagAttributes, Unsupported};
+use super::{Cow, LayoutInstructionIdentifier, Printer, R, Span, TagAttributes, Unsupported};
 
 impl Printer<'_, '_, '_> {
-    /// The plugin's `getLangAttribute`: `lang`, else `type`, without a `text/` prefix, with the
-    /// attribute's name.
-    fn language(&self, attributes: &[TagAttributes]) -> Option<(Span, &str)> {
+    /// The plugin's `getLangAttribute`: the decoded text of `lang`, else `type`, without a
+    /// `text/` prefix, with the attribute's name.
+    fn language(&self, attributes: &[TagAttributes]) -> Option<(Span, Cow<'_, str>)> {
         let value = |name: &str| {
             attributes
                 .iter()
                 .find(|(n, _)| n.text(self.source_text) == name)
-                .and_then(|&(n, v)| Some((n, v?.text(self.source_text))))
+                .and_then(|&(n, v)| Some((n, decode_attribute(v?.text(self.source_text)))))
                 .filter(|(_, v)| !v.is_empty())
         };
         let (at, language) = value("lang").or_else(|| value("type"))?;
-        Some((at, language.strip_prefix("text/").unwrap_or(language)))
+        Some((
+            at,
+            match language {
+                Cow::Borrowed(l) => Cow::Borrowed(l.strip_prefix("text/").unwrap_or(l)),
+                Cow::Owned(l) => Cow::Owned(l.strip_prefix("text/").unwrap_or(&l).to_owned()),
+            },
+        ))
     }
 
     /// The plugin's `isNodeSupportedLanguage`: it keeps the body of these as it is.
     pub(super) fn unsupported(&self, attributes: &[TagAttributes]) -> bool {
         self.language(attributes).is_some_and(|(_, language)| {
             matches!(
-                language,
+                &*language,
                 "coffee" | "coffeescript" | "styl" | "stylus" | "sass"
             )
         })
@@ -37,7 +44,7 @@ impl Printer<'_, '_, '_> {
             return Ok(());
         };
         if matches!(
-            lang,
+            &*lang,
             "ts" | "typescript" | "js" | "javascript" | "module" | "application/javascript"
         ) {
             Ok(())
@@ -63,24 +70,28 @@ impl Printer<'_, '_, '_> {
         Ok(self.indented_body(body))
     }
 
+    /// `formatBodyContent` around the style sheet at `content`; `parses` is whether the style
+    /// sheet parser reads it.
     pub(super) fn style_body(
         &mut self,
-        style: &rsvelte_svelte_syntax::syntax_tree::Style,
+        content: Span,
+        attributes: &[TagAttributes],
+        parses: bool,
     ) -> R<LayoutInstructionIdentifier> {
         // The plugin's `embedStyle`: any language but Less and SCSS, such as `postcss`, is CSS.
-        let variant = match self.language(&style.attributes) {
-            Some((_, "less")) => oxc_formatter_css::CssVariant::Less,
-            Some((_, "scss")) => oxc_formatter_css::CssVariant::Scss,
+        let variant = match self.language(attributes).as_ref().map(|(_, l)| &**l) {
+            Some("less") => oxc_formatter_css::CssVariant::Less,
+            Some("scss") => oxc_formatter_css::CssVariant::Scss,
             _ => oxc_formatter_css::CssVariant::Css,
         };
         // Where Svelte's parser fails, Prettier's CSS parser may fail too and keep the body.
-        if variant == oxc_formatter_css::CssVariant::Css && style.sheet.is_err() {
+        if variant == oxc_formatter_css::CssVariant::Css && !parses {
             return Err(Unsupported::at(
                 "a style sheet that does not parse",
-                style.content,
+                content,
             ));
         }
-        let text = style.content.text(self.source_text);
+        let text = content.text(self.source_text);
         if text.trim_matches(is_ecmascript_whitespace).is_empty() {
             return Ok(if text.is_empty() {
                 self.d().nil()
@@ -109,7 +120,7 @@ impl Printer<'_, '_, '_> {
             options,
             None,
         )
-        .map_err(|_| Unsupported::at("CSS that oxc's formatter does not format", style.content))?;
+        .map_err(|_| Unsupported::at("CSS that oxc's formatter does not format", content))?;
         let body = self.keep(ir.ir);
         Ok(self.indented_body(body))
     }
