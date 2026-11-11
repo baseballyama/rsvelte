@@ -12,13 +12,14 @@ use rsvelte_svelte_semantic::warnings::CompileWarnings;
 use rsvelte_svelte_semantic::{Lowered, Resolved, Warned};
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
-use rsvelte_typescript_semantic::scope::Semantic;
-use rsvelte_typescript_syntax::NodeIdentifier;
+use oxc_semantic::AstNodes;
+use rsvelte_typescript_semantic::semantic::Semantic;
+use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree};
 use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 
 use crate::computation::{
-    ConditionTypes, ModuleParents, NativeConditionTypes, Parents, SvelteConfiguration, SvelteKit,
+    ConditionTypes, ModuleSemantic, NativeConditionTypes, SvelteConfiguration, SvelteKit,
 };
 use crate::project::SvelteKitProject;
 use crate::types::TypeFacts;
@@ -117,7 +118,7 @@ pub struct File<'a> {
 #[derive(Debug)]
 enum Source<'a> {
     Component(&'a Component),
-    Module(&'a rsvelte_typescript_syntax::Program),
+    Module(&'a Script),
 }
 
 impl<'a> File<'a> {
@@ -132,7 +133,7 @@ impl<'a> File<'a> {
         } else {
             Source::Module(
                 context
-                    .get::<rsvelte_typescript_syntax::Parsed>()
+                    .get::<rsvelte_typescript_tree::Parsed>()
                     .as_ref()
                     .map_err(Clone::clone)?,
             )
@@ -175,7 +176,7 @@ impl<'a> File<'a> {
 
     /// A module's program; `None` for a component.
     #[must_use]
-    pub const fn module(&self) -> Option<&'a rsvelte_typescript_syntax::Program> {
+    pub const fn module(&self) -> Option<&'a Script> {
         match self.parsed {
             Source::Module(module) => Some(module),
             Source::Component(_) => None,
@@ -206,10 +207,24 @@ impl<'a> File<'a> {
     /// The JavaScript of the document: a component's scripts and template expressions, or a
     /// module's program.
     #[must_use]
-    pub const fn javascript(&self) -> &'a rsvelte_typescript_syntax::SyntaxTree {
+    pub const fn javascript(&self) -> &'a Tree {
         match self.parsed {
             Source::Component(component) => &component.javascript,
-            Source::Module(module) => &module.syntax_tree,
+            Source::Module(module) => &module.tree,
+        }
+    }
+
+    /// The programs of the document in source order: a component's `<script module>` and
+    /// `<script>`, or a module's one program.
+    #[must_use]
+    pub fn programs(&self) -> Vec<ProgramIdentifier> {
+        match self.parsed {
+            Source::Component(component) => {
+                let mut scripts: Vec<_> = component.module.iter().chain(&component.instance).collect();
+                scripts.sort_by_key(|script| script.span.start_offset);
+                scripts.iter().map(|script| script.program).collect()
+            }
+            Source::Module(module) => vec![module.root],
         }
     }
 
@@ -221,11 +236,8 @@ impl<'a> File<'a> {
     #[must_use]
     pub fn semantic(&self) -> &'a Semantic {
         let semantic = match self.parsed {
-            Source::Component(_) => self.resolution().map(|resolution| &resolution.sem),
-            Source::Module(_) => self
-                .context
-                .get::<rsvelte_typescript_semantic::Resolved>()
-                .as_ref(),
+            Source::Component(_) => self.resolution().map(Resolution::semantic),
+            Source::Module(_) => Some(self.context.get::<ModuleSemantic>()),
         };
         semantic.expect("a parsed document resolves")
     }
@@ -258,12 +270,10 @@ impl<'a> File<'a> {
         self.context.facet::<SvelteKit>()
     }
 
-    /// The parent of each node of [`File::javascript`].
+    /// Every node of [`File::javascript`] the analysis visited, with its parent and scope, in
+    /// the order it visited them.
     #[must_use]
-    pub fn parents(&self) -> &'a [NodeIdentifier] {
-        match self.parsed {
-            Source::Component(_) => self.context.get::<Parents>(),
-            Source::Module(_) => self.context.get::<ModuleParents>(),
-        }
+    pub fn nodes(&self) -> &'a AstNodes<'a> {
+        self.semantic().nodes()
     }
 }

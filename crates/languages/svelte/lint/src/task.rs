@@ -8,8 +8,8 @@ use rsvelte_kernel::source::document::Document;
 
 use crate::Configuration;
 use crate::computation::{
-    ConditionTypes, LegacyReactivity, LintConfiguration, ModuleParents, NativeConditionTypes,
-    Parents, SameNamedFileOnDisk,
+    ConditionTypes, LegacyReactivity, LintConfiguration, ModuleSemantic, NativeConditionTypes,
+    SameNamedFileOnDisk,
 };
 use crate::rules::style_attribute::InlineStyles;
 use crate::rules::style_sheet::StyleSheetVerdict;
@@ -41,8 +41,7 @@ pub fn register_artifacts(registry: &mut Registry) {
     rsvelte_svelte_semantic::register(registry);
     rsvelte_typescript_semantic::register(registry);
     registry
-        .artifact::<Parents>()
-        .artifact::<ModuleParents>()
+        .artifact::<ModuleSemantic>()
         .artifact::<InlineStyles>()
         .artifact::<StyleSheetVerdict>()
         .artifact::<NativeConditionTypes>()
@@ -63,10 +62,10 @@ pub fn register_type_provider(
         rsvelte_svelte_syntax::matches,
         move |context| {
             let facts = provider(context);
-            let Ok(component) = context.get::<rsvelte_svelte_syntax::Parsed>() else {
+            let Some(resolution) = context.get::<rsvelte_svelte_semantic::Resolved>() else {
                 return Err("the type provider ran on a component that does not parse".to_owned());
             };
-            let nodes = component.javascript.len();
+            let nodes = resolution.semantic().nodes().len();
             if facts.len() == nodes {
                 Ok(facts)
             } else {
@@ -104,8 +103,8 @@ impl Task for Lint {
     fn applies(&self, document: &Document) -> bool {
         rsvelte_svelte_syntax::matches(document)
             || (self.modules
-                && (rsvelte_typescript_syntax::matches(document)
-                    || rsvelte_typescript_syntax::is_jsx(document)))
+                && (rsvelte_typescript_tree::matches(document)
+                    || rsvelte_typescript_tree::is_jsx(document)))
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {

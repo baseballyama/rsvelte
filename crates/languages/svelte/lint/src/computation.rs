@@ -4,7 +4,8 @@ use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
 use rsvelte_svelte_semantic::Resolved;
 use rsvelte_svelte_semantic::legacy::Legacy;
 use rsvelte_svelte_syntax::Parsed;
-use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_semantic::semantic::Semantic;
+use rsvelte_typescript_tree::ProgramIdentifier;
 
 use crate::project::SvelteKitProject;
 use crate::types::TypeFacts;
@@ -53,24 +54,6 @@ impl Artifact for NativeConditionTypes {
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct Parents;
-
-impl Artifact for Parents {
-    type Output = Vec<NodeIdentifier>;
-
-    const NAME: &'static str = "svelte.lint.parents";
-
-    fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        context
-            .get::<Parsed>()
-            .as_ref()
-            .expect("lint requests parents after parsing")
-            .javascript
-            .parents()
-    }
-}
-
 /// The component's legacy reactivity: `$:` statements, the variables they declare, and store
 /// subscriptions.
 #[derive(Debug)]
@@ -90,32 +73,31 @@ impl Artifact for LegacyReactivity {
             .get::<Resolved>()
             .as_ref()
             .expect("a parsed component resolves");
-        let programs: Vec<NodeIdentifier> = component
+        let programs: Vec<ProgramIdentifier> = component
             .module
             .iter()
+            .chain(&component.instance)
             .map(|script| script.program)
-            .chain(std::iter::once(component.program))
             .collect();
-        Legacy::new(&component.javascript, &resolution.sem, &programs)
+        Legacy::new(resolution, &programs)
     }
 }
 
-/// [`Parents`] of a JavaScript or TypeScript module.
+/// The scopes of a JavaScript or TypeScript module, which only lint reads.
 #[derive(Debug)]
-pub(crate) struct ModuleParents;
+pub(crate) struct ModuleSemantic;
 
-impl Artifact for ModuleParents {
-    type Output = Vec<NodeIdentifier>;
+impl Artifact for ModuleSemantic {
+    type Output = Semantic;
 
-    const NAME: &'static str = "svelte.lint.module_parents";
+    const NAME: &'static str = "svelte.lint.module_semantic";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        context
-            .get::<rsvelte_typescript_syntax::Parsed>()
+        let script = context
+            .get::<rsvelte_typescript_tree::Parsed>()
             .as_ref()
-            .expect("lint requests parents after parsing")
-            .syntax_tree
-            .parents()
+            .expect("lint analyzes a module after parsing it");
+        Semantic::program(script.tree.clone(), script.root)
     }
 }
 

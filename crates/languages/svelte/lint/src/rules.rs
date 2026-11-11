@@ -1,5 +1,4 @@
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 use crate::rule::RuleDefinition;
 
@@ -196,10 +195,10 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &valid_style_parse::RULE,
 ];
 
-/// A JavaScript node's span: every node a rule reads was parsed from the document.
-fn node_span(javascript: &SyntaxTree, node: NodeIdentifier) -> Span {
-    javascript
-        .source_location(node)
-        .span()
-        .expect("a parsed node has a span")
+/// An oxc span as the document's position type; every oxc tree is parsed in place.
+const fn node_span(span: oxc_span::Span) -> Span {
+    Span {
+        start_offset: span.start,
+        end_offset: span.end,
+    }
 }

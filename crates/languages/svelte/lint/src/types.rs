@@ -1,6 +1,6 @@
 //! The condition type of each JS/TS node, which type-aware rules read.
 
-use rsvelte_typescript_syntax::NodeIdentifier;
+use oxc_semantic::NodeId;
 
 mod infer;
 
@@ -56,7 +56,7 @@ impl TypeFacts {
     }
 
     #[must_use]
-    pub(crate) fn get(&self, node: NodeIdentifier) -> ConditionType {
+    pub(crate) fn get(&self, node: NodeId) -> ConditionType {
         self.nodes[node.index()]
     }
 }

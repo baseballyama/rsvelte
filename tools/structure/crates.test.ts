@@ -39,7 +39,8 @@ function role(manifestPath: string): Role | undefined {
 	// Only hosts load configuration files; a plugin reads its options through the plugin interface.
 	if (path === 'hosts/configuration_loading') return 'host_library';
 	if (path.startsWith('hosts/')) return 'host';
-	if (/^languages\/[^/]+\/syntax$/.test(path)) return 'syntax';
+	// A language's trees are syntax, whether its crate parses them or only holds them.
+	if (/^languages\/[^/]+\/(syntax|tree)$/.test(path)) return 'syntax';
 	if (/^languages\/[^/]+\/semantic$/.test(path)) return 'semantic';
 	if (/^languages\/[^/]+\/[^/]+$/.test(path)) return 'capability';
 	return undefined;
@@ -109,6 +110,7 @@ test('every workspace crate has a role from its path', () => {
 		'rsvelte_stylesheet_syntax',
 		'rsvelte_svelte_syntax',
 		'rsvelte_typescript_syntax',
+		'rsvelte_typescript_tree',
 		'rsvelte_vue_syntax',
 	]);
 	assert.deepEqual(named('semantic'), [

@@ -1,7 +1,8 @@
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript_syntax::Kind;
+use oxc_ast::ast::Expression;
 
-use super::kit_navigation::{Navigation, Script, has_scheme};
+use super::kit_navigation::{Navigation, Script, first_argument, has_scheme, leading_expression};
+use super::nodes::span;
 use super::kit_route::{BASE_VERSIONS, runs_for};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -30,24 +31,28 @@ impl SvelteRule for NoGotoWithoutBase {
             return;
         }
         let base = script.path_reads(&["base"]);
-        let is_base = |node| base.binary_search(&node).is_ok();
+        let is_base = |node: &Expression<'_>| base.binary_search(&node.node_id()).is_ok();
         for (navigation, call) in calls {
             if navigation != Navigation::Goto {
                 continue;
             }
-            let Some(url) = script.first_argument(call) else {
+            let Some(url) = first_argument(call) else {
                 continue;
             };
-            let prefixed = match script.tree.kind(url) {
-                Kind::Binary(_, left, _) => is_base(left),
-                Kind::String => has_scheme(script.tree.str_value(url, script.source)),
-                Kind::Template { .. } => script.leading_expression(url).is_some_and(is_base),
+            let prefixed = match url.as_expression() {
+                Some(Expression::BinaryExpression(binary)) => is_base(&binary.left),
+                Some(Expression::StringLiteral(string)) => {
+                    string.value.as_str().is_some_and(has_scheme)
+                }
+                Some(url @ Expression::TemplateLiteral(_)) => {
+                    leading_expression(url).is_some_and(is_base)
+                }
                 _ => false,
             };
             if !prefixed {
                 reporter.range(
                     "Found a goto() call with a url that isn't prefixed with the base path.",
-                    script.span(url),
+                    span(url),
                 );
             }
         }

@@ -81,9 +81,23 @@ impl<'r, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'r, 'walk, COLLECT_
         }
     }
 
+    /// Whether an unbound reference is upstream's synthetic `store_sub` binding.
+    fn is_store_subscription(&self, identifier: &IdentifierReference<'_>) -> bool {
+        self.res.symbol(identifier).is_none()
+            && self.res.is_store_subscription(identifier.name.as_str())
+    }
+
     fn reference(&mut self, identifier: &IdentifierReference<'_>) {
         self.meta.has_reference = true;
         let Some(symbol) = self.res.symbol(identifier) else {
+            // A subscription is never static, a function or known, so it is state.
+            if self.is_store_subscription(identifier) {
+                self.deps += 1;
+                self.meta.has_state = true;
+                if self.meta.first_store_subscription.is_none() {
+                    self.meta.first_store_subscription = Some(identifier.reference_id());
+                }
+            }
             return;
         };
         self.deps += 1;
@@ -125,7 +139,10 @@ impl<'r, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'r, 'walk, COLLECT_
                     }
                     e = &call.callee;
                 }
-                Expression::Identifier(identifier) => return self.res.symbol(identifier).is_none(),
+                Expression::Identifier(identifier) => {
+                    return self.res.symbol(identifier).is_none()
+                        && !self.is_store_subscription(identifier);
+                }
                 _ => match e.as_member_expression() {
                     Some(member) => {
                         if matches!(member.object(), Expression::ChainExpression(_)) {
@@ -159,8 +176,18 @@ impl<'r, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'r, 'walk, COLLECT_
     }
 
     fn is_safe_root(&self, root: &IdentifierReference<'_>) -> bool {
-        let Some(symbol) = self.res.symbol(root) else {
-            return true;
+        let symbol = match self.res.symbol(root) {
+            Some(symbol) => symbol,
+            // Upstream asks of a subscription what it asks of its store.
+            None if self.is_store_subscription(root) => {
+                let store = &root.name.as_str()[1..];
+                let scope = self.res.instance_scope();
+                match self.res.scoping().find_binding(scope, store.into()) {
+                    Some(symbol) => symbol,
+                    None => return true,
+                }
+            }
+            None => return true,
         };
         !self
             .res

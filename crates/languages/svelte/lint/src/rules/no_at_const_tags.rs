@@ -1,10 +1,10 @@
+use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{TemplateNode, TokenType};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
-use super::expressions::Expressions;
+use super::nodes;
 use super::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -30,7 +30,6 @@ impl SvelteRule for NoAtConstTags {
         }
         let component = file.component().expect("a component rule");
         let javascript = &component.javascript;
-        let expressions = Expressions::new(javascript, file.source());
         for node in &component.nodes {
             let TemplateNode::Const { declaration, span } = *node else {
                 continue;
@@ -44,10 +43,15 @@ impl SvelteRule for NoAtConstTags {
                 .expect("`{@const` is a block token");
             let at = marker.span.end_offset - "@const".len() as u32;
             let mut fix = Fix::remove(Span::new(at, at + 1));
-            if let Some(initializer) = initializer(javascript, declaration)
-                && (expressions.asserted(initializer) || !is_derived_call(javascript, initializer))
+            // `$derived(…) as T` is an assertion, not a call, so it is wrapped too.
+            if let Some(initializer) = javascript
+                .get_declaration(declaration)
+                .declarations
+                .first()
+                .and_then(|declarator| declarator.init.as_ref())
+                && !is_derived_call(initializer)
             {
-                let init = expressions.span(initializer);
+                let init = nodes::span(initializer);
                 fix.push(Span::new(init.start_offset, init.start_offset), "$derived(");
                 fix.push(Span::new(init.end_offset, init.end_offset), ")");
             }
@@ -63,21 +67,10 @@ impl SvelteRule for NoAtConstTags {
     }
 }
 
-fn initializer(javascript: &SyntaxTree, declaration: NodeIdentifier) -> Option<NodeIdentifier> {
-    let Kind::VariableDeclaration { declarations, .. } = javascript.kind(declaration) else {
-        return None;
-    };
-    match javascript.kind(*declarations.first()?) {
-        Kind::Declarator { initializer, .. } => initializer,
-        _ => None,
-    }
-}
-
 /// `$derived(…)` already: wrapping it again would derive a derived value.
-fn is_derived_call(javascript: &SyntaxTree, expression: NodeIdentifier) -> bool {
+fn is_derived_call(expression: &Expression<'_>) -> bool {
     matches!(
-        javascript.kind(expression),
-        Kind::Call { callee, .. }
-            if javascript.is_identifier(callee) && javascript.name(callee) == "$derived"
+        expression,
+        Expression::CallExpression(call) if nodes::is_named(&call.callee, "$derived")
     )
 }

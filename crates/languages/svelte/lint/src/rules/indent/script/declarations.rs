@@ -1,121 +1,102 @@
 //! What TypeScript declarations offset, as upstream's `indent-helpers/ts.js` does.
 
-use rsvelte_typescript_syntax::lexer::T;
-use rsvelte_typescript_syntax::syntax_tree::Type;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
+use oxc_ast::AstKind;
+use oxc_ast::ast::{TSNamespaceDeclaration, TSNamespaceDeclarationBody};
+use oxc_span::{GetSpan, Span as OxcSpan};
 
 use super::Script;
 use crate::rules::indent::layout::Item;
 use crate::rules::indent::tokens::Token;
 
-impl Script<'_, '_> {
-    /// A TypeScript-only statement: what it declares, or the `export type { … }` it holds.
-    pub(super) fn typescript_statement(&mut self, node: NodeIdentifier) {
-        let js = self.javascript;
-        if let Some(export) = js.exported_types(node) {
-            self.visit(export);
-            return;
-        }
-        let Some(declaration) = js.declaration(node) else {
-            if let Some(span) = self.span(node) {
-                self.layout.ignore(span);
-            }
-            return;
-        };
-        // `:statement` matches what upstream names `…Declaration`.
-        let statement = match js.kind(declaration) {
-            Kind::Type(ty) => !matches!(ty, Type::ExportAssignment(_)),
-            Kind::Function { .. } => false,
-            _ => true,
-        };
-        if statement {
-            self.semicolon(node);
-        }
-        self.visit(declaration);
-    }
-
+impl<'a> Script<'_, 'a> {
     /// Lays out a declaration's type syntax; `first` is where `declare`, `export` or `const` starts
     /// it.
-    pub(super) fn lay_out_declaration(
-        &mut self,
-        node: NodeIdentifier,
-        ty: Type<'_>,
-        first: Option<Token>,
-    ) {
-        match ty {
-            Type::Alias {
-                name,
-                parameters,
-                value,
-            } => {
-                let id = self.first(name);
+    pub(super) fn lay_out_declaration(&mut self, kind: AstKind<'a>, first: Option<Token>) {
+        let node = kind.span();
+        match kind {
+            AstKind::TSTypeAliasDeclaration(n) => {
+                let id = self.first(n.id.span);
                 self.layout.offset(id, 1, first);
-                let eq = match parameters {
+                let eq = match &n.type_parameters {
                     Some(parameters) => {
-                        self.layout.offset(self.first(parameters), 1, id);
-                        self.after_node(parameters)
+                        let left = self.first(parameters.span);
+                        self.layout.offset(left, 1, id);
+                        self.after_node(parameters.span)
                     }
-                    None => self.after_node(name),
+                    None => self.after_node(n.id.span),
                 };
-                let init = self.outer(value).map(|(f, _)| f);
+                let init = self.outer_first(n.type_annotation.span());
                 self.layout.offset(eq, 1, id);
                 self.layout.offset(init, 1, id);
             }
-            Type::Interface {
-                name,
-                parameters,
-                heritage,
-                body,
-            } => self.interface(node, name, parameters, heritage, body),
-            Type::Enum { name, members } => {
-                let Some(left) = self.prefixed_name(first, name) else {
-                    return;
-                };
-                let right = self.last(node);
-                self.layout.offset(Some(left), 0, first);
-                self.list_from(Some(left), &self.items(members), right, 1);
+            AstKind::TSInterfaceDeclaration(n) => {
+                let id = self.first(n.id.span);
+                self.layout.offset(id, 1, first);
+                if let Some(parameters) = &n.type_parameters {
+                    let left = self.first(parameters.span);
+                    self.layout.offset(left, 1, id);
+                }
+                if let Some(heritage) = n.extends.first() {
+                    let extends = self.before_node(heritage.span);
+                    self.layout.offset(extends, 1, first);
+                    if let Some(extends) = extends {
+                        let items = Self::items(n.extends.iter().map(|h| h.span));
+                        self.layout
+                            .list(&items, Item::Token(extends), None, 1, false);
+                    }
+                }
+                let body = self.first(n.body.span);
+                self.layout.offset(body, 0, first);
             }
-            Type::EnumMember {
-                name,
-                initializer: Some(initializer),
-            } => self.member(node, name, Some(initializer), false),
-            Type::Module { name, body } => {
-                let Some(left) = self.prefixed_name(first, name) else {
-                    return;
-                };
-                if let Some(statements) = body {
-                    let right = self.last(node);
-                    self.layout.offset(Some(left), 0, first);
-                    self.list_from(Some(left), &self.items(statements), right, 1);
+            AstKind::TSEnumDeclaration(n) => {
+                let left = self.prefixed_name(first, n.id.span);
+                self.layout.offset(left, 0, first);
+            }
+            AstKind::TSEnumMember(n) => {
+                if let Some(initializer) = &n.initializer {
+                    self.member(node, n.id.span(), Some(initializer.span()), false);
                 }
             }
-            Type::ImportEquals { name, reference } => {
-                let Some((id, id_last)) = self.outer(name) else {
+            AstKind::TSNamespaceDeclaration(n) if !self.is_inner_namespace(kind) => {
+                self.namespace(n, first);
+            }
+            AstKind::TSExternalModuleDeclaration(n) => {
+                let left = self.prefixed_name(first, n.id.span);
+                if n.body.is_some() {
+                    self.layout.offset(left, 0, first);
+                }
+            }
+            AstKind::TSGlobalDeclaration(n) => {
+                let left = self.prefixed_name(first, n.global_span);
+                self.layout.offset(left, 0, first);
+            }
+            AstKind::TSImportEqualsDeclaration(n) => {
+                let Some((id, id_last)) = self.outer(n.id.span) else {
                     return;
                 };
                 self.layout.offset(Some(id), 1, first);
-                let operator = self.layout.tokens.after(id_last);
-                let reference = self.outer(reference).map(|(f, _)| f);
+                let operator = self.tokens().after(id_last);
+                let reference = self.outer_first(n.module_reference.span());
                 self.layout.offset(operator, 1, Some(id_last));
                 self.layout.offset(reference, 1, Some(id_last));
             }
-            Type::External(source) => {
-                let left = first.and_then(|f| self.layout.tokens.after(f));
+            AstKind::TSExternalModuleReference(n) => {
+                let left = self.after(first);
                 let right = self.last(node);
                 self.layout.offset(left, 1, first);
-                self.list_from(left, &[self.node(source)], right, 1);
+                self.list_from(left, &[Some(Self::item(n.expression.span))], right, 1);
             }
-            Type::ExportAssignment(expression) => {
-                let expression = self.outer(expression).map(|(f, _)| f);
-                let operator = expression.and_then(|e| self.layout.tokens.before(e));
+            AstKind::TSExportAssignment(n) => {
+                let expression = self.outer_first(n.expression.span());
+                let operator = expression.and_then(|e| self.tokens().before(e));
                 self.layout.offset(operator, 1, first);
                 self.layout.offset(expression, 1, first);
             }
-            Type::NamespaceExport(name) => {
-                let (Some(f), Some(id)) = (first, self.first(name)) else {
+            AstKind::TSNamespaceExportDeclaration(n) => {
+                let (Some(f), Some(id)) = (first, self.first(n.id.span)) else {
                     return;
                 };
-                let mut between: Vec<Token> = self.layout.tokens.between(f, id).collect();
+                let mut between: Vec<Token> = self.tokens().between(f, id).collect();
                 between.push(id);
                 self.layout.offset_all(between, 1, first);
             }
@@ -123,51 +104,32 @@ impl Script<'_, '_> {
         }
     }
 
-    fn interface(
-        &mut self,
-        node: NodeIdentifier,
-        name: NodeIdentifier,
-        parameters: Option<NodeIdentifier>,
-        heritage: Option<NodeIdentifier>,
-        body: &[NodeIdentifier],
-    ) {
-        let first = self.first(node);
-        let id = self.first(name);
-        self.layout.offset(id, 1, first);
-        if let Some(parameters) = parameters {
-            self.layout.offset(self.first(parameters), 1, id);
+    /// `namespace A.B {}`, which `ESTree` names `A.B`, a qualified name, with one body.
+    fn namespace(&mut self, namespace: &TSNamespaceDeclaration<'a>, first: Option<Token>) {
+        let mut innermost = namespace;
+        let mut name = namespace.id.span;
+        let head = self.first(name);
+        while let TSNamespaceDeclarationBody::TSNamespaceDeclaration(inner) = &innermost.body {
+            // Each `.` and name of the qualified name, from its first name.
+            let dot = self.before_node(inner.id.span);
+            let part = self.after(dot);
+            self.layout.offset(dot, 1, head);
+            self.layout.offset(part, 1, head);
+            name = OxcSpan::new(name.start, inner.id.span.end);
+            innermost = inner;
         }
-        if let Some(heritage) = heritage
-            && let Kind::Type(Type::Heritage(references)) = self.javascript.kind(heritage)
-        {
-            let extends = references.first().and_then(|&r| self.before_node(r));
-            self.layout.offset(extends, 1, first);
-            if let Some(extends) = extends {
-                self.layout.list(
-                    &self.items(references),
-                    Item::Token(extends),
-                    None,
-                    1,
-                    false,
-                );
-            }
-        }
-        let header_end = heritage.or(parameters).unwrap_or(name);
-        let tokens = &self.layout.tokens;
-        let left = self.after_node_matching(header_end, |t| tokens.is(t, T::LBrace));
-        let right = self.last(node);
+        let left = self.prefixed_name(first, name);
         self.layout.offset(left, 0, first);
-        self.list_from(left, &self.items(body), right, 1);
     }
 
     /// The name of an enum or a namespace one indent from `first`, the tokens before it at
     /// `first`; the `{` after the name.
-    fn prefixed_name(&mut self, first: Option<Token>, name: NodeIdentifier) -> Option<Token> {
+    fn prefixed_name(&mut self, first: Option<Token>, name: OxcSpan) -> Option<Token> {
         let f = first?;
         let (id, id_last) = self.outer(name)?;
-        let prefix: Vec<Token> = self.layout.tokens.between(f, id).collect();
+        let prefix: Vec<Token> = self.tokens().between(f, id).collect();
         self.layout.offset_all(prefix, 0, first);
         self.layout.offset(Some(id), 1, first);
-        self.layout.tokens.after(id_last)
+        self.tokens().after(id_last)
     }
 }

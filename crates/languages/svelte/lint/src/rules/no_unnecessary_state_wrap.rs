@@ -1,10 +1,14 @@
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript_semantic::reference_tracker::import_references;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use oxc_ast::AstKind;
+use oxc_ast::ast::{BindingPattern, Expression};
+use oxc_semantic::{AstNodes, NodeId, SymbolId};
+use oxc_span::GetSpan;
 use serde::Deserialize;
 
-use super::nodes::{is_named, roots, span, text, walk};
+use super::javascript::{span, walk};
+use super::nodes::is_named;
 use super::runes::runes_or_undetermined;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -46,73 +50,62 @@ impl SvelteRule for NoUnnecessaryStateWrap {
         if !runes_or_undetermined(file) {
             return;
         }
-        let tree = file.javascript();
         let source = file.source();
-        let sem = file.semantic();
-        let parents = file.parents();
-        let parent = |node: NodeIdentifier| parents[node.index()].opt();
-        let report = |reporter: &mut Reporter<'_>, call, argument, class: &str, variable| {
+        let semantic = file.semantic();
+        let scoping = semantic.scoping();
+        let nodes = semantic.nodes();
+        let report = |reporter: &mut Reporter<'_>,
+                      call: oxc_span::Span,
+                      argument: oxc_span::Span,
+                      class: &str,
+                      variable: SymbolId| {
             let reassigned = self.0.allow_reassign
-                && sem.binding_of(variable).is_some_and(|binding| {
-                    sem.references_to(binding)
-                        .any(|reference| reference.write && reference.node != variable)
-                });
+                && scoping
+                    .get_resolved_references(variable)
+                    .any(oxc_semantic::Reference::is_write);
             if reassigned {
                 return;
             }
             reporter.report(
                 Report::range(
                     format!("{class} is already reactive, $state wrapping is unnecessary."),
-                    span(tree, argument),
+                    span(argument),
                 )
                 .message_id("unnecessaryStateWrap")
                 .suggest(Suggestion {
                     message_id: Some("suggestRemoveStateWrap".into()),
                     message: "Remove unnecessary $state wrapping".to_owned(),
-                    fix: Fix::replace(span(tree, call), text(tree, argument, source)),
+                    fix: Fix::replace(span(call), span(argument).text(source)),
                 }),
             );
         };
-        walk(file, |call| {
-            let Kind::Call {
-                callee, arguments, ..
-            } = tree.kind(call)
-            else {
+        walk(file, |node| {
+            let AstKind::CallExpression(call) = node.kind() else {
                 return;
             };
-            if !is_named(tree, callee, "$state") {
+            if !is_named(&call.callee, "$state") {
                 return;
             }
-            for &argument in arguments {
-                let (Kind::New { callee, .. } | Kind::Call { callee, .. }) = tree.kind(argument)
-                else {
+            for argument in &call.arguments {
+                let callee = match argument.as_expression() {
+                    Some(Expression::NewExpression(construction)) => &construction.callee,
+                    Some(Expression::CallExpression(construction)) => &construction.callee,
+                    _ => continue,
+                };
+                let Expression::Identifier(class) = callee else {
                     continue;
                 };
-                let Some(atom) = tree.atom(callee) else {
-                    continue;
-                };
-                let class = tree.atoms.get(atom);
-                if self
-                    .0
-                    .additional_reactive_classes
-                    .iter()
-                    .any(|c| c == class)
-                    && let Some(variable) = declared_identifier(tree, parent(call))
+                let class = class.name.as_str();
+                if self.0.additional_reactive_classes.iter().any(|c| c == class)
+                    && let Some(variable) = declared_symbol(nodes, node.id())
                 {
-                    report(reporter, call, argument, class, variable);
+                    report(reporter, call.span, argument.span(), class, variable);
                 }
             }
         });
-        let programs: Vec<NodeIdentifier> = roots(file)
-            .into_iter()
-            .filter(|&root| matches!(tree.kind(root), Kind::Program(_)))
-            .collect();
         let found = import_references(
-            tree,
-            sem,
-            parents,
-            source,
-            &programs,
+            semantic,
+            &file.programs(),
             "svelte/reactivity",
             REACTIVE_CLASSES,
         );
@@ -120,26 +113,34 @@ impl SvelteRule for NoUnnecessaryStateWrap {
             let Some(construction) = reference.call else {
                 continue;
             };
-            let Some(call) = parent(construction) else {
+            let call = nodes.parent_id(construction);
+            let AstKind::CallExpression(state) = nodes.kind(call) else {
                 continue;
             };
-            let Kind::Call { callee, .. } = tree.kind(call) else {
-                continue;
-            };
-            if !is_named(tree, callee, "$state") {
+            if !is_named(&state.callee, "$state") {
                 continue;
             }
-            if let Some(variable) = declared_identifier(tree, parent(call)) {
-                report(reporter, call, construction, reference.name, variable);
+            if let Some(variable) = declared_symbol(nodes, call) {
+                report(
+                    reporter,
+                    state.span,
+                    nodes.kind(construction).span(),
+                    reference.name,
+                    variable,
+                );
             }
         }
     }
 }
 
-/// The identifier `node` declares, when it is a declarator of one name.
-fn declared_identifier(tree: &SyntaxTree, node: Option<NodeIdentifier>) -> Option<NodeIdentifier> {
-    match tree.kind(node?) {
-        Kind::Declarator { identifier, .. } if tree.is_identifier(identifier) => Some(identifier),
+/// The symbol the parent of `node` declares, when it is a declarator of one name.
+fn declared_symbol(nodes: &AstNodes<'_>, node: NodeId) -> Option<SymbolId> {
+    let parent = nodes.parent_id(node);
+    match nodes.kind(parent) {
+        AstKind::VariableDeclarator(declarator) if parent != node => match &declarator.id {
+            BindingPattern::BindingIdentifier(identifier) => identifier.symbol_id.get(),
+            _ => None,
+        },
         _ => None,
     }
 }

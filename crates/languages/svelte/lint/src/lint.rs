@@ -41,7 +41,7 @@ pub(crate) fn check(
     // Directive lines are `ESLint`'s, which any ECMAScript line terminator ends.
     let lines = file.context.ecmascript_line_index();
     let source = file.source();
-    directives::apply_javascript(&mut findings, &file.javascript().comments, source, lines);
+    directives::apply_javascript(&mut findings, &comments(file), source, lines);
     let Some(component) = file.component() else {
         return Ok(findings);
     };
@@ -65,6 +65,20 @@ pub(crate) fn check(
         }
     }
     Ok(findings)
+}
+
+/// Every JavaScript comment of the document, the scripts' and the template's, in document order.
+fn comments(file: &File<'_>) -> Vec<Span> {
+    let tree = file.javascript();
+    let mut out: Vec<Span> = file
+        .programs()
+        .into_iter()
+        .flat_map(|program| &tree.get_program(program).comments)
+        .chain(tree.comments())
+        .map(|comment| Span::new(comment.span.start, comment.span.end))
+        .collect();
+    out.sort_unstable_by_key(|comment| comment.start_offset);
+    out
 }
 
 /// Lints one source, as `ESLint`'s `Linter.verify(code, config, filename)` does with

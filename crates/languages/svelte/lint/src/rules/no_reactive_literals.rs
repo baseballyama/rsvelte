@@ -1,8 +1,9 @@
+use oxc_ast::ast::{AssignmentTarget, Expression, Statement};
+use oxc_syntax::operator::AssignmentOperator;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript_syntax::Kind;
-use rsvelte_typescript_syntax::operators::AssignmentOperator;
 
+use super::nodes::span;
 use super::reactive_statements::reactive_statements;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -23,30 +24,23 @@ struct NoReactiveLiterals;
 impl SvelteRule for NoReactiveLiterals {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        let javascript = &component.javascript;
-        let span = |node| {
-            javascript
-                .source_location(node)
-                .span()
-                .expect("a parsed node")
-        };
         for (statement, body) in reactive_statements(component, file.source()) {
-            let Kind::ExpressionStatement(expression) = javascript.kind(body) else {
+            let Statement::ExpressionStatement(expression) = body else {
                 continue;
             };
-            let Kind::Assign(operator, left, right) = javascript.kind(expression) else {
+            let Expression::AssignmentExpression(assignment) = &expression.expression else {
                 continue;
             };
             // ESTree's `Literal`, `[]` and `{}`.
-            let literal = match javascript.kind(right) {
-                Kind::String
-                | Kind::Number(_)
-                | Kind::Boolean(_)
-                | Kind::Null
-                | Kind::Regex { .. }
-                | Kind::BigInt => true,
-                Kind::Array(elements) => elements.is_empty(),
-                Kind::Object(properties) => properties.is_empty(),
+            let literal = match &assignment.right {
+                Expression::StringLiteral(_)
+                | Expression::NumericLiteral(_)
+                | Expression::BooleanLiteral(_)
+                | Expression::NullLiteral(_)
+                | Expression::RegExpLiteral(_)
+                | Expression::BigIntLiteral(_) => true,
+                Expression::ArrayExpression(array) => array.elements.is_empty(),
+                Expression::ObjectExpression(object) => object.properties.is_empty(),
                 _ => false,
             };
             if !literal {
@@ -60,14 +54,19 @@ impl SvelteRule for NoReactiveLiterals {
             )
             .message_id("noReactiveLiterals");
             // Upstream also suggests `let a += 1` and `let obj.x = 1`, which do not parse.
-            if operator == AssignmentOperator::Assign && javascript.is_identifier(left) {
+            if assignment.operator == AssignmentOperator::Assign
+                && matches!(
+                    assignment.left,
+                    AssignmentTarget::AssignmentTargetIdentifier(_)
+                )
+            {
                 report = report.suggest(Suggestion {
                     message_id: Some("fixReactiveLiteral".into()),
                     message: "Move the literal out of the reactive statement into an assignment"
                         .to_owned(),
                     fix: Fix::replace(
                         statement,
-                        format!("let {}", span(expression).text(file.source())),
+                        format!("let {}", span(&**assignment).text(file.source())),
                     ),
                 });
             }

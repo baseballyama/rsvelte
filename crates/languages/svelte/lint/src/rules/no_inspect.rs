@@ -1,6 +1,7 @@
+use oxc_ast::AstKind;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript_syntax::lexer::T;
 
+use super::javascript::{span, walk};
 use super::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -24,15 +25,24 @@ impl SvelteRule for NoInspect {
         if runes(file) != Some(true) {
             return;
         }
-        let source = file.source();
-        // Tokens, not nodes: an identifier in a type annotation names `$inspect` too.
-        for token in file.javascript().tokens.iter() {
-            if token.kind == T::Identifier && token.span.text(source) == "$inspect" {
-                reporter.report(
-                    Report::range("Do not use $inspect directive", token.span)
-                        .message_id("unexpected"),
-                );
+        // Every identifier, as the token `$inspect`: one in a type annotation names it too.
+        let mut last = None;
+        walk(file, |node| {
+            let (name, at) = match node.kind() {
+                AstKind::IdentifierReference(identifier) => (identifier.name.as_str(), identifier.span),
+                AstKind::BindingIdentifier(identifier) => (identifier.name.as_str(), identifier.span),
+                AstKind::IdentifierName(identifier) => (identifier.name.as_str(), identifier.span),
+                AstKind::LabelIdentifier(identifier) => (identifier.name.as_str(), identifier.span),
+                _ => return,
+            };
+            // A shorthand `{ $inspect }` is two nodes over one token.
+            if name != "$inspect" || last == Some(at) {
+                return;
             }
-        }
+            last = Some(at);
+            reporter.report(
+                Report::range("Do not use $inspect directive", span(at)).message_id("unexpected"),
+            );
+        });
     }
 }

@@ -4,10 +4,10 @@
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, Component, Part, TemplateNode};
-use rsvelte_typescript_syntax::NodeIdentifier;
 
-use super::expressions::Expressions;
+use super::expressions::equal_tokens;
 use super::markup::parts;
+use super::nodes;
 
 /// Reports every directive that `key` selects and another directive of its start tag repeats.
 /// `key` gives a directive's key text, or `None` for an attribute that is not one;
@@ -19,9 +19,9 @@ pub(super) fn report_duplicates<'s>(
     key: impl Fn(&Attribute) -> Option<&'s str>,
     message: impl Fn(&str, u32) -> String,
 ) {
-    let expressions = Expressions::new(&component.javascript, source);
+    let javascript = &component.javascript;
     let mut lines = None;
-    let mut groups: Vec<(&str, Option<NodeIdentifier>, Vec<Span>)> = Vec::new();
+    let mut groups: Vec<(&str, Option<Span>, Vec<Span>)> = Vec::new();
     for node in &component.nodes {
         let TemplateNode::Element { attributes, .. } = *node else {
             continue;
@@ -32,14 +32,16 @@ pub(super) fn report_duplicates<'s>(
                 continue;
             };
             let expression = match *parts(component, attribute) {
-                [Part::Expression { expression, .. }] => Some(expression),
+                [Part::Expression { expression, .. }] => {
+                    Some(nodes::span(javascript.get_expression(expression)))
+                }
                 _ => None,
             };
             let same = groups.iter_mut().find(|(other, other_expression, _)| {
                 *other == key
                     && match (*other_expression, expression) {
-                        (Some(a), Some(b)) => expressions.equal_tokens(a, b),
-                        (a, b) => a == b,
+                        (Some(a), Some(b)) => equal_tokens(component, source, a, b),
+                        (a, b) => a.is_none() && b.is_none(),
                     }
             });
             match same {
