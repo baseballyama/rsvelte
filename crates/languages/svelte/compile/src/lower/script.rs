@@ -34,8 +34,7 @@ pub(super) struct ScriptRewrite<'r, 'o> {
     /// How the client reads the names the template declares, for those in scope (upstream's
     /// per-block `transform`, keyed by symbol instead of by name).
     pub template: Option<&'r FxHashMap<SymbolId, Read>>,
-    /// A nested snippet and the outer name it shadows: the client's `transform` is keyed by name,
-    /// so a read of the snippet is a read of that name.
+    /// A snippet a component holds and the outer name it shadows, which the client reads instead.
     pub shadows: Option<&'r FxHashMap<SymbolId, SymbolId>>,
 }
 

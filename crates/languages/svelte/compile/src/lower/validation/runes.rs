@@ -225,6 +225,14 @@ impl<'a> Visit<'a> for RuneWalk<'a> {
     }
 }
 
+/// A `bind:` target other than `this` that [`check_runes`] raises upstream's error for: a name
+/// nothing declares, or one upstream's `validate_assignment` rejects.
+pub(in crate::lower) fn rejects_binding(res: &Resolution, e: &Expression<'_>) -> bool {
+    fixed_expression(res, e, true).is_some()
+        || matches!(e.get_inner_expression(), Expression::Identifier(name)
+            if res.symbol(name).is_none() && !res.is_store_subscription(&name.name))
+}
+
 impl<'a> RuneWalk<'a> {
     /// Upstream's `BindDirective` checks of the `bind:` target `e` at `span`; `bind:this` also
     /// takes a global.

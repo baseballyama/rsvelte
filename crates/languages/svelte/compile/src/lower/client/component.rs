@@ -2,7 +2,8 @@ use crate::lower::builder::Runtime;
 use oxc_ast::ast::Expression;
 
 use super::super::component::{
-    Entry, Prop, is_dynamic, props, props_expression, push_binding, push_children, reference,
+    Entry, Prop, child_snippets, is_dynamic, props, props_expression, push_binding, push_children,
+    reference,
 };
 use super::super::derived::{Created, callback};
 use super::{
@@ -39,16 +40,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         for prop in props(tree.attributes(element.attributes)) {
             self.push_prop(prop, &mut memo, &mut parts);
         }
-        // Upstream declares the snippet children in a block, so that they can be props without
-        // clashing with the parent's names.
-        let mut statements = Vec::new();
-        let mut snippets = Vec::new();
-        for &child in tree.children(element.children) {
-            if let NodeKind::Snippet(snippet) = &tree.node(child).kind {
-                statements.push(self.snippet_declaration(snippet)?);
-                snippets.push(self.snippet_name(snippet));
-            }
-        }
+        let (mut statements, snippets) =
+            child_snippets(tree, self.javascript, element.children, |snippet| {
+                self.snippet_declaration(snippet)
+            })?;
         let children = self.fragment_without(element.children, |_| true)?;
         push_children(
             b,

@@ -1,7 +1,10 @@
 use oxc_ast::ast::Statement;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
+use oxc_syntax::symbol::SymbolFlags;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, Snippet};
 
-use super::super::snippets::{render_arguments, render_call, snippet_name};
+use crate::lower::{span_of, unsupported};
+
+use super::super::snippets::{Place, place, render_arguments, render_call, snippet_name};
 use super::{CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind, Piece, R, ServerCompilationContext};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -12,18 +15,53 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let NodeKind::Snippet(snippet) = &node.kind else {
             unreachable!("a snippet node")
         };
+        if self.clashes_with_the_script(identifier) {
+            return unsupported(
+                "on the server, a snippet in elements named like a `let`, `const` or class of the script",
+                span_of(self.javascript.get_expression(snippet.name)),
+            );
+        }
         let declaration = self.snippet_declaration(snippet)?;
-        let hoisted = node.parent.is_none()
-            && self
-                .res
-                .snippet(identifier)
-                .is_some_and(|symbol| self.hoistable.contains(&symbol));
-        if hoisted {
+        let place = place(
+            self.compiler_syntax_tree,
+            self.res,
+            self.hoistable,
+            identifier,
+        );
+        if place == Place::Module {
             self.hoisted_snippets.push(declaration);
         } else {
             self.snippets.push(declaration);
         }
         Ok(())
+    }
+
+    /// Upstream declares a snippet that only elements hold in the component's function, beside a
+    /// `let`, `const` or class of the instance script of its name; that output does not parse.
+    fn clashes_with_the_script(&self, identifier: CompilerNodeIdentifier) -> bool {
+        let tree = self.compiler_syntax_tree;
+        let mut parent = tree.node(identifier).parent;
+        if parent.is_none() || !self.instance_script {
+            return false;
+        }
+        while let Some(p) = parent {
+            let node = tree.node(p);
+            if !matches!(&node.kind, NodeKind::Element(e) if e.kind == ElementKind::Regular) {
+                return false;
+            }
+            parent = node.parent;
+        }
+        let scoping = self.res.scoping();
+        self.res.snippet(identifier).is_some_and(|symbol| {
+            let name = scoping.symbol_ident(symbol);
+            scoping
+                .get_binding(self.res.instance_scope(), name)
+                .map(|other| scoping.symbol_flags(other))
+                .is_some_and(|flags| {
+                    flags.intersects(SymbolFlags::BlockScopedVariable | SymbolFlags::Class)
+                        && !flags.contains(SymbolFlags::Ambient)
+                })
+        })
     }
 
     pub(super) fn snippet_name(&self, snippet: &Snippet) -> &'o str {

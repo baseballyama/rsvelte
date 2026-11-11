@@ -102,7 +102,7 @@ fn check_element(
             AttributeValue::Bind(_) if name == "this" => "`bind:this` on a component",
             AttributeValue::Bind(_) if name == "group" => "`bind:group` on a component",
             AttributeValue::Bind(target)
-                if !is_bindable(input, res, target, true) && !unbound(input, res, target) =>
+                if !is_bindable(input, res, target, true) && !rejected(input, res, target) =>
             {
                 "a component binding to anything but a `let`, `$state`, a prop or a member"
             }
@@ -181,20 +181,9 @@ fn check_component_attribute(a: &Attribute) -> Result<(), Diagnostic> {
     }
 }
 
-/// A binding to a name nothing declares, for which the rune walk raises `bind_invalid_value`.
-fn unbound(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIdentifier) -> bool {
-    match input
-        .component
-        .javascript
-        .get_expression(target)
-        .get_inner_expression()
-        .get_inner_expression()
-    {
-        Expression::Identifier(name) => {
-            res.symbol(name).is_none() && !res.is_store_subscription(&name.name)
-        }
-        _ => false,
-    }
+/// A binding upstream rejects, whose error the rune walk raises.
+fn rejected(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIdentifier) -> bool {
+    super::validation::rejects_binding(res, input.component.javascript.get_expression(target))
 }
 
 /// A supported property on a supported element, as upstream's `binding_properties` names it,
@@ -221,7 +210,7 @@ fn check_element_binding(
             a.span,
         );
     }
-    if !is_bindable(input, res, target, false) && !unbound(input, res, target) {
+    if !is_bindable(input, res, target, false) && !rejected(input, res, target) {
         return unsupported(
             "a binding to anything but `$state` or a member of `$state` or of an `{#each}` item",
             a.span,

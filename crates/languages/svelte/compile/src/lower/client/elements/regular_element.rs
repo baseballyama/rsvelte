@@ -71,14 +71,19 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 .push(b.stmt(b.runtime("replay_events", [b.id(node)])));
         }
 
-        let outer = std::mem::take(&mut self.snippets);
-        let child = self.element_children(identifier, node, frag);
-        let snippets = std::mem::replace(&mut self.snippets, outer);
+        let (snippets, child) =
+            self.collecting_snippets(|context| context.element_children(identifier, node, frag));
         let mut child = child?;
-        let has_snippets = !snippets.is_empty();
-        if has_snippets {
+        if snippets.is_empty() {
+            if self.an.dynamic[identifier] {
+                l.initializer.append(&mut child.initializer);
+                l.update.append(&mut child.update);
+                l.after.append(&mut child.after);
+            }
+            l.initializer.append(&mut directives.initializer);
+            l.after.append(&mut directives.after);
+        } else {
             // A block keeps the snippets' names from clashing with the parent's.
-            let b = self.b;
             let mut block = snippets;
             block.append(&mut child.initializer);
             block.append(&mut directives.initializer);
@@ -87,15 +92,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             block.append(&mut child.after);
             block.append(&mut directives.after);
-            l.initializer.push(b.block(block));
-        } else if self.an.dynamic[identifier] {
-            l.initializer.append(&mut child.initializer);
-            l.update.append(&mut child.update);
-            l.after.append(&mut child.after);
-        }
-        if !has_snippets {
-            l.initializer.append(&mut directives.initializer);
-            l.after.append(&mut directives.after);
+            l.initializer.push(self.b.block(block));
         }
         if attribute_list.iter().any(|a| {
             !is_directive(&a.value)

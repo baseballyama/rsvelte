@@ -1,11 +1,11 @@
+use oxc_ast::ast::BinaryOperator;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Await;
 
-use super::{
-    BinaryOperator, Builder, DirectiveExpression, DirectiveName, Helper, LoopExpression,
-    NodeIdentifier, Parent, R, SourceLocation, Span, directive, spelled, vue,
-};
+use super::{DirectiveName, Helper, Parent, R, Span, Template, vue};
 
-impl Builder<'_, '_> {
+impl Template<'_, '_, '_> {
+    /// `{#await}` as a `$$Await` whose `v-for` names the promise's state, with a branch per
+    /// status.
     pub(super) fn await_block(
         &mut self,
         await_: &Await,
@@ -13,73 +13,36 @@ impl Builder<'_, '_> {
         preserve: bool,
         at: Span,
     ) -> R<vue::CompilerNodeIdentifier> {
+        let b = self.b;
+        let javascript = &self.i.component.javascript;
         let expression = self.template_expression(await_.expression);
-        let state_name = format!("$$await_{}", at.start_offset);
-        let state = self.to.identifier(&state_name);
-        let has_catch = self
-            .to
-            .write_boolean(await_.catch().is_some(), SourceLocation::SYNTHETIC);
-        let properties = self.vb.props([
-            super::bound("catch", at, has_catch, at),
-            directive(
-                DirectiveName::For,
-                None,
-                DirectiveExpression::For(LoopExpression {
-                    parameters: vec![state],
-                    source: expression,
-                }),
-                at,
-            ),
-        ]);
-        let element = vue::Element {
-            tag: spelled("$$Await", at),
-            tag_type: vue::TagType::Template,
-            props: properties,
-            children: vue::Children::default(),
-        };
-        let node = self.vb.node(vue::NodeKind::Element(element), at, parent, 0);
-        let mut children = Vec::new();
+        let state = format!("$$await_{}", at.start_offset);
+        let properties = vec![
+            self.bound("catch", at, b.boolean(await_.catch().is_some()), at),
+            self.loop_directive([b.parameter(b.binding(&state))], expression, at),
+        ];
+        let node = self.template_node("$$Await", at, properties, parent);
+        let mut children = Vec::with_capacity(3);
         for (status, body, parameter, field) in [
-            (0, await_.pending(), NodeIdentifier::NONE, "value"),
+            (0, await_.pending(), None, "value"),
             (1, await_.then(), await_.value, "value"),
             (2, await_.catch(), await_.error, "error"),
         ] {
-            let state = self.to.identifier(&state_name);
-            let status_value = self.to.dot(state, "status");
-            let number = self
-                .to
-                .write_number(f64::from(status), SourceLocation::SYNTHETIC);
-            let test = self.to.binary(
-                BinaryOperator::StrictEq,
-                status_value,
-                number,
-                SourceLocation::SYNTHETIC,
+            let test = b.binary(
+                b.member(b.id(&state), "status"),
+                BinaryOperator::StrictEquality,
+                b.number(f64::from(status)),
             );
             let name = if status == 0 {
                 DirectiveName::If
             } else {
                 DirectiveName::ElseIf
             };
-            let mut lead = vec![directive(
-                name,
-                None,
-                DirectiveExpression::Expression(test),
-                at,
-            )];
-            if parameter != NodeIdentifier::NONE {
-                let parameter = self.template_expression(parameter);
-                let state = self.to.identifier(&state_name);
-                let value = self.to.dot(state, field);
-                let source = self.to.array(&[value], SourceLocation::SYNTHETIC);
-                lead.push(directive(
-                    DirectiveName::For,
-                    None,
-                    DirectiveExpression::For(LoopExpression {
-                        parameters: vec![parameter],
-                        source,
-                    }),
-                    at,
-                ));
+            let mut lead = vec![self.directive_with(name, Some(test), at)];
+            if let Some(parameter) = parameter {
+                let parameter = self.parameter(javascript.get_pattern(parameter));
+                let source = b.array([b.member(b.id(&state), field)]);
+                lead.push(self.loop_directive([parameter], source, at));
             }
             let ids = body.map_or(&[][..], |body| self.i.compiler_syntax_tree.children(body));
             children.push(self.block_element(

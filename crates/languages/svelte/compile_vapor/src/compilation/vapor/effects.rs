@@ -1,241 +1,154 @@
-use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_typescript_compile::copy::{Rewrite, copy};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+//! A block's statements with its DOM updates kept apart, so that the block finishes them as one
+//! `renderEffect` that reads its memoized cells first, in the order the elements were opened.
 
-pub(super) fn lower(
-    from: &SyntaxTree,
-    program: NodeIdentifier,
-    callbacks: &rustc_hash::FxHashMap<NodeIdentifier, NodeIdentifier>,
-    order: &rustc_hash::FxHashMap<NodeIdentifier, usize>,
-    cached_reads: &rustc_hash::FxHashSet<NodeIdentifier>,
-) -> (SyntaxTree, NodeIdentifier) {
-    let mut to = SyntaxTree::new();
-    let program = copy(
-        from,
-        &mut to,
-        &mut Effects {
-            callbacks,
+use oxc_ast::ast::{Expression, IdentifierReference, Statement, StaticMemberExpression};
+use oxc_ast_visit::{Visit, walk};
+use rsvelte_typescript_compile::build::Builder;
+use rustc_hash::{FxHashMap, FxHashSet};
+
+#[derive(Default)]
+pub(super) struct Body<'o> {
+    statements: Vec<Statement<'o>>,
+    updates: Vec<Update<'o>>,
+}
+
+/// A DOM update: the expression its `renderEffect` would run.
+struct Update<'o> {
+    /// How many statements came before it.
+    at: usize,
+    order: usize,
+    expression: Expression<'o>,
+    reads: Vec<String>,
+}
+
+impl<'o> Body<'o> {
+    pub(super) fn push(&mut self, statement: Statement<'o>) {
+        self.statements.push(statement);
+    }
+
+    /// A statement before all the others.
+    pub(super) fn insert(&mut self, statement: Statement<'o>) {
+        self.statements.insert(0, statement);
+        for update in &mut self.updates {
+            update.at += 1;
+        }
+    }
+
+    pub(super) fn effect(&mut self, order: usize, expression: Expression<'o>, reads: Vec<String>) {
+        self.updates.push(Update {
+            at: self.statements.len(),
             order,
-            cached_reads,
-        },
-        program,
-    );
-    (to, program)
-}
-
-struct Effects<'a> {
-    callbacks: &'a rustc_hash::FxHashMap<NodeIdentifier, NodeIdentifier>,
-    order: &'a rustc_hash::FxHashMap<NodeIdentifier, usize>,
-    cached_reads: &'a rustc_hash::FxHashSet<NodeIdentifier>,
-}
-
-impl Rewrite for Effects<'_> {
-    fn rewrite(
-        &mut self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        identifier: NodeIdentifier,
-    ) -> Option<NodeIdentifier> {
-        let Kind::Block(statements) = from.kind(identifier) else {
-            return None;
-        };
-        let effects: Vec<_> = statements
-            .iter()
-            .enumerate()
-            .filter_map(|(index, &statement)| {
-                dom_effect(from, statement, self.callbacks).map(|expression| (index, expression))
-            })
-            .collect();
-        if effects.is_empty() {
-            return None;
-        }
-        let last = statements.len()
-            - usize::from(matches!(
-                from.kind(statements[statements.len() - 1]),
-                Kind::Return(_)
-            ));
-        let mut ordered = effects.clone();
-        ordered.sort_by_key(|&(index, _)| {
-            self.order
-                .get(&statements[index])
-                .copied()
-                .unwrap_or(usize::MAX)
+            expression,
+            reads,
         });
-        let mut reads = Vec::new();
-        let mut seen = rustc_hash::FxHashSet::default();
-        for &(_, expression) in &ordered {
-            self.collect_reads(from, expression, &mut seen, &mut reads);
-        }
-        if reads.is_empty() && effects.len() == 1 && effects[0].0 + 1 == last {
-            return None;
-        }
-        let calls: Vec<_> = reads
-            .into_iter()
-            .chain(ordered.iter().map(|&(_, expression)| expression))
-            .map(|expression| {
-                let expression = copy(from, to, self, expression);
-                to.expression_statement(expression)
-            })
-            .collect();
-        let block = to.block(&calls, SourceLocation::SYNTHETIC);
-        let callback = to.arrow(&[], block, false, false, SourceLocation::SYNTHETIC);
-        let callee = to.identifier("$$v_renderEffect");
-        let call = to.call0(callee, &[callback]);
-        let effect = to.expression_statement(call);
-        let mut output = Vec::with_capacity(statements.len() - effects.len() + 1);
-        let mut next = 0;
-        for (index, &statement) in statements.iter().enumerate() {
-            if index == last {
-                output.push(effect);
-            }
-            if next < effects.len() && effects[next].0 == index {
-                next += 1;
-            } else {
-                output.push(copy(from, to, self, statement));
-            }
-        }
-        if last == statements.len() {
-            output.push(effect);
-        }
-        Some(to.block(&output, from.source_location(identifier)))
     }
-}
 
-impl Effects<'_> {
-    fn collect_reads(
-        &self,
-        tree: &SyntaxTree,
-        node: NodeIdentifier,
-        seen: &mut rustc_hash::FxHashSet<NodeIdentifier>,
-        reads: &mut Vec<NodeIdentifier>,
-    ) {
-        if self.cached_reads.contains(&node) {
-            if seen.insert(node) {
-                reads.push(node);
-            }
-            return;
-        }
-        if let Some(&callback) = self.callbacks.get(&node) {
-            self.collect_reads(tree, callback, seen, reads);
-            return;
-        }
-        tree.for_each_child(node, |child| self.collect_reads(tree, child, seen, reads));
-    }
-}
-
-fn dom_effect(
-    tree: &SyntaxTree,
-    statement: NodeIdentifier,
-    callbacks: &rustc_hash::FxHashMap<NodeIdentifier, NodeIdentifier>,
-) -> Option<NodeIdentifier> {
-    let Kind::ExpressionStatement(call) = tree.kind(statement) else {
-        return None;
-    };
-    let Kind::Call {
-        callee, arguments, ..
-    } = tree.kind(call)
-    else {
-        return None;
-    };
-    if !matches!(tree.kind(callee), Kind::Identifier(_))
-        || tree.name(callee) != "$$v_renderEffect"
-        || arguments.len() != 1
-    {
-        return None;
-    }
-    let Kind::Arrow {
-        body,
-        parameters,
-        expression_body: true,
-        ..
-    } = tree.kind(arguments[0])
-    else {
-        return None;
-    };
-    if !parameters.is_empty() {
-        return None;
-    }
-    dom_update(tree, body, callbacks).then_some(body)
-}
-
-fn dom_update(
-    tree: &SyntaxTree,
-    expression: NodeIdentifier,
-    callbacks: &rustc_hash::FxHashMap<NodeIdentifier, NodeIdentifier>,
-) -> bool {
-    match tree.kind(expression) {
-        Kind::Call {
-            callee, arguments, ..
-        } if matches!(tree.kind(callee), Kind::Identifier(_)) => {
-            let name = tree.name(callee);
-            if callbacks.contains_key(&callee) {
-                return true;
-            }
-            if name == "$$tracked"
-                && arguments.len() == 1
-                && let Kind::Arrow {
-                    body,
-                    expression_body: true,
-                    ..
-                } = tree.kind(arguments[0])
+    /// The statements, the DOM updates last as one effect; a lone update that reads no cell and
+    /// is last already stays as written.
+    pub(super) fn finish(mut self, b: &Builder<'o>) -> Vec<Statement<'o>> {
+        let effect = |body| {
+            let callback = b.arrow_block(b.params([]), body, false);
+            b.stmt(b.call(b.id("$$v_renderEffect"), [callback]))
+        };
+        match self.updates.len() {
+            0 => return self.statements,
+            1 if self.updates[0].reads.is_empty()
+                && self.updates[0].at == self.statements.len() =>
             {
-                return dom_update(tree, body, callbacks);
+                let update = self.updates.pop().expect("one update");
+                let callback = b.arrow(b.params([]), update.expression);
+                self.statements
+                    .push(b.stmt(b.call(b.id("$$v_renderEffect"), [callback])));
+                return self.statements;
             }
-            matches!(
-                name,
-                "$$v_setText"
-                    | "$$v_setAttr"
-                    | "$$v_setDOMProp"
-                    | "$$v_setClass"
-                    | "$$v_setStyle"
-                    | "$$value"
-            )
+            _ => {}
         }
-        Kind::Assign(_, target, _) => {
-            matches!(tree.kind(target), Kind::Member { property, computed: false, .. } if matches!(tree.name(property), "checked" | "selected"))
+        self.updates.sort_by_key(|update| update.order);
+        let mut seen = FxHashSet::default();
+        let mut reads = Vec::new();
+        for update in &self.updates {
+            for read in &update.reads {
+                if seen.insert(read.as_str()) {
+                    reads.push(b.stmt(b.member(b.id(read), "value")));
+                }
+            }
         }
-        _ => false,
+        reads.extend(
+            self.updates
+                .into_iter()
+                .map(|update| b.stmt(update.expression)),
+        );
+        self.statements.push(effect(reads));
+        self.statements
     }
 }
 
-pub(super) fn dom_callback(tree: &SyntaxTree, expression: NodeIdentifier) -> bool {
-    let Kind::Arrow {
-        body,
-        expression_body: false,
-        ..
-    } = tree.kind(expression)
-    else {
+/// The memoized cells `update` reads, through the DOM callbacks it calls too, in order.
+pub(super) fn reads(
+    update: &Expression<'_>,
+    memoized: &FxHashSet<String>,
+    callbacks: &FxHashMap<String, Vec<String>>,
+) -> Vec<String> {
+    struct Reads<'r> {
+        memoized: &'r FxHashSet<String>,
+        callbacks: &'r FxHashMap<String, Vec<String>>,
+        out: Vec<String>,
+    }
+    impl<'a> Visit<'a> for Reads<'_> {
+        fn visit_static_member_expression(&mut self, it: &StaticMemberExpression<'a>) {
+            if let Expression::Identifier(object) = &it.object
+                && it.property.name == "value"
+                && self.memoized.contains(object.name.as_str())
+            {
+                self.out.push(object.name.to_string());
+                return;
+            }
+            walk::walk_static_member_expression(self, it);
+        }
+
+        fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
+            if let Some(reads) = self.callbacks.get(it.name.as_str()) {
+                self.out.extend(reads.iter().cloned());
+            }
+        }
+    }
+    let mut v = Reads {
+        memoized,
+        callbacks,
+        out: Vec::new(),
+    };
+    v.visit_expression(update);
+    v.out
+}
+
+/// Whether an element callback only updates the DOM: `($$el) => { if (…) { …updates } }`.
+pub(super) fn dom_callback(callback: &Expression<'_>) -> bool {
+    let Expression::ArrowFunctionExpression(arrow) = callback else {
         return false;
     };
-    let Kind::Block(statements) = tree.kind(body) else {
+    let oxc_ast::ast::ArrowFunctionBody::FunctionBody(body) = &arrow.body else {
         return false;
     };
-    if statements.len() != 1 {
+    let [Statement::IfStatement(test)] = body.statements.as_slice() else {
+        return false;
+    };
+    if test.alternate.is_some() {
         return false;
     }
-    let Kind::If {
-        consequent,
-        alternate: None,
-        ..
-    } = tree.kind(statements[0])
-    else {
+    let Statement::BlockStatement(updates) = &test.consequent else {
         return false;
     };
-    let Kind::Block(updates) = tree.kind(consequent) else {
-        return false;
-    };
-    !updates.is_empty()
-        && updates.iter().all(|&update| {
-            let Kind::ExpressionStatement(call) = tree.kind(update) else {
+    !updates.body.is_empty()
+        && updates.body.iter().all(|update| {
+            let Statement::ExpressionStatement(s) = update else {
                 return false;
             };
-            let Kind::Call { callee, .. } = tree.kind(call) else {
+            let Expression::CallExpression(call) = &s.expression else {
                 return false;
             };
-            matches!(tree.kind(callee), Kind::Identifier(_))
-                && matches!(
-                    tree.name(callee),
-                    "$$set_class" | "$$style" | "$$styles" | "$$value" | "$$custom_element_data"
-                )
+            matches!(&call.callee, Expression::Identifier(callee) if matches!(
+                callee.name.as_str(),
+                "$$set_class" | "$$style" | "$$styles" | "$$value" | "$$custom_element_data"
+            ))
         })
 }

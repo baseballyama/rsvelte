@@ -1,5 +1,6 @@
 use super::super::component::{
-    Entry, Prop, is_dynamic, props, props_expression, push_binding, push_children, reference,
+    Entry, Prop, child_snippets, is_dynamic, props, props_expression, push_binding, push_children,
+    reference,
 };
 use super::{
     BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind,
@@ -47,16 +48,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 }
             }
         }
-        // Upstream declares the snippet children in a block, so that they can be props without
-        // clashing with the parent's names.
-        let mut declarations = Vec::new();
-        let mut snippets = Vec::new();
-        for &child in tree.children(element.children) {
-            if let NodeKind::Snippet(snippet) = &tree.node(child).kind {
-                declarations.push(self.snippet_declaration(snippet)?);
-                snippets.push(self.snippet_name(snippet));
-            }
-        }
+        let (mut declarations, snippets) =
+            child_snippets(tree, self.javascript, element.children, |snippet| {
+                self.snippet_declaration(snippet)
+            })?;
         let children = self.fragment_without(element.children, |_| true)?;
         push_children(b, &mut parts, &snippets, children, &["$$renderer"]);
         let props = props_expression(b, parts, Target::Server);

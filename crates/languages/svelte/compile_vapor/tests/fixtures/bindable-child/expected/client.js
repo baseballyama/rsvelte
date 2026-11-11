@@ -1,52 +1,54 @@
-import { currentInstance as $$v_currentInstance, defineVaporComponent as $$v_defineVaporComponent, getCurrentScope as $$v_getCurrentScope, insert as $$v_insert, on as $$v_on, onScopeDispose as $$v_onScopeDispose, renderEffect as $$v_renderEffect, restoreCurrentInstance as $$v_restoreCurrentInstance, setCurrentInstance as $$v_setCurrentInstance, setText as $$v_setText, template as $$v_template } from 'vue';
-
-import { customRef as $$createState, shallowRef as $$shallowRef, computed as $$createDerived, watchEffect as $$watchEffect, watchPostEffect as $$watchPostEffect, effectScope as $$effectScope, ReactiveEffect as $$ReactiveEffect, watch as $$watch, onScopeDispose as $$onScopeDispose } from 'vue';
-
+import { currentInstance as $$v_currentInstance, defineVaporComponent as $$v_defineVaporComponent, getCurrentScope as $$v_getCurrentScope, insert as $$v_insert, on as $$v_on, onScopeDispose as $$v_onScopeDispose, renderEffect as $$v_renderEffect, restoreCurrentInstance as $$v_restoreCurrentInstance, setCurrentInstance as $$v_setCurrentInstance, setText as $$v_setText, template as $$v_template } from "vue";
+import { customRef as $$createState, shallowRef as $$shallowRef, computed as $$createDerived, watchEffect as $$watchEffect, watchPostEffect as $$watchPostEffect, effectScope as $$effectScope, ReactiveEffect as $$ReactiveEffect, watch as $$watch, onScopeDispose as $$onScopeDispose } from "vue";
 const $$prop_cell = (props, key, fallback, server, bindable) => {
 	const unset = Symbol();
 	const local = server ? { value: unset } : $$shallowRef(unset);
 	let previous = props[key];
 	let initialized = false;
 	let defaultValue;
-	const options = { get() {
-		const current = props[key];
-		if (!Object.is(current, previous)) {
-			previous = current;
-			local.value = unset;
-		}
-		if (local.value !== unset) return local.value;
-		if (current !== undefined) {
-			initialized = false;
-			return current;
-		}
-		if (!initialized) {
-			initialized = true;
-			defaultValue = $$untrack(fallback);
-			if (bindable && !server) defaultValue = $$state_proxy(defaultValue);
-			const write = bindable ? props.__rsvelte_bindings?.[key] : undefined;
-			if (write && defaultValue !== undefined) {
-				if (!server) throw new Error(`props_invalid_value: bound prop '${key}' cannot be undefined when it has a fallback`);
-				write(defaultValue);
+	const options = {
+		get() {
+			const current = props[key];
+			if (!Object.is(current, previous)) {
+				previous = current;
+				local.value = unset;
 			}
+			if (local.value !== unset) return local.value;
+			if (current !== undefined) {
+				initialized = false;
+				return current;
+			}
+			if (!initialized) {
+				initialized = true;
+				defaultValue = $$untrack(fallback);
+				if (bindable && !server) defaultValue = $$state_proxy(defaultValue);
+				const write = bindable ? props.__rsvelte_bindings?.[key] : undefined;
+				if (write && defaultValue !== undefined) {
+					if (!server) throw new Error(`props_invalid_value: bound prop '${key}' cannot be undefined when it has a fallback`);
+					write(defaultValue);
+				}
+			}
+			return defaultValue;
+		},
+		set(value) {
+			if (bindable && !server) value = $$state_proxy(value);
+			const write = bindable ? props.__rsvelte_bindings?.[key] : undefined;
+			if (write) write(value);
+			else local.value = value;
 		}
-		return defaultValue;
-	}, set(value) {
-		if (bindable && !server) value = $$state_proxy(value);
-		const write = bindable ? props.__rsvelte_bindings?.[key] : undefined;
-		if (write) write(value); else local.value = value;
-	} };
+	};
 	if (!server) return $$createDerived(options);
-	return { get value() {
-		return options.get();
-	}, set value(value) {
-		options.set(value);
-	} };
+	return {
+		get value() {
+			return options.get();
+		},
+		set value(value) {
+			options.set(value);
+		}
+	};
 };
-
 const $$lifecycle_owner = () => new WeakMap();
-
 const $$lifecycles = $$lifecycle_owner();
-
 const $$lifecycle_once = (element, key, lifecycles = $$lifecycles) => {
 	let keys = lifecycles.get(element);
 	if (!keys) {
@@ -61,7 +63,6 @@ const $$lifecycle_once = (element, key, lifecycles = $$lifecycles) => {
 	});
 	return true;
 };
-
 const $$attachment_scope = (element, getter) => {
 	const scope = $$effectScope(true);
 	scope.run(() => $$watchPostEffect((register) => $$tracked(() => {
@@ -71,18 +72,16 @@ const $$attachment_scope = (element, getter) => {
 		register(() => child.stop());
 		child.run(() => {
 			const cleanup = attachment(element);
-			if (typeof cleanup === 'function') $$onScopeDispose(cleanup);
+			if (typeof cleanup === "function") $$onScopeDispose(cleanup);
 		});
 	})));
 	return scope;
 };
-
 const $$attachment = (element, key, getter) => {
 	if (!$$lifecycle_once(element, key)) return;
 	const scope = $$attachment_scope(element, getter);
 	$$onScopeDispose(() => scope.stop());
 };
-
 const $$spread_attachments = (element, next) => {
 	let scopes = element.$$attachments;
 	if (!scopes) {
@@ -102,12 +101,14 @@ const $$spread_attachments = (element, next) => {
 	});
 	Object.getOwnPropertySymbols(next).forEach((key) => {
 		const value = next[key];
-		if (key.description === '@attach' && value && !scopes.has(key)) {
-			scopes.set(key, { value, scope: $$attachment_scope(element, () => value) });
+		if (key.description === "@attach" && value && !scopes.has(key)) {
+			scopes.set(key, {
+				value,
+				scope: $$attachment_scope(element, () => value)
+			});
 		}
 	});
 };
-
 const $$action = (element, key, action, parameter) => {
 	if (!$$lifecycle_once(element, key)) return;
 	$$watchPostEffect((register) => {
@@ -117,31 +118,36 @@ const $$action = (element, key, action, parameter) => {
 			if (!mounted) {
 				mounted = true;
 				result = action(element, value);
-			} else if (result && typeof result.update === 'function') {
+			} else if (result && typeof result.update === "function") {
 				result.update(value);
 			}
-		}, { immediate: true, deep: true, flush: 'post' });
+		}, {
+			immediate: true,
+			deep: true,
+			flush: "post"
+		});
 		register(() => {
 			stop();
-			if (result && typeof result.destroy === 'function') result.destroy();
+			if (result && typeof result.destroy === "function") result.destroy();
 		});
 	});
 };
-
 const $$global_binding = (element, name, setter, owner) => {
 	if (!$$lifecycle_once(element, name, owner)) return;
-	const events = name === 'online' ? ['online', 'offline'] : name === 'visibilityState' ? ['visibilitychange'] : name === 'activeElement' ? ['focusin', 'focusout'] : name === 'fullscreenElement' ? ['fullscreenchange'] : name === 'scrollX' || name === 'scrollY' ? ['scroll'] : ['resize'];
-	const update = () => setter(name === 'online' ? navigator.onLine : element[name]);
+	const events = name === "online" ? ["online", "offline"] : name === "visibilityState" ? ["visibilitychange"] : name === "activeElement" ? ["focusin", "focusout"] : name === "fullscreenElement" ? ["fullscreenchange"] : name === "scrollX" || name === "scrollY" ? ["scroll"] : ["resize"];
+	const update = () => setter(name === "online" ? navigator.onLine : element[name]);
 	update();
 	events.forEach((event) => element.addEventListener(event, update));
 	$$onScopeDispose(() => events.forEach((event) => element.removeEventListener(event, update)));
 };
-
 const $$event = (element, name, getter) => {
-	if (!$$lifecycle_once(element, 'on' + name)) return;
-	const capture = name.endsWith('capture') && name !== 'gotpointercapture' && name !== 'lostpointercapture';
+	if (!$$lifecycle_once(element, "on" + name)) return;
+	const capture = name.endsWith("capture") && name !== "gotpointercapture" && name !== "lostpointercapture";
 	if (capture) name = name.slice(0, -7);
-	const options = { capture, passive: name === 'touchstart' || name === 'touchmove' };
+	const options = {
+		capture,
+		passive: name === "touchstart" || name === "touchmove"
+	};
 	const listener = (event) => {
 		const handler = getter();
 		if (handler != null && (!element.disabled || event.target === element)) handler.call(element, event);
@@ -149,24 +155,19 @@ const $$event = (element, name, getter) => {
 	element.addEventListener(name, listener, options);
 	$$onScopeDispose(() => element.removeEventListener(name, listener, options));
 };
-
-const $$number = (value) => value === '' ? null : +value;
-
+const $$number = (value) => value === "" ? null : +value;
 const $$number_value = (element, value, setter) => {
 	if (!element.$$number_mounted) {
 		element.$$number_mounted = true;
-		if (value == null && element.value !== '') {
+		if (value == null && element.value !== "") {
 			value = $$number(element.value);
 			setter(value);
 		}
 	}
-	if (value !== $$number(element.value)) element.value = value == null ? '' : value;
+	if (value !== $$number(element.value)) element.value = value == null ? "" : value;
 };
-
 const $$reset_bindings = new WeakMap();
-
 let $$reset_count = 0;
-
 const $$reset_listener = (event) => {
 	queueMicrotask(() => {
 		if (!event.defaultPrevented) {
@@ -174,54 +175,48 @@ const $$reset_listener = (event) => {
 		}
 	});
 };
-
 const $$form_reset = (element, name, update) => {
-	if (!$$lifecycle_once(element, 'reset:' + name)) return;
+	if (!$$lifecycle_once(element, "reset:" + name)) return;
 	let bindings = $$reset_bindings.get(element);
 	if (!bindings) {
 		bindings = new Map();
 		$$reset_bindings.set(element, bindings);
 	}
 	bindings.set(name, update);
-	if ($$reset_count++ === 0) document.addEventListener('reset', $$reset_listener, true);
+	if ($$reset_count++ === 0) document.addEventListener("reset", $$reset_listener, true);
 	$$onScopeDispose(() => {
 		bindings.delete(name);
-		if (--$$reset_count === 0) document.removeEventListener('reset', $$reset_listener, true);
+		if (--$$reset_count === 0) document.removeEventListener("reset", $$reset_listener, true);
 	});
 };
-
 const $$text_initial = (element, value, setter) => {
-	if ($$lifecycle_once(element, 'text:initial') && value == null && element.value !== '') setter(element.value);
+	if ($$lifecycle_once(element, "text:initial") && value == null && element.value !== "") setter(element.value);
 };
-
-const $$reset_value = (element, value) => element.localName === 'select' ? element.multiple ? Array.from(element.selectedOptions, (option) => option.value) : element.value : value;
-
+const $$reset_value = (element, value) => element.localName === "select" ? element.multiple ? Array.from(element.selectedOptions, (option) => option.value) : element.value : value;
 const $$state_marker = Symbol();
-
 const $$state_deleted = Symbol();
-
 const $$state_equal = (left, right) => left === right || left !== left && right !== right;
-
 const $$state_source = (initial, convert = false) => {
 	let current = initial;
-	const source = $$createState((track, trigger) => ({ get() {
-		track();
-		return current;
-	}, set(value) {
-		const next = convert ? $$state_proxy(value) : value;
-		if (!$$state_equal(current, next)) {
-			current = next;
-			trigger();
+	const source = $$createState((track, trigger) => ({
+		get() {
+			track();
+			return current;
+		},
+		set(value) {
+			const next = convert ? $$state_proxy(value) : value;
+			if (!$$state_equal(current, next)) {
+				current = next;
+				trigger();
+			}
 		}
-	} }));
+	}));
 	source.peek = () => current;
 	return source;
 };
-
 const $$ref = (value) => $$state_source($$state_proxy(value), true);
-
 const $$state_proxy = (value) => {
-	if (value === null || typeof value !== 'object' || $$state_marker in value) return value;
+	if (value === null || typeof value !== "object" || $$state_marker in value) return value;
 	const prototype = Object.getPrototypeOf(value);
 	if (prototype !== Object.prototype && prototype !== Array.prototype) return value;
 	const array = Array.isArray(value);
@@ -238,95 +233,113 @@ const $$state_proxy = (value) => {
 			sources.set(property, source);
 		} else source.value = next;
 	};
-	if (array) sources.set('length', $$state_source(value.length));
-	return new Proxy(value, { get(target, property, receiver) {
-		if (property === $$state_marker) return target;
-		let source = sources.get(property);
-		const exists = property in target;
-		if (!source && (!exists || Object.getOwnPropertyDescriptor(target, property)?.writable)) {
-			source = $$state_source(exists ? $$state_proxy(target[property]) : $$state_deleted);
-			sources.set(property, source);
-		}
-		if (!source) return Reflect.get(target, property, receiver);
-		const result = source.value;
-		return result === $$state_deleted ? undefined : result;
-	}, set(target, property, next, receiver) {
-		const source = sources.get(property);
-		const existed = source ? source.peek() !== $$state_deleted : property in target;
-		if (array && property === 'length') {
-			const length = sources.get('length').peek();
-			for (let index = next; index < length; index++) {
-				if (sources.has(String(index)) || index in target) write(String(index), $$state_deleted);
+	if (array) sources.set("length", $$state_source(value.length));
+	return new Proxy(value, {
+		get(target, property, receiver) {
+			if (property === $$state_marker) return target;
+			let source = sources.get(property);
+			const exists = property in target;
+			if (!source && (!exists || Object.getOwnPropertyDescriptor(target, property)?.writable)) {
+				source = $$state_source(exists ? $$state_proxy(target[property]) : $$state_deleted);
+				sources.set(property, source);
 			}
-		}
-		const descriptor = Object.getOwnPropertyDescriptor(target, property);
-		if (source || !existed || descriptor?.writable) write(property, $$state_proxy(next));
-		if (descriptor?.set) descriptor.set.call(receiver, next);
-		if (!existed) {
-			if (array && typeof property === 'string') {
-				const index = Number(property);
-				const length = sources.get('length');
-				if (Number.isInteger(index) && index >= length.peek()) length.value = index + 1;
+			if (!source) return Reflect.get(target, property, receiver);
+			const result = source.value;
+			return result === $$state_deleted ? undefined : result;
+		},
+		set(target, property, next, receiver) {
+			const source = sources.get(property);
+			const existed = source ? source.peek() !== $$state_deleted : property in target;
+			if (array && property === "length") {
+				const length = sources.get("length").peek();
+				for (let index = next; index < length; index++) {
+					if (sources.has(String(index)) || index in target) write(String(index), $$state_deleted);
+				}
 			}
-			changed();
+			const descriptor = Object.getOwnPropertyDescriptor(target, property);
+			if (source || !existed || descriptor?.writable) write(property, $$state_proxy(next));
+			if (descriptor?.set) descriptor.set.call(receiver, next);
+			if (!existed) {
+				if (array && typeof property === "string") {
+					const index = Number(property);
+					const length = sources.get("length");
+					if (Number.isInteger(index) && index >= length.peek()) length.value = index + 1;
+				}
+				changed();
+			}
+			return true;
+		},
+		deleteProperty(target, property) {
+			if (sources.has(property) || property in target) {
+				write(property, $$state_deleted);
+				changed();
+			}
+			return true;
+		},
+		has(target, property) {
+			if (property === $$state_marker) return true;
+			let source = sources.get(property);
+			const exists = Reflect.has(target, property);
+			if (!source && (!exists || Object.getOwnPropertyDescriptor(target, property)?.writable)) {
+				source = $$state_source(exists ? $$state_proxy(target[property]) : $$state_deleted);
+				sources.set(property, source);
+			}
+			return source ? source.value !== $$state_deleted : exists;
+		},
+		ownKeys(target) {
+			version.value;
+			const keys = Reflect.ownKeys(target).filter((key) => !sources.has(key) || sources.get(key).peek() !== $$state_deleted);
+			sources.forEach((source, key) => {
+				if (source.peek() !== $$state_deleted && !(key in target)) keys.push(key);
+			});
+			return keys;
+		},
+		getOwnPropertyDescriptor(target, property) {
+			this.has(target, property);
+			const descriptor = Object.getOwnPropertyDescriptor(target, property);
+			const source = sources.get(property);
+			if (!source) return descriptor;
+			const current = source.value;
+			if (current === $$state_deleted) return undefined;
+			if (descriptor && "value" in descriptor) return {
+				...descriptor,
+				value: current
+			};
+			return {
+				value: current,
+				writable: true,
+				enumerable: true,
+				configurable: true
+			};
+		},
+		defineProperty(target, property, descriptor) {
+			if (!("value" in descriptor) || descriptor.configurable === false || descriptor.enumerable === false || descriptor.writable === false) {
+				throw new TypeError("state_descriptors_fixed");
+			}
+			write(property, descriptor.value);
+			return true;
+		},
+		setPrototypeOf() {
+			throw new TypeError("state_prototype_fixed");
 		}
-		return true;
-	}, deleteProperty(target, property) {
-		if (sources.has(property) || property in target) {
-			write(property, $$state_deleted);
-			changed();
-		}
-		return true;
-	}, has(target, property) {
-		if (property === $$state_marker) return true;
-		let source = sources.get(property);
-		const exists = Reflect.has(target, property);
-		if (!source && (!exists || Object.getOwnPropertyDescriptor(target, property)?.writable)) {
-			source = $$state_source(exists ? $$state_proxy(target[property]) : $$state_deleted);
-			sources.set(property, source);
-		}
-		return source ? source.value !== $$state_deleted : exists;
-	}, ownKeys(target) {
-		version.value;
-		const keys = Reflect.ownKeys(target).filter((key) => !sources.has(key) || sources.get(key).peek() !== $$state_deleted);
-		sources.forEach((source, key) => {
-			if (source.peek() !== $$state_deleted && !(key in target)) keys.push(key);
-		});
-		return keys;
-	}, getOwnPropertyDescriptor(target, property) {
-		this.has(target, property);
-		const descriptor = Object.getOwnPropertyDescriptor(target, property);
-		const source = sources.get(property);
-		if (!source) return descriptor;
-		const current = source.value;
-		if (current === $$state_deleted) return undefined;
-		if (descriptor && 'value' in descriptor) return { ...descriptor, value: current };
-		return { value: current, writable: true, enumerable: true, configurable: true };
-	}, defineProperty(target, property, descriptor) {
-		if (!('value' in descriptor) || descriptor.configurable === false || descriptor.enumerable === false || descriptor.writable === false) {
-			throw new TypeError('state_descriptors_fixed');
-		}
-		write(property, descriptor.value);
-		return true;
-	}, setPrototypeOf() {
-		throw new TypeError('state_prototype_fixed');
-	} });
+	});
 };
-
 const $$effect_run = (callback, register, state) => {
 	const scope = $$effectScope();
 	state.failed = true;
 	const cleanup = scope.run(() => $$tracked(callback));
 	state.failed = false;
-	state.cleanup = typeof cleanup === 'function' ? cleanup : null;
+	state.cleanup = typeof cleanup === "function" ? cleanup : null;
 	register(() => {
 		scope.stop();
 		state.cleanup?.();
 	});
 };
-
 const $$effect_watch = (callback, watch, options) => {
-	const state = { cleanup: null, failed: false };
+	const state = {
+		cleanup: null,
+		failed: false
+	};
 	$$onScopeDispose(() => {
 		if (state.failed) state.cleanup?.();
 	});
@@ -341,15 +354,12 @@ const $$effect_watch = (callback, watch, options) => {
 		}
 	}, options);
 };
-
 const $$effect = (callback) => {
-	if (typeof window !== 'undefined') $$effect_watch(callback, $$watchPostEffect);
+	if (typeof window !== "undefined") $$effect_watch(callback, $$watchPostEffect);
 };
-
 const $$effect_pre = (callback) => {
-	if (typeof window !== 'undefined') $$effect_watch(callback, $$watchEffect, { flush: 'pre' });
+	if (typeof window !== "undefined") $$effect_watch(callback, $$watchEffect, { flush: "pre" });
 };
-
 const $$effect_root = (callback) => {
 	const scope = $$effectScope(true);
 	const cleanup = scope.run(() => $$untrack(callback));
@@ -358,12 +368,11 @@ const $$effect_root = (callback) => {
 		if (!active) return;
 		active = false;
 		scope.stop();
-		if (typeof cleanup === 'function') cleanup();
+		if (typeof cleanup === "function") cleanup();
 	};
 };
-
 const $$snapshot = (value, seen = new Map(), original = null) => {
-	if (value !== null && typeof value === 'object') {
+	if (value !== null && typeof value === "object") {
 		if (seen.has(value)) return seen.get(value);
 		if (value instanceof Map) return new Map(value);
 		if (value instanceof Set) return new Set(value);
@@ -387,18 +396,16 @@ const $$snapshot = (value, seen = new Map(), original = null) => {
 			value.getTime();
 			return structuredClone(value);
 		}
-		if (typeof value.toJSON === 'function') return $$snapshot(value.toJSON(), seen, value);
+		if (typeof value.toJSON === "function") return $$snapshot(value.toJSON(), seen, value);
 	}
-	if (typeof EventTarget !== 'undefined' && value instanceof EventTarget) return value;
+	if (typeof EventTarget !== "undefined" && value instanceof EventTarget) return value;
 	try {
 		return structuredClone(value);
 	} catch {
 		return value;
 	}
 };
-
 let $$tracking_depth = 0;
-
 const $$tracked = (callback) => {
 	$$tracking_depth++;
 	try {
@@ -407,9 +414,7 @@ const $$tracked = (callback) => {
 		$$tracking_depth--;
 	}
 };
-
 const $$effect_tracking = () => $$tracking_depth > 0;
-
 const $$untrack = (callback) => {
 	const depth = $$tracking_depth;
 	$$tracking_depth = 0;
@@ -421,50 +426,56 @@ const $$untrack = (callback) => {
 		$$tracking_depth = depth;
 	}
 };
-
-const $$v_n0 = $$v_template('<button class="value">');
-
-const $$v_n2 = $$v_template(' ');
-
-const $$v_n4 = $$v_template('<span> </span>');
-
-const $$v_n7 = $$v_template('<button class="other">');
-
-const $$v_n9 = $$v_template(' ');
-
-const $$v_n11 = $$v_template('<span> </span>');
-
-const $$v_n14 = $$v_template('<input class="input" type="number">');
-
-export default $$v_defineVaporComponent({ inheritAttrs: false, props: { value: {}, other: {}, __rsvelte_bindings: {} }, setup(__props) {
-	const $$props = __props;
-	const value = $$prop_cell($$props, 'value', () => 4, false, true);
-	const renamed = $$prop_cell($$props, 'other', () => 7, false, true);
-	const $$v_n1 = $$v_n0();
-	const $$v_n3 = $$v_n2();
-	$$v_insert([$$v_n3], $$v_n1);
-	$$v_on($$v_n1, 'click', () => value.value++);
-	const $$v_n5 = $$v_n4();
-	const $$v_n6 = $$v_n5.firstChild;
-	const $$v_n8 = $$v_n7();
-	const $$v_n10 = $$v_n9();
-	$$v_insert([$$v_n10], $$v_n8);
-	$$v_on($$v_n8, 'click', () => renamed.value += 2);
-	const $$v_n12 = $$v_n11();
-	const $$v_n13 = $$v_n12.firstChild;
-	const $$v_n15 = $$v_n14();
-	$$v_on($$v_n15, 'input', ($$event) => value.value = $$number($$event.currentTarget.value));
-	const $$v_n16 = ($$el) => {
-		if ($$el !== null) {
-			$$form_reset($$el, 'value', () => value.value = $$reset_value($$el, $$number($$el.defaultValue)));
-			$$number_value($$el, value.value, ($$value) => value.value = $$value);
-		}
-	};
-	$$v_renderEffect(() => $$v_n16($$v_n15));
-	$$v_onScopeDispose(() => $$v_n16(null));
-	$$v_renderEffect(() => {
-		$$v_setText($$v_n3, `value ${value.value ?? ''}`);
-		$$v_setText($$v_n10, `other ${renamed.value ?? ''}`);
-	});
-	return [$$v_n1, $$v_n6, $$v_n8, $$v_n13, $$v_n15];
-} });
+const $$v_n0 = $$v_template("<button class=\"value\">");
+const $$v_n2 = $$v_template(" ");
+const $$v_n4 = $$v_template("<span> </span>");
+const $$v_n7 = $$v_template("<button class=\"other\">");
+const $$v_n9 = $$v_template(" ");
+const $$v_n11 = $$v_template("<span> </span>");
+const $$v_n14 = $$v_template("<input class=\"input\" type=\"number\">");
+export default $$v_defineVaporComponent({
+	inheritAttrs: false,
+	props: {
+		value: {},
+		other: {},
+		__rsvelte_bindings: {}
+	},
+	setup(__props) {
+		const $$props = __props;
+		const value = $$prop_cell($$props, "value", () => 4, false, true);
+		const renamed = $$prop_cell($$props, "other", () => 7, false, true);
+		const $$v_n1 = $$v_n0();
+		const $$v_n3 = $$v_n2();
+		$$v_insert([$$v_n3], $$v_n1);
+		$$v_on($$v_n1, "click", () => value.value++);
+		const $$v_n5 = $$v_n4();
+		const $$v_n6 = $$v_n5.firstChild;
+		const $$v_n8 = $$v_n7();
+		const $$v_n10 = $$v_n9();
+		$$v_insert([$$v_n10], $$v_n8);
+		$$v_on($$v_n8, "click", () => renamed.value += 2);
+		const $$v_n12 = $$v_n11();
+		const $$v_n13 = $$v_n12.firstChild;
+		const $$v_n15 = $$v_n14();
+		$$v_on($$v_n15, "input", ($$event) => value.value = $$number($$event.currentTarget.value));
+		const $$v_n16 = ($$el) => {
+			if ($$el !== null) {
+				$$form_reset($$el, "value", () => value.value = $$reset_value($$el, $$number($$el.defaultValue)));
+				$$number_value($$el, value.value, ($$value) => value.value = $$value);
+			}
+		};
+		$$v_renderEffect(() => $$v_n16($$v_n15));
+		$$v_onScopeDispose(() => $$v_n16(null));
+		$$v_renderEffect(() => {
+			$$v_setText($$v_n3, `value ${value.value ?? ""}`);
+			$$v_setText($$v_n10, `other ${renamed.value ?? ""}`);
+		});
+		return [
+			$$v_n1,
+			$$v_n6,
+			$$v_n8,
+			$$v_n13,
+			$$v_n15
+		];
+	}
+});

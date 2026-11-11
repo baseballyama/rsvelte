@@ -1,69 +1,56 @@
-use super::{Attribute, Builder, Helper, NodeIdentifier, SourceLocation, Steps, bound, vue};
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
-impl Builder<'_, '_> {
+use super::{Attribute, Helper, Steps, Template, vue};
+
+impl<'t> Template<'_, '_, 't> {
     pub(super) fn bind_property(
         &mut self,
         attribute: &Attribute,
-        target: NodeIdentifier,
+        target: ExpressionIdentifier,
         event: &str,
         readonly: bool,
         props: &mut Vec<vue::Property>,
-        steps: &mut Steps,
+        steps: &mut Steps<'t>,
     ) {
+        let b = self.b;
         let name = attribute.name.text(self.i.source_text);
         let current = self.binding_read(target);
         if self.i.server {
             if name == "open" {
                 self.helpers.insert(Helper::BooleanServer);
-                let value = self.call("$$bool", &[current]);
-                props.push(bound(name, attribute.name.span(), value, attribute.span));
-            }
-            if matches!(name, "innerHTML" | "innerText" | "textContent") {
+                let value = self.call("$$bool", [current]);
+                props.push(self.bound(name, attribute.name.span(), value, attribute.span));
+            } else if matches!(name, "innerHTML" | "innerText" | "textContent") {
                 let content = if name == "innerHTML" {
                     "$$html_content"
                 } else {
                     "$$text_content"
                 };
-                props.push(bound(
-                    content,
-                    attribute.name.span(),
-                    current,
-                    attribute.span,
-                ));
+                props.push(self.bound(content, attribute.name.span(), current, attribute.span));
             }
             return;
         }
-        let media = media(name).is_some();
-        let resize = resize(name);
-        self.helpers.insert(if resize {
-            Helper::ResizeBinding
-        } else if media {
-            Helper::MediaBinding
+        let (helper, function) = if resize(name) {
+            (Helper::ResizeBinding, "$$resize_binding")
+        } else if media(name).is_some() {
+            (Helper::MediaBinding, "$$media_binding")
         } else {
-            Helper::PropertyBinding
-        });
-        let element = self.to.identifier("$$el");
-        let name = self.to.write_string(name);
-        let event = self.to.write_string(event);
-        let getter = self
-            .to
-            .arrow(&[], current, true, false, SourceLocation::SYNTHETIC);
-        let value = self.to.identifier("$$value");
-        let assignment = self.binding_write(target, value);
-        let setter = self
-            .to
-            .arrow(&[value], assignment, true, false, SourceLocation::SYNTHETIC);
-        let readonly = self.to.write_boolean(readonly, SourceLocation::SYNTHETIC);
-        steps.mounted.push(self.call(
-            if resize {
-                "$$resize_binding"
-            } else if media {
-                "$$media_binding"
-            } else {
-                "$$property_binding"
-            },
-            &[element, name, event, getter, setter, readonly],
-        ));
+            (Helper::PropertyBinding, "$$property_binding")
+        };
+        self.helpers.insert(helper);
+        let setter = self.setter(target);
+        let call = self.call(
+            function,
+            [
+                b.id("$$el"),
+                b.string(name),
+                b.string(event),
+                self.getter(current),
+                setter,
+                b.boolean(readonly),
+            ],
+        );
+        steps.mounted.push(call);
     }
 }
 

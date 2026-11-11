@@ -1,17 +1,45 @@
+use oxc_ast::ast::{
+    AssignmentOperator, AssignmentTarget, BinaryOperator, Expression, LogicalOperator,
+    VariableDeclarationKind,
+};
+use rsvelte_svelte_semantic::resolve::BindingKind;
+use rsvelte_typescript_tree::ExpressionIdentifier;
+
 use super::{
-    AssignmentOperator, Attribute, BinaryOperator, BindingKind, Builder, DeclarationKind,
-    DirectiveExpression, DirectiveName, Helper, Kind, LogicalOperator, NodeIdentifier, R,
-    SourceLocation, Span, Steps, bound, directive, spelled, static_type, unsupported, vue,
+    Attribute, DirectiveExpression, DirectiveName, Helper, R, Span, Steps, Template, directive,
+    spelled, static_type, unsupported, vue,
 };
 
 /// The text-like input types whose `bind:value` is Svelte's string binding.
 const TEXT_INPUT_TYPES: &[&str] = &["text", "search", "email", "url", "tel", "password"];
 
-impl Builder<'_, '_> {
-    pub(super) fn binding_read(&mut self, target: NodeIdentifier) -> NodeIdentifier {
-        if let Kind::Sequence([getter, _]) = self.i.javascript.kind(target) {
-            let getter = self.template_expression(*getter);
-            self.to.call0(getter, &[])
+/// The target of an assignment to a name or a member the translation rewrote.
+pub(super) fn assignment_target(e: Expression<'_>) -> AssignmentTarget<'_> {
+    match e {
+        Expression::Identifier(id) => AssignmentTarget::AssignmentTargetIdentifier(id),
+        Expression::StaticMemberExpression(m) => AssignmentTarget::StaticMemberExpression(m),
+        Expression::ComputedMemberExpression(m) => AssignmentTarget::ComputedMemberExpression(m),
+        Expression::PrivateFieldExpression(m) => AssignmentTarget::PrivateFieldExpression(m),
+        Expression::ParenthesizedExpression(p) => assignment_target(p.unbox().expression),
+        _ => unreachable!("a checked binding target is a name or a member"),
+    }
+}
+
+impl<'t> Template<'_, '_, 't> {
+    /// `bind:x={get, set}`'s two functions.
+    fn accessors(&self, target: ExpressionIdentifier) -> Option<[&Expression<'_>; 2]> {
+        match self.source(target).get_inner_expression() {
+            Expression::SequenceExpression(s) if s.expressions.len() == 2 => {
+                Some([&s.expressions[0], &s.expressions[1]])
+            }
+            _ => None,
+        }
+    }
+
+    pub(super) fn binding_read(&mut self, target: ExpressionIdentifier) -> Expression<'t> {
+        if let Some([getter, _]) = self.accessors(target) {
+            let getter = self.rewrite(getter);
+            self.b.call(getter, [])
         } else {
             self.template_expression(target)
         }
@@ -19,21 +47,23 @@ impl Builder<'_, '_> {
 
     pub(super) fn binding_write(
         &mut self,
-        target: NodeIdentifier,
-        value: NodeIdentifier,
-    ) -> NodeIdentifier {
-        if let Kind::Sequence([_, setter]) = self.i.javascript.kind(target) {
-            let setter = self.template_expression(*setter);
-            self.to.call0(setter, &[value])
+        target: ExpressionIdentifier,
+        value: Expression<'t>,
+    ) -> Expression<'t> {
+        if let Some([_, setter]) = self.accessors(target) {
+            let setter = self.rewrite(setter);
+            self.b.call(setter, [value])
         } else {
             let target = self.template_expression(target);
-            self.to.assign(
-                AssignmentOperator::Assign,
-                target,
-                value,
-                SourceLocation::SYNTHETIC,
-            )
+            self.b
+                .assign(AssignmentOperator::Assign, assignment_target(target), value)
         }
+    }
+
+    /// `($$value) => target = $$value`.
+    pub(super) fn setter(&mut self, target: ExpressionIdentifier) -> Expression<'t> {
+        let assignment = self.binding_write(target, self.b.id("$$value"));
+        self.b.arrow(self.b.params(["$$value"]), assignment)
     }
 
     pub(super) fn binding(
@@ -41,10 +71,11 @@ impl Builder<'_, '_> {
         tag: &str,
         attributes: &[Attribute],
         a: &Attribute,
-        target: NodeIdentifier,
+        target: ExpressionIdentifier,
         props: &mut Vec<vue::Property>,
-        steps: &mut Steps,
+        steps: &mut Steps<'t>,
     ) -> R<()> {
+        let b = self.b;
         let source_text = self.i.source_text;
         let property = a.name.text(source_text);
         if property == "this" {
@@ -54,28 +85,28 @@ impl Builder<'_, '_> {
             self.check_target(target, a.span)?;
             if !self.i.server {
                 self.helpers.insert(Helper::Lifecycle);
-                let element = self.to.identifier("$$el");
-                let name = self.to.write_string(property);
-                let owner = self.to.identifier("$$instance_lifecycles");
-                let value = self.to.identifier("$$value");
-                let assignment = self.binding_write(target, value);
-                let setter =
-                    self.to
-                        .arrow(&[value], assignment, true, false, SourceLocation::SYNTHETIC);
-                if matches!(property, "scrollX" | "scrollY") {
+                let setter = self.setter(target);
+                let owner = b.id("$$instance_lifecycles");
+                let call = if matches!(property, "scrollX" | "scrollY") {
                     self.helpers.insert(Helper::WindowScroll);
                     let value = self.binding_read(target);
-                    let getter = self
-                        .to
-                        .arrow(&[], value, true, false, SourceLocation::SYNTHETIC);
-                    steps.mounted.push(
-                        self.call("$$window_scroll", &[element, name, getter, setter, owner]),
-                    );
+                    self.call(
+                        "$$window_scroll",
+                        [
+                            b.id("$$el"),
+                            b.string(property),
+                            self.getter(value),
+                            setter,
+                            owner,
+                        ],
+                    )
                 } else {
-                    steps
-                        .mounted
-                        .push(self.call("$$global_binding", &[element, name, setter, owner]));
-                }
+                    self.call(
+                        "$$global_binding",
+                        [b.id("$$el"), b.string(property), setter, owner],
+                    )
+                };
+                steps.mounted.push(call);
             }
             return Ok(());
         }
@@ -100,11 +131,6 @@ impl Builder<'_, '_> {
         }
         if property == "group" {
             return self.bind_group(a, target, attributes, props, steps);
-        }
-        if let Kind::Sequence([getter, _]) = self.i.javascript.kind(target) {
-            self.render_read(*getter)?;
-        } else {
-            self.render_read(target)?;
         }
         let property_event =
             super::property_bindings::event(source_text, property, tag, attributes);
@@ -141,16 +167,21 @@ impl Builder<'_, '_> {
     }
 
     /// Svelte's `check_binding`: `$state`, or a member of `$state` or of an `{#each}` item.
-    pub(super) fn check_target(&self, target: NodeIdentifier, span: Span) -> R<()> {
-        if matches!(self.i.javascript.kind(target), Kind::Sequence([_, _])) {
+    pub(super) fn check_target(&self, target: ExpressionIdentifier, span: Span) -> R<()> {
+        if self.accessors(target).is_some() {
             return Ok(());
         }
-        let (javascript, resolution) = (self.i.javascript, self.i.resolution);
-        let root = javascript.member_root(target);
-        let kind = matches!(javascript.kind(root), Kind::Identifier(_))
-            .then(|| resolution.binding(root).map(|(_, info)| info.kind))
-            .flatten();
-        let member = root != target;
+        let res = self.i.resolution;
+        let expression = self.source(target).get_inner_expression();
+        let mut root = expression;
+        while let Some(m) = root.as_member_expression() {
+            root = m.object().get_inner_expression();
+        }
+        let kind = match root {
+            Expression::Identifier(id) => res.symbol(id).map(|s| res.binding(s).kind),
+            _ => None,
+        };
+        let member = !std::ptr::eq(root, expression);
         let ok = match kind {
             Some(
                 BindingKind::State
@@ -172,96 +203,68 @@ impl Builder<'_, '_> {
         }
     }
 
+    /// `v-on:<event>="handler"`.
+    fn listener(&mut self, event: &str, a: &Attribute, handler: Expression<'t>) -> vue::Property {
+        let handler = self.keep(handler);
+        directive(
+            DirectiveName::On,
+            Some(spelled(event, a.name.span())),
+            DirectiveExpression::Expression(handler),
+            a.span,
+        )
+    }
+
     /// `bind_value` (client): an `input` listener, and after each patch its render effect
     /// (`value !== input.value && (input.value = value ?? '')`); a fresh element is empty, so the
     /// adoption of a non-empty DOM value never fires. The server prints the value.
     pub(super) fn bind_text(
         &mut self,
         a: &Attribute,
-        target: NodeIdentifier,
+        target: ExpressionIdentifier,
         props: &mut Vec<vue::Property>,
-        steps: &mut Steps,
+        steps: &mut Steps<'t>,
         numeric: bool,
     ) {
+        let b = self.b;
         let at = a.name.span();
         let x = self.binding_read(target);
         if self.i.server {
             let v = self.attribute_value(target, x);
-            props.push(bound("value", at, v, a.span));
+            props.push(self.bound("value", at, v, a.span));
             return;
         }
         if numeric {
             self.helpers.insert(Helper::NumberBinding);
-            let element = self.to.identifier("$$el");
-            let value = self.to.identifier("$$value");
-            let assignment = self.binding_write(target, value);
-            let setter =
-                self.to
-                    .arrow(&[value], assignment, true, false, SourceLocation::SYNTHETIC);
-            steps
-                .mounted
-                .push(self.call("$$number_value", &[element, x, setter]));
+            let setter = self.setter(target);
+            let call = self.call("$$number_value", [b.id("$$el"), x, setter]);
+            steps.mounted.push(call);
         } else {
             self.helpers.insert(Helper::FormReset);
-            let el = self.to.identifier("$$el");
-            let value = self.to.identifier("$$value");
-            let assign = self.binding_write(target, value);
-            let setter = self
-                .to
-                .arrow(&[value], assign, true, false, SourceLocation::SYNTHETIC);
+            let setter = self.setter(target);
+            let call = self.call("$$text_initial", [b.id("$$el"), x, setter]);
+            steps.mounted.push(call);
+            let x = self.binding_read(target);
+            let differs = b.binary(
+                x,
+                BinaryOperator::StrictInequality,
+                b.member(b.id("$$el"), "value"),
+            );
+            let current = self.binding_read(target);
+            let value = b.logical(current, LogicalOperator::Coalesce, b.string(""));
+            let assign = b.assign_member(b.member(b.id("$$el"), "value"), value);
             steps
                 .mounted
-                .push(self.call("$$text_initial", &[el, x, setter]));
-            let el = self.to.identifier("$$el");
-            let dom = self.to.dot(el, "value");
-            let differs = self.to.binary(
-                BinaryOperator::StrictNotEq,
-                x,
-                dom,
-                SourceLocation::SYNTHETIC,
-            );
-            let el = self.to.identifier("$$el");
-            let dom = self.to.dot(el, "value");
-            let current = self.binding_read(target);
-            let empty = self.to.write_string("");
-            let value = self.to.logical(
-                LogicalOperator::Nullish,
-                current,
-                empty,
-                SourceLocation::SYNTHETIC,
-            );
-            let assign = self.to.assign(
-                AssignmentOperator::Assign,
-                dom,
-                value,
-                SourceLocation::SYNTHETIC,
-            );
-            steps.mounted.push(self.to.logical(
-                LogicalOperator::And,
-                differs,
-                assign,
-                SourceLocation::SYNTHETIC,
-            ));
+                .push(b.logical(differs, LogicalOperator::And, assign));
         }
-        let handler = self.assign_from_event(target, "value");
         let handler = if numeric {
-            let event = self.to.identifier("$$event");
-            let element = self.to.dot(event, "currentTarget");
-            let value = self.to.dot(element, "value");
-            let value = self.call("$$number", &[value]);
+            let value = b.member(b.member(b.id("$$event"), "currentTarget"), "value");
+            let value = self.call("$$number", [value]);
             let assignment = self.binding_write(target, value);
-            self.to
-                .arrow(&[event], assignment, true, false, SourceLocation::SYNTHETIC)
+            b.arrow(b.params(["$$event"]), assignment)
         } else {
-            handler
+            self.assign_from_event(target, "value")
         };
-        let name = spelled("input", at);
-        props.push(directive(
-            DirectiveName::On,
-            Some(name),
-            DirectiveExpression::Expression(handler),
-            a.span,
-        ));
+        props.push(self.listener("input", a, handler));
     }
 
     /// `bind_checked` (client): a `change` listener, on mount a nullish value set to the element's
@@ -270,55 +273,32 @@ impl Builder<'_, '_> {
     pub(super) fn bind_checked(
         &mut self,
         a: &Attribute,
-        target: NodeIdentifier,
+        target: ExpressionIdentifier,
         props: &mut Vec<vue::Property>,
-        steps: &mut Steps,
+        steps: &mut Steps<'t>,
     ) {
+        let b = self.b;
         let at = a.name.span();
         let x = self.binding_read(target);
         if self.i.server {
             self.helpers.insert(Helper::BooleanServer);
-            let v = self.call("$$bool", &[x]);
-            props.push(bound("checked", at, v, a.span));
+            let v = self.call("$$bool", [x]);
+            props.push(self.bound("checked", at, v, a.span));
             return;
         }
         let handler = self.assign_from_event(target, "checked");
-        let name = spelled("change", at);
-        props.push(directive(
-            DirectiveName::On,
-            Some(name),
-            DirectiveExpression::Expression(handler),
-            a.span,
-        ));
+        props.push(self.listener("change", a, handler));
         self.helpers.insert(Helper::Once);
         let current = self.binding_read(target);
-        let null = self.to.null(SourceLocation::SYNTHETIC);
-        let is_null = self
-            .to
-            .binary(BinaryOperator::Eq, current, null, SourceLocation::SYNTHETIC);
-        let el = self.to.identifier("$$el");
-        let checked = self.to.dot(el, "checked");
-        let assign = self.binding_write(target, checked);
-        let adopt = self.to.logical(
-            LogicalOperator::And,
-            is_null,
-            assign,
-            SourceLocation::SYNTHETIC,
-        );
-        let step = self
-            .to
-            .arrow(&[], adopt, true, false, SourceLocation::SYNTHETIC);
-        let el = self.to.identifier("$$el");
-        steps.mounted.push(self.call("$$once", &[el, step]));
-        let el = self.to.identifier("$$el");
-        let dom = self.to.dot(el, "checked");
-        let value = self.call("Boolean", &[x]);
-        steps.mounted.push(self.to.assign(
-            AssignmentOperator::Assign,
-            dom,
-            value,
-            SourceLocation::SYNTHETIC,
-        ));
+        let is_null = b.binary(current, BinaryOperator::Equality, b.null());
+        let assign = self.binding_write(target, b.member(b.id("$$el"), "checked"));
+        let adopt = b.logical(is_null, LogicalOperator::And, assign);
+        let call = self.call("$$once", [b.id("$$el"), self.getter(adopt)]);
+        steps.mounted.push(call);
+        let value = self.call("Boolean", [x]);
+        steps
+            .mounted
+            .push(b.assign_member(b.member(b.id("$$el"), "checked"), value));
     }
 
     /// `bind_select_value` (client): a `change` listener reading the chosen option, and after each
@@ -326,76 +306,56 @@ impl Builder<'_, '_> {
     pub(super) fn bind_select(
         &mut self,
         a: &Attribute,
-        target: NodeIdentifier,
+        target: ExpressionIdentifier,
         props: &mut Vec<vue::Property>,
-        steps: &mut Steps,
+        steps: &mut Steps<'t>,
     ) {
+        let b = self.b;
         self.helpers.insert(Helper::Select);
         self.helpers.insert(Helper::Option);
-        let at = a.name.span();
-        let event = self.to.identifier("$$e");
-        let e = self.to.identifier("$$e");
-        let select = self.to.dot(e, "currentTarget");
-        let value = self.call("$$option", &[select]);
+        let value = self.call("$$option", [b.member(b.id("$$e"), "currentTarget")]);
         let assign = self.binding_write(target, value);
-        let handler = self
-            .to
-            .arrow(&[event], assign, true, false, SourceLocation::SYNTHETIC);
-        let name = spelled("change", at);
-        props.push(directive(
-            DirectiveName::On,
-            Some(name),
-            DirectiveExpression::Expression(handler),
-            a.span,
-        ));
-        let v = self.to.identifier("$$v");
-        let v2 = self.to.identifier("$$v");
-        let set_body = self.binding_write(target, v2);
-        let set = self
-            .to
-            .arrow(&[v], set_body, true, false, SourceLocation::SYNTHETIC);
-        let el = self.to.identifier("$$el");
+        let handler = b.arrow(b.params(["$$e"]), assign);
+        props.push(self.listener("change", a, handler));
+        let set_body = self.binding_write(target, b.id("$$v"));
+        let set = b.arrow(b.params(["$$v"]), set_body);
         let current = self.binding_read(target);
-        steps
-            .mounted
-            .push(self.call("$$select", &[el, current, set]));
+        let call = self.call("$$select", [b.id("$$el"), current, set]);
+        steps.mounted.push(call);
     }
 
     pub(super) fn bind_this(
         &mut self,
         a: &Attribute,
-        target: NodeIdentifier,
-        steps: &mut Steps,
+        target: ExpressionIdentifier,
+        steps: &mut Steps<'t>,
     ) -> R<()> {
-        let (javascript, resolution) = (self.i.javascript, self.i.resolution);
-        let writable = matches!(javascript.kind(target), Kind::Identifier(_))
-            && resolution.binding(target).is_some_and(|(b, info)| {
+        let res = self.i.resolution;
+        let expression = self.source(target).get_inner_expression();
+        let writable = match expression {
+            Expression::Identifier(id) => res.symbol(id).is_some_and(|s| {
                 matches!(
-                    info.kind,
+                    res.binding(s).kind,
                     BindingKind::State
                         | BindingKind::RawState
                         | BindingKind::Property
                         | BindingKind::BindableProperty
-                ) || (info.kind == BindingKind::Normal
+                ) || (res.binding(s).kind == BindingKind::Normal
                     && matches!(
-                        resolution.sem.bindings[b].kind,
-                        DeclarationKind::Let | DeclarationKind::Variable
+                        res.variable_kind(s),
+                        Some(VariableDeclarationKind::Let | VariableDeclarationKind::Var)
                     ))
-            });
-        if !writable
-            && !matches!(
-                javascript.kind(target),
-                Kind::Member {
-                    optional: false,
-                    ..
-                } | Kind::Sequence([_, _])
-            )
-        {
+            }),
+            Expression::StaticMemberExpression(m) => !m.optional,
+            Expression::ComputedMemberExpression(m) => !m.optional,
+            Expression::PrivateFieldExpression(m) => !m.optional,
+            _ => self.accessors(target).is_some(),
+        };
+        if !writable {
             return Err(unsupported("`bind:this` without a writable target", a.span));
         }
         if !self.i.server {
-            let el = self.to.identifier("$$el");
-            let assign = self.binding_write(target, el);
+            let assign = self.binding_write(target, self.b.id("$$el"));
             steps.this.push(assign);
         }
         Ok(())
@@ -404,15 +364,12 @@ impl Builder<'_, '_> {
     /// `($$e) => (target = $$e.currentTarget.<property>)`.
     pub(super) fn assign_from_event(
         &mut self,
-        target: NodeIdentifier,
+        target: ExpressionIdentifier,
         property: &str,
-    ) -> NodeIdentifier {
-        let event = self.to.identifier("$$e");
-        let e = self.to.identifier("$$e");
-        let el = self.to.dot(e, "currentTarget");
-        let value = self.to.dot(el, property);
+    ) -> Expression<'t> {
+        let b = self.b;
+        let value = b.member(b.member(b.id("$$e"), "currentTarget"), property);
         let assign = self.binding_write(target, value);
-        self.to
-            .arrow(&[event], assign, true, false, SourceLocation::SYNTHETIC)
+        b.arrow(b.params(["$$e"]), assign)
     }
 }

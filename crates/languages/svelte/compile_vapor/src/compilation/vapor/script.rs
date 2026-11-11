@@ -1,74 +1,156 @@
-use rsvelte_typescript_compile::copy::Rewrite;
-use rsvelte_typescript_syntax::SyntaxTree;
+use oxc_allocator::{CloneIn, GetAllocator, TakeIn};
+use oxc_ast::ast::{
+    ArrowFunctionExpression, BlockStatement, Expression, Function, ObjectPropertyKind, Statement,
+};
+use oxc_ast_visit::{VisitMut, walk_mut};
+use oxc_span::SPAN;
+use oxc_syntax::node::NodeId;
+use oxc_syntax::scope::ScopeFlags;
+use rsvelte_typescript_compile::build::Builder;
+use rsvelte_vue_semantic::resolve::call_name;
 
-use super::{Builder, Kind, NodeIdentifier, SYNTHETIC, Verbatim, call_name, copy};
+use super::expressions::script_getter;
+use super::{Body, Emitter};
+use crate::compilation::asynchronous::program_has_await;
+use crate::compilation::statements;
 
-impl Builder<'_> {
-    fn module_script(&mut self) -> Vec<NodeIdentifier> {
-        let Some(program) = self.input.module_script else {
-            return Vec::new();
-        };
-        let from = &self.input.javascript;
-        let Kind::Program(statements) = from.kind(program) else {
-            unreachable!("a module script is a program")
-        };
-        statements
-            .iter()
-            .map(|&statement| copy(from, &mut self.to, &mut Verbatim, statement))
-            .collect()
+const EFFECT_WATCH: [&str; 4] = [
+    "currentInstance",
+    "getCurrentScope",
+    "setCurrentInstance",
+    "restoreCurrentInstance",
+];
+
+impl<'o> Emitter<'_, 'o> {
+    /// The script's statements: imports and the translation's own declarations to the module,
+    /// `defineOptions` and `defineProps`' declaration to the component's options, the rest to
+    /// setup. Returns the module's statements and the options.
+    pub(super) fn script(
+        &mut self,
+        body: &mut Body<'o>,
+    ) -> (Vec<Statement<'o>>, Vec<ObjectPropertyKind<'o>>) {
+        let b = self.b;
+        let program = self.res.tree().get_program(self.t.script);
+        let define_props = self.res.define_props();
+        let call = define_props.map(|d| d.call.node_id.get());
+        let mut module = Vec::new();
+        let mut fields = Vec::new();
+        for s in &program.body {
+            if let Statement::FunctionDeclaration(f) = s
+                && f.id
+                    .as_ref()
+                    .is_some_and(|id| id.name.starts_with("$$snippet_"))
+            {
+                continue;
+            }
+            if !self.t.server && declares(s, |name| name == "$$on_mount") {
+                self.helpers.insert("currentInstance");
+            }
+            if !self.t.server && declares(s, |name| name == "$$effect_watch") {
+                self.helpers.extend(EFFECT_WATCH);
+            }
+            let hoisted = matches!(s, Statement::VariableDeclaration(d) if d.declarations.iter().all(|d| {
+                d.id.get_binding_identifier().is_some_and(|id| {
+                    id.name.starts_with("$$")
+                        && !id.name.starts_with("$$pattern_")
+                        && !matches!(id.name.as_str(), "$$props" | "$$attrs" | "$$host" | "$$host_value")
+                })
+            }));
+            if matches!(s, Statement::ImportDeclaration(_)) || hoisted {
+                module.push(s.clone_in(b.allocator()));
+                continue;
+            }
+            if let Statement::ExpressionStatement(e) = s
+                && let Expression::CallExpression(c) = &e.expression
+            {
+                match call_name(&e.expression) {
+                    Some("defineOptions") => {
+                        let Some(Expression::ObjectExpression(options)) =
+                            c.arguments.first().and_then(|a| a.as_expression())
+                        else {
+                            unreachable!("defineOptions takes an object")
+                        };
+                        fields.extend(options.properties.iter().map(|p| p.clone_in(b.allocator())));
+                        continue;
+                    }
+                    Some("defineExpose") => {
+                        let value = c.arguments[0].to_expression();
+                        if self.t.template.custom_element.is_some() {
+                            let call = b.call(
+                                b.id("$$custom_element_exports"),
+                                [value.clone_in(b.allocator())],
+                            );
+                            body.push(b.stmt(call));
+                        }
+                        let expose = b.call(
+                            b.member(b.id("$$setup_context"), "expose"),
+                            [value.clone_in(b.allocator())],
+                        );
+                        body.push(b.stmt(expose));
+                        self.exposed = true;
+                        continue;
+                    }
+                    _ => {}
+                }
+            }
+            let mut statement = s.clone_in_with_semantic_ids(b.allocator());
+            PropsRewrite {
+                b,
+                call,
+                server: self.t.server,
+            }
+            .visit_statement(&mut statement);
+            body.push(statement);
+        }
+        if let Some(runtime) = define_props.and_then(|d| d.runtime) {
+            fields.push(b.init("props", runtime.clone_in(b.allocator())));
+        }
+        if let Some(module_script) = self.t.module_script {
+            let program = self.res.tree().get_program(module_script);
+            module.extend(program.body.iter().map(|s| s.clone_in(b.allocator())));
+        }
+        (module, fields)
     }
 
+    /// `function (__props, $$setup_context) { body }`, which runs the setup in an async context
+    /// when it awaits.
     pub(super) fn setup_function(
         &mut self,
-        body: &[NodeIdentifier],
-        module: &mut Vec<NodeIdentifier>,
-    ) -> NodeIdentifier {
-        let props = self.to.identifier("__props");
-        let asynchronous =
-            super::super::asynchronous::has_await(&self.input.javascript, self.input.script);
-        let mut block = self.to.block(body, SYNTHETIC);
+        body: Vec<Statement<'o>>,
+        module: &mut Vec<Statement<'o>>,
+    ) -> Expression<'o> {
+        let b = self.b;
+        let asynchronous = program_has_await(self.res.tree().get_program(self.t.script));
+        let mut body = body;
         if asynchronous {
-            if self.input.server {
+            if self.t.server {
                 self.helpers.insert("withAsyncContext");
-                module.extend(crate::helpers::source_declarations(
-                    include_str!("async_server.js"),
-                    &mut self.to,
-                ));
-                let helper = self.to.identifier("$$server_async_context");
-                let value = self.to.call0(helper, &[]);
-                let context = self.to.identifier("$$async_context");
-                let declaration = self.to.let_(
-                    rsvelte_typescript_syntax::syntax_tree::flag::CONST,
-                    context,
-                    Some(value),
-                );
-                let mut statements = Vec::with_capacity(body.len() + 1);
-                statements.push(declaration);
-                statements.extend_from_slice(body);
-                block = self.to.block(&statements, SYNTHETIC);
+                module.extend(statements(b, include_str!("async_server.js")));
+                let context = b.call(b.id("$$server_async_context"), []);
+                body.insert(0, b.const_("$$async_context", context));
             } else {
-                block = self.async_setup(block, module);
+                body = self.async_setup(body, module);
             }
         }
-        let mut parameters = vec![props];
+        let mut parameters = vec!["__props"];
         if self.exposed {
-            parameters.push(self.to.identifier("$$setup_context"));
+            parameters.push("$$setup_context");
         }
-        self.to.function(
-            false,
+        b.function_expression(
             None,
-            &parameters,
-            block,
-            asynchronous && self.input.server,
-            SYNTHETIC,
+            b.params(parameters),
+            body,
+            asynchronous && self.t.server,
         )
     }
 
-    pub(super) fn async_setup(
+    /// `return $$async_setup(async ($$async_context) => { try { body } finally { … } })`.
+    fn async_setup(
         &mut self,
-        block: NodeIdentifier,
-        module: &mut Vec<NodeIdentifier>,
-    ) -> NodeIdentifier {
+        body: Vec<Statement<'o>>,
+        module: &mut Vec<Statement<'o>>,
+    ) -> Vec<Statement<'o>> {
+        let b = self.b;
         self.helpers.extend([
             "VaporFragment",
             "currentInstance",
@@ -80,193 +162,66 @@ impl Builder<'_> {
             "handleError",
             "queuePostFlushCb",
         ]);
-        module.extend(crate::helpers::source_declarations(
-            include_str!("async_setup.js"),
-            &mut self.to,
-        ));
-        let context = self.to.identifier("$$async_context");
-        let finish = self.to.dot(context, "finish");
-        let finish = self.to.call0(finish, &[]);
-        let finish = self.to.expression_statement(finish);
-        let finalizer = self.to.block(&[finish], SYNTHETIC);
-        let statement = self.to.control(
-            rsvelte_typescript_syntax::syntax_tree::Control::Try {
-                block,
-                handler: None,
-                finalizer: Some(finalizer),
-            },
-            SYNTHETIC,
+        module.extend(statements(b, include_str!("async_setup.js")));
+        let finish = b.stmt(b.call(b.member(b.id("$$async_context"), "finish"), []));
+        let statement = Statement::new_try_statement(
+            SPAN,
+            BlockStatement::boxed(SPAN, b.vec(body), b),
+            None,
+            Some(BlockStatement::boxed(SPAN, b.vec([finish]), b)),
+            b,
         );
-        let block = self.to.block(&[statement], SYNTHETIC);
-        let task = self.to.arrow(&[context], block, false, true, SYNTHETIC);
-        let helper = self.to.identifier("$$async_setup");
-        let call = self.to.call0(helper, &[task]);
-        let result = self.to.return_(Some(call), SYNTHETIC);
-        self.to.block(&[result], SYNTHETIC)
-    }
-
-    pub(super) fn script(
-        &mut self,
-        body: &mut Vec<NodeIdentifier>,
-    ) -> (Vec<NodeIdentifier>, Vec<NodeIdentifier>) {
-        let from = &self.input.javascript;
-        let Kind::Program(statements) = from.kind(self.input.script) else {
-            unreachable!("a translated script is a program")
-        };
-        let mut module = Vec::new();
-        let mut fields = Vec::new();
-        for &s in statements {
-            if let Kind::Function {
-                name: Some(name),
-                declaration: true,
-                ..
-            } = from.kind(s)
-                && from.name(name).starts_with("$$snippet_")
-            {
-                continue;
-            }
-            if !self.input.server && declares(from, s, "$$on_mount") {
-                self.helpers.insert("currentInstance");
-            }
-            if !self.input.server && declares(from, s, "$$effect_watch") {
-                self.helpers.extend(EFFECT_WATCH);
-            }
-            if let Kind::Import { .. } = from.kind(s) {
-                module.push(copy(from, &mut self.to, &mut Verbatim, s));
-                continue;
-            }
-            if let Kind::VariableDeclaration { declarations, .. } = from.kind(s)
-                && declarations.iter().all(|&declaration| {
-                    let Kind::Declarator { identifier, .. } = from.kind(declaration) else {
-                        return false;
-                    };
-                    if !matches!(from.kind(identifier), Kind::Identifier(_)) {
-                        return false;
-                    }
-                    let name = from.name(identifier);
-                    name.starts_with("$$")
-                        && !name.starts_with("$$pattern_")
-                        && !matches!(name, "$$props" | "$$attrs" | "$$host" | "$$host_value")
-                })
-            {
-                module.push(copy(from, &mut self.to, &mut Verbatim, s));
-                continue;
-            }
-            if let Kind::ExpressionStatement(e) = from.kind(s)
-                && call_name(from, e) == Some("defineOptions")
-            {
-                let Kind::Call { arguments, .. } = from.kind(e) else {
-                    unreachable!()
-                };
-                let Kind::Object(options) = from.kind(arguments[0]) else {
-                    unreachable!()
-                };
-                fields.extend(
-                    options
-                        .iter()
-                        .map(|&p| copy(from, &mut self.to, &mut Verbatim, p)),
-                );
-                continue;
-            }
-            if let Kind::ExpressionStatement(expression) = from.kind(s)
-                && call_name(from, expression) == Some("defineExpose")
-            {
-                let Kind::Call { arguments, .. } = from.kind(expression) else {
-                    unreachable!("an expose call")
-                };
-                let value = copy(from, &mut self.to, &mut Verbatim, arguments[0]);
-                if self.input.custom_element.is_some() {
-                    let helper = self.to.identifier("$$custom_element_exports");
-                    let call = self.to.call0(helper, &[value]);
-                    body.push(self.to.expression_statement(call));
-                }
-                let context = self.to.identifier("$$setup_context");
-                let expose = self.to.dot(context, "expose");
-                let call = self.to.call0(expose, &[value]);
-                body.push(self.to.expression_statement(call));
-                self.exposed = true;
-                continue;
-            }
-            let call = self.resolution.define_props.map(|d| d.call);
-            body.push(copy(
-                from,
-                &mut self.to,
-                &mut PropsRewrite {
-                    call,
-                    server: self.input.server,
-                },
-                s,
-            ));
-        }
-        if let Some(runtime) = self.resolution.define_props.and_then(|d| d.runtime) {
-            let key = self.to.identifier("props");
-            let value = copy(from, &mut self.to, &mut Verbatim, runtime);
-            fields.push(self.to.property(key, value, 0, SYNTHETIC));
-        }
-        module.extend(self.module_script());
-        (module, fields)
+        let task = b.arrow_block(b.params(["$$async_context"]), [statement], true);
+        vec![b.return_(Some(b.call(b.id("$$async_setup"), [task])))]
     }
 }
 
-struct PropsRewrite {
-    call: Option<NodeIdentifier>,
+/// The setup's statements: `defineProps()` reads the props, an `await` keeps the instance, and an
+/// async derived caches its reads; functions run later and stay as written.
+struct PropsRewrite<'a, 'o> {
+    b: &'a Builder<'o>,
+    call: Option<NodeId>,
     server: bool,
 }
 
-impl Rewrite for PropsRewrite {
-    fn rewrite(
-        &mut self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        identifier: NodeIdentifier,
-    ) -> Option<NodeIdentifier> {
-        if Some(identifier) == self.call {
-            return Some(to.identifier("__props"));
-        }
-        match from.kind(identifier) {
-            Kind::Function { .. } | Kind::Arrow { .. } => {
-                Some(copy(from, to, &mut Verbatim, identifier))
+impl<'o> VisitMut<'o> for PropsRewrite<'_, 'o> {
+    fn visit_expression(&mut self, it: &mut Expression<'o>) {
+        let b = self.b;
+        match it {
+            Expression::CallExpression(c) if Some(c.node_id.get()) == self.call => {
+                *it = b.id("__props");
             }
-            Kind::Call {
-                callee, arguments, ..
-            } if matches!(from.kind(callee), Kind::Identifier(_))
-                && from.name(callee) == "$$async_derived"
-                && !self.server =>
+            Expression::CallExpression(c)
+                if !self.server
+                    && matches!(&c.callee, Expression::Identifier(id) if id.name == "$$async_derived") =>
             {
-                let getter = super::expressions::script_getter(from, to, arguments[0]);
-                let callee = to.identifier("$$async_derived");
-                Some(to.call0(callee, &[getter]))
+                let getter = c.arguments[0].to_expression_mut().take_in(b);
+                *c.arguments[0].to_expression_mut() = script_getter(b, getter);
             }
-            Kind::Await(value) => {
-                let value = copy(from, to, self, value);
-                let context = to.identifier("$$async_context");
-                let suspend = to.dot(context, "suspend");
-                let value = to.call0(suspend, &[value]);
-                let value = to.await_(value, SYNTHETIC);
-                let resume = to.dot(context, "resume");
-                Some(to.call0(resume, &[value]))
+            Expression::AwaitExpression(a) => {
+                self.visit_expression(&mut a.argument);
+                let value = a.argument.take_in(b);
+                let context = || b.id("$$async_context");
+                let suspended = b.call(b.member(context(), "suspend"), [value]);
+                let awaited = Expression::new_await_expression(SPAN, suspended, b);
+                *it = b.call(b.member(context(), "resume"), [awaited]);
             }
-            _ => None,
+            _ => walk_mut::walk_expression(self, it),
         }
     }
+
+    fn visit_function(&mut self, _: &mut Function<'o>, _: ScopeFlags) {}
+
+    fn visit_arrow_function_expression(&mut self, _: &mut ArrowFunctionExpression<'o>) {}
 }
 
-const EFFECT_WATCH: [&str; 4] = [
-    "currentInstance",
-    "getCurrentScope",
-    "setCurrentInstance",
-    "restoreCurrentInstance",
-];
-
-/// Whether `statement` declares a variable named `wanted`.
-fn declares(from: &SyntaxTree, statement: NodeIdentifier, wanted: &str) -> bool {
-    let Kind::VariableDeclaration { declarations, .. } = from.kind(statement) else {
+/// Whether `statement` declares a variable whose name `wanted` accepts.
+fn declares(statement: &Statement<'_>, wanted: impl Fn(&str) -> bool) -> bool {
+    let Statement::VariableDeclaration(d) = statement else {
         return false;
     };
-    declarations.iter().any(|&node| {
-        let Kind::Declarator { identifier, .. } = from.kind(node) else {
-            return false;
-        };
-        matches!(from.kind(identifier), Kind::Identifier(_)) && from.name(identifier) == wanted
+    d.declarations.iter().any(|d| {
+        d.id.get_binding_identifier()
+            .is_some_and(|id| wanted(&id.name))
     })
 }

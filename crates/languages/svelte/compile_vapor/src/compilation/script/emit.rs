@@ -1,93 +1,102 @@
+//! The `<script setup>` program: Vue imports, the options and props macros, the helpers, then the
+//! script's statements, copied and rewritten by [`ScriptRewrite`].
+
 mod custom_element;
 mod props;
+mod rewrite;
 mod rune_values;
 use props::prop_declarations;
 pub(crate) use props::prop_member;
-pub(crate) use rune_values::{rune_value, tracked};
+pub(crate) use rewrite::{ScriptRewrite, property_target};
+pub(crate) use rune_values::{async_arrow, rune_value, tracked};
 
-use super::declarations::declarator;
-use super::{
-    BindingKind, Component, Helper, Kind, NodeIdentifier, Plan, Resolution, Rewrite,
-    SourceLocation, SyntaxTree, Verbatim, copy, flag, helpers,
-};
+use oxc_ast::ast::{Declaration, Program, Statement};
+use oxc_span::SPAN;
+use rsvelte_typescript_compile::build::Builder;
 
-/// The `<script setup>` program: Vue imports, the options and props macros, the helpers, then
-/// the script's statements.
+use super::{BindingKind, Plan, Resolution};
+use crate::compilation::{import, statements};
+use crate::helpers::{self, Helper};
+
+/// What decides the imports and helpers of the program.
 #[expect(
-    clippy::too_many_lines,
-    reason = "the program in output order, one statement kind at a time"
+    clippy::struct_excessive_bools,
+    reason = "independent facts, each read on its own"
 )]
-pub(crate) fn emit(
-    c: &Component,
-    resolution: &Resolution,
+struct Uses {
+    state: bool,
+    raw: bool,
+    derived: bool,
+    bindable: bool,
+    prop_cells: bool,
+}
+
+impl Uses {
+    fn new(res: &Resolution, plan: &Plan) -> Self {
+        let mut uses = Self {
+            state: plan.core_values.contains("$state"),
+            raw: plan.core_values.contains("$state.raw"),
+            derived: plan.core_values.contains("$derived")
+                || plan.core_values.contains("$derived.by"),
+            bindable: false,
+            prop_cells: false,
+        };
+        for symbol in res.scoping().symbol_ids() {
+            match res.binding(symbol).kind {
+                BindingKind::State => uses.state = true,
+                BindingKind::RawState => uses.raw = true,
+                BindingKind::Derived | BindingKind::DerivedBy => uses.derived = true,
+                BindingKind::BindableProperty => uses.bindable = true,
+                _ => {}
+            }
+            uses.prop_cells |= super::prop_cell(res, symbol);
+        }
+        uses
+    }
+}
+
+/// The `vue` imports the program's helpers read.
+fn imports<'t>(
+    b: &Builder<'t>,
     plan: &Plan,
     helpers: &[Helper],
-    to: &mut SyntaxTree,
+    uses: &Uses,
     server: bool,
-    source_text: &str,
-) -> NodeIdentifier {
-    let javascript = &c.javascript;
-    let statements: &[NodeIdentifier] = match javascript.kind(c.program) {
-        Kind::Program(body) => body,
-        _ => unreachable!("a script parses to a program"),
-    };
-    let mut runes = (
-        plan.core_values.contains("$state"),
-        plan.core_values.contains("$state.raw"),
-        plan.core_values.contains("$derived") || plan.core_values.contains("$derived.by"),
-    );
-    for binding in &resolution.bindings {
-        match binding.kind {
-            BindingKind::State => runes.0 = true,
-            BindingKind::RawState => runes.1 = true,
-            BindingKind::Derived | BindingKind::DerivedBy => runes.2 = true,
-            _ => {}
-        }
-    }
-    let bindable = resolution
-        .bindings
-        .iter()
-        .any(|binding| binding.kind == BindingKind::BindableProperty);
-    let state_helpers = runes.0 || bindable;
-    let prop_cells = resolution
-        .bindings
-        .iter_enumerated()
-        .any(|(binding, _)| super::prop_cell(resolution, javascript, binding));
-    let mut body = Vec::new();
-    let mut specs = Vec::new();
+) -> Option<Statement<'t>> {
+    let state_helpers = uses.state || uses.bindable;
+    let mut specs: Vec<(&str, String)> = Vec::new();
     for (used, imported, local) in [
-        (runes.0 && server, "shallowRef", "$$ref"),
+        (uses.state && server, "shallowRef", "$$ref"),
         (
-            (state_helpers && !server) || runes.2,
+            (state_helpers && !server) || uses.derived,
             "customRef",
             "$$createState",
         ),
-        (runes.1 || prop_cells, "shallowRef", "$$shallowRef"),
-        (runes.2 || prop_cells, "computed", "$$createDerived"),
+        (uses.raw || uses.prop_cells, "shallowRef", "$$shallowRef"),
+        (
+            uses.derived || uses.prop_cells,
+            "computed",
+            "$$createDerived",
+        ),
+        (
+            plan.auxiliary.contains_key("$host") && !server && plan.custom_element.is_none(),
+            "useHost",
+            "$$useHost",
+        ),
+        (plan.props_id.is_some(), "useId", "$$props_id"),
+        (plan.rest.is_some(), "useAttrs", "$$useAttrs"),
     ] {
         if used {
-            let i = to.identifier(imported);
-            let l = to.identifier(local);
-            specs.push(to.import_named(i, l, false, SourceLocation::SYNTHETIC));
+            specs.push((imported, local.to_owned()));
         }
     }
-    if plan.auxiliary.contains_key("$host") && !server && plan.custom_element.is_none() {
-        let imported = to.identifier("useHost");
-        let local = to.identifier("$$useHost");
-        specs.push(to.import_named(imported, local, false, SourceLocation::SYNTHETIC));
-    }
-    if plan.props_id.is_some() {
-        let imported = to.identifier("useId");
-        let local = to.identifier("$$props_id");
-        specs.push(to.import_named(imported, local, false, SourceLocation::SYNTHETIC));
-    }
-    if plan.rest.is_some() {
-        let i = to.identifier("useAttrs");
-        let l = to.identifier("$$useAttrs");
-        specs.push(to.import_named(i, l, false, SourceLocation::SYNTHETIC));
-    }
-    if runes.2
-        || prop_cells
+    let mut prefixed = |names: &[&'static str]| {
+        for &name in names {
+            specs.push((name, format!("$${name}")));
+        }
+    };
+    if uses.derived
+        || uses.prop_cells
         || !plan.auxiliary.is_empty()
         || helpers.contains(&Helper::Lifecycle)
         || helpers.contains(&Helper::CustomElementData)
@@ -96,21 +105,15 @@ pub(crate) fn emit(
         || !plan.attachments.is_empty()
         || helpers.contains(&Helper::Group)
     {
-        for imported in [
+        prefixed(&[
             "watchEffect",
             "watchPostEffect",
             "effectScope",
             "ReactiveEffect",
-        ] {
-            let name = to.identifier(imported);
-            let local = to.identifier(&format!("$${imported}"));
-            specs.push(to.import_named(name, local, false, SourceLocation::SYNTHETIC));
-        }
+        ]);
     }
-    if helpers.contains(&Helper::Await) && !runes.1 {
-        let name = to.identifier("shallowRef");
-        let local = to.identifier("$$shallowRef");
-        specs.push(to.import_named(name, local, false, SourceLocation::SYNTHETIC));
+    if helpers.contains(&Helper::Await) && !uses.raw {
+        specs.push(("shallowRef", "$$shallowRef".to_owned()));
     }
     let scope_imports = helpers.contains(&Helper::Lifecycle)
         || helpers.contains(&Helper::Group)
@@ -118,113 +121,94 @@ pub(crate) fn emit(
         || plan.auxiliary.contains_key("$effect")
         || plan.auxiliary.contains_key("$effect.pre");
     if scope_imports {
-        for imported in ["watch", "onScopeDispose"] {
-            let name = to.identifier(imported);
-            let local = to.identifier(&format!("$${imported}"));
-            specs.push(to.import_named(name, local, false, SourceLocation::SYNTHETIC));
-        }
+        specs.push(("watch", "$$watch".to_owned()));
+        specs.push(("onScopeDispose", "$$onScopeDispose".to_owned()));
     }
     if !plan.lifecycle.is_empty() {
-        for imported in ["onMounted", "onScopeDispose", "nextTick"] {
-            if imported == "onScopeDispose" && scope_imports {
-                continue;
-            }
-            let name = to.identifier(imported);
-            let local = to.identifier(&format!("$${imported}"));
-            specs.push(to.import_named(name, local, false, SourceLocation::SYNTHETIC));
+        specs.push(("onMounted", "$$onMounted".to_owned()));
+        if !scope_imports {
+            specs.push(("onScopeDispose", "$$onScopeDispose".to_owned()));
         }
+        specs.push(("nextTick", "$$nextTick".to_owned()));
     }
-    if !specs.is_empty() {
-        let source = to.write_string("vue");
-        body.push(to.import(&specs, source, false, SourceLocation::SYNTHETIC));
-    }
-    let key = to.identifier("inheritAttrs");
-    let value = to.write_boolean(false, SourceLocation::SYNTHETIC);
-    let option = to.property(key, value, 0, SourceLocation::SYNTHETIC);
-    let options = to.object(&[option], SourceLocation::SYNTHETIC);
-    let callee = to.identifier("defineOptions");
-    let call = to.call0(callee, &[options]);
-    body.push(to.expression_statement(call));
+    (!specs.is_empty()).then(|| {
+        import(
+            b,
+            specs
+                .iter()
+                .map(|(imported, local)| (*imported, local.as_str())),
+            "vue",
+        )
+    })
+}
+
+/// The program's head: imports, the options and props macros, and the helpers its statements
+/// call.
+fn head<'t>(
+    rw: &mut ScriptRewrite<'_, 't>,
+    plan: &Plan,
+    helpers: &[Helper],
+    body: &mut Vec<Statement<'t>>,
+) {
+    let (b, res, server) = (rw.b, rw.res, rw.server);
+    let uses = Uses::new(res, plan);
+    body.extend(imports(b, plan, helpers, &uses, server));
+    let options = b.object([b.init("inheritAttrs", b.boolean(false))]);
+    body.push(b.stmt(b.call(b.id("defineOptions"), [options])));
     if let Some(props) = &plan.props {
-        let mut entries: Vec<NodeIdentifier> = props
+        let mut entries: Vec<_> = props
             .iter()
-            .map(|(name, default)| {
-                let fields: Vec<NodeIdentifier> = default
-                    .iter()
-                    .map(|&d| {
-                        let k = to.identifier("default");
-                        let v = copy(javascript, to, &mut Verbatim, d);
-                        to.property(k, v, 0, SourceLocation::SYNTHETIC)
-                    })
-                    .collect();
-                let k = to.identifier(name);
-                let v = to.object(&fields, SourceLocation::SYNTHETIC);
-                to.property(k, v, 0, SourceLocation::SYNTHETIC)
+            .map(|(name, symbol, literal)| {
+                let default = literal
+                    .then(|| res.binding(*symbol).initial)
+                    .flatten()
+                    .map(|d| b.init("default", rw.verbatim(d)));
+                b.init(name, b.object(default))
             })
             .collect();
-        if bindable {
-            let key = to.identifier("__rsvelte_bindings");
-            let value = to.object(&[], SourceLocation::SYNTHETIC);
-            entries.push(to.property(key, value, 0, SourceLocation::SYNTHETIC));
+        if uses.bindable {
+            entries.push(b.init("__rsvelte_bindings", b.object([])));
         }
-        let declaration = to.object(&entries, SourceLocation::SYNTHETIC);
-        let callee = to.identifier("defineProps");
-        let call = to.call0(callee, &[declaration]);
-        let name = to.identifier("$$props");
-        body.push(to.let_(flag::CONST, name, Some(call)));
+        let call = b.call(b.id("defineProps"), [b.object(entries)]);
+        body.push(b.const_("$$props", call));
     }
     if plan.auxiliary.contains_key("$host") && !server {
-        let callee = to.identifier(if plan.custom_element.is_some() {
+        let host = if plan.custom_element.is_some() {
             "$$custom_element_host"
         } else {
             "$$useHost"
-        });
-        let value = to.call0(callee, &[]);
-        let name = to.identifier("$$host_value");
-        body.push(to.let_(flag::CONST, name, Some(value)));
-        let value = to.arrow(&[], name, true, false, SourceLocation::SYNTHETIC);
-        let name = to.identifier("$$host");
-        body.push(to.let_(flag::CONST, name, Some(value)));
+        };
+        body.push(b.const_("$$host_value", b.call(b.id(host), [])));
+        body.push(b.const_("$$host", b.arrow(b.params([]), b.id("$$host_value"))));
     }
-    let mut rewriter = ScriptRewrite::new(resolution, plan, server);
-    if prop_cells {
-        body.extend(helpers::source_declarations(include_str!("props.js"), to));
-        prop_declarations(javascript, resolution, to, server, &mut body, &mut rewriter);
+    if uses.prop_cells {
+        body.extend(statements(b, include_str!("props.js")));
+        prop_declarations(rw, body);
     }
     if plan.rest.is_some() {
-        let callee = to.identifier("$$useAttrs");
-        let call = to.call0(callee, &[]);
-        body.extend(helpers::source_declarations(include_str!("rest.js"), to));
-        let wrap = to.identifier("$$rest_props");
-        let call = to.call0(wrap, &[call]);
-        let name = to.identifier("$$attrs");
-        body.push(to.let_(flag::CONST, name, Some(call)));
+        body.extend(statements(b, include_str!("rest.js")));
+        let attrs = b.call(b.id("$$rest_props"), [b.call(b.id("$$useAttrs"), [])]);
+        body.push(b.const_("$$attrs", attrs));
     }
-    body.extend(helpers::declarations(helpers, to));
+    body.extend(helpers::declarations(helpers, b));
     if plan.async_values && server {
-        body.extend(helpers::source_declarations(
+        body.extend(statements(
+            b,
             "const $$async_derived = async (getter) => ({ value: await getter() });",
-            to,
         ));
     }
     if plan.core_patterns {
-        body.extend(helpers::source_declarations(
-            include_str!("patterns.js"),
-            to,
-        ));
+        body.extend(statements(b, include_str!("patterns.js")));
     }
-    if state_helpers && !server {
-        body.extend(helpers::source_declarations(include_str!("state.js"), to));
+    if (uses.state || uses.bindable) && !server {
+        body.extend(statements(b, include_str!("state.js")));
     }
-    if runes.2 {
-        body.extend(helpers::source_declarations(include_str!("derived.js"), to));
-        let make = to.identifier("$$make_derived");
-        let server = to.write_boolean(server, SourceLocation::SYNTHETIC);
-        let value = to.call0(make, &[server]);
-        let name = to.identifier("$$computed");
-        body.push(to.let_(flag::CONST, name, Some(value)));
+    if uses.derived {
+        body.extend(statements(b, include_str!("derived.js")));
+        let make = b.call(b.id("$$make_derived"), [b.boolean(server)]);
+        body.push(b.const_("$$computed", make));
     }
-    if prop_cells
+    if uses.prop_cells
         || !plan.auxiliary.is_empty()
         || !plan.lifecycle.is_empty()
         || !plan.attachments.is_empty()
@@ -233,302 +217,152 @@ pub(crate) fn emit(
         || helpers.contains(&Helper::CustomElementData)
         || helpers.contains(&Helper::WindowScroll)
     {
-        body.extend(helpers::source_declarations(super::runes::SOURCE, to));
+        body.extend(statements(b, super::runes::SOURCE));
     }
+    imported_names(rw, plan, body);
+}
+
+/// The local names of the Svelte imports, bound to what implements them.
+fn imported_names<'t>(rw: &ScriptRewrite<'_, 't>, plan: &Plan, body: &mut Vec<Statement<'t>>) {
+    let (b, res, server) = (rw.b, rw.res, rw.server);
+    let local = |symbol| res.scoping().symbol_name(symbol);
     if !plan.lifecycle.is_empty() {
-        body.extend(helpers::source_declarations(
-            include_str!("lifecycle.js"),
-            to,
-        ));
-        for &(imported, local) in &plan.lifecycle {
-            let name = to.ident(javascript.name(local), javascript.source_location(local));
+        body.extend(statements(b, include_str!("lifecycle.js")));
+        for &(imported, symbol) in &plan.lifecycle {
             let value = if imported == "onDestroy" && server {
-                let callback = to.identifier("$$callback");
-                let callbacks = to.identifier("$$destroy");
-                let push = to.dot(callbacks, "push");
-                let call = to.call0(push, &[callback]);
-                to.arrow(&[callback], call, true, false, SourceLocation::SYNTHETIC)
+                let push = b.member(b.id("$$destroy"), "push");
+                b.arrow(b.params(["$$callback"]), b.call(push, [b.id("$$callback")]))
             } else {
-                to.identifier(match imported {
-                    "onMount" => {
-                        if server {
-                            "$$on_mount_server"
-                        } else {
-                            "$$on_mount"
-                        }
-                    }
+                b.id(match imported {
+                    "onMount" if server => "$$on_mount_server",
+                    "onMount" => "$$on_mount",
                     "onDestroy" => "$$onScopeDispose",
                     "tick" => "$$nextTick",
                     "untrack" => "$$untrack",
-                    _ => unreachable!(),
+                    _ => unreachable!("a checked Svelte import"),
                 })
             };
-            body.push(to.let_(flag::CONST, name, Some(value)));
+            body.push(b.const_(local(symbol), value));
         }
     }
     if !plan.attachments.is_empty() {
-        body.extend(helpers::source_declarations(
-            include_str!("attachments.js"),
-            to,
-        ));
-        for &(imported, local) in &plan.attachments {
-            let name = to.ident(javascript.name(local), javascript.source_location(local));
-            let value = to.identifier(match imported {
+        body.extend(statements(b, include_str!("attachments.js")));
+        for &(imported, symbol) in &plan.attachments {
+            let value = b.id(match imported {
                 "createAttachmentKey" => "$$create_attachment_key",
                 "fromAction" => "$$from_action",
-                _ => unreachable!(),
+                _ => unreachable!("a checked Svelte import"),
             });
-            body.push(to.let_(flag::CONST, name, Some(value)));
+            body.push(b.const_(local(symbol), value));
         }
     }
-    for &s in statements {
-        let s = match javascript.kind(s) {
-            Kind::ExportNamed(declaration) => declaration,
-            _ => s,
-        };
-        match javascript.kind(s) {
-            Kind::Import {
-                source, type_only, ..
-            } => {
-                if !type_only
+}
+
+/// The `<script setup>` program's statements.
+pub(crate) fn emit<'t>(
+    rw: &mut ScriptRewrite<'_, 't>,
+    instance: Option<&Program<'_>>,
+    plan: &Plan,
+    helpers: &[Helper],
+) -> Vec<Statement<'t>> {
+    let mut body = Vec::new();
+    head(rw, plan, helpers, &mut body);
+    for s in instance.iter().flat_map(|p| &p.body) {
+        let s = match s {
+            Statement::ExportDeclaration(e) => match &e.declaration {
+                Declaration::VariableDeclaration(d) => {
+                    top_level(rw, d, &mut body);
+                    continue;
+                }
+                d => rw.declaration(d),
+            },
+            Statement::ImportDeclaration(i) => {
+                if i.import_kind.is_value()
                     && !matches!(
-                        javascript.str_value(source, source_text),
-                        "svelte" | "svelte/attachments"
+                        i.source.value.as_str(),
+                        Some("svelte" | "svelte/attachments")
                     )
                 {
-                    body.push(copy(javascript, to, &mut Verbatim, s));
+                    body.push(rw.verbatim_statement(s));
                 }
+                continue;
             }
-            Kind::VariableDeclaration { kind, declarations } => {
-                for &d in declarations {
-                    if let Some(statement) = declarator(javascript, kind, d, &mut rewriter, to) {
-                        body.push(statement);
-                    }
-                }
+            Statement::VariableDeclaration(d) => {
+                top_level(rw, d, &mut body);
+                continue;
             }
-            _ => body.push(copy(javascript, to, &mut rewriter, s)),
-        }
+            s => rw.statement(s),
+        };
+        body.extend(s);
     }
-    if !server && !plan.exposed.is_empty() {
-        body.push(super::exports::expose(
-            javascript,
-            to,
-            resolution,
-            &plan.exposed,
-        ));
+    if !rw.server && !plan.exposed.is_empty() {
+        body.push(super::exports::expose(rw.b, rw.res, &plan.exposed));
     }
-    if !server && plan.custom_element.is_some() {
-        body.push(custom_element::bindings(
-            javascript, resolution, to, &rewriter,
-        ));
+    if !rw.server && plan.custom_element.is_some() {
+        body.push(custom_element::bindings(rw));
     }
-    to.program(&body, SourceLocation::SYNTHETIC)
+    body
 }
 
-/// Script references: `x.value` for `$state` and `$derived`, `$$props.<key>` for props.
-pub(super) struct ScriptRewrite<'a> {
-    pub(super) resolution: &'a Resolution,
-    module_exports: &'a super::FxHashMap<super::BindingIdentifier, String>,
-    pub(super) constructors: &'a super::constructors::Plan,
-    pub(super) constructor_storage: super::FxHashMap<NodeIdentifier, String>,
-    pub(super) server: bool,
-    pub(super) tracking: bool,
-    pub(super) private_fields: Vec<super::FxHashMap<String, bool>>,
-}
-
-impl ScriptRewrite<'_> {
-    fn reference(
-        &self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        identifier: NodeIdentifier,
-    ) -> Option<NodeIdentifier> {
-        let (b, _) = self.resolution.binding(identifier)?;
-        if self.resolution.sem.bindings[b].node == identifier {
-            return None;
-        }
-        self.binding_value(from, to, b, identifier)
-    }
-
-    fn binding_value(
-        &self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        b: super::BindingIdentifier,
-        identifier: NodeIdentifier,
-    ) -> Option<NodeIdentifier> {
-        let info = &self.resolution.bindings[b];
-        match info.kind {
-            BindingKind::State
-            | BindingKind::RawState
-            | BindingKind::Derived
-            | BindingKind::DerivedBy
-            | BindingKind::BindableProperty => {
-                let x = match self.storage_name(identifier) {
-                    Some(name) => to.identifier(name),
-                    None => to.ident(from.name(identifier), from.source_location(identifier)),
-                };
-                Some(to.dot(x, "value"))
-            }
-            BindingKind::Property if super::prop_cell(self.resolution, from, b) => {
-                let name = to.ident(from.name(identifier), from.source_location(identifier));
-                Some(to.dot(name, "value"))
-            }
-            BindingKind::Property | BindingKind::RestProperty => {
-                if info.kind == BindingKind::RestProperty {
-                    return Some(to.identifier("$$attrs"));
-                }
-                let key = from.name(info.prop_key?);
-                let props = to.identifier("$$props");
-                Some(to.dot(props, key))
-            }
-            _ => None,
-        }
+/// Each declarator of a top-level declaration as its own statement.
+fn top_level<'t>(
+    rw: &mut ScriptRewrite<'_, 't>,
+    d: &oxc_ast::ast::VariableDeclaration<'_>,
+    body: &mut Vec<Statement<'t>>,
+) {
+    for declarator in &d.declarations {
+        body.extend(super::declarations::declarator(rw, d.kind, declarator));
     }
 }
 
-impl<'a> ScriptRewrite<'a> {
-    pub(super) fn storage_name(&self, identifier: NodeIdentifier) -> Option<&str> {
-        self.module_exports
-            .get(&self.resolution.sem.binding_of(identifier)?)
-            .map(String::as_str)
-    }
-
-    fn new(resolution: &'a Resolution, plan: &'a Plan, server: bool) -> Self {
-        Self {
-            resolution,
-            module_exports: &plan.module_exports,
-            server,
-            private_fields: Vec::new(),
-            constructors: &plan.constructors,
-            constructor_storage: super::FxHashMap::default(),
-            tracking: plan.auxiliary.contains_key("$effect.tracking") && !server,
+/// The module script's program: an exported `$state` is stored under a name of its own, and
+/// exported as a snapshot of that name's value.
+pub(crate) fn module<'t>(
+    rw: &mut ScriptRewrite<'_, 't>,
+    program: &Program<'_>,
+) -> Vec<Statement<'t>> {
+    let b = rw.b;
+    let mut output = Vec::new();
+    for statement in &program.body {
+        let Statement::ExportDeclaration(e) = statement else {
+            output.extend(rw.statement(statement));
+            continue;
+        };
+        let Declaration::VariableDeclaration(d) = &e.declaration else {
+            output.extend(rw.statement(statement));
+            continue;
+        };
+        for declarator in &d.declarations {
+            let lowered = super::declarations::declarator(rw, d.kind, declarator)
+                .expect("a module export has a declaration");
+            let storage = declarator
+                .id
+                .get_binding_identifier()
+                .and_then(|id| rw.storage_name(id.symbol_id.get()?));
+            if let Some(storage) = storage {
+                let name = declarator
+                    .id
+                    .get_binding_identifier()
+                    .expect("checked")
+                    .name
+                    .as_str();
+                output.push(lowered);
+                let value = b.member(b.id(storage), "value");
+                let declaration =
+                    b.declaration(d.kind, [b.declarator(b.binding(name), Some(value))]);
+                output.push(export(b, declaration));
+            } else {
+                output.push(export(b, lowered));
+            }
         }
     }
+    output
 }
 
-pub(crate) fn module(
-    from: &SyntaxTree,
-    program: NodeIdentifier,
-    resolution: &Resolution,
-    plan: &Plan,
-    to: &mut SyntaxTree,
-    server: bool,
-) -> NodeIdentifier {
-    super::module::emit(
-        from,
-        to,
-        &mut ScriptRewrite::new(resolution, plan, server),
-        program,
-    )
-}
-
-impl Rewrite for ScriptRewrite<'_> {
-    fn rewrite(
-        &mut self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        identifier: NodeIdentifier,
-    ) -> Option<NodeIdentifier> {
-        match from.kind(identifier) {
-            Kind::VariableDeclaration { .. } => {
-                Some(super::declarations::statement(from, to, self, identifier))
-            }
-            Kind::Assign(..) if self.constructors.assignments.contains(&identifier) => {
-                Some(self.constructor_assignment(from, to, identifier))
-            }
-            Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition { .. }) => {
-                Some(self.class(from, to, identifier))
-            }
-            Kind::Member {
-                object,
-                property,
-                computed: false,
-                optional,
-            } if from.name(property).starts_with('#')
-                && self
-                    .private_fields
-                    .iter()
-                    .rev()
-                    .find_map(|fields| fields.get(from.name(property)))
-                    .copied()
-                    == Some(true) =>
-            {
-                let object = copy(from, to, self, object);
-                let property = copy(from, to, &mut Verbatim, property);
-                let field = to.member(
-                    object,
-                    property,
-                    false,
-                    optional,
-                    from.source_location(identifier),
-                );
-                Some(to.dot(field, "value"))
-            }
-            Kind::Call { arguments, .. } => {
-                let (name, argument) = self.resolution.rune(from, identifier)?;
-                if let Some(value) = super::runes::inline(from, to, self, name, argument) {
-                    return Some(value);
-                }
-                if super::runes::inspect(name) {
-                    return Some(to.identifier("undefined"));
-                }
-                if name == "$props.id" {
-                    let callee = to.identifier("$$props_id");
-                    return Some(to.call0(callee, &[]));
-                }
-                if super::runes::value(name) {
-                    let tracking = self.tracking;
-                    return rune_value(from, to, self, name, argument, tracking);
-                }
-                if self.server && name == "$host" {
-                    return Some(to.identifier("undefined"));
-                }
-                if self.server && name == "$effect.tracking" {
-                    return Some(to.write_boolean(false, SourceLocation::SYNTHETIC));
-                }
-                if self.server && name == "$effect.pending" {
-                    return Some(to.write_number(0.0, SourceLocation::SYNTHETIC));
-                }
-                if self.server && name == "$effect.root" {
-                    let body = to.block(&[], SourceLocation::SYNTHETIC);
-                    return Some(to.arrow(&[], body, false, false, SourceLocation::SYNTHETIC));
-                }
-                if name == "$inspect.trace"
-                    || self.server && matches!(name, "$effect" | "$effect.pre")
-                {
-                    return Some(to.identifier("undefined"));
-                }
-                let name = super::runes::local(name)?;
-                let callee = to.identifier(name);
-                let arguments: Vec<_> =
-                    arguments.iter().map(|&a| copy(from, to, self, a)).collect();
-                Some(to.call0(callee, &arguments))
-            }
-            Kind::Identifier(_) => self.reference(from, to, identifier),
-            Kind::Property {
-                key,
-                value,
-                shorthand: true,
-                computed: false,
-                ..
-            } => {
-                let (target, default) = match from.kind(value) {
-                    Kind::AssignPattern(t, d) => (t, Some(d)),
-                    _ => (value, None),
-                };
-                if !matches!(from.kind(target), Kind::Identifier(_)) {
-                    return None;
-                }
-                let v = self.reference(from, to, target)?;
-                let v = default.map_or(v, |d| {
-                    let d = copy(from, to, self, d);
-                    to.assign_pat(v, d, from.source_location(value))
-                });
-                let k = to.ident(from.name(key), from.source_location(key));
-                Some(to.property(k, v, 0, from.source_location(identifier)))
-            }
-            _ => None,
-        }
-    }
+/// `export <declaration>`.
+fn export<'t>(b: &Builder<'t>, declaration: Statement<'t>) -> Statement<'t> {
+    let Statement::VariableDeclaration(d) = declaration else {
+        unreachable!("an exported declaration")
+    };
+    Statement::new_export_declaration(SPAN, Declaration::VariableDeclaration(d), b)
 }

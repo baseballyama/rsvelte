@@ -1,22 +1,21 @@
-use super::{
-    Builder, CompilerNodeIdentifier, Helper, Namespace, NodeIdentifier, R, Span, bound, spelled,
-    vue,
-};
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
-impl Builder<'_, '_> {
+use super::{CompilerNodeIdentifier, Helper, Namespace, Span, Template, spelled, vue};
+
+impl Template<'_, '_, '_> {
     pub(super) fn raw_markup(
         &mut self,
         identifier: CompilerNodeIdentifier,
-        expression: NodeIdentifier,
+        expression: ExpressionIdentifier,
         parent: Option<vue::CompilerNodeIdentifier>,
         span: Span,
-    ) -> R<vue::CompilerNodeIdentifier> {
-        self.render_read(expression)?;
+    ) -> vue::CompilerNodeIdentifier {
         let value = self.template_expression(expression);
         if !self.i.server {
             self.helpers.insert(Helper::RawMarkup);
         }
-        let props = self.vb.props([bound("value", span, value, span)]);
+        let value = self.bound("value", span, value, span);
+        let props = self.vb.props([value]);
         let kind = vue::NodeKind::Element(vue::Element {
             tag: spelled("$$RawMarkup", span),
             tag_type: vue::TagType::Component,
@@ -34,6 +33,6 @@ impl Builder<'_, '_> {
         if namespace != Namespace::Html {
             self.namespaces.insert(node, namespace);
         }
-        Ok(node)
+        node
     }
 }

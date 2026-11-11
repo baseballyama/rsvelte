@@ -1,7 +1,8 @@
 use oxc_ast::ast::{Expression, Statement};
 use rsvelte_svelte_semantic::compiler_syntax_tree::Children;
 
-use super::{EMPTY_COMMENT, NodeKind, Piece, R, ServerCompilationContext};
+use super::super::component::{Standalone, standalone};
+use super::{EMPTY_COMMENT, Piece, R, ServerCompilationContext};
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     pub(super) fn fragment(&mut self, children: Children) -> R<Vec<Statement<'o>>> {
@@ -15,11 +16,21 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         children: Children,
         skipped: fn(&str) -> bool,
     ) -> R<Vec<Statement<'o>>> {
+        let (mut snippets, template) = self.fragment_parts(children, skipped)?;
+        snippets.extend(template);
+        Ok(snippets)
+    }
+
+    /// The snippets a fragment declares, apart from the rest of it.
+    pub(super) fn fragment_parts(
+        &mut self,
+        children: Children,
+        skipped: fn(&str) -> bool,
+    ) -> R<(Vec<Statement<'o>>, Vec<Statement<'o>>)> {
         let outer = std::mem::take(&mut self.snippets);
         let template = self.fragment_template(children, skipped);
-        let mut snippets = std::mem::replace(&mut self.snippets, outer);
-        snippets.extend(self.build_template(template?));
-        Ok(snippets)
+        let snippets = std::mem::replace(&mut self.snippets, outer);
+        Ok((snippets, self.build_template(template?)))
     }
 
     fn fragment_template(
@@ -29,33 +40,20 @@ impl<'o> ServerCompilationContext<'_, 'o> {
     ) -> R<Vec<Piece<'o>>> {
         let cleaned = self.plan.fragment(children);
         let mut template = Vec::new();
-        let hoisted: Vec<_> = (cleaned.hoisted.iter().copied())
-            .filter(
-                |&identifier| match &self.compiler_syntax_tree.node(identifier).kind {
-                    NodeKind::Snippet(snippet) => !skipped(self.snippet_name(snippet)),
-                    _ => true,
-                },
-            )
-            .collect();
-        self.hoisted_elements(&hoisted, &mut template)?;
+        self.hoisted_elements(&cleaned.hoisted, skipped, &mut template)?;
         if cleaned.text_first {
             template.push(Piece::Text(EMPTY_COMMENT.into()));
         }
-        match super::super::component::standalone(
+        match standalone(
             self.compiler_syntax_tree,
             self.javascript,
             self.res,
             &cleaned.items,
         ) {
-            Some(standalone)
-                if matches!(
-                    self.compiler_syntax_tree.node(standalone).kind,
-                    NodeKind::Render { .. }
-                ) =>
-            {
-                self.render_tag(standalone, true, &mut template);
+            Some(Standalone::Render(tag)) => self.render_tag(tag, true, &mut template),
+            Some(Standalone::Component(component)) => {
+                self.component(component, true, &mut template)?;
             }
-            Some(standalone) => self.component(standalone, true, &mut template)?,
             None => self.process_children(&cleaned.items, &mut template)?,
         }
         Ok(template)

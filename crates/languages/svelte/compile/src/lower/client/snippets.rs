@@ -5,7 +5,9 @@ use oxc_ast::ast::Statement;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
 
 use super::super::derived::{Created, callback};
-use super::super::snippets::{is_dynamic_render, render_arguments, render_call, snippet_name};
+use super::super::snippets::{
+    Place, is_dynamic_render, place, render_arguments, render_call, snippet_name,
+};
 use super::{ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeKind, R};
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -17,16 +19,16 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             unreachable!("a snippet node")
         };
         let declaration = self.snippet_declaration(snippet)?;
-        if node.parent.is_some() {
-            self.snippets.push(declaration);
-        } else if self
-            .res
-            .snippet(identifier)
-            .is_some_and(|symbol| self.hoistable.contains(&symbol))
-        {
-            self.module_snippets.push(declaration);
-        } else {
-            self.instance_snippets.push(declaration);
+        let place = place(
+            self.compiler_syntax_tree,
+            self.res,
+            self.hoistable,
+            identifier,
+        );
+        match place {
+            Place::Block => self.snippets.push(declaration),
+            Place::Module => self.module_snippets.push(declaration),
+            Place::Instance => self.instance_snippets.push(declaration),
         }
         Ok(())
     }

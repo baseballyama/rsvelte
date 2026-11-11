@@ -1,53 +1,30 @@
+use oxc_allocator::{CloneIn, GetAllocator};
+use oxc_ast::ast::{BindingPattern, Expression, Statement};
+use oxc_ast_visit::VisitMut;
+use oxc_span::SPAN;
+use rsvelte_typescript_compile::strip::Strip;
+
 use super::{
-    Builder, CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Kind, LoopExpression,
-    NodeKind, SourceLocation, Span, Verbatim, copy, directive, spelled, vue,
+    CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Helper, LoopExpression, NodeKind,
+    Span, Template, directive, vue,
 };
+use crate::script::runes;
 
-impl Builder<'_, '_> {
-    fn declaration_cell(&mut self, value: super::NodeIdentifier) -> super::NodeIdentifier {
-        let key = self.to.identifier("value");
-        let field = self.to.property(key, value, 0, SourceLocation::SYNTHETIC);
-        self.to.object(&[field], SourceLocation::SYNTHETIC)
+impl<'t> Template<'_, '_, 't> {
+    /// `{ value }`: the cell Vue's template reads a plain declaration through.
+    fn declaration_cell(&self, value: Expression<'t>) -> Expression<'t> {
+        self.b.object([self.b.init("value", value)])
     }
 
-    fn rune_pattern(
-        &mut self,
-        identifier: super::NodeIdentifier,
-        rune: &str,
-        argument: Option<super::NodeIdentifier>,
-    ) -> super::NodeIdentifier {
-        let tracking = self.i.plan.auxiliary.contains_key("$effect.tracking") && !self.i.server;
-        let mut rewrite = super::TemplateRewrite {
-            resolution: self.i.resolution,
-            snippet_names: &self.snippet_names,
-            server: self.i.server,
-        };
-        let value = crate::script::rune_value(
-            self.i.javascript,
-            self.to,
-            &mut rewrite,
-            rune,
-            argument,
-            tracking,
-        )
-        .expect("a checked rune has a value");
-        crate::script::pattern_declaration(
-            self.i.javascript,
-            self.to,
-            &mut rewrite,
-            identifier,
-            value,
-            rune,
-            tracking,
-        )
-    }
-
+    /// The `{let}` and `{const}` tags of a fragment as one `$$Scope`: a `v-for` whose source runs
+    /// the declarations and whose parameters are the names they bind.
     pub(super) fn declarations(
         &mut self,
         nodes: &[CompilerNodeIdentifier],
         parent: Option<vue::CompilerNodeIdentifier>,
         span: Span,
     ) -> Option<vue::CompilerNodeIdentifier> {
+        let b = self.b;
         let mut statements = Vec::new();
         let mut parameters = Vec::new();
         for &node in nodes {
@@ -55,92 +32,101 @@ impl Builder<'_, '_> {
             else {
                 continue;
             };
-            let Kind::VariableDeclaration { kind, declarations } =
-                self.i.javascript.kind(declaration)
-            else {
-                unreachable!()
-            };
-            for &declaration in declarations {
-                let Kind::Declarator {
-                    identifier,
-                    initializer,
-                } = self.i.javascript.kind(declaration)
-                else {
-                    unreachable!()
-                };
-                let names = crate::compilation::patterns::names(self.i.javascript, identifier);
+            let declaration = self.i.component.javascript.get_declaration(declaration);
+            for declarator in &declaration.declarations {
+                let names = declarator.id.get_binding_identifiers();
                 parameters.extend(
                     names
                         .iter()
-                        .map(|&name| copy(self.i.javascript, self.to, &mut Verbatim, name)),
+                        .map(|name| b.parameter(b.binding_at(&name.name, name.span))),
                 );
-                let mut name = copy(self.i.javascript, self.to, &mut Verbatim, identifier);
-                let rune =
-                    initializer.and_then(|value| self.i.resolution.rune(self.i.javascript, value));
-                if let Some((rune, argument)) = rune
-                    && crate::script::runes::value(rune)
-                    && !matches!(self.i.javascript.kind(identifier), Kind::Identifier(_))
+                let rune = declarator
+                    .init
+                    .as_ref()
+                    .and_then(|init| self.i.resolution.rune(init));
+                let value_rune = rune.is_some_and(|(name, _)| runes::value(name));
+                if let Some(init) = &declarator.init
+                    && !self.i.server
+                    && crate::compilation::asynchronous::has_await(init)
                 {
-                    statements.push(self.rune_pattern(identifier, rune, argument));
+                    self.helpers.insert(Helper::Async);
+                }
+                if value_rune && !declarator.id.is_binding_identifier() {
+                    statements.push(self.rune_pattern(declarator));
                     continue;
                 }
-                let mut value = if let Some(value) = initializer {
-                    self.template_expression(value)
-                } else {
-                    self.to.identifier("undefined")
-                };
-                if !rune.is_some_and(|(name, _)| crate::script::runes::value(name)) {
-                    if matches!(self.i.javascript.kind(identifier), Kind::Identifier(_)) {
+                let mut value = declarator
+                    .init
+                    .as_ref()
+                    .map_or_else(|| b.id("undefined"), |init| self.rewrite(init));
+                let mut pattern = self.pattern(&declarator.id);
+                if !value_rune {
+                    if declarator.id.is_binding_identifier() {
                         value = self.declaration_cell(value);
                     } else {
-                        let binding = self.to.let_(kind, name, Some(value));
-                        let cells: Vec<_> = names
+                        let cells = names
                             .iter()
-                            .map(|&name| {
-                                let value = self.to.identifier(self.i.javascript.name(name));
-                                self.declaration_cell(value)
-                            })
-                            .collect();
-                        let cells = self.to.array(&cells, SourceLocation::SYNTHETIC);
-                        let result = self.to.return_(Some(cells), SourceLocation::SYNTHETIC);
-                        let body = self.to.block(&[binding, result], SourceLocation::SYNTHETIC);
-                        let function =
-                            self.to
-                                .arrow(&[], body, false, false, SourceLocation::SYNTHETIC);
-                        value = self.to.call0(function, &[]);
-                        let names: Vec<_> = names
-                            .iter()
-                            .map(|&name| self.to.identifier(self.i.javascript.name(name)))
-                            .collect();
-                        name = self.to.array_pat(&names, SourceLocation::SYNTHETIC);
+                            .map(|name| self.declaration_cell(b.id(&name.name)));
+                        let body = [
+                            b.declaration(declaration.kind, [b.declarator(pattern, Some(value))]),
+                            b.return_(Some(b.array(cells))),
+                        ];
+                        value = b.call(b.arrow_block(b.params([]), body, false), []);
+                        let elements = names.iter().map(|name| Some(b.binding(&name.name)));
+                        pattern = BindingPattern::new_array_pattern(SPAN, b.vec(elements), None, b);
                     }
                 }
-                statements.push(self.to.let_(kind, name, Some(value)));
+                statements
+                    .push(b.declaration(declaration.kind, [b.declarator(pattern, Some(value))]));
             }
         }
         if statements.is_empty() {
             return None;
         }
-        let block = self.to.block(&statements, SourceLocation::SYNTHETIC);
-        let source = self
-            .to
-            .arrow(&[], block, false, false, SourceLocation::SYNTHETIC);
-        let props = self.vb.props([directive(
+        let source = b.arrow_block(b.params([]), statements, false);
+        let parameters = b.formal_parameters(parameters);
+        let parameters = self.tree.keep_parameters(parameters.unbox());
+        let source = self.keep(source);
+        let property = directive(
             DirectiveName::For,
             None,
             DirectiveExpression::For(LoopExpression { parameters, source }),
             span,
-        )]);
-        let element = vue::Element {
-            tag: spelled("$$Scope", span),
-            tag_type: vue::TagType::Template,
-            props,
-            children: vue::Children::default(),
-        };
-        let node = self
-            .vb
-            .node(vue::NodeKind::Element(element), span, parent, 0);
-        self.scopes.insert(node, block);
+        );
+        let node = self.template_node("$$Scope", span, vec![property], parent);
+        self.scopes.insert(node);
         Some(node)
+    }
+
+    /// `let { a, b } = $state(v)`: a cell per name, as the script lowers it.
+    fn rune_pattern(&self, declarator: &oxc_ast::ast::VariableDeclarator<'_>) -> Statement<'t> {
+        let b = self.b;
+        let tracking = !self.i.server && self.i.plan.auxiliary.contains_key("$effect.tracking");
+        let Some(Expression::CallExpression(call)) = &declarator.init else {
+            unreachable!("a rune is a call")
+        };
+        let (rune, _) = self
+            .i
+            .resolution
+            .rune(declarator.init.as_ref().expect("a rune initialiser"))
+            .expect("a checked rune");
+        let argument = call
+            .arguments
+            .first()
+            .map(|argument| self.rewrite(argument.to_expression()));
+        let value = crate::script::rune_value(b, rune, argument, tracking)
+            .expect("a checked rune has a value");
+        // The lowering rewrites the defaults itself.
+        let mut pattern = declarator.id.clone_in_with_semantic_ids(b.allocator());
+        Strip::new(b.allocator()).visit_binding_pattern(&mut pattern);
+        let declarators = crate::script::patterns::declarators(
+            b,
+            &mut self.rewriter(),
+            pattern,
+            value,
+            rune,
+            tracking,
+        );
+        b.declaration(oxc_ast::ast::VariableDeclarationKind::Const, declarators)
     }
 }

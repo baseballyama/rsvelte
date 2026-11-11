@@ -1,105 +1,76 @@
-use super::{
-    BindingKind, Kind, NodeIdentifier, R, Resolution, SourceLocation, SyntaxTree, flag, span,
-    unsupported,
-};
+use oxc_ast::ast::{Declaration, ExportDeclaration, VariableDeclarationKind};
+use oxc_semantic::SymbolId;
 
-pub(super) fn collect(
-    tree: &SyntaxTree,
-    declaration: NodeIdentifier,
-    names: &mut Vec<NodeIdentifier>,
-) -> R<()> {
-    match tree.kind(declaration) {
-        Kind::VariableDeclaration {
-            kind: flag::CONST,
-            declarations,
-        } => {
-            for &declaration in declarations {
-                let Kind::Declarator { identifier, .. } = tree.kind(declaration) else {
-                    unreachable!("a declarator")
-                };
-                rsvelte_svelte_semantic::resolve::for_each_pattern_target(
-                    tree,
-                    identifier,
-                    &mut |name| names.push(name),
-                );
+use super::{R, span_of, unsupported};
+
+/// The names `export const`, `export function` and `export class` expose on the component.
+pub(super) fn collect(e: &ExportDeclaration<'_>, names: &mut Vec<SymbolId>) -> R<()> {
+    let symbol = |id: &oxc_ast::ast::BindingIdentifier<'_>| {
+        id.symbol_id.get().expect("a declaration has a symbol")
+    };
+    match &e.declaration {
+        Declaration::VariableDeclaration(d) if d.kind == VariableDeclarationKind::Const => {
+            for d in &d.declarations {
+                for id in d.id.get_binding_identifiers() {
+                    names.push(symbol(id));
+                }
             }
         }
-        Kind::Function {
-            name: Some(name),
-            declaration: true,
-            ..
+        Declaration::FunctionDeclaration(f) if f.id.is_some() => {
+            names.push(symbol(f.id.as_ref().expect("checked")));
         }
-        | Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition {
-            name: Some(name),
-            declaration: true,
-            ..
-        }) => names.push(name),
+        Declaration::ClassDeclaration(c) if c.id.is_some() => {
+            names.push(symbol(c.id.as_ref().expect("checked")));
+        }
         _ => {
-            return Err(unsupported(
-                "this component export",
-                span(tree, declaration),
-            ));
+            return Err(unsupported("this component export", span_of(e.span)));
         }
     }
     Ok(())
 }
 
-pub(super) fn expose(
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    resolution: &Resolution,
-    names: &[NodeIdentifier],
-) -> NodeIdentifier {
+/// `defineExpose({ get name() { … }, set name(v) { … } })` for the names the component exports.
+pub(super) fn expose<'t>(
+    b: &rsvelte_typescript_compile::build::Builder<'t>,
+    res: &super::Resolution,
+    names: &[SymbolId],
+) -> oxc_ast::ast::Statement<'t> {
+    use rsvelte_svelte_semantic::resolve::BindingKind;
+    let scoping = res.scoping();
     let mut fields = Vec::with_capacity(names.len());
-    for &name in names {
-        let key = to.ident(from.name(name), from.source_location(name));
-        let mut value = key;
-        if resolution.binding(name).is_some_and(|(_, binding)| {
-            matches!(
-                binding.kind,
-                BindingKind::State
-                    | BindingKind::RawState
-                    | BindingKind::Derived
-                    | BindingKind::DerivedBy
-            )
-        }) {
-            value = to.dot(value, "value");
-        }
-        let result = to.return_(Some(value), SourceLocation::SYNTHETIC);
-        let block = to.block(&[result], SourceLocation::SYNTHETIC);
-        let getter = to.function(false, None, &[], block, false, SourceLocation::SYNTHETIC);
-        fields.push(to.property(key, getter, flag::GETTER, SourceLocation::SYNTHETIC));
-        let binding = resolution
-            .sem
-            .binding_of(name)
-            .expect("an exported binding");
+    for &symbol in names {
+        let name = scoping.symbol_name(symbol);
+        let span = scoping.symbol_span(symbol);
+        let mut value = b.id_at(name, span);
         if matches!(
-            resolution.sem.bindings[binding].kind,
-            rsvelte_typescript_semantic::scope::DeclarationKind::Function
-                | rsvelte_typescript_semantic::scope::DeclarationKind::Let
+            res.binding(symbol).kind,
+            BindingKind::State
+                | BindingKind::RawState
+                | BindingKind::Derived
+                | BindingKind::DerivedBy
         ) {
-            let parameter = to.identifier("$$export_value");
-            let assignment = to.assign(
-                rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
-                key,
-                parameter,
-                SourceLocation::SYNTHETIC,
-            );
-            let statement = to.expression_statement(assignment);
-            let body = to.block(&[statement], SourceLocation::SYNTHETIC);
-            let setter = to.function(
-                false,
-                None,
-                &[parameter],
-                body,
-                false,
-                SourceLocation::SYNTHETIC,
-            );
-            fields.push(to.property(key, setter, flag::SETTER, SourceLocation::SYNTHETIC));
+            value = b.member(value, "value");
+        }
+        fields.push(b.accessor(
+            oxc_ast::ast::PropertyKind::Get,
+            name,
+            b.params([]),
+            [b.return_(Some(value))],
+        ));
+        let assignable = match res.declaration(symbol) {
+            // A class declaration binds like `let`.
+            oxc_ast::AstKind::Function(_) | oxc_ast::AstKind::Class(_) => true,
+            _ => res.variable_kind(symbol) == Some(VariableDeclarationKind::Let),
+        };
+        if assignable {
+            let assignment = b.assign_name(name, b.id("$$export_value"));
+            fields.push(b.accessor(
+                oxc_ast::ast::PropertyKind::Set,
+                name,
+                b.params(["$$export_value"]),
+                [b.stmt(assignment)],
+            ));
         }
     }
-    let value = to.object(&fields, SourceLocation::SYNTHETIC);
-    let helper = to.identifier("defineExpose");
-    let call = to.call0(helper, &[value]);
-    to.expression_statement(call)
+    b.stmt(b.call(b.id("defineExpose"), [b.object(fields)]))
 }

@@ -3,14 +3,14 @@
 
 use crate::lower::builder::Runtime;
 use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKind, Statement};
-use rsvelte_svelte_semantic::compiler_syntax_tree::ElementKind;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, ElementKind, Snippet};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
 use super::javascript::member_root;
 use super::snippets::{is_dynamic_render, render_call};
 use super::{
     Attribute, AttributeValue, BindingKind, Builder, CompilerNodeIdentifier, CompilerSyntaxTree,
-    Item, NodeKind, Resolution, Target,
+    Diagnostic, Item, NodeKind, Resolution, Target,
 };
 
 #[derive(Clone, Copy)]
@@ -57,31 +57,43 @@ pub(super) fn reference(
         .expect("a component name parses to a reference")
 }
 
+/// A fragment's only item that renders at the block's anchor.
+#[derive(Clone, Copy)]
+pub(super) enum Standalone {
+    Component(CompilerNodeIdentifier),
+    Render(CompilerNodeIdentifier),
+}
+
 /// Upstream `is_standalone`: the static component or render tag that is a fragment's only item
-/// needs no template; it renders at the block's anchor.
+/// needs no template.
 pub(super) fn standalone(
     compiler_syntax_tree: &CompilerSyntaxTree,
     javascript: &Tree,
     res: &Resolution,
     items: &[Item<'_>],
-) -> Option<CompilerNodeIdentifier> {
+) -> Option<Standalone> {
     let &[Item::Node(identifier)] = items else {
         return None;
     };
-    let standalone = match &compiler_syntax_tree.node(identifier).kind {
-        NodeKind::Element(element) if element.kind == ElementKind::Component => !is_dynamic(
-            res,
-            javascript
-                .get_expression(reference(compiler_syntax_tree, identifier))
-                .get_inner_expression(),
-        ),
-        &NodeKind::Render { expression } => {
-            let (call, _) = render_call(javascript.get_expression(expression));
-            !is_dynamic_render(res, call)
+    match &compiler_syntax_tree.node(identifier).kind {
+        NodeKind::Element(element)
+            if element.kind == ElementKind::Component
+                && !is_dynamic(
+                    res,
+                    javascript
+                        .get_expression(reference(compiler_syntax_tree, identifier))
+                        .get_inner_expression(),
+                ) =>
+        {
+            Some(Standalone::Component(identifier))
         }
-        _ => false,
-    };
-    standalone.then_some(identifier)
+        &NodeKind::Render { expression }
+            if !is_dynamic_render(res, render_call(javascript.get_expression(expression)).0) =>
+        {
+            Some(Standalone::Render(identifier))
+        }
+        _ => None,
+    }
 }
 
 pub(super) enum Entry<'o> {
@@ -105,6 +117,25 @@ pub(super) fn push_binding<'o>(
         b.params(["$$value"]),
         setter,
     )));
+}
+
+/// The snippets a component holds, each declared by `declare`, and their names. Upstream
+/// declares them in a block, so that they can be props without clashing with the parent's names.
+pub(super) fn child_snippets<'t, 'o>(
+    tree: &'t CompilerSyntaxTree,
+    javascript: &'t Tree,
+    children: Children,
+    mut declare: impl FnMut(&'t Snippet) -> Result<Statement<'o>, Diagnostic>,
+) -> Result<(Vec<Statement<'o>>, Vec<&'t str>), Diagnostic> {
+    let mut declarations = Vec::new();
+    let mut names = Vec::new();
+    for &child in tree.children(children) {
+        if let NodeKind::Snippet(snippet) = &tree.node(child).kind {
+            declarations.push(declare(snippet)?);
+            names.push(super::snippets::snippet_name(javascript, snippet));
+        }
+    }
+    Ok((declarations, names))
 }
 
 /// Each snippet child as a prop of its name, the other children as a callback in the `children`

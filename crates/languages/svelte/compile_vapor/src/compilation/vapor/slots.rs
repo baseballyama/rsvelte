@@ -1,126 +1,96 @@
-use rsvelte_typescript_syntax::operators::LogicalOperator;
-use rsvelte_typescript_syntax::syntax_tree::flag;
-use rsvelte_vue_semantic::compiler_syntax_tree::{Element, NodeKind, PropertyKind};
+use oxc_ast::ast::{Expression, LogicalOperator};
+use rsvelte_svelte_compile::render_plan::Namespace;
+use rsvelte_vue_semantic::compiler_syntax_tree::{Element, PropertyKind};
 
-use super::{Builder, Namespace, NodeIdentifier, SYNTHETIC};
+use super::{Body, Emitter};
 
-impl Builder<'_> {
-    pub(super) fn slot_context(&mut self, body: &mut Vec<NodeIdentifier>) {
-        if self.input.server
-            || self
-                .input
-                .custom_element
-                .as_ref()
-                .is_none_or(|options| options.shadow_root)
-            || !self.input.compiler_syntax_tree.nodes.iter().any(|node| {
-                matches!(
-                    &node.kind,
-                    NodeKind::Element(element) if element.tag.text(self.source_text) == "slot"
-                )
-            })
+impl<'o> Emitter<'_, 'o> {
+    /// `const $$native_slots = …`: the slots a light-DOM custom element's children fill.
+    pub(super) fn slot_context(&self, body: &mut Body<'o>) {
+        let b = self.b;
+        let light = self
+            .t
+            .template
+            .custom_element
+            .as_ref()
+            .is_some_and(|options| !options.shadow_root);
+        if self.t.server || !light || !self.tree.nodes.iter().any(|node| self.tag_is(node, "slot"))
         {
             return;
         }
-        let helper = self.to.identifier("$$custom_element_host");
-        let host = self.to.call0(helper, &[]);
-        let children = self.to.dot(host, "childNodes");
-        let node = self.to.identifier("$$slot_node");
-        let name = self.to.dot(node, "slot");
-        let default = self.to.write_string("default");
-        let name = self
-            .to
-            .logical(LogicalOperator::Or, name, default, SYNTHETIC);
-        let callback = self.to.arrow(&[node], name, true, false, SYNTHETIC);
-        let array = self.to.identifier("Array");
-        let from = self.to.dot(array, "from");
-        let names = self.to.call0(from, &[children, callback]);
-        let binding = self.to.identifier("$$native_slots");
-        body.push(self.to.let_(flag::CONST, binding, Some(names)));
+        let children = b.member(b.call(b.id("$$custom_element_host"), []), "childNodes");
+        let name = b.logical(
+            b.member(b.id("$$slot_node"), "slot"),
+            LogicalOperator::Or,
+            b.string("default"),
+        );
+        let callback = b.arrow(b.params(["$$slot_node"]), name);
+        let names = b.call(b.member(b.id("Array"), "from"), [children, callback]);
+        body.push(b.const_("$$native_slots", names));
     }
 
-    pub(super) fn slot(
-        &mut self,
-        element: &Element,
-        body: &mut Vec<NodeIdentifier>,
-    ) -> NodeIdentifier {
+    pub(super) fn slot(&mut self, element: &Element, body: &mut Body<'o>) -> Expression<'o> {
+        let b = self.b;
         let name = self
-            .input
-            .compiler_syntax_tree
+            .tree
             .props(element.props)
             .iter()
-            .find_map(|property| {
-                if let PropertyKind::Attribute {
+            .find_map(|property| match &property.kind {
+                PropertyKind::Attribute {
                     name,
                     value: Some(value),
-                } = &property.kind
-                    && name.text(self.source_text) == "name"
-                {
-                    Some(value.text(self.source_text))
-                } else {
-                    None
-                }
+                } if name.text(self.source_text) == "name" => Some(value.text(self.source_text)),
+                _ => None,
             })
             .unwrap_or("default");
-        let name_value = self.to.write_string(name);
-        if self
-            .input
+        let shadow = self
+            .t
+            .template
             .custom_element
             .as_ref()
-            .is_some_and(|options| options.shadow_root)
-        {
-            return self.native_slot(element, name, name_value, body);
+            .is_some_and(|options| options.shadow_root);
+        if shadow {
+            return self.native_slot(element, name, body);
         }
-        let names = self.to.identifier("$$native_slots");
-        let has = self.to.dot(names, "includes");
-        let test = self.to.call0(has, &[name_value]);
-        let getter = self.to.arrow(&[], test, true, false, SYNTHETIC);
-        let mut content = Vec::new();
-        let node = self.native_slot(element, name, name_value, &mut content);
-        content.push(self.to.return_(Some(node), SYNTHETIC));
-        let block = self.to.block(&content, SYNTHETIC);
-        let present = self.to.arrow(&[], block, false, false, SYNTHETIC);
-        let mut content = Vec::new();
-        let nodes = self.list(
-            self.input.compiler_syntax_tree.children(element.children),
-            &mut content,
+        let test = b.call(
+            b.member(b.id("$$native_slots"), "includes"),
+            [b.string(name)],
         );
-        let nodes = self.to.array(&nodes, SYNTHETIC);
-        content.push(self.to.return_(Some(nodes), SYNTHETIC));
-        let block = self.to.block(&content, SYNTHETIC);
-        let fallback = self.to.arrow(&[], block, false, false, SYNTHETIC);
-        let fragment = self.call("createIf", &[getter, present, fallback]);
-        self.declare(fragment, body)
+        let mut content = Body::default();
+        let node = self.native_slot(element, name, &mut content);
+        let present = self.render_block(content, node, b.params([]));
+        let mut content = Body::default();
+        let nodes = self.list(self.tree.children(element.children), &mut content);
+        let fallback = self.render_block(content, b.array(nodes), b.params([]));
+        let fragment = self.call("createIf", [self.arrow(test), present, fallback]);
+        b.id(&self.declare(fragment, body))
     }
 
     fn native_slot(
         &mut self,
         element: &Element,
         name: &str,
-        name_value: NodeIdentifier,
-        body: &mut Vec<NodeIdentifier>,
-    ) -> NodeIdentifier {
+        body: &mut Body<'o>,
+    ) -> Expression<'o> {
+        let b = self.b;
         let node = self.template("<slot>", Namespace::Html, body);
         if name != "default" {
-            let attribute = self.to.write_string("name");
-            let set = self.call("setAttr", &[node, attribute, name_value]);
-            body.push(self.to.expression_statement(set));
+            let set = self.call("setAttr", [b.id(&node), b.string("name"), b.string(name)]);
+            body.push(b.stmt(set));
         }
-        if self
-            .input
+        let shadow = self
+            .t
+            .template
             .custom_element
             .as_ref()
-            .is_some_and(|options| options.shadow_root)
-        {
-            let children = self.list(
-                self.input.compiler_syntax_tree.children(element.children),
-                body,
-            );
+            .is_some_and(|options| options.shadow_root);
+        if shadow {
+            let children = self.list(self.tree.children(element.children), body);
             if !children.is_empty() {
-                let children = self.to.array(&children, SYNTHETIC);
-                let insert = self.call("insert", &[children, node]);
-                body.push(self.to.expression_statement(insert));
+                let insert = self.call("insert", [b.array(children), b.id(&node)]);
+                body.push(b.stmt(insert));
             }
         }
-        node
+        b.id(&node)
     }
 }
