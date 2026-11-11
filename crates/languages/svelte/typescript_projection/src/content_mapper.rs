@@ -19,7 +19,7 @@ pub fn write_transform(source: &str, output: &mut StructuredDataWriter) {
     match result {
         Ok(projection) => {
             output.key("text").write_string(&projection.out);
-            write_mappings(&projection.mappings, output);
+            write_mappings(&projection.mappings, &projection.atoms, output);
         }
         Err((code, message, span)) => {
             output

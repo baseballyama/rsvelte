@@ -5,7 +5,7 @@ const identity=<T,>(value:T):T=>value;const value=identity("a");
 () => {
   {
     svelteHTML.createElement("p", {
-      class: value,
+      "class": value,
     });
   }
 };

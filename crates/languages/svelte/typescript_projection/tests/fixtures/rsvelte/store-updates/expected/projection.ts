@@ -11,7 +11,7 @@ import { writable } from 'svelte/store'; let a = $state(writable(1));;let $a!: _
   }
   {
     svelteHTML.createElement("button", {
-      onclick: f,
+      "onclick": f,
     });
   }
 };

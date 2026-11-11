@@ -116,7 +116,7 @@ pub(crate) fn compiled<'a>(
         } else {
             Emitter {
                 out: print::print(&module),
-                mappings: Vec::new(),
+                ..Emitter::default()
             }
         }
     };

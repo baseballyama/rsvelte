@@ -13,7 +13,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
 () => {
   {
     svelteHTML.createElement("section", {
-      class: "list",
+      "class": "list",
       "data-count": total,
     });
     {

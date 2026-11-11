@@ -11,8 +11,8 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
 () => {
   {
     svelteHTML.createElement("button", {
-      type: "button",
-      onclick: () => items.push(items.length),
+      "type": "button",
+      "onclick": () => items.push(items.length),
     });
     (items.length);
   }

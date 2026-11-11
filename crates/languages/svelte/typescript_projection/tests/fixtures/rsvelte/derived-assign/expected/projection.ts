@@ -14,7 +14,7 @@
 () => {
   {
     svelteHTML.createElement("button", {
-      onclick: () => (d = !d),
+      "onclick": () => (d = !d),
     });
     (d);
     (e);

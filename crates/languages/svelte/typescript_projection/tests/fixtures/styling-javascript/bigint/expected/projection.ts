@@ -5,7 +5,7 @@ const value=123n;
 () => {
   {
     svelteHTML.createElement("p", {
-      class: value,
+      "class": value,
     });
   }
 };

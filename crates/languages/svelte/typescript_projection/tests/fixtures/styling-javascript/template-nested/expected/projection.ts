@@ -5,7 +5,7 @@ const text=(`a${{value:`b${1}`}.value}`);
 () => {
   {
     svelteHTML.createElement("p", {
-      class: text,
+      "class": text,
     });
   }
 };

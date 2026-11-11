@@ -5,7 +5,7 @@ const value="a";async function load(){return import("./x.js");}
 () => {
   {
     svelteHTML.createElement("p", {
-      class: value,
+      "class": value,
     });
   }
 };

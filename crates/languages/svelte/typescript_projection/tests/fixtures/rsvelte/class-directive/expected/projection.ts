@@ -18,14 +18,14 @@
   }
   {
     svelteHTML.createElement("div", {
-      class: "panel",
+      "class": "panel",
     });
     (active);
     (count > 3);
   }
   {
     svelteHTML.createElement("div", {
-      class: theme,
+      "class": theme,
     });
     (!active);
   }
@@ -40,19 +40,19 @@
   }
   {
     svelteHTML.createElement("div", {
-      class: `a ${theme}`,
+      "class": `a ${theme}`,
     });
     (active);
   }
   {
     svelteHTML.createElement("button", {
-      onclick: () => count++,
+      "onclick": () => count++,
     });
     (count);
   }
   {
     svelteHTML.createElement("button", {
-      onclick: () => (active = !active),
+      "onclick": () => (active = !active),
     });
   }
 };

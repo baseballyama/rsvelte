@@ -12,7 +12,7 @@
 () => {
   {
     svelteHTML.createElement("button", {
-      onclick: increment,
+      "onclick": increment,
     });
     (count);
     (double);

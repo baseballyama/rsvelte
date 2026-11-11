@@ -5,7 +5,7 @@ let name="a";const obj={get name(){return name;},set name(value){name=value;}};
 () => {
   {
     svelteHTML.createElement("p", {
-      class: obj.name,
+      "class": obj.name,
     });
   }
 };

@@ -25,7 +25,7 @@
   {
     svelteHTML.createElement("button", {
       [Symbol("@attach")]: label('grow'),
-      onclick: () => (size += 1),
+      "onclick": () => (size += 1),
     });
   }
   {

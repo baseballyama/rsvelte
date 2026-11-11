@@ -13,19 +13,19 @@
     });
     {
       svelteHTML.createElement("option", {
-        value: "a",
-        selected: looseEqual(model, 'a') ? '' : undefined,
+        "value": "a",
+        "selected": looseEqual(model, 'a') ? '' : undefined,
       });
     }
     {
       svelteHTML.createElement("option", {
-        value: "b",
-        selected: looseEqual(model, 'b') ? '' : undefined,
+        "value": "b",
+        "selected": looseEqual(model, 'b') ? '' : undefined,
       });
     }
     {
       svelteHTML.createElement("option", {
-        disabled: model === 'a' ? '' : undefined,
+        "disabled": model === 'a' ? '' : undefined,
       });
     }
   }

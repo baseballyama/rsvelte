@@ -5,7 +5,7 @@ let value="a";function run(){try{throw "b";}catch(error){value=error;}finally{co
 () => {
   {
     svelteHTML.createElement("p", {
-      class: value,
+      "class": value,
     });
   }
 };

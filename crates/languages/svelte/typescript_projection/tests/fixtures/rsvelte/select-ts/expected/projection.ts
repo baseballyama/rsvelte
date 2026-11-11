@@ -8,23 +8,23 @@
 () => {
   {
     svelteHTML.createElement("select", {
-      value: size,
-      onchange: (e) => (size = e.currentTarget.selectedIndex),
+      "value": size,
+      "onchange": (e) => (size = e.currentTarget.selectedIndex),
     });
     {
       svelteHTML.createElement("option", {
-        value: 1,
+        "value": 1,
       });
     }
     {
       svelteHTML.createElement("option", {
-        value: 2,
+        "value": 2,
       });
     }
   }
   {
     svelteHTML.createElement("select", {
-      value: name.toFixed(1),
+      "value": name.toFixed(1),
     });
     {
       svelteHTML.createElement("option", {});

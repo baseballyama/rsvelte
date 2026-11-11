@@ -22,32 +22,32 @@ const __rsvelte_public_props0 = __rsvelte_props({
 () => {
   {
     svelteHTML.createElement("button", {
-      type: "",
+      "type": "",
     });
   }
   {
     svelteHTML.createElement("button", {
-      type: true,
+      "type": true,
     });
   }
   {
     svelteHTML.createElement("button", {
-      type: "&#98;utton",
+      "type": "&#98;utton",
     });
   }
   {
     svelteHTML.createElement("button", {
-      type: "foo",
+      "type": "foo",
     });
   }
   {
     svelteHTML.createElement("button", {
-      type: label,
+      "type": label,
     });
   }
   {
     svelteHTML.createElement("button", {
-      type: `a${label}`,
+      "type": `a${label}`,
     });
   }
   {

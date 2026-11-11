@@ -5,7 +5,7 @@ const value=(/[)]/.test("a")?"a":"b");
 () => {
   {
     svelteHTML.createElement("p", {
-      class: value,
+      "class": value,
     });
   }
 };

@@ -5,7 +5,7 @@ const value=<string>("a" as unknown as string);const fn=((x:string)=>x) as (x:st
 () => {
   {
     svelteHTML.createElement("p", {
-      class: fn(value),
+      "class": fn(value),
     });
   }
 };

@@ -16,14 +16,14 @@
         (item.id);
         {
           svelteHTML.createElement("li", {
-            class: "row",
+            "class": "row",
           });
           (item.id === selected);
           (item.done);
           {
             svelteHTML.createElement("button", {
-              class: { current: item.id === selected },
-              onclick: () => (selected = item.id),
+              "class": { current: item.id === selected },
+              "onclick": () => (selected = item.id),
             });
             (item.name);
           }

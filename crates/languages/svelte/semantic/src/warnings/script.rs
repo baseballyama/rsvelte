@@ -13,7 +13,6 @@ use oxc_ast::ast::{
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::{ScopeId, SymbolFlags, SymbolId};
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
 };
@@ -21,7 +20,7 @@ use rustc_hash::FxHashMap;
 
 use super::found::{Found, Stage};
 use super::template::{bidirectional, bidirectional_runs};
-use super::{Options, Section, span, warning};
+use super::{Options, Scripts, Section, span, warning};
 use crate::compiler_syntax_tree::CompilerSyntaxTree;
 use crate::resolve::{BindingKind, RUNES, Resolution, Roots, TemplateName, TemplateScope};
 
@@ -30,6 +29,8 @@ use crate::resolve::{BindingKind, RUNES, Resolution, Roots, TemplateName, Templa
 struct Place {
     /// Inside a function.
     function: bool,
+    /// The functions around the node, below the section's program.
+    functions: u32,
     /// Upstream's `function_depth` below the section's program: one for each function, and one
     /// for each `$derived(…)`, `$inspect(…)` or `$props()` pattern around the node.
     depth: u32,
@@ -42,13 +43,14 @@ struct Place {
 
 const TOP: Place = Place {
     function: false,
+    functions: 0,
     depth: 0,
     state_argument: false,
     state_call_argument: false,
 };
 
 struct Walk<'w> {
-    component: &'w Component,
+    scripts: &'w Scripts<'w>,
     resolution: &'w Resolution,
     runes: bool,
     /// Whether a rune call that subscribes to a store is the `store_rune_conflict` warning: not
@@ -88,8 +90,8 @@ struct Next {
 
 /// Walks the module, the instance and the template's expressions.
 pub(super) fn walk(
-    component: &Component,
-    compiler_syntax_tree: &CompilerSyntaxTree,
+    scripts: &Scripts<'_>,
+    template: Option<&CompilerSyntaxTree>,
     resolution: &Resolution,
     runes: bool,
     options: Options,
@@ -97,7 +99,7 @@ pub(super) fn walk(
     found: &mut Found,
 ) {
     let mut walk = Walk {
-        component,
+        scripts,
         resolution,
         runes,
         store_conflicts: options.runes != Some(false),
@@ -112,26 +114,21 @@ pub(super) fn walk(
         entered: Vec::new(),
         next: Next::default(),
     };
-    let javascript = &component.javascript;
     let scoping = resolution.scoping();
-    for (section, script, scope) in [
-        (Section::Module, &component.module, scoping.root_scope_id()),
-        (
-            Section::Instance,
-            &component.instance,
-            resolution.instance_scope(),
-        ),
-    ] {
-        if let Some(script) = script {
-            walk.section = section;
-            walk.program = Some(scope);
-            walk.place = TOP;
-            walk.visit_program(javascript.get_program(script.program));
-        }
+    for (section, script) in scripts.sections() {
+        walk.section = section;
+        walk.program = Some(match section {
+            Section::Instance => resolution.instance_scope(),
+            _ => scoping.root_scope_id(),
+        });
+        walk.place = TOP;
+        walk.visit_program(scripts.javascript.get_program(script.program));
     }
-    walk.section = Section::Template;
-    walk.program = None;
-    crate::resolve::walk(compiler_syntax_tree, compiler_syntax_tree.root, &mut walk);
+    if let Some(template) = template {
+        walk.section = Section::Template;
+        walk.program = None;
+        crate::resolve::walk(template, template.root, &mut walk);
+    }
     let mut conflicts = std::mem::take(&mut walk.conflicts);
     conflicts.sort_by_key(|&(order, _)| order);
     for (_, conflict) in conflicts {
@@ -304,11 +301,10 @@ impl Walk<'_> {
 
     /// The import declarations of both scripts.
     fn imports(&self) -> impl Iterator<Item = &oxc_ast::ast::ImportDeclaration<'_>> {
-        let javascript = &self.component.javascript;
-        [&self.component.module, &self.component.instance]
-            .into_iter()
-            .flatten()
-            .flat_map(move |script| &javascript.get_program(script.program).body)
+        let javascript = self.scripts.javascript;
+        self.scripts
+            .sections()
+            .flat_map(move |(_, script)| &javascript.get_program(script.program).body)
             .filter_map(|statement| match statement {
                 Statement::ImportDeclaration(import) => Some(&**import),
                 _ => None,
@@ -351,13 +347,20 @@ impl<'a> Visit<'a> for Walk<'_> {
             },
             AstKind::Function(_) | AstKind::ArrowFunctionExpression(_) => {
                 inner.function = true;
+                inner.functions += 1;
                 inner.depth += 1;
                 // Upstream looks for an enclosing `$state(…)` only up to the nearest function.
                 inner.state_argument = false;
             }
             AstKind::Class(class) if class.r#type == ClassType::ClassDeclaration => {
-                // The module allows a class at its top level, a component at the instance's.
-                if place.function || self.section == Section::Template {
+                // A component's module allows a class at its top level, a component at the
+                // instance's, and a module file in its top-level functions too.
+                let nested = if self.scripts.file {
+                    place.functions > 1
+                } else {
+                    place.function || self.section == Section::Template
+                };
+                if nested {
                     self.warn(
                         at.start,
                         warning(
@@ -480,7 +483,7 @@ impl<'a> Visit<'a> for Walk<'_> {
 impl Roots for Walk<'_> {
     fn expression(&mut self, expression: ExpressionIdentifier) {
         self.place = TOP;
-        self.visit_expression(self.component.javascript.get_expression(expression));
+        self.visit_expression(self.scripts.javascript.get_expression(expression));
     }
 
     fn bound(&mut self, expression: ExpressionIdentifier) {
@@ -488,7 +491,7 @@ impl Roots for Walk<'_> {
     }
 
     fn declaration(&mut self, declaration: DeclarationIdentifier) {
-        let declaration = self.component.javascript.get_declaration(declaration);
+        let declaration = self.scripts.javascript.get_declaration(declaration);
         // The scope of the bindings a template's `{let …}` or `{@const}` tag declares.
         self.declaration_scope = declaration
             .declarations
@@ -503,12 +506,12 @@ impl Roots for Walk<'_> {
 
     fn pattern(&mut self, pattern: PatternIdentifier) {
         self.place = TOP;
-        self.visit_formal_parameter(self.component.javascript.get_pattern(pattern));
+        self.visit_formal_parameter(self.scripts.javascript.get_pattern(pattern));
     }
 
     fn parameters(&mut self, parameters: ParametersIdentifier) {
         self.place = TOP;
-        self.visit_formal_parameters(self.component.javascript.get_parameters(parameters));
+        self.visit_formal_parameters(self.scripts.javascript.get_parameters(parameters));
     }
 
     fn name(&mut self, _: TemplateName) {}
