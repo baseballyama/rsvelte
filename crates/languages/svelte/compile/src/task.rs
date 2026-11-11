@@ -75,7 +75,8 @@ impl Task for Compile {
             Ok(compiled) => match context.get::<crate::warnings::Warned>() {
                 Ok(shown) => {
                     out.file("js", compiled.javascript.out);
-                    if let Some(stylesheet) = compiled.stylesheet {
+                    // An empty stylesheet is no file, as the official output writes none.
+                    if let Some(stylesheet) = compiled.stylesheet.filter(|s| !s.is_empty()) {
                         out.file("css", stylesheet.to_owned());
                     }
                     out.diagnostics.extend(shown.iter().cloned());
