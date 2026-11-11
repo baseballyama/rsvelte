@@ -43,4 +43,6 @@
     }
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const EachStoreDestructured__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type EachStoreDestructured__SvelteComponent_ = ReturnType<typeof EachStoreDestructured__SvelteComponent_>;
+export default EachStoreDestructured__SvelteComponent_;

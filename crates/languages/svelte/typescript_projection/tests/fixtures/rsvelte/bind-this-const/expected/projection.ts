@@ -27,4 +27,6 @@
     }
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const BindThisConst__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type BindThisConst__SvelteComponent_ = ReturnType<typeof BindThisConst__SvelteComponent_>;
+export default BindThisConst__SvelteComponent_;

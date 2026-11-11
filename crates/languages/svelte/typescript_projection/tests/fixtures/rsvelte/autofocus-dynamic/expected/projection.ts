@@ -46,4 +46,6 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
     });
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const AutofocusDynamic__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type AutofocusDynamic__SvelteComponent_ = ReturnType<typeof AutofocusDynamic__SvelteComponent_>;
+export default AutofocusDynamic__SvelteComponent_;

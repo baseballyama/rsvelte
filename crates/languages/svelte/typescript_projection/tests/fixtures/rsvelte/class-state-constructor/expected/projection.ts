@@ -30,4 +30,6 @@
     (c.p);
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const ClassStateConstructor__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type ClassStateConstructor__SvelteComponent_ = ReturnType<typeof ClassStateConstructor__SvelteComponent_>;
+export default ClassStateConstructor__SvelteComponent_;

@@ -32,4 +32,6 @@
     (foo);
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const VarStateReads__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type VarStateReads__SvelteComponent_ = ReturnType<typeof VarStateReads__SvelteComponent_>;
+export default VarStateReads__SvelteComponent_;

@@ -13,4 +13,6 @@
     }
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const CssGlobalChildParent__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type CssGlobalChildParent__SvelteComponent_ = ReturnType<typeof CssGlobalChildParent__SvelteComponent_>;
+export default CssGlobalChildParent__SvelteComponent_;

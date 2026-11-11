@@ -12,4 +12,6 @@
     (copy.f);
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const StateSnapshotIgnored__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type StateSnapshotIgnored__SvelteComponent_ = ReturnType<typeof StateSnapshotIgnored__SvelteComponent_>;
+export default StateSnapshotIgnored__SvelteComponent_;

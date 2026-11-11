@@ -40,4 +40,6 @@
     d = svelteHTML.createElement("div", {});
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const BindDerived__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type BindDerived__SvelteComponent_ = ReturnType<typeof BindDerived__SvelteComponent_>;
+export default BindDerived__SvelteComponent_;

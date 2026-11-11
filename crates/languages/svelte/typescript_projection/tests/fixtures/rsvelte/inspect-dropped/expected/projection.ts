@@ -20,4 +20,6 @@
     (f());
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const InspectDropped__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type InspectDropped__SvelteComponent_ = ReturnType<typeof InspectDropped__SvelteComponent_>;
+export default InspectDropped__SvelteComponent_;

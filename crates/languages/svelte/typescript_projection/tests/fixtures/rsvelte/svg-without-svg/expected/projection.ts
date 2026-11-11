@@ -54,4 +54,6 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
     });
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const SvgWithoutSvg__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type SvgWithoutSvg__SvelteComponent_ = ReturnType<typeof SvgWithoutSvg__SvelteComponent_>;
+export default SvgWithoutSvg__SvelteComponent_;

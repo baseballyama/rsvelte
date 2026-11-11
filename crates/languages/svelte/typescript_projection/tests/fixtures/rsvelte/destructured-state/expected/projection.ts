@@ -36,4 +36,6 @@
     (g);
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const DestructuredState__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type DestructuredState__SvelteComponent_ = ReturnType<typeof DestructuredState__SvelteComponent_>;
+export default DestructuredState__SvelteComponent_;

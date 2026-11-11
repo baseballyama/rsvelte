@@ -20,4 +20,6 @@
     (pending);
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const ServerRuneDeclarators__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type ServerRuneDeclarators__SvelteComponent_ = ReturnType<typeof ServerRuneDeclarators__SvelteComponent_>;
+export default ServerRuneDeclarators__SvelteComponent_;

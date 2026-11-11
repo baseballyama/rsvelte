@@ -21,6 +21,8 @@
     }
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {
+const AssignmentPatternArrayNames__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {
   swap: typeof swap;
 }, "">();
+type AssignmentPatternArrayNames__SvelteComponent_ = ReturnType<typeof AssignmentPatternArrayNames__SvelteComponent_>;
+export default AssignmentPatternArrayNames__SvelteComponent_;

@@ -31,4 +31,6 @@ const __rsvelte_public_props0 = __rsvelte_props({
     g = __rsvelte_untyped_prop();
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const GroupBesideChecked__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type GroupBesideChecked__SvelteComponent_ = ReturnType<typeof GroupBesideChecked__SvelteComponent_>;
+export default GroupBesideChecked__SvelteComponent_;

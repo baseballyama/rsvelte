@@ -69,4 +69,6 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
     });
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "p">();
+const Textarea__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "p">();
+type Textarea__SvelteComponent_ = ReturnType<typeof Textarea__SvelteComponent_>;
+export default Textarea__SvelteComponent_;

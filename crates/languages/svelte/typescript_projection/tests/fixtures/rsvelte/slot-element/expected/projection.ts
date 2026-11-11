@@ -43,4 +43,6 @@ const __rsvelte_public_props0 = __rsvelte_props({
     });
   }
 };
-export default __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">();
+const SlotElement__SvelteComponent_ = __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">();
+type SlotElement__SvelteComponent_ = ReturnType<typeof SlotElement__SvelteComponent_>;
+export default SlotElement__SvelteComponent_;

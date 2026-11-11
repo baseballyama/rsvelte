@@ -24,4 +24,6 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
     (p);
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const ExportSpecifiersUnwritten__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type ExportSpecifiersUnwritten__SvelteComponent_ = ReturnType<typeof ExportSpecifiersUnwritten__SvelteComponent_>;
+export default ExportSpecifiersUnwritten__SvelteComponent_;

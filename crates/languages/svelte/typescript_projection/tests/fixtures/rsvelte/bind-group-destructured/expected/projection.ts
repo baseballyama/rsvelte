@@ -29,4 +29,6 @@
     }
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const BindGroupDestructured__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type BindGroupDestructured__SvelteComponent_ = ReturnType<typeof BindGroupDestructured__SvelteComponent_>;
+export default BindGroupDestructured__SvelteComponent_;

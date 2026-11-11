@@ -29,4 +29,6 @@ let x = $state(1);
     }
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const TemplateElement__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type TemplateElement__SvelteComponent_ = ReturnType<typeof TemplateElement__SvelteComponent_>;
+export default TemplateElement__SvelteComponent_;

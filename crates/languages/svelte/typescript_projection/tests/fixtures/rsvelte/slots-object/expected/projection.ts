@@ -28,4 +28,6 @@ const __rsvelte_public_props0 = __rsvelte_props({
     __rsvelte_slots()("default", {});
   }
 };
-export default __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">();
+const SlotsObject__SvelteComponent_ = __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">();
+type SlotsObject__SvelteComponent_ = ReturnType<typeof SlotsObject__SvelteComponent_>;
+export default SlotsObject__SvelteComponent_;

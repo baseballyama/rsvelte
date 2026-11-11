@@ -30,6 +30,8 @@ const __rsvelte_public_props0 = __rsvelte_props({
     (a);
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {
+const ExportSpecifiers__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {
   z: typeof z;
 }, "">();
+type ExportSpecifiers__SvelteComponent_ = ReturnType<typeof ExportSpecifiers__SvelteComponent_>;
+export default ExportSpecifiers__SvelteComponent_;

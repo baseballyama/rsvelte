@@ -22,4 +22,6 @@
     (copy().length);
   }
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const EffectRootSnapshot__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type EffectRootSnapshot__SvelteComponent_ = ReturnType<typeof EffectRootSnapshot__SvelteComponent_>;
+export default EffectRootSnapshot__SvelteComponent_;

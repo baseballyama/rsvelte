@@ -26,4 +26,6 @@ const __rsvelte_public_props0 = __rsvelte_props({
     }
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const ConstDestructure__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type ConstDestructure__SvelteComponent_ = ReturnType<typeof ConstDestructure__SvelteComponent_>;
+export default ConstDestructure__SvelteComponent_;

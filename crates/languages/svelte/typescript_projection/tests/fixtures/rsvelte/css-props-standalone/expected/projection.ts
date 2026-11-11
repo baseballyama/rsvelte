@@ -44,4 +44,6 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
     }
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const CssPropsStandalone__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type CssPropsStandalone__SvelteComponent_ = ReturnType<typeof CssPropsStandalone__SvelteComponent_>;
+export default CssPropsStandalone__SvelteComponent_;

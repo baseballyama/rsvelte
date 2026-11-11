@@ -32,4 +32,6 @@
 
 ;
 
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const ClassStatePrivate__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type ClassStatePrivate__SvelteComponent_ = ReturnType<typeof ClassStatePrivate__SvelteComponent_>;
+export default ClassStatePrivate__SvelteComponent_;

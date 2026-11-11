@@ -33,4 +33,6 @@ const __rsvelte_public_props0 = __rsvelte_props({
     }
   }
 };
-export default __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+const ConstBesideSnippet__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+type ConstBesideSnippet__SvelteComponent_ = ReturnType<typeof ConstBesideSnippet__SvelteComponent_>;
+export default ConstBesideSnippet__SvelteComponent_;

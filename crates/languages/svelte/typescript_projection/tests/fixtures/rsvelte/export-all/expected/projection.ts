@@ -11,4 +11,6 @@
   (y);
   (x);
 };
-export default __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+const ExportAll__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+type ExportAll__SvelteComponent_ = ReturnType<typeof ExportAll__SvelteComponent_>;
+export default ExportAll__SvelteComponent_;
