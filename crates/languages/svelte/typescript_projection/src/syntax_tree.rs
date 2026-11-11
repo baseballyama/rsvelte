@@ -44,6 +44,21 @@ pub enum Node {
         value: NodeIdentifier,
     },
     ExportDefault(NodeIdentifier),
+    /// svelte2tsx's `$$render` of a generic component: the instance script and the template in a
+    /// function of the type parameters, which returns the contract.
+    Render {
+        /// The type parameters without their angle brackets.
+        type_parameters: Span,
+        body: Range,
+    },
+    Return(NodeIdentifier),
+    /// The default export of a generic component, whose call signature takes its type
+    /// parameters, as svelte2tsx's `$$IsomorphicComponent`.
+    GenericExport {
+        type_parameters: Span,
+        /// The parameters' names, which instantiate the render function.
+        names: Range,
+    },
     Expression(SourceExpression),
     Statement(NodeIdentifier),
     Identifier(&'static str),

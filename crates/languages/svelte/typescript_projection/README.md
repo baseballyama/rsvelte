@@ -69,10 +69,12 @@ return their original source range.
   instance; module exports keep their module meaning. A component without props rejects arbitrary property names.
 - The default export also names the instance's type, as svelte2tsx does, so an import can
   annotate a variable with the component.
+- A generic component renders in svelte2tsx's `$$render` function of its `generics`, after its
+  imports. Its default export has a call signature that takes them.
 
 Still unsupported:
 
-- Generic component contracts and untyped whole-object `$props()` bindings
+- Whole-object `$props()` bindings without a type, and type exports of a generic component
 - Component children, `let:` on an element in a named slot, `class:` and `{@attach}` on
   components, and the check that a component's prop is bindable
 

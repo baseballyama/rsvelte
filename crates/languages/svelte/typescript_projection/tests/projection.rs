@@ -459,3 +459,23 @@ fn a_one_way_binding_asserts_the_assigned_value() {
         output.out
     );
 }
+
+#[test]
+fn a_generic_component_renders_in_a_function_of_its_type_parameters() {
+    let source = "<script lang=\"ts\" generics=\"T extends string\">\
+                  import type { Snippet } from 'svelte';\
+                  let { item, row }: { item: T; row: Snippet<[T]> } = $props();\
+                  </script>{@render row(item)}";
+    let (_, output) = project(source);
+    let out = &output.out;
+    let at = |needle: &str| {
+        out.find(needle)
+            .unwrap_or_else(|| panic!("{needle}: {out}"))
+    };
+    assert!(at("import type { Snippet }") < at("function $$render<T extends string>() {"));
+    assert!(at("row(item)") < at("return __rsvelte_export_generic<"));
+    assert!(
+        out.contains("type $$Component<T extends string> = "),
+        "{out}"
+    );
+}

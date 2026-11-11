@@ -4,6 +4,7 @@ mod call;
 mod children;
 mod contract;
 mod directive;
+mod generic;
 mod tag;
 
 use oxc_ast::ast::Expression;
@@ -55,7 +56,7 @@ pub fn lower<'a>(
             builder.root_snippets = Some(builder.tree.push(Node::Statements(snippets)));
         }
     }
-    let contract = builder.scripts()?;
+    let (contract, generics) = builder.scripts()?;
     let start = builder.scratch.len();
     if instance {
         builder.append_matching(component.root, false)?;
@@ -73,7 +74,10 @@ pub fn lower<'a>(
             .scratch
             .push(builder.tree.push(Node::Statement(value)));
     }
-    builder.scratch.push(contract);
+    match generics {
+        Some(generics) => builder.render(contract, generics),
+        None => builder.scratch.push(contract),
+    }
     builder.tree.root = builder.finish_list(0);
     Ok(builder.tree)
 }

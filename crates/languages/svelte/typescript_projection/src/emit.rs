@@ -285,6 +285,25 @@ impl Printer<'_> {
                 self.node(value);
                 self.output.push(";\n");
             }
+            Node::Render {
+                type_parameters,
+                body,
+            } => {
+                self.output.push("function $$render<");
+                self.output.copy(self.source, type_parameters);
+                self.output.push(">() {\n");
+                self.body(body);
+                self.output.push("}\n");
+            }
+            Node::Return(value) => {
+                self.output.push("return ");
+                self.node(value);
+                self.output.push(";\n");
+            }
+            Node::GenericExport {
+                type_parameters,
+                names,
+            } => self.generic_export(type_parameters, names),
             Node::ExportDefault(value) => {
                 // svelte2tsx's runes component: a type of the same name lets an import name the
                 // instance's type.
@@ -302,6 +321,58 @@ impl Printer<'_> {
             }
             _ => unreachable!("ordinary nodes are printed by node"),
         }
+    }
+
+    /// svelte2tsx's `__sveltets_Render` and `$$IsomorphicComponent`: the component of the render
+    /// function's contract for each instantiation.
+    fn generic_export(&mut self, type_parameters: Span, names: Range) {
+        // The ignore comments cover one line each.
+        let parameters = type_parameters.text(self.source).replace(['\r', '\n'], " ");
+        let parameters = parameters.as_str();
+        let mut arguments = String::new();
+        for (i, &name) in self.tree.children(names).iter().enumerate() {
+            if i > 0 {
+                arguments.push_str(", ");
+            }
+            if let Node::UnmappedSource(name) = self.tree.node(name) {
+                arguments.push_str(name.text(self.source));
+            }
+        }
+        let arguments = arguments.as_str();
+        for part in [
+            // Each declaration is one line whose findings TypeScript drops, as svelte-check drops
+            // those of svelte2tsx's copies of the generics, which map to no source.
+            "// @ts-ignore\nclass __rsvelte_Render<",
+            parameters,
+            "> { props(): Parameters<ReturnType<typeof $$render<",
+            arguments,
+            ">>>[1] { return null as any; } exports(): ReturnType<ReturnType<typeof $$render<",
+            arguments,
+            ">>> { return null as any; } }\n// @ts-ignore\ninterface __rsvelte_generic_component { <",
+            parameters,
+            ">(internals: Parameters<import('svelte').Component>[0], props: ReturnType<__rsvelte_Render<",
+            arguments,
+            ">['props']>): ReturnType<__rsvelte_Render<",
+            arguments,
+            ">['exports']>; element?: typeof HTMLElement; z_$$bindings?: any; }\nconst ",
+        ] {
+            self.output.push(part);
+        }
+        self.component_name();
+        self.output
+            .push(": __rsvelte_generic_component = null as any;\n// @ts-ignore\ntype ");
+        self.component_name();
+        for part in [
+            "<",
+            parameters,
+            "> = ReturnType<__rsvelte_Render<",
+            arguments,
+            ">['exports']>;\nexport default ",
+        ] {
+            self.output.push(part);
+        }
+        self.component_name();
+        self.output.push(";\n");
     }
 
     fn component_name(&mut self) {
