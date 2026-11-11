@@ -143,8 +143,9 @@ impl Printer<'_> {
                 self.node(value);
                 self.output.push(",\n");
             }
-            Node::Spread(value) => {
-                self.output.push("...(");
+            Node::Spread { value, dots } => {
+                self.output.atom("...", dots);
+                self.output.push("(");
                 self.node(value);
                 self.output.push("),\n");
             }
