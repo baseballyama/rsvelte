@@ -49,6 +49,9 @@ pub(super) fn prepare<'c, 'o>(
         res,
         template: None,
         shadows: None,
+        stores: &facts.validated.stores,
+        untracked: None,
+        invalidates: None,
     };
     if let Some(program) = input.component.module {
         let statements = script::lower_script(

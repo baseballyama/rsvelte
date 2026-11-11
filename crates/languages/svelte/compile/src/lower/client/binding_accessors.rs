@@ -78,6 +78,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .javascript
             .get_expression(expression)
             .get_inner_expression();
+        if let Some(store) = self.rewriter(true).store_binding(source) {
+            return store;
+        }
         if let Expression::Identifier(identifier) = source {
             let target = b.id(&identifier.name);
             match self.res.symbol(identifier) {
@@ -93,7 +96,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
         } else {
             let target = self.expression_with_rest_reads(expression, false);
-            let mutation = b.assign_member(target, value);
+            let mut mutation = b.assign_member(target, value);
+            let object = source
+                .as_member_expression()
+                .map(oxc_ast::ast::MemberExpression::object);
+            if let Some(invalidate) = object.and_then(|o| self.rewriter(true).invalidation_of(o)) {
+                mutation = b.sequence([mutation, invalidate]);
+            }
             match mutated_bindable_prop(self.res, self.custom_element.is_some(), source) {
                 Some(prop) => b.call(b.id_at(&prop.name, prop.span), [mutation, b.boolean(true)]),
                 None => mutation,

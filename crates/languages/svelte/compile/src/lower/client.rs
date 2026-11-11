@@ -16,6 +16,7 @@ mod fragments;
 mod global_bindings;
 mod snippets;
 mod special;
+mod stores;
 mod template;
 mod template_chunk;
 mod title;
@@ -172,6 +173,11 @@ struct ClientCompilationContext<'c, 'o> {
     hoistable: &'c FxHashSet<SymbolId>,
     /// The snippets a component holds, read as the outer name each shadows.
     shadows: FxHashMap<SymbolId, SymbolId>,
+    /// The store subscriptions (`$name`), in the order upstream declares them.
+    stores: &'c [String],
+    /// The `{#each}` items of a store's collection, with the subscription a mutation of each
+    /// invalidates.
+    invalidates: FxHashMap<SymbolId, &'o str>,
 }
 
 pub(super) fn lower_prepared<'c, 'o>(
@@ -222,6 +228,8 @@ pub(super) fn lower_prepared<'c, 'o>(
         instance_snippets: Vec::new(),
         hoistable: &facts.validated.hoistable,
         shadows: super::snippets::component_child_shadows(input, res),
+        stores: &facts.validated.stores,
+        invalidates: FxHashMap::default(),
     };
     let template = context.fragment(input.component.compiler_syntax_tree.root)?;
 
@@ -318,6 +326,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if stylesheet {
             body.push(b.stmt(b.runtime("append_styles", [b.id("$$anchor"), b.id("$$css")])));
         }
+        let stores = self.store_setup();
+        let cleanup = !stores.is_empty();
+        body.extend(stores);
         body.append(&mut self.instance_snippets);
         body.extend(instance);
         if has_exports {
@@ -325,10 +336,18 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         }
         body.extend(template);
         if needs_context {
-            if has_exports {
+            if has_exports && cleanup {
+                body.push(b.var("$$pop", b.runtime("pop", [b.id("$$exports")])));
+            } else if has_exports {
                 body.push(b.return_(Some(b.runtime("pop", [b.id("$$exports")]))));
             } else {
                 body.push(b.stmt(b.runtime("pop", [])));
+            }
+        }
+        if cleanup {
+            body.push(b.stmt(b.call(b.id("$$cleanup"), [])));
+            if has_exports {
+                body.push(b.return_(Some(b.id("$$pop"))));
             }
         }
         let mut parameters = vec!["$$anchor"];

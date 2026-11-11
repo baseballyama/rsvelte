@@ -159,21 +159,23 @@ fn is_bindable(
         return false;
     };
     let member = !matches!(target, Expression::Identifier(_));
-    res.symbol(root)
-        .is_some_and(|symbol| match res.binding(symbol).kind {
-            BindingKind::State | BindingKind::RawState => true,
-            BindingKind::Each => member,
-            _ if !component => false,
-            BindingKind::Property | BindingKind::BindableProperty => true,
-            BindingKind::Normal => {
-                member
-                    || matches!(
-                        res.variable_kind(symbol),
-                        Some(VariableDeclarationKind::Let | VariableDeclarationKind::Var)
-                    )
-            }
-            _ => member,
-        })
+    let Some(symbol) = res.symbol(root) else {
+        return res.is_store_subscription(&root.name);
+    };
+    match res.binding(symbol).kind {
+        BindingKind::State | BindingKind::RawState => true,
+        BindingKind::Each => member,
+        _ if !component => false,
+        BindingKind::Property | BindingKind::BindableProperty => true,
+        BindingKind::Normal => {
+            member
+                || matches!(
+                    res.variable_kind(symbol),
+                    Some(VariableDeclarationKind::Let | VariableDeclarationKind::Var)
+                )
+        }
+        _ => member,
+    }
 }
 
 /// Upstream's `component_invalid_directive`, which the refusals below would hide.

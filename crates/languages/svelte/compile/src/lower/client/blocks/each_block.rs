@@ -95,6 +95,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         for symbol in bindings.iter() {
             self.reads.remove(&symbol);
+            self.invalidates.remove(&symbol);
         }
 
         let thunk = b.thunk(collection);
@@ -141,17 +142,19 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             let key = javascript.get_expression(k).get_inner_expression();
             matches!(key, Expression::Identifier(k) if k.name == context.name)
         });
-        if !key_is_item
-            && has_dependency(
-                self.res,
-                javascript
-                    .get_expression(each.collection)
-                    .get_inner_expression(),
-            )
-        {
+        // A store's items may be mutated in place, so they are read again.
+        let store = self
+            .an
+            .meta(each.collection)
+            .first_store_subscription
+            .is_some();
+        let collection = javascript.get_expression(each.collection);
+        if (!key_is_item || store) && has_dependency(self.res, collection.get_inner_expression()) {
             flags |= EACH_ITEM_REACTIVE;
         }
-        flags |= EACH_ITEM_IMMUTABLE;
+        if !store {
+            flags |= EACH_ITEM_IMMUTABLE;
+        }
         if each.key.is_some() && self.animated(each) {
             flags |= EACH_IS_ANIMATED;
         }
@@ -236,6 +239,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if let Some(symbol) = bindings.item {
             self.reads
                 .insert(symbol, Read::get_if(flags & EACH_ITEM_REACTIVE != 0));
+            if let Some(store) = self.an.meta(each.collection).first_store_subscription {
+                let span = self.res.reference_span(store);
+                self.invalidates.insert(
+                    symbol,
+                    &self.source_text[span.start as usize..span.end as usize],
+                );
+            }
         }
         if let Some(symbol) = bindings.index {
             self.reads
