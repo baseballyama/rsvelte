@@ -11,6 +11,7 @@ use crate::lower::BindingKind;
 use crate::lower::builder::Runtime;
 use crate::lower::custom_element::{CustomElement, Shadow, Tag, option_property};
 use crate::lower::javascript::prop_alias;
+use crate::lower::slot_element::slot_names;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn custom_element_stylesheet(
@@ -83,7 +84,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let javascript = self.javascript;
         let verbatim = |e: &Expression<'_>| e.clone_in(b.allocator());
         let props = b.object(self.custom_element_properties(ce.option(javascript, "props")));
-        let slots = b.array([]);
+        let names = slot_names(self.compiler_syntax_tree, self.source_text);
+        let slots = b.array(names.into_iter().map(|name| b.string(name)));
         let accessors = b.array(exports.iter().map(|export| b.string(export.alias)));
         let shadow = match &ce.shadow {
             Shadow::Open => Some(b.object([b.init("mode", b.string("open"))])),

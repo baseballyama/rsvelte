@@ -58,14 +58,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             &["$$anchor", "$$slotProps"],
         );
         let props = props_expression(b, parts, Target::Client);
-        statements.extend(memo.entries.into_iter().map(|m| {
-            let source = self
-                .javascript
-                .get_expression(m.source)
-                .get_inner_expression();
-            let thunk = callback(b, self.res, Some(source), m.value, Created::Template);
-            b.let_(&m.name, Some(b.runtime("derived", [thunk])))
-        }));
+        statements.extend(self.memo_deriveds(memo));
         let this = bind_this(tree.attributes(element.attributes), self.source_text);
         let instance = |call| match this {
             Some(target) => self.bind_this(target, call, false),
@@ -91,6 +84,19 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             b.block(statements)
         });
         Ok(())
+    }
+
+    /// Upstream `Memoizer.deriveds`: `let $0 = $.derived(() => value)` for each memoized value.
+    pub(super) fn memo_deriveds(&self, memo: Memo<'o>) -> impl Iterator<Item = Statement<'o>> {
+        let b = self.b;
+        memo.entries.into_iter().map(move |m| {
+            let source = self
+                .javascript
+                .get_expression(m.source)
+                .get_inner_expression();
+            let thunk = callback(b, self.res, Some(source), m.value, Created::Template);
+            b.let_(&m.name, Some(b.runtime("derived", [thunk])))
+        })
     }
 
     /// A prop as a property or a spread; memoized values become deriveds in `memo`.

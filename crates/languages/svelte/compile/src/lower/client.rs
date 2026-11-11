@@ -17,6 +17,7 @@ mod expressions;
 mod fragments;
 mod global_bindings;
 mod html_tag;
+mod slot_element;
 mod snippets;
 mod special;
 mod stores;
@@ -45,6 +46,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::names::Names;
 use super::script::{Read, ScriptRewrite};
+use super::slot_element::has_slot_element;
 use super::{
     Builder, Item, Prepared, Target, check_foreign_element, escape_markup, event_attribute,
     has_dependency, is_behaviour, is_custom_element_node, is_customizable_select, is_directive,
@@ -234,7 +236,8 @@ pub(super) fn lower_prepared<'c, 'o>(
         component_name,
         custom_element,
         rest_reads: &facts.validated.rest_reads,
-        needs_props: res.unresolved_names().any(|name| name == "$host"),
+        needs_props: res.unresolved_names().any(|name| name == "$host")
+            || has_slot_element(input.component.compiler_syntax_tree),
         snippets: Vec::new(),
         module_snippets: Vec::new(),
         instance_snippets: Vec::new(),

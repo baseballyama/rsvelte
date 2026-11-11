@@ -18,6 +18,7 @@ mod prepare;
 mod rest_reads;
 mod script;
 mod server;
+mod slot_element;
 mod snippets;
 mod special;
 mod stores;
