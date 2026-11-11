@@ -80,6 +80,12 @@ impl Evaluator<'_> {
                     Some(body) => self.eval_into(body, values),
                     None => add(values, Value::Unknown),
                 },
+                // A `$props.id()` binding is a `const`, so its identifier reaches here as well.
+                "$props.id" => add(values, Value::AnyString),
+                "$effect.tracking" => {
+                    add(values, Value::Boolean(false));
+                    add(values, Value::Boolean(true));
+                }
                 _ => add(values, Value::Unknown),
             }
             return;

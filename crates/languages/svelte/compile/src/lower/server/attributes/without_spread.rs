@@ -48,12 +48,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         for a in list {
             let raw_name = a.name.text(self.source_text);
             match a.value {
-                AttributeValue::Bind(_) if raw_name == "this" => {
-                    continue;
-                }
                 AttributeValue::Bind(_) => {
-                    let call = self.binding(a);
-                    template.push(Piece::Expression(call));
+                    if let Some(call) = self.binding(tag, list, a) {
+                        template.push(Piece::Expression(call));
+                    }
                     continue;
                 }
                 AttributeValue::Use { .. } => {

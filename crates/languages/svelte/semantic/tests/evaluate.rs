@@ -191,3 +191,14 @@ fn a_regular_expression_is_one_known_object_per_literal() {
         "NaN"
     );
 }
+
+#[test]
+fn props_id_is_some_string_and_effect_tracking_either_boolean() {
+    let id = evaluate("const uid = $props.id(); uid;");
+    assert_eq!(id.values, [Value::AnyString]);
+    assert!(id.is_string && id.is_defined && !id.is_known);
+    assert_eq!(
+        evaluate("$effect.tracking();").values,
+        [Value::Boolean(false), Value::Boolean(true)]
+    );
+}
