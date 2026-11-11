@@ -7,7 +7,7 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::Visit;
 use oxc_semantic::SymbolId;
-use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_semantic::resolve::{Resolution, TemplateScope};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
 use super::{
@@ -79,14 +79,22 @@ fn each_blocks<'t>(
     let mut at = tree.node(element).parent;
     while let Some(identifier) = at {
         if let NodeKind::Each(each) = &tree.node(identifier).kind {
-            let declared = [each.context, each.index]
-                .into_iter()
-                .flatten()
-                .filter_map(|p| javascript.get_pattern(p).pattern.get_binding_identifier())
-                .map(|b| b.name.as_str())
-                .collect::<Vec<_>>();
+            // Upstream's `metadata.declarations`: every name the block's scope declares, a
+            // destructured context's and its body's `{@const}`s too.
+            let scopes = [
+                TemplateScope::Each(identifier),
+                TemplateScope::Fragment(each.body),
+            ]
+            .map(|scope| res.template_scope(scope));
+            let scoping = res.scoping();
+            let declares = |name: &str| {
+                scopes
+                    .iter()
+                    .flatten()
+                    .any(|&scope| scoping.get_binding(scope, name.into()).is_some())
+            };
             let before = ids.len();
-            ids.retain(|(name, _)| !declared.contains(name));
+            ids.retain(|(name, _)| !declares(name));
             if ids.len() != before {
                 blocks.push(identifier);
                 ids.extend(identifiers(javascript, res, each.collection).1);
