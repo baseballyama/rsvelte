@@ -4,12 +4,14 @@ var root = $.from_html(`<p> </p>`);
 export default function Server_rune_declarators($$anchor) {
 	let items = $.proxy([{ a: 0 }]);
 	let start = $.snapshot(items);
+	let eager = $.eager(() => items);
+	let pending = $.eager($.pending);
 	function f() {
 		const copy = $.snapshot(items);
 		return copy;
 	}
 	var p = root();
 	var text = $.only_child(p);
-	$.template_effect(($0, $1) => $.set_text(text, `${$0 ?? ""} ${$1 ?? ""}`), [() => JSON.stringify(start), () => f()]);
+	$.template_effect(($0, $1) => $.set_text(text, `${$0 ?? ""} ${$1 ?? ""} ${eager ?? ""} ${pending ?? ""}`), [() => JSON.stringify(start), () => f()]);
 	$.append($$anchor, p);
 }

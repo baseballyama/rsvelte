@@ -23,12 +23,11 @@ pub(super) fn lower_value_declarator<'o>(
     let Some((rune, argument)) = rw.res.rune(init.get_inner_expression()) else {
         return false;
     };
-    // Upstream's server declares a binding to any other rune's value as its argument.
+    // Upstream's server declares these as their argument, which is what the server reads anyway;
+    // its `$state.snapshot` (an alias, not a copy) and `$effect.pending` (`undefined`, not `0`)
+    // there are bugs this port does not repeat.
     if rw.target == Target::Server
-        && matches!(
-            rune,
-            "$state.snapshot" | "$state.eager" | "$effect.pending" | "$host"
-        )
+        && matches!(rune, "$state.eager" | "$host")
         && d.id.is_binding_identifier()
     {
         let mut value = rune_argument(rw, d);
