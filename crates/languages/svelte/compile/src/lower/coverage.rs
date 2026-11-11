@@ -36,6 +36,15 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             | NodeKind::Await(_)
             | NodeKind::Each(_)
             | NodeKind::Render { .. } => None,
+            // Upstream renders `<select>` and `<option>` content apart, which is not lowered.
+            NodeKind::Declaration { .. } => node.parent.and_then(|p| match &tree.node(p).kind {
+                NodeKind::Element(el)
+                    if matches!(el.name.text(source), "select" | "option" | "optgroup") =>
+                {
+                    Some("a declaration tag in `<select>` or `<option>`")
+                }
+                _ => None,
+            }),
             // Upstream passes a `svelte-ignore hydration_html_changed` on to `$.html`.
             NodeKind::Html { .. } => ignores_html_changes.then_some("an ignored `{@html}` change"),
             // Upstream's `slot_snippet_conflict`.
@@ -58,7 +67,6 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             }
             &NodeKind::Const { declaration } => const_tag(input, res, declaration),
             NodeKind::Debug { .. } => Some("a `{@debug}` tag"),
-            NodeKind::Declaration { .. } => Some("a declaration tag"),
         };
         if let Some(what) = what {
             return unsupported(what, node.span);

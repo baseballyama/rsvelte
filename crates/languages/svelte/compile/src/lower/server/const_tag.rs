@@ -1,6 +1,18 @@
+use rsvelte_typescript_tree::DeclarationIdentifier;
+
+use crate::lower::script;
 use crate::lower::server::{CompilerNodeIdentifier, NodeKind, ServerCompilationContext};
 
-impl ServerCompilationContext<'_, '_> {
+impl<'o> ServerCompilationContext<'_, 'o> {
+    /// Upstream `DeclarationTag` (server): declared with the fragment's `{@const}`s.
+    pub(super) fn declaration_tag(
+        &self,
+        declaration: DeclarationIdentifier,
+    ) -> Vec<oxc_ast::ast::Statement<'o>> {
+        let declaration = self.javascript.get_declaration(declaration);
+        script::lower_declaration_tag(&mut self.rewrite(), declaration, &self.names)
+    }
+
     /// Upstream `ConstTag` (server): `const x = init`, declared before the fragment's markup.
     pub(super) fn const_tag(&mut self, identifier: CompilerNodeIdentifier) {
         let b = self.b;

@@ -2,14 +2,13 @@
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    AssignmentOperator, AssignmentTarget, BindingPattern, Expression, ForStatementLeft,
-    MemberExpression, MethodDefinitionKind, Statement, VariableDeclaration, VariableDeclarator,
+    AssignmentTarget, BindingPattern, Expression, ForStatementLeft, MemberExpression,
+    MethodDefinitionKind, Statement, VariableDeclaration, VariableDeclarator,
 };
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 use rsvelte_kernel::performance::stack::grow;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, NodeKind};
-use rsvelte_typescript_compile::strip::is_type_only;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rustc_hash::FxHashMap;
 
@@ -17,8 +16,10 @@ use crate::lower::{CompileInput, Diagnostic, Resolution, Span, Target, span_of};
 
 mod assignments;
 mod calls;
+mod places;
 
 use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
+use places::place_of;
 
 use super::state_invalid_placement;
 use crate::lower::class_fields::{ClassFields, StateField, class_fields, key_name, member_name};
@@ -55,6 +56,11 @@ enum Parent {
     Body(Body),
     BodyStatement(Body, bool),
     Statement(Option<(Body, bool)>),
+    /// An expression statement that is a loop's or an `if`'s whole body, and its expression.
+    LoneStatement,
+    LoneExpression,
+    /// The callee of an `$inspect(…).with(…)` statement, whose `$inspect(…)` stands in it.
+    InspectWith(Option<(Body, bool)>),
     /// The value of a class field that is neither static nor computed.
     ClassField,
     /// The value of `this.x = …`, a statement of a constructor's body.
@@ -428,141 +434,6 @@ impl<'a> RuneWalk<'a> {
         left.as_assignment_target().map_or(Ok(()), |target| {
             self.check_pattern_assignment(span, target, Target::Client)
         })
-    }
-}
-
-/// Where `kind`, a child of `frame`, sits.
-fn place_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Place {
-    let place = frame.place;
-    // Upstream's tree has no parentheses, and no type wrappers once types are erased.
-    if matches!(
-        frame.kind,
-        AstKind::ParenthesizedExpression(_)
-            | AstKind::TSAsExpression(_)
-            | AstKind::TSSatisfiesExpression(_)
-            | AstKind::TSNonNullExpression(_)
-            | AstKind::TSTypeAssertion(_)
-            | AstKind::TSInstantiationExpression(_)
-    ) {
-        return place;
-    }
-    Place {
-        parent: parent_of(frame, kind),
-        module: place.module,
-        // A class's heritage and computed keys run where the class is defined.
-        rendering: place.rendering
-            && !matches!(
-                frame.kind,
-                AstKind::Function(_) | AstKind::ArrowFunctionExpression(_)
-            ),
-    }
-}
-
-/// Where `kind`, a child of `frame`, sits, given where `frame` sits.
-fn parent_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Parent {
-    let parent = frame.place.parent;
-    let is = |span: oxc_span::Span| kind.span() == span;
-    match (frame.kind, parent) {
-        (AstKind::Program(_), _) if !frame.place.module => Parent::InstanceBody,
-        (AstKind::Program(_), _) => Parent::ModuleBody,
-        (AstKind::VariableDeclaration(_), Parent::InstanceBody | Parent::ModuleBody) => {
-            Parent::TopDeclarator
-        }
-        // Upstream asks for the instance scope, which an `export` does not leave.
-        (
-            AstKind::ExportDeclaration(_) | AstKind::ExportNamedDeclaration(_),
-            Parent::InstanceBody | Parent::ModuleBody,
-        ) => parent,
-        (AstKind::VariableDeclarator(d), _) if d.init.as_ref().is_some_and(|i| is(i.span())) => {
-            Parent::Initializer {
-                top: parent == Parent::TopDeclarator,
-                named: matches!(d.id, BindingPattern::BindingIdentifier(_)),
-                rune: frame.rune,
-            }
-        }
-        (AstKind::VariableDeclarator(_), _) if frame.rune == Some("$props") => Parent::Props,
-        (AstKind::ObjectPattern(_), Parent::Props) => Parent::PropsProperty,
-        // A shorthand's key spans its value too, and is a name.
-        (AstKind::BindingProperty(p), Parent::PropsProperty)
-            if is(p.value.span()) && !matches!(kind, AstKind::IdentifierName(_)) =>
-        {
-            Parent::PropsValue
-        }
-        (AstKind::AssignmentPattern(p), Parent::PropsValue) if is(p.right.span()) => {
-            Parent::PropsDefault
-        }
-        (AstKind::MethodDefinition(m), _) if m.kind == MethodDefinitionKind::Constructor => {
-            Parent::Constructor
-        }
-        (AstKind::Function(f), _) if matches!(kind, AstKind::FunctionBody(_)) => {
-            Parent::Body(Body {
-                constructor: parent == Parent::Constructor,
-                generator: f.generator,
-            })
-        }
-        (AstKind::ArrowFunctionExpression(_), _) if matches!(kind, AstKind::FunctionBody(_)) => {
-            Parent::Body(Body {
-                constructor: false,
-                generator: false,
-            })
-        }
-        (AstKind::FunctionBody(body), Parent::Body(function)) => {
-            // Upstream's body starts with its directives, and has no statement types erase.
-            let first = body.directives.is_empty()
-                && (body.statements.iter())
-                    .find(|s| !is_type_only(s))
-                    .is_some_and(|s| is(s.span()));
-            Parent::BodyStatement(function, first)
-        }
-        (AstKind::ExpressionStatement(_), Parent::BodyStatement(body, first)) => {
-            Parent::Statement(Some((body, first)))
-        }
-        (AstKind::ExpressionStatement(_), _) => Parent::Statement(None),
-        (
-            AstKind::AssignmentExpression(assign),
-            Parent::Statement(Some((
-                Body {
-                    constructor: true, ..
-                },
-                _,
-            ))),
-        ) if assign.operator == AssignmentOperator::Assign
-            && is(assign.right.span())
-            && assigns_this_property(&assign.left) =>
-        {
-            Parent::ConstructorAssignment
-        }
-        (AstKind::PropertyDefinition(p), _)
-            if !p.computed && !p.r#static && p.value.as_ref().is_some_and(|v| is(v.span())) =>
-        {
-            Parent::ClassField
-        }
-        _ => Parent::Other,
-    }
-}
-
-/// Upstream's `this.x`, `this.#x` or `this[<literal>]`.
-fn assigns_this_property(target: &AssignmentTarget<'_>) -> bool {
-    match target {
-        AssignmentTarget::StaticMemberExpression(m) => {
-            matches!(m.object, Expression::ThisExpression(_))
-        }
-        AssignmentTarget::PrivateFieldExpression(m) => {
-            matches!(m.object, Expression::ThisExpression(_))
-        }
-        AssignmentTarget::ComputedMemberExpression(m) => {
-            matches!(m.object, Expression::ThisExpression(_))
-                && matches!(
-                    m.expression,
-                    Expression::StringLiteral(_)
-                        | Expression::NumericLiteral(_)
-                        | Expression::BooleanLiteral(_)
-                        | Expression::NullLiteral(_)
-                        | Expression::RegExpLiteral(_)
-                        | Expression::BigIntLiteral(_)
-                )
-        }
-        _ => false,
     }
 }
 

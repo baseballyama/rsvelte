@@ -7,6 +7,7 @@ mod classes;
 mod declarators;
 mod exports;
 mod props;
+mod statements;
 mod stores;
 mod writes;
 
@@ -26,6 +27,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_compile::strip::is_type_only;
 use rustc_hash::{FxHashMap, FxHashSet};
+use statements::{Inspect, inspect, is_effect};
 
 use super::javascript::member_root;
 use super::names::Names;
@@ -303,8 +305,7 @@ impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
 
     // esrap prints no empty statement in a block or program body.
     fn visit_statements(&mut self, it: &mut ArenaVec<'o, Statement<'o>>) {
-        walk_mut::walk_statements(self, it);
-        it.retain(|s| !matches!(s, Statement::EmptyStatement(_)));
+        self.statement_list(it, true);
     }
 
     // A `switch` case keeps its empty statements.
@@ -312,14 +313,14 @@ impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
         if let Some(test) = &mut it.test {
             self.visit_expression(test);
         }
-        for statement in &mut it.consequent {
-            self.visit_statement(statement);
-        }
+        self.statement_list(&mut it.consequent, false);
     }
 
     fn visit_statement(&mut self, it: &mut Statement<'o>) {
         // Upstream server `ExpressionStatement`: an effect renders nothing.
-        if self.target == Target::Server && is_effect(self.res, it) {
+        if self.target == Target::Server && is_effect(self.res, it)
+            || inspect(self.res, it) == Some(Inspect::Trace)
+        {
             *it = Statement::new_empty_statement(oxc_span::GetSpan::span(it), self.b);
             return;
         }
@@ -378,12 +379,6 @@ pub(super) fn bindable_root<'e>(
     (res.binding(symbol).kind == BindingKind::BindableProperty
         && is_prop_source(res, accessors, symbol))
     .then_some(root)
-}
-
-/// Upstream server `ExpressionStatement`: an effect statement renders nothing.
-fn is_effect(res: &Resolution, statement: &Statement<'_>) -> bool {
-    matches!(statement, Statement::ExpressionStatement(s)
-        if res.rune(&s.expression).is_some_and(|(r, _)| matches!(r, "$effect" | "$effect.pre" | "$effect.root")))
 }
 
 /// Upstream `should_proxy` on a value it has already visited, where a prop's name has become a
@@ -519,10 +514,29 @@ pub(super) fn lower_script<'t, 'o>(
             // Upstream server `ExpressionStatement`: an effect renders nothing.
             Statement::EmptyStatement(_) => {}
             _ if rw.target == Target::Server && is_effect(rw.res, statement) => {}
+            _ if let Some(inspect) = inspect(rw.res, statement) => {
+                if inspect == Inspect::Value {
+                    let span = oxc_span::GetSpan::span(statement);
+                    let empty = || Statement::new_empty_statement(span, rw.b);
+                    out.extend([empty(), empty()]);
+                }
+            }
             _ => out.push(rw.statement(statement)),
         }
     }
     Ok(out)
+}
+
+/// Upstream `DeclarationTag`: the tag's declaration, lowered as the script's would be.
+pub(super) fn lower_declaration_tag<'o>(
+    rw: &mut ScriptRewrite<'_, 'o>,
+    declaration: &VariableDeclaration<'_>,
+    names: &Names,
+) -> Vec<Statement<'o>> {
+    let mut out = Vec::with_capacity(1);
+    let mut hoisted = Vec::new();
+    lower_declaration(rw, declaration, false, &mut out, &mut hoisted, names);
+    out
 }
 
 /// A top-level declaration. Upstream's instance gives each declarator its own declaration.

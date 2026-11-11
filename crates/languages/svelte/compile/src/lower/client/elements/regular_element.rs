@@ -98,7 +98,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         Ok(())
     }
 
-    /// The children and directives, in a block of their own when the element holds a snippet.
+    /// The children and directives, in a block of their own when the element holds a snippet or
+    /// a declaration tag.
     fn element_body(
         &mut self,
         identifier: CompilerNodeIdentifier,
@@ -113,9 +114,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         // The children's block has an effect of its own, so its values must not join the
         // parent's: upstream shares one memoizer and leaks them into both effects.
-        let holds_snippet = (tree.children(el.children).iter())
-            .any(|&c| matches!(tree.node(c).kind, NodeKind::Snippet(_)));
-        let parent_memo = holds_snippet.then(|| {
+        let holds = |f: fn(&NodeKind) -> bool| {
+            (tree.children(el.children).iter()).any(|&c| f(&tree.node(c).kind))
+        };
+        let holds_snippet = holds(|k| matches!(k, NodeKind::Snippet(_)));
+        let declares = holds(|k| matches!(k, NodeKind::Declaration { .. }));
+        let parent_memo = (holds_snippet || declares).then(|| {
             let derived = frag.memo.derived;
             std::mem::replace(
                 &mut frag.memo,
@@ -129,8 +133,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             self.collecting_snippets(|context| context.element_children(identifier, node, frag));
         let mut child = child?;
         // A slot's element may hold `{@const}`s, which upstream declares with the fragment's.
-        l.consts.append(&mut child.consts);
-        if snippets.is_empty() {
+        if !declares {
+            l.consts.append(&mut child.consts);
+        }
+        if snippets.is_empty() && !declares {
             if self.an.dynamic[identifier] {
                 l.initializer.append(&mut child.initializer);
                 l.update.append(&mut child.update);
@@ -141,6 +147,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         } else {
             // A block keeps the snippets' names from clashing with the parent's.
             let mut block = snippets;
+            block.append(&mut child.consts);
             block.append(&mut child.initializer);
             block.append(&mut directives.initializer);
             if !child.update.is_empty() {
