@@ -239,8 +239,21 @@ fn typescript_in_blocks_matches_the_plugin() {
             "{#if x}\n  {@const a:number=1}\n{/if}\n",
         ),
         (
+            "{#if x}\n  {@const {a}: {a:number} = b}\n{/if}\n",
+            "{#if x}\n  {@const {a}: {a:number} = b}\n{/if}\n",
+        ),
+        // TypeScript in the value parses, so it is formatted.
+        (
+            "{#if x}\n  {@const a=1  as   number}\n{/if}\n",
             "{#if x}\n  {@const a = 1 as number}\n{/if}\n",
-            "{#if x}\n  {@const a = 1 as number}\n{/if}\n",
+        ),
+        (
+            "{#if x}\n  {@const a = b satisfies   C}\n{/if}\n",
+            "{#if x}\n  {@const a = b satisfies C}\n{/if}\n",
+        ),
+        (
+            "{#if x}\n  {@const prevStoryWithCategory = index > 0 ? (displayedStories[index - 1] as StoryWithCategory) : null}\n{/if}\n",
+            "{#if x}\n  {@const prevStoryWithCategory =\n    index > 0 ? (displayedStories[index - 1] as StoryWithCategory) : null}\n{/if}\n",
         ),
         ("{let a = 1;}\n", "{let a = 1}\n"),
         ("{let a}\n", "{let a;}\n"),

@@ -54,7 +54,7 @@ impl<'x> Printer<'_, '_, 'x> {
     ) -> R<LayoutInstructionIdentifier> {
         let text = normalize_newlines(span.text(self.source_text), ['\r']);
         let ir = self.format_javascript(&text, span, part, adjust.single_quote)?;
-        // oxc's `remove_soft_lines` is Prettier's `removeLines`.
+        // Prettier's `removeLines` means flat; its expanded states that survive it are a quirk.
         let mut ir = if adjust.single_line {
             self.embedder.embedding.remove_soft_lines(ir)
         } else {
