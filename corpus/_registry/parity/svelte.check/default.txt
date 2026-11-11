@@ -1,4 +1,4 @@
-# svelte.check/default: 12257 match
+# svelte.check/default: 12269 match
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
 svelte/animotion/src/lib/components/notes.svelte	refused
@@ -3024,7 +3024,6 @@ svelte/layerchart/packages/layerchart/src/lib/components/charts/BarChart/BarChar
 svelte/layerchart/packages/layerchart/src/lib/components/charts/BarChart/BarChart.canvas.svelte	refused
 svelte/layerchart/packages/layerchart/src/lib/components/charts/BarChart/BarChart.svelte	refused
 svelte/layerchart/packages/layerchart/src/lib/components/charts/BarChart/BarChart.svg.svelte	refused
-svelte/layerchart/packages/layerchart/src/lib/components/charts/DefaultTooltip.svelte	mismatch
 svelte/layerchart/packages/layerchart/src/lib/components/charts/LineChart/LineChart.base.svelte	refused
 svelte/layerchart/packages/layerchart/src/lib/components/charts/LineChart/LineChart.canvas.svelte	refused
 svelte/layerchart/packages/layerchart/src/lib/components/charts/LineChart/LineChart.svelte	refused
@@ -4216,10 +4215,8 @@ svelte/shadcn-svelte-extras/src/routes/demos/[...path]/+layout@.svelte	refused
 svelte/shadcn-svelte-extras/src/routes/demos/[...path]/+page.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/block-viewer-code.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/block-viewer-copy-code-button.svelte	refused
-svelte/shadcn-svelte/docs/src/lib/components/block-viewer-file-tree.svelte	mismatch
 svelte/shadcn-svelte/docs/src/lib/components/block-viewer-iframe.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/block-viewer-toolbar.svelte	refused
-svelte/shadcn-svelte/docs/src/lib/components/block-viewer-tree.svelte	mismatch
 svelte/shadcn-svelte/docs/src/lib/components/block-viewer-view-mobile.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/block-viewer-view.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/block-viewer.svelte	refused
@@ -4242,9 +4239,6 @@ svelte/shadcn-svelte/docs/src/lib/components/command-menu/command-menu-item.svel
 svelte/shadcn-svelte/docs/src/lib/components/command-menu/command-menu.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/component-code-viewer/component-code-viewer-code-title.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/component-code-viewer/component-code-viewer-code.svelte	refused
-svelte/shadcn-svelte/docs/src/lib/components/component-code-viewer/component-code-viewer-copy-code-button.svelte	mismatch
-svelte/shadcn-svelte/docs/src/lib/components/component-code-viewer/component-code-viewer-file-tree.svelte	mismatch
-svelte/shadcn-svelte/docs/src/lib/components/component-code-viewer/component-code-viewer-tree.svelte	mismatch
 svelte/shadcn-svelte/docs/src/lib/components/component-code-viewer/component-code-viewer.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/component-preview-tabs.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/docs-copy-page.svelte	refused
@@ -4292,7 +4286,6 @@ svelte/shadcn-svelte/docs/src/lib/components/site-header.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/step.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/steps.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/tab.svelte	refused
-svelte/shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte	mismatch
 svelte/shadcn-svelte/docs/src/lib/components/theme-customizer.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/components/theme-selector.svelte	refused
 svelte/shadcn-svelte/docs/src/lib/features/design-system/components/design-system-provider.svelte	refused
@@ -5818,7 +5811,6 @@ svelte/svelte-inspect-value/apps/docs/src/components/Inspect.svelte	mismatch
 svelte/svelte-inspect-value/apps/docs/src/components/editor/CodeEditor.svelte	refused
 svelte/svelte-inspect-value/apps/docs/src/components/global-opts/GlobalOptionsList.svelte	refused
 svelte/svelte-inspect-value/apps/docs/src/components/global-opts/OptionToggleCheck.svelte	refused
-svelte/svelte-inspect-value/apps/docs/src/components/global-opts/ScrollToButton.svelte	mismatch
 svelte/svelte-inspect-value/apps/docs/src/components/theming/DefineTheme.svelte	refused
 svelte/svelte-inspect-value/apps/docs/src/components/theming/Theming.svelte	refused
 svelte/svelte-inspect-value/apps/docs/src/examples/BasicEditable.svelte	refused
@@ -6434,7 +6426,6 @@ svelte/svelte-put/sites/docs/src/lib/components/status-badge/StatusBadge.svelte	
 svelte/svelte-put/sites/docs/src/lib/notifications/components/BaseNotification.svelte	refused
 svelte/svelte-put/sites/docs/src/lib/notifications/components/NotificationPortal.svelte	refused
 svelte/svelte-put/sites/docs/src/lib/notifications/components/Svelte5.svelte	mismatch
-svelte/svelte-put/sites/docs/src/lib/notifications/components/Toast.svelte	mismatch
 svelte/svelte-put/sites/docs/src/packages/async-stack/_page/examples/await.svelte	refused
 svelte/svelte-put/sites/docs/src/packages/async-stack/_page/examples/comprehensive/Notification.svelte	refused
 svelte/svelte-put/sites/docs/src/packages/async-stack/_page/examples/interactive/InteractiveNotification.svelte	refused
@@ -6999,7 +6990,6 @@ svelte/threlte/apps/docs/src/examples/geometry/terrain/App.svelte	refused
 svelte/threlte/apps/docs/src/examples/gltf/skinned-meshes/Robot.svelte	refused
 svelte/threlte/apps/docs/src/examples/instancing/instanced-sprite-mania/App.svelte	refused
 svelte/threlte/apps/docs/src/examples/instancing/instanced-sprite-mania/Scene.svelte	refused
-svelte/threlte/apps/docs/src/examples/instancing/instanced-sprite-mania/behaviours/FlyingBehaviourHook.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/instancing/instanced-sprite-mania/sprites/DudeSprites.svelte	refused
 svelte/threlte/apps/docs/src/examples/instancing/instanced-sprite-mania/sprites/FlyerSprites.svelte	refused
 svelte/threlte/apps/docs/src/examples/instancing/instanced-sprite-mania/sprites/FlyerSpritesTyped.svelte	refused
@@ -7066,7 +7056,6 @@ svelte/threlte/apps/docs/src/examples/rapier/rocketry/quarks/ParticleSystem.svel
 svelte/threlte/apps/docs/src/examples/renderers/CSS2DRenderer/CssObject.svelte	refused
 svelte/threlte/apps/docs/src/examples/shaders/useFboScope/Controls.svelte	refused
 svelte/threlte/apps/docs/src/examples/shaders/useFboScope/Scene.svelte	mismatch
-svelte/threlte/apps/docs/src/examples/shaders/useFboScope/scope/LensView.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/shaders/useFboScope/scope/Scope.svelte	refused
 svelte/threlte/apps/docs/src/examples/shaders/useFboScope/world/Ducks.svelte	refused
 svelte/threlte/apps/docs/src/examples/shaders/webgpu/slice/App.svelte	refused
@@ -7182,7 +7171,6 @@ svelte/threlte/packages/rapier/src/routes/Scene.svelte	refused
 svelte/threlte/packages/studio/src/lib/components/DropDownPane.svelte	refused
 svelte/threlte/packages/studio/src/lib/components/HorizontalButtonGroup.svelte	refused
 svelte/threlte/packages/studio/src/lib/components/Icon.svelte	refused
-svelte/threlte/packages/studio/src/lib/components/IconButton.svelte	mismatch
 svelte/threlte/packages/studio/src/lib/components/NestedComponents.svelte	refused
 svelte/threlte/packages/studio/src/lib/components/Portal.svelte	refused
 svelte/threlte/packages/studio/src/lib/components/Studio.svelte	refused

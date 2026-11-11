@@ -130,3 +130,28 @@ fn a_copied_case_in_differs_txt_must_differ() {
     assert!(error.ends_with("src/gone is no case"), "{error}");
     std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn a_case_one_directory_below_its_project_runs_alone_with_its_siblings() {
+    let root = scratch("groups");
+    for case in ["p/single", "p/pair/a", "p/pair/b"] {
+        let dir = root.join("tests/fixtures").join(case);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("input.svelte"), "<p />").unwrap();
+    }
+    let mut registry = Registry::new();
+    registry.task(Findings);
+    let fixtures =
+        Fixtures::new(root.to_str().unwrap(), registry).snapshot("test.findings", "findings");
+    let cases = fixtures.cases().unwrap();
+    let groups: Vec<(&str, &str)> = cases.iter().map(|c| (c.name.as_str(), c.group())).collect();
+    assert_eq!(
+        groups,
+        [
+            ("p/pair/a", "p/pair"),
+            ("p/pair/b", "p/pair"),
+            ("p/single", "p/single")
+        ]
+    );
+    assert_eq!(cases[1].document().unwrap().path, "p/pair/b.svelte");
+}

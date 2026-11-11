@@ -9,7 +9,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_typescript_projection::Printed;
 use rsvelte_typescript_check::{
-    Check, Documents, TypeScriptDocument, TypeScriptEnv, TypeScriptView,
+    Check, Documents, TypeScriptDocument, TypeScriptEnv, TypeScriptStandIn, TypeScriptView,
 };
 
 use crate::Configuration;
@@ -45,6 +45,10 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         .map(|c| typescript_env(&c.svelte, &c.content_mapper).map(Arc::new));
     reg.provide::<TypeScriptView>("svelte", rsvelte_svelte_syntax::matches, move |context| {
         typescript_view(context, env.as_ref())
+    });
+    reg.provide::<TypeScriptStandIn>("svelte", rsvelte_svelte_syntax::matches, |context| {
+        let component = context.get::<Parsed>().as_ref().ok()?;
+        rsvelte_svelte_typescript_projection::stand_in(component, &context.document.text)
     });
 }
 

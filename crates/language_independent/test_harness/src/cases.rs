@@ -47,6 +47,15 @@ impl Case {
             .split_once('/')
             .map_or(&self.name, |(first, _)| first)
     }
+
+    /// The cases that still run together when each runs alone: a case one directory deeper than
+    /// the project's (`rsvelte/imports/main`) runs with its siblings, which it may import.
+    pub(crate) fn group(&self) -> &str {
+        match self.name.rsplit_once('/') {
+            Some((parent, _)) if parent.contains('/') => parent,
+            _ => &self.name,
+        }
+    }
 }
 
 /// Every case under a crate's `root`, sorted by name: hand-written, or copied when a directory
