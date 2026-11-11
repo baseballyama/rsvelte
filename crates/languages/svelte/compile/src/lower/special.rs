@@ -96,11 +96,12 @@ pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagno
                 };
                 let tag = &tree.attributes[tag];
                 if !matches!(
-                    tag.value,
+                    &tag.value,
                     AttributeValue::Static(_)
                         | AttributeValue::Expression { .. }
                         | AttributeValue::Shorthand(_)
-                ) {
+                ) && !matches!(&tag.value, AttributeValue::Interpolated(parts) if !parts.is_empty())
+                {
                     return unsupported("this dynamic tag value", tag.span);
                 }
             }

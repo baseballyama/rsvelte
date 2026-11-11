@@ -200,6 +200,23 @@ impl<'o> ScriptRewrite<'_, 'o> {
                 return Some(b.arrow_block(b.params(std::iter::empty()), [], false));
             }
             (Target::Client, "$effect.root") => "effect_root",
+            (target, "$state.eager") => {
+                let Expression::CallExpression(call) = it else {
+                    unreachable!("a rune is a call")
+                };
+                let mut value = call
+                    .arguments
+                    .take_in(b)
+                    .into_iter()
+                    .next()?
+                    .into_expression();
+                self.visit_expression(&mut value);
+                // The server has no reactivity to read past.
+                return Some(match target {
+                    Target::Client => b.runtime("eager", [b.thunk(value)]),
+                    Target::Server => value,
+                });
+            }
             (_, "$state.snapshot") => "snapshot",
             (Target::Client, "$effect") => "user_effect",
             (Target::Client, "$effect.pre") => "user_pre_effect",
