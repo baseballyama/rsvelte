@@ -25,6 +25,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .iter()
             .filter(|a| matches!(a.value, AttributeValue::Style { .. }))
             .collect();
+        let html = self.plan.namespace(identifier) == crate::render_plan::Namespace::Html;
         for a in attributes {
             if is_behaviour(&a.value)
                 || matches!(
@@ -41,7 +42,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 self.event(raw_name, handler, node, l);
                 continue;
             }
-            let attribute_name = normalize_attribute(raw_name);
+            // Upstream `get_attribute_name`: svg and MathML keep the name's case.
+            let attribute_name = if html {
+                normalize_attribute(raw_name)
+            } else {
+                raw_name.to_owned()
+            };
             // `select_value` sets these once the options exist.
             if (matches!(tag, "option" | "select") && raw_name == "value")
                 || (tag == "select" && attribute_name == "defaultValue")
