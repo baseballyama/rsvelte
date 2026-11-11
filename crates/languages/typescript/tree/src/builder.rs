@@ -1,6 +1,7 @@
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    Comment, Expression, FormalParameter, FormalParameters, Program, Statement, VariableDeclaration,
+    Comment, Expression, FormalParameter, FormalParameters, Program, Statement,
+    TSTypeParameterDeclaration, VariableDeclaration,
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::VisitMut;
@@ -13,7 +14,7 @@ use rsvelte_kernel::source::positions::Span;
 
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
-    ProgramIdentifier, Trees,
+    ProgramIdentifier, Trees, TypeParametersIdentifier,
 };
 
 /// A token or a comment of the part a [`Builder`] read last.
@@ -33,6 +34,7 @@ pub struct Builder<'a> {
     patterns: Vec<FormalParameter<'a>>,
     parameters: Vec<FormalParameters<'a>>,
     declarations: Vec<VariableDeclaration<'a>>,
+    type_parameters: Vec<TSTypeParameterDeclaration<'a>>,
     comments: Vec<Comment>,
     recorded: Vec<Recorded>,
     wrapped: String,
@@ -57,6 +59,7 @@ impl<'a> Builder<'a> {
             patterns: Vec::new(),
             parameters: Vec::new(),
             declarations: Vec::new(),
+            type_parameters: Vec::new(),
             comments: Vec::new(),
             recorded: Vec::new(),
             wrapped: String::new(),
@@ -71,6 +74,7 @@ impl<'a> Builder<'a> {
             patterns: self.patterns,
             parameters: self.parameters,
             declarations: self.declarations,
+            type_parameters: self.type_parameters,
             comments: self.comments,
         }
     }
@@ -272,39 +276,86 @@ impl<'a> Builder<'a> {
         Ok(identifier)
     }
 
+    /// Parses `range` of the document as a type parameter list without its angle brackets, such
+    /// as a Svelte `<script generics="…">`'s.
+    ///
+    /// # Errors
+    ///
+    /// The first syntax error.
+    pub fn type_parameters(
+        &mut self,
+        range: Span,
+        source_type: SourceType,
+    ) -> Result<TypeParametersIdentifier, Diagnostic> {
+        // An arrow's `<T extends …>` would read as a type assertion, so a function expression.
+        // The wrapper's own tokens: `function` and `<` first, and `>`, `(`, `)`, `{` and `}` last.
+        let (expression, shift) =
+            self.read_wrapped(range, source_type, ("function<", 2), (">(){}", 5))?;
+        let parameters = match expression {
+            Expression::FunctionExpression(function) => function.unbox().type_parameters,
+            _ => None,
+        };
+        let Some(mut parameters) = parameters.map(oxc_allocator::Box::unbox) else {
+            return Err(Diagnostic::error(
+                "parse_error",
+                "expected type parameters",
+                range,
+            ));
+        };
+        Shift(shift).visit_ts_type_parameter_declaration(&mut parameters);
+        let identifier = TypeParametersIdentifier::at(self.type_parameters.len());
+        self.type_parameters.push(parameters);
+        Ok(identifier)
+    }
+
     /// The parameters of `(…) => 0` around `range`: oxc reads a parameter list only in a function.
     fn read_parameters(
         &mut self,
         range: Span,
         source_type: SourceType,
     ) -> Result<FormalParameters<'a>, Diagnostic> {
-        const OPEN: &str = "(";
-        const CLOSE: &str = ")=>0";
-        // The wrapped text's `(` stands where the byte before the range is.
-        let Some(shift) = range.start_offset.checked_sub(OPEN.len() as u32) else {
-            return Err(Diagnostic::error(
-                "parse_error",
-                "a pattern cannot start the document",
-                range,
-            ));
-        };
-        self.wrapped.clear();
-        self.wrapped.push_str(OPEN);
-        self.wrapped.push_str(range.text(self.source_text));
-        self.wrapped.push_str(CLOSE);
-        let text = self.allocator.alloc_str(&self.wrapped);
-        let parsed = Parser::new(self.allocator, text, source_type)
-            .with_options(options())
-            .with_config(TokensParserConfig)
-            .parse_expression_at(0)
-            .map_err(|errors| syntax_error(errors, 0, shift))?;
-        let Expression::ArrowFunctionExpression(arrow) = parsed.expression else {
+        // The wrapper's own tokens: `(` first, and `)`, `=>` and `0` last.
+        let (expression, shift) = self.read_wrapped(range, source_type, ("(", 1), (")=>0", 3))?;
+        let Expression::ArrowFunctionExpression(arrow) = expression else {
             return Err(Diagnostic::error(
                 "parse_error",
                 "expected a pattern",
                 range,
             ));
         };
+        let mut parameters = arrow.unbox().params.unbox();
+        Shift(shift).visit_formal_parameters(&mut parameters);
+        Ok(parameters)
+    }
+
+    /// Parses `range` between `open` and `close` as one expression, keeping the tokens and
+    /// comments of `range` only, and returns it with how far its spans are from the document's.
+    /// Each of `open` and `close` comes with the number of tokens it is.
+    fn read_wrapped(
+        &mut self,
+        range: Span,
+        source_type: SourceType,
+        (open, opening_tokens): (&str, usize),
+        (close, closing_tokens): (&str, usize),
+    ) -> Result<(Expression<'a>, u32), Diagnostic> {
+        // The wrapped text's opening stands where the bytes before the range are.
+        let Some(shift) = range.start_offset.checked_sub(open.len() as u32) else {
+            return Err(Diagnostic::error(
+                "parse_error",
+                "a part cannot start the document",
+                range,
+            ));
+        };
+        self.wrapped.clear();
+        self.wrapped.push_str(open);
+        self.wrapped.push_str(range.text(self.source_text));
+        self.wrapped.push_str(close);
+        let text = self.allocator.alloc_str(&self.wrapped);
+        let parsed = Parser::new(self.allocator, text, source_type)
+            .with_options(options())
+            .with_config(TokensParserConfig)
+            .parse_expression_at(0)
+            .map_err(|errors| syntax_error(errors, 0, shift))?;
         if parsed.end as usize != text.len() {
             return Err(Diagnostic::error(
                 "parse_error",
@@ -312,11 +363,10 @@ impl<'a> Builder<'a> {
                 Span::new(parsed.end + shift, range.end_offset),
             ));
         }
-        let mut parameters = arrow.unbox().params.unbox();
-        Shift(shift).visit_formal_parameters(&mut parameters);
-        // The wrapper's own tokens: `(` first, and `)`, `=>` and `0` last.
         let tokens = &parsed.tokens;
-        let inner = tokens.get(1..tokens.len().saturating_sub(3)).unwrap_or(&[]);
+        let inner = tokens
+            .get(opening_tokens..tokens.len().saturating_sub(closing_tokens))
+            .unwrap_or(&[]);
         self.record(inner, &parsed.comments, shift);
         self.comments.extend(parsed.comments.iter().map(|comment| {
             let mut comment = comment.clone();
@@ -324,7 +374,7 @@ impl<'a> Builder<'a> {
             comment.attached_to += shift;
             comment
         }));
-        Ok(parameters)
+        Ok((parsed.expression, shift))
     }
 
     /// A parameter list read so far, for a host that checks its shape before the tree is done.
