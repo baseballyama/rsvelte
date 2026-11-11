@@ -42,7 +42,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 			'language_independent/document_printer/src',
 			['lib', 'construct', 'printer', 'rewrite', 'tests', 'width'],
 		],
-		['typescript/check', 'languages/typescript/check/src', ['check', 'check/report']],
+		['typescript/check', 'languages/typescript/check/src', ['check', 'check/run']],
 		['svelte/syntax', 'languages/svelte/syntax/src', ['syntax_tree', 'parse', 'computation']],
 		[
 			'svelte/semantic',
@@ -51,6 +51,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 				'computation',
 				'resolve',
 				'compiler_syntax_tree',
+				'compiler_syntax_tree/attributes',
 				'compiler_syntax_tree/builder',
 				'compiler_syntax_tree/lower',
 			],
@@ -62,6 +63,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 			[
 				'task',
 				'lint',
+				'configuration',
 				'rules',
 				'rules/button_has_type',
 				'rules/no_unused_variables',

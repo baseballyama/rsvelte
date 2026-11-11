@@ -9,7 +9,10 @@ const NODE_MODULES = path.resolve(import.meta.dirname, '../node_modules');
 const SVELTE_CHECK = path.join(NODE_MODULES, 'svelte-check/bin/svelte-check');
 const SVELTE_PACKAGE = fs.realpathSync(path.join(NODE_MODULES, 'svelte'));
 // The checkout that holds the packages, which differs on every machine and worktree.
-const CHECKOUT = SVELTE_PACKAGE.slice(0, SVELTE_PACKAGE.indexOf(`${path.sep}node_modules${path.sep}`));
+const CHECKOUT = SVELTE_PACKAGE.slice(
+	0,
+	SVELTE_PACKAGE.indexOf(`${path.sep}node_modules${path.sep}`),
+);
 
 interface Finding {
 	filename: string;
