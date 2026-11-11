@@ -4,7 +4,7 @@ use oxc_parser::Parser;
 use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex};
 
-use super::print_mapped;
+use super::{print, print_mapped};
 
 /// The generated offset of every token the printer maps, by an index of the printed text.
 fn indexed(source: &str) -> (Vec<u32>, Vec<u32>) {
@@ -59,7 +59,28 @@ fn a_template_keeps_a_script_close_tag_as_written() {
     let program = Parser::new(&allocator, source, SourceType::mjs())
         .parse()
         .program;
-    let printed = super::print(&program);
+    let printed = print(&program);
     assert!(printed.contains(r"`\</script\>`"), "{printed}");
     assert!(printed.contains("\"</script>\""), "{printed}");
+}
+
+#[test]
+fn each_print_owns_exactly_its_output() {
+    let allocator = Allocator::default();
+    let parse = |source| {
+        Parser::new(&allocator, source, SourceType::mjs())
+            .parse()
+            .program
+    };
+    let (long, short) = (parse("let a = [1, 2, 3, 4, 5, 6, 7, 8, 9];"), parse("a;"));
+    let first = print(&long);
+    let second = print(&short);
+    assert_eq!(
+        (first.as_str(), second.as_str()),
+        (
+            "let a = [\n\t1,\n\t2,\n\t3,\n\t4,\n\t5,\n\t6,\n\t7,\n\t8,\n\t9\n];\n",
+            "a;\n"
+        )
+    );
+    assert_eq!(second.capacity(), second.len());
 }
