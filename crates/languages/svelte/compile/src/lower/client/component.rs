@@ -1,13 +1,13 @@
 use oxc_ast::ast::{Expression, PropertyKind, Statement};
 
 use super::super::component::{
-    Entry, Prop, bind_this, child_snippets, is_dynamic, props, props_expression, push_accessors,
-    push_binding, push_children, reference,
+    Callee, Entry, Prop, bind_this, callee, child_snippets, props, props_expression,
+    push_accessors, push_binding, push_children,
 };
 use super::super::derived::{Created, callback};
 use super::{
-    AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, Memo, NodeKind,
-    Part, R, Target,
+    AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
+    Memo, NodeKind, Part, R, Target,
 };
 use crate::lower::builder::Runtime;
 
@@ -27,14 +27,15 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let NodeKind::Element(element) = &tree.node(identifier).kind else {
             unreachable!("a component element")
         };
-        let reference = reference(tree, identifier);
-        let intermediate = is_dynamic(
-            self.res,
-            self.javascript
-                .get_expression(reference)
-                .get_inner_expression(),
-        )
-        .then(|| self.names.generate(element.name.text(self.source_text)));
+        let callee = callee(tree, self.javascript, self.res, identifier);
+        // Upstream renders `<svelte:component>` through `$$component`, a name it never generates.
+        let intermediate = match callee {
+            Callee::Dynamic(_) if element.kind == ElementKind::Component => {
+                Some(self.names.generate(element.name.text(self.source_text)))
+            }
+            Callee::Dynamic(_) => Some("$$component".to_owned()),
+            Callee::Static(_) | Callee::OwnFunction => None,
+        };
         let mut memo = Memo::derived();
         let mut parts = Vec::new();
         let mut accessors = Vec::new();
@@ -64,14 +65,18 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             Some(target) => self.bind_this(target, call, false),
             None => call,
         };
-        let call = if let Some(intermediate) = intermediate {
-            let inner = b.call(b.id(&intermediate), [b.id("$$anchor"), props]);
-            let inner = b.stmt(instance(inner));
-            let render = b.arrow_block(b.params(["$$anchor", &intermediate]), [inner], false);
-            let get = b.thunk(self.expression(reference));
-            b.runtime("component", [b.id(node), get, render])
-        } else {
-            instance(b.call(self.expression(reference), [b.id(node), props]))
+        let call = match (callee, intermediate) {
+            (Callee::Dynamic(reference), Some(intermediate)) => {
+                let inner = b.call(b.id(&intermediate), [b.id("$$anchor"), props]);
+                let inner = b.stmt(instance(inner));
+                let render = b.arrow_block(b.params(["$$anchor", &intermediate]), [inner], false);
+                let get = b.thunk(self.expression(reference));
+                b.runtime("component", [b.id(node), get, render])
+            }
+            (Callee::Static(reference), _) => {
+                instance(b.call(self.expression(reference), [b.id(node), props]))
+            }
+            _ => instance(b.call(b.id(&self.component_name), [b.id(node), props])),
         };
         statements.push(b.stmt(call));
         if !standalone {

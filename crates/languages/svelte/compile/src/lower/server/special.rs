@@ -70,7 +70,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             ElementKind::Metadata(Some(MetadataTag::Element)) => {
                 return self.dynamic_element(identifier, template);
             }
-            ElementKind::Component => return self.component(identifier, false, template),
+            ElementKind::Component
+            | ElementKind::Metadata(Some(MetadataTag::Component | MetadataTag::SelfRef)) => {
+                return self.component(identifier, false, template);
+            }
             ElementKind::Slot => return self.slot_element(identifier, template),
             _ => return unsupported("this special element", element.name),
         }

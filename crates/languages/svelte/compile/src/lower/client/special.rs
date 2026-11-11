@@ -95,7 +95,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             ElementKind::Metadata(Some(MetadataTag::Element)) => {
                 return self.dynamic_element(identifier, node, frag, lists);
             }
-            ElementKind::Component => return self.component(identifier, node, false, frag, lists),
+            ElementKind::Component
+            | ElementKind::Metadata(Some(MetadataTag::Component | MetadataTag::SelfRef)) => {
+                return self.component(identifier, node, false, frag, lists);
+            }
             ElementKind::Metadata(Some(MetadataTag::Options)) => {}
             ElementKind::Slot => return self.slot_element(identifier, node, frag, lists),
             _ => return unsupported("this special element", element.name),

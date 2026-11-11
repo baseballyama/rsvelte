@@ -1,6 +1,6 @@
 use super::super::component::{
-    Entry, Prop, child_snippets, is_dynamic, props, props_expression, push_accessors, push_binding,
-    push_children, reference,
+    Callee, Entry, Prop, callee, child_snippets, props, props_expression, push_accessors,
+    push_binding, push_children,
 };
 use super::{
     BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind,
@@ -67,16 +67,14 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let children = self.fragment_without(element.children, |_| true)?;
         push_children(b, &mut parts, &snippets, children, &["$$renderer"]);
         let props = props_expression(b, parts, Target::Server);
-        let reference = reference(tree, identifier);
-        let callee = self.expression(reference);
-        let statement = b.stmt(b.call(callee, [b.id("$$renderer"), props]));
-        let dynamic = is_dynamic(
-            self.res,
-            self.javascript
-                .get_expression(reference)
-                .get_inner_expression(),
-        );
-        let statement = if dynamic {
+        let callee = callee(tree, self.javascript, self.res, identifier);
+        let function = match callee {
+            Callee::Static(reference) | Callee::Dynamic(reference) => self.expression(reference),
+            Callee::OwnFunction => b.id(self.component_name),
+        };
+        let statement = b.stmt(b.call(function, [b.id("$$renderer"), props]));
+        let dynamic = matches!(callee, Callee::Dynamic(_));
+        let statement = if let Callee::Dynamic(reference) = callee {
             let test = self.expression(reference);
             let consequent = b.block([
                 self.push_literal(BLOCK_OPEN),
