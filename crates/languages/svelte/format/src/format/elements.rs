@@ -325,6 +325,7 @@ impl Printer<'_, '_, '_> {
             }
         }
         self.in_pre = saved;
+        self.ignore.next = false;
         Ok(self.cat(&out))
     }
 

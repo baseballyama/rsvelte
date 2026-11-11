@@ -4,11 +4,10 @@ export const answer = 42;
 export function double(n) {
 	return n * 2;
 }
-var root = $.from_html(`<input/>`);
+var root = $.from_html(`<p></p>`);
 export default function Exports($$anchor) {
-	let value = $.state("");
-	var input = root();
-	$.remove_input_defaults(input);
-	$.bind_value(input, () => $.get(value), ($$value) => $.set(value, $$value));
-	$.append($$anchor, input);
+	let value = "";
+	var p = root();
+	$.set_style(p, "", {}, { color: value });
+	$.append($$anchor, p);
 }
