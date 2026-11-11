@@ -69,6 +69,11 @@ pub enum Node {
         object: NodeIdentifier,
         property: NodeIdentifier,
     },
+    /// `object[index]`.
+    Index {
+        object: NodeIdentifier,
+        index: NodeIdentifier,
+    },
     Call {
         callee: NodeIdentifier,
         arguments: Range,

@@ -64,7 +64,8 @@ return their original source range.
   elements and components. A bound variable reads as its declared type, as svelte2tsx widens it.
 - An element's `on:`, `use:`, transition, `animate:` and `style:` directives call svelte2tsx's
   own checks. A component's `on:` is svelte2tsx's `$on` call, and a Svelte 5 component takes
-  any event. A component's `let:` reads its default slot's values in a block around its children.
+  any event. A component's `let:` reads its default slot's values in a block around its
+  children, and the `let:` of an element in a named slot reads that slot's values before it.
 - Public component contracts include annotated props and defaults inferred from object
   destructuring. They also include instance function and constant exports, and `$bindable()`
   keys.
@@ -78,8 +79,8 @@ return their original source range.
 Still unsupported:
 
 - Whole-object `$props()` bindings without a type, and type exports of a generic component
-- Component children, `let:` on an element in a named slot, `class:` and `{@attach}` on
-  components, and the check that a component's prop is bindable
+- Component children, `class:` and `{@attach}` on components, and the check that a component's
+  prop is bindable
 
 This is not a complete Svelte type projection.
 
