@@ -27,18 +27,6 @@ fn a_directive_a_component_never_takes_raises_upstreams_error() {
 }
 
 #[test]
-fn a_children_prop_beside_children_is_refused_on_both_targets() {
-    let children = "<script>import C from './C.svelte';</script><C children={1}>a</C>";
-    for target in [Target::Client, Target::Server] {
-        assert_eq!(
-            compile(children, target),
-            Err("unsupported".to_owned()),
-            "{target:?}"
-        );
-    }
-}
-
-#[test]
 fn template_errors_come_from_the_template_on_both_targets() {
     let script = "<script>import A from './A.svelte'; let v = $state(1); let el;</script>";
     for (markup, expected) in [

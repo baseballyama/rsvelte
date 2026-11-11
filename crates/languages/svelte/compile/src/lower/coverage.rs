@@ -149,10 +149,6 @@ fn check_element(
                 continue;
             }
             AttributeValue::Class(_) => "a `class:` directive on a component",
-            AttributeValue::Spread(_) => continue,
-            _ if name == "children" && has_content(input, el) => {
-                "a `children` prop beside the component's content"
-            }
             _ => continue,
         };
         return unsupported(what, a.span);
@@ -188,15 +184,6 @@ fn check_textarea(input: &CompileInput<'_>, el: &Element) -> Result<(), Diagnost
         return unsupported("a `<textarea>` value that starts with a newline", el.name);
     }
     Ok(())
-}
-
-fn has_content(input: &CompileInput<'_>, el: &Element) -> bool {
-    let tree = input.component.compiler_syntax_tree;
-    tree.children(el.children).iter().any(|&child| {
-        let kind = &tree.node(child).kind;
-        !matches!(kind, NodeKind::Comment { .. })
-            && !kind.is_blank_text(input.component.source_text)
-    })
 }
 
 /// Upstream's `bind_invalid_value` takes more: this is `$state`, a `$derived`, a prop, a

@@ -6,10 +6,10 @@ use oxc_span::SPAN;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Element;
 
 use super::super::component::{
-    Callee, Entry, Prop, SlotCallback, callee, child_snippets, props, props_expression,
-    push_accessors, push_binding, push_children,
+    Callee, DefaultSlot, Entry, Prop, SlotCallback, callee, child_snippets, props,
+    props_expression, push_accessors, push_binding, push_children,
 };
-use super::super::lets::{default_slot_takes_props, pattern, slot_lets};
+use super::super::lets::{pattern, slot_lets};
 use super::{
     BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind,
     Piece, R, ServerCompilationContext, Target, set_settled,
@@ -80,14 +80,14 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 self.snippet_declaration(snippet)
             })?;
         let callbacks = self.slot_callbacks(identifier, element)?;
-        let takes_props = default_slot_takes_props(
+        let default = DefaultSlot::of(
             tree,
             self.javascript,
             self.source_text,
             element,
             Target::Server,
         );
-        push_children(b, &mut parts, &snippets, callbacks, takes_props);
+        push_children(b, &mut parts, &snippets, callbacks, default);
         let props = props_expression(b, parts, Target::Server);
         let callee = callee(tree, self.javascript, self.res, identifier);
         let function = match callee {
