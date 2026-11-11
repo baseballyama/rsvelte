@@ -5,7 +5,7 @@ const values=["a","b"];function run(){for(let i=0;i<values.length;i++){if(i)cont
 () => {
   {
     svelteHTML.createElement("p", {
-      class: values[0],
+      "class": values[0],
     });
   }
 };

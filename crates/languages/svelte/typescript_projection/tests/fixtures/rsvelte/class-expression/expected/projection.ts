@@ -14,57 +14,57 @@
 () => {
   {
     svelteHTML.createElement("div", {
-      class: size,
+      "class": size,
     });
   }
   {
     svelteHTML.createElement("div", {
-      class: `box ${size} rounded`,
+      "class": `box ${size} rounded`,
     });
   }
   {
     svelteHTML.createElement("div", {
-      class: size,
+      "class": size,
     });
   }
   {
     svelteHTML.createElement("div", {
-      class: { active, large: size === 'large' },
+      "class": { active, large: size === 'large' },
     });
   }
   {
     svelteHTML.createElement("div", {
-      class: ['item', active && 'is-active', tone],
+      "class": ['item', active && 'is-active', tone],
     });
   }
   {
     svelteHTML.createElement("div", {
-      class: base,
+      "class": base,
     });
   }
   {
     svelteHTML.createElement("div", {
-      class: 'literal',
+      "class": 'literal',
     });
   }
   {
     svelteHTML.createElement("div", {
-      class: `t-${size}`,
+      "class": `t-${size}`,
     });
   }
   {
     svelteHTML.createElement("div", {
-      class: variant(size),
+      "class": variant(size),
     });
   }
   {
     svelteHTML.createElement("button", {
-      onclick: () => (active = !active),
+      "onclick": () => (active = !active),
     });
   }
   {
     svelteHTML.createElement("button", {
-      onclick: () => (size = size === 'small' ? 'large' : 'small'),
+      "onclick": () => (size = size === 'small' ? 'large' : 'small'),
     });
   }
 };

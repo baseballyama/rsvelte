@@ -1,4 +1,4 @@
-# svelte.check/default: 12236 match
+# svelte.check/default: 12242 match
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
 svelte/animotion/src/lib/components/notes.svelte	refused
@@ -1305,7 +1305,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/n
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/bindable-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-class-directives01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-class-directives01-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/svelte5-typescript/+page.svelte	mismatch
 svelte/flare/src/lib/components/AiSettingsView.svelte	refused
@@ -2387,7 +2386,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/const-tag-if/input.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/const-tag/input.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/custom-types/input.svelte	refused
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-attributes/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-events/input.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics-runes.v5/ValueComponent.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics-runes.v5/input.svelte	mismatch
@@ -5770,8 +5768,6 @@ svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/ts-$state01-type-o
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/ts-derived-in-snippet-declaration-tag-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/ts-event02-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/ts-event02-type-output.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/ts-event04-input.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/ts-event04-type-output.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/ts-event07-type-output.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/ts-snippet01-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/ts-snippet01-type-output.svelte	refused
@@ -6483,7 +6479,6 @@ svelte/svelte-put/sites/docs/src/routes/(site)/+layout.svelte	refused
 svelte/svelte-put/sites/docs/src/routes/(site)/docs/[id=pkg]/+page.svelte	refused
 svelte/svelte-put/sites/docs/src/routes/(site)/search/+page.svelte	refused
 svelte/svelte-put/sites/docs/src/routes/+layout.svelte	refused
-svelte/svelte-put/sites/docs/src/routes/+page.svelte	mismatch
 svelte/svelte-render-scan/src/lib/components/RenderScan.svelte	refused
 svelte/svelte-render-scan/src/lib/components/RenderScanObserver.svelte	mismatch
 svelte/svelte-render-scan/src/routes/+layout.svelte	refused
@@ -6643,7 +6638,6 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/component-slot-named-
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/abort-signal-derived-destroy/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-block-effect-queueing/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-hydration-binding/main.svelte	mismatch
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/event-attribute-after-spread-2/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/inspect-exception/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-error-boundary-preserve-on-error/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/main.svelte	mismatch

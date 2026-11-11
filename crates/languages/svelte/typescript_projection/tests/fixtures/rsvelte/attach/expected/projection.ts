@@ -32,7 +32,7 @@
   {
     svelteHTML.createElement("button", {
       [Symbol("@attach")]: (node) => node.focus(),
-      onclick: () => count++,
+      "onclick": () => count++,
     });
   }
   {

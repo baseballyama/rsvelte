@@ -21,8 +21,8 @@
   }
   {
     svelteHTML.createElement("button", {
-      type: "button",
-      onclick: () => (text += '!'),
+      "type": "button",
+      "onclick": () => (text += '!'),
     });
   }
 };

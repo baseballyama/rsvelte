@@ -2,7 +2,7 @@
 () => {
   {
     svelteHTML.createElement("p", {
-      class: "big",
+      "class": "big",
     });
   }
 };

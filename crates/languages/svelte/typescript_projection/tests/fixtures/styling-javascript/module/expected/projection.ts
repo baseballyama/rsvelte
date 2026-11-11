@@ -8,7 +8,7 @@ const local=get();
 () => {
   {
     svelteHTML.createElement("p", {
-      class: local,
+      "class": local,
     });
   }
 };

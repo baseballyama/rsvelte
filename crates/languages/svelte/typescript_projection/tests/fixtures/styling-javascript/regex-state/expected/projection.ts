@@ -5,7 +5,7 @@ let pattern=$state(/a/g);
 () => {
   {
     svelteHTML.createElement("p", {
-      class: pattern.test("a") ? "a" : "b",
+      "class": pattern.test("a") ? "a" : "b",
     });
   }
 };

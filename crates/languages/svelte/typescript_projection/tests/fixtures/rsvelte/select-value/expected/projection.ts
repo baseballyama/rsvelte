@@ -9,17 +9,17 @@
 () => {
   {
     svelteHTML.createElement("select", {
-      value: picked,
-      onchange: (e) => (picked = +e.currentTarget.value),
+      "value": picked,
+      "onchange": (e) => (picked = +e.currentTarget.value),
     });
     {
       svelteHTML.createElement("option", {
-        value: 1,
+        "value": 1,
       });
     }
     {
       svelteHTML.createElement("option", {
-        value: picked + 1,
+        "value": picked + 1,
       });
       (label);
     }
@@ -30,17 +30,17 @@
   }
   {
     svelteHTML.createElement("select", {
-      defaultValue: fallback,
+      "defaultValue": fallback,
     });
     {
       svelteHTML.createElement("option", {
-        value: "a",
+        "value": "a",
       });
     }
     {
       svelteHTML.createElement("option", {
-        value: "b",
-        selected: true,
+        "value": "b",
+        "selected": true,
       });
     }
   }
@@ -51,15 +51,15 @@
     }
     {
       svelteHTML.createElement("option", {
-        disabled: true,
-        value: "",
+        "disabled": true,
+        "value": "",
       });
     }
   }
   {
     svelteHTML.createElement("button", {
-      type: "button",
-      onclick: () => (label += '!'),
+      "type": "button",
+      "onclick": () => (label += '!'),
     });
   }
 };

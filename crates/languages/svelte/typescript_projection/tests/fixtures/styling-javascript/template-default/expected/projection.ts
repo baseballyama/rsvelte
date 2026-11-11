@@ -5,7 +5,7 @@ const f=(x=`a${1}`)=>x;
 () => {
   {
     svelteHTML.createElement("p", {
-      class: f(),
+      "class": f(),
     });
   }
 };

@@ -5,7 +5,7 @@ import data from "./data.json" with {type:"json"};
 () => {
   {
     svelteHTML.createElement("p", {
-      class: data.value,
+      "class": data.value,
     });
   }
 };

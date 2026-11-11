@@ -5,13 +5,13 @@ let count = $state(0);
 () => {
   {
     svelteHTML.createElement("div", {
-      dir: "auto",
+      "dir": "auto",
     });
     (count);
   }
   {
     svelteHTML.createElement("p", {
-      dir: "rtl",
+      "dir": "rtl",
     });
   }
 };

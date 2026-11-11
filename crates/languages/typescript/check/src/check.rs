@@ -11,7 +11,7 @@ use std::sync::Arc;
 use rsvelte_kernel::computation::database::{ArtifactRegistry, DocumentContext, Facet};
 use rsvelte_kernel::computation::task::{FinishTask, Part, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_kernel::output::emitter::{Emitter, Mapping};
+use rsvelte_kernel::output::emitter::{Atom, Emitter, Mapping};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
@@ -284,6 +284,7 @@ impl FinishTask for Check {
                 projection: Emitter {
                     out: projection.out.clone(),
                     mappings: projection.mappings.clone(),
+                    atoms: projection.atoms.clone(),
                 },
                 map_back: *map_back,
                 env: Arc::clone(env),
@@ -375,6 +376,19 @@ fn check_projected(
                         .map(|m| Mapping {
                             source_text: m.source_text - bom,
                             ..*m
+                        })
+                        .collect(),
+                    atoms: d
+                        .projection
+                        .atoms
+                        .iter()
+                        .filter(|a| a.original.start_offset >= bom)
+                        .map(|a| Atom {
+                            original: Span::new(
+                                a.original.start_offset - bom,
+                                a.original.end_offset - bom,
+                            ),
+                            ..*a
                         })
                         .collect(),
                 })

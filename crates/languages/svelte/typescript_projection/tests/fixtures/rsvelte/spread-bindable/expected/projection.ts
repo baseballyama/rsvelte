@@ -12,13 +12,13 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
   {
     svelteHTML.createElement("button", {
       ...(properties),
-      onclick: () => value++,
+      "onclick": () => value++,
     });
     (value);
   }
   {
     svelteHTML.createElement("p", {
-      title: text,
+      "title": text,
     });
     (text);
   }

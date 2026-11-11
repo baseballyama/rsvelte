@@ -145,3 +145,25 @@ fn source_map_answers_what_lookup_answers() {
     );
     assert_eq!(e.lookup(e.out.find("function").unwrap() as u32), None);
 }
+
+#[test]
+fn a_span_inside_an_atom_maps_to_the_atom_s_original_range() {
+    let source_text = "<p title=x>";
+    let mut e = Emitter::new();
+    e.push("({ ");
+    e.atom("\"title\"", Span::new(3, 8));
+    e.push(": ");
+    e.copy(source_text, Span::new(9, 10));
+    e.push(", ");
+    e.atom("children", Span::new(10, 10));
+    e.push(" })");
+    let at = |text: &str| e.out.find(text).expect("printed") as u32;
+    let quoted = Span::new(at("\"title\""), at("\"title\"") + 7);
+    assert_eq!(e.lookup_span(quoted), Some(Span::new(3, 8)));
+    assert_eq!(e.lookup_overlap(quoted), Some(Span::new(3, 8)));
+    let children = Span::new(at("children"), at("children") + 8);
+    assert_eq!(e.lookup_span(children), Some(Span::new(10, 10)));
+    // A span outside every atom maps as before: through the copy.
+    let value = Span::new(at("x"), at("x") + 1);
+    assert_eq!(e.lookup_overlap(value), Some(Span::new(9, 10)));
+}

@@ -185,7 +185,7 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "  if (ready) {\n",
             "    {\n",
             "      svelteHTML.createElement(\"p\", {\n",
-            "        title: text,\n",
+            "        \"title\": text,\n",
             "        \"data-label\": `café\n  🚀`,\n",
             "      });\n",
             "      (text);\n",
@@ -350,8 +350,8 @@ fn a_component_s_snippets_are_props_after_its_attributes_as_svelte2tsx_passes_th
     let out = &output.out;
     let at = |text: &str| out.find(text).unwrap_or_else(|| panic!("{text}\n{out}"));
     // The implicit children, the attributes, then the snippets in source order.
-    assert!(at("children: __rsvelte_children") < at("a: n"), "{out}");
-    assert!(at("a: n") < at("head: (x: number) => {"), "{out}");
+    assert!(at("children: __rsvelte_children") < at("\"a\": n"), "{out}");
+    assert!(at("\"a\": n") < at("head: (x: number) => {"), "{out}");
     assert!(at("head: (x: number) => {") < at("foot: () => {"), "{out}");
     assert!(
         at("foot: () => {") < at("const { head, foot } = __rsvelte_component_props("),
@@ -379,10 +379,10 @@ fn an_element_s_number_only_attribute_is_a_number_as_svelte2tsx_writes_it() {
     let source = "<div tabindex=\"-1\" aria-valuemin=\"0\" title=\"1\" rows=\"x\"></div>";
     let (_, output) = project(source);
     for text in [
-        "tabindex: -1,",
+        "\"tabindex\": -1,",
         "\"aria-valuemin\": 0,",
-        "title: \"1\",",
-        "rows: \"x\",",
+        "\"title\": \"1\",",
+        "\"rows\": \"x\",",
     ] {
         assert!(output.out.contains(text), "{text}\n{}", output.out);
     }

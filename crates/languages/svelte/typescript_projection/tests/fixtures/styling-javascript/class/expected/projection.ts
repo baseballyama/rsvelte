@@ -5,7 +5,7 @@ class Value{#value="a";get value(){return this.#value;}set value(next){this.#val
 () => {
   {
     svelteHTML.createElement("p", {
-      class: value.value,
+      "class": value.value,
     });
   }
 };

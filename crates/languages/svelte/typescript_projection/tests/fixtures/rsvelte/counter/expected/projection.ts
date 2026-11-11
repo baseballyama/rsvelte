@@ -7,7 +7,7 @@
 () => {
   {
     svelteHTML.createElement("button", {
-      onclick: () => count++,
+      "onclick": () => count++,
     });
     (count);
   }
