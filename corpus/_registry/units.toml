@@ -1411,3 +1411,9 @@
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/renamed_reexport_keeps_official_local_to_exported_mapping/f2186ac6a152b18e.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 exports `x` from an instance-script `export { x } from`, which binds no local `x`, so the component throws a ReferenceError"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/dynamic_slot_attribute_on_a_slot_element_keeps_the_slot_prop/36e13c4f5dd374c9.svelte".skip]
+"svelte.compile/server" = "upstream bug: svelte 5.57.3's server reads the first text of a `<slot>` element's `slot={n}`, and crashes as it has none, while its client fills the default slot"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/interpolated_slot_attribute_on_a_slot_element_keeps_the_slot_prop/8562adffe2dd3415.svelte".skip]
+"svelte.compile/server" = "upstream bug: svelte 5.57.3's server fills the slot `a`, the first text of a `<slot>` element's `slot=\"a{b}c\"`, while its client fills the default slot"

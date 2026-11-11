@@ -208,7 +208,9 @@ fn element<'a>(
         Some(Owner::Component(component)) => node.parent == Some(component),
         _ => false,
     };
+    // Upstream's `SlotElement` checks no `slot` attribute of its own.
     if let Some(slot) = slot
+        && el.kind != ElementKind::Slot
         && (fills || matches!(parent, Some(NodeKind::Snippet(_))))
     {
         slots::check(input, slot, node.parent.filter(|_| fills), slots)?;
