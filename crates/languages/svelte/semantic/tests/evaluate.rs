@@ -191,3 +191,9 @@ fn a_regular_expression_is_one_known_object_per_literal() {
         "NaN"
     );
 }
+
+#[test]
+fn an_exported_binding_is_not_constant() {
+    assert!(evaluate("let klass = ''; klass;").is_known);
+    assert!(!evaluate("let klass = ''; export { klass }; klass;").is_known);
+}

@@ -48,7 +48,7 @@ pub(super) fn keeps_callee(
     res.symbol(callee).is_none_or(|symbol| {
         let scoping = res.scoping();
         let flags = scoping.symbol_flags(symbol);
-        res.writes(symbol) == 0
+        !res.reassigned(symbol)
             && match created {
                 Created::Template => true,
                 Created::Script(at) => {

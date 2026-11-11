@@ -114,7 +114,7 @@ pub(super) fn lower_client_props<'o>(
         if info.kind == BindingKind::BindableProperty {
             flags |= 8;
         }
-        if rw.accessors || res.writes(symbol) > 0 || res.mutations(symbol) > 0 {
+        if rw.accessors || res.reassigned(symbol) || res.mutations(symbol) > 0 {
             flags |= 4; // PROPS_IS_UPDATED
         }
         // Upstream passes the key's own value, which reads the same prop.

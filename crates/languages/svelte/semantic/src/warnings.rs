@@ -313,10 +313,11 @@ pub fn warnings(
     }
     let mut found = Found::default();
     let custom_options = runes::svelte_option(component, source, "customElement").is_some();
+    let none = rustc_hash::FxHashMap::default();
     let exported = if runes {
-        exports::exported_by_specifier(component, resolution)
+        resolution.exported_by_specifier()
     } else {
-        rustc_hash::FxHashMap::default()
+        &none
     };
     setup::warnings(component, source, runes, options, &mut found);
     script::walk(
@@ -325,7 +326,7 @@ pub fn warnings(
         resolution,
         runes,
         options,
-        &exported,
+        exported,
         &mut found,
     );
     custom_element(component, resolution, source, &mut found);
@@ -347,7 +348,7 @@ pub fn warnings(
     template.fragment(component.root, a11y::Parent::None);
     let bind_this = std::mem::take(&mut template.bind_this);
     if runes {
-        updates::non_reactive_updates(component, resolution, &bind_this, &exported, &mut found);
+        updates::non_reactive_updates(component, resolution, &bind_this, exported, &mut found);
     } else {
         unused_exports(component, resolution, source, &mut found);
     }

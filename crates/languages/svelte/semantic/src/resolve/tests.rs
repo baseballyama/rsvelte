@@ -276,3 +276,29 @@ fn an_element_attribute_sees_its_let_names_and_a_component_one_only_with_a_slot(
         assert_eq!(reads, u32::from(inside), "{template}");
     }
 }
+
+#[test]
+fn an_instance_export_specifier_reassigns_and_a_module_one_does_not() {
+    // Upstream's `ExportSpecifier` visitor: instance scripts only.
+    let source = "<script module>let moduleLocal = 1; export { moduleLocal };</script>\
+                  <script>let klass = ''; let counter = $state(0); let { prop = 1 } = $props();\
+                  let handler = () => 0; export { klass as class, counter, prop, handler };</script>\
+                  <div class={klass}></div>";
+    let res = analyze(source);
+    let [klass, counter, prop, handler, module_local] =
+        ["klass", "counter", "prop", "handler", "moduleLocal"]
+            .map(|name| symbol(&res, source, name));
+    for (symbol, name) in [
+        (klass, "klass"),
+        (counter, "counter"),
+        (prop, "prop"),
+        (handler, "handler"),
+    ] {
+        assert_eq!(res.writes(symbol), 0, "{name} has no assignment");
+        assert!(res.reassigned(symbol), "{name}");
+    }
+    assert!(!res.reassigned(module_local));
+    assert!(res.is_state_source(counter));
+    assert!(res.is_prop_source(prop));
+    assert!(!res.binding(handler).is_function);
+}
