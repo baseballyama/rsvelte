@@ -131,6 +131,9 @@ pub enum TypeScriptDocument {
     /// Not type-checked: a JavaScript document, for which upstream reports no semantic
     /// diagnostics (`checkJavaScript` is offset). Its findings are empty.
     Unchecked,
+    /// A document the language's own parser rejects: svelte-check reports only that error, with
+    /// the code `-1`, instead of type checking.
+    Rejected { message: String, span: Span },
     Checked {
         /// The generated TypeScript and its mappings.
         projection: Emitter,
@@ -291,6 +294,13 @@ impl FinishTask for Check {
             }
             Ok(TypeScriptDocument::Unchecked) => {
                 out.file("json", render_findings(context.line_index(), &[]));
+                self.stand_in(context)
+            }
+            Ok(TypeScriptDocument::Rejected { message, span }) => {
+                out.file(
+                    "json",
+                    render_findings(context.line_index(), &[(*span, -1, message.clone())]),
+                );
                 self.stand_in(context)
             }
             Ok(TypeScriptDocument::Checked { .. }) if self.tsc.is_none() => {
@@ -505,7 +515,7 @@ fn write_findings(docs: &[Prepared], outs: Vec<&mut TaskOutput>, found: Vec<Type
         keyed.sort_by_key(|f| (f.semantic, f.generated, f.span.start_offset));
         let found: Vec<_> = keyed
             .into_iter()
-            .map(|f| (f.span, f.code, f.message))
+            .map(|f| (f.span, i64::from(f.code), f.message))
             .collect();
         // A finding in synthesized code is a projection defect; the document's result is refused.
         for message in unmapped {
@@ -555,7 +565,7 @@ fn generated_offset(projection: &Emitter, offset: u32) -> u32 {
 
 /// Findings as svelte-check and vue-tsc report them: `code`, the flattened `message`, and 0-based
 /// lines with UTF-16 characters, in the order given.
-pub(crate) fn render_findings(lines: &LineIndex, found: &[(Span, u32, String)]) -> String {
+pub(crate) fn render_findings(lines: &LineIndex, found: &[(Span, i64, String)]) -> String {
     let mut w = StructuredDataWriter::new(true);
     w.begin_array();
     for (span, code, message) in found {
