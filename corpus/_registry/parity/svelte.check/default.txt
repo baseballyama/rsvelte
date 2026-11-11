@@ -1,4 +1,4 @@
-# svelte.check/default: 33296 match
+# svelte.check/default: 33303 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/animotion/src/lib/components/slides.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
@@ -184,7 +184,6 @@ svelte/layerchart/docs/src/examples/components/Partition/vertical.svelte	refused
 svelte/layerchart/docs/src/examples/components/Treemap/nested-filter.svelte	refused
 svelte/layerchart/docs/src/examples/components/Treemap/nested-zoom.svelte	refused
 svelte/layerchart/docs/src/examples/components/Treemap/stacked-zoom.svelte	refused
-svelte/layerchart/docs/src/lib/components/Example.svelte	mismatch
 svelte/layerchart/docs/src/lib/components/controls/TransformContextControls.svelte	refused
 svelte/layerchart/docs/src/routes/docs/components/[name]/+page.svelte	refused
 svelte/layerchart/docs/src/routes/docs/utils/[name]/+page.svelte	refused
@@ -3292,7 +3291,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_valueless_slot_attribute/a_va
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_valueless_slot_attribute/a_valueless_slot_attribute_declares_no_slot_prop/e8b2498c064c05ea.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_valueless_slot_attribute/a_valueless_slot_attribute_declares_no_slot_prop/fb89f9d27bbed4fd.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_valueless_slot_attribute/a_valueless_slot_attribute_declares_no_slot_prop/fe8d48054c293741.svelte	refused
-svelte/rsvelte/check/boundary-elements/project/src/Boundary.svelte	mismatch
 svelte/rsvelte/check/svelte-config-accessors-off/project/src/Child.svelte	refused
 svelte/rsvelte/check/ts-instance-reexport/project/src/reexport.svelte	mismatch
 svelte/rsvelte/crates/rsvelte_core/fixtures_utf8_boundary/svelte_ignore_scan.svelte	mismatch
@@ -3449,15 +3447,10 @@ svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store02-input.svelte	mi
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store02-type-output.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store03-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store03-type-output.svelte	mismatch
-svelte/svelte-inspect-value/packages/svelte/src/doclib/Code.svelte	mismatch
-svelte/svelte-inspect-value/packages/svelte/src/lib/Wrapper.svelte	mismatch
 svelte/svelte-inspect-value/packages/svelte/src/lib/components/CollapseButton.svelte	refused
 svelte/svelte-inspect-value/packages/svelte/src/lib/components/GetterSetter.svelte	mismatch
 svelte/svelte-inspect-value/packages/svelte/src/lib/components/HTMLViewSimple.svelte	mismatch
-svelte/svelte-inspect-value/packages/svelte/src/lib/components/Node.svelte	mismatch
-svelte/svelte-inspect-value/packages/svelte/src/lib/components/Preview.svelte	mismatch
 svelte/svelte-inspect-value/packages/svelte/src/lib/components/StringValue.svelte	mismatch
-svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/+layout.svelte	mismatch
 svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/reference/panel/PanelExample.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/richtext/ToolbarRichText.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/DropDownAlign.svelte	mismatch

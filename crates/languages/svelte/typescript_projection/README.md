@@ -9,6 +9,7 @@ valid. Template checks need no JSX: elements become typed calls to `svelteHTML.c
 | `lower(&Component, source)`                       | An immutable projection AST                                                    |
 | `emit(&SyntaxTree, source)`                       | TypeScript text and byte-range source mappings                                 |
 | `DECLARATIONS`                                    | Filename and text of the projection helpers' type declarations                 |
+| `SHIMS`                                           | The same without the element types, beside svelte's `svelte-html.d.ts`         |
 | `register(&mut Registry)`                         | `svelte.typescript_projection/default`, plus cached AST and emission artifacts |
 | `content_mapper::write_transform(source, output)` | A native TypeScript content mapper transform result                            |
 

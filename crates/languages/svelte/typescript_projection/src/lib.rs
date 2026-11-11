@@ -10,6 +10,17 @@ pub use emit::{emit, emit_named};
 mod computation;
 pub use computation::{Printed, Projected, register, register_artifacts};
 
+/// The helpers' declarations without the element types, for a project that reads them from
+/// svelte's own `svelte-html.d.ts`, as svelte-check does when the package has one.
+pub const SHIMS: (&str, &str) = (
+    "svelte-shims-v4.d.ts",
+    concat!(
+        include_str!("../vendor/svelte-shims-v4.d.ts"),
+        "\n",
+        include_str!("../projection.d.ts")
+    ),
+);
+
 pub const DECLARATIONS: (&str, &str) = (
     "svelte-jsx-v4.d.ts",
     concat!(
