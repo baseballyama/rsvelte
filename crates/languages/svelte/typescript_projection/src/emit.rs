@@ -144,7 +144,14 @@ impl Printer<'_> {
             }
             Node::StoreSubscription(store) => {
                 let name = store.text(self.source);
-                for part in [";let $", name, " = __rsvelte_store_get(", name, ");\n"] {
+                // A type query reads no value, so this declaration can raise no finding of its own.
+                for part in [
+                    ";let $",
+                    name,
+                    "!: __rsvelte_store_value<typeof ",
+                    name,
+                    ">;\n",
+                ] {
                     self.output.push(part);
                 }
             }

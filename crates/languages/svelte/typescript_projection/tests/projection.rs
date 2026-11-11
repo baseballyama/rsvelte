@@ -268,8 +268,11 @@ fn a_store_subscription_is_declared_where_svelte2tsx_declares_it() {
                   {$m}{$i}{$w}{$f}{$p}{$a}";
     let (_, output) = project(source);
     let out = &output.out;
-    let declaration =
-        |name: &str| out.find(&format!(";let ${name} = __rsvelte_store_get({name});"));
+    let declaration = |name: &str| {
+        out.find(&format!(
+            ";let ${name}!: __rsvelte_store_value<typeof {name}>;"
+        ))
+    };
     let declared = |name: &str| declaration(name).unwrap_or_else(|| panic!("${name}\n{out}"));
     let at = |text: &str| out.find(text).unwrap_or_else(|| panic!("{text}\n{out}"));
     // After the statement that binds the store, and an import's first in the instance.

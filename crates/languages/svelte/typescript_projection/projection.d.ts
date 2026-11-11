@@ -7,5 +7,4 @@ declare function __rsvelte_props<Required extends Record<string, unknown>, Optio
 declare function __rsvelte_untyped_prop(): any;
 declare function __rsvelte_empty_array(values: unknown[]): any[];
 type __rsvelte_store<T> = { subscribe: (run: (value: T) => any, invalidate?: any) => any };
-declare function __rsvelte_store_get<T = any>(store: __rsvelte_store<T>): T;
-declare function __rsvelte_store_get<Store extends __rsvelte_store<any> | undefined | null>(store: Store): Store extends __rsvelte_store<infer T> ? T : Store;
+type __rsvelte_store_value<Store> = Store extends __rsvelte_store<infer T> ? T : Store;

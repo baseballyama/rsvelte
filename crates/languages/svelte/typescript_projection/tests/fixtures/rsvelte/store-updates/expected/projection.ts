@@ -1,5 +1,5 @@
 ;
-import { writable } from 'svelte/store'; let a = $state(writable(1));;let $a = __rsvelte_store_get(a);
+import { writable } from 'svelte/store'; let a = $state(writable(1));;let $a!: __rsvelte_store_value<typeof a>;
  function f() { a = writable(2); $a++; ++$a; $a -= 1; $a.x--; }
 ;
 
