@@ -430,6 +430,47 @@ pub(super) fn props_id(program: &Program<'_>, res: &Resolution) -> Option<String
 ///
 /// An `unsupported` [`Diagnostic`] for an export the instance script cannot lower, and
 /// upstream's errors for the exports it can.
+/// Makes the string statements that open the component's function, or the server's context
+/// callback in it, its prologue: upstream prints them bare, where they are directives.
+pub(super) fn hoist_prologue<'o>(b: &Builder<'o>, function: &mut Statement<'o>) {
+    let Statement::FunctionDeclaration(function) = function else {
+        return;
+    };
+    let Some(body) = &mut function.body else {
+        return;
+    };
+    hoist_into(b, body);
+    if let [Statement::ExpressionStatement(statement)] = body.statements.as_mut_slice()
+        && let Expression::CallExpression(call) = &mut statement.expression
+        && let Some(Argument::ArrowFunctionExpression(callback)) = call.arguments.first_mut()
+        && let oxc_ast::ast::ArrowFunctionBody::FunctionBody(body) = &mut callback.body
+    {
+        hoist_into(b, body);
+    }
+}
+
+fn hoist_into<'o>(b: &Builder<'o>, body: &mut oxc_ast::ast::FunctionBody<'o>) {
+    let count = (body.statements.iter())
+        .take_while(|s| {
+            matches!(s, Statement::ExpressionStatement(e)
+                if matches!(e.expression, Expression::StringLiteral(_)))
+        })
+        .count();
+    for statement in body.statements.drain(..count) {
+        let Statement::ExpressionStatement(statement) = statement else {
+            unreachable!("counted as a string statement")
+        };
+        let Expression::StringLiteral(literal) = statement.unbox().expression else {
+            unreachable!("counted as a string statement")
+        };
+        let literal = literal.unbox();
+        let raw = b.str(&super::javascript::string_value(literal.value));
+        let directive =
+            oxc_ast::ast::Directive::new(literal.span, literal.clone_in(b.allocator()), raw, b);
+        body.directives.push(directive);
+    }
+}
+
 pub(super) fn lower_script<'t, 'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
     program: &'t Program<'t>,
@@ -438,7 +479,13 @@ pub(super) fn lower_script<'t, 'o>(
     mut context: ScriptContext<'_, 't>,
 ) -> Result<Vec<Statement<'o>>, Diagnostic> {
     let instance = matches!(context, ScriptContext::Instance { .. });
-    let mut out = Vec::with_capacity(program.body.len());
+    let mut out = Vec::with_capacity(program.directives.len() + program.body.len());
+    // Upstream's parser reads a prologue as statements, which it keeps where they are.
+    if !matches!(context, ScriptContext::File) {
+        out.extend(
+            (program.directives.iter()).map(|d| rw.b.statement(rw.b.string(d.directive.as_str()))),
+        );
+    }
     for statement in &program.body {
         // Upstream erases the types before it analyzes the component.
         // A module's types are TypeScript's emit to erase, once it is lowered.

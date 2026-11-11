@@ -260,13 +260,14 @@ pub(super) fn lower_prepared<'c, 'o>(
     let stylesheet = super::embedded_stylesheet(b, &facts, Target::Client);
     let mut returned = context.export_properties(&exports);
     returned.extend(context.custom_element_exports());
-    let func = context.component_function(
+    let mut func = context.component_function(
         instance,
         template,
         returned,
         stylesheet.is_some(),
         props_id.as_deref(),
     );
+    super::script::hoist_prologue(b, &mut func);
     let registration = context.custom_element_registration(&exports);
 
     let mut program = Vec::new();
