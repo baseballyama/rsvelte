@@ -7,6 +7,9 @@ import type { Artifact, Task, Unit } from '../types.ts';
 
 const NODE_MODULES = path.resolve(import.meta.dirname, '../node_modules');
 const SVELTE_CHECK = path.join(NODE_MODULES, 'svelte-check/bin/svelte-check');
+const SVELTE_PACKAGE = fs.realpathSync(path.join(NODE_MODULES, 'svelte'));
+// The checkout that holds the packages, which differs on every machine and worktree.
+const CHECKOUT = SVELTE_PACKAGE.slice(0, SVELTE_PACKAGE.indexOf(`${path.sep}node_modules${path.sep}`));
 
 interface Finding {
 	filename: string;
@@ -62,9 +65,12 @@ function check(units: Unit[]): Map<string, Record<string, Artifact>> {
 			const json = line.slice(line.indexOf(' ') + 1);
 			if (!json.startsWith('{')) continue;
 			const d = JSON.parse(json) as Finding;
-			byFile
-				.get(d.filename)
-				?.push({ code: d.code, message: d.message, start: d.start, end: d.end });
+			const findings = byFile.get(d.filename);
+			if (!findings) continue;
+			// Expected output must not depend on where the checkout is.
+			if (d.message.includes(CHECKOUT))
+				throw new Error(`${d.filename}: the message names a path of this checkout: ${d.message}`);
+			findings.push({ code: d.code, message: d.message, start: d.start, end: d.end });
 		}
 		return new Map(
 			[...byFile].map(([file, findings]) => [

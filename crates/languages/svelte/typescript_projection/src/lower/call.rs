@@ -44,6 +44,7 @@ impl Builder<'_> {
     pub(super) fn element_call(
         &mut self,
         name: Span,
+        attributes: Range,
         actions: &[NodeIdentifier],
         properties: NodeIdentifier,
     ) -> NodeIdentifier {
@@ -52,18 +53,41 @@ impl Builder<'_> {
             let arguments = self.tree.list(actions);
             self.tree.push(Node::Call { callee, arguments })
         });
-        let name = self.tree.push(Node::Text(name));
-        let parts = self.tree.list(&[name]);
-        let name = self.tree.push(Node::String {
-            parts,
-            template: false,
-        });
+        let name = self.element_tag(name, attributes);
         let arguments = match enhancers {
             Some(enhancers) => self.tree.list(&[name, enhancers, properties]),
             None => self.tree.list(&[name, properties]),
         };
         let callee = self.element_callee();
         self.tree.push(Node::Call { callee, arguments })
+    }
+
+    /// The tag's name as a string, or the `this` of `<svelte:element>`, as svelte2tsx passes it.
+    fn element_tag(&mut self, name: Span, attributes: Range) -> NodeIdentifier {
+        let this = (name.text(self.source) == "svelte:element")
+            .then(|| {
+                self.component.attributes(attributes).iter().find(|a| {
+                    a.kind == AttributeKind::Attribute && a.name.text(self.source) == "this"
+                })
+            })
+            .flatten()
+            .and_then(|a| match a.value {
+                AttributeValue::Parts(parts) => Some(self.component.parts(parts)),
+                AttributeValue::True => None,
+            });
+        let text = match this {
+            Some(&[Part::Expression { expression, .. }]) => {
+                return self.expression_source(expression, None);
+            }
+            Some(&[Part::Text(text)]) => text,
+            _ => name,
+        };
+        let text = self.tree.push(Node::Text(text));
+        let parts = self.tree.list(&[text]);
+        self.tree.push(Node::String {
+            parts,
+            template: false,
+        })
     }
 
     /// Whether the element fills a named slot of its parent component.

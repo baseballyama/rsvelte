@@ -121,7 +121,7 @@ test('native TS imports Svelte through the Rust mapper and preserves Unicode spa
 test('parse errors and unsupported Svelte constructs remain mapper diagnostics', () => {
 	for (const [source, code] of [
 		['<p>{</p>', 1],
-		['{#await promise}{:then value}{value}{/await}', 2],
+		['<enhanced:img src="./a.png" />', 2],
 	] as const) {
 		project(source, (api, config, file) => {
 			const snapshot = api.createSnapshot({ openProjects: [config] });
@@ -361,9 +361,10 @@ let { count = initial, title = 'ok', select = (value: number) => value, binding 
 				const program = snapshot.getConfiguredProject(config)!.program;
 				assert.deepEqual(program.getProgramDiagnostics(), []);
 				const parent = program.getSemanticDiagnostics(file);
+				// svelte-check reports 2741 for the missing prop, which the projection passes as an argument.
 				assert.deepEqual(
 					parent.map((diagnostic) => diagnostic.code).toSorted(),
-					[2322, 2339, 2345],
+					[2322, 2345, 7006],
 				);
 				const diagnostics = program.getSemanticDiagnostics(
 					path.join(path.dirname(file), 'Child.svelte'),
@@ -445,7 +446,7 @@ test('empty prop defaults accept evolving arrays and preserve explicit bindable 
 				);
 				assert.deepEqual(
 					program.getSemanticDiagnostics(file).map((diagnostic) => diagnostic.code),
-					[2322],
+					[],
 				);
 			} finally {
 				snapshot.dispose();
