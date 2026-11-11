@@ -22,7 +22,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             unreachable!("a component element")
         };
         let mut parts = Vec::new();
-        for prop in props(tree.attributes(element.attributes)) {
+        for prop in props(tree.attributes(element.attributes), self.source_text) {
             match prop {
                 Prop::Value(a) => {
                     let value = self.attribute_value(a, false, false);
