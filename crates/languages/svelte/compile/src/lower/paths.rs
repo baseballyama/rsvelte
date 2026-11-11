@@ -20,6 +20,11 @@ pub(super) trait Destructure<'a, 'o> {
 
     /// Declares `$.to_array(…)`, which upstream calls an insert, and returns how a path reads it.
     fn array(&mut self, value: Expression<'o>) -> Expression<'o>;
+
+    /// Whether `object.key` reads `$$props` instead, as upstream reads a rest prop's member.
+    fn reads_props(&self, _object: &Expression<'o>, _key: &str) -> bool {
+        false
+    }
 }
 
 pub(super) struct Path<'a, 'o> {
@@ -121,7 +126,11 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
             };
             let member = match &property.key {
                 PropertyKey::StaticIdentifier(key) if !property.computed => {
-                    b.member(object, &key.name)
+                    if self.hooks.reads_props(&object, &key.name) {
+                        b.member(b.id("$$props"), &key.name)
+                    } else {
+                        b.member(object, &key.name)
+                    }
                 }
                 key => {
                     let key = key.as_expression().expect("a computed or literal key");

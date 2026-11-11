@@ -472,6 +472,10 @@ fn lower_declarator<'o>(
     if rune == Some("$props.id") {
         return;
     }
+    if matches!(rune, Some("$derived" | "$derived.by")) && !d.id.is_binding_identifier() {
+        declarators::lower_destructured_derived(rw, d, out, names);
+        return;
+    }
     if rune != Some("$props") {
         out.push(rw.declarator(d));
         return;
