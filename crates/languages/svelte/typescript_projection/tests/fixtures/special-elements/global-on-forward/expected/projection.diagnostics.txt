@@ -1,1 +1,1 @@
-error check_unsupported 1:2-1:15 not supported by the type-check projection yet: custom elements and svelte: elements
+error check_unsupported 1:16-1:25 not supported by the type-check projection yet: directives

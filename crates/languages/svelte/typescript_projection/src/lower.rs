@@ -273,18 +273,26 @@ impl Builder<'_> {
     ) -> Result<NodeIdentifier> {
         let is_component = component.is_some();
         let tag = name.text(self.source);
+        // svelte2tsx writes these as elements, which `svelteHTML` types.
+        let special = matches!(
+            tag,
+            "svelte:head"
+                | "svelte:options"
+                | "svelte:window"
+                | "svelte:body"
+                | "svelte:document"
+                | "svelte:fragment"
+        );
         if !is_component
-            && (!tag.starts_with(|c: char| c.is_ascii_lowercase()) || tag.contains(['-', ':']))
+            && !special
+            && (!tag.starts_with(|c: char| c.is_ascii_lowercase()) || tag.contains(':'))
         {
-            return Err(Unsupported::at(
-                "custom elements and svelte: elements",
-                name,
-            ));
+            return Err(Unsupported::at("svelte: elements", name));
         }
         let slot = !is_component && tag == "slot";
         // An element whose attributes svelte2tsx checks against the intrinsic element types.
         let intrinsic = !is_component && !slot;
-        let custom_element = intrinsic && self.has_custom_is(attributes);
+        let custom_element = intrinsic && (tag.contains('-') || self.has_custom_is(attributes));
         let start = self.scratch.len();
         self.scratch.reserve(attributes.len as usize + 1);
         if is_component

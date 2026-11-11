@@ -53,7 +53,8 @@ The projection also handles JavaScript and scriptless components. Unsupported ty
 return their original source range.
 
 - Template checks cover the `if`, `each` and `key` blocks and the `@const`, `@render`, `@html`
-  and `@debug` tags. They also cover Svelte 5 component props
+  and `@debug` tags. They cover custom elements and the `svelte:` elements that svelte2tsx
+  writes as elements, such as `svelte:head` and `svelte:window`. They also cover Svelte 5 component props
   without children, `class:` and `bind:` on elements and components. A bound variable reads as
   its declared type, as svelte2tsx widens it.
 - Public component contracts include annotated props and defaults inferred from object
