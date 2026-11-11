@@ -36,6 +36,16 @@ impl CheckRequest {
         }
     }
 
+    /// Where the checker reads each stand-in, and its text.
+    pub(super) fn stand_ins<'a>(
+        &'a self,
+        root: &'a Path,
+    ) -> impl Iterator<Item = (PathBuf, &'static str)> + 'a {
+        self.stand_ins
+            .iter()
+            .map(move |(path, text)| (normalized(&root.join(path)), *text))
+    }
+
     pub(super) fn write_mapper_config(
         &self,
         output: &mut StructuredDataWriter,
@@ -75,7 +85,7 @@ impl CheckRequest {
 }
 
 /// The precomputed mapper's store: each content-mapped document's projection by checked path.
-pub(super) fn store_json(req: &CheckRequest, paths: &[PathBuf]) -> String {
+pub(super) fn store_json(req: &CheckRequest, root: &Path, paths: &[PathBuf]) -> String {
     let mut output = StructuredDataWriter::new(false);
     output.begin_object().key("files").begin_object();
     for ((file, text), path) in req.mapped_files.iter().zip(&req.files).zip(paths) {
@@ -90,6 +100,19 @@ pub(super) fn store_json(req: &CheckRequest, paths: &[PathBuf]) -> String {
             .key("extension")
             .write_string(".ts");
         rsvelte_typescript_content_mapper::write_mappings(&file.mappings, &mut output);
+        output.end_object();
+    }
+    for (path, text) in req.stand_ins(root) {
+        output
+            .key(&path.to_string_lossy())
+            .begin_object()
+            .key("source")
+            .write_string(text)
+            .key("text")
+            .write_string(text)
+            .key("extension")
+            .write_string(".ts");
+        rsvelte_typescript_content_mapper::write_mappings(&[], &mut output);
         output.end_object();
     }
     output.end_object().end_object();

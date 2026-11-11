@@ -23,6 +23,10 @@ pub(crate) struct CheckRequest {
     pub declarations: Vec<(&'static str, &'static str)>,
     /// Existing declaration files to include.
     pub include: Vec<PathBuf>,
+    /// Existing files the checker reads with this text instead.
+    pub replaced: Vec<(PathBuf, String)>,
+    /// Documents the run does not check, by path, with what an import of each one reads.
+    pub stand_ins: Vec<(String, &'static str)>,
     /// `compilerOptions.paths` entries: module specifier → file.
     pub paths: Vec<(&'static str, PathBuf)>,
 }
@@ -109,9 +113,14 @@ impl Tsc {
             let text = mapped.map_or(&req.files[i], |file| &file.source);
             layer.files.push((path.clone(), text.clone()));
         }
+        layer.files.extend(req.replaced.iter().cloned());
+        layer.files.extend(
+            req.stand_ins(&root)
+                .map(|(path, text)| (path, text.to_owned())),
+        );
         let store = support.join("projections.json");
         if let Some(binary) = &req.content_mapper {
-            std::fs::write(&store, mapped::store_json(req, &paths))
+            std::fs::write(&store, mapped::store_json(req, &root, &paths))
                 .map_err(|e| format!("{}: {e}", store.display()))?;
             let package = support.join(MAPPER_PACKAGE);
             std::fs::create_dir_all(&package).map_err(|e| e.to_string())?;

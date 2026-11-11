@@ -39,6 +39,7 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
         identifier: TASK,
         documents: Documents::WithTypeScriptView,
         tsc,
+        stand_in: None,
     });
     Ok(())
 }
