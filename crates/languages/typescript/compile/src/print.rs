@@ -12,7 +12,15 @@ mod tests;
 
 #[must_use]
 pub fn print(program: &Program<'_>) -> String {
-    Codegen::new().build(program).code
+    Codegen::new().with_options(options()).build(program).code
+}
+
+/// Upstream's printer keeps a template literal's text as written, `</script` too.
+fn options() -> CodegenOptions {
+    CodegenOptions {
+        escape_script_close_tag: false,
+        ..CodegenOptions::default()
+    }
 }
 
 /// [`print`], with a point mapping wherever the printer maps a node back into
@@ -35,7 +43,7 @@ pub fn print_mapped(program: &Program<'_>, lines: &LineIndex) -> Emitter {
     let printed = Codegen::new()
         .with_options(CodegenOptions {
             source_map_path: Some("source".into()),
-            ..CodegenOptions::default()
+            ..options()
         })
         .build(program);
     let mut emitter = Emitter::new();

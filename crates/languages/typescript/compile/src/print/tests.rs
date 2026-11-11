@@ -51,3 +51,15 @@ fn a_mapping_lands_where_an_index_of_both_texts_puts_it() {
         assert!(actual.len() > 5, "{actual:?}");
     }
 }
+
+#[test]
+fn a_template_keeps_a_script_close_tag_as_written() {
+    let source = "let a = `\\</script\\>`;\nlet b = '</script>';\n";
+    let allocator = Allocator::default();
+    let program = Parser::new(&allocator, source, SourceType::mjs())
+        .parse()
+        .program;
+    let printed = super::print(&program);
+    assert!(printed.contains(r"`\</script\>`"), "{printed}");
+    assert!(printed.contains("\"</script>\""), "{printed}");
+}
