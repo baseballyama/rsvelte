@@ -399,8 +399,8 @@ fn supported_binding(
     true
 }
 
-/// The `{@const}` tags this port does not lower: a destructured one, and one that reads a later
-/// tag, which upstream rejects as a cycle.
+/// The `{@const}` tags this port does not lower: one that reads a later tag with no cycle, which
+/// upstream's runes mode reads before that tag declares it.
 fn const_tag(
     input: &CompileInput<'_>,
     res: &Resolution,

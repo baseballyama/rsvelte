@@ -10,6 +10,7 @@ mod builder;
 mod class_fields;
 mod client;
 mod component;
+mod const_cycles;
 mod coverage;
 mod custom_element;
 mod debug_tag;
@@ -231,6 +232,7 @@ pub(crate) fn validate_erased_by(
     validation::check_analysis(input, res, &names, snippets::errors(input, res))?;
     let hoistable = snippets::hoistable(input, res, &names);
     snippets::check_exports(input, res, &hoistable)?;
+    const_cycles::check(input, res)?;
     coverage::check(input, res)?;
     if erasure == Erasure::Svelte {
         validation::check_typescript(input)?;
