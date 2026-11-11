@@ -46,7 +46,7 @@ use super::slot_element::has_slot_element;
 use super::{
     Builder, Item, Prepared, Target, check_foreign_element, escape_markup, event_attribute,
     is_behaviour, is_boolean_attribute, is_customizable_select, is_directive,
-    is_load_error_element, needs_clsx, synthetic_value, unsupported,
+    is_load_error_element, needs_clsx, synthetic_value, unsupported, uses_slots,
 };
 use crate::lower::builder::Runtime;
 use crate::render_plan::RenderPlan;
@@ -112,6 +112,31 @@ fn takes_props(
         || res.uses_props()
         || exports
         || has_slot_element(input.component.compiler_syntax_tree)
+        || uses_slots(res)
+}
+
+/// The statements upstream puts around the component's body: `$.props_id` first, the
+/// `$$renderer.component` callback that gives it a context, and `$$slots` outside it.
+fn wrap_body<'o>(
+    b: &Builder<'o>,
+    an: &Analysis,
+    res: &Resolution,
+    props_id: Option<&str>,
+    mut body: Vec<Statement<'o>>,
+) -> Vec<Statement<'o>> {
+    if let Some(id) = props_id {
+        body.insert(0, b.const_(id, b.runtime("props_id", [b.id("$$renderer")])));
+    }
+    if an.needs_context {
+        let callback = b.arrow_block(b.params(["$$renderer"]), body, false);
+        let call = b.call(b.member(b.id("$$renderer"), "component"), [callback]);
+        body = vec![b.stmt(call)];
+    }
+    if uses_slots(res) {
+        let slots = b.runtime("sanitize_slots", [b.id("$$props")]);
+        body.insert(0, b.const_("$$slots", slots));
+    }
+    body
 }
 
 pub(super) fn lower_prepared<'c, 'o>(
@@ -178,14 +203,7 @@ pub(super) fn lower_prepared<'c, 'o>(
     body.extend(instance);
     body.extend(template);
     body.extend(bind_props(b, res, &exports));
-    if let Some(id) = &props_id {
-        body.insert(0, b.const_(id, b.runtime("props_id", [b.id("$$renderer")])));
-    }
-    if an.needs_context {
-        let callback = b.arrow_block(b.params(["$$renderer"]), body, false);
-        let call = b.call(b.member(b.id("$$renderer"), "component"), [callback]);
-        body = vec![b.stmt(call)];
-    }
+    let body = wrap_body(b, an, res, props_id.as_deref(), body);
     let mut parameters = vec!["$$renderer"];
     if takes_props(an, res, !exports.is_empty(), input) {
         parameters.push("$$props");

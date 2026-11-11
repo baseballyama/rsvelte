@@ -30,10 +30,11 @@ inputs, unsupported projections and parse errors. A passing snapshot can still h
 `check_unsupported` diagnostics. Each source repository runs as its own checker project,
 because their globals can conflict.
 
-This checker is incomplete. It uses temporary filenames and does not keep the project's import
-graph. The projection does not export component contracts yet. Svelte's ambient `*.svelte`
-declaration can accept an unresolved import with a broad component type. So empty findings do
-not prove that the checker checked the props of imported components.
+The checker reads each document at its own path through its file layer; a relative path is
+beside `tsconfig.json`. Imports between the documents of one run resolve as on the disk. This
+checker is still incomplete. Svelte's ambient `*.svelte` declaration can accept an unresolved
+import with a broad component type. So empty findings do not prove that the checker checked the
+props of imported components.
 
 ```sh
 cargo test -p rsvelte_svelte_check --test fixtures

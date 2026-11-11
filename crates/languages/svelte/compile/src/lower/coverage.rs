@@ -32,6 +32,7 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
             | NodeKind::If { .. }
             | NodeKind::Snippet(_)
             | NodeKind::Key { .. }
+            | NodeKind::Await(_)
             | NodeKind::Render { .. } => None,
             // Upstream passes a `svelte-ignore hydration_html_changed` on to `$.html`.
             NodeKind::Html { .. } => ignores_html_changes.then_some("an ignored `{@html}` change"),
@@ -57,7 +58,6 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
                         || has(|k| matches!(k, NodeKind::Snippet(_)))))
                 .then_some("a `{@const}` beside a snippet")
             }
-            NodeKind::Await(_) => Some("an `{#await}` block"),
             &NodeKind::Const { declaration } => const_tag(input, res, declaration),
             NodeKind::Debug { .. } => Some("a `{@debug}` tag"),
             NodeKind::Declaration { .. } => Some("a declaration tag"),
@@ -65,6 +65,15 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
         if let Some(what) = what {
             return unsupported(what, node.span);
         }
+    }
+    // Upstream's `slot_snippet_conflict`.
+    if let Some(render) = tree
+        .nodes
+        .iter()
+        .find(|node| matches!(node.kind, NodeKind::Render { .. }))
+        .filter(|_| super::uses_slots(res))
+    {
+        return unsupported("`$$slots` beside a `{@render}` tag", render.span);
     }
     Ok(())
 }

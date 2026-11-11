@@ -1,3 +1,4 @@
+mod await_block;
 mod each_block;
 mod if_block;
 mod key_block;

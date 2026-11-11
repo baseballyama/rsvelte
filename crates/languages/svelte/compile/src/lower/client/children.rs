@@ -162,6 +162,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             NodeKind::If { .. } => self.if_block(identifier, node, frag, l),
             NodeKind::Each(_) => self.each_block(identifier, node, false, frag, l),
             NodeKind::Key { .. } => self.key_block(identifier, node, frag, l),
+            NodeKind::Await(_) => self.await_block(identifier, node, frag, l),
             NodeKind::Html { .. } => {
                 self.html_tag(identifier, node, false, frag, l);
                 Ok(())

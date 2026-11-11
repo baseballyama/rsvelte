@@ -6,3 +6,5 @@ declare function __rsvelte_export_component<Props extends Record<string, any>, E
 declare function __rsvelte_props<Required extends Record<string, unknown>, Optional extends Record<string, unknown>, Rest extends boolean>(required: Required, optional: Optional, rest: Rest): Required & Partial<Optional> & (Rest extends true ? Record<string, any> : {});
 declare function __rsvelte_untyped_prop(): any;
 declare function __rsvelte_empty_array(values: unknown[]): any[];
+type __rsvelte_store<T> = { subscribe: (run: (value: T) => any, invalidate?: any) => any };
+type __rsvelte_store_value<Store> = Store extends __rsvelte_store<infer T> ? T : Store;

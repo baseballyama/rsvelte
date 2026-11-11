@@ -1066,8 +1066,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/i
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes03-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes03-output.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes04-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes04-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/valid/pug01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/max-attributes-per-line/invalid/max3/test01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/max-attributes-per-line/invalid/max3/test01-output.svelte	refused

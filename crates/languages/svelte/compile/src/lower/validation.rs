@@ -124,16 +124,10 @@ pub(super) fn unbound(
         })
 }
 
-/// Refuses `$$slots`, which upstream declares from `$.sanitize_slots`.
-///
-/// # Errors
-///
-/// An `unsupported` [`Diagnostic`] at its first reference.
-pub(super) fn check_slots(res: &Resolution) -> Result<(), Diagnostic> {
-    match first_unresolved(res, |name| name == "$$slots") {
-        Some((_, span)) => unsupported("`$$slots`", span),
-        None => Ok(()),
-    }
+/// Upstream `analysis.uses_slots`: the component reads `$$slots`, which it declares from
+/// `$.sanitize_slots`.
+pub(super) fn uses_slots(res: &Resolution) -> bool {
+    first_unresolved(res, |name| name == "$$slots").is_some()
 }
 
 /// Upstream `state_invalid_placement`, which the rune walk and the markup walk both raise.

@@ -36,7 +36,7 @@ fn a_relative_program_and_tsconfig_are_relative_to_the_options() {
     let scratch = Scratch::new("relative");
     let got = checker(
         &scratch.0,
-        r#"{ "command": ["node_modules/.bin/tsrs", "--fast"], "tsconfig": "app/tsconfig.json" }"#,
+        r#"{ "command": ["node_modules/.bin/tsrs", "launcher.js"], "tsconfig": "app/tsconfig.json" }"#,
     )
     .unwrap()
     .unwrap();
@@ -44,7 +44,7 @@ fn a_relative_program_and_tsconfig_are_relative_to_the_options() {
         got.checker.program,
         scratch.0.join("node_modules/.bin/tsrs")
     );
-    assert_eq!(got.checker.arguments, ["--fast"]);
+    assert_eq!(got.checker.arguments, ["launcher.js"]);
     assert_eq!(got.tsconfig, Some(scratch.0.join("app/tsconfig.json")));
 }
 

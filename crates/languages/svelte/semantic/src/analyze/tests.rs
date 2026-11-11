@@ -87,7 +87,7 @@ fn a_global_block_scopes_no_element_and_uses_its_rules() {
 }
 
 #[test]
-fn a_call_in_a_template_default_needs_context() {
+fn a_call_in_a_snippet_default_needs_context_and_one_in_a_block_pattern_does_not() {
     let needs = |source: &str| {
         let component = parse(source).expect("parses");
         let lowered = lower(&component, source);
@@ -107,8 +107,12 @@ fn a_call_in_a_template_default_needs_context() {
     assert!(needs(&format!(
         "{script}{{#snippet s(v = f())}}{{v}}{{/snippet}}{{@render s()}}"
     )));
-    assert!(needs(&format!(
+    // From svelte 5.57.3: its visitors never meet an `{#each}` or `{:then}` pattern.
+    assert!(!needs(&format!(
         "{script}{{#each xs as {{ v = f() }}}}{{v}}{{/each}}"
+    )));
+    assert!(!needs(&format!(
+        "{script}{{#await xs then [v = f()]}}{{v}}{{/await}}"
     )));
 }
 

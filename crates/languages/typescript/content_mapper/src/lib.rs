@@ -1,8 +1,9 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::io::{BufRead, Write};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use serde::Deserialize;
+use serde_json::value::RawValue;
 
 const MAX_MESSAGE_BYTES: usize = 64 * 1024 * 1024;
 
@@ -10,8 +11,9 @@ const MAX_MESSAGE_BYTES: usize = 64 * 1024 * 1024;
 struct Request {
     jsonrpc: String,
     id: RequestId,
-    #[serde(flatten)]
-    method: Method,
+    method: String,
+    // Decoded per method: `flatten` cannot carry the raw `options` of `openProject`.
+    params: Box<RawValue>,
 }
 
 #[derive(Deserialize)]
@@ -21,35 +23,69 @@ enum RequestId {
     String(String),
 }
 
-#[derive(Deserialize)]
-#[serde(tag = "method", content = "params", rename_all = "camelCase")]
 enum Method {
-    Initialize {
-        #[serde(rename = "positionEncodings")]
-        position_encodings: Vec<String>,
-    },
-    OpenProject {
-        #[serde(rename = "projectHandle")]
-        project_handle: String,
-    },
-    CloseProject {
-        #[serde(rename = "projectHandle")]
-        project_handle: String,
-    },
-    Transform {
-        #[serde(rename = "fileName")]
-        file_name: String,
-        content: String,
-        #[serde(rename = "projectHandle")]
-        project_handle: String,
-    },
+    Initialize(InitializeParams),
+    OpenProject(OpenProjectParams),
+    CloseProject(ProjectParams),
+    Transform(TransformParams),
+}
+
+#[derive(Deserialize)]
+struct InitializeParams {
+    #[serde(rename = "positionEncodings")]
+    position_encodings: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct OpenProjectParams {
+    #[serde(rename = "projectHandle")]
+    project_handle: String,
+    /// `contentMappers[].options` of the project's tsconfig, as written.
+    options: Option<Box<RawValue>>,
+}
+
+#[derive(Deserialize)]
+struct ProjectParams {
+    #[serde(rename = "projectHandle")]
+    project_handle: String,
+}
+
+#[derive(Deserialize)]
+struct TransformParams {
+    #[serde(rename = "fileName")]
+    file_name: String,
+    content: String,
+    #[serde(rename = "projectHandle")]
+    project_handle: String,
+}
+
+impl Request {
+    fn method(&self) -> Result<Method, Box<dyn std::error::Error>> {
+        let params = self.params.get();
+        Ok(match self.method.as_str() {
+            "initialize" => Method::Initialize(serde_json::from_str(params)?),
+            "openProject" => Method::OpenProject(serde_json::from_str(params)?),
+            "closeProject" => Method::CloseProject(serde_json::from_str(params)?),
+            "transform" => Method::Transform(serde_json::from_str(params)?),
+            other => return Err(format!("unknown method `{other}`").into()),
+        })
+    }
+}
+
+/// One file to transform.
+#[derive(Debug, Clone, Copy)]
+pub struct Input<'a> {
+    pub file_name: &'a str,
+    pub content: &'a str,
+    /// The JSON of `contentMappers[].options` in the file's project, if any.
+    pub options: Option<&'a str>,
 }
 
 /// # Errors
 /// Returns transport errors, invalid requests, or transform failures.
 pub fn serve(
     diagnostic_source: &str,
-    transform: impl FnMut(&str, &str, &mut StructuredDataWriter) -> Result<(), String>,
+    transform: impl FnMut(Input<'_>, &mut StructuredDataWriter) -> Result<(), String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     serve_on(
         std::io::stdin().lock(),
@@ -63,26 +99,32 @@ fn serve_on(
     mut input: impl BufRead,
     mut output: impl Write,
     diagnostic_source: &str,
-    mut transform: impl FnMut(&str, &str, &mut StructuredDataWriter) -> Result<(), String>,
+    mut transform: impl FnMut(Input<'_>, &mut StructuredDataWriter) -> Result<(), String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut projects = HashSet::new();
+    let mut projects: HashMap<String, Option<Box<RawValue>>> = HashMap::new();
     let mut initialized = false;
     while let Some(message) = read_message(&mut input)? {
         let request: Request = serde_json::from_slice(&message)?;
         if request.jsonrpc != "2.0" {
             return Err("expected JSON-RPC 2.0".into());
         }
+        let method = request.method()?;
         // A file that cannot be transformed fails alone; the session goes on for the others.
-        if let Method::Transform {
+        if let Method::Transform(TransformParams {
             file_name,
             content,
             project_handle,
-        } = &request.method
-            && projects.contains(project_handle)
+        }) = &method
+            && let Some(options) = projects.get(project_handle)
         {
             let mut response = response_to(&request.id);
             response.key("result");
-            if let Err(message) = transform(file_name, content, &mut response) {
+            let input = Input {
+                file_name,
+                content,
+                options: options.as_deref().map(RawValue::get),
+            };
+            if let Err(message) = transform(input, &mut response) {
                 response = response_to(&request.id);
                 response
                     .key("error")
@@ -98,8 +140,8 @@ fn serve_on(
         }
         let mut response = response_to(&request.id);
         response.key("result");
-        match request.method {
-            Method::Initialize { position_encodings } => {
+        match method {
+            Method::Initialize(InitializeParams { position_encodings }) => {
                 if !position_encodings
                     .iter()
                     .any(|encoding| encoding == "utf-8")
@@ -115,15 +157,18 @@ fn serve_on(
                     .write_string(diagnostic_source)
                     .end_object();
             }
-            Method::OpenProject { project_handle } if initialized => {
-                projects.insert(project_handle);
+            Method::OpenProject(OpenProjectParams {
+                project_handle,
+                options,
+            }) if initialized => {
+                projects.insert(project_handle, options);
                 response
                     .begin_object()
                     .key("configIdentity")
                     .write_string("")
                     .end_object();
             }
-            Method::CloseProject { project_handle } if initialized => {
+            Method::CloseProject(ProjectParams { project_handle }) if initialized => {
                 projects.remove(&project_handle);
                 response.null();
             }

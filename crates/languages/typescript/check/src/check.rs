@@ -1,11 +1,8 @@
 //! Type checking with TypeScript's own checker.
 //!
-//! Native TypeScript 7.1 checks a batch. Content-mapped inputs receive diagnostics in original
-//! coordinates. Plain generated inputs use their language's mapping policy.
-//!
-//! `tsc` has no machine-readable output, so the pretty report is parsed: its header gives the
-//! start, its underline gives the end. The parser accepts only the shapes it knows and checks the
-//! count against tsc's own summary, so an unrecognised report is an error, never a dropped finding.
+//! Native TypeScript 7.1 checks a batch through its API, which answers with structured
+//! diagnostics. Content-mapped inputs receive them in original coordinates. Plain generated
+//! inputs use their language's mapping policy.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -20,19 +17,20 @@ use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
+use rsvelte_typescript_api::{DiagnosticKind, Layer, Position, Session};
 
-/// What a type checker must accept: rsvelte runs it in a directory with a generated
-/// `tsconfig.json` (with `contentMappers`) and reads the report it prints.
-pub(crate) const CONTRACT: &str = "a type checker with the command line of TypeScript 7.1 or later: \
-     `-p <dir> --pretty true --runExternalCode`, `contentMappers` in tsconfig.json, and its report";
+/// What a type checker must accept: rsvelte opens a generated `tsconfig.json` (with
+/// `contentMappers`) through the checker's API.
+pub(crate) const CONTRACT: &str = "a type checker with the API of TypeScript 7.1 or later: \
+     `--api --cwd <dir> --runExternalCode` and `contentMappers` in tsconfig.json";
 
-/// A type checker: `tsc` of TypeScript 7.1, or any product with the same command line
-/// (`CONTRACT`).
+/// A type checker: `tsc` of TypeScript 7.1, or any product with the same API (`CONTRACT`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TypeChecker {
     /// An absolute path, or a name looked up in `PATH`.
     pub program: PathBuf,
-    /// Passed before the arguments rsvelte adds, such as `--fast`.
+    /// Passed before the arguments rsvelte adds, such as a script for `node`. The API mode takes
+    /// no compiler options.
     pub arguments: Vec<String>,
 }
 
@@ -120,11 +118,13 @@ pub struct Tsc {
 
 #[derive(Default, Debug)]
 pub(crate) struct CheckRequest {
+    /// Each document's path as the user knows it; a relative one is beside the tsconfig.
+    pub documents: Vec<String>,
     /// Generated TypeScript, one per document.
     pub files: Vec<String>,
     pub mapped_files: Vec<Option<ContentMappedInput>>,
     pub content_mapper: Option<PathBuf>,
-    /// Declaration files written beside the generated ones, by name.
+    /// Declaration files the checker reads beside the overlay tsconfig, by name.
     pub declarations: Vec<(&'static str, &'static str)>,
     /// Existing declaration files to include.
     pub include: Vec<PathBuf>,
@@ -140,8 +140,9 @@ pub(crate) struct TypeScriptDiagnostic {
     /// The message chain, one line per link, indented two spaces per level (as svelte-check and
     /// `ts.flattenDiagnosticMessageText(…, "\n")` render it).
     pub message: String,
-    /// Byte range in the input: original for content-mapped files, generated otherwise.
-    pub span: Span,
+    /// Byte range in the input: original for content-mapped files, generated otherwise. `None`
+    /// in code a content mapper synthesized, which no source range explains.
+    pub span: Option<Span>,
 }
 
 /// A document as the type checker sees it: the [`Facet`] each language provides, so one [`Check`]
@@ -251,6 +252,7 @@ pub enum Documents {
 }
 
 struct Prepared {
+    path: String,
     projection: Emitter,
     map_back: MapBack,
     env: Arc<TypeScriptEnv>,
@@ -292,6 +294,7 @@ impl FinishTask for Check {
                 map_back,
                 env,
             }) => Some(Box::new(Prepared {
+                path: context.document.path.clone(),
                 projection: Emitter {
                     out: projection.out.clone(),
                     mappings: projection.mappings.clone(),
@@ -344,6 +347,7 @@ fn check_projected(
     outs: Vec<&mut TaskOutput>,
 ) {
     let req = CheckRequest {
+        documents: docs.iter().map(|d| d.path.clone()).collect(),
         mapped_files: docs
             .iter()
             .map(|d| {
@@ -386,13 +390,18 @@ fn check_projected(
         }
     };
     let mut per_doc: Vec<Vec<(Span, u32, String)>> = vec![Vec::new(); docs.len()];
+    let mut unmapped: Vec<Vec<String>> = vec![Vec::new(); docs.len()];
     for f in found {
         let d = &docs[f.file];
+        let Some(span) = f.span else {
+            unmapped[f.file].push(format!("TS{}: {}", f.code, f.message));
+            continue;
+        };
         let bom = byte_order_mark(&d.source_text);
         let mapped = if d.env.mapped_extension.is_some() {
-            Some(f.span)
+            Some(span)
         } else {
-            (d.map_back)(&d.projection, f.span).and_then(|span| {
+            (d.map_back)(&d.projection, span).and_then(|span| {
                 Some(Span::new(
                     span.start_offset.checked_sub(bom)?,
                     span.end_offset.checked_sub(bom)?,
@@ -404,7 +413,15 @@ fn check_projected(
         }
     }
     // svelte-check and vue-tsc count positions in the text TypeScript reads: without the mark.
-    for ((d, out), mut found) in docs.iter().zip(outs).zip(per_doc) {
+    for (((d, out), mut found), unmapped) in docs.iter().zip(outs).zip(per_doc).zip(unmapped) {
+        // A finding in synthesized code is a projection defect; the document's result is refused.
+        for message in unmapped {
+            out.diagnostics.push(Diagnostic::error(
+                "check_unmapped",
+                format!("the projection made a finding with no source range: {message}"),
+                Span::new(0, 0),
+            ));
+        }
         let text = &d.source_text[byte_order_mark(&d.source_text) as usize..];
         out.file("json", render_findings(&LineIndex::new(text), &mut found));
     }
@@ -450,75 +467,127 @@ pub(crate) fn render_findings(lines: &LineIndex, found: &mut [(Span, u32, String
 
 static RUN: AtomicU32 = AtomicU32::new(0);
 
+/// The directory beside each project root that holds what rsvelte adds: the overlay tsconfig and
+/// the declarations. It exists only in the checker's file layer.
+const OVERLAY: &str = ".rsvelte";
+const MAPPER_PACKAGE: &str = "rsvelte-content-mapper";
+
 impl Tsc {
     /// # Errors
     ///
-    /// A message if the temporary project cannot be written, `tsc` cannot be run, or its report
-    /// cannot be parsed.
+    /// A message if the projections cannot be written, the checker cannot run, or it reports a
+    /// diagnostic outside every document.
     pub(crate) fn check(&self, req: &CheckRequest) -> Result<Vec<TypeScriptDiagnostic>, String> {
-        if !req.mapped_files.is_empty() && req.mapped_files.len() != req.files.len() {
+        if req.documents.len() != req.files.len()
+            || (!req.mapped_files.is_empty() && req.mapped_files.len() != req.files.len())
+        {
             return Err("mapped inputs must match the projection population".into());
         }
         if req.content_mapper.is_none() && req.mapped_files.iter().any(Option::is_some) {
             return Err("content-mapped inputs require a mapper executable".into());
         }
+        // Only what the mapper process reads is on the disk: its package and the projections.
         let dir = std::env::temp_dir().join(format!(
             "rsvelte-tsc-{}-{}",
             std::process::id(),
             RUN.fetch_add(1, Ordering::Relaxed)
         ));
         std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        let result = self.check_in(&dir, req);
+        let dir = std::fs::canonicalize(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        let result = self.check_with(&dir, req);
         // Best effort: a leftover temporary directory does not affect the result.
         drop(std::fs::remove_dir_all(&dir));
         result
     }
 
-    fn check_in(
+    /// The tsconfig, and where a document with a relative path is: beside the tsconfig, else in
+    /// the current directory, as the command line resolves it. The checker names files by their
+    /// real path, such as `/private/var` for `/var`, so both are real paths.
+    fn root(&self) -> Result<(Option<PathBuf>, PathBuf), String> {
+        let real = |p: &Path| std::fs::canonicalize(p).map_err(|e| format!("{}: {e}", p.display()));
+        match &self.tsconfig {
+            Some(config) => {
+                let config = real(config)?;
+                let root = config.parent().map(Path::to_owned);
+                Ok((Some(config), root.ok_or("a tsconfig has a directory")?))
+            }
+            None => Ok((
+                None,
+                real(&std::env::current_dir().map_err(|e| e.to_string())?)?,
+            )),
+        }
+    }
+
+    fn check_with(
         &self,
-        dir: &Path,
+        support: &Path,
         req: &CheckRequest,
     ) -> Result<Vec<TypeScriptDiagnostic>, String> {
-        let write = |name: &str, text: &str| {
-            std::fs::write(dir.join(name), text).map_err(|e| format!("{name}: {e}"))
-        };
-        for (i, text) in req.files.iter().enumerate() {
+        let (base, root) = self.root()?;
+        let paths: Vec<PathBuf> = (0..req.files.len())
+            .map(|i| req.checked_path(&root, i))
+            .collect();
+        let overlay = root.join(OVERLAY);
+        let mut layer = Layer::default();
+        for (i, path) in paths.iter().enumerate() {
             let mapped = req.mapped_files.get(i).and_then(Option::as_ref);
-            write(
-                &req.file_name(i),
-                mapped.map_or(text.as_str(), |file| file.source.as_str()),
-            )?;
-            if let Some(mapped) = mapped {
-                write(
-                    &format!("{}.projection.json", req.file_name(i)),
-                    &mapped.json(text),
-                )?;
-            }
+            let text = mapped.map_or(&req.files[i], |file| &file.source);
+            layer.files.push((path.clone(), text.clone()));
         }
-        req.write_mapper_package(dir)?;
-        for (name, text) in &req.declarations {
-            write(name, text)?;
+        let store = support.join("projections.json");
+        if let Some(binary) = &req.content_mapper {
+            std::fs::write(&store, mapped::store_json(req, &paths))
+                .map_err(|e| format!("{}: {e}", store.display()))?;
+            let package = support.join(MAPPER_PACKAGE);
+            std::fs::create_dir_all(&package).map_err(|e| e.to_string())?;
+            std::fs::write(package.join("package.json"), mapped::package_json(binary))
+                .map_err(|e| e.to_string())?;
+            layer
+                .links
+                .push((overlay.join("node_modules").join(MAPPER_PACKAGE), package));
         }
-        write("tsconfig.json", &self.tsconfig_json(req))?;
-        let output = {
-            let _p = measurement::phase("ts.tsc");
-            Command::new(&self.checker.program)
-                .args(&self.checker.arguments)
-                .args(["-p", ".", "--pretty", "true", "--runExternalCode"])
-                .current_dir(dir)
-                .output()
-                .map_err(|e| format!("{}: {e}", self.checker))?
+        let declarations: Vec<PathBuf> = req
+            .declarations
+            .iter()
+            .map(|(name, text)| {
+                let path = overlay.join(name);
+                layer.files.push((path.clone(), (*text).to_owned()));
+                path
+            })
+            .collect();
+        let failed = |e: String| format!("{e}; rsvelte needs {CONTRACT}");
+        let _p = measurement::phase("ts.tsc");
+        let mut session = Session::start(&self.checker.program, &self.checker.arguments, &root)
+            .map_err(failed)?;
+        // The project's own root files, as its tsconfig selects them; the overlay keeps them.
+        let mut roots = if let Some(base) = &base {
+            let project = session.open(&[base], &layer).map_err(failed)?.remove(0);
+            session.release(project.snapshot).map_err(failed)?;
+            project.root_files
+        } else {
+            Vec::new()
         };
-        let stdout = String::from_utf8(output.stdout).map_err(|e| e.to_string())?;
-        if !matches!(output.status.code(), Some(0..=2)) || !output.stderr.is_empty() {
-            return Err(format!(
-                "{} exited with {}: {}{stdout}",
-                self.checker,
-                output.status,
-                String::from_utf8_lossy(&output.stderr)
-            ));
+        roots.extend(paths.iter().cloned());
+        roots.extend(declarations);
+        roots.extend(req.include.iter().cloned());
+        let config = overlay.join("tsconfig.json");
+        layer.files.push((
+            config.clone(),
+            tsconfig_json(base.as_deref(), req, &roots, &store),
+        ));
+        let project = session.open(&[&config], &layer).map_err(failed)?.remove(0);
+        let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
+        let mut found = session
+            .diagnostics(&project, DiagnosticKind::Program, None)
+            .map_err(failed)?;
+        for kind in [DiagnosticKind::Syntactic, DiagnosticKind::Semantic] {
+            found.extend(
+                session
+                    .diagnostics(&project, kind, Some(&files))
+                    .map_err(failed)?,
+            );
         }
-        let _p = measurement::phase("ts.report");
+        session.release(project.snapshot).map_err(failed)?;
         let lines: Vec<LineIndex> = req
             .files
             .iter()
@@ -532,52 +601,91 @@ impl Tsc {
                 )
             })
             .collect();
-        parse_report(&strip_ansi(&stdout), |file, line, column| {
-            lines.get(file).and_then(|l| l.offset(line, column))
-        })
-        .map_err(|e| format!("{}: {e}; rsvelte needs {CONTRACT}", self.checker))
-    }
-
-    fn tsconfig_json(&self, req: &CheckRequest) -> String {
-        let mut w = StructuredDataWriter::new(true);
-        w.begin_object();
-        if let Some(base) = &self.tsconfig {
-            w.key("extends").write_string(&base.to_string_lossy());
-        }
-        w.key("compilerOptions")
-            .begin_object()
-            .key("noEmit")
-            .write_boolean(true)
-            .key("skipLibCheck")
-            .write_boolean(true);
-        // Every generated file is a module, whatever its imports: documents share no globals.
-        w.key("moduleDetection").write_string("force");
-        w.key("paths").begin_object();
-        for (spec, file) in &req.paths {
-            w.key(spec)
-                .begin_array()
-                .write_string(&file.to_string_lossy())
-                .end_array();
-        }
-        w.end_object().end_object();
-        req.write_mapper_config(&mut w);
-        w.key("files").begin_array();
-        for i in 0..req.files.len() {
-            w.write_string(&req.file_name(i));
-        }
-        for (name, _) in &req.declarations {
-            w.write_string(name);
-        }
-        for p in &req.include {
-            w.write_string(&p.to_string_lossy());
-        }
-        w.end_array().end_object();
-        w.finish()
+        found
+            .into_iter()
+            // The command line reports errors only; svelte-check's errors are the oracle.
+            .filter(|d| d.category == ERROR)
+            .map(|d| located(&d, &paths, &lines).ok_or_else(|| unlocated(&self.checker, &d)))
+            .collect()
     }
 }
 
-mod report;
-use report::{parse_report, strip_ansi};
+fn tsconfig_json(
+    base: Option<&Path>,
+    req: &CheckRequest,
+    roots: &[PathBuf],
+    store: &Path,
+) -> String {
+    let mut w = StructuredDataWriter::new(true);
+    w.begin_object();
+    if let Some(base) = base {
+        w.key("extends").write_string(&base.to_string_lossy());
+    }
+    w.key("compilerOptions")
+        .begin_object()
+        .key("noEmit")
+        .write_boolean(true)
+        .key("skipLibCheck")
+        .write_boolean(true);
+    w.key("paths").begin_object();
+    for (spec, file) in &req.paths {
+        w.key(spec)
+            .begin_array()
+            .write_string(&file.to_string_lossy())
+            .end_array();
+    }
+    w.end_object().end_object();
+    req.write_mapper_config(&mut w, MAPPER_PACKAGE, store);
+    w.key("files").begin_array();
+    let mut listed = std::collections::HashSet::new();
+    for p in roots {
+        if listed.insert(p) {
+            w.write_string(&p.to_string_lossy());
+        }
+    }
+    w.end_array().end_object();
+    w.finish()
+}
+
+/// `DiagnosticCategory.Error`.
+const ERROR: u8 = 1;
+
+/// The document and byte range of a diagnostic in one of `paths`, whose texts `lines` index.
+fn located(
+    d: &rsvelte_typescript_api::Diagnostic,
+    paths: &[PathBuf],
+    lines: &[LineIndex],
+) -> Option<TypeScriptDiagnostic> {
+    let file = paths.iter().position(|p| Some(p) == d.file_name.as_ref())?;
+    let offset = |p: Option<Position>| {
+        let p = p?;
+        lines[file].offset(p.line + 1, p.character)
+    };
+    let span = offset(d.start_position)
+        .zip(offset(d.end_position))
+        .filter(|(start, end)| start <= end)
+        .map(|(start, end)| Span::new(start, end));
+    Some(TypeScriptDiagnostic {
+        file,
+        code: d.code,
+        message: d.flattened_message(),
+        span,
+    })
+}
+
+/// A diagnostic outside every document, such as one in tsconfig.json, fails the whole check.
+fn unlocated(checker: &TypeChecker, d: &rsvelte_typescript_api::Diagnostic) -> String {
+    let at = d
+        .file_name
+        .as_ref()
+        .map_or_else(String::new, |f| format!("{}: ", f.display()));
+    format!(
+        "{checker}: {at}error TS{}: {}",
+        d.code,
+        d.flattened_message()
+    )
+}
+
 mod mapped;
 pub(crate) use mapped::ContentMappedInput;
 

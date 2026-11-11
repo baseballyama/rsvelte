@@ -142,6 +142,19 @@ impl Printer<'_> {
                 self.output.copy(self.source, span);
                 self.output.mark(span.end_offset);
             }
+            Node::StoreSubscription(store) => {
+                let name = store.text(self.source);
+                // A type query reads no value, so this declaration can raise no finding of its own.
+                for part in [
+                    ";let $",
+                    name,
+                    "!: __rsvelte_store_value<typeof ",
+                    name,
+                    ">;\n",
+                ] {
+                    self.output.push(part);
+                }
+            }
             Node::GeneratedIdentifier { prefix, index } => {
                 self.node(prefix);
                 write!(self.output.out, "{index}").expect("writing to a String cannot fail");

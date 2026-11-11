@@ -7,6 +7,14 @@
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-output.svelte".skip]
 "svelte.compile" = "svelte 5.57.3 emits an import declaration that is not at the top level, which does not parse"
 
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes04-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx deletes an instance-script `export { foo } from` and reads `foo` only in generated code, so svelte-check hides both the unresolved module and the unbound name"
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `foo` from an instance-script `export { foo } from`, which binds no local `foo`, so the component throws a ReferenceError"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes04-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx deletes an instance-script `export { foo } from` and reads `foo` only in generated code, so svelte-check hides both the unresolved module and the unbound name"
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `foo` from an instance-script `export { foo } from`, which binds no local `foo`, so the component throws a ReferenceError"
+
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-abstract-accessor-property-input.svelte".skip]
 "svelte.compile" = "svelte 5.57.3 leaves the TypeScript `abstract accessor` in the emitted JS, which does not parse"
 
@@ -150,6 +158,9 @@
 
 ["svelte/syntaxfm-website/src/lib/transcript/Transcript.svelte".skip]
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
+
+["svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block-shadowed/input.svelte".skip]
+"svelte.compile/client" = "upstream bug: a `{:catch}` branch shares its parent's transforms, so its error's `$.get` read leaks by name to the blocks after it"
 
 ["svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte".skip]
 "svelte.compile" = "upstream bug: an `<svg>` beside a component makes the component's children svg, which drops the HTML whitespace between their components"
