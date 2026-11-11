@@ -10847,8 +10847,9 @@ export function decoy() {
 </script>
 <p>semicolon free</p>
 
-=== 211 lint/no-svelte-internal/06-module-type-import.svelte	svelte	runes	neutral
+=== 278 lint/no-svelte-internal/06-module-type-import.svelte	svelte	runes	neutral
 <script module lang="ts">
+	// @ts-expect-error: the package has no types for svelte/internal
 	import type { Component } from 'svelte/internal';
 	export type Re = Component;
 </script>

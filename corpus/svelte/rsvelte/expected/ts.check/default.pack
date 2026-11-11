@@ -4145,21 +4145,8 @@
 === 3 lint/no-svelte-internal/05-semicolon-free.svelte	json
 []
 
-=== 559 lint/no-svelte-internal/06-module-type-import.svelte	json
-[
-	{
-		"code": 7016,
-		"message": "Could not find a declaration file for module 'svelte/internal'. '/Users/baseballyama/git/rsvelte/.claude/worktrees/general/worktree10/node_modules/.pnpm/svelte@5.57.3_@typescript-eslint+types@8.72.1/node_modules/svelte/src/internal/index.js' implicitly has an 'any' type.\n  If the 'svelte' package actually exposes this module, try adding a new declaration (.d.ts) file containing `declare module 'svelte/internal';`",
-		"start": {
-			"line": 1,
-			"character": 32
-		},
-		"end": {
-			"line": 1,
-			"character": 49
-		}
-	}
-]
+=== 3 lint/no-svelte-internal/06-module-type-import.svelte	json
+[]
 
 === 3 lint/no-svelte-internal/08-template-literal-import.svelte	json
 []
