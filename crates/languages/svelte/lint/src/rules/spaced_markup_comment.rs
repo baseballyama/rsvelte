@@ -23,17 +23,17 @@ enum Spacing {
 
 fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
     let spacing: Spacing = options.single()?;
-    Ok(Box::new(SpacedHtmlComment {
+    Ok(Box::new(SpacedMarkupComment {
         require: spacing == Spacing::Always,
     }))
 }
 
 #[derive(Debug)]
-struct SpacedHtmlComment {
+struct SpacedMarkupComment {
     require: bool,
 }
 
-impl SvelteRule for SpacedHtmlComment {
+impl SvelteRule for SpacedMarkupComment {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let source = file.source();

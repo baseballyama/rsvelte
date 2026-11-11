@@ -14,10 +14,6 @@ mod element_kind;
 mod experimental_require_slot_types;
 mod expressions;
 mod first_attribute_linebreak;
-mod html_closing_bracket_new_line;
-mod html_closing_bracket_spacing;
-mod html_quotes;
-mod html_self_closing;
 mod inactive;
 mod indent;
 mod infinite_reactive_loop;
@@ -26,13 +22,17 @@ mod kit_navigation;
 mod kit_route;
 mod legacy_reactivity;
 mod markup;
+mod markup_closing_bracket_new_line;
+mod markup_closing_bracket_spacing;
+mod markup_quotes;
+mod markup_self_closing;
 mod max_attributes_per_line;
 mod max_lines_per_block;
 mod mustache_spacing;
 mod no_add_event_listener;
 mod no_at_const_tags;
 mod no_at_debug_tags;
-mod no_at_html_tags;
+mod no_at_markup_tags;
 mod no_bind_value_on_checkable_inputs;
 mod no_conflicting_module_names;
 mod no_dom_manipulating;
@@ -58,7 +58,7 @@ mod no_raw_special_elements;
 mod no_reactive_functions;
 mod no_reactive_literals;
 mod no_reactive_reassign;
-mod no_restricted_html_elements;
+mod no_restricted_markup_elements;
 mod no_shorthand_style_property_overrides;
 mod no_spaces_around_equal_signs_in_attribute;
 mod no_store_async;
@@ -93,7 +93,7 @@ mod runes;
 mod shorthand_attribute;
 mod shorthand_directive;
 mod sort_attributes;
-mod spaced_html_comment;
+mod spaced_markup_comment;
 mod string_escape;
 pub(crate) mod style_attribute;
 pub(crate) mod style_sheet;
@@ -124,19 +124,19 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &prefer_style_directive::RULE,
     &require_optimized_style_attribute::RULE,
     &first_attribute_linebreak::RULE,
-    &html_closing_bracket_new_line::RULE,
-    &html_closing_bracket_spacing::RULE,
-    &html_quotes::RULE,
-    &html_self_closing::RULE,
+    &markup_closing_bracket_new_line::RULE,
+    &markup_closing_bracket_spacing::RULE,
+    &markup_quotes::RULE,
+    &markup_self_closing::RULE,
     &max_attributes_per_line::RULE,
     &mustache_spacing::RULE,
     &no_spaces_around_equal_signs_in_attribute::RULE,
     &no_trailing_spaces::RULE,
     &sort_attributes::RULE,
-    &spaced_html_comment::RULE,
+    &spaced_markup_comment::RULE,
     &no_at_const_tags::RULE,
     &no_at_debug_tags::RULE,
-    &no_at_html_tags::RULE,
+    &no_at_markup_tags::RULE,
     &no_bind_value_on_checkable_inputs::RULE,
     &no_dupe_else_if_blocks::RULE,
     &no_dupe_on_directives::RULE,
@@ -147,7 +147,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_not_function_handler::RULE,
     &no_object_in_text_mustaches::RULE,
     &no_raw_special_elements::RULE,
-    &no_restricted_html_elements::RULE,
+    &no_restricted_markup_elements::RULE,
     &no_target_blank::RULE,
     &no_useless_children_snippet::RULE,
     &no_useless_mustaches::RULE,
