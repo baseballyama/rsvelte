@@ -17,6 +17,9 @@ use rsvelte_kernel::source::document::Document;
 mod builder;
 pub use builder::{Builder, Recorded, syntax_error};
 
+mod scratch;
+pub use scratch::with_scratch_arena;
+
 mod cell {
     #![allow(
         clippy::mem_forget,
@@ -38,6 +41,27 @@ mod cell {
 
 use cell::Cell;
 
+/// The cell, which gives its arena back to the thread once no [`Tree`] shares it.
+struct Kept(Option<Cell>);
+
+impl std::ops::Deref for Kept {
+    type Target = Cell;
+
+    fn deref(&self) -> &Cell {
+        self.0
+            .as_ref()
+            .expect("the cell is taken only when it drops")
+    }
+}
+
+impl Drop for Kept {
+    fn drop(&mut self) {
+        if let Some(cell) = self.0.take() {
+            scratch::give_back(cell.into_owner());
+        }
+    }
+}
+
 struct Trees<'a> {
     source_text: &'a str,
     programs: Vec<Program<'a>>,
@@ -54,7 +78,7 @@ struct Trees<'a> {
 /// Cloning shares them, so that a task such as scope analysis can keep them alive beside what it
 /// derives.
 #[derive(Clone)]
-pub struct Tree(Rc<Cell>);
+pub struct Tree(Rc<Kept>);
 
 impl std::fmt::Debug for Tree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -122,12 +146,19 @@ impl Tree {
         parse: impl for<'a> FnOnce(&mut Builder<'a>) -> Result<T, Diagnostic>,
     ) -> Result<(Self, T), Diagnostic> {
         let mut output = None;
-        let cell = Cell::try_new(Allocator::default(), |allocator| {
+        let cell = Cell::try_new_or_recover(scratch::take(), |allocator| {
             let mut builder = Builder::new(allocator, allocator.alloc_str(source_text));
             output = Some(parse(&mut builder)?);
             Ok::<_, Diagnostic>(builder.finish())
+        })
+        .map_err(|(allocator, error)| {
+            scratch::give_back(allocator);
+            error
         })?;
-        Ok((Self(Rc::new(cell)), output.expect("`parse` returned")))
+        Ok((
+            Self(Rc::new(Kept(Some(cell)))),
+            output.expect("`parse` returned"),
+        ))
     }
 
     /// A document that is one program, such as a `.ts` file.

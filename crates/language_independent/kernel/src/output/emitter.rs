@@ -185,7 +185,9 @@ impl Emitter {
             len: 0,
         }));
         sorted.sort_by_key(|m| m.generated);
-        let mut points: Vec<(u32, u32)> = Vec::with_capacity(sorted.len());
+        // A copy has at most one point per byte.
+        let capacity = sorted.iter().map(|m| m.len.max(1) as usize).sum();
+        let mut points: Vec<(u32, u32)> = Vec::with_capacity(capacity);
         let mut put = |g: u32, s: u32| match points.last_mut() {
             Some(last) if last.0 == g => *last = (g, s),
             _ => points.push((g, s)),
@@ -208,7 +210,13 @@ impl Emitter {
     #[must_use]
     pub fn source_map(&self, source: &LineIndex, source_name: &str) -> String {
         let gen_index = LineIndex::new(&self.out);
-        let mut mappings = String::new();
+        let points = self.points();
+        let mut json = String::from("{\"version\":3,\"sources\":[");
+        crate::output::structured_data::write_string(&mut json, source_name);
+        // The mappings are base64 digits, commas and semicolons, which JSON writes unescaped.
+        json.push_str("],\"names\":[],\"mappings\":\"");
+        // A segment is four one-byte digits for the usual small deltas, and a separator.
+        json.reserve(points.len() * 5 + 2);
         let (
             mut prev_gen_line,
             mut prev_gen_column,
@@ -216,35 +224,28 @@ impl Emitter {
             mut prev_source_text_column,
         ) = (1u32, 0i64, 0i64, 0i64);
         let mut first_in_line = true;
-        for (generated, source_text) in self.points() {
+        for (generated, source_text) in points {
             let g = gen_index.line_column(generated);
             let s = source.line_column(source_text);
             while prev_gen_line < g.line {
-                mappings.push(';');
+                json.push(';');
                 prev_gen_line += 1;
                 prev_gen_column = 0;
                 first_in_line = true;
             }
             if !first_in_line {
-                mappings.push(',');
+                json.push(',');
             }
             first_in_line = false;
-            vlq(&mut mappings, i64::from(g.column) - prev_gen_column);
-            vlq(&mut mappings, 0);
-            vlq(
-                &mut mappings,
-                (i64::from(s.line) - 1) - prev_source_text_line,
-            );
-            vlq(&mut mappings, i64::from(s.column) - prev_source_text_column);
+            vlq(&mut json, i64::from(g.column) - prev_gen_column);
+            vlq(&mut json, 0);
+            vlq(&mut json, (i64::from(s.line) - 1) - prev_source_text_line);
+            vlq(&mut json, i64::from(s.column) - prev_source_text_column);
             prev_gen_column = i64::from(g.column);
             prev_source_text_line = i64::from(s.line) - 1;
             prev_source_text_column = i64::from(s.column);
         }
-        let mut json = String::from("{\"version\":3,\"sources\":[");
-        crate::output::structured_data::write_string(&mut json, source_name);
-        json.push_str("],\"names\":[],\"mappings\":");
-        crate::output::structured_data::write_string(&mut json, &mappings);
-        json.push('}');
+        json.push_str("\"}");
         json
     }
 }

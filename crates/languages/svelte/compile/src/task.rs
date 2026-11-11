@@ -107,19 +107,18 @@ pub(crate) fn compiled<'a>(
     target: Target,
     mapped: bool,
 ) -> Result<Compiled<'a>, Diagnostic> {
-    let allocator = Allocator::default();
-    let module = lower_document(context, target, &allocator)?;
-    let javascript = {
+    let javascript = rsvelte_typescript_tree::with_scratch_arena(|allocator| {
+        let module = lower_document(context, target, allocator)?;
         let _p = measurement::phase("js.print");
-        if mapped {
+        Ok::<_, Diagnostic>(if mapped {
             print::print_mapped(&module, context.line_index())
         } else {
             Emitter {
                 out: print::print(&module),
                 ..Emitter::default()
             }
-        }
-    };
+        })
+    })?;
     let validated = context.get::<Validated>().as_ref().map_err(Clone::clone)?;
     let stylesheet = if validated.injects_css() {
         None
@@ -238,10 +237,11 @@ fn compile_with_facts(
     facts: lower::Lowering<'_, '_>,
     target: Target,
 ) -> Result<String, Diagnostic> {
-    let allocator = Allocator::default();
-    let module = lower_measured(facts, target, &allocator)?;
-    let _p = measurement::phase("js.print");
-    Ok(print::print(&module))
+    rsvelte_typescript_tree::with_scratch_arena(|allocator| {
+        let module = lower_measured(facts, target, allocator)?;
+        let _p = measurement::phase("js.print");
+        Ok(print::print(&module))
+    })
 }
 
 fn lower_measured<'o>(

@@ -1,9 +1,11 @@
+use std::borrow::Cow;
+
 use oxc_ast::ast::{BinaryOperator, Expression};
 
 use super::{
     Attribute, AttributeValue, CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Helper,
-    Name, Namespace, NodeKind, Parent, R, Span, Steps, Template, directive, spelled, unsupported,
-    vue,
+    Item, Name, Namespace, NodeKind, Parent, Part, R, Span, Steps, Template, directive, spelled,
+    unsupported, vue,
 };
 use crate::compilation::string_key;
 
@@ -12,6 +14,23 @@ use crate::compilation::string_key;
 const LOAD_ERROR_ELEMENTS: &[&str] = &[
     "body", "embed", "iframe", "img", "link", "object", "script", "style", "track",
 ];
+
+/// A `<textarea>`'s `value` of text and expressions, which Svelte renders as its content.
+pub(super) fn textarea_value<'a>(
+    tag: &str,
+    attributes: &'a [Attribute],
+    source_text: &str,
+) -> Option<&'a [Part]> {
+    if tag != "textarea" {
+        return None;
+    }
+    attributes.iter().find_map(|a| match &a.value {
+        AttributeValue::Interpolated(parts) if a.name.text(source_text) == "value" => {
+            Some(&**parts)
+        }
+        _ => None,
+    })
+}
 
 impl<'t> Template<'_, '_, 't> {
     pub(super) fn element(
@@ -104,6 +123,8 @@ impl<'t> Template<'_, '_, 't> {
                     .iter()
                     .any(|attribute| attribute.name.text(source_text) == "multiple"),
             )?
+        } else if let Some(parts) = textarea_value(tag, attributes, source_text) {
+            self.textarea_content(parts, v, node.span)
         } else {
             let preserve = preserve_whitespace || tag == "pre" || tag == "textarea";
             self.list(
@@ -116,6 +137,33 @@ impl<'t> Template<'_, '_, 't> {
         };
         self.vb.set_element_children(v, children);
         Ok(v)
+    }
+
+    /// A `<textarea>`'s `value` of text and expressions as its content.
+    fn textarea_content(
+        &mut self,
+        parts: &[Part],
+        v: vue::CompilerNodeIdentifier,
+        at: Span,
+    ) -> vue::Children {
+        let source_text = self.i.source_text;
+        let items: Vec<Item<'_>> = parts
+            .iter()
+            .map(|part| match *part {
+                Part::Text(span) => {
+                    let raw = span.text(source_text);
+                    Item::Text {
+                        data: rsvelte_svelte_syntax::syntax_tree::decode_attribute(raw),
+                        raw: Cow::Borrowed(raw),
+                    }
+                }
+                Part::Expression { expression, .. } => Item::Expression(expression),
+            })
+            .collect();
+        let mut out = Vec::with_capacity(items.len());
+        let parent = Parent::Element("textarea");
+        self.sequence(&items, parent, true, Some(v), at, &mut out);
+        self.vb.children(&out)
     }
 
     /// The element's attributes as Vue props and steps; the target of a `<select>`'s `bind:`.
@@ -158,7 +206,8 @@ impl<'t> Template<'_, '_, 't> {
                 let style = styles
                     && (matches!(a.value, AttributeValue::Style { .. })
                         || a.name.text(source_text) == "style");
-                if !(((directives || scope.is_some()) && class) || style) {
+                let content = textarea_value(tag, std::slice::from_ref(a), source_text).is_some();
+                if !(((directives || scope.is_some()) && class) || style || content) {
                     self.attribute(tag, namespace, attributes, a, props, steps)?;
                 }
             }

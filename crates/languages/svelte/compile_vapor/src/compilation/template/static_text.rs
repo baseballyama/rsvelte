@@ -1,14 +1,23 @@
+use std::borrow::Cow;
+
 use super::{Item, Parent, Span, Template, Text, spelled, vue};
 
-/// A `<textarea>`'s text: the parser drops one leading newline (client), and Svelte's server
-/// drops a lone one beside an expression.
+/// A `<textarea>`'s text. As its content, the parser drops one leading newline (client), and
+/// Svelte's server drops a lone one beside an expression. As its `value`, whose leading newline
+/// analysis already dropped, the server writes one more before a newline the browser would drop.
 pub(super) fn textarea_text<'a>(
     raw: &'a str,
     first: bool,
+    value: bool,
     server: bool,
     items: &[Item<'_>],
-) -> &'a str {
-    if !first {
+) -> Cow<'a, str> {
+    Cow::Borrowed(if !first {
+        raw
+    } else if value {
+        if server && (raw.starts_with('\n') || raw.starts_with("\r\n")) {
+            return Cow::Owned(format!("\n{raw}"));
+        }
         raw
     } else if !server {
         raw.strip_prefix("\r\n")
@@ -20,7 +29,7 @@ pub(super) fn textarea_text<'a>(
         ""
     } else {
         raw
-    }
+    })
 }
 
 impl Template<'_, '_, '_> {

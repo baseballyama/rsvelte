@@ -81,36 +81,9 @@ pub(crate) fn format(
     }
 
     let core = core_options(options)?;
-    let allocator = Allocator::default();
-    let mut docs = LayoutInstructions::new();
-    let mut f = Printer {
-        c,
-        options,
-        source_text,
-        docs: &mut docs,
-        embedder: javascript::Embedder {
-            embedding: Embedding::new(&allocator, core),
-            typescript: is_typescript(c, source_text),
-            options: javascript_options(options, core),
-            kept: Vec::new(),
-        },
-        text: vec![None; c.nodes.len()],
-        in_pre: false,
-        in_head: false,
-        in_shadow_root: false,
-        last_in_block: None,
-        buffers: Vec::new(),
-    };
-    let root = f.top_level()?;
-    refuse_lost_comments(c, &f.embedder.kept)?;
-    let embedding = f.embedder.embedding;
-    let printed =
-        embedding
-            .print(&docs, root, text.len())
-            .map_err(|unprinted| match unprinted {
-                Unprinted::FlatOnly => Unsupported::nowhere("a layout only checked flat"),
-                Unprinted::Rejected => Unsupported::nowhere("a document oxc's printer rejects"),
-            })?;
+    let printed = rsvelte_typescript_tree::with_scratch_arena(|allocator| {
+        print(c, options, source_text, text, core, allocator)
+    })?;
     let eol = match options.end_of_line {
         EndOfLine::Lf => "\n",
         EndOfLine::Crlf => "\r\n",
@@ -129,6 +102,45 @@ pub(crate) fn format(
         printed.replace('\n', eol)
     };
     Ok(format!("{bom}{printed}"))
+}
+
+/// Prints `text`, the source without its byte order mark, with arena trees built in `allocator`.
+fn print(
+    c: &Component,
+    options: &Options,
+    source_text: &str,
+    text: &str,
+    core: CoreFormatOptions,
+    allocator: &Allocator,
+) -> R<String> {
+    let mut docs = LayoutInstructions::new();
+    let mut f = Printer {
+        c,
+        options,
+        source_text,
+        docs: &mut docs,
+        embedder: javascript::Embedder {
+            embedding: Embedding::new(allocator, core),
+            typescript: is_typescript(c, source_text),
+            options: javascript_options(options, core),
+            kept: Vec::new(),
+        },
+        text: vec![None; c.nodes.len()],
+        in_pre: false,
+        in_head: false,
+        in_shadow_root: false,
+        last_in_block: None,
+        buffers: Vec::new(),
+    };
+    let root = f.top_level()?;
+    refuse_lost_comments(c, &f.embedder.kept)?;
+    let embedding = f.embedder.embedding;
+    embedding
+        .print(&docs, root, text.len())
+        .map_err(|unprinted| match unprinted {
+            Unprinted::FlatOnly => Unsupported::nowhere("a layout only checked flat"),
+            Unprinted::Rejected => Unsupported::nowhere("a document oxc's printer rejects"),
+        })
 }
 
 /// The options oxc's printer and formatters share.

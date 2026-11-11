@@ -36,8 +36,11 @@ mod snippets;
 use effects::Body;
 
 pub(super) fn compile(t: &Translation, res: &Resolution) -> String {
-    let allocator = Allocator::default();
-    let b = Builder::new(&allocator);
+    rsvelte_typescript_tree::with_scratch_arena(|allocator| compile_in(t, res, allocator))
+}
+
+fn compile_in(t: &Translation, res: &Resolution, allocator: &Allocator) -> String {
+    let b = Builder::new(allocator);
     let mut e = Emitter::new(t, res, &b);
     e.async_helpers();
     let mut body = Body::default();

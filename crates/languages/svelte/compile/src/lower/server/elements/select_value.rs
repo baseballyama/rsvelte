@@ -32,7 +32,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             true,
         );
         arguments.insert(1, Some(body));
-        if is_customizable_select(compiler_syntax_tree, self.source_text, tag, el) {
+        if is_customizable_select(compiler_syntax_tree, self.source_text, el) {
             // Upstream passes `true` after the attributes, the scoping class, classes, styles
             // and flags.
             arguments.resize_with(6, || None);

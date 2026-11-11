@@ -114,6 +114,8 @@ impl<'t> Template<'_, '_, 't> {
             let other = o.name.text(source_text);
             !std::ptr::eq(o, a)
                 && matches!(other, "value" | "checked" | "group")
+                && super::elements::textarea_value(tag, std::slice::from_ref(o), source_text)
+                    .is_none()
                 && !matches!(
                     (property, other),
                     ("group", "value") | ("indeterminate", "checked")

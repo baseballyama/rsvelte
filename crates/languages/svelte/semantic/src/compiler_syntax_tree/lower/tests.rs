@@ -193,3 +193,68 @@ fn every_node_points_back_to_its_surface_node() {
         );
     }
 }
+
+#[test]
+fn a_textarea_s_content_but_one_text_is_its_value() {
+    // The textarea's attributes as name and part texts, and its children's texts.
+    let lowered = |source_text: &str| {
+        let (_, h) = compiler_syntax_tree(source_text);
+        let [top] = h.children(h.root) else {
+            panic!("one top-level node")
+        };
+        let NodeKind::Element(el) = &h.node(*top).kind else {
+            panic!("an element")
+        };
+        let attributes: Vec<(String, Vec<String>)> = h
+            .attributes(el.attributes)
+            .iter()
+            .map(|a| {
+                let parts = match &a.value {
+                    AttributeValue::Interpolated(parts) => parts
+                        .iter()
+                        .map(|p| match p {
+                            Part::Text(span) | Part::Expression { span, .. } => {
+                                span.text(source_text).to_owned()
+                            }
+                        })
+                        .collect(),
+                    _ => Vec::new(),
+                };
+                (a.name.text(source_text).to_owned(), parts)
+            })
+            .collect();
+        let children: Vec<String> = h
+            .children(el.children)
+            .iter()
+            .map(|&t| {
+                h.node(t)
+                    .kind
+                    .text(source_text)
+                    .unwrap_or_default()
+                    .to_owned()
+            })
+            .collect();
+        (attributes, children)
+    };
+    let owned = |texts: &[&str]| texts.iter().map(|&t| t.to_owned()).collect::<Vec<_>>();
+    assert_eq!(
+        lowered("<textarea rows=\"2\">\n{a} b</textarea>"),
+        (
+            vec![
+                ("rows".to_owned(), Vec::new()),
+                ("value".to_owned(), owned(&["", "{a}", " b"])),
+            ],
+            Vec::new()
+        )
+    );
+    assert_eq!(
+        lowered("<textarea>{a}</textarea>"),
+        (vec![("value".to_owned(), owned(&["{a}"]))], Vec::new())
+    );
+    // One text stays the content, decoded as upstream decodes an attribute: `&ampx` is kept.
+    assert_eq!(
+        lowered("<textarea>&ampx</textarea>"),
+        (Vec::new(), owned(&["&ampx"]))
+    );
+    assert_eq!(lowered("<p>&ampx</p>").1, owned(&["&x"]));
+}

@@ -38,7 +38,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     .initializer
                     .push(b.stmt(b.assign_member(target, value)));
             }
-        } else if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
+        } else if is_customizable_select(compiler_syntax_tree, self.source_text, el) {
             let namespace = self.plan.namespace(identifier);
             let content = self.customizable_select(items, node, &tag, namespace, frag)?;
             child.initializer.push(content);

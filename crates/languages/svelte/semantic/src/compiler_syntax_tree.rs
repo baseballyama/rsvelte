@@ -356,6 +356,52 @@ impl CompilerSyntaxTree {
         self.attributes.slice(r)
     }
 
+    /// Upstream `is_customizable_select_element`: a `<select>`, `<optgroup>` or `<option>` that
+    /// holds more than plain options and text.
+    #[must_use]
+    pub fn is_customizable_select(&self, el: &Element, source_text: &str) -> bool {
+        let tag = el.name.text(source_text);
+        el.kind == ElementKind::Regular
+            && matches!(tag, "select" | "optgroup" | "option")
+            && self.holds_rich_content(el.children, tag, source_text)
+    }
+
+    /// Upstream `find_descendants` of a select element's fragment, and whether one is rich.
+    fn holds_rich_content(&self, list: Children, tag: &str, source_text: &str) -> bool {
+        self.children(list).iter().any(|&identifier| {
+            let node = self.node(identifier);
+            match &node.kind {
+                NodeKind::Comment { .. }
+                | NodeKind::Expression { .. }
+                | NodeKind::Snippet(_)
+                | NodeKind::Debug { .. }
+                | NodeKind::Const { .. }
+                | NodeKind::Declaration { .. } => false,
+                NodeKind::Text { .. } => !node.kind.is_blank_text(source_text) && tag != "option",
+                NodeKind::If { .. }
+                | NodeKind::Each(_)
+                | NodeKind::Key { .. }
+                | NodeKind::Await(_) => self
+                    .child_lists(identifier)
+                    .any(|c| self.holds_rich_content(c, tag, source_text)),
+                NodeKind::Element(child)
+                    if child.kind == ElementKind::Metadata(Some(MetadataTag::Boundary)) =>
+                {
+                    self.holds_rich_content(child.children, tag, source_text)
+                }
+                NodeKind::Element(child) if child.kind == ElementKind::Regular => {
+                    let name = child.name.text(source_text);
+                    match tag {
+                        "select" => name != "option" && name != "optgroup",
+                        "optgroup" => name != "option",
+                        _ => true,
+                    }
+                }
+                _ => true,
+            }
+        })
+    }
+
     /// Upstream `is_custom_element_node`: a regular element with a `-` in its name or an `is`
     /// attribute.
     #[must_use]

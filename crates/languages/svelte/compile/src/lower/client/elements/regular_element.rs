@@ -1,8 +1,7 @@
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
-    Memo, NodeKind, R, is_custom_element_node, is_customizable_select, is_directive,
-    is_load_error_element, unsupported,
+    Memo, NodeKind, R, is_custom_element_node, is_directive, is_load_error_element,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -25,28 +24,6 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         l.lets.append(&mut lets);
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
         let custom_element = is_custom_element_node(compiler_syntax_tree, self.source_text, el);
-        // Upstream marks rich select content, a scoped custom element and their ancestors dynamic,
-        // which the analysis does not yet.
-        let marked = if is_customizable_select(compiler_syntax_tree, self.source_text, &tag, el) {
-            Some(("rich select content in a static subtree", Some(identifier)))
-        } else if custom_element && self.an.scoped[identifier] {
-            let parent = compiler_syntax_tree.node(identifier).parent;
-            Some(("a scoped custom element in a static subtree", parent))
-        } else {
-            None
-        };
-        if let Some((what, from)) = marked {
-            let mut at = from;
-            while let Some(current) = at {
-                let ancestor = compiler_syntax_tree.node(current);
-                if matches!(&ancestor.kind, NodeKind::Element(a) if a.kind == ElementKind::Regular)
-                    && !self.an.dynamic[current]
-                {
-                    return unsupported(what, el.name);
-                }
-                at = ancestor.parent;
-            }
-        }
         let is_html = self.is_html(identifier);
         let tag = if is_html {
             tag

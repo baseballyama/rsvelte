@@ -167,14 +167,15 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
     analysis.expressions = expressions;
     analysis.declarations = declarations;
     analysis.needs_context = needs_context;
+    // Which elements the style sheet scopes is an input of the dynamic marks.
+    stylesheet::analyze(input, res, &mut analysis);
     analysis.root_dynamic = dynamic::mark_dynamic(
         input,
         &analysis.expressions,
+        &analysis.scoped,
         compiler_syntax_tree.children(compiler_syntax_tree.root),
         &mut analysis.dynamic,
     );
-
-    stylesheet::analyze(input, res, &mut analysis);
     analysis
 }
 

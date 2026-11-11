@@ -132,7 +132,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             self.process_children(&cleaned.items, template)?;
             // The hydration marker of rich content, which upstream puts after it.
             if matches!(tag, "optgroup" | "select")
-                && is_customizable_select(compiler_syntax_tree, self.source_text, tag, el)
+                && is_customizable_select(compiler_syntax_tree, self.source_text, el)
             {
                 template.push(Piece::Text("<!>".to_owned()));
             }

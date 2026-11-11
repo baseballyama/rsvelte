@@ -96,7 +96,7 @@ impl<'t> Template<'_, '_, 't> {
             while i < items.len() && !matches!(items[i], Item::Node(_)) {
                 i += 1;
             }
-            self.sequence(&items[start..i], parent, vue_parent, at, &mut out);
+            self.sequence(&items[start..i], parent, false, vue_parent, at, &mut out);
         }
         let mut children = self.vb.children(&out);
         for scope in scopes.into_iter().rev() {
@@ -225,10 +225,11 @@ impl<'t> Template<'_, '_, 't> {
     }
 
     /// A run of text and `{expression}` tags: one text node in both runtimes.
-    fn sequence(
+    pub(super) fn sequence(
         &mut self,
         items: &[Item<'_>],
         parent: Parent<'_>,
+        value: bool,
         vue_parent: Option<vue::CompilerNodeIdentifier>,
         at: Span,
         out: &mut Vec<vue::CompilerNodeIdentifier>,
@@ -240,9 +241,14 @@ impl<'t> Template<'_, '_, 't> {
         for (index, item) in items.iter().enumerate() {
             match item {
                 Item::Text { raw, .. } if matches!(parent, Parent::Element("textarea")) => {
-                    let raw =
-                        super::static_text::textarea_text(raw, index == 0, self.i.server, items);
-                    text.push_str(&rsvelte_svelte_syntax::syntax_tree::decode_attribute(raw));
+                    let raw = super::static_text::textarea_text(
+                        raw,
+                        index == 0,
+                        value,
+                        self.i.server,
+                        items,
+                    );
+                    text.push_str(&rsvelte_svelte_syntax::syntax_tree::decode_attribute(&raw));
                 }
                 Item::Text { data, .. } => text.push_str(data),
                 &Item::Expression(expression) => {
