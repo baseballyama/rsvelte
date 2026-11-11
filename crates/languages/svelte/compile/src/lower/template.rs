@@ -118,12 +118,14 @@ pub(super) const fn is_directive(v: &AttributeValue) -> bool {
     )
 }
 
-/// A directive that adds behaviour to the element and renders no attribute, on either target.
+/// A directive that renders no attribute: one that adds behaviour to the element, or a `let:`,
+/// on either target.
 #[must_use]
 pub(super) const fn is_behaviour(v: &AttributeValue) -> bool {
     matches!(
         v,
         AttributeValue::On { .. }
+            | AttributeValue::Let(_)
             | AttributeValue::Use { .. }
             | AttributeValue::Transition { .. }
             | AttributeValue::Animate { .. }

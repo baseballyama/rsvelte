@@ -1,7 +1,13 @@
+use oxc_allocator::ArenaBox;
+use oxc_ast::ast::{BindingPattern, BindingProperty, Expression, FormalParameters};
+use oxc_span::SPAN;
+use rsvelte_svelte_semantic::compiler_syntax_tree::Element;
+
 use super::super::component::{
-    Callee, Entry, Prop, callee, child_snippets, props, props_expression, push_accessors,
-    push_binding, push_children,
+    Callee, Entry, Prop, SlotCallback, callee, child_snippets, props, props_expression,
+    push_accessors, push_binding, push_children,
 };
+use super::super::lets::{default_slot_takes_props, pattern, slot_lets};
 use super::{
     BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind,
     Piece, R, ServerCompilationContext, Target, set_settled,
@@ -64,21 +70,15 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             child_snippets(tree, self.javascript, element.children, |snippet| {
                 self.snippet_declaration(snippet)
             })?;
-        let plan = self.plan;
-        let slots = match plan.slots(identifier) {
-            None => vec![(
-                "default",
-                self.fragment_without(element.children, |_| true)?,
-            )],
-            Some(slots) => slots
-                .map(|(name, region)| {
-                    let (mut body, template) = self.region_parts(region, |_| true)?;
-                    body.extend(template);
-                    Ok((name, body))
-                })
-                .collect::<R<_>>()?,
-        };
-        push_children(b, &mut parts, &snippets, slots, &["$$renderer"]);
+        let callbacks = self.slot_callbacks(identifier, element)?;
+        let takes_props = default_slot_takes_props(
+            tree,
+            self.javascript,
+            self.source_text,
+            element,
+            Target::Server,
+        );
+        push_children(b, &mut parts, &snippets, callbacks, takes_props);
         let props = props_expression(b, parts, Target::Server);
         let callee = callee(tree, self.javascript, self.res, identifier);
         let function = match callee {
@@ -112,5 +112,68 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             template.push(Piece::Text(EMPTY_COMMENT.into()));
         }
         Ok(())
+    }
+
+    /// `($$renderer, { prop, other: pattern })`: a slot's callback takes the props its `let:`
+    /// directives name as one object pattern.
+    fn slot_parameters(
+        &self,
+        component: &'o Element,
+        slot: &str,
+    ) -> R<ArenaBox<'o, FormalParameters<'o>>> {
+        let b = self.b;
+        let lets = slot_lets(
+            self.compiler_syntax_tree,
+            self.javascript,
+            self.source_text,
+            component,
+            slot,
+        );
+        let mut parameters = vec![b.parameter(b.binding("$$renderer"))];
+        if !lets.is_empty() {
+            let mut properties = Vec::with_capacity(lets.len());
+            for directive in &lets {
+                let (value, shorthand) = match directive.value {
+                    None => (b.binding(directive.prop), true),
+                    Some(Expression::Identifier(name)) => {
+                        (b.binding(&name.name), name.name == directive.prop)
+                    }
+                    Some(value) => (pattern(b, directive, value)?, false),
+                };
+                let key = b.key(directive.prop);
+                properties.push(BindingProperty::new(SPAN, key, value, shorthand, false, b));
+            }
+            let object = BindingPattern::new_object_pattern(SPAN, b.vec(properties), None, b);
+            parameters.push(b.parameter(object));
+        }
+        Ok(b.formal_parameters(parameters))
+    }
+}
+
+impl<'c, 'o> ServerCompilationContext<'c, 'o> {
+    /// Each slot's callback: `($$renderer, { …props })` over the slot's content.
+    fn slot_callbacks(
+        &mut self,
+        identifier: CompilerNodeIdentifier,
+        element: &'o Element,
+    ) -> R<Vec<SlotCallback<'c, 'o>>> {
+        let plan = self.plan;
+        let slots = match plan.slots(identifier) {
+            None => vec![(
+                "default",
+                self.fragment_without(element.children, |_| true)?,
+            )],
+            Some(slots) => slots
+                .map(|(name, region)| {
+                    let (mut body, template) = self.region_parts(region, |_| true)?;
+                    body.extend(template);
+                    Ok((name, body))
+                })
+                .collect::<R<Vec<_>>>()?,
+        };
+        slots
+            .into_iter()
+            .map(|(name, body)| Ok((name, self.slot_parameters(element, name)?, body)))
+            .collect()
     }
 }

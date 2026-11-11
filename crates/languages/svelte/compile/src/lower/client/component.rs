@@ -6,11 +6,13 @@ use super::super::component::{
     push_accessors, push_binding, push_children,
 };
 use super::super::derived::{Created, callback};
+use super::super::lets::default_slot_takes_props;
 use super::{
     AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
     Memo, NodeKind, Part, R, Target,
 };
 use crate::lower::builder::Runtime;
+use crate::render_plan::slot_name;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// Upstream `build_component`; a `standalone` component is its fragment's only node, so it
@@ -37,6 +39,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             Callee::Dynamic(_) => Some("$$component".to_owned()),
             Callee::Static(_) | Callee::OwnFunction => None,
         };
+        let mut lets = self.let_directives(identifier, element)?;
+        let fills_slot = slot_name(tree, self.source_text, element.attributes).is_some();
         let mut memo = Memo::derived();
         let mut parts = Vec::new();
         let mut accessors = Vec::new();
@@ -57,22 +61,33 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 self.snippet_declaration(snippet)
             })?;
         let plan = self.plan;
-        let slots = match plan.slots(identifier) {
+        let mut slots = match plan.slots(identifier) {
             None => vec![(
                 "default",
                 self.fragment_without(element.children, |_| true)?,
             )],
             Some(slots) => slots
                 .map(|(name, region)| Ok((name, self.region_without(region, |_| true)?)))
-                .collect::<R<_>>()?,
+                .collect::<R<Vec<_>>>()?,
         };
-        push_children(
-            b,
-            &mut parts,
-            &snippets,
-            slots,
-            &["$$anchor", "$$slotProps"],
+        if !fills_slot
+            && let Some((_, body)) = slots.iter_mut().find(|(name, _)| *name == "default")
+            && !body.is_empty()
+        {
+            body.splice(0..0, std::mem::take(&mut lets));
+        }
+        let takes_props = default_slot_takes_props(
+            tree,
+            self.javascript,
+            self.source_text,
+            element,
+            Target::Client,
         );
+        let callbacks = slots
+            .into_iter()
+            .map(|(name, body)| (name, b.params(["$$anchor", "$$slotProps"]), body))
+            .collect();
+        push_children(b, &mut parts, &snippets, callbacks, takes_props);
         let props = props_expression(b, parts, Target::Client);
         statements.extend(self.memo_deriveds(memo));
         let this = bind_this(tree.attributes(element.attributes), self.source_text);
@@ -98,6 +113,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             frag.tpl.push_comment();
         }
         lists.initializer.append(&mut accessors);
+        // Upstream declares a slot filler's own directives before it, where its attributes see
+        // them.
+        if fills_slot {
+            lists.initializer.append(&mut lets);
+        }
         lists.initializer.push(if statements.len() == 1 {
             statements.pop().expect("one statement")
         } else {

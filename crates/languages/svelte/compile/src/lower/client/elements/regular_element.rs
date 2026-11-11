@@ -21,6 +21,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if el.kind != ElementKind::Regular {
             return self.special_element(identifier, node, frag, l);
         }
+        let mut lets = self.let_directives(identifier, el)?;
+        l.lets.append(&mut lets);
         let tag = el.name.text(self.source_text).to_ascii_lowercase();
         if matches!(tag.as_str(), "script" | "template") {
             return unsupported(&format!("`<{tag}>`"), el.name);

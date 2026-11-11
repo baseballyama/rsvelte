@@ -65,9 +65,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut l = Lists::default();
         self.fragment_hoisted(&cleaned.hoisted, skipped, &mut frag, &mut l)?;
         if items.is_empty() {
-            l.consts.append(&mut l.initializer);
-            l.consts.append(&mut l.after);
-            return Ok(l.consts);
+            l.lets.append(&mut l.consts);
+            l.lets.append(&mut l.initializer);
+            l.lets.append(&mut l.after);
+            return Ok(l.lets);
         }
         let lone_fragment = self.lone_fragment(items)?;
         let single_element = match items.as_ref() {
@@ -140,7 +141,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             self.append(&identifier)
         });
 
-        let mut body = std::mem::take(&mut l.consts);
+        let mut body = std::mem::take(&mut l.lets);
+        body.append(&mut l.consts);
         if cleaned.text_first {
             body.push(b.stmt(b.runtime("next", [])));
         }

@@ -101,6 +101,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             ElementKind::Metadata(Some(MetadataTag::Options)) => {}
             ElementKind::Metadata(Some(MetadataTag::Fragment)) => {
+                let mut lets = self.let_directives(identifier, element)?;
+                lists.lets.append(&mut lets);
                 let body = self.fragment(element.children)?;
                 lists.initializer.extend(body);
             }
