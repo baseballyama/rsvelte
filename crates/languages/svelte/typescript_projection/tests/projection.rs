@@ -499,3 +499,25 @@ fn a_const_type_parameter_stays_only_where_typescript_allows_it() {
         "{out}"
     );
 }
+
+#[test]
+fn a_sequence_keeps_parentheses_unless_svelte2tsx_reads_it_as_shorthand() {
+    let source = "<script>let a = 1, b = 2; function f(x) { return x; }</script>\
+                  {#each (a, [b]) as z}{z}{/each}\
+                  <p title={(a, b)} on:click={(f(1), f(2))}>x</p>";
+    let (_, output) = project(source);
+    let out = &output.out;
+    assert!(out.contains("__rsvelte_each((a, [b]))"), "{out}");
+    assert!(out.contains("\"title\": a, b,"), "{out}");
+    assert!(out.contains("\"on:click\": (f(1), f(2)),"), "{out}");
+}
+
+#[test]
+fn a_binding_typescript_cannot_assign_is_unsupported() {
+    let source = "<script>let o = $state({ k: 1 });</script><div bind:this={o?.k}></div>";
+    let component = parse(source).expect("valid Svelte source");
+    let Err(error) = rsvelte_svelte_typescript_projection::lower_alone(&component, source) else {
+        panic!("an optional chain is not an assignment target");
+    };
+    assert_eq!(error.what, "bind: directives");
+}

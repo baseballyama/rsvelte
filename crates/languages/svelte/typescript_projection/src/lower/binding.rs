@@ -76,6 +76,23 @@ const fn has_type(expression: &Expression<'_>) -> bool {
     )
 }
 
+/// Whether TypeScript can assign to `expression`, which Svelte rejects otherwise.
+fn assignable(expression: &Expression<'_>) -> bool {
+    match expression {
+        Expression::Identifier(_)
+        | Expression::StaticMemberExpression(_)
+        | Expression::ComputedMemberExpression(_)
+        | Expression::PrivateFieldExpression(_)
+        | Expression::SequenceExpression(_) => true,
+        Expression::TSAsExpression(e) => assignable(&e.expression),
+        Expression::TSSatisfiesExpression(e) => assignable(&e.expression),
+        Expression::TSNonNullExpression(e) => assignable(&e.expression),
+        Expression::TSTypeAssertion(e) => assignable(&e.expression),
+        Expression::ParenthesizedExpression(e) => assignable(&e.expression),
+        _ => false,
+    }
+}
+
 /// The expression inside `x as T`, `x satisfies T` or `x!`, whose type svelte2tsx moves to the
 /// assigned value.
 fn asserted(expression: &Expression<'_>) -> Option<oxc_span::Span> {
@@ -131,6 +148,9 @@ impl Builder<'_> {
             .directive_name(&self.component.modifiers)
             .ok_or_else(unsupported)?;
         let directive = name.text(self.source);
+        if !assignable(self.expression(expression)) {
+            return Err(unsupported());
+        }
         let at = self.expression(expression).span();
         let typed = has_type(self.expression(expression));
         let get_set = match self.expression(expression) {

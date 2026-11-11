@@ -1,4 +1,4 @@
-# svelte.check/default: 33234 match
+# svelte.check/default: 33235 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/animotion/src/lib/components/slides.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
@@ -2767,7 +2767,6 @@ svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_
 svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/2ecb7ed3138f65ee.svelte	mismatch
 svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/56fffd0c2fbc97e4.svelte	mismatch
 svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/6f6f7ca9d3f29f54.svelte	mismatch
-svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/887d075b20fa102c.svelte	mismatch
 svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/ca63fda154f4bfbe.svelte	mismatch
 svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/ec823872202ae4e8.svelte	mismatch
 svelte/rsvelte-tests/js/apps/npm/svelte2tsx/test/result-shape.test.mjs/eee7378a0b74be7f.svelte	refused

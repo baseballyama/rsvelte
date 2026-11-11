@@ -183,7 +183,7 @@ impl Builder<'_> {
                 }))
             }
             (_, [Part::Expression { expression, span }]) => {
-                self.expression_source(*expression, Some(span.end_offset - 1))
+                self.property_value(*expression, Some(span.end_offset - 1))
             }
             _ => {
                 let template = parts

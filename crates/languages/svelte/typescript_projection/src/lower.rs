@@ -160,8 +160,36 @@ impl Builder<'_> {
         identifier: ExpressionIdentifier,
         end: Option<u32>,
     ) -> NodeIdentifier {
-        let at = self.expression(identifier).span();
-        self.source(at, end)
+        let expression = self.expression(identifier);
+        let (at, sequence) = (
+            expression.span(),
+            matches!(expression, Expression::SequenceExpression(_)),
+        );
+        let source = self.source(at, end);
+        // A sequence's span leaves out its parentheses, which a property's value needs.
+        if sequence {
+            self.tree.push(Node::Parenthesized(source))
+        } else {
+            source
+        }
+    }
+
+    /// A property's value. svelte2tsx copies `a, b` without its parentheses, which makes `b` a
+    /// shorthand property; other sequences keep them, since the copy would not parse.
+    fn property_value(
+        &mut self,
+        identifier: ExpressionIdentifier,
+        end: Option<u32>,
+    ) -> NodeIdentifier {
+        if let Expression::SequenceExpression(sequence) = self.expression(identifier)
+            && sequence.expressions[1..]
+                .iter()
+                .all(|e| matches!(e, Expression::Identifier(_)))
+        {
+            let at = sequence.span;
+            return self.source(at, end);
+        }
+        self.expression_source(identifier, end)
     }
 
     fn finish_list(&mut self, start: usize) -> Range {
