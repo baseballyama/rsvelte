@@ -293,6 +293,11 @@ impl Builder<'_> {
         children: Range,
     ) -> Result<NodeIdentifier> {
         let tag = name.text(self.source);
+        let dynamic = tag == "svelte:component";
+        let component = match component {
+            None if dynamic => Some(self.dynamic_component(name, attributes)?),
+            component => component,
+        };
         let is_component = component.is_some();
         if !is_component && !is_element(tag) {
             return Err(Unsupported::at("svelte: elements", name));
@@ -345,8 +350,10 @@ impl Builder<'_> {
                 AttributeKind::Class | AttributeKind::Attach if is_component => {
                     return Err(Unsupported::at("component directives", attribute.span));
                 }
-                // svelte2tsx passes a slot's name as the call's first argument.
-                AttributeKind::Attribute if slot && attribute.name.text(self.source) == "name" => {}
+                // svelte2tsx passes a slot's name, and a dynamic component, outside the props.
+                AttributeKind::Attribute
+                    if (slot && attribute.name.text(self.source) == "name")
+                        || (dynamic && attribute.name.text(self.source) == "this") => {}
                 _ => {
                     let property = self.attribute(attribute, intrinsic, custom_element);
                     self.scratch.push(property);

@@ -56,7 +56,7 @@ return their original source range.
   Snippets come first in their parent, and the root's follow the instance script's imports, as
   svelte2tsx moves them. The template is `async`, as svelte2tsx's render function is.
 - They cover custom elements and the `svelte:` elements that svelte2tsx writes as elements,
-  such as `svelte:head` and `svelte:window`.
+  such as `svelte:head` and `svelte:window`. `<svelte:component this={C}>` is a call of `C`.
 - They also cover Svelte 5 component props without children, and `class:` and `bind:` on
   elements and components. A bound variable reads as its declared type, as svelte2tsx widens it.
 - An element's `on:`, `use:`, transition, `animate:` and `style:` directives call svelte2tsx's

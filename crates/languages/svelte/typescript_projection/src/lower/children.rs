@@ -6,6 +6,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Part, Range, TemplateNode,
 };
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{Builder, Node, NodeIdentifier, Result, Unsupported};
 
@@ -127,5 +128,25 @@ impl Builder<'_> {
         let name = self.unused_name("__rsvelte_component_");
         self.component_name = Some(name);
         name
+    }
+
+    /// The expression of `<svelte:component this={…}>`, which svelte2tsx checks as a component.
+    pub(super) fn dynamic_component(
+        &self,
+        name: Span,
+        attributes: Range,
+    ) -> Result<ExpressionIdentifier> {
+        self.component
+            .attributes(attributes)
+            .iter()
+            .find(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "this")
+            .and_then(|a| match a.value {
+                AttributeValue::Parts(parts) => match self.component.parts(parts) {
+                    &[Part::Expression { expression, .. }] => Some(expression),
+                    _ => None,
+                },
+                AttributeValue::True => None,
+            })
+            .ok_or_else(|| Unsupported::at("svelte: elements", name))
     }
 }
