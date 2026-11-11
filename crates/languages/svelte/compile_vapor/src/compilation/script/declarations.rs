@@ -1,71 +1,89 @@
-use super::{Kind, NodeIdentifier, SyntaxTree, copy, flag};
+use oxc_ast::ast::{
+    BindingPattern, Expression, Statement, VariableDeclaration, VariableDeclarationKind,
+    VariableDeclarator,
+};
+use oxc_allocator::GetAllocator;
+use oxc_ast_visit::VisitMut;
 
-/// One declarator as its own statement: a rune as Vue's reactivity, `$props()` as nothing (its
-/// keys are in `defineProps`), anything else copied.
-pub(super) fn declarator(
-    javascript: &SyntaxTree,
-    kind: u8,
-    d: NodeIdentifier,
-    rewriter: &mut super::emit::ScriptRewrite<'_>,
-    to: &mut SyntaxTree,
-) -> Option<NodeIdentifier> {
-    let Kind::Declarator {
-        identifier,
-        initializer,
-    } = javascript.kind(d)
-    else {
-        unreachable!("a declarator")
-    };
-    let rune = initializer
-        .and_then(|i| rewriter.resolution.rune(javascript, i))
-        .filter(|(name, _)| {
-            matches!(
-                *name,
-                "$props" | "$state" | "$state.raw" | "$derived" | "$derived.by"
-            )
-        });
-    let Some((rune, arg)) = rune else {
-        let target = copy(javascript, to, rewriter, identifier);
-        let value = initializer.map(|i| copy(javascript, to, rewriter, i));
-        let declaration = to.declarator(target, value, javascript.source_location(d));
-        return Some(to.var_declaration(kind, &[declaration], javascript.source_location(d)));
-    };
-    let tracking = rewriter.tracking;
-    let value = super::emit::rune_value(javascript, to, rewriter, rune, arg, tracking)?;
-    if !matches!(javascript.kind(identifier), Kind::Identifier(_)) {
-        return Some(super::patterns::declaration(
-            javascript, to, rewriter, identifier, value, rune, tracking,
-        ));
-    }
-    let name = if let Some(storage) = rewriter.storage_name(identifier) {
-        to.identifier(storage)
-    } else {
-        to.ident(
-            javascript.name(identifier),
-            javascript.source_location(identifier),
-        )
-    };
-    Some(to.let_(flag::CONST, name, Some(value)))
+use super::emit::{ScriptRewrite, rune_value};
+
+/// The value rune a declarator's initialiser makes, besides `$props()`.
+fn value_rune<'e>(
+    rw: &ScriptRewrite<'_, '_>,
+    init: Option<&'e Expression<'e>>,
+) -> Option<&'static str> {
+    let (rune, _) = rw.res.rune(init?)?;
+    matches!(
+        rune,
+        "$props" | "$state" | "$state.raw" | "$derived" | "$derived.by"
+    )
+    .then_some(rune)
 }
 
-pub(super) fn statement(
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    rewrite: &mut super::emit::ScriptRewrite<'_>,
-    identifier: NodeIdentifier,
-) -> NodeIdentifier {
-    let Kind::VariableDeclaration { kind, declarations } = from.kind(identifier) else {
-        unreachable!("a declaration statement")
+/// One top-level declarator as its own statement: a rune as Vue's reactivity, `$props()` as
+/// nothing (its keys are in `defineProps`), anything else copied.
+pub(super) fn declarator<'t>(
+    rw: &mut ScriptRewrite<'_, 't>,
+    kind: VariableDeclarationKind,
+    d: &VariableDeclarator<'_>,
+) -> Option<Statement<'t>> {
+    let b = rw.b;
+    let mut d = rw.copy(d);
+    rsvelte_typescript_compile::strip::Strip::new(b.allocator()).visit_variable_declarator(&mut d);
+    let Some(rune) = value_rune(rw, d.init.as_ref()) else {
+        rw.visit_variable_declarator(&mut d);
+        return Some(b.declaration(kind, [d]));
     };
-    let mut output = Vec::new();
-    for &declaration in declarations {
-        let Some(statement) = declarator(from, kind, declaration, rewrite, to) else {
-            continue;
-        };
-        let Kind::VariableDeclaration { declarations, .. } = to.kind(statement) else {
-            unreachable!("a translated declaration")
-        };
-        output.extend_from_slice(declarations);
+    // A rune's cell is never reassigned, whatever the source declared.
+    Some(b.declaration(VariableDeclarationKind::Const, lower(rw, rune, d)?))
+}
+
+/// A declaration inside a function or block: each rune declarator lowered in place.
+pub(super) fn nested<'t>(rw: &mut ScriptRewrite<'_, 't>, d: &mut VariableDeclaration<'t>) {
+    let b = rw.b;
+    let declarators = std::mem::replace(&mut d.declarations, b.vec([]));
+    let mut out = Vec::with_capacity(declarators.len());
+    for mut declarator in declarators {
+        match value_rune(rw, declarator.init.as_ref()) {
+            None => {
+                rw.visit_variable_declarator(&mut declarator);
+                out.push(declarator);
+            }
+            Some(rune) => out.extend(lower(rw, rune, declarator).into_iter().flatten()),
+        }
     }
-    to.var_declaration(kind, &output, from.source_location(identifier))
+    d.declarations = b.vec(out);
+}
+
+/// The declarators a rune declarator becomes: `x = $$ref(v)`, or a pattern's cells.
+fn lower<'t>(
+    rw: &mut ScriptRewrite<'_, 't>,
+    rune: &'static str,
+    mut d: VariableDeclarator<'t>,
+) -> Option<Vec<VariableDeclarator<'t>>> {
+    let b = rw.b;
+    let Some(Expression::CallExpression(mut call)) = d.init.take() else {
+        unreachable!("a rune is a call")
+    };
+    let mut argument = call
+        .arguments
+        .pop()
+        .map(oxc_ast::ast::Argument::into_expression);
+    if let Some(argument) = &mut argument {
+        rw.visit_expression(argument);
+    }
+    let value = rune_value(b, rune, argument, rw.tracking)?;
+    if !d.id.is_binding_identifier() {
+        return Some(super::patterns::declarators(
+            rw, d.id, value, rune, rw.tracking,
+        ));
+    }
+    let BindingPattern::BindingIdentifier(id) = &d.id else {
+        unreachable!("checked")
+    };
+    if let Some(storage) = id.symbol_id.get().and_then(|s| rw.storage_name(s)) {
+        d.id = b.binding(storage);
+    }
+    d.init = Some(value);
+    Some(vec![d])
 }

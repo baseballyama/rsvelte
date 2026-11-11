@@ -1,50 +1,41 @@
-use super::{BindingKind, NodeIdentifier, Resolution, SourceLocation, SyntaxTree};
+use oxc_ast::ast::{PropertyKey, Statement};
+use rsvelte_svelte_semantic::resolve::BindingKind;
 
-pub(super) fn bindings(
-    from: &SyntaxTree,
-    resolution: &Resolution,
-    to: &mut SyntaxTree,
-    rewrite: &super::ScriptRewrite<'_>,
-) -> NodeIdentifier {
+use super::super::prop_cell;
+use super::ScriptRewrite;
+
+/// `$$custom_element_bind({ key: { get, set } })`: the props a custom element's properties read
+/// and write.
+pub(super) fn bindings<'t>(rw: &ScriptRewrite<'_, 't>) -> Statement<'t> {
+    let (b, res) = (rw.b, rw.res);
+    let scoping = res.scoping();
     let mut properties = Vec::new();
-    for (binding, info) in resolution.bindings.iter_enumerated() {
+    for symbol in scoping.symbol_ids() {
+        let info = res.binding(symbol);
         if !matches!(
             info.kind,
             BindingKind::Property | BindingKind::BindableProperty
         ) {
             continue;
         }
-        let declaration = resolution.sem.bindings[binding].node;
-        let value = rewrite
-            .binding_value(from, to, binding, declaration)
-            .expect("a prop has a value");
-        let get = to.arrow(&[], value, true, false, SourceLocation::SYNTHETIC);
-        let key = to.identifier("get");
-        let mut fields = vec![to.property(key, get, 0, SourceLocation::SYNTHETIC)];
-        if super::super::prop_cell(resolution, from, binding) {
-            let parameter = to.identifier("$$prop_value");
-            let assignment = to.assign(
-                rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
-                value,
-                parameter,
-                SourceLocation::SYNTHETIC,
-            );
-            let set = to.arrow(
-                &[parameter],
-                assignment,
-                true,
-                false,
-                SourceLocation::SYNTHETIC,
-            );
-            let key = to.identifier("set");
-            fields.push(to.property(key, set, 0, SourceLocation::SYNTHETIC));
+        let name = scoping.symbol_name(symbol);
+        let value = || {
+            rw.binding_value(symbol, name, oxc_span::SPAN)
+                .expect("a prop has a value")
+        };
+        let mut fields = vec![b.init("get", b.arrow(b.params([]), value()))];
+        if prop_cell(res, symbol) {
+            let set = b.assign_member(value(), b.id("$$prop_value"));
+            fields.push(b.init("set", b.arrow(b.params(["$$prop_value"]), set)));
         }
-        let descriptor = to.object(&fields, SourceLocation::SYNTHETIC);
-        let key = to.write_string(from.name(info.prop_key.expect("a prop has a key")));
-        properties.push(to.property(key, descriptor, 0, SourceLocation::SYNTHETIC));
+        let Some(PropertyKey::StaticIdentifier(key)) = info.prop_key else {
+            unreachable!("a prop has a key")
+        };
+        properties.push(b.property(
+            crate::compilation::string_key(b, &key.name),
+            b.object(fields),
+            false,
+        ));
     }
-    let descriptors = to.object(&properties, SourceLocation::SYNTHETIC);
-    let helper = to.identifier("$$custom_element_bind");
-    let call = to.call0(helper, &[descriptors]);
-    to.expression_statement(call)
+    b.stmt(b.call(b.id("$$custom_element_bind"), [b.object(properties)]))
 }

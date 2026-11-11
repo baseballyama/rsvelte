@@ -1,41 +1,31 @@
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use oxc_ast::ast::{ArrowFunctionExpression, AwaitExpression, Class, Expression, Function};
+use oxc_ast_visit::Visit;
+use oxc_syntax::scope::ScopeFlags;
 
-pub(super) fn has_await(tree: &SyntaxTree, root: NodeIdentifier) -> bool {
-    let mut pending = vec![root];
-    while let Some(node) = pending.pop() {
-        match tree.kind(node) {
-            Kind::Await(_) => return true,
-            Kind::Arrow { .. } | Kind::Function { .. } => {}
-            _ => tree.for_each_child(node, |child| pending.push(child)),
-        }
-    }
-    false
+/// An `await` that `e` itself runs, outside the functions it creates.
+pub(crate) fn has_await(e: &Expression<'_>) -> bool {
+    let mut v = Await(false);
+    v.visit_expression(e);
+    v.0
 }
 
-pub(super) fn await_nodes(
-    tree: &SyntaxTree,
-    root: NodeIdentifier,
-) -> rustc_hash::FxHashSet<NodeIdentifier> {
-    let mut result = rustc_hash::FxHashSet::default();
-    let mut pending = vec![(root, false)];
-    while let Some((node, visited)) = pending.pop() {
-        match tree.kind(node) {
-            Kind::Await(_) => {
-                result.insert(node);
-            }
-            Kind::Arrow { .. } | Kind::Function { .. } => continue,
-            _ => {}
-        }
-        if visited {
-            tree.for_each_child(node, |child| {
-                if result.contains(&child) {
-                    result.insert(node);
-                }
-            });
-        } else {
-            pending.push((node, true));
-            tree.for_each_child(node, |child| pending.push((child, false)));
-        }
+/// Runs `visit` on a visitor that finds an `await` outside nested functions.
+pub(crate) fn has_await_in(visit: impl FnOnce(&mut dyn FnMut(&Expression<'_>))) -> bool {
+    let mut found = false;
+    visit(&mut |e| found |= has_await(e));
+    found
+}
+
+struct Await(bool);
+
+impl<'a> Visit<'a> for Await {
+    fn visit_await_expression(&mut self, _: &AwaitExpression<'a>) {
+        self.0 = true;
     }
-    result
+
+    fn visit_function(&mut self, _: &Function<'a>, _: ScopeFlags) {}
+
+    fn visit_arrow_function_expression(&mut self, _: &ArrowFunctionExpression<'a>) {}
+
+    fn visit_class(&mut self, _: &Class<'a>) {}
 }

@@ -4,41 +4,44 @@
 //! `.value`, every reference to a prop reads `$$props.<key>`. What the script does not mean the
 //! same in both runtimes is refused in [`plan`], before anything is built.
 
-use rsvelte_kernel::source::positions::SourceLocation;
+use oxc_ast::AstKind;
+use oxc_ast::ast::{
+    BindingPattern, Declaration, Expression, IdentifierReference, Program, PropertyKey, Statement,
+    UnaryOperator, VariableDeclaration,
+};
+use oxc_ast_visit::Visit;
+use oxc_semantic::{NodeId, SymbolId};
+use oxc_span::GetSpan;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte_syntax::syntax_tree::Component;
-use rsvelte_typescript_compile::copy::{Rewrite, Verbatim, copy};
-use rsvelte_typescript_semantic::scope::BindingIdentifier;
-use rsvelte_typescript_syntax::syntax_tree::flag;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::helpers::{self, Helper};
+use crate::compilation::span_of;
 use crate::{R, unsupported};
 
 /// What `plan` found: the script's runes and the names the template needs.
 #[derive(Debug, Default)]
 pub struct Plan {
     constructors: constructors::Plan,
-    pub(super) module_exports: FxHashMap<BindingIdentifier, String>,
+    pub(super) module_exports: FxHashMap<SymbolId, String>,
     pub(super) core_patterns: bool,
-    pub(super) exposed: Vec<NodeIdentifier>,
+    pub(super) exposed: Vec<SymbolId>,
     pub(super) async_values: bool,
     pub(super) core_values: FxHashSet<&'static str>,
-    pub(super) lifecycle: Vec<(&'static str, NodeIdentifier)>,
-    pub(super) attachments: Vec<(&'static str, NodeIdentifier)>,
-    /// `$props()`'s keys and literal defaults, in order; `None` without a `$props()`.
-    props: Option<Vec<(String, Option<NodeIdentifier>)>>,
+    pub(super) lifecycle: Vec<(&'static str, SymbolId)>,
+    pub(super) attachments: Vec<(&'static str, SymbolId)>,
+    /// `$props()`'s keys with their local names, and whether each default is a literal, in order;
+    /// `None` without a `$props()`.
+    props: Option<Vec<(String, SymbolId, bool)>>,
     pub(crate) preserve_whitespace: bool,
     pub(crate) stylesheet_mode: super::template::CssMode,
     pub(crate) custom_element: Option<super::template::CustomElement>,
     pub(crate) namespaces: Option<rsvelte_svelte_compile::render_plan::Namespaces>,
-    pub(super) props_id: Option<NodeIdentifier>,
+    pub(super) props_id: Option<SymbolId>,
     /// `...rest` in `$props()`: read through Vue's `useAttrs()`.
-    pub rest: Option<NodeIdentifier>,
-    /// The top-level function declarations, by binding.
-    pub functions: FxHashMap<BindingIdentifier, NodeIdentifier>,
-    pub(super) auxiliary: FxHashMap<&'static str, rsvelte_kernel::source::positions::Span>,
+    pub rest: Option<SymbolId>,
+    pub(super) auxiliary: FxHashMap<&'static str, Span>,
 }
 
 /// The names Vue's compiler treats as macros wherever they are called.
@@ -127,400 +130,342 @@ fn is_internal(name: &str) -> bool {
 /// # Errors
 ///
 /// A `vuelte_unsupported` diagnostic for a construct outside the mapping.
-#[expect(
-    clippy::too_many_lines,
-    reason = "one pass over the script, one arm per declaration shape"
-)]
-/// # Panics
-///
-/// If the resolution does not match the input tree.
-pub(crate) fn plan(c: &Component, resolution: &Resolution, source_text: &str) -> R<Plan> {
+pub(crate) fn plan(c: &Component, res: &Resolution) -> R<Plan> {
     let mut plan = Plan::default();
-    let javascript = &c.javascript;
-    check_names(javascript, resolution)?;
-    check_redeclared(javascript, resolution, c.program)?;
-    let Kind::Program(body) = javascript.kind(c.program) else {
-        unreachable!("a script parses to a program")
-    };
+    check_names(res)?;
     let mut consumed = FxHashSet::default();
-    for &s in body {
-        let s = if let Kind::ExportNamed(declaration) = javascript.kind(s) {
-            exports::collect(javascript, declaration, &mut plan.exposed)?;
-            declaration
-        } else {
-            s
-        };
-        match javascript.kind(s) {
-            Kind::Import {
-                specifiers,
-                source,
-                type_only,
-                ..
-            } => {
-                if !type_only {
-                    imports::collect(
-                        javascript,
-                        javascript.str_value(source, source_text),
-                        specifiers,
-                        &mut plan,
-                    )?;
-                }
-            }
-            Kind::ExportNamed(_) | Kind::ExportDefault(_) => {
-                return Err(unsupported("an export", span(javascript, s)));
-            }
-            Kind::VariableDeclaration { declarations, .. } => {
-                for &d in declarations {
-                    let Kind::Declarator {
-                        identifier,
-                        initializer: Some(i),
-                    } = javascript.kind(d)
-                    else {
-                        continue;
-                    };
-                    let Some((rune, _)) = resolution.rune(javascript, i) else {
-                        continue;
-                    };
-                    if runes::value(rune)
-                        || runes::eager(rune)
-                        || runes::local(rune).is_some()
-                        || matches!(rune, "$inspect" | "$inspect.trace")
-                    {
-                        continue;
-                    }
-                    let Kind::Call {
-                        callee, arguments, ..
-                    } = javascript.kind(i)
-                    else {
-                        unreachable!("a rune is a call")
-                    };
-                    let ok = match rune {
-                        "$props.id"
-                            if arguments.is_empty()
-                                && plan.props_id.is_none()
-                                && matches!(javascript.kind(identifier), Kind::Identifier(_)) =>
-                        {
-                            let binding = resolution
-                                .sem
-                                .binding_of(identifier)
-                                .expect("a declaration has a binding");
-                            if resolution.sem.bindings[binding].writes > 0 {
-                                return Err(unsupported(
-                                    "assigning a `$props.id()`",
-                                    span(javascript, identifier),
-                                ));
-                            }
-                            plan.props_id = Some(identifier);
-                            true
-                        }
-                        "$props" if arguments.is_empty() && plan.props.is_none() => {
-                            let (keys, rest) = props(javascript, resolution, identifier)?;
-                            plan.props = Some(keys);
-                            plan.rest = rest;
-                            true
-                        }
-                        _ => false,
-                    };
-                    if !ok {
-                        return Err(unsupported(
-                            format_args!("this use of `{rune}`"),
-                            span(javascript, i),
-                        ));
-                    }
-                    consumed.insert(match javascript.kind(callee) {
-                        Kind::Member { object, .. } => object,
-                        _ => callee,
-                    });
-                }
-            }
-            Kind::Function {
-                name: Some(n),
-                declaration: true,
-                ..
-            } => {
-                if let Some(b) = resolution.sem.binding_of(n) {
-                    plan.functions.insert(b, s);
-                }
-            }
-            _ => {}
+    let tree = &c.javascript;
+    let instance = c.instance.as_ref().map(|s| tree.get_program(s.program));
+    if let Some(program) = instance {
+        check_redeclared(res, program)?;
+        for s in &program.body {
+            statement(s, res, &mut plan, &mut consumed)?;
         }
+        runes::collect(res, &Root::Program(program), &mut plan, &mut consumed)?;
     }
-    runes::collect(javascript, resolution, c.program, &mut plan, &mut consumed)?;
     if let Some(module) = &c.module {
-        module::check(
-            javascript,
-            module.program,
-            resolution,
-            source_text,
-            &mut plan.module_exports,
-        )?;
-        runes::collect(
-            javascript,
-            resolution,
-            module.program,
-            &mut plan,
-            &mut consumed,
-        )?;
-        check_references(javascript, resolution, module.program, &consumed)?;
+        let module = tree.get_program(module.program);
+        module::check(module, res, &mut plan.module_exports)?;
+        runes::collect(res, &Root::Program(module), &mut plan, &mut consumed)?;
+        check_references(res, &Root::Program(module), &consumed, false)?;
     }
-    for &expression in &c.template_expressions {
-        runes::collect(javascript, resolution, expression, &mut plan, &mut consumed)?;
-        walk(javascript, expression, &mut |node| {
-            if matches!(javascript.kind(node), Kind::Identifier(_))
-                && javascript.name(node).starts_with('$')
-                && resolution.sem.binding_of(node).is_none()
-                && !consumed.contains(&node)
-            {
-                return Err(unsupported(
-                    "a rune outside a supported declaration or call",
-                    span(javascript, node),
-                ));
-            }
-            Ok(())
-        })?;
+    let template = Root::Template(tree);
+    runes::collect(res, &template, &mut plan, &mut consumed)?;
+    check_references(res, &template, &consumed, true)?;
+    if let Some(program) = instance {
+        check_references(res, &Root::Program(program), &consumed, false)?;
     }
-    check_references(javascript, resolution, c.program, &consumed)?;
-    check_writes(javascript, resolution)?;
+    check_writes(res)?;
     Ok(plan)
 }
 
-/// The local name of `import { onMount } from 'svelte'`.
-/// Svelte reads a redeclared `var` as reassigned; the shared scope sees one declaration and
-/// folds the first initializer.
-fn check_redeclared(
-    javascript: &SyntaxTree,
-    resolution: &Resolution,
-    program: NodeIdentifier,
+/// One top-level statement of the instance script.
+fn statement(
+    s: &Statement<'_>,
+    res: &Resolution,
+    plan: &mut Plan,
+    consumed: &mut FxHashSet<NodeId>,
 ) -> R<()> {
-    walk(javascript, program, &mut |n| {
-        let (Kind::Declarator { identifier, .. }
-        | Kind::Function {
-            name: Some(identifier),
-            ..
-        }) = javascript.kind(n)
-        else {
-            return Ok(());
-        };
-        match resolution.sem.binding_of(identifier) {
-            Some(b)
-                if matches!(javascript.kind(identifier), Kind::Identifier(_))
-                    && resolution.sem.bindings[b].node != identifier =>
-            {
-                Err(unsupported(
-                    "a name declared twice",
-                    span(javascript, identifier),
-                ))
+    match s {
+        Statement::ImportDeclaration(i) => {
+            if i.import_kind.is_value() {
+                imports::collect(&i.source, i.specifiers.as_ref().map(|s| s.as_slice()), plan)?;
             }
-            _ => Ok(()),
+            Ok(())
         }
+        Statement::ExportDeclaration(e) => {
+            exports::collect(e, &mut plan.exposed)?;
+            match &e.declaration {
+                Declaration::VariableDeclaration(d) => variables(d, res, plan, consumed),
+                _ => Ok(()),
+            }
+        }
+        Statement::ExportNamedDeclaration(_) | Statement::ExportFromDeclaration(_) => {
+            Err(unsupported("this component export", span_of(s.span())))
+        }
+        Statement::ExportDefaultDeclaration(_) | Statement::ExportAllDeclaration(_) => {
+            Err(unsupported("an export", span_of(s.span())))
+        }
+        Statement::VariableDeclaration(d) => variables(d, res, plan, consumed),
+        _ => Ok(()),
+    }
+}
+
+/// The runes a top-level declaration makes besides the value runes: `$props()` and
+/// `$props.id()`.
+fn variables(
+    d: &VariableDeclaration<'_>,
+    res: &Resolution,
+    plan: &mut Plan,
+    consumed: &mut FxHashSet<NodeId>,
+) -> R<()> {
+    for d in &d.declarations {
+        let Some(init) = &d.init else { continue };
+        let Some((rune, _)) = res.rune(init) else {
+            continue;
+        };
+        if runes::value(rune)
+            || runes::eager(rune)
+            || runes::local(rune).is_some()
+            || matches!(rune, "$inspect" | "$inspect.trace")
+        {
+            continue;
+        }
+        let Expression::CallExpression(call) = init.get_inner_expression() else {
+            unreachable!("a rune is a call")
+        };
+        let ok = match (rune, &d.id) {
+            ("$props.id", BindingPattern::BindingIdentifier(id))
+                if call.arguments.is_empty() && plan.props_id.is_none() =>
+            {
+                let symbol = id.symbol_id.get().expect("a declaration has a symbol");
+                if res.writes(symbol) > 0 {
+                    return Err(unsupported(
+                        "assigning a `$props.id()`",
+                        span_of(id.span),
+                    ));
+                }
+                plan.props_id = Some(symbol);
+                true
+            }
+            ("$props", pattern) if call.arguments.is_empty() && plan.props.is_none() => {
+                let (keys, rest) = props(res, pattern)?;
+                plan.props = Some(keys);
+                plan.rest = rest;
+                true
+            }
+            _ => false,
+        };
+        if !ok {
+            return Err(unsupported(
+                format_args!("this use of `{rune}`"),
+                span_of(init.span()),
+            ));
+        }
+        consumed.insert(runes::root(&call.callee));
+    }
+    Ok(())
+}
+
+/// What a check walks: a program, or every part of the template.
+pub(super) enum Root<'a> {
+    Program(&'a Program<'a>),
+    Template(&'a rsvelte_typescript_tree::Tree),
+}
+
+impl<'a> Root<'a> {
+    pub(super) fn visit(&self, v: &mut impl Visit<'a>) {
+        match self {
+            Self::Program(p) => v.visit_program(p),
+            Self::Template(tree) => {
+                for (_, e) in tree.expressions() {
+                    v.visit_expression(e);
+                }
+                for (_, d) in tree.declarations() {
+                    v.visit_variable_declaration(d);
+                }
+            }
+        }
+    }
+}
+
+/// Svelte reads a redeclared `var` as reassigned; the shared scope sees one declaration and folds
+/// the first initializer.
+fn check_redeclared(res: &Resolution, program: &Program<'_>) -> R<()> {
+    let scoping = res.scoping();
+    let first = scoping
+        .symbol_ids()
+        .filter_map(|symbol| scoping.symbol_redeclarations(symbol).get(1))
+        .map(|r| r.span)
+        .filter(|span| program.span.contains_inclusive(*span))
+        .min_by_key(|span| span.start);
+    first.map_or(Ok(()), |span| {
+        Err(unsupported("a name declared twice", span_of(span)))
     })
 }
 
 /// Names the translation or the Vue compiler would collide with.
-fn check_names(javascript: &SyntaxTree, resolution: &Resolution) -> R<()> {
-    for b in &resolution.sem.bindings {
-        let name = javascript.name(b.node);
+fn check_names(res: &Resolution) -> R<()> {
+    let scoping = res.scoping();
+    for symbol in scoping.symbol_ids() {
+        let name = scoping.symbol_name(symbol);
+        let span = span_of(scoping.symbol_span(symbol));
         if name.starts_with('$') {
             return Err(unsupported(
                 format_args!("the `$`-prefixed name `{name}`"),
-                span(javascript, b.node),
+                span,
             ));
         }
         if SHADOWED_GLOBALS.contains(&name) || is_internal(name) || VUE_MACROS.contains(&name) {
+            return Err(unsupported(format_args!("a binding named `{name}`"), span));
+        }
+    }
+    Ok(())
+}
+
+/// Runes, store subscriptions and Vue's macros outside the uses [`plan`] consumed.
+fn check_references(
+    res: &Resolution,
+    root: &Root<'_>,
+    consumed: &FxHashSet<NodeId>,
+    template: bool,
+) -> R<()> {
+    struct References<'r> {
+        res: &'r Resolution,
+        consumed: &'r FxHashSet<NodeId>,
+        template: bool,
+        result: R<()>,
+    }
+    impl<'a> Visit<'a> for References<'_> {
+        fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
+            if self.result.is_err() {
+                return;
+            }
+            let name = it.name.as_str();
+            let unbound = name.starts_with('$')
+                && self.res.symbol(it).is_none()
+                && !self.consumed.contains(&it.node_id.get());
+            self.result = if !self.template && VUE_MACROS.contains(&name) {
+                Err(unsupported(
+                    format_args!("the name `{name}`"),
+                    span_of(it.span),
+                ))
+            } else if unbound && self.template {
+                Err(unsupported(
+                    "a rune outside a supported declaration or call",
+                    span_of(it.span),
+                ))
+            } else if unbound {
+                Err(unsupported(
+                    format_args!("the rune or store subscription `{name}`"),
+                    span_of(it.span),
+                ))
+            } else {
+                Ok(())
+            };
+        }
+    }
+    let mut v = References {
+        res,
+        consumed,
+        template,
+        result: Ok(()),
+    };
+    root.visit(&mut v);
+    v.result
+}
+
+/// Writes Vue would not see the way Svelte does.
+fn check_writes(res: &Resolution) -> R<()> {
+    let scoping = res.scoping();
+    for symbol in scoping.symbol_ids() {
+        if res.binding(symbol).kind == BindingKind::RestProperty
+            && (res.writes(symbol) > 0 || res.mutations(symbol) > 0)
+        {
             return Err(unsupported(
-                format_args!("a binding named `{name}`"),
-                span(javascript, b.node),
+                "writing the rest of `$props()`",
+                span_of(scoping.symbol_span(symbol)),
             ));
         }
     }
     Ok(())
 }
 
-/// Runes, store subscriptions and `onMount` outside the uses [`plan`] consumed.
-fn check_references(
-    javascript: &SyntaxTree,
-    resolution: &Resolution,
-    program: NodeIdentifier,
-    consumed: &FxHashSet<NodeIdentifier>,
-) -> R<()> {
-    walk(javascript, program, &mut |n| match javascript.kind(n) {
-        Kind::Identifier(_) => {
-            let name = javascript.name(n);
-            let binding = resolution.sem.binding_of(n);
-            if VUE_MACROS.contains(&name) {
-                return Err(unsupported(
-                    format_args!("the name `{name}`"),
-                    span(javascript, n),
-                ));
-            }
-            if name.starts_with('$') && binding.is_none() && !consumed.contains(&n) {
-                return Err(unsupported(
-                    format_args!("the rune or store subscription `{name}`"),
-                    span(javascript, n),
-                ));
-            }
-            Ok(())
-        }
-        _ => Ok(()),
-    })
-}
-
-/// Writes Vue would not see the way Svelte does.
-fn check_writes(javascript: &SyntaxTree, resolution: &Resolution) -> R<()> {
-    for (b, info) in resolution.bindings.iter_enumerated() {
-        let s = &resolution.sem.bindings[b];
-        let refused = match info.kind {
-            BindingKind::RestProperty => {
-                (s.writes > 0 || s.mutations > 0).then_some("writing the rest of `$props()`")
-            }
-            _ => None,
-        };
-        if let Some(what) = refused {
-            return Err(unsupported(what, span(javascript, s.node)));
-        }
-    }
-    Ok(())
-}
-
-/// Visits every node that is an expression or a binding, not property names.
-///
-/// # Errors
-///
-/// The first error `f` returns.
-pub(crate) fn walk(
-    javascript: &SyntaxTree,
-    root: NodeIdentifier,
-    f: &mut impl FnMut(NodeIdentifier) -> R<()>,
-) -> R<()> {
-    let mut stack = vec![root];
-    while let Some(n) = stack.pop() {
-        f(n)?;
-        match javascript.kind(n) {
-            Kind::Member {
-                object,
-                property,
-                computed,
-                ..
-            } => {
-                stack.push(object);
-                if computed {
-                    stack.push(property);
-                }
-            }
-            Kind::Property {
-                key,
-                value,
-                computed,
-                ..
-            } => {
-                if computed {
-                    stack.push(key);
-                }
-                stack.push(value);
-            }
-            Kind::ImportNamed { local, .. } => stack.push(local),
-            _ => javascript.for_each_child(n, |k| stack.push(k)),
-        }
-    }
-    Ok(())
-}
-
-pub(super) fn span(
-    javascript: &SyntaxTree,
-    n: NodeIdentifier,
-) -> rsvelte_kernel::source::positions::Span {
-    javascript.source_location(n).span().unwrap_or_default()
-}
-
-/// Each key with its default, and the rest.
-type Props = (
-    Vec<(String, Option<NodeIdentifier>)>,
-    Option<NodeIdentifier>,
-);
+/// Each key with its local name and whether its default is a literal, and the rest.
+type Props = (Vec<(String, SymbolId, bool)>, Option<SymbolId>);
 
 /// `let { a, b = 1, c: d, ...rest } = $props()`: plain keys with literal defaults, and the rest.
-fn props(javascript: &SyntaxTree, resolution: &Resolution, pattern: NodeIdentifier) -> R<Props> {
-    let refuse = |n: NodeIdentifier| {
+fn props(res: &Resolution, pattern: &BindingPattern<'_>) -> R<Props> {
+    let refuse = |span: oxc_span::Span| {
         Err(unsupported(
             "a `$props()` pattern other than plain keys with literal defaults",
-            span(javascript, n),
+            span_of(span),
         ))
     };
-    if matches!(javascript.kind(pattern), Kind::Identifier(_)) {
-        return Ok((Vec::new(), Some(pattern)));
-    }
-    let Kind::ObjectPattern(list) = javascript.kind(pattern) else {
-        return refuse(pattern);
+    let symbol = |id: &oxc_ast::ast::BindingIdentifier<'_>| {
+        id.symbol_id.get().expect("a declaration has a symbol")
     };
-    let mut out = Vec::with_capacity(list.len());
-    let mut rest = None;
-    for &p in list {
-        if let Kind::Rest(arg) = javascript.kind(p)
-            && matches!(javascript.kind(arg), Kind::Identifier(_))
-        {
-            rest = Some(arg);
-            continue;
-        }
-        let Kind::Property {
-            key,
-            value,
-            computed: false,
-            method: false,
-            ..
-        } = javascript.kind(p)
-        else {
-            return refuse(p);
+    let object = match pattern {
+        BindingPattern::BindingIdentifier(id) => return Ok((Vec::new(), Some(symbol(id)))),
+        BindingPattern::ObjectPattern(object) => object,
+        p => return refuse(p.span()),
+    };
+    let mut out = Vec::with_capacity(object.properties.len());
+    for p in &object.properties {
+        let (false, PropertyKey::StaticIdentifier(key)) = (p.computed, &p.key) else {
+            return refuse(p.span);
         };
-        if !matches!(javascript.kind(key), Kind::Identifier(_)) {
-            return refuse(p);
-        }
-        let default = match javascript.kind(value) {
-            Kind::Identifier(_) => None,
-            Kind::AssignPattern(target, d)
-                if matches!(javascript.kind(target), Kind::Identifier(_)) =>
-            {
-                if is_literal(javascript, d) {
-                    Some(d)
-                } else if resolution
-                    .rune(javascript, d)
-                    .is_some_and(|(name, _)| name == "$bindable")
+        let (local, literal) = match &p.value {
+            BindingPattern::BindingIdentifier(id) => (id, false),
+            BindingPattern::AssignmentPattern(a) => {
+                let BindingPattern::BindingIdentifier(id) = &a.left else {
+                    return refuse(p.span);
+                };
+                if let Some(("$bindable", _)) = res.rune(&a.right)
+                    && let Expression::CallExpression(call) = a.right.get_inner_expression()
+                    && call.arguments.len() > 1
                 {
-                    let Kind::Call { arguments, .. } = javascript.kind(d) else {
-                        unreachable!()
-                    };
-                    if arguments.len() > 1 {
-                        return refuse(d);
-                    }
-                    None
-                } else {
-                    None
+                    return refuse(a.right.span());
                 }
+                (id, is_literal(&a.right))
             }
-            _ => return refuse(p),
+            _ => return refuse(p.span),
         };
-        let name = javascript.name(key);
+        let name = key.name.as_str();
         let reserved = matches!(name, "key" | "ref" | "ref_for" | "ref_key")
             || name.starts_with("onVnode")
             || VUE_GLOBALS.contains(&name);
         if reserved {
             return Err(unsupported(
                 format_args!("the prop name `{name}` (Vue reserves it or reads it as a global)"),
-                span(javascript, key),
+                span_of(key.span),
             ));
         }
-        out.push((name.to_owned(), default));
+        out.push((name.to_owned(), symbol(local), literal));
     }
+    let rest = match object.rest.as_ref().map(|r| &r.argument) {
+        None => None,
+        Some(BindingPattern::BindingIdentifier(id)) => Some(symbol(id)),
+        Some(p) => return refuse(p.span()),
+    };
     Ok((out, rest))
 }
 
-fn is_literal(javascript: &SyntaxTree, e: NodeIdentifier) -> bool {
-    match javascript.kind(e) {
-        Kind::String | Kind::Number(_) | Kind::Boolean(_) | Kind::Null => true,
-        Kind::Unary(rsvelte_typescript_syntax::operators::UnaryOperator::Neg, n) => {
-            matches!(javascript.kind(n), Kind::Number(_))
+pub(super) fn is_literal(e: &Expression<'_>) -> bool {
+    match e {
+        Expression::StringLiteral(_)
+        | Expression::NumericLiteral(_)
+        | Expression::BooleanLiteral(_)
+        | Expression::NullLiteral(_) => true,
+        Expression::UnaryExpression(u) => {
+            u.operator == UnaryOperator::UnaryNegation
+                && matches!(u.argument, Expression::NumericLiteral(_))
         }
-        Kind::Template { expressions, .. } => expressions.is_empty(),
+        Expression::TemplateLiteral(t) => t.expressions.is_empty(),
         _ => false,
+    }
+}
+
+/// Whether a prop is read and written through a cell rather than `$$props.<key>`.
+pub(crate) fn prop_cell(res: &Resolution, symbol: SymbolId) -> bool {
+    let info = res.binding(symbol);
+    match info.kind {
+        BindingKind::BindableProperty => true,
+        BindingKind::Property => {
+            res.writes(symbol) > 0 || info.initial.is_some_and(|value| !is_literal(value))
+        }
+        _ => false,
+    }
+}
+
+/// The top-level function declaration `symbol` names, if it names one.
+pub(crate) fn function(res: &Resolution, symbol: SymbolId) -> Option<&oxc_ast::ast::Function<'_>> {
+    if res.scoping().symbol_scope_id(symbol) != res.instance_scope() {
+        return None;
+    }
+    match res.declaration(symbol) {
+        AstKind::Function(f) if f.is_declaration() => Some(f),
+        _ => None,
     }
 }
 
@@ -534,23 +479,4 @@ mod imports;
 mod module;
 mod patterns;
 pub(crate) mod runes;
-pub(crate) use emit::rune_value;
-pub(crate) use emit::{emit, prop_member};
-pub(crate) use patterns::declaration as pattern_declaration;
-
-pub(crate) fn prop_cell(
-    resolution: &Resolution,
-    javascript: &SyntaxTree,
-    binding: BindingIdentifier,
-) -> bool {
-    match resolution.bindings[binding].kind {
-        BindingKind::BindableProperty => true,
-        BindingKind::Property => {
-            resolution.sem.bindings[binding].writes > 0
-                || resolution.bindings[binding]
-                    .initial
-                    .is_some_and(|value| !is_literal(javascript, value))
-        }
-        _ => false,
-    }
-}
+pub(crate) use emit::{ScriptRewrite, emit, prop_member, rune_value};

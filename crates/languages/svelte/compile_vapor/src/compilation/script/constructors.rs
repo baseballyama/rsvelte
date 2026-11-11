@@ -1,149 +1,182 @@
-use rsvelte_typescript_syntax::operators::AssignmentOperator;
-use rsvelte_typescript_syntax::syntax_tree::Class;
+//! `this.x = $state(…)` in a constructor: a field the class stores a cell for.
 
-use super::{
-    FxHashMap, FxHashSet, Kind, NodeIdentifier, R, Resolution, SyntaxTree, span, unsupported, walk,
+use oxc_ast::ast::{
+    AssignmentOperator, AssignmentTarget, Class, ClassElement, Expression, MethodDefinitionKind,
+    PropertyKey, SimpleAssignmentTarget, Statement,
 };
+use oxc_ast_visit::{Visit, walk};
+use oxc_semantic::NodeId;
+use oxc_syntax::scope::ScopeFlags;
+
+use super::{FxHashMap, FxHashSet, R, Resolution, Root, span_of, unsupported};
 
 #[derive(Debug, Default)]
 pub(super) struct Plan {
-    pub classes: FxHashMap<NodeIdentifier, Vec<Field>>,
-    pub assignments: FxHashSet<NodeIdentifier>,
+    /// By class: each field a constructor assigns a value rune to.
+    pub classes: FxHashMap<NodeId, Vec<Field>>,
+    /// The assignments of those fields.
+    pub assignments: FxHashSet<NodeId>,
 }
 
 #[derive(Debug)]
 pub(super) struct Field {
-    pub assignment: NodeIdentifier,
-    pub property: NodeIdentifier,
+    pub assignment: NodeId,
+    pub property: String,
     pub rune: &'static str,
 }
 
-pub(super) fn collect(
-    tree: &SyntaxTree,
-    resolution: &Resolution,
-    root: NodeIdentifier,
-    plan: &mut Plan,
-) -> R<()> {
-    walk(tree, root, &mut |node| {
-        let Kind::Class(Class::Definition { members, .. }) = tree.kind(node) else {
-            return Ok(());
-        };
+pub(super) fn collect(res: &Resolution, root: &Root<'_>, plan: &mut Plan) -> R<()> {
+    let mut v = Classes {
+        res,
+        plan,
+        result: Ok(()),
+    };
+    root.visit(&mut v);
+    v.result
+}
+
+struct Classes<'r> {
+    res: &'r Resolution,
+    plan: &'r mut Plan,
+    result: R<()>,
+}
+
+impl<'a> Visit<'a> for Classes<'_> {
+    fn visit_class(&mut self, it: &Class<'a>) {
+        if self.result.is_ok() {
+            self.result = self.class(it);
+        }
+        walk::walk_class(self, it);
+    }
+}
+
+impl Classes<'_> {
+    fn class(&mut self, class: &Class<'_>) -> R<()> {
         // Keys like `0 = $state()` are literals; `assignment` only matches `this.<identifier>`.
-        let identifier =
-            |key| matches!(tree.kind(key), Kind::Identifier(_)).then(|| tree.name(key));
         let mut initialized = FxHashSet::default();
-        for &member in members {
-            if let Kind::Class(Class::Field {
-                key,
-                value: Some(_),
-                computed: false,
-                ..
-            }) = tree.kind(member)
-                && let Some(name) = identifier(key)
+        for member in &class.body.body {
+            if let ClassElement::PropertyDefinition(p) = member
+                && p.value.is_some()
+                && !p.computed
+                && let Some(key) = key_name(&p.key)
             {
-                initialized.insert(name);
+                initialized.insert(key);
             }
         }
         let mut fields = Vec::new();
-        for &member in members {
-            let Kind::Class(Class::Method {
-                key,
-                function,
-                computed: false,
-                is_static: false,
-                ..
-            }) = tree.kind(member)
-            else {
+        for member in &class.body.body {
+            let ClassElement::MethodDefinition(m) = member else {
                 continue;
             };
-            if identifier(key) != Some("constructor") {
+            if m.kind != MethodDefinitionKind::Constructor || m.r#static {
                 continue;
             }
-            let Kind::Function { body, .. } = tree.kind(function) else {
-                unreachable!()
-            };
-            let Kind::Block(statements) = tree.kind(body) else {
-                unreachable!()
-            };
-            for &statement in statements {
-                if let Some((expression, operator, property, rune)) =
-                    assignment(tree, resolution, statement)
-                {
-                    if initialized.contains(tree.name(property))
-                        || operator != AssignmentOperator::Assign
-                    {
+            let Some(body) = &m.value.body else { continue };
+            for statement in &body.statements {
+                if let Some((node, operator, property, rune)) = self.assignment(statement) {
+                    if initialized.contains(&property) || operator != AssignmentOperator::Assign {
+                        let Statement::ExpressionStatement(s) = statement else {
+                            unreachable!()
+                        };
                         return Err(unsupported(
                             "a rune after a class field's first assignment",
-                            span(tree, expression),
+                            span_of(oxc_span::GetSpan::span(&s.expression)),
                         ));
                     }
-                    plan.assignments.insert(expression);
+                    self.plan.assignments.insert(node);
                     fields.push(Field {
-                        assignment: expression,
+                        assignment: node,
                         property,
                         rune,
                     });
                 }
-                writes(tree, statement, &mut initialized);
+                let mut w = Writes(&mut initialized);
+                w.visit_statement(statement);
             }
         }
         if !fields.is_empty() {
-            plan.classes.insert(node, fields);
+            self.plan.classes.insert(class.node_id.get(), fields);
         }
         Ok(())
-    })
+    }
+
+    fn assignment(
+        &self,
+        statement: &Statement<'_>,
+    ) -> Option<(NodeId, AssignmentOperator, String, &'static str)> {
+        let Statement::ExpressionStatement(s) = statement else {
+            return None;
+        };
+        let Expression::AssignmentExpression(a) = &s.expression else {
+            return None;
+        };
+        let property = this_property(&a.left)?;
+        let (rune, _) = self
+            .res
+            .rune(&a.right)
+            .filter(|(name, _)| super::runes::value(name))?;
+        Some((a.node_id.get(), a.operator, property, rune))
+    }
 }
 
-fn assignment(
-    tree: &SyntaxTree,
-    resolution: &Resolution,
-    statement: NodeIdentifier,
-) -> Option<(
-    NodeIdentifier,
-    AssignmentOperator,
-    NodeIdentifier,
-    &'static str,
-)> {
-    let Kind::ExpressionStatement(expression) = tree.kind(statement) else {
-        return None;
-    };
-    let Kind::Assign(operator, target, value) = tree.kind(expression) else {
-        return None;
-    };
-    let property = property(tree, target)?;
-    let (rune, _) = resolution
-        .rune(tree, value)
-        .filter(|(name, _)| super::runes::value(name))?;
-    Some((expression, operator, property, rune))
+/// `x` of the target `this.x`, `#x` of `this.#x`.
+fn this_property(target: &AssignmentTarget<'_>) -> Option<String> {
+    match target {
+        AssignmentTarget::StaticMemberExpression(m)
+            if matches!(m.object, Expression::ThisExpression(_)) && !m.optional =>
+        {
+            Some(m.property.name.as_str().to_owned())
+        }
+        AssignmentTarget::PrivateFieldExpression(m)
+            if matches!(m.object, Expression::ThisExpression(_)) && !m.optional =>
+        {
+            Some(format!("#{}", m.field.name))
+        }
+        _ => None,
+    }
 }
 
-fn property(tree: &SyntaxTree, target: NodeIdentifier) -> Option<NodeIdentifier> {
-    let Kind::Member {
-        object,
-        property,
-        computed: false,
-        optional: false,
-    } = tree.kind(target)
-    else {
-        return None;
-    };
-    (matches!(tree.kind(object), Kind::This) && matches!(tree.kind(property), Kind::Identifier(_)))
-        .then_some(property)
+/// A field's name as the translation keys it: `x`, or `#x` for a private one.
+pub(super) fn key_name(key: &PropertyKey<'_>) -> Option<String> {
+    match key {
+        PropertyKey::StaticIdentifier(id) => Some(id.name.as_str().to_owned()),
+        PropertyKey::PrivateIdentifier(id) => Some(format!("#{}", id.name)),
+        _ => None,
+    }
 }
 
-fn writes<'a>(tree: &'a SyntaxTree, root: NodeIdentifier, initialized: &mut FxHashSet<&'a str>) {
-    let mut stack = vec![root];
-    while let Some(node) = stack.pop() {
-        let target = match tree.kind(node) {
-            Kind::Assign(_, target, _) | Kind::Update { arg: target, .. } => Some(target),
-            Kind::Function { .. } | Kind::Arrow { .. } | Kind::Class(Class::Definition { .. }) => {
-                continue;
+/// The `this.x` a statement assigns or updates, outside nested functions and classes.
+struct Writes<'s>(&'s mut FxHashSet<String>);
+
+impl<'a> Visit<'a> for Writes<'_> {
+    fn visit_assignment_target(&mut self, it: &AssignmentTarget<'a>) {
+        if let Some(property) = this_property(it) {
+            self.0.insert(property);
+        }
+        walk::walk_assignment_target(self, it);
+    }
+
+    fn visit_update_expression(&mut self, it: &oxc_ast::ast::UpdateExpression<'a>) {
+        let target = match &it.argument {
+            SimpleAssignmentTarget::StaticMemberExpression(m)
+                if matches!(m.object, Expression::ThisExpression(_)) && !m.optional =>
+            {
+                Some(m.property.name.as_str().to_owned())
+            }
+            SimpleAssignmentTarget::PrivateFieldExpression(m)
+                if matches!(m.object, Expression::ThisExpression(_)) && !m.optional =>
+            {
+                Some(format!("#{}", m.field.name))
             }
             _ => None,
         };
-        if let Some(property) = target.and_then(|target| property(tree, target)) {
-            initialized.insert(tree.name(property));
-        }
-        tree.for_each_child(node, |child| stack.push(child));
+        self.0.extend(target);
+        walk::walk_update_expression(self, it);
     }
+
+    fn visit_function(&mut self, _: &oxc_ast::ast::Function<'a>, _: ScopeFlags) {}
+
+    fn visit_arrow_function_expression(&mut self, _: &oxc_ast::ast::ArrowFunctionExpression<'a>) {}
+
+    fn visit_class(&mut self, _: &Class<'a>) {}
 }

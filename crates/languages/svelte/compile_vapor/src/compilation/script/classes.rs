@@ -1,322 +1,254 @@
-use rsvelte_typescript_syntax::syntax_tree::Class;
+//! A class with `$state` and `$derived` fields: each field a hidden private cell behind a getter
+//! and a setter of its own name.
 
-use super::emit::ScriptRewrite;
-use super::{
-    FxHashMap, Kind, NodeIdentifier, Resolution, SourceLocation, SyntaxTree, Verbatim, copy,
+use oxc_allocator::GetAllocator;
+use oxc_ast::ast::{
+    AssignmentExpression, Class, ClassElement, Expression, MethodDefinitionKind,
+    MethodDefinitionType, PropertyDefinitionType, PropertyKey,
 };
+use oxc_ast_visit::VisitMut;
+use oxc_span::SPAN;
+use rsvelte_typescript_compile::build::Builder;
 
-impl ScriptRewrite<'_> {
-    /// The `$state`, `$state.raw`, `$derived` or `$derived.by` call `value` makes.
-    fn value_rune(
-        &self,
-        from: &SyntaxTree,
-        value: NodeIdentifier,
-    ) -> Option<(&'static str, Option<NodeIdentifier>)> {
-        self.resolution
-            .rune(from, value)
-            .filter(|(name, _)| super::runes::value(name))
+use super::constructors::key_name;
+use super::emit::{ScriptRewrite, rune_value};
+use super::{FxHashMap, FxHashSet, runes};
+
+impl<'t> ScriptRewrite<'_, 't> {
+    /// Whether the server stores `rune` as a plain value rather than a cell.
+    fn plain(&self, rune: &str) -> bool {
+        self.server && matches!(rune, "$state" | "$state.raw")
     }
 
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "constructor fields share the class's storage and name allocation"
-    )]
+    /// The value of `this.x = $state(v)` in a constructor, assigned to the field's cell.
+    pub(super) fn constructor_assignment(&mut self, a: &mut AssignmentExpression<'t>) -> Expression<'t> {
+        let b = self.b;
+        let (rune, _) = self.res.rune(&a.right).expect("a checked constructor rune");
+        let plain = self.plain(rune);
+        let Expression::CallExpression(call) = &mut a.right else {
+            unreachable!("a rune is a call")
+        };
+        let mut argument = call.arguments.pop().map(oxc_ast::ast::Argument::into_expression);
+        if let Some(argument) = &mut argument {
+            self.visit_expression(argument);
+        }
+        let value = if plain {
+            argument.unwrap_or_else(|| b.id("undefined"))
+        } else {
+            rune_value(b, rune, argument, self.tracking).expect("a checked value rune")
+        };
+        let target = if plain {
+            oxc_allocator::TakeIn::take_in(&mut a.left, b)
+        } else {
+            let storage = &self.constructor_storage[&a.node_id.get()];
+            let member = this_member(b, storage);
+            oxc_ast::ast::AssignmentTarget::from(
+                oxc_ast::ast::SimpleAssignmentTarget::from(member.into_member_expression()),
+            )
+        };
+        b.assign(a.operator, target, value)
+    }
+
+    /// Rewrites `class` in place.
+    pub(super) fn class(&mut self, class: &mut Class<'t>) {
+        let b = self.b;
+        let (mut private_fields, mut occupied) = self.context(class);
+        let mut output = Vec::new();
+        let mut next = 0;
+        let constructor_fields =
+            self.prepare_constructor(class, &mut occupied, &mut next, &mut output, &mut private_fields);
+        self.private_fields.push(private_fields);
+        if let Some(heritage) = &mut class.heritage {
+            self.visit_expression(&mut heritage.expression);
+        }
+        let members = std::mem::replace(&mut class.body.body, b.vec([]));
+        for mut member in members {
+            if let ClassElement::PropertyDefinition(p) = &member
+                && p.value.is_none()
+                && let Some(key) = key_name(&p.key)
+                && !key.starts_with('#')
+                && constructor_fields.contains(&key)
+            {
+                continue;
+            }
+            let rune = match &member {
+                ClassElement::PropertyDefinition(p) if !p.computed => p
+                    .value
+                    .as_ref()
+                    .and_then(|v| self.res.rune(v))
+                    .map(|(name, _)| name)
+                    .filter(|name| runes::value(name)),
+                _ => None,
+            };
+            let (Some(rune), ClassElement::PropertyDefinition(p)) = (rune, &mut member) else {
+                self.visit_class_element(&mut member);
+                output.push(member);
+                continue;
+            };
+            let plain = self.plain(rune);
+            let mut value = p.value.take().expect("checked");
+            let value = if plain {
+                let Expression::CallExpression(call) = &mut value else {
+                    unreachable!("a rune is a call")
+                };
+                match call.arguments.pop() {
+                    Some(argument) => {
+                        let mut argument = argument.into_expression();
+                        self.visit_expression(&mut argument);
+                        argument
+                    }
+                    None => b.id("undefined"),
+                }
+            } else {
+                self.visit_expression(&mut value);
+                value
+            };
+            if plain || matches!(p.key, PropertyKey::PrivateIdentifier(_)) {
+                p.value = Some(value);
+                output.push(member);
+                continue;
+            }
+            let hidden = fresh(&mut occupied, &mut next);
+            output.push(field(b, &hidden, Some(value), p.r#static));
+            let key = std::mem::replace(&mut p.key, b.key("x"));
+            accessors(b, key, &hidden, p.r#static, &mut output);
+        }
+        class.body.body = b.vec(output);
+        self.private_fields.pop();
+    }
+
+    /// The class's private fields, whether each stores a cell, and every name its members use.
+    fn context(&self, class: &Class<'_>) -> (FxHashMap<String, bool>, FxHashSet<String>) {
+        let mut private_fields = FxHashMap::default();
+        let mut occupied = FxHashSet::default();
+        for member in &class.body.body {
+            let key = match member {
+                ClassElement::PropertyDefinition(p) => {
+                    if let PropertyKey::PrivateIdentifier(id) = &p.key {
+                        let reactive = p
+                            .value
+                            .as_ref()
+                            .and_then(|v| self.res.rune(v))
+                            .is_some_and(|(name, _)| runes::value(name) && !self.plain(name));
+                        private_fields.insert(format!("#{}", id.name), reactive);
+                    }
+                    &p.key
+                }
+                ClassElement::MethodDefinition(m) => &m.key,
+                _ => continue,
+            };
+            occupied.extend(key_name(key));
+        }
+        (private_fields, occupied)
+    }
+
+    /// The cells of the fields the constructor assigns runes to, declared before the members.
     fn prepare_constructor(
         &mut self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        class: NodeIdentifier,
-        occupied: &mut super::FxHashSet<String>,
+        class: &Class<'_>,
+        occupied: &mut FxHashSet<String>,
         next: &mut usize,
-        output: &mut Vec<NodeIdentifier>,
+        output: &mut Vec<ClassElement<'t>>,
         private_fields: &mut FxHashMap<String, bool>,
-    ) -> super::FxHashSet<String> {
-        let mut names = super::FxHashSet::default();
-        let Some(fields) = self.constructors.classes.get(&class) else {
+    ) -> FxHashSet<String> {
+        let b = self.b;
+        let mut names = FxHashSet::default();
+        let Some(fields) = self.constructors.classes.get(&class.node_id.get()) else {
             return names;
         };
-        for field in fields {
-            let name = from.name(field.property);
-            let plain = self.server && matches!(field.rune, "$state" | "$state.raw");
-            if name.starts_with('#') {
-                private_fields.insert(name.to_owned(), !plain);
+        for f in fields {
+            let plain = self.plain(f.rune);
+            if f.property.starts_with('#') {
+                private_fields.insert(f.property.clone(), !plain);
                 self.constructor_storage
-                    .insert(field.assignment, name.to_owned());
+                    .insert(f.assignment, f.property.clone());
             } else if !plain {
-                names.insert(name.to_owned());
+                names.insert(f.property.clone());
                 let hidden = fresh(occupied, next);
-                self.constructor_storage
-                    .insert(field.assignment, hidden.clone());
-                let key = to.identifier(&hidden);
-                output.push(to.class(
-                    Class::Field {
-                        key,
-                        value: None,
-                        computed: false,
-                        is_static: false,
-                    },
-                    SourceLocation::SYNTHETIC,
-                ));
-                accessors(
-                    from,
-                    to,
-                    field.property,
-                    key,
-                    false,
-                    from.source_location(field.assignment),
-                    output,
-                );
+                self.constructor_storage.insert(f.assignment, hidden.clone());
+                output.push(field(b, &hidden, None, false));
+                accessors(b, b.key(&f.property), &hidden, false, output);
             }
         }
         names
     }
+}
 
-    pub(super) fn constructor_assignment(
-        &mut self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        identifier: NodeIdentifier,
-    ) -> NodeIdentifier {
-        let Kind::Assign(operator, target, initializer) = from.kind(identifier) else {
-            unreachable!()
-        };
-        let (rune, argument) = self
-            .resolution
-            .rune(from, initializer)
-            .expect("a checked constructor rune");
-        let plain = self.server && matches!(rune, "$state" | "$state.raw");
-        let target = if plain {
-            copy(from, to, &mut Verbatim, target)
-        } else {
-            let key = to.identifier(
-                self.constructor_storage
-                    .get(&identifier)
-                    .expect("the class allocated constructor storage"),
-            );
-            let this = to.this(SourceLocation::SYNTHETIC);
-            to.member(this, key, false, false, from.source_location(target))
-        };
-        let value = if plain {
-            match argument {
-                Some(argument) => copy(from, to, self, argument),
-                None => to.identifier("undefined"),
-            }
-        } else {
-            super::emit::rune_value(from, to, self, rune, argument, self.tracking)
-                .expect("a checked value rune produces a value")
-        };
-        to.assign(operator, target, value, from.source_location(identifier))
-    }
-
-    pub(super) fn class(
-        &mut self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        identifier: NodeIdentifier,
-    ) -> NodeIdentifier {
-        let Kind::Class(Class::Definition {
-            name,
-            superclass,
-            members,
-            declaration,
-        }) = from.kind(identifier)
-        else {
-            unreachable!()
-        };
-        let (mut private_fields, mut occupied) =
-            context(from, self.resolution, members, self.server);
-        let mut output = Vec::new();
-        let mut next = 0;
-        let constructor_fields = self.prepare_constructor(
-            from,
-            to,
-            identifier,
-            &mut occupied,
-            &mut next,
-            &mut output,
-            &mut private_fields,
-        );
-        self.private_fields.push(private_fields);
-        let name = name.map(|name| copy(from, to, self, name));
-        let superclass = superclass.map(|superclass| copy(from, to, self, superclass));
-        for &member in members {
-            if matches!(from.kind(member), Kind::Class(Class::Field { key, value: None, .. })
-                if constructor_fields.contains(from.name(key)) && !from.name(key).starts_with('#'))
-            {
-                continue;
-            }
-            let Kind::Class(Class::Field {
-                key,
-                value: Some(value),
-                computed: false,
-                is_static,
-            }) = from.kind(member)
-            else {
-                output.push(copy(from, to, self, member));
-                continue;
-            };
-            let Some((rune, argument)) = self.value_rune(from, value) else {
-                output.push(copy(from, to, self, member));
-                continue;
-            };
-            let plain = self.server && matches!(rune, "$state" | "$state.raw");
-            let value = if plain {
-                match argument {
-                    Some(argument) => copy(from, to, self, argument),
-                    None => to.identifier("undefined"),
-                }
-            } else {
-                copy(from, to, self, value)
-            };
-            if plain
-                || (matches!(from.kind(key), Kind::Identifier(_))
-                    && from.name(key).starts_with('#'))
-            {
-                let key = copy(from, to, &mut Verbatim, key);
-                output.push(field(
-                    to,
-                    key,
-                    value,
-                    is_static,
-                    from.source_location(member),
-                ));
-                continue;
-            }
-            let hidden = fresh(&mut occupied, &mut next);
-            let hidden = to.identifier(&hidden);
-            output.push(field(
-                to,
-                hidden,
-                value,
-                is_static,
-                SourceLocation::SYNTHETIC,
-            ));
-            accessors(
-                from,
-                to,
-                key,
-                hidden,
-                is_static,
-                from.source_location(member),
-                &mut output,
-            );
-        }
-        self.private_fields.pop();
-        to.class(
-            Class::Definition {
-                name,
-                superclass,
-                members: &output,
-                declaration,
-            },
-            from.source_location(identifier),
-        )
+/// `this.#name`, or `this.name`.
+fn this_member<'t>(b: &Builder<'t>, name: &str) -> Expression<'t> {
+    match name.strip_prefix('#') {
+        Some(private) => Expression::new_private_field_expression(
+            SPAN,
+            b.this(),
+            oxc_ast::ast::PrivateIdentifier::new(SPAN, b.str(private), b),
+            false,
+            b,
+        ),
+        None => b.member(b.this(), name),
     }
 }
 
-fn context(
-    from: &SyntaxTree,
-    resolution: &Resolution,
-    members: &[NodeIdentifier],
-    server: bool,
-) -> (FxHashMap<String, bool>, super::FxHashSet<String>) {
-    let mut private_fields = FxHashMap::default();
-    let mut occupied = super::FxHashSet::default();
-    for &member in members {
-        let key = match from.kind(member) {
-            Kind::Class(Class::Field { key, value, .. }) => {
-                if matches!(from.kind(key), Kind::Identifier(_)) && from.name(key).starts_with('#')
-                {
-                    let reactive = value
-                        .and_then(|value| resolution.rune(from, value))
-                        .is_some_and(|(name, _)| {
-                            super::runes::value(name)
-                                && !(server && matches!(name, "$state" | "$state.raw"))
-                        });
-                    private_fields.insert(from.name(key).to_owned(), reactive);
-                }
-                key
-            }
-            Kind::Class(Class::Method { key, .. }) => key,
-            _ => continue,
-        };
-        if matches!(from.kind(key), Kind::Identifier(_)) {
-            occupied.insert(from.name(key).to_owned());
-        }
-    }
-    (private_fields, occupied)
-}
-
-fn accessors(
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    key: NodeIdentifier,
-    hidden: NodeIdentifier,
+/// `get key() { return this.#hidden.value; }` and `set key($$value) { … }`.
+fn accessors<'t>(
+    b: &Builder<'t>,
+    key: PropertyKey<'t>,
+    hidden: &str,
     is_static: bool,
-    span: SourceLocation,
-    output: &mut Vec<NodeIdentifier>,
+    output: &mut Vec<ClassElement<'t>>,
 ) {
-    for setter in [false, true] {
-        let this = to.this(SourceLocation::SYNTHETIC);
-        let cell = to.member(this, hidden, false, false, SourceLocation::SYNTHETIC);
-        let value = to.dot(cell, "value");
-        let mut parameters = Vec::new();
-        let statement = if setter {
-            let parameter = to.identifier("$$value");
-            parameters.push(parameter);
-            let assign = to.assign(
-                rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
-                value,
-                parameter,
-                SourceLocation::SYNTHETIC,
-            );
-            to.expression_statement(assign)
-        } else {
-            to.return_(Some(value), SourceLocation::SYNTHETIC)
+    let value = || b.member(this_member(b, hidden), "value");
+    let getter = b.function_expression(None, b.params([]), [b.return_(Some(value()))], false);
+    let setter = b.function_expression(
+        None,
+        b.params(["$$value"]),
+        [b.stmt(b.assign_member(value(), b.id("$$value")))],
+        false,
+    );
+    for (function, kind) in [(getter, MethodDefinitionKind::Get), (setter, MethodDefinitionKind::Set)] {
+        let Expression::FunctionExpression(function) = function else {
+            unreachable!("a function")
         };
-        let body = to.block(&[statement], SourceLocation::SYNTHETIC);
-        let function = to.function(
+        output.push(ClassElement::new_method_definition(
+            SPAN,
+            MethodDefinitionType::MethodDefinition,
+            b.vec([]),
+            oxc_allocator::CloneIn::clone_in(&key, b.allocator()),
+            function,
+            kind,
+            false,
+            is_static,
+            false,
             false,
             None,
-            &parameters,
-            body,
-            false,
-            SourceLocation::SYNTHETIC,
-        );
-        let key = copy(from, to, &mut Verbatim, key);
-        output.push(to.class(
-            Class::Method {
-                key,
-                function,
-                computed: false,
-                is_static,
-                getter: !setter,
-                setter,
-            },
-            span,
+            b,
         ));
     }
 }
 
-fn field(
-    to: &mut SyntaxTree,
-    key: NodeIdentifier,
-    value: NodeIdentifier,
-    is_static: bool,
-    span: SourceLocation,
-) -> NodeIdentifier {
-    to.class(
-        Class::Field {
-            key,
-            value: Some(value),
-            computed: false,
-            is_static,
-        },
-        span,
+/// `#hidden = value;`.
+fn field<'t>(b: &Builder<'t>, hidden: &str, value: Option<Expression<'t>>, is_static: bool) -> ClassElement<'t> {
+    let name = hidden.strip_prefix('#').expect("a hidden field is private");
+    let key = PropertyKey::new_private_identifier(SPAN, b.str(name), b);
+    ClassElement::new_property_definition(
+        SPAN,
+        PropertyDefinitionType::PropertyDefinition,
+        b.vec([]),
+        key,
+        None,
+        value,
+        false,
+        is_static,
+        false,
+        false,
+        false,
+        false,
+        false,
+        None,
+        b,
     )
 }
 
-fn fresh(occupied: &mut super::FxHashSet<String>, next: &mut usize) -> String {
+fn fresh(occupied: &mut FxHashSet<String>, next: &mut usize) -> String {
     loop {
         let name = format!("#$$v_state_{next}");
         *next += 1;

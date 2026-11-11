@@ -1,11 +1,10 @@
 //! The setup-scope helpers the translated template calls: Svelte's runtime behaviour where Vue's
-//! differs, written as JavaScript and copied into the component's tree.
-//!
-//! Helpers adapt Svelte semantics to the Vue runtime without reparsing generated output.
+//! differs, written as JavaScript and parsed into the component's tree.
 
-use rsvelte_kernel::source::positions::{SourceLocation, Span};
-use rsvelte_typescript_compile::copy::{Rewrite, copy};
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use oxc_ast::ast::Statement;
+use rsvelte_typescript_compile::build::Builder;
+
+use crate::compilation::statements;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum Helper {
@@ -448,86 +447,25 @@ pub(crate) const fn requires(h: Helper) -> &'static [Helper] {
 ///
 /// # Panics
 ///
-/// If a helper's source does not parse, which the unit tests rule out.
-pub(crate) fn declarations(helpers: &[Helper], to: &mut SyntaxTree) -> Vec<NodeIdentifier> {
+
+/// The declarations of `helpers`, in the order given.
+pub(crate) fn declarations<'t>(helpers: &[Helper], b: &Builder<'t>) -> Vec<Statement<'t>> {
     let mut out = Vec::new();
     for &h in helpers {
         if h == Helper::Spread {
-            out.push(boolean_names("$$booleans", to));
+            out.push(boolean_names("$$booleans", b));
         }
-        out.extend(source_declarations(h.source(), to));
+        out.extend(statements(b, h.source()));
     }
     out
 }
 
-pub(crate) fn boolean_names(name: &str, to: &mut SyntaxTree) -> NodeIdentifier {
-    let values: Vec<_> = rsvelte_svelte_compile::lower::DOM_BOOLEAN_ATTRIBUTES
+/// `const name = [...]`: the names of the DOM's boolean attributes.
+pub(crate) fn boolean_names<'t>(name: &str, b: &Builder<'t>) -> Statement<'t> {
+    let values = rsvelte_svelte_compile::lower::DOM_BOOLEAN_ATTRIBUTES
         .iter()
-        .map(|name| to.write_string(name))
-        .collect();
-    let value = to.array(&values, SourceLocation::SYNTHETIC);
-    let name = to.identifier(name);
-    to.let_(
-        rsvelte_typescript_syntax::syntax_tree::flag::CONST,
-        name,
-        Some(value),
-    )
-}
-
-pub(crate) fn source_declarations(source_text: &str, to: &mut SyntaxTree) -> Vec<NodeIdentifier> {
-    let mut scratch = SyntaxTree::new();
-    let range = Span::new(0, u32::try_from(source_text.len()).expect("a short helper"));
-    let program =
-        rsvelte_typescript_syntax::parser::parse_program(&mut scratch, source_text, range, false)
-            .expect("helper sources parse");
-    let Kind::Program(body) = scratch.kind(program) else {
-        unreachable!("a program")
-    };
-    let mut rewriter = Synthetic { source_text };
-    body.iter()
-        .map(|&s| copy(&scratch, to, &mut rewriter, s))
-        .collect()
-}
-
-/// Leaves that codegen prints from their source span are rebuilt without one: the helper's
-/// source is not the document's.
-struct Synthetic<'a> {
-    source_text: &'a str,
-}
-
-impl Rewrite for Synthetic<'_> {
-    fn rewrite(
-        &mut self,
-        from: &SyntaxTree,
-        to: &mut SyntaxTree,
-        identifier: NodeIdentifier,
-    ) -> Option<NodeIdentifier> {
-        Some(match from.kind(identifier) {
-            Kind::Identifier(_) => to.ident(from.name(identifier), SourceLocation::SYNTHETIC),
-            Kind::Number(v) => to.write_number(v, SourceLocation::SYNTHETIC),
-            Kind::String => to.write_string(from.str_value(identifier, self.source_text)),
-            Kind::Template {
-                quasis,
-                expressions,
-            } => {
-                let q: Vec<NodeIdentifier> = quasis
-                    .iter()
-                    .map(|&q| {
-                        let Kind::TemplateElement { tail } = from.kind(q) else {
-                            unreachable!("a template's quasis are elements")
-                        };
-                        to.template_element(from.str_value(q, self.source_text), tail)
-                    })
-                    .collect();
-                let e: Vec<NodeIdentifier> = expressions
-                    .iter()
-                    .map(|&e| copy(from, to, self, e))
-                    .collect();
-                to.template(&q, &e, SourceLocation::SYNTHETIC)
-            }
-            _ => return None,
-        })
-    }
+        .map(|name| b.string(name));
+    b.const_(name, b.array(values))
 }
 
 const RAW_MARKUP: &str = "const $$raw_markup = (value, namespace) => { const template = namespace \

@@ -1,10 +1,11 @@
-use rsvelte_typescript_compile::copy::{Rewrite, copy};
-use rsvelte_typescript_syntax::operators::BinaryOperator;
-use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+//! `let { a, b: [c] } = $state(v)`: a cell per name, each reading its part of one base cell.
 
-use super::SourceLocation;
+use oxc_ast::ast::{BindingPattern, BinaryOperator, Expression, PropertyKey, VariableDeclarator};
+use oxc_ast_visit::VisitMut;
+use oxc_span::GetSpan;
+use rsvelte_typescript_compile::build::Builder;
 
-const SYNTHETIC: SourceLocation = SourceLocation::SYNTHETIC;
+use super::emit::{ScriptRewrite, tracked};
 
 #[derive(Clone, Copy)]
 enum Mode {
@@ -13,184 +14,153 @@ enum Mode {
     Derived { tracking: bool },
 }
 
-pub(crate) fn declaration(
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    rewrite: &mut impl Rewrite,
-    pattern: NodeIdentifier,
-    source: NodeIdentifier,
+/// The declarators of `pattern = source`, `source` being the rune's cell.
+pub(super) fn declarators<'t>(
+    rw: &mut ScriptRewrite<'_, 't>,
+    pattern: BindingPattern<'t>,
+    source: Expression<'t>,
     rune: &str,
     tracking: bool,
-) -> NodeIdentifier {
-    let base = to.identifier(&format!("$$pattern_base_{}", pattern.index()));
-    let mut declarations = vec![to.declarator(base, Some(source), SYNTHETIC)];
-    let value = to.dot(base, "value");
+) -> Vec<VariableDeclarator<'t>> {
+    let b = rw.b;
+    let base = format!("$$pattern_base_{}", pattern.span().start);
+    let mut out = vec![b.declarator(b.binding(&base), Some(source))];
     let mode = match rune {
         "$state" => Mode::State,
         "$state.raw" => Mode::RawState,
         "$derived" | "$derived.by" => Mode::Derived { tracking },
         _ => unreachable!("a checked rune value"),
     };
-    lower(from, to, rewrite, pattern, value, mode, &mut declarations);
-    to.var_declaration(
-        rsvelte_typescript_syntax::syntax_tree::flag::CONST,
-        &declarations,
-        SYNTHETIC,
-    )
+    let value = b.member(b.id(&base), "value");
+    Lower { rw, mode, out: &mut out }.pattern(pattern, value);
+    out
 }
 
-fn lower(
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    rewrite: &mut impl Rewrite,
-    pattern: NodeIdentifier,
-    mut value: NodeIdentifier,
+struct Lower<'l, 'r, 't> {
+    rw: &'l mut ScriptRewrite<'r, 't>,
     mode: Mode,
-    declarations: &mut Vec<NodeIdentifier>,
-) {
-    if let Kind::AssignPattern(target, fallback) = from.kind(pattern) {
-        let input = to.identifier("$$pattern_default");
-        let undefined = to.identifier("undefined");
-        let test = to.binary(BinaryOperator::StrictEq, input, undefined, SYNTHETIC);
-        let fallback = copy(from, to, rewrite, fallback);
-        let result = to.cond(test, fallback, input, SYNTHETIC);
-        let select = to.arrow(&[input], result, true, false, SYNTHETIC);
-        value = to.call0(select, &[value]);
-        let cell = intermediate(to, pattern, value, mode, declarations);
-        lower(from, to, rewrite, target, cell, mode, declarations);
-        return;
-    }
-    if let Kind::ArrayPattern(items) = from.kind(pattern) {
-        let convert = to.identifier("$$destructure_array");
-        let mut arguments = vec![value];
-        if !items
-            .last()
-            .is_some_and(|&item| matches!(from.kind(item), Kind::Rest(_)))
-        {
-            arguments.push(to.write_number(
-                f64::from(u32::try_from(items.len()).expect("patterns use u32 nodes")),
-                SYNTHETIC,
-            ));
-        }
-        value = to.call0(convert, &arguments);
-    }
-    if matches!(from.kind(pattern), Kind::Identifier(_)) {
-        let cell = cell(to, value, mode);
-        let name = to.ident(from.name(pattern), from.source_location(pattern));
-        declarations.push(to.declarator(name, Some(cell), from.source_location(pattern)));
-        return;
-    }
-    let parent = intermediate(to, pattern, value, mode, declarations);
-    match from.kind(pattern) {
-        Kind::ObjectPattern(properties) => {
-            let mut excluded = Vec::new();
-            for &property in properties {
-                match from.kind(property) {
-                    Kind::Property {
-                        key,
-                        value,
-                        computed,
-                        ..
-                    } => {
-                        let (key, exclusion) =
-                            property_key(from, to, rewrite, key, computed, mode, declarations);
-                        excluded.push(exclusion);
-                        let value_read = to.member(parent, key, true, false, SYNTHETIC);
-                        lower(from, to, rewrite, value, value_read, mode, declarations);
-                    }
-                    Kind::Rest(target) => {
-                        let keys = to.array(&excluded, SYNTHETIC);
-                        let rest = to.identifier("$$destructure_rest");
-                        let value = to.call0(rest, &[parent, keys]);
-                        lower(from, to, rewrite, target, value, mode, declarations);
-                    }
-                    _ => unreachable!("an object pattern has properties and rest"),
-                }
-            }
-        }
-        Kind::ArrayPattern(items) => {
-            for (index, &item) in items.iter().enumerate() {
-                if matches!(from.kind(item), Kind::Hole) {
-                    continue;
-                }
-                let index = to.write_number(
-                    f64::from(u32::try_from(index).expect("patterns use u32 nodes")),
-                    SYNTHETIC,
+    out: &'l mut Vec<VariableDeclarator<'t>>,
+}
+
+impl<'t> Lower<'_, '_, 't> {
+    fn pattern(&mut self, pattern: BindingPattern<'t>, value: Expression<'t>) {
+        let b = self.rw.b;
+        let at = pattern.span().start;
+        match pattern {
+            BindingPattern::AssignmentPattern(a) => {
+                let a = a.unbox();
+                let mut fallback = a.right;
+                self.rw.visit_expression(&mut fallback);
+                let input = || b.id("$$pattern_default");
+                let test = b.binary(input(), BinaryOperator::StrictEquality, b.id("undefined"));
+                let result = Expression::new_conditional_expression(
+                    oxc_span::SPAN,
+                    test,
+                    fallback,
+                    input(),
+                    b,
                 );
-                let (target, value) = if let Kind::Rest(target) = from.kind(item) {
-                    let slice = to.dot(parent, "slice");
-                    (target, to.call0(slice, &[index]))
-                } else {
-                    (item, to.member(parent, index, true, false, SYNTHETIC))
-                };
-                lower(from, to, rewrite, target, value, mode, declarations);
+                let select = b.arrow(b.params(["$$pattern_default"]), result);
+                let cell = self.intermediate(at, b.call(select, [value]));
+                self.pattern(a.left, cell);
+            }
+            BindingPattern::BindingIdentifier(id) => {
+                let cell = self.cell(value);
+                let name = b.binding_at(id.name.as_str(), id.span);
+                self.out.push(b.declarator(name, Some(cell)));
+            }
+            BindingPattern::ObjectPattern(object) => {
+                let object = object.unbox();
+                let parent = self.intermediate(at, value);
+                let mut excluded = Vec::new();
+                for property in object.properties {
+                    let (key, exclusion) = self.key(property.key, property.computed);
+                    excluded.push(exclusion);
+                    let read = b.computed(parent_read(b, &parent), key);
+                    self.pattern(property.value, read);
+                }
+                if let Some(rest) = object.rest {
+                    let value =
+                        b.call(b.id("$$destructure_rest"), [parent_read(b, &parent), b.array(excluded)]);
+                    self.pattern(rest.unbox().argument, value);
+                }
+            }
+            BindingPattern::ArrayPattern(array) => {
+                let array = array.unbox();
+                let mut arguments = vec![value];
+                if array.rest.is_none() {
+                    arguments.push(b.number(count(array.elements.len())));
+                }
+                let value = b.call(b.id("$$destructure_array"), arguments);
+                let parent = self.intermediate(at, value);
+                let len = array.elements.len();
+                for (index, element) in array.elements.into_iter().enumerate() {
+                    let Some(element) = element else { continue };
+                    let read = b.computed(parent_read(b, &parent), b.number(count(index)));
+                    self.pattern(element, read);
+                }
+                if let Some(rest) = array.rest {
+                    let slice = b.member(parent_read(b, &parent), "slice");
+                    let value = b.call(slice, [b.number(count(len))]);
+                    self.pattern(rest.unbox().argument, value);
+                }
             }
         }
-        _ => unreachable!("a checked rune has a binding pattern"),
+    }
+
+    /// A property's key and the key `$$destructure_rest` leaves out.
+    fn key(&mut self, key: PropertyKey<'t>, computed: bool) -> (Expression<'t>, Expression<'t>) {
+        let b = self.rw.b;
+        if !computed && let PropertyKey::StaticIdentifier(id) = &key {
+            return (b.string(&id.name), b.string(&id.name));
+        }
+        let at = key.span().start;
+        let mut value = key.into_expression();
+        self.rw.visit_expression(&mut value);
+        if !computed {
+            let copy = self.rw.copy(&value);
+            return (value, copy);
+        }
+        let name = format!("$$pattern_key_{at}");
+        let cell = self.cell(value);
+        self.out.push(b.declarator(b.binding(&name), Some(cell)));
+        let read = || b.member(b.id(&name), "value");
+        (read(), b.call(b.id("String"), [read()]))
+    }
+
+    /// A cell for a part of the pattern, named after where the part starts.
+    fn intermediate(&mut self, at: u32, value: Expression<'t>) -> Expression<'t> {
+        let name = format!("$$pattern_{at}");
+        let cell = self.cell(value);
+        let b = self.rw.b;
+        self.out.push(b.declarator(b.binding(&name), Some(cell)));
+        b.member(b.id(&name), "value")
+    }
+
+    fn cell(&self, value: Expression<'t>) -> Expression<'t> {
+        let b = self.rw.b;
+        match self.mode {
+            Mode::Derived { tracking } => {
+                let value = tracked(b, value, tracking);
+                b.call(b.id("$$computed"), [b.arrow(b.params([]), value)])
+            }
+            Mode::State => b.call(b.id("$$ref"), [value]),
+            Mode::RawState => b.call(b.id("$$shallowRef"), [value]),
+        }
     }
 }
 
-fn property_key(
-    from: &SyntaxTree,
-    to: &mut SyntaxTree,
-    rewrite: &mut impl Rewrite,
-    key: NodeIdentifier,
-    computed: bool,
-    mode: Mode,
-    declarations: &mut Vec<NodeIdentifier>,
-) -> (NodeIdentifier, NodeIdentifier) {
-    if !computed && matches!(from.kind(key), Kind::Identifier(_)) {
-        let key = to.write_string(from.name(key));
-        return (key, key);
-    }
-    let value = copy(from, to, rewrite, key);
-    if !computed {
-        return (value, value);
-    }
-    let value = cell(to, value, mode);
-    let name = to.identifier(&format!("$$pattern_key_{}", key.index()));
-    declarations.push(to.declarator(name, Some(value), SYNTHETIC));
-    let key = if computed {
-        to.dot(name, "value")
-    } else {
-        name
+/// Another read of an intermediate's `.value`.
+fn parent_read<'t>(b: &Builder<'t>, parent: &Expression<'t>) -> Expression<'t> {
+    let Expression::StaticMemberExpression(m) = parent else {
+        unreachable!("an intermediate's read")
     };
-    let excluded = if computed {
-        let string = to.identifier("String");
-        to.call0(string, &[key])
-    } else {
-        key
+    let Expression::Identifier(id) = &m.object else {
+        unreachable!("an intermediate's name")
     };
-    (key, excluded)
+    b.member(b.id(&id.name), "value")
 }
 
-fn intermediate(
-    to: &mut SyntaxTree,
-    pattern: NodeIdentifier,
-    value: NodeIdentifier,
-    mode: Mode,
-    declarations: &mut Vec<NodeIdentifier>,
-) -> NodeIdentifier {
-    let name = to.identifier(&format!("$$pattern_{}", pattern.index()));
-    let value = cell(to, value, mode);
-    declarations.push(to.declarator(name, Some(value), SYNTHETIC));
-    to.dot(name, "value")
-}
-
-fn cell(to: &mut SyntaxTree, value: NodeIdentifier, mode: Mode) -> NodeIdentifier {
-    let (helper, value) = if let Mode::Derived { tracking } = mode {
-        let value = super::emit::tracked(to, value, tracking);
-        ("$$computed", to.arrow(&[], value, true, false, SYNTHETIC))
-    } else {
-        (
-            if matches!(mode, Mode::State) {
-                "$$ref"
-            } else {
-                "$$shallowRef"
-            },
-            value,
-        )
-    };
-    let callee = to.identifier(helper);
-    to.call0(callee, &[value])
+fn count(n: usize) -> f64 {
+    f64::from(u32::try_from(n).expect("a pattern has fewer than u32::MAX parts"))
 }
