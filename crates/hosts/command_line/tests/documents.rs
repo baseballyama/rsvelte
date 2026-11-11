@@ -90,12 +90,13 @@ fn compilation_erases_types_and_keeps_runtime_statements() {
         concat!(
             "import type { Props } from './props';\n",
             "interface Result { value: string }\n",
-            "export const value: string = 'hello';"
+            // Quoted as the printer quotes, so only the types differ.
+            "export const value: string = \"hello\";"
         ),
         "ts.compile/default",
     );
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert_eq!(output.files[0].text, "export const value = 'hello';\n");
+    assert_eq!(output.files[0].text, "export const value = \"hello\";\n");
 }
 
 #[test]
