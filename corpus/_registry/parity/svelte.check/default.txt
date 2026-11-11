@@ -1,4 +1,4 @@
-# svelte.check/default: 18859 match
+# svelte.check/default: 18860 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/animotion/src/lib/components/slides.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
@@ -601,7 +601,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-hydration-bindin
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-error-boundary-preserve-on-error/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript-as-expression/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/css-injected-options-nested/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte	mismatch
 svelte/sveltekit/packages/enhanced-img/test/Input.svelte	refused

@@ -121,6 +121,12 @@ pub enum Node {
     /// A statement whose findings TypeScript drops, as svelte2tsx's ignore comments do.
     Ignored(NodeIdentifier),
     Parenthesized(NodeIdentifier),
+    /// The target of `target = value as T`, which svelte2tsx writes for a one-way binding to
+    /// `target as T`: the assertion follows the value.
+    Asserted {
+        target: NodeIdentifier,
+        assertion: Span,
+    },
     /// `await (value)`.
     Await(NodeIdentifier),
     /// `try { body } catch { catch }`, as svelte2tsx writes an `{#await}` with a `catch`.

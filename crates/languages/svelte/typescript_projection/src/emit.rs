@@ -64,6 +64,22 @@ impl Printer<'_> {
         self.output.push(",\n");
     }
 
+    /// `target = value`, or `target = value as T` for svelte2tsx's one-way binding.
+    fn assignment(&mut self, target: NodeIdentifier, value: NodeIdentifier) {
+        let assertion = if let Node::Asserted { target, assertion } = self.tree.node(target) {
+            self.node(target);
+            Some(assertion)
+        } else {
+            self.node(target);
+            None
+        };
+        self.output.push(" = ");
+        self.node(value);
+        if let Some(assertion) = assertion {
+            self.output.copy(self.source, assertion);
+        }
+    }
+
     fn node(&mut self, identifier: NodeIdentifier) {
         match self.tree.node(identifier) {
             Node::Program { span, .. } => {
@@ -100,11 +116,7 @@ impl Printer<'_> {
                 iterable,
                 body,
             } => self.for_of(binding, iterable, body),
-            Node::Assignment { target, value } => {
-                self.node(target);
-                self.output.push(" = ");
-                self.node(value);
-            }
+            Node::Assignment { target, value } => self.assignment(target, value),
             Node::Object { properties } => self.object(properties),
             Node::Block { body } => {
                 self.output.push("{\n");

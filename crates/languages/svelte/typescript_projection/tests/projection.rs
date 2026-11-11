@@ -440,3 +440,22 @@ fn a_component_is_named_from_its_file_as_svelte2tsx_names_it() {
     );
     assert_eq!(component_name("src/lib/404.svelte"), "A4__SvelteComponent_");
 }
+
+#[test]
+fn a_one_way_binding_asserts_the_assigned_value() {
+    let source = "<script lang=\"ts\">let e: HTMLElement | undefined; let w = $state(0);</script>\
+                  <div bind:this={e!} bind:clientWidth={w as number}></div>";
+    let (_, output) = project(source);
+    assert!(
+        output.out.contains("e = __rsvelte_element0!;"),
+        "{}",
+        output.out
+    );
+    assert!(
+        output
+            .out
+            .contains("w = __rsvelte_element0.clientWidth as number;"),
+        "{}",
+        output.out
+    );
+}
