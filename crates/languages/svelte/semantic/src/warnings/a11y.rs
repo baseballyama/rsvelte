@@ -324,7 +324,8 @@ impl Element<'_, '_> {
                         || format!("Unknown aria attribute 'aria-{property}'"),
                         |suggestion| {
                             format!(
-                                "Unknown aria attribute 'aria-{property}'. Did you mean '{suggestion}'?"
+                                "Unknown aria attribute 'aria-{property}'. Did you mean \
+                                    '{suggestion}'?"
                             )
                         },
                     );
@@ -349,7 +350,8 @@ impl Element<'_, '_> {
             {
                 self.warn(
                     "a11y_aria_activedescendant_has_tabindex",
-                    "An element with an aria-activedescendant attribute should have a tabindex value",
+                    "An element with an aria-activedescendant attribute should have a tabindex \
+                        value",
                     span,
                 );
             }

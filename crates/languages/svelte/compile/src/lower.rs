@@ -248,7 +248,7 @@ pub(crate) fn validate_erased_by(
 }
 
 pub(crate) struct Prepared<'c, 'o> {
-    names: names::Names,
+    names: names::Names<'c>,
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
     binding_groups: binding_groups::BindingGroups,
     /// The module script, imports included. Upstream places it apart from `hoisted`, and the

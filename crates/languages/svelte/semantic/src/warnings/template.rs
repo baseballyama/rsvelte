@@ -160,10 +160,13 @@ impl<'a> Template<'a> {
         }
         let code = "bidirectional_control_characters";
         let ignored = before.iter().any(|&sibling| {
-            matches!(*self.context.component.node(sibling), TemplateNode::Comment { data, .. }
-                if super::ignore::extract(data.start_offset, data.text(source), self.context.runes, |_| {})
-                    .iter()
-                    .any(|c| c == code))
+            let TemplateNode::Comment { data, .. } = *self.context.component.node(sibling) else {
+                return false;
+            };
+            let in_runes = self.context.runes;
+            super::ignore::extract(data.start_offset, data.text(source), in_runes, |_| {})
+                .iter()
+                .any(|c| c == code)
         });
         if ignored {
             return;
@@ -332,7 +335,9 @@ impl<'a> Template<'a> {
             TemplateNode::Const { span, .. } if self.owner != Owner::Declarations => {
                 let found = error(
                     "const_tag_invalid_placement",
-                    "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`",
+                    "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else \
+                        if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, \
+                        `<svelte:boundary>` or `<Component>`",
                     span,
                 );
                 self.error(span, found);
@@ -376,7 +381,8 @@ impl<'a> Template<'a> {
 pub(super) fn bidirectional(span: Span) -> Diagnostic {
     warning(
         "bidirectional_control_characters",
-        "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences",
+        "A bidirectional control character was detected in your code. These characters can be used \
+            to alter the visual direction of your code and could have unintended consequences",
         span,
     )
 }

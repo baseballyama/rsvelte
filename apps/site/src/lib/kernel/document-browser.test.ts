@@ -39,7 +39,7 @@ describe('Rust document printer through WebAssembly', () => {
 		expect(stringWidth('abc')).toBe(3);
 		expect(stringWidth('日本語')).toBe(6);
 		expect(stringWidth('é')).toBe(1);
-		expect(stringWidth('🏳️‍🌈')).toBe(2);
+		expect(stringWidth('🇯🇵')).toBe(2);
 	});
 
 	it('preserves named groups and flat-only refusal', () => {

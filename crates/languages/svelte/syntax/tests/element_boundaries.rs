@@ -64,7 +64,9 @@ fn closing_names_keep_unicode_whitespace_and_error_positions() {
 
 #[test]
 fn an_element_records_only_its_own_end_tag() {
-    let source = "<div><p>a <b>x</b><div>y</div></div><ul><li>one<li>two</ul><br><i/><textarea>t</textarea><svelte:head><script>s</script></svelte:head>";
+    let source = "<div><p>a \
+        <b>x</b><div>y</div></div><ul><li>one<li>two</ul><br><i/><textarea>t</textarea><svelte:hea\
+        d><script>s</script></svelte:head>";
     let component = parse(source).expect("elements");
     let end_tags: Vec<(&str, bool)> = component
         .nodes

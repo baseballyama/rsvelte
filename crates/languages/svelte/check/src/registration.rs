@@ -68,11 +68,11 @@ fn typescript_env(
 ) -> Result<TypeScriptEnv, String> {
     let types = svelte.join("types/index.d.ts");
     let text = std::fs::read_to_string(&types).map_err(|e| format!("{}: {e}", types.display()))?;
-    let svelte_html = svelte.join("svelte-html.d.ts");
-    let (declarations, include) = if svelte_html.is_file() {
+    let element_types = svelte.join("svelte-html.d.ts");
+    let (declarations, include) = if element_types.is_file() {
         (
             rsvelte_svelte_typescript_projection::SHIMS,
-            vec![types.clone(), svelte_html],
+            vec![types.clone(), element_types],
         )
     } else {
         (

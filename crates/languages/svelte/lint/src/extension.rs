@@ -64,7 +64,8 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
             || plugins.iter().any(|plugin| plugin.prefix == prefix)
         {
             return Err(CallError(format!(
-                "svelte.lint: `{prefix}` cannot prefix host rules: it is not a name, or another plugin has it"
+                "svelte.lint: `{prefix}` cannot prefix host rules: it is not a name, or another \
+                    plugin has it"
             )));
         }
         for (rule, reference) in rules {

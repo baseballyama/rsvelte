@@ -185,7 +185,8 @@ fn a_components_snippets_compile_in_time_linear_in_their_number() {
             .collect();
         let (attributes, snippets) = (attributes.concat(), snippets.concat());
         format!(
-            "<script>import C from './C.svelte'; let x = $state(0);</script><C{attributes}>{snippets}</C>"
+            "<script>import C from './C.svelte'; let x = \
+                $state(0);</script><C{attributes}>{snippets}</C>"
         )
     };
     let (short, long) = (markup(1500), markup(6000));

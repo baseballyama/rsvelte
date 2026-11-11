@@ -58,7 +58,11 @@ describe('language plugins through the real Rust pipeline in WebAssembly', () =>
 	it('computes only the artifacts needed by the selected task', () => {
 		const result = steps({ ...request(), operations: ['format'] });
 		expect(result.map((step) => step.id)).toEqual(['svelte.format/default']);
-		expect(result[0].artifacts.map((artifact) => artifact.name)).toEqual(['svelte.parse']);
+		expect(result[0].artifacts.map((artifact) => artifact.name)).toEqual([
+			'svelte.parse',
+			'svelte.resolve',
+			'svelte.compiler_syntax_tree',
+		]);
 	});
 
 	it('shares parsing between tasks without changing their outputs', () => {

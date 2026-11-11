@@ -44,7 +44,8 @@ fn references(script: &str) -> (Legacy, Vec<(String, Option<TopLevel>)>) {
 #[test]
 fn a_reactive_assignment_declares_an_undeclared_name_and_stores_resolve() {
     let (legacy, out) = references(
-        "let a = 1; let s = 0;\n$: b = a;\n$: b = 2;\nfunction f(a) { return b + a + $s + $b + $$props + $x; }",
+        "let a = 1; let s = 0;\n$: b = a;\n$: b = 2;\nfunction f(a) { return b + a + $s + $b + \
+            $$props + $x; }",
     );
     assert_eq!(legacy.reactive_statements.len(), 2);
     assert_eq!(legacy.implicit.len(), 1);

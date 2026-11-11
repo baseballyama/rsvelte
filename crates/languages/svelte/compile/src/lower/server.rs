@@ -84,7 +84,7 @@ struct ServerCompilationContext<'c, 'o> {
     source_text: &'o str,
     res: &'c Resolution,
     an: &'c Analysis,
-    names: Names,
+    names: Names<'c>,
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
     /// The `{#each}` blocks that pass their index to a `bind:group`.
     group_each: FxHashSet<CompilerNodeIdentifier>,

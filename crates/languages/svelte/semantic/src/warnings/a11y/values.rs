@@ -110,7 +110,8 @@ pub(super) fn aria_value(
         "idlist" if value.is_empty() => (
             "a11y_incorrect_aria_attribute_type_idlist",
             format!(
-                "The value of '{name}' must be a space-separated list of strings that represent DOM element IDs"
+                "The value of '{name}' must be a space-separated list of strings that represent \
+                    DOM element IDs"
             ),
         ),
         "integer" if value.is_empty() || !is_integer(number(value)) => (

@@ -155,6 +155,10 @@ const artifactLabels: Record<string, { name: string; description: string }> = {
 		description:
 			'カスタム要素の設定、対応する構文、TypeScript の書き方、ストアの使い方を、JavaScript を組み立てる前に確かめます。',
 	},
+	'svelte.compile.warnings': {
+		name: 'コンパイラの警告',
+		description: 'コードを生成せずに、コンパイラが出す警告と解析のエラーを集めます。',
+	},
 	'svelte.lint.parents': {
 		name: 'JavaScript の親要素の表',
 		description: 'コード検査のために、スクリプトの各要素の親を引ける表を作ります。',
@@ -175,6 +179,9 @@ const taskKinds: Record<string, string> = {
 	'compile/client': 'ブラウザ向け',
 	'compile/default': 'ブラウザ向け',
 	'compile/server': 'サーバー向け',
+	'compile.warnings': 'コンパイラの警告',
+	'compileModule/client': 'モジュールのブラウザ向け',
+	'compileModule/server': 'モジュールのサーバー向け',
 	'format/default': '整形',
 	'lint/default': 'コード検査',
 };

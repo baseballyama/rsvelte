@@ -167,10 +167,13 @@ impl Checker<'_> {
                 let header = self.header(span.start_offset);
                 out.push(self.tag(open, Some(header), true));
                 if let Some(alternate) = alternate {
-                    let chained = matches!(
-                        self.component.children(alternate),
-                        [only] if matches!(self.component.node(*only), TemplateNode::If { elseif: true, .. })
-                    );
+                    let chained = match self.component.children(alternate) {
+                        [only] => matches!(
+                            self.component.node(*only),
+                            TemplateNode::If { elseif: true, .. }
+                        ),
+                        _ => false,
+                    };
                     if !chained {
                         out.push(self.branch(self.end_of(consequent, header + 1)));
                     }

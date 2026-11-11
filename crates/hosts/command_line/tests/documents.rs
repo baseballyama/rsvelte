@@ -124,13 +124,15 @@ fn formatting_preserves_type_annotations() {
 #[test]
 fn formatting_keeps_types_and_breaks_at_eighty_columns() {
     let output = task(
-        "type Value = 'aaaaaaaaaaaa' | 'bbbbbbbbbbbb' | 'cccccccccccc' | 'dddddddddddd' | 'eeeeeeee';",
+        "type Value = 'aaaaaaaaaaaa' | 'bbbbbbbbbbbb' | 'cccccccccccc' | 'dddddddddddd' | \
+            'eeeeeeee';",
         "ts.format/default",
     );
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert_eq!(
         output.files[0].text,
-        "type Value =\n  | \"aaaaaaaaaaaa\"\n  | \"bbbbbbbbbbbb\"\n  | \"cccccccccccc\"\n  | \"dddddddddddd\"\n  | \"eeeeeeee\";\n"
+        "type Value =\n  | \"aaaaaaaaaaaa\"\n  | \"bbbbbbbbbbbb\"\n  | \"cccccccccccc\"\n  | \
+            \"dddddddddddd\"\n  | \"eeeeeeee\";\n"
     );
 }
 

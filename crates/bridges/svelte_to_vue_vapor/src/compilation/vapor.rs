@@ -181,7 +181,10 @@ impl<'a, 'o> Emitter<'a, 'o> {
     }
 
     fn tag_is(&self, node: &Node, tag: &str) -> bool {
-        matches!(&node.kind, NodeKind::Element(element) if element.tag.text(self.source_text) == tag)
+        let NodeKind::Element(element) = &node.kind else {
+            return false;
+        };
+        element.tag.text(self.source_text) == tag
     }
 
     fn tag(&self, identifier: CompilerNodeIdentifier) -> &'a str {

@@ -46,7 +46,9 @@ pub(super) fn check_assignment(
         }
         Fixed::EachItem => (
             "each_item_invalid_assignment",
-            "Cannot reassign or bind to each block argument in runes mode. Use the array and index variables instead (e.g. `array[i] = value` instead of `entry = value`, or `bind:value={array[i]}` instead of `bind:value={entry}`)".to_owned(),
+            "Cannot reassign or bind to each block argument in runes mode. Use the array and index \
+                variables instead (e.g. `array[i] = value` instead of `entry = value`, or \
+                `bind:value={array[i]}` instead of `bind:value={entry}`)".to_owned(),
         ),
         Fixed::SnippetParameter => (
             "snippet_parameter_assignment",

@@ -23,9 +23,10 @@ fn only_an_object_is_a_package() {
 #[test]
 fn a_field_of_another_type_reads_as_missing() {
     assert_eq!(
-        package(
-            r#"{"name":5,"version":[1],"dependencies":"x","devDependencies":{"@sveltejs/kit":"^2.1.0"},"scripts":{"a":"b"}}"#
-        ),
+        package(concat!(
+            r#"{"name":5,"version":[1],"dependencies":"x","#,
+            r#""devDependencies":{"@sveltejs/kit":"^2.1.0"},"scripts":{"a":"b"}}"#,
+        )),
         Some(Package {
             kit: Some("2".to_owned()),
             ..Package::default()
@@ -37,15 +38,19 @@ fn a_field_of_another_type_reads_as_missing() {
 fn dependencies_decide_once_they_name_kit() {
     let kit = |json: &str| package(json).and_then(|p| p.kit);
     assert_eq!(
-        kit(r#"{"dependencies":{"@sveltejs/kit":"~1.0.0-next.5"},"devDependencies":{"@sveltejs/kit":"^2.0.0"}}"#)
-            .as_deref(),
+        kit(concat!(
+            r#"{"dependencies":{"@sveltejs/kit":"~1.0.0-next.5"},"#,
+            r#""devDependencies":{"@sveltejs/kit":"^2.0.0"}}"#,
+        ))
+        .as_deref(),
         Some("1.0.0-next")
     );
     // A value that is no version still hides devDependencies, as upstream's lookup does.
     assert_eq!(
-        kit(
-            r#"{"dependencies":{"@sveltejs/kit":null},"devDependencies":{"@sveltejs/kit":"^2.0.0"}}"#
-        ),
+        kit(concat!(
+            r#"{"dependencies":{"@sveltejs/kit":null},"#,
+            r#""devDependencies":{"@sveltejs/kit":"^2.0.0"}}"#,
+        )),
         None
     );
     assert_eq!(
