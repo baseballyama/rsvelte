@@ -58,8 +58,7 @@ pub(crate) const UPDATE_VARIABLE: &str = "UPDATE_EXPECT";
 pub struct Fixtures {
     root: PathBuf,
     input_root: PathBuf,
-    /// Whether each project is run on its own (see [`Fixtures::per_project`]).
-    per_project: bool,
+    batches: Batches,
     registry: Registry,
     snapshots: Vec<Snapshot>,
 }
@@ -71,7 +70,7 @@ impl Fixtures {
         Self {
             root: Path::new(manifest_dir).join(FIXTURES_DIR),
             input_root: Path::new(manifest_dir).join(FIXTURES_DIR),
-            per_project: false,
+            batches: Batches::All,
             registry,
             snapshots: Vec::new(),
         }
@@ -81,7 +80,15 @@ impl Fixtures {
     /// projects can declare conflicting global TypeScript types.
     #[must_use]
     pub const fn per_project(mut self) -> Self {
-        self.per_project = true;
+        self.batches = Batches::PerProject;
+        self
+    }
+
+    /// Runs each case on its own. Against the snapshots a batched run writes, this shows that
+    /// no case's output depends on the others in its batch.
+    #[must_use]
+    pub const fn each_alone(mut self) -> Self {
+        self.batches = Batches::Alone;
         self
     }
 
@@ -231,7 +238,11 @@ impl Fixtures {
         let outcomes = Mutex::new(Vec::with_capacity(cases.len()));
         let mut projects = Vec::new();
         let mut offset = 0;
-        for project in cases.chunk_by(|a, b| !self.per_project || a.project() == b.project()) {
+        for project in cases.chunk_by(|a, b| match self.batches {
+            Batches::All => true,
+            Batches::PerProject => a.project() == b.project(),
+            Batches::Alone => false,
+        }) {
             projects.push((offset, project));
             offset += project.len();
         }
@@ -262,6 +273,15 @@ impl Fixtures {
         }
         Ok(total)
     }
+}
+
+/// Which cases run together in one batch.
+#[derive(Clone, Copy, Debug)]
+enum Batches {
+    All,
+    /// The cases with the same first directory.
+    PerProject,
+    Alone,
 }
 
 /// The running test target's name: its executable is `<name>-<hash>`.

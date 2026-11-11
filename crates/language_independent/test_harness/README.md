@@ -122,4 +122,5 @@ FIXTURE_TYPE_CHECKER="tsrs --fast" cargo test -p rsvelte_svelte_check --test fix
 Lint, type checking and TypeScript projection read the compiler's inputs with
 `Fixtures::inputs_from`, and keep their own snapshots of them. Type checking runs each project
 (the cases with the same first directory) on its own with `Fixtures::per_project`, because
-unrelated projects can declare conflicting global types.
+unrelated projects can declare conflicting global types. It runs them again with
+`Fixtures::each_alone`, one case per batch, against the same snapshots.
