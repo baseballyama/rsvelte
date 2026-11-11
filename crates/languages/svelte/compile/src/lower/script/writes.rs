@@ -40,10 +40,10 @@ impl<'o> ScriptRewrite<'_, 'o> {
         let Expression::AssignmentExpression(assignment) = it else {
             return None;
         };
-        if self.target != Target::Client {
-            return None;
-        }
         let b = self.b;
+        if self.target != Target::Client {
+            return self.assign_derived_on_server(it);
+        }
         let AssignmentTarget::AssignmentTargetIdentifier(target) = &assignment.left else {
             let member = assignment.left.as_member_expression()?;
             let prop = bindable_root(self.res, self.accessors, member.object())
@@ -97,6 +97,34 @@ impl<'o> ScriptRewrite<'_, 'o> {
             ));
         }
         Some(set)
+    }
+
+    /// The server keeps a derived as a function, which takes the value written.
+    fn assign_derived_on_server(&mut self, it: &mut Expression<'o>) -> Option<Expression<'o>> {
+        let b = self.b;
+        let Expression::AssignmentExpression(assignment) = it else {
+            return None;
+        };
+        let AssignmentTarget::AssignmentTargetIdentifier(target) = &assignment.left else {
+            return None;
+        };
+        let symbol = self.res.symbol(target)?;
+        if !matches!(
+            self.res.binding(symbol).kind,
+            BindingKind::Derived | BindingKind::DerivedBy
+        ) {
+            return None;
+        }
+        let operator = assignment.operator;
+        let x = b.id_at(&target.name, target.span);
+        let current = (operator != AssignmentOperator::Assign).then(|| self.read(target));
+        let mut value = assignment.right.take_in(b);
+        self.visit_expression(&mut value);
+        let current = match current {
+            Some(current) => Some(current?),
+            None => None,
+        };
+        Some(b.call(x, [assignment_value(b, operator, current, value)]))
     }
 
     pub(super) fn update(&mut self, it: &mut Expression<'o>) -> Option<Expression<'o>> {
