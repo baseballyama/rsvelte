@@ -1,5 +1,7 @@
 use oxc_allocator::ArenaBox;
-use oxc_ast::ast::{BindingPattern, BindingProperty, Expression, FormalParameters};
+use oxc_ast::ast::{
+    BindingPattern, BindingProperty, Expression, FormalParameters, ObjectPropertyKind, Statement,
+};
 use oxc_span::SPAN;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Element;
 
@@ -12,6 +14,7 @@ use super::{
     BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, CompilerNodeIdentifier, EMPTY_COMMENT, NodeKind,
     Piece, R, ServerCompilationContext, Target, set_settled,
 };
+use crate::lower::builder::Runtime;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
     /// Upstream `build_inline_component`; a `standalone` component is its fragment's only node, so
@@ -28,6 +31,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             unreachable!("a component element")
         };
         let mut parts = Vec::new();
+        let mut css = Vec::new();
         for prop in props(
             tree.attributes(element.attributes),
             self.source_text,
@@ -54,6 +58,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                     let value = self.attribute_value(a, false, false);
                     let name = a.name.text(self.source_text);
                     parts.push(Entry::Property(b.init(name, value)));
+                }
+                Prop::CssProperty(a) => {
+                    let value = self.attribute_value(a, false, false);
+                    css.push(b.init(a.name.text(self.source_text), value));
                 }
                 Prop::Spread(e) => parts.push(Entry::Spread(self.expression(e))),
                 Prop::Bind(a, target) => {
@@ -102,16 +110,43 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         } else {
             statement
         };
-        template.push(Piece::Statement(if declarations.is_empty() {
+        let statement = if declarations.is_empty() {
             statement
         } else {
             declarations.push(statement);
             b.block(declarations)
-        }));
-        if !dynamic && !standalone {
+        };
+        let has_css = !css.is_empty();
+        let statement = self.css_props(identifier, css, statement, dynamic);
+        template.push(Piece::Statement(statement));
+        if !dynamic && !standalone && !has_css {
             template.push(Piece::Text(EMPTY_COMMENT.into()));
         }
         Ok(())
+    }
+
+    /// Upstream wraps a component with CSS custom properties in an element that holds them.
+    fn css_props(
+        &self,
+        identifier: CompilerNodeIdentifier,
+        css: Vec<ObjectPropertyKind<'o>>,
+        statement: Statement<'o>,
+        dynamic: bool,
+    ) -> Statement<'o> {
+        if css.is_empty() {
+            return statement;
+        }
+        let b = self.b;
+        let html = self.plan.namespace(identifier) != crate::render_plan::Namespace::Svg;
+        let render = b.arrow_block(b.params([]), [statement], false);
+        let arguments = vec![
+            Some(b.id("$$renderer")),
+            Some(b.boolean(html)),
+            Some(b.object(css)),
+            Some(render),
+            dynamic.then(|| b.boolean(true)),
+        ];
+        b.stmt(b.runtime_some("css_props", arguments))
     }
 
     /// `($$renderer, { prop, other: pattern })`: a slot's callback takes the props its `let:`

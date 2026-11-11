@@ -58,6 +58,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             self.compiler_syntax_tree,
             self.javascript,
             self.res,
+            self.source_text,
             &cleaned.items,
         ) {
             Some(Standalone::Render(tag)) => self.render_tag(tag, true, &mut template),

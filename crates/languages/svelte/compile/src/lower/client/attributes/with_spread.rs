@@ -23,7 +23,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut values = Vec::with_capacity(attributes.len());
         let mut class_directives = Vec::new();
         let mut style_directives = Vec::new();
+        let is = self.template_is(identifier, attributes);
         for a in attributes {
+            if is.is_some_and(|is| std::ptr::eq(is, a)) {
+                continue;
+            }
             match a.value {
                 _ if is_behaviour(&a.value) => continue,
                 AttributeValue::Bind(_) => continue,

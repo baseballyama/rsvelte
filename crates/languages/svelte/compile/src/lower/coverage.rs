@@ -2,6 +2,7 @@
 //! target meets it.
 
 use oxc_ast::ast::{Expression, VariableDeclarationKind};
+use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, ElementKind, MetadataTag, Part, StyleValue,
 };
@@ -75,6 +76,41 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
     Ok(())
 }
 
+/// A custom element with attributes in a subtree the analysis left static: upstream marks its
+/// ancestors dynamic, which the analysis does not yet.
+pub(super) fn check_static_custom_elements(
+    input: &CompileInput<'_>,
+    an: &Analysis,
+) -> Result<(), Diagnostic> {
+    let tree = input.component.compiler_syntax_tree;
+    let source = input.component.source_text;
+    for node in &tree.nodes {
+        let NodeKind::Element(el) = &node.kind else {
+            continue;
+        };
+        if el.kind != ElementKind::Regular
+            || tree.attributes(el.attributes).is_empty()
+            || !super::is_custom_element_node(tree, source, el)
+        {
+            continue;
+        }
+        let mut parent = node.parent;
+        while let Some(ancestor) = parent {
+            let ancestor_node = tree.node(ancestor);
+            if matches!(&ancestor_node.kind, NodeKind::Element(a) if a.kind == ElementKind::Regular)
+                && !an.dynamic[ancestor]
+            {
+                return unsupported(
+                    "a custom element with attributes in a static subtree",
+                    el.name,
+                );
+            }
+            parent = ancestor_node.parent;
+        }
+    }
+    Ok(())
+}
+
 /// The element and component attributes this port does not lower yet.
 fn check_element(
     input: &CompileInput<'_>,
@@ -83,15 +119,6 @@ fn check_element(
 ) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
-    // Upstream sets a custom element's attributes as properties, which is not lowered.
-    if super::is_custom_element_node(tree, source, el)
-        && let Some(a) = tree
-            .attributes(el.attributes)
-            .iter()
-            .find(|a| super::is_directive(&a.value) || a.name.text(source) != "is")
-    {
-        return unsupported("an attribute on a custom element", a.span);
-    }
     // Upstream's `slot_element_invalid_attribute`.
     if el.kind == ElementKind::Slot
         && let Some(a) = tree.attributes(el.attributes).iter().find(|a| {
@@ -162,7 +189,6 @@ fn check_element(
             AttributeValue::Attach(_) => "an attachment on a component",
             AttributeValue::Class(_) => "a `class:` directive on a component",
             AttributeValue::Spread(_) => continue,
-            _ if name.starts_with("--") => "a CSS custom property on a component",
             _ if name == "children" && has_content(input, el) => {
                 "a `children` prop beside the component's content"
             }

@@ -60,6 +60,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if tag == "textarea" {
             self.remove_textarea_child(attribute_list, has_spread, node, l);
         }
+        if let Some(AttributeValue::Static(v)) = self
+            .template_is(identifier, attribute_list)
+            .map(|a| &a.value)
+        {
+            frag.tpl.set_prop("is", Some(v.to_string()));
+        }
         if has_spread {
             self.attribute_effect(identifier, &tag, attribute_list, node, remove_defaults, l)?;
         } else {

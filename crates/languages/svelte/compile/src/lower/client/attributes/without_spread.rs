@@ -1,10 +1,11 @@
-use oxc_ast::ast::Expression;
+use oxc_ast::ast::{Expression, Statement};
 
 use crate::lower::bindings::needs_special_value;
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
-    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists,
-    NodeKind, R, event_attribute, is_behaviour, is_directive, normalize_attribute, unsupported,
+    Attribute, AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, Memo,
+    NodeKind, R, event_attribute, is_behaviour, is_custom_element_node, is_directive,
+    normalize_attribute, unsupported,
 };
 
 impl<'o> ClientCompilationContext<'_, 'o> {
@@ -28,7 +29,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             .collect();
         let html = self.plan.named(identifier) == crate::render_plan::Namespace::Html;
         let defaults = self.defaults(identifier, tag, attributes);
-        for a in attributes {
+        let custom_element = self.is_custom_element(identifier);
+        let is = self.template_is(identifier, attributes);
+        for a in attributes
+            .iter()
+            .filter(|&a| !is.is_some_and(|is| std::ptr::eq(is, a)))
+        {
             if is_behaviour(&a.value)
                 || matches!(
                     a.value,
@@ -61,7 +67,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 AttributeValue::Static(v) => Some(Some(v.to_string())),
                 _ => None,
             };
-            if !crate::lower::cannot_be_set_statically(raw_name)
+            if !custom_element
+                && !crate::lower::cannot_be_set_statically(raw_name)
                 && (attribute_name != "value" || tag != "textarea")
                 && (attribute_name != "class" || class_directives.is_empty())
                 && (attribute_name != "style" || style_directives.is_empty())
@@ -78,18 +85,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     l,
                 );
             } else if attribute_name == "autofocus" {
-                // Upstream reads the value once, unmemoized, when the element is created.
-                let value = match &a.value {
-                    AttributeValue::Boolean => self.b.boolean(true),
-                    AttributeValue::Static(v) => self.b.string(v),
-                    &(AttributeValue::Expression { expression, .. }
-                    | AttributeValue::Shorthand(expression)) => self.expression(expression),
-                    _ => return unsupported("an interpolated `autofocus` attribute", a.span),
-                };
-                let focus = self.b.runtime("autofocus", [self.b.id(node), value]);
-                l.initializer.push(self.b.stmt(focus));
+                l.initializer.push(self.autofocus(node, a)?);
             } else if attribute_name == "style" {
                 self.set_style(node, Some(a), &style_directives, &mut frag.memo, l)?;
+            } else if custom_element {
+                l.initializer
+                    .push(self.custom_element_data(node, raw_name, a));
             } else {
                 let (value, has_state) = self.attribute_value(a, &mut frag.memo, false);
                 let s = self
@@ -120,6 +121,57 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             self.set_style(node, None, &style_directives, &mut frag.memo, l)?;
         }
         Ok(())
+    }
+
+    fn is_custom_element(&self, identifier: CompilerNodeIdentifier) -> bool {
+        let tree = self.compiler_syntax_tree;
+        matches!(&tree.node(identifier).kind,
+            NodeKind::Element(el) if is_custom_element_node(tree, self.source_text, el))
+    }
+
+    /// Upstream puts a static `is` in the template, where the parser needs it, and nowhere else.
+    pub(in crate::lower::client) fn template_is<'a>(
+        &self,
+        identifier: CompilerNodeIdentifier,
+        attributes: &'a [Attribute],
+    ) -> Option<&'a Attribute> {
+        if self.plan.namespace(identifier) != crate::render_plan::Namespace::Html {
+            return None;
+        }
+        attributes.iter().find(|a| {
+            a.name.text(self.source_text) == "is" && matches!(a.value, AttributeValue::Static(_))
+        })
+    }
+
+    /// Upstream reads an `autofocus` value once, unmemoized, when the element is created.
+    fn autofocus(&self, node: &str, a: &Attribute) -> R<Statement<'o>> {
+        let b = self.b;
+        let value = match &a.value {
+            AttributeValue::Boolean => b.boolean(true),
+            AttributeValue::Static(v) => b.string(v),
+            &(AttributeValue::Expression { expression, .. }
+            | AttributeValue::Shorthand(expression)) => self.expression(expression),
+            _ => return unsupported("an interpolated `autofocus` attribute", a.span),
+        };
+        Ok(b.stmt(b.runtime("autofocus", [b.id(node), value])))
+    }
+
+    /// Upstream sets a custom element's attribute as data, each in its own effect, since a
+    /// setter need not be idempotent; the name keeps its case.
+    fn custom_element_data(&self, node: &str, name: &str, a: &Attribute) -> Statement<'o> {
+        let b = self.b;
+        let mut memo = Memo::default();
+        let (value, has_state) = self.attribute_value(a, &mut memo, false);
+        let call = b.runtime(
+            "set_custom_element_data",
+            [b.id(node), b.string(name), value],
+        );
+        if !has_state {
+            return b.stmt(call);
+        }
+        let (parameters, values) = memo.into_effect(b);
+        let effect = vec![Some(b.arrow(parameters, call)), values];
+        b.stmt(b.runtime_some("template_effect", effect))
     }
 
     fn static_attribute(
