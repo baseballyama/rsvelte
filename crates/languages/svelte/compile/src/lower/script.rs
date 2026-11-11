@@ -475,6 +475,12 @@ pub(super) fn lower_script<'t, 'o>(
                     }
                 }
             }
+            Statement::ExportDeclaration(export)
+                if let Declaration::VariableDeclaration(d) = &export.declaration =>
+            {
+                exports::check_exported_state(rw.res, statement, d)?;
+                out.push(rw.statement(statement));
+            }
             Statement::ExportNamedDeclaration(export)
                 if let ScriptContext::Instance { exports } = &mut context =>
             {

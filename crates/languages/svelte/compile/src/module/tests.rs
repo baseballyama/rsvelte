@@ -110,6 +110,18 @@ fn a_modules_destructured_derived_takes_names_from_the_module() {
 }
 
 #[test]
+fn a_module_exports_no_derived_and_no_state_it_reassigns() {
+    let compiled = |source| compile("a.svelte.js", source, Target::Client);
+    let derived = compiled("let obj = $state({ a: 1 });\nexport const { a } = $derived(obj);\n");
+    assert!(derived.contains("derived_invalid_export"), "{derived}");
+    let state = compiled("export let a = $state(1);\nexport function f() { a = 2; }\n");
+    assert!(state.contains("state_invalid_export"), "{state}");
+    let mutated =
+        compiled("export const a = $state({ b: 1 });\nexport function f() { a.b = 2; }\n");
+    assert!(mutated.starts_with("import"), "{mutated}");
+}
+
+#[test]
 fn a_functions_destructured_derived_is_split_as_at_the_top_level() {
     let source = "export function f(x) {\n\tconst { a, b: [c] } = $derived(x());\n\tconst { d } = \
                   $derived(x), e = $derived(1);\n\treturn () => a + c + d + e;\n}\n";
