@@ -17,11 +17,11 @@ impl<'o> ScriptRewrite<'_, 'o> {
         let Expression::AssignmentExpression(assignment) = it else {
             return None;
         };
-        if self.target != Target::Client {
-            return None;
-        }
         let b = self.b;
         let AssignmentTarget::AssignmentTargetIdentifier(target) = &assignment.left else {
+            if self.target != Target::Client {
+                return None;
+            }
             let member = assignment.left.as_member_expression()?;
             let prop = bindable_root(self.res, self.accessors, member.object())
                 .map(|root| b.id_at(&root.name, root.span))?;
@@ -30,10 +30,15 @@ impl<'o> ScriptRewrite<'_, 'o> {
         };
         let symbol = self.res.symbol(target)?;
         let info = self.res.binding(symbol);
-        let state = self.res.is_state_source(symbol)
-            || matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
-        let prop = is_prop_source(self.res, self.accessors, symbol);
-        if !state && !prop {
+        let derived = matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
+        // A prop, and the server's derived, are functions that a call with a value writes.
+        let called = if self.target == Target::Client {
+            is_prop_source(self.res, self.accessors, symbol)
+        } else {
+            derived
+        };
+        let state = self.target == Target::Client && (self.res.is_state_source(symbol) || derived);
+        if !state && !called {
             return None;
         }
         let operator = assignment.operator;
@@ -58,7 +63,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
             None => None,
         };
         let value = assignment_value(b, operator, current, value);
-        if prop {
+        if called {
             return Some(b.call(x, [value]));
         }
         let mut arguments = vec![x, value];
