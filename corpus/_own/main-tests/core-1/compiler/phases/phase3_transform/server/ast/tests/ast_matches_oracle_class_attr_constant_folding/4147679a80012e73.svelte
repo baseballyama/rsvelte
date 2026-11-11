@@ -1,0 +1,1 @@
+<script>const x = 'bar';</script><div class="{x} baz"></div>

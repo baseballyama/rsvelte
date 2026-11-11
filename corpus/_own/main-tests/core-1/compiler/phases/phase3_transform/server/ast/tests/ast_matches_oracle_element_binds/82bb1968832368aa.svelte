@@ -1,0 +1,1 @@
+<script>let g = $state('a');</script><input type="radio" value="a" bind:group={g}>

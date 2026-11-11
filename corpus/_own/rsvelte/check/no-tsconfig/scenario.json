@@ -1,0 +1,8 @@
+{
+	"description": "No tsconfig.json anywhere and no --tsconfig flag, so both checkers synthesize their own compiler options. Covers #1898 (rsvelte falls back to the ES5 default lib, making the vendored shims themselves fail to compile).",
+	"workspace": ".",
+	"tsconfig": null,
+	"issues": [
+		1898
+	]
+}

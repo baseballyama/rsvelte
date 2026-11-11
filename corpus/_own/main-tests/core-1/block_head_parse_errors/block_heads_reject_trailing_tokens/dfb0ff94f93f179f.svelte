@@ -1,0 +1,1 @@
+{#each items as item (a b)}x{/each}

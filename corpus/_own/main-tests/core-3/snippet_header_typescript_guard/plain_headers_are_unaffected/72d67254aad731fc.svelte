@@ -1,0 +1,1 @@
+{#snippet s()}x{/snippet}

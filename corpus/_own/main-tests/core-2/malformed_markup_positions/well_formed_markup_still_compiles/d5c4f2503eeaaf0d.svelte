@@ -1,0 +1,1 @@
+<div><style>b { color: red }</style></div>

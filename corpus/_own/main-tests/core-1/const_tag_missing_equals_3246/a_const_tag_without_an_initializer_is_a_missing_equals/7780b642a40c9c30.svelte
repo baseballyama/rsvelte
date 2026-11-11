@@ -1,0 +1,1 @@
+{#if true}{@const {a = 1}}<b>x</b>{/if}

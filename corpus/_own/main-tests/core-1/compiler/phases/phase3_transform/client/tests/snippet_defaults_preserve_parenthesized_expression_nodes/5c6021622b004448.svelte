@@ -1,0 +1,1 @@
+{#snippet s(a = true ? false ? 1 : 2 : 3)}{a}{/snippet}{@render s()}

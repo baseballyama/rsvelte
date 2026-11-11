@@ -1,0 +1,5 @@
+# `block-local-binding-leaks-past-its-block.svelte`
+
+**Issue:** [#4135](https://github.com/baseballyama/rsvelte/issues/4135)
+
+`ScopeRoot` scope 0 is deliberately polluted with every child scope's declarations, so a name-keyed `get_binding` answers with an `{#await}` value or an `{#each}` item/index for a reference nowhere near its block — upstream's scope chain has no such name there at all. Phase 2 wrote that binding into `binding.references`, so the position-keyed `binding_at_reference` inherited the same answer and the outer `{code}` came out inside a `$.template_effect` reading the block-local. One enumeration (`BindingKind::is_block_local`) and one decision (`ScopeRoot::is_block_local_out_of_scope`) are consulted by both phase-2 writers and the phase-3 name fallback; each half was ablated on its own and neither fixes the file alone. The in-block `{code}` / `{idx}` reads are the controls — they must keep resolving to their block binding while the sibling reads outside must not resolve at all.

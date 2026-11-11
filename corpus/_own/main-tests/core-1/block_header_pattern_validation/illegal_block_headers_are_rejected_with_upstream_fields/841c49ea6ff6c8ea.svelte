@@ -1,0 +1,1 @@
+{#each arr as o.k}<b>x</b>{/each}

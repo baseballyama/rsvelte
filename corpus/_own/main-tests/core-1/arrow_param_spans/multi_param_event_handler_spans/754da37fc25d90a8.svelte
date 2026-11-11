@@ -1,0 +1,1 @@
+<button onclick={(color, e) => handle(color, e)}>x</button>

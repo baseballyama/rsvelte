@@ -1,0 +1,1 @@
+<script>import Child from "./C.svelte"; let rest = $state({});</script><Child {...rest}>{#snippet foo()}body{/snippet}</Child>

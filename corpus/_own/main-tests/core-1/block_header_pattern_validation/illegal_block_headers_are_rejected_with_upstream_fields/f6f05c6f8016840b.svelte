@@ -1,0 +1,1 @@
+{#await p then v = 1}{v}{/await}

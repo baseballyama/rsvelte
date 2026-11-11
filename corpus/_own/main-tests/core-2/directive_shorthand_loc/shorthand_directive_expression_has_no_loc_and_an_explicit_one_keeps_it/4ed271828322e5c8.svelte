@@ -1,0 +1,1 @@
+<p class:red={red}></p>

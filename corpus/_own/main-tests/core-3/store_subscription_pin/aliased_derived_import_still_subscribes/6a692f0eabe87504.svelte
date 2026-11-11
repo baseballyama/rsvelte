@@ -1,0 +1,1 @@
+<script>import { derived as deriv } from "svelte/store"; import { writable } from "svelte/store"; let w = writable(0); let d = deriv(w, $w => $w * 2);</script>{$d}

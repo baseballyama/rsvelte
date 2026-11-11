@@ -1,0 +1,1 @@
+{#snippet foo([a = 1, b])}<p>{a}-{b}</p>{/snippet}{@render foo([undefined,2])}

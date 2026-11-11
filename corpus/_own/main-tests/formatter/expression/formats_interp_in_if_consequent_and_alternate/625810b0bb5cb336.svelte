@@ -1,0 +1,1 @@
+{#if cond}<p>{ a +1 }</p>{:else}<p>{ b +2 }</p>{/if}

@@ -1,0 +1,1 @@
+<p>a<details>b</details>

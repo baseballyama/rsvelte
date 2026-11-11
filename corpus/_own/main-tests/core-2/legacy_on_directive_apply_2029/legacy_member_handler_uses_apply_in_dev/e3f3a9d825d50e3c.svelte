@@ -1,0 +1,1 @@
+<script>export let selfControl;</script><button on:click={selfControl.toggle}>go</button>

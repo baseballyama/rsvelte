@@ -1,0 +1,2 @@
+{#each
+xs as x}a{/each}

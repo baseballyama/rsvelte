@@ -1,0 +1,1 @@
+<nav><a href="/" aria-current={pathname === '/' ? 'page' : null}>home</a></nav>

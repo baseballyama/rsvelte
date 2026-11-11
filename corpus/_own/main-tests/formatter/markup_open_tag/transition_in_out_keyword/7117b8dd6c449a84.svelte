@@ -1,0 +1,1 @@
+<div in:fade  out:slide={ {duration: 200} }></div>

@@ -1,0 +1,1 @@
+<script>let v = "OUTER";</script>{#snippet s(v)}{String(v)}{/snippet}<button onclick={() => { v = "W"; }}>b</button>

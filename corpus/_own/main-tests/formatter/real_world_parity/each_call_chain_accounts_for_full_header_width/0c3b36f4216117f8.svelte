@@ -1,0 +1,21 @@
+<section>
+  <div>
+    <div>
+      <div>
+        <div>
+          <div>
+            <div>
+              <div>
+                <div>
+                  {#each table.getAllColumns().filter((column) => column.getCanHide()) as column (column)}
+                    <div>{column.id}</div>
+                  {/each}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,1 @@
+<div style:color="rgb({c}, 0, 0)"></div>

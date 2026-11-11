@@ -1,0 +1,1 @@
+{#each ["a‮b"] as v}{v}{/each}

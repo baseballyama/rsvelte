@@ -1,0 +1,8 @@
+{
+	"description": "#2055 (3): the JSDoc gate mirroring `hasTypedParameter`/`hasTypeDefinition` was only wired up on the TS branch — a `.js` kit file that already carries a `@type`/`@param` JSDoc tag must not get that tag injected a second time. `src/hooks.server.js`'s `handle` already has `@type {Handle}`; `src/routes/api/+server.js`'s `GET` already has `@param {RequestEvent} event`. A review follow-up on the fix itself: the gate must match structurally, not by substring — `src/hooks.client.js`'s `handleError` and `src/routes/+page.js`'s `load` each carry only a `@typedef` tag (never `@type`/`@param`), which official still augments because `@typedef` isn't `@type`; a substring-based gate (`text.contains(\"@type\")`) would wrongly treat `@typedef` as already-typed and skip augmentation, leaving the destructured/plain parameters implicit `any`. A second review follow-up: `src/routes/nested-param-type/+page.js`'s `load` has a `@param` tag whose type annotation itself contains braces (`{{ url: URL }}`) — the tag still targets `event` by name, so official leaves the file untouched and the deliberately narrow hand-written type surfaces a real `TS2339` on `event.params.slug`; a brace-skip that stops at the first `}` instead of matching by depth mis-extracts the declared name, fails to recognise the tag as targeting `event`, and double-annotates with the correct type — silently making the official-only `TS2339` disappear.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		2055
+	]
+}

@@ -1,0 +1,9 @@
+{
+	"description": "The `load` augmentation paths in `kit_file.rs` fixed for #2055 (a mirror of #1944 for `load` specifically): a return-typed `function load(...)` declaration must still get its parameter typed (`src/routes/+page.ts`), a `const load = (...) => ...` whose initializer is function-like must get a parameter annotation instead of being wrapped in `satisfies` (`src/routes/+page.server.ts`), an already-typed parenthesized arrow-const `load` must be left alone (`src/routes/typed/+layout.ts`, the #1944 shape recurring for `load`), and a multi-declarator `export const a = ..., b = ...;` must not be augmented at all (`src/routes/multi/+page.ts`).",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		1944,
+		2055
+	]
+}

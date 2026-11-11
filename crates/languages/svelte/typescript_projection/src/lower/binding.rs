@@ -4,6 +4,7 @@ use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeValue, Part};
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{Builder, Node, NodeIdentifier, Result, Unsupported};
 
@@ -75,6 +76,17 @@ const fn has_type(expression: &Expression<'_>) -> bool {
     )
 }
 
+/// The expression inside `x as T`, `x satisfies T` or `x!`, whose type svelte2tsx moves to the
+/// assigned value.
+fn asserted(expression: &Expression<'_>) -> Option<oxc_span::Span> {
+    match expression {
+        Expression::TSAsExpression(e) => Some(e.expression.span()),
+        Expression::TSSatisfiesExpression(e) => Some(e.expression.span()),
+        Expression::TSNonNullExpression(e) => Some(e.expression.span()),
+        _ => None,
+    }
+}
+
 impl Builder<'_> {
     /// The bound expression as an assignment's target.
     fn target(&mut self, at: oxc_span::Span, typed: bool) -> NodeIdentifier {
@@ -84,6 +96,20 @@ impl Builder<'_> {
         } else {
             target
         }
+    }
+
+    /// svelte2tsx's `appendOneWayBinding`: `x = value as T` for `bind:…={x as T}`.
+    fn one_way_target(&mut self, expression: ExpressionIdentifier) -> NodeIdentifier {
+        let e = self.expression(expression);
+        let (at, typed) = (e.span(), has_type(e));
+        let Some(inner) = asserted(e) else {
+            return self.target(at, typed);
+        };
+        let target = self.source(inner, None);
+        self.tree.push(Node::Asserted {
+            target,
+            assertion: Span::new(inner.end, at.end),
+        })
     }
 
     /// Pushes the property a binding passes, and returns what it assigns or widens.
@@ -117,7 +143,7 @@ impl Builder<'_> {
         if directive == "this" {
             let (target, set) = match get_set {
                 Some((_, set)) => (self.source(set, None), true),
-                None => (self.target(at, typed), false),
+                None => (self.one_way_target(expression), false),
             };
             return Ok(Binding::This { target, set });
         }
@@ -128,7 +154,7 @@ impl Builder<'_> {
                 return Ok(Binding::Assigned { target, value });
             }
             if let Some(&name) = ONE_WAY.iter().find(|n| **n == directive) {
-                let target = self.target(at, typed);
+                let target = self.one_way_target(expression);
                 return Ok(Binding::Property { target, name });
             }
             if let Some(&(_, value)) = NOT_ON_ELEMENT.iter().find(|(n, _)| *n == directive) {

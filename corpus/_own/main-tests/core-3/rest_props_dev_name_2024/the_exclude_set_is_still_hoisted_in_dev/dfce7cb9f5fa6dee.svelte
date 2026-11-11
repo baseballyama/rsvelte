@@ -1,0 +1,1 @@
+<script>let { a, ...rest } = $props();</script><p>{a}{rest.x}</p>

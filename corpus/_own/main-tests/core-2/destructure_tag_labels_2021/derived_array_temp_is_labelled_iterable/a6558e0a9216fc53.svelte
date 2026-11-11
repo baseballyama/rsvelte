@@ -1,0 +1,1 @@
+<script>let o = $state([1,2]); let [a, b] = $derived(o);</script><p>{a}{b}</p>

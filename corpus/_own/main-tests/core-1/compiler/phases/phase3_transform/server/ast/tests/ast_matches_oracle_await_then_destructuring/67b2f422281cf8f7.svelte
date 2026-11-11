@@ -1,0 +1,1 @@
+{#await p then { width, height }}{@const {area} = calc(width, height)}<div>{area}</div>{/await}

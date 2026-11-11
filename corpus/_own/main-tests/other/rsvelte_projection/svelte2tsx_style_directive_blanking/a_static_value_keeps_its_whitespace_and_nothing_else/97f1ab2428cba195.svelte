@@ -1,0 +1,1 @@
+<div style:color="a b  c   d"></div>

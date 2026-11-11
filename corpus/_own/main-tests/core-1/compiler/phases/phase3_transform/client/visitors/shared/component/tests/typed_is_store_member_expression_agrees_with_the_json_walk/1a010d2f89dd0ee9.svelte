@@ -1,0 +1,1 @@
+<Test a={$store.a.b.c} />

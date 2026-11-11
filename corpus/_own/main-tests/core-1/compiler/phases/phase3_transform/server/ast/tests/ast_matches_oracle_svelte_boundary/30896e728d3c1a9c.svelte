@@ -1,0 +1,1 @@
+<svelte:boundary><p>main</p></svelte:boundary>

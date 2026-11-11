@@ -1,0 +1,1 @@
+<script>const obj = { a: 1 };</script>{#snippet s(a = obj.a ? (obj.a ? 1 : 2) : 3, b = (obj.a, obj.a))}<span>{a}{b}</span>{/snippet}{@render s()}

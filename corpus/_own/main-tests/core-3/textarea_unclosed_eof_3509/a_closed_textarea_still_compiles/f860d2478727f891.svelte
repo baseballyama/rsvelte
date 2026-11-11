@@ -1,0 +1,1 @@
+<textarea>a{b}c</textarea>

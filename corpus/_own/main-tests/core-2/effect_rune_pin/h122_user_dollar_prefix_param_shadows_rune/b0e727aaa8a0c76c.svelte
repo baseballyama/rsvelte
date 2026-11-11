@@ -1,0 +1,1 @@
+<script>function f($effect){ $effect("x"); }</script>

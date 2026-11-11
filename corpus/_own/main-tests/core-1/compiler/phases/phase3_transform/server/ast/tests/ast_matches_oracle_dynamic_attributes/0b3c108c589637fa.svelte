@@ -1,0 +1,1 @@
+<script>let { slug } = $props();</script><a href="/{slug}">x</a>

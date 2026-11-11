@@ -44,6 +44,23 @@ pub enum Node {
         value: NodeIdentifier,
     },
     ExportDefault(NodeIdentifier),
+    /// svelte2tsx's `$$render` of a generic component: the instance script and the template in a
+    /// function of the type parameters, which returns the contract.
+    Render {
+        /// The type parameters without their angle brackets.
+        type_parameters: Span,
+        body: Range,
+    },
+    Return(NodeIdentifier),
+    /// The default export of a generic component, whose call signature takes its type
+    /// parameters, as svelte2tsx's `$$IsomorphicComponent`.
+    GenericExport {
+        type_parameters: Span,
+        /// The parameters' names, which instantiate the render function.
+        names: Range,
+        /// The parameters without modifiers, for the interface and the instance type.
+        declared: Range,
+    },
     Expression(SourceExpression),
     Statement(NodeIdentifier),
     Identifier(&'static str),
@@ -121,6 +138,12 @@ pub enum Node {
     /// A statement whose findings TypeScript drops, as svelte2tsx's ignore comments do.
     Ignored(NodeIdentifier),
     Parenthesized(NodeIdentifier),
+    /// The target of `target = value as T`, which svelte2tsx writes for a one-way binding to
+    /// `target as T`: the assertion follows the value.
+    Asserted {
+        target: NodeIdentifier,
+        assertion: Span,
+    },
     /// `await (value)`.
     Await(NodeIdentifier),
     /// `try { body } catch { catch }`, as svelte2tsx writes an `{#await}` with a `catch`.

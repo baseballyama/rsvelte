@@ -1,0 +1,1 @@
+<script>if (1) {} export let p = 1;</script><span>{p}</span>

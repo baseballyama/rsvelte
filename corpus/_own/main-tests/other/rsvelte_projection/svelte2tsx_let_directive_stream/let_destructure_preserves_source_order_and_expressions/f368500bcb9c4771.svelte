@@ -1,0 +1,1 @@
+<Component let:first let:second={renamed}><span>{first}{renamed}</span></Component>

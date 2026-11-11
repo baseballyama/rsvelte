@@ -1,0 +1,8 @@
+{
+	"description": "TS 5.0 array `extends` combining a shared monorepo base with a generated config that owns `paths` + `include` — the shape SvelteKit (`.svelte-kit/tsconfig.json`) and WXT (`.wxt/tsconfig.json`) force on anyone adopting a base config. Covers #2041 (the array form was skipped entirely, so the generated config's `include` never entered the program and its ambient modules came back as TS2307).",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		2041
+	]
+}

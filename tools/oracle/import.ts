@@ -13,6 +13,7 @@ import {
 	SOURCES_FILE,
 	UNITS_FILE,
 	rel,
+	ROOT,
 } from './paths.ts';
 import { writeIfChanged, stableStringify } from './files.ts';
 import { writePack, type Entry } from './pack.ts';
@@ -29,9 +30,11 @@ const ACCEPTED_NESTED: [RegExp, string][] = [
 	[/free and unencumbered software released into the public domain/i, 'Unlicense'],
 ];
 
-/** Tracked files only: build outputs, `_output` snapshots and other ignored files never become fixtures. */
-function trackedFiles(root: string): string[] {
-	return execFileSync('git', ['-C', root, 'ls-files', '-z'], {
+/** Tracked files only: build outputs, `_output` snapshots and other ignored files never become fixtures.
+ * A source kept in this repository also counts files not yet added, so a new case imports before its commit. */
+function trackedFiles(root: string, inRepo: boolean): string[] {
+	const untracked = inRepo ? ['--others', '--exclude-standard'] : [];
+	return execFileSync('git', ['-C', root, 'ls-files', '-z', '--cached', ...untracked], {
 		encoding: 'utf8',
 		maxBuffer: 1 << 30,
 	})
@@ -74,7 +77,7 @@ function nearestLicense(
 }
 
 export interface ImportOptions {
-	from: string;
+	from?: string;
 	only?: string[];
 	acceptCommit: boolean;
 }
@@ -99,9 +102,13 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 				if (!seen.has(sha256(u.src))) seen.set(sha256(u.src), `${source.id}/${u.path}`);
 			continue;
 		}
-		const root = path.resolve(from, source.checkout);
-		const commit = checkoutCommit(root);
-		if (commit !== source.commit) {
+		// A source without a URL is kept in this repository and has no commit to pin.
+		const inRepo = source.url === null;
+		if (!inRepo && !from)
+			throw new Error(`${source.id}: --from <dir holding the checkouts> is required`);
+		const root = path.resolve(inRepo ? ROOT : from!, source.checkout);
+		const commit = inRepo ? null : checkoutCommit(root);
+		if (commit !== null && commit !== source.commit) {
 			if (!acceptCommit) {
 				throw new Error(
 					`${source.id}: checkout is at ${commit}, registry pins ${source.commit} (pass --accept-commit to move the pin)`,
@@ -121,11 +128,11 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 		const kept = new Set<string>();
 		const packs = new Map<string, Entry[]>(FAMILIES.map((f) => [f, []]));
 		const licenseCache = new Map<string, string | null>();
-		const rootLicense = path.join(root, source.license.file);
+		const rootLicense = path.join(inRepo ? ROOT : root, source.license.file);
 		const nestedLicenses = new Set<string>();
 		const previous = readSourceUnits(source.id);
 
-		for (const file of trackedFiles(root).toSorted()) {
+		for (const file of trackedFiles(root, inRepo).toSorted()) {
 			const relPath = rel(root, file);
 			const lang = languageOf(relPath);
 			if (!lang) continue;
@@ -147,7 +154,12 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 				counts.duplicate++;
 				continue;
 			}
-			const admission = lang.admit(src, relPath);
+			let admission = lang.admit(src, relPath);
+			// A case written here may exist to compare a rejection, which is then its expected result.
+			if (!admission.include && inRepo) {
+				bump(`rejected:${admission.reason}`);
+				admission = { include: true, fields: { mode: 'runes', inferredMode: 'rejected' } };
+			}
 			if (!admission.include) {
 				bump(admission.reason);
 				continue;
@@ -170,7 +182,7 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 		for (const [family, entries] of packs) writePack(inputsPack(family, source.id), entries);
 
 		fs.rmSync(licensesDir(source.id), { recursive: true, force: true });
-		for (const lic of [rootLicense, ...nestedLicenses]) {
+		for (const lic of inRepo ? [] : [rootLicense, ...nestedLicenses]) {
 			const dest = path.join(licensesDir(source.id), rel(root, lic));
 			fs.mkdirSync(path.dirname(dest), { recursive: true });
 			fs.copyFileSync(lic, dest);
@@ -205,9 +217,8 @@ export async function main(args: string[]): Promise<void> {
 			'accept-commit': { type: 'boolean', default: false },
 		},
 	});
-	if (!values.from) throw new Error('--from <dir holding the source checkouts> is required');
 	const { orphans } = runImport({
-		from: path.resolve(values.from),
+		from: values.from && path.resolve(values.from),
 		only: values.source?.split(','),
 		acceptCommit: values['accept-commit'],
 	});

@@ -1,0 +1,1 @@
+<script>let n = $state(1);</script><b class="a">{n}</b><style>.a { color: red }</style>

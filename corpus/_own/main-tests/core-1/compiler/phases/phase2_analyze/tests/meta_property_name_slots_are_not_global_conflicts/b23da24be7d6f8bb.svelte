@@ -1,0 +1,1 @@
+<script>const url = import.meta.url; function ctor() { return new.target; }</script>

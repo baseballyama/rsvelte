@@ -1,0 +1,1 @@
+<script>const o = [$effect];</script>

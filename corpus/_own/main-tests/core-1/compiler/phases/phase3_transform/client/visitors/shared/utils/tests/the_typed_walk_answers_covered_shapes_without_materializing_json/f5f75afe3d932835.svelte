@@ -1,0 +1,1 @@
+<Test a={Math.max(count, 1)} />

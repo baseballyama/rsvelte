@@ -1,0 +1,1 @@
+<script>function make() {}</script><div style:color={make()}></div>

@@ -1,0 +1,1 @@
+<Component let:item={item}>y</Component>

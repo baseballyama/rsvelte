@@ -1,0 +1,3 @@
+<div>
+  <span class="a-really-long-class-name-that-forces-the-open-tag-to-wrap-well-past-eighty-columns"> </span>
+</div>

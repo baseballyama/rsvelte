@@ -1,0 +1,1 @@
+<script></script>{#await import("x")}a{/await}

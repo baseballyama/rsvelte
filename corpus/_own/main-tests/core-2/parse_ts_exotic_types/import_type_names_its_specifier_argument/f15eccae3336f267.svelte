@@ -1,0 +1,1 @@
+<script lang="ts">type I3 = import("x").T<number>;</script>

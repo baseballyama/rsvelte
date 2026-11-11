@@ -1,0 +1,1 @@
+<script lang="ts">type C<T> = T extends string ? 1 : 2;</script>

@@ -1,0 +1,1 @@
+<script lang="ts">let a: any;</script><p>{<string>() => a}</p>

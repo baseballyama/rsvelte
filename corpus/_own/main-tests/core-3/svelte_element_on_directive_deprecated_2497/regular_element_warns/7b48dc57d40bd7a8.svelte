@@ -1,0 +1,1 @@
+<script>let count = $state(0); let tag = $state('button');</script><button on:click={() => count++}>{count}</button>

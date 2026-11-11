@@ -1,0 +1,1 @@
+<svelte:head><title>Hi</title></svelte:head>

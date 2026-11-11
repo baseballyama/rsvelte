@@ -1,0 +1,1 @@
+<script>import A from './A.svelte';import B from './B.svelte';import C from './C.svelte';</script>{#if x}<A/>{:else if y}<B/>{:else}<C/>{/if}

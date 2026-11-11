@@ -1,0 +1,1 @@
+<script>	let h = () => {};</script><button type="button" on:click={h}on:click={h}>x</button>

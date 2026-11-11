@@ -7,11 +7,12 @@ use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
 
+use super::generic::Generics;
 use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, Span, Unsupported, span};
 
-struct Edit {
-    span: Span,
-    replacement: Option<NodeIdentifier>,
+pub(super) struct Edit {
+    pub(super) span: Span,
+    pub(super) replacement: Option<NodeIdentifier>,
 }
 
 /// Where svelte2tsx declares a store subscription.
@@ -24,21 +25,19 @@ enum StoreAt {
 }
 
 impl Builder<'_> {
-    pub(super) fn scripts(&mut self) -> Result<NodeIdentifier> {
+    /// The scripts, then the contract's value, and the generics when the template and the contract
+    /// belong in a render function.
+    pub(super) fn scripts(&mut self) -> Result<(NodeIdentifier, Option<Generics>)> {
         let mut edits = self.module_and_store_edits();
         let mut bindings = Buffer::new(0);
         let mut exports = Buffer::new(0);
         let mut props = None;
-        let generated_start = self.scratch.len();
+        let mut generics = None;
+        let mut generated_start = self.scratch.len();
         if let Some(script) = &self.component.instance {
-            if let Some(&(name, _)) = script
-                .attributes
-                .iter()
-                .find(|(name, _)| name.text(self.source) == "generics")
-            {
-                return Err(Unsupported::at("generic component contracts", name));
-            }
             let program = self.component.javascript.get_program(script.program);
+            generics = self.generics(script, program, &mut edits)?;
+            generated_start = self.scratch.len();
             if let Some(snippets) = self.root_snippets.take() {
                 let after_imports = program
                     .body
@@ -106,9 +105,11 @@ impl Builder<'_> {
             let parts = self.tree.list(&bindings);
             self.tree.push(Node::TypeUnion(parts))
         };
-        let helper = self
-            .tree
-            .push(Node::Identifier("__rsvelte_export_component"));
+        let helper = self.tree.push(Node::Identifier(if generics.is_some() {
+            "__rsvelte_export_generic"
+        } else {
+            "__rsvelte_export_component"
+        }));
         let arguments = self.tree.list(&[props, exports, bindings]);
         let callee = self.tree.push(Node::TypeArguments {
             callee: helper,
@@ -118,7 +119,11 @@ impl Builder<'_> {
             callee,
             arguments: Range::default(),
         });
-        Ok(self.tree.push(Node::ExportDefault(value)))
+        if let Some(generics) = &mut generics {
+            generics.start = generated_start;
+            return Ok((value, Some(*generics)));
+        }
+        Ok((self.tree.push(Node::ExportDefault(value)), None))
     }
 
     /// svelte2tsx's `slots` has a `default` key: a `<slot>` without a `name`, or named `default`.

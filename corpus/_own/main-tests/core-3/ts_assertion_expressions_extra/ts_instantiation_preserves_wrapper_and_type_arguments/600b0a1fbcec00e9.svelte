@@ -1,0 +1,1 @@
+<script lang="ts">const e = f<number>;</script>

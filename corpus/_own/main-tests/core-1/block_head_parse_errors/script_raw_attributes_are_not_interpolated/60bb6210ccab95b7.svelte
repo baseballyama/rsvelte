@@ -1,0 +1,1 @@
+<script generics="T extends { yes: boolean }">let x=1</script>{x}

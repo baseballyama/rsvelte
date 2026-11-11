@@ -1,0 +1,1 @@
+<div><svelte:head><title>t</title></svelte:head></div>

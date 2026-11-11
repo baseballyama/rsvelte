@@ -1,0 +1,1 @@
+{#awaitp}a{/await}

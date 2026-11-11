@@ -1,0 +1,1 @@
+<script>let { a } = /* c */ $props(); console.log("SIDE_EFFECT");</script><i>{a}</i>

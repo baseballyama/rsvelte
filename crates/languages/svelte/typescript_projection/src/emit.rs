@@ -35,6 +35,8 @@ struct Printer<'a> {
     indent: usize,
 }
 
+mod generic;
+
 impl Printer<'_> {
     fn children(&mut self, range: Range) {
         for &identifier in self.tree.children(range) {
@@ -62,6 +64,22 @@ impl Printer<'_> {
         self.output.push(": ");
         self.node(value);
         self.output.push(",\n");
+    }
+
+    /// `target = value`, or `target = value as T` for svelte2tsx's one-way binding.
+    fn assignment(&mut self, target: NodeIdentifier, value: NodeIdentifier) {
+        let assertion = if let Node::Asserted { target, assertion } = self.tree.node(target) {
+            self.node(target);
+            Some(assertion)
+        } else {
+            self.node(target);
+            None
+        };
+        self.output.push(" = ");
+        self.node(value);
+        if let Some(assertion) = assertion {
+            self.output.copy(self.source, assertion);
+        }
     }
 
     fn node(&mut self, identifier: NodeIdentifier) {
@@ -100,11 +118,7 @@ impl Printer<'_> {
                 iterable,
                 body,
             } => self.for_of(binding, iterable, body),
-            Node::Assignment { target, value } => {
-                self.node(target);
-                self.output.push(" = ");
-                self.node(value);
-            }
+            Node::Assignment { target, value } => self.assignment(target, value),
             Node::Object { properties } => self.object(properties),
             Node::Block { body } => {
                 self.output.push("{\n");
@@ -273,6 +287,26 @@ impl Printer<'_> {
                 self.node(value);
                 self.output.push(";\n");
             }
+            Node::Render {
+                type_parameters,
+                body,
+            } => {
+                self.output.push("function $$render<");
+                self.output.copy(self.source, type_parameters);
+                self.output.push(">() {\n");
+                self.body(body);
+                self.output.push("}\n");
+            }
+            Node::Return(value) => {
+                self.output.push("return ");
+                self.node(value);
+                self.output.push(";\n");
+            }
+            Node::GenericExport {
+                type_parameters,
+                names,
+                declared,
+            } => self.generic_export(type_parameters, names, declared),
             Node::ExportDefault(value) => {
                 // svelte2tsx's runes component: a type of the same name lets an import name the
                 // instance's type.

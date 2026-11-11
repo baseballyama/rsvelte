@@ -1,0 +1,1 @@
+{#await promise catch { key: eval }}x{/await}

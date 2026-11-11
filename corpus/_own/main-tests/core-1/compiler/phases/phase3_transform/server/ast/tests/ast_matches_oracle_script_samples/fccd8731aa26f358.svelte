@@ -1,0 +1,1 @@
+<script>import { x } from './x.js'; let c = $state(x);</script><p>{c}</p>

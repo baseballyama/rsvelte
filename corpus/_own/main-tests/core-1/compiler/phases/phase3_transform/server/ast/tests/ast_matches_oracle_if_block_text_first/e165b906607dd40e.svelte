@@ -1,0 +1,1 @@
+<script>let x = $state(true);</script>{#if x}a{/if}

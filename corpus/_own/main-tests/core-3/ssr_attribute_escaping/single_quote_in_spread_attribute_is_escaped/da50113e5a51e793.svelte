@@ -1,0 +1,1 @@
+<input value="a'b" {...rest} />

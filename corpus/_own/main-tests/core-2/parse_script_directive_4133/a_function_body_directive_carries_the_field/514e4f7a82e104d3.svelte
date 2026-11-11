@@ -1,0 +1,1 @@
+<script>function f() { 'inner'; return 1; }</script>

@@ -1,0 +1,1 @@
+{#if x}<p></p>{/if}<script lang="ts">let a = 1</script>

@@ -1,0 +1,1 @@
+<script>export let prop;</script>{prop}

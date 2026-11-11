@@ -1,0 +1,1 @@
+{#each [1, 2] as n}{@const d = n * 2}<li>{d}</li>{/each}

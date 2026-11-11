@@ -1,0 +1,2 @@
+<script>let y = "s"; let f = (v) => v;</script>
+{#key y as string}<p>x</p>{/key}

@@ -1,0 +1,1 @@
+<script>let value = 1;</script><div disabled title="plain" count={value} mixed="pre {value} post" data-id="7" {value}></div>

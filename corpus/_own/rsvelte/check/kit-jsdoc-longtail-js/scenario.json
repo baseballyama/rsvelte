@@ -1,0 +1,8 @@
+{
+	"description": "The `kit_file.rs` JSDoc/augmentation long-tail from #2108, under `checkJs`: a `@type` sharing one line with `@typedef` (TypeScript's scanner parses several tags per line, so official suppresses the augmentation where rsvelte used to inject), and a rest parameter (official's `parameters.length` counts it; oxc keeps it out of `params.items`, so `entries` used to be augmented as if it took none and a rest-parameter `load` used to be skipped).",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		2108
+	]
+}

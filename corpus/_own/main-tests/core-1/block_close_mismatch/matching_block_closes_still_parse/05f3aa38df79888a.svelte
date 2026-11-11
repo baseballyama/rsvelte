@@ -1,0 +1,1 @@
+{#if ok}<p>a</p>{:else}<p>b</p>{/if}

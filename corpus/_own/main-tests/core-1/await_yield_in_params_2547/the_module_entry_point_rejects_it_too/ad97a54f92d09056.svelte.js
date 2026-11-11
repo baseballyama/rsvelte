@@ -1,0 +1,1 @@
+export function* g(p = yield 1) { return p; }
