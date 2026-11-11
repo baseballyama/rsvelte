@@ -184,7 +184,8 @@ fn no_selector_matches_an_element_inside_svelte_head() {
         (".x { color: red }", &["<p"][..], true),
     ] {
         let source = format!(
-            "<svelte:head><meta class=\"x\" />{{#if a}}<span class=\"x\"></span>{{/if}}</svelte:head>\
+            "<svelte:head><meta class=\"x\" />\
+             {{#if a}}<span class=\"x\"></span>{{/if}}</svelte:head>\
              <p class=\"x\"></p><style>{style}</style>"
         );
         let component = parse(&source).expect("parses");
