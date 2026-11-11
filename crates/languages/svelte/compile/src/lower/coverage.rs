@@ -37,10 +37,20 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
                 .then_some("an `{#each}` block without `as`"),
             NodeKind::Element(el) => {
                 check_element(input, res, identifier, el)?;
-                None
+                // Upstream moves a boundary's `{@const}` into its `failed` snippet, and rejects one
+                // that a component's snippet reads.
+                let has = |f: fn(&NodeKind) -> bool| {
+                    tree.children(el.children)
+                        .iter()
+                        .any(|&c| f(&tree.node(c).kind))
+                };
+                (has(|k| matches!(k, NodeKind::Const { .. }))
+                    && (el.kind == ElementKind::Metadata(Some(MetadataTag::Boundary))
+                        || has(|k| matches!(k, NodeKind::Snippet(_)))))
+                .then_some("a `{@const}` beside a snippet")
             }
             NodeKind::Await(_) => Some("an `{#await}` block"),
-            NodeKind::Const { .. } => Some("a `{@const}` tag"),
+            &NodeKind::Const { declaration } => const_tag(input, res, declaration),
             NodeKind::Debug { .. } => Some("a `{@debug}` tag"),
             NodeKind::Declaration { .. } => Some("a declaration tag"),
         };
@@ -371,4 +381,43 @@ fn supported_binding(
         }
     }
     true
+}
+
+/// The `{@const}` tags this port does not lower: a destructured one, and one that reads a later
+/// tag, which upstream rejects as a cycle.
+fn const_tag(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    declaration: rsvelte_typescript_tree::DeclarationIdentifier,
+) -> Option<&'static str> {
+    struct Later<'r> {
+        res: &'r Resolution,
+        start: u32,
+        found: bool,
+    }
+    impl<'a> oxc_ast_visit::Visit<'a> for Later<'_> {
+        fn visit_identifier_reference(&mut self, it: &oxc_ast::ast::IdentifierReference<'a>) {
+            if let Some(symbol) = self.res.symbol(it) {
+                self.found |= self.res.binding(symbol).kind == BindingKind::Template
+                    && self.res.scoping().symbol_span(symbol).start > self.start;
+            }
+        }
+    }
+    let d = &input
+        .component
+        .javascript
+        .get_declaration(declaration)
+        .declarations[0];
+    if !matches!(d.id, oxc_ast::ast::BindingPattern::BindingIdentifier(_)) {
+        return Some("a destructured `{@const}` tag");
+    }
+    let mut later = Later {
+        res,
+        start: d.span.start,
+        found: false,
+    };
+    if let Some(init) = &d.init {
+        oxc_ast_visit::Visit::visit_expression(&mut later, init);
+    }
+    later.found.then_some("a `{@const}` that reads a later one")
 }

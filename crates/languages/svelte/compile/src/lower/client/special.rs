@@ -26,8 +26,13 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         frag: &mut Frag<'o>,
         lists: &mut Lists<'o>,
     ) -> R<()> {
-        if let NodeKind::Snippet(_) = self.compiler_syntax_tree.node(identifier).kind {
-            return self.snippet(identifier);
+        match self.compiler_syntax_tree.node(identifier).kind {
+            NodeKind::Snippet(_) => return self.snippet(identifier),
+            NodeKind::Const { .. } => {
+                self.const_tag(identifier, lists);
+                return Ok(());
+            }
+            _ => {}
         }
         self.special_element(identifier, "", frag, lists)
     }

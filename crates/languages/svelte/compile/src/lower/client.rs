@@ -6,6 +6,7 @@ mod blocks;
 mod boundary;
 mod children;
 mod component;
+mod const_tag;
 mod custom_element;
 mod directives;
 mod dynamic_element;
@@ -130,6 +131,8 @@ impl<'o> Memo<'o> {
 
 #[derive(Default)]
 struct Lists<'o> {
+    /// Upstream `state.consts`, which open the fragment.
+    consts: Vec<Statement<'o>>,
     initializer: Vec<Statement<'o>>,
     update: Vec<Statement<'o>>,
     after: Vec<Statement<'o>>,

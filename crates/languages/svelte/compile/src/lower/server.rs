@@ -5,6 +5,7 @@ mod blocks;
 mod boundary;
 mod children;
 mod component;
+mod const_tag;
 mod directives;
 mod dynamic_element;
 mod elements {

@@ -50,8 +50,9 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let mut l = Lists::default();
         self.fragment_hoisted(&cleaned.hoisted, skipped, &mut frag, &mut l)?;
         if items.is_empty() {
-            l.initializer.append(&mut l.after);
-            return Ok(l.initializer);
+            l.consts.append(&mut l.initializer);
+            l.consts.append(&mut l.after);
+            return Ok(l.consts);
         }
         let single_element = match items.as_ref() {
             [Item::Node(identifier)] => match &self.compiler_syntax_tree.node(*identifier).kind {
@@ -120,7 +121,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             self.append(&identifier)
         });
 
-        let mut body = Vec::new();
+        let mut body = std::mem::take(&mut l.consts);
         if cleaned.text_first {
             body.push(b.stmt(b.runtime("next", [])));
         }
