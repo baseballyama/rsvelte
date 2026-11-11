@@ -34,6 +34,8 @@ function check(units: Unit[]): Map<string, Record<string, Artifact>> {
 			stdout = execFileSync(
 				process.execPath,
 				[
+					// One run holds a whole source, which can need more than the default heap.
+					'--max-old-space-size=16384',
 					SVELTE_CHECK,
 					'--workspace',
 					ws,
