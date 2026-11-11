@@ -16,10 +16,13 @@ use super::{Facts, Use, span};
 /// It looks at every name typescript-eslint's scope analysis declares: types, enum members and
 /// the parameters of a signature too, which the core rule reports like any variable.
 /// `reads` are references a host resolves to a symbol as plain reads, such as Svelte's `$store`.
+/// `body` is the scope of a function a host declares outside JavaScript, such as a Svelte
+/// snippet, inside which a reference to it is a self-reference.
 pub fn no_unused_variables<'r>(
     semantic: &Semantic,
     considered: impl Fn(SymbolId) -> bool,
     reads: impl Fn(SymbolId) -> &'r [ReferenceId],
+    body: impl Fn(SymbolId) -> Option<ScopeId>,
     reporter: &mut Reporter<'_>,
 ) {
     let f = Facts::new(semantic);
@@ -58,6 +61,10 @@ pub fn no_unused_variables<'r>(
                 }
             }));
             uses.sort_by_key(|u| u.span.start);
+        }
+        if let Some(body) = body(symbol) {
+            // `isSelfReference` over the host's function.
+            uses.retain(|u| !f.scoping.scope_ancestors(u.scope).any(|s| s == body));
         }
         if is_used(&f, symbol, declaration, &uses) || is_exported(&f, declaration) {
             continue;

@@ -13,7 +13,8 @@ pub use no_inner_declarations::{NoInnerDeclarationsOptions, no_inner_declaration
 pub use no_unused_variables::no_unused_variables;
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    Expression, FormalParameter, FormalParameters, Program, TSTypeName, VariableDeclaration,
+    Expression, FormalParameter, FormalParameters, Program, TSTypeName, TSTypePredicateName,
+    VariableDeclaration,
 };
 use oxc_ast_visit::Visit;
 use oxc_semantic::{AstNodes, NodeId, ScopeId, Scoping, SymbolId};
@@ -92,6 +93,9 @@ struct Facts<'s> {
     /// What the left of a qualified type name (`A` of `A.B`) names. typescript-eslint takes any
     /// symbol of that name, where oxc takes only a namespace.
     qualified: FxHashSet<SymbolId>,
+    /// The parameter a type predicate (`x is T`) names, which typescript-eslint reads there and
+    /// oxc keeps as a plain name.
+    predicates: FxHashMap<SymbolId, Vec<NodeId>>,
 }
 
 impl<'s> Facts<'s> {
@@ -101,8 +105,16 @@ impl<'s> Facts<'s> {
         let mut identifiers = vec![None; scoping.symbols_len()];
         let mut redeclared: FxHashMap<SymbolId, Vec<NodeId>> = FxHashMap::default();
         let mut qualified = FxHashSet::default();
+        let mut predicates: FxHashMap<SymbolId, Vec<NodeId>> = FxHashMap::default();
         for node in nodes.iter() {
             match node.kind() {
+                AstKind::TSTypePredicate(predicate) => {
+                    if let TSTypePredicateName::Identifier(name) = &predicate.parameter_name
+                        && let Some(symbol) = scoping.find_binding(node.scope_id(), name.name)
+                    {
+                        predicates.entry(symbol).or_default().push(node.id());
+                    }
+                }
                 AstKind::BindingIdentifier(identifier) => {
                     if let Some(symbol) = identifier.symbol_id.get() {
                         match identifiers[symbol.index()] {
@@ -131,6 +143,7 @@ impl<'s> Facts<'s> {
             identifiers,
             redeclared,
             qualified,
+            predicates,
         }
     }
 
@@ -198,6 +211,18 @@ impl<'s> Facts<'s> {
                     }
                 }),
         );
+        for &predicate in self.predicates.get(&symbol).map_or(&[][..], Vec::as_slice) {
+            let AstKind::TSTypePredicate(it) = self.kind(predicate) else {
+                continue;
+            };
+            out.push(Use {
+                node: predicate,
+                span: it.parameter_name.span(),
+                read: true,
+                write: false,
+                scope: self.nodes.get_node(predicate).scope_id(),
+            });
+        }
         let later = self.redeclared.get(&symbol).map_or(&[][..], Vec::as_slice);
         for &identifier in self.identifiers[symbol.index()].iter().chain(later) {
             if self.written_where_declared(identifier) {

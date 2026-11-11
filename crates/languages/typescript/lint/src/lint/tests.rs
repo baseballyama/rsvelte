@@ -28,7 +28,7 @@ impl Rule<Semantic> for NoUnusedVariables {
     }
 
     fn check(&self, context: &Semantic, reporter: &mut Reporter<'_>) {
-        super::no_unused_variables(context, |_| true, |_| &[], reporter);
+        super::no_unused_variables(context, |_| true, |_| &[], |_| None, reporter);
     }
 }
 
@@ -220,11 +220,24 @@ const UNUSED: &[(&str, &[&str])] = &[
     ),
     ("interface B {} let y: B.C; y;", &[]),
     (
-        "const a = new class Foo {}; a; class Bar {} const C = class D { m() { return D; } }; C; const E = class F {}; let g = class H {}; g = 1;",
+        "const a = new class Foo {}; a; class Bar {} const C = class D { m() { return D; } }; \
+         C; const E = class F {}; let g = class H {}; g = 1;",
         &[
             "'Bar' is defined but never used.@37-40",
             "'E' is assigned a value but never used.@94-95",
             "'g' is assigned a value but never used.@130-131",
+        ],
+    ),
+    (
+        "declare function foo(arg1: string, arg2: string): arg1 is string; type D = (v) => v is \
+         number; function g(a: unknown, b: unknown): asserts a is string {} function h(this: \
+         Window, x: unknown): this is Window { return true; } export { foo, g, h }; let z: D; \
+         z;",
+        &[
+            "'arg2' is defined but never used.@35-47",
+            "'b' is defined but never used.@118-128",
+            "'this' is defined but never used.@165-177",
+            "'x' is defined but never used.@179-189",
         ],
     ),
 ];

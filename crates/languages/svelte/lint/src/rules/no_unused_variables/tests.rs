@@ -365,3 +365,20 @@ fn generics_declare_and_read_names() {
         ["'Item' is defined but never used."]
     );
 }
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0: a snippet's own body does not use it, and two
+// snippets that render each other do.
+#[test]
+fn a_snippet_read_only_in_its_own_body_is_unused() {
+    assert_eq!(
+        unused(
+            "{#snippet c()}<span></span>{@render c()}{/snippet}\
+             {#snippet d()}{@render e()}{/snippet}{#snippet e()}{@render d()}{/snippet}\
+             <script>function f() { f(); }</script>"
+        ),
+        [
+            "'c' is defined but never used.",
+            "'f' is defined but never used."
+        ]
+    );
+}
