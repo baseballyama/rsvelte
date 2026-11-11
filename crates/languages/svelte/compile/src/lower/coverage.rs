@@ -110,7 +110,10 @@ fn check_element(
                     continue;
                 }
             }
-            AttributeValue::Bind(_) if name == "this" => "`bind:this` on a component",
+            AttributeValue::Bind(target) if name == "this" => {
+                check_bind_this(input, res, a, target)?;
+                continue;
+            }
             AttributeValue::Bind(_) if name == "group" => "`bind:group` on a component",
             AttributeValue::Bind(target)
                 if !is_bindable(input, res, target, true) && !rejected(input, res, target) =>
@@ -199,6 +202,30 @@ fn rejected(input: &CompileInput<'_>, res: &Resolution, target: ExpressionIdenti
     super::validation::rejects_binding(res, input.component.javascript.get_expression(target))
 }
 
+/// Upstream's `bind:this` takes what a component binding takes, on an element or a component.
+fn check_bind_this(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    a: &Attribute,
+    target: ExpressionIdentifier,
+) -> Result<(), Diagnostic> {
+    let accessors = matches!(
+        input
+            .component
+            .javascript
+            .get_expression(target)
+            .get_inner_expression(),
+        Expression::SequenceExpression(_)
+    );
+    if !accessors && !is_bindable(input, res, target, true) && !rejected(input, res, target) {
+        return unsupported(
+            "a `bind:this` to anything but a `let`, `$state`, a prop or a member",
+            a.span,
+        );
+    }
+    Ok(())
+}
+
 /// A supported property on a supported element, as upstream's `binding_properties` names it,
 /// with no `value`, `checked` or `group` beside it.
 fn check_element_binding(
@@ -211,6 +238,9 @@ fn check_element_binding(
 ) -> Result<(), Diagnostic> {
     let source_text = input.component.source_text;
     let property = a.name.text(source_text);
+    if property == "this" {
+        return check_bind_this(input, res, a, target);
+    }
     if !supported_binding(source_text, tag, attributes, property) {
         return unsupported(&format!("`bind:{property}` on this `<{tag}>`"), a.span);
     }

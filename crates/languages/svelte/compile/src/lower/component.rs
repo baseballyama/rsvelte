@@ -23,17 +23,32 @@ pub(super) enum Prop<'t> {
 }
 
 /// Values and spreads as written, then bindings, so that a spread cannot overwrite a binding.
-pub(super) fn props(attributes: &[Attribute]) -> impl Iterator<Item = Prop<'_>> {
+/// `bind:this` is no prop; see [`bind_this`].
+pub(super) fn props<'t>(
+    attributes: &'t [Attribute],
+    source_text: &'t str,
+) -> impl Iterator<Item = Prop<'t>> {
     let values = attributes.iter().filter_map(|a| match a.value {
         AttributeValue::Bind(_) => None,
         AttributeValue::Spread(e) => Some(Prop::Spread(e)),
         _ => Some(Prop::Value(a)),
     });
     let bindings = attributes.iter().filter_map(|a| match a.value {
-        AttributeValue::Bind(e) => Some(Prop::Bind(a, e)),
+        AttributeValue::Bind(e) if a.name.text(source_text) != "this" => Some(Prop::Bind(a, e)),
         _ => None,
     });
     values.chain(bindings)
+}
+
+/// The target of a component's `bind:this`, which the client binds to the instance.
+pub(super) fn bind_this(
+    attributes: &[Attribute],
+    source_text: &str,
+) -> Option<ExpressionIdentifier> {
+    attributes.iter().find_map(|a| match a.value {
+        AttributeValue::Bind(e) if a.name.text(source_text) == "this" => Some(e),
+        _ => None,
+    })
 }
 
 /// Upstream `metadata.dynamic`: the component may change, so it is read through `$.component` on

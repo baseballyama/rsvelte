@@ -19,6 +19,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             stores: &[],
             untracked: None,
             invalidates: None,
+            primitive: false,
         }
     }
 

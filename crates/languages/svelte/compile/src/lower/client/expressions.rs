@@ -38,6 +38,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             stores: self.stores,
             untracked: None,
             invalidates: Some(&self.invalidates),
+            primitive: false,
         }
     }
 
