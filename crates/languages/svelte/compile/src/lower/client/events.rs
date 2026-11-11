@@ -120,7 +120,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 let mut h = built;
                 if meta.has_call {
                     let identifier = self.names.generate("event_handler");
-                    let derived = b.runtime("derived", [b.arrow(b.params([]), h)]);
+                    let derived = b.runtime("derived", [b.thunk(h)]);
                     l.initializer.push(b.var(&identifier, derived));
                     h = b.runtime("get", [b.id(&identifier)]);
                 }
