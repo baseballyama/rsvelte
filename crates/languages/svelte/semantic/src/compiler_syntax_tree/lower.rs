@@ -16,6 +16,7 @@ pub fn lower(c: &Component, source_text: &str) -> CompilerSyntaxTree {
         c,
         source_text,
         raw_text: false,
+        attribute_text: false,
         b: CompilerSyntaxTreeBuilder::new(source_text, c.nodes.len(), c.attributes.len()),
     };
     let root = b.list(c.children(c.root), None);
@@ -27,6 +28,8 @@ struct SurfaceBuilder<'a> {
     c: &'a Component,
     source_text: &'a str,
     raw_text: bool,
+    /// Inside a `<textarea>`, whose text upstream decodes as an attribute's.
+    attribute_text: bool,
     b: CompilerSyntaxTreeBuilder<'a>,
 }
 
@@ -60,6 +63,14 @@ impl SurfaceBuilder<'_> {
             TemplateNode::Text { span } if self.raw_text => NodeKind::Text {
                 raw: span,
                 decoded: None,
+                spelled: false,
+            },
+            TemplateNode::Text { span } if self.attribute_text => NodeKind::Text {
+                raw: span,
+                decoded: match decode_attribute(span.text(source_text)) {
+                    std::borrow::Cow::Borrowed(_) => None,
+                    std::borrow::Cow::Owned(s) => Some(s.into_boxed_str()),
+                },
                 spelled: false,
             },
             TemplateNode::Text { span } => text(span, source_text),
@@ -99,12 +110,31 @@ impl SurfaceBuilder<'_> {
                     .iter()
                     .position(is_this)
                     .map(|i| self.b.attributes([lower(i, &surface[i])]).start);
+                let textarea = kind == ElementKind::Regular && name.text(source_text) == "textarea";
+                let content = c.children(children);
+                // Upstream's analysis moves a `<textarea>`'s content but one text into `value`.
+                let value = (textarea
+                    && (content.len() > 1
+                        || content
+                            .first()
+                            .is_some_and(|&t| !matches!(c.node(t), TemplateNode::Text { .. }))))
+                .then(|| {
+                    textarea_value(
+                        c,
+                        source_text,
+                        content,
+                        identifier,
+                        attributes.start + attributes.len,
+                    )
+                });
+                let moved = value.is_some();
                 let attributes = self.b.attributes(
                     surface
                         .iter()
                         .enumerate()
                         .filter(|(_, a)| !is_this(a))
-                        .map(|(i, a)| lower(i, a)),
+                        .map(|(i, a)| lower(i, a))
+                        .chain(value),
                 );
                 // `element_kind` of a descendant reads this node's kind and attributes.
                 self.b.set_kind(
@@ -118,10 +148,15 @@ impl SurfaceBuilder<'_> {
                         this,
                     }),
                 );
-                let previous_raw_text = self.raw_text;
+                let previous = (self.raw_text, self.attribute_text);
                 self.raw_text = matches!(name.text(source_text), "style" | "script");
-                let children = self.list(c.children(children), Some(identifier));
-                self.raw_text = previous_raw_text;
+                self.attribute_text = textarea;
+                let children = if moved {
+                    Children::default()
+                } else {
+                    self.list(content, Some(identifier))
+                };
+                (self.raw_text, self.attribute_text) = previous;
                 self.b.set_element_children(identifier, children);
                 return identifier;
             }
@@ -221,6 +256,56 @@ impl SurfaceBuilder<'_> {
         };
         self.b.set_kind(identifier, kind);
         identifier
+    }
+}
+
+/// Upstream's `value` of a `<textarea>` whose content is more than one text: the content as an
+/// attribute's parts, without the newline that starts it, which the browser drops from the content
+/// but not from a value. `origin` is past the element's own attributes.
+fn textarea_value(
+    c: &Component,
+    source_text: &str,
+    content: &[TemplateNodeIdentifier],
+    owner: CompilerNodeIdentifier,
+    origin: u32,
+) -> Attribute {
+    let parts: Box<[Part]> = content
+        .iter()
+        .enumerate()
+        .filter_map(|(i, &t)| match *c.node(t) {
+            TemplateNode::Text { span } if i == 0 => {
+                let text = span.text(source_text);
+                let newline = ["\r\n", "\n"]
+                    .into_iter()
+                    .find(|n| text.starts_with(n))
+                    .map_or(0, str::len);
+                Some(Part::Text(Span::new(
+                    span.start_offset + newline as u32,
+                    span.end_offset,
+                )))
+            }
+            TemplateNode::Text { span } => Some(Part::Text(span)),
+            TemplateNode::Expression { expression, span } => {
+                Some(Part::Expression { expression, span })
+            }
+            _ => None,
+        })
+        .collect();
+    let first = content.first().map(|&t| c.node(t).span());
+    let last = content.last().map(|&t| c.node(t).span());
+    let span = match (first, last) {
+        (Some(first), Some(last)) => Span::new(first.start_offset, last.end_offset),
+        _ => Span::default(),
+    };
+    Attribute {
+        name: Name::Spelled {
+            text: "value".into(),
+            span,
+        },
+        value: AttributeValue::Interpolated(parts),
+        span,
+        owner,
+        origin,
     }
 }
 
