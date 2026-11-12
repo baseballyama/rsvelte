@@ -1,5 +1,5 @@
-//! A JavaScript component whose script does not parse: svelte2tsx blanks the scripts before
-//! Svelte parses the markup, so TypeScript reports the script's syntax, reading it as JSX.
+//! A component whose script does not parse: svelte2tsx blanks the scripts before Svelte parses
+//! the markup, so TypeScript reports the script's syntax, reading it as TSX or JSX.
 
 use std::sync::Arc;
 
@@ -7,22 +7,18 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_typescript_check::{TypeScriptDocument, TypeScriptEnv};
 
-/// The document to check, or `None` when the markup does not parse either or a script is
-/// TypeScript.
+/// The document to check, or `None` when the markup does not parse either.
 pub(super) fn view<'e>(
     source_text: &str,
     env: impl FnOnce() -> Result<&'e Arc<TypeScriptEnv>, Diagnostic>,
 ) -> Option<Result<TypeScriptDocument, Diagnostic>> {
     let component = rsvelte_svelte_syntax::parse::parse_without_scripts(source_text).ok()?;
     let scripts = [&component.module, &component.instance];
-    if scripts
+    let typescript = scripts
         .iter()
         .copied()
         .flatten()
-        .any(|script| script.typescript)
-    {
-        return None;
-    }
+        .any(|script| script.typescript);
     let env = match env() {
         Ok(env) => env,
         Err(error) => return Some(Err(error)),
@@ -44,6 +40,6 @@ pub(super) fn view<'e>(
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
         placement: Vec::new(),
-        extension: ".jsx",
+        extension: if typescript { ".tsx" } else { ".jsx" },
     }))
 }
