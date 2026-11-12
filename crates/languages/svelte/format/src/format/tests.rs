@@ -484,11 +484,10 @@ fn a_script_or_style_inside_an_element_is_embedded_as_the_plugin_embeds_it() {
 #[test]
 fn a_script_babel_rejects_is_kept_as_written_and_the_rest_formatted() {
     // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    let script = "<script>\n\tfunction f() { continue; }\n\tlet   x =  1\n</script>\n";
     assert_eq!(
-        formatted(
-            "<script>\n\tfunction f() { continue; }\n\tlet   x =  1\n</script>\n<div   class=\"a\"  >{x+1}</div>\n"
-        ),
-        "<script>\n\tfunction f() { continue; }\n\tlet   x =  1\n</script>\n\n<div class=\"a\">{x + 1}</div>\n"
+        formatted(&format!("{script}<div   class=\"a\"  >{{x+1}}</div>\n")),
+        format!("{script}\n<div class=\"a\">{{x + 1}}</div>\n")
     );
     // Prettier's TypeScript parser recovers, and the port does not know what it prints.
     assert_eq!(
