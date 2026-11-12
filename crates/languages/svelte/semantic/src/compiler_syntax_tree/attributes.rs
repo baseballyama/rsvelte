@@ -132,6 +132,8 @@ impl Modifiers {
     pub const STOP_IMMEDIATE_PROPAGATION: Self = Self(1 << 2);
     pub const STOP_PROPAGATION: Self = Self(1 << 1);
     pub const TRUSTED: Self = Self(1 << 8);
+    /// A name no modifier stands for, or one given twice: upstream rejects it where it checks.
+    pub const UNKNOWN: Self = Self(1 << 12);
 
     /// The modifier a name stands for, if any.
     #[must_use]
