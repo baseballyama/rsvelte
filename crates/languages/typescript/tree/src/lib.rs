@@ -18,7 +18,7 @@ use rsvelte_kernel::source::document::Document;
 mod builder;
 pub use builder::{Builder, Recorded};
 mod syntax_error;
-pub use syntax_error::{SyntaxError, syntax_error};
+pub use syntax_error::{Acorn, SyntaxError, syntax_error};
 
 pub mod scratch;
 pub use scratch::with_scratch_arena;
