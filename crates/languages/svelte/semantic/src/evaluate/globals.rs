@@ -1,4 +1,8 @@
-use super::{Value, to_int32};
+use super::{Value, pow, to_int32};
+
+#[cfg(test)]
+mod tests;
+mod text;
 
 /// `Number.MAX_SAFE_INTEGER`.
 const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
@@ -13,14 +17,57 @@ fn math1(a: &[Value], f: fn(f64) -> f64) -> Value {
     Value::Number(f(num_arg(a, 0)))
 }
 
-/// Upstream `globals` (phases/scope.js): the result kind, and a fold when every argument is known.
-/// `Math.f16round` is listed without a fold: Rust has no stable half-precision rounding.
+fn string_arg(a: &[Value], i: usize) -> String {
+    a.get(i)
+        .map_or_else(|| "undefined".to_owned(), Value::to_javascript_string)
+}
+
+/// `Math.round`: halves round up, and a negative number that rounds to zero keeps its sign.
+fn round(x: f64) -> f64 {
+    if !x.is_finite() || x.fract() == 0.0 {
+        return x;
+    }
+    let floor = x.floor();
+    let r = if x - floor >= 0.5 { floor + 1.0 } else { floor };
+    if r == 0.0 && x < 0.0 { -0.0 } else { r }
+}
+
+/// `Math.f16round`: the nearest half-precision value, ties to even.
+fn f16round(x: f64) -> f64 {
+    const MAX: f64 = 65520.0;
+    if !x.is_finite() || x == 0.0 {
+        return x;
+    }
+    let magnitude = x.abs();
+    if magnitude >= MAX {
+        return f64::INFINITY.copysign(x);
+    }
+    // A half's exponent is at least -14; below that its step is that of a subnormal.
+    let exponent = (((magnitude.to_bits() >> 52) & 0x7FF) as i32 - 1023).max(-14);
+    let step = 2f64.powi(exponent - 10);
+    ((magnitude / step).round_ties_even() * step).copysign(x)
+}
+
+/// What upstream's `globals` and `global_constants` (phases/scope.js) know of a global.
+pub(super) enum Global {
+    /// A constant's value.
+    Constant(f64),
+    /// A function's result kind, and its fold when every argument is known.
+    Function(Value, Option<Fold>),
+}
+
+/// The global at `path`, from either of upstream's tables.
+pub(super) fn global(path: (&str, Option<&str>)) -> Option<Global> {
+    constant(path).map_or_else(|| function(path), |value| Some(Global::Constant(value)))
+}
+
 #[expect(clippy::too_many_lines, reason = "one arm per global upstream folds")]
-pub(super) fn global_function(path: (&str, Option<&str>)) -> Option<(Value, Option<Fold>)> {
+fn function(path: (&str, Option<&str>)) -> Option<Global> {
     let fold: Fold = match path {
-        ("BigInt", None) | ("Math", Some("random" | "f16round")) => {
-            return Some((Value::AnyNumber, None));
+        ("BigInt", None) | ("Math", Some("random")) => {
+            return Some(Global::Function(Value::AnyNumber, None));
         }
+        ("Math", Some("f16round")) => |a| math1(a, f16round),
         ("Math", Some("min")) => |a| {
             Value::Number(a.iter().map(Value::to_number).fold(f64::INFINITY, |m, x| {
                 if m.is_nan() || x.is_nan() {
@@ -44,9 +91,7 @@ pub(super) fn global_function(path: (&str, Option<&str>)) -> Option<(Value, Opti
             )
         },
         ("Math", Some("floor")) => |a| math1(a, f64::floor),
-        ("Math", Some("round")) => {
-            |a| math1(a, |x| if x.is_finite() { (x + 0.5).floor() } else { x })
-        }
+        ("Math", Some("round")) => |a| math1(a, round),
         ("Math", Some("abs")) => |a| math1(a, f64::abs),
         ("Math", Some("acos")) => |a| math1(a, f64::acos),
         ("Math", Some("asin")) => |a| math1(a, f64::asin),
@@ -58,7 +103,7 @@ pub(super) fn global_function(path: (&str, Option<&str>)) -> Option<(Value, Opti
         ("Math", Some("tan")) => |a| math1(a, f64::tan),
         ("Math", Some("exp")) => |a| math1(a, f64::exp),
         ("Math", Some("log")) => |a| math1(a, f64::ln),
-        ("Math", Some("pow")) => |a| Value::Number(num_arg(a, 0).powf(num_arg(a, 1))),
+        ("Math", Some("pow")) => |a| Value::Number(pow(num_arg(a, 0), num_arg(a, 1))),
         ("Math", Some("sqrt")) => |a| math1(a, f64::sqrt),
         ("Math", Some("clz32")) => |a| {
             Value::Number(f64::from(
@@ -110,17 +155,18 @@ pub(super) fn global_function(path: (&str, Option<&str>)) -> Option<(Value, Opti
                 _ => false,
             }))
         },
-        ("Number", Some("parseFloat" | "parseInt"))
-        | ("String", Some("fromCharCode" | "fromCodePoint")) => {
-            // Folding these needs JS parsing/encoding rules that are not ported; report the type
-            // only.
-            let kind = if path.0 == "String" {
-                Value::AnyString
-            } else {
-                Value::AnyNumber
-            };
-            return Some((kind, None));
+        ("Number", Some("parseFloat")) => |a| Value::Number(text::parse_float(&string_arg(a, 0))),
+        ("Number", Some("parseInt")) => {
+            |a| Value::Number(text::parse_int(&string_arg(a, 0), to_int32(num_arg(a, 1))))
         }
+        ("String", Some("fromCharCode")) => |a| {
+            let units: Vec<u16> = a
+                .iter()
+                .map(|v| to_int32(v.to_number()).cast_unsigned() as u16)
+                .collect();
+            Value::String(String::from_utf16_lossy(&units))
+        },
+        ("String", Some("fromCodePoint")) => |a| text::from_code_points(a),
         ("String", None) => {
             |a| Value::String(a.first().map_or(String::new(), Value::to_javascript_string))
         }
@@ -131,10 +177,10 @@ pub(super) fn global_function(path: (&str, Option<&str>)) -> Option<(Value, Opti
     } else {
         Value::AnyNumber
     };
-    Some((kind, Some(fold)))
+    Some(Global::Function(kind, Some(fold)))
 }
 
-pub(super) fn global_constant(path: (&str, Option<&str>)) -> Option<f64> {
+fn constant(path: (&str, Option<&str>)) -> Option<f64> {
     use std::f64::consts::{E, FRAC_1_SQRT_2, LN_2, LN_10, LOG2_E, LOG10_E, PI, SQRT_2};
     Some(match path {
         ("Math", Some("PI")) => PI,
