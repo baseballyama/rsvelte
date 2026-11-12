@@ -1,4 +1,4 @@
-# svelte.check/default: 35352 match
+# svelte.check/default: 35354 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/lib/components/code.svelte	mismatch
@@ -1290,9 +1290,7 @@ svelte/sveltepress/packages/theme-default/src/components/Navbar.svelte	mismatch
 svelte/sveltestrap/src/Nav/Nav.stories.svelte	mismatch
 svelte/svelteui/apps/docs/src/lib/components/homepage/AllComponents.svelte	mismatch
 svelte/svelteui/apps/docs/src/lib/components/mainpages/NextSteps.svelte	mismatch
-svelte/syntaxfm-website/src/lib/DropdownMenu.svelte	mismatch
 svelte/syntaxfm-website/src/lib/PodcastHero.svelte	mismatch
-svelte/syntaxfm-website/src/lib/SelectMenu.svelte	mismatch
 svelte/syntaxfm-website/src/lib/ShowCard.svelte	mismatch
 svelte/syntaxfm-website/src/lib/forms/UserSubmissionForm.svelte	mismatch
 svelte/syntaxfm-website/src/lib/newsletter/NewsletterForm.svelte	mismatch
