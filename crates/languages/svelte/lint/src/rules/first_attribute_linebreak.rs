@@ -1,3 +1,4 @@
+use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
@@ -43,7 +44,7 @@ impl SvelteRule for FirstAttributeLinebreak {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let tokens = &component.tokens;
-        let lines = file.context.ecmascript_line_index();
+        let lines = file.context.lines(LineBreaks::Ecmascript);
         let line = |offset: u32| lines.line(offset);
         for tag in start_tags(component) {
             let mut attributes = tag.attributes(tokens);

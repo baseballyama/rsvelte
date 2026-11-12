@@ -1945,6 +1945,63 @@
 ["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/f86c64dd42630672.svelte".skip]
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
 
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-static-block01-input.svelte".skip]
+"svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-static-block01-output.svelte".skip]
+"svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-parameters02-input.svelte".skip]
+"svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-parameters02-output.svelte".skip]
+"svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-component-import.svelte".skip]
+"svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component4.svelte".skip]
+"svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-2nd-import.svelte".skip]
+"svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/preferences/code-action-outside-root.svelte".skip]
+"svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
+
+["svelte/rsvelte/crates/rsvelte_core/fixtures_utf8_boundary/svelte_ignore_scan.svelte".skip]
+"svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion03-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion03-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes03-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes03-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal04-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal05-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/a_namespace_import_or_reexport_is_not_a_parse_error/f78aa3188c740aa7.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/degenerate_slot_names_stay_on_the_default_fallback/9a75694284de2c10.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on a `<slot name>` attribute without a value (\"Cannot read properties of undefined (reading 'raw')\"), so svelte-check reports that instead of type findings"
+
+["svelte/rsvelte/lint/no-dynamic-slot-name/02-require-value.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on a `<slot name>` attribute without a value (\"Cannot read properties of undefined (reading 'raw')\"), so svelte-check reports that instead of type findings"
+
+["svelte/rsvelte/lint/no-svelte-internal/01-basic.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
 ["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_an_html_comment_is_content/37e835c52cab486b.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
@@ -1952,3 +2009,33 @@
 ["svelte/rsvelte/pattern/css/html-comment-in-a-sheet.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-1/css_empty_declaration_error_span/consecutive_semicolons_span_to_the_following_block_close/6ab50de7e6515fdc.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads the empty declaration between two semicolons, which CSS allows, as css_empty_declaration"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/12c6b8beaa21d52d.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/1d52c2bf6295517c.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/d19e82e3c15ba56b.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/e2a71600612d7577.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/56850d42c980b1cc.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/d1817713cb279f42.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/da7b20631d49c91b.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
+
+["svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/6417a3f535e59cc1.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
+
+["svelte/rsvelte/pattern/issues/3129-comment-between-compounds.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"

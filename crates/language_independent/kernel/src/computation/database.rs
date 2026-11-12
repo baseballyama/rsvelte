@@ -67,8 +67,22 @@ struct FacetProvider {
 pub struct ArtifactRegistry {
     index: FxHashMap<TypeIdentifier, usize>,
     names: Vec<&'static str>,
+    /// `{:#?}` of each slot's value, by slot; `None` for a facet.
+    views: Vec<Option<View>>,
     facets: FxHashMap<TypeIdentifier, FacetEntry>,
     files: FileFacts,
+}
+
+type View = fn(&dyn Any, &mut dyn std::fmt::Write) -> std::fmt::Result;
+
+fn view<A: Artifact>(value: &dyn Any, out: &mut dyn std::fmt::Write) -> std::fmt::Result
+where
+    A::Output: std::fmt::Debug,
+{
+    let value: &A::Output = value
+        .downcast_ref()
+        .expect("artifact slot holds its own output type");
+    write!(out, "{value:#?}")
 }
 
 impl std::fmt::Debug for ArtifactRegistry {
@@ -83,7 +97,10 @@ impl ArtifactRegistry {
     /// # Panics
     ///
     /// If another artifact or facet uses `A::NAME`.
-    pub(crate) fn register<A: Artifact>(&mut self) {
+    pub(crate) fn register<A: Artifact>(&mut self)
+    where
+        A::Output: std::fmt::Debug,
+    {
         let next = self.names.len();
         if let std::collections::hash_map::Entry::Vacant(e) =
             self.index.entry(TypeIdentifier::of::<A>())
@@ -95,6 +112,7 @@ impl ArtifactRegistry {
             );
             e.insert(next);
             self.names.push(A::NAME);
+            self.views.push(Some(view::<A>));
         }
     }
 
@@ -126,6 +144,7 @@ impl ArtifactRegistry {
             });
         if entry.slot == next {
             self.names.push(F::NAME);
+            self.views.push(None);
         }
         assert!(
             entry.providers.iter().all(|p| p.identifier != identifier),
@@ -173,8 +192,8 @@ pub struct DocumentContext<'a> {
     pub document: &'a Document,
     registry: &'a ArtifactRegistry,
     slots: Vec<OnceCell<Box<dyn Any>>>,
-    line_index: OnceCell<LineIndex>,
-    ecmascript_line_index: OnceCell<LineIndex>,
+    /// One per [`LineBreaks`], in its order.
+    line_indexes: [OnceCell<LineIndex>; 2],
     #[cfg(feature = "trace-artifacts")]
     computed: RefCell<Vec<&'static str>>,
     #[cfg(feature = "trace-artifacts")]
@@ -192,8 +211,7 @@ impl<'a> DocumentContext<'a> {
             document,
             registry,
             slots,
-            line_index: OnceCell::new(),
-            ecmascript_line_index: OnceCell::new(),
+            line_indexes: [OnceCell::new(), OnceCell::new()],
             #[cfg(feature = "trace-artifacts")]
             computed: RefCell::default(),
             #[cfg(feature = "trace-artifacts")]
@@ -273,16 +291,22 @@ impl<'a> DocumentContext<'a> {
         &self.registry.files
     }
 
-    /// Lines as the Svelte compiler counts them: they end at `\n`.
-    pub fn line_index(&self) -> &LineIndex {
-        self.line_index
-            .get_or_init(|| LineIndex::new(self.source_text()))
+    /// The document's lines, ended as `breaks` ends them; built once per convention.
+    pub fn lines(&self, breaks: LineBreaks) -> &LineIndex {
+        let slot = match breaks {
+            LineBreaks::Newline => 0,
+            LineBreaks::Ecmascript => 1,
+        };
+        self.line_indexes[slot].get_or_init(|| LineIndex::with_breaks(self.source_text(), breaks))
     }
 
-    /// Lines as `ESLint` counts them: they end at any ECMAScript line terminator.
-    pub fn ecmascript_line_index(&self) -> &LineIndex {
-        self.ecmascript_line_index
-            .get_or_init(|| LineIndex::with_breaks(self.source_text(), LineBreaks::Ecmascript))
+    /// Writes `{:#?}` of artifact `name` when this context has computed it, for a host that shows
+    /// what tasks computed; `None` when it has not, or `name` is a facet.
+    pub fn view(&self, name: &str, out: &mut dyn std::fmt::Write) -> Option<std::fmt::Result> {
+        let slot = self.registry.names.iter().position(|n| *n == name)?;
+        let view = self.registry.views[slot]?;
+        let value = self.slots[slot].get()?;
+        Some(view(value.as_ref(), out))
     }
 
     /// Artifacts computed so far in this context, in order (for tests and tracing).

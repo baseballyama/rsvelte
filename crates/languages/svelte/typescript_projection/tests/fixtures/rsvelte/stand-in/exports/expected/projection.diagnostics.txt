@@ -1,1 +1,1 @@
-error check_unsupported 11:8-11:13 not supported by the type-check projection yet: untyped props object contracts
+error check_unsupported 13:30-13:41 not supported by the type-check projection yet: svelte: elements

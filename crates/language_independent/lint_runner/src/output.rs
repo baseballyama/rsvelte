@@ -15,13 +15,12 @@ const FINDING_BYTES: usize = 200;
 pub fn report<'a>(
     out: &mut TaskOutput,
     lines: &LineIndex,
-    source: &str,
     rules: impl IntoIterator<Item = &'a str> + Clone,
-    findings: &[Finding],
+    findings: Vec<Finding>,
 ) {
-    out.file("lint.json", render_json(lines, rules, findings));
+    out.file("lint.json", render_json(lines, rules, &findings));
     out.findings
-        .extend(findings.iter().map(|finding| finding.reported(source)));
+        .extend(findings.into_iter().map(Finding::reported));
 }
 
 /// A lint task's output when the document does not parse: `lint.json` as
@@ -31,7 +30,7 @@ pub fn report_parse_error(out: &mut TaskOutput, lines: &LineIndex, message: &str
     out.findings.push(rsvelte_kernel::diagnostics::Finding {
         diagnostic: Diagnostic::error("parse_error", message, Span::new(offset, offset))
             .without_end(),
-        fix: None,
+        fix: Vec::new(),
     });
 }
 

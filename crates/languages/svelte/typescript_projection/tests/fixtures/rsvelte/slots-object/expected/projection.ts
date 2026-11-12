@@ -1,4 +1,5 @@
 ;
+const $$slots = __rsvelte_slot_flags<"header" | "default">();
 
 	let { title, ...rest }: typeof __rsvelte_public_props0 = $props();
 	const named = $$slots.header ? 'with' : 'without';

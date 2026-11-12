@@ -58,40 +58,67 @@ pub(crate) fn format(
     if text.trim_matches(is_ecmascript_whitespace).is_empty() {
         return Ok(bom.to_owned());
     }
-    // Prettier reads a lone `\r` as a line break; this port reads line breaks as `\n` only.
+    // Prettier reads every line ending as `\n` before it parses. A lone `\r` becomes one in its
+    // place, so the spans stay, and the line ending is still guessed from the source.
     if let Some(at) = text
         .match_indices('\r')
         .map(|(i, _)| i)
         .find(|&i| !text[i + 1..].starts_with('\n'))
     {
         let at = (at + bom.len()) as u32;
-        return Err(Unsupported::at(
-            "a carriage return without a line feed",
-            Span::new(at, at + 1),
-        ));
+        let refused = || {
+            Unsupported::at(
+                "a carriage return without a line feed",
+                Span::new(at, at + 1),
+            )
+        };
+        let normalized = lone_returns_as_feeds(source_text);
+        // Where the line feed breaks the parse, Prettier's parse fails too, with its own error.
+        let reparsed =
+            rsvelte_svelte_syntax::parse::parse(&normalized).map_err(|_parse_error| refused())?;
+        let rejected = self::rejected(&reparsed, &normalized);
+        let options = Options {
+            end_of_line: match options.end_of_line {
+                EndOfLine::Auto => guess_end_of_line(text),
+                other => other,
+            },
+            ..options.clone()
+        };
+        return format(&reparsed, &normalized, &options, rejected.as_ref());
     }
-    if rsvelte_document_printer::has_emoji_sequence(text) {
+    if rsvelte_document_printer::emoji_measured_otherwise(text) {
         return Err(Unsupported::nowhere(
-            "an emoji sequence, which Prettier measures as one character",
+            "an emoji sequence oxc's printer measures otherwise than Prettier",
         ));
     }
-    if let Some(rejected) = rejected {
-        return Err(Unsupported::at("code a module rejects", rejected.span));
-    }
+    let unparsed_script = match rejected {
+        Some(rejected) => Some(
+            unparsed_script(c, source_text, rejected)
+                .ok_or_else(|| Unsupported::at("code a module rejects", rejected.span))?,
+        ),
+        None => None,
+    };
 
     let core = core_options(options)?;
     let printed = rsvelte_typescript_tree::with_scratch_arena(|allocator| {
-        print(c, options, source_text, text, core, allocator)
+        print(
+            c,
+            options,
+            source_text,
+            text,
+            core,
+            unparsed_script,
+            allocator,
+        )
     })?;
     let eol = match options.end_of_line {
         EndOfLine::Lf => "\n",
         EndOfLine::Crlf => "\r\n",
         EndOfLine::Cr => "\r",
-        // `guessEndOfLine`: the first line ending decides.
-        EndOfLine::Auto => match text.find('\r') {
-            Some(i) if text[i + 1..].starts_with('\n') => "\r\n",
-            Some(_) => "\r",
-            None => "\n",
+        EndOfLine::Auto => match guess_end_of_line(text) {
+            EndOfLine::Crlf => "\r\n",
+            EndOfLine::Cr => "\r",
+            _ => "\n",
         },
     };
     // Prettier's printer writes every `\n` as the chosen line ending.
@@ -103,6 +130,26 @@ pub(crate) fn format(
     Ok(format!("{bom}{printed}"))
 }
 
+/// `guessEndOfLine`: the first line ending decides.
+fn guess_end_of_line(text: &str) -> EndOfLine {
+    match text.find('\r') {
+        Some(i) if text[i + 1..].starts_with('\n') => EndOfLine::Crlf,
+        Some(_) => EndOfLine::Cr,
+        None => EndOfLine::Lf,
+    }
+}
+
+/// `text` with each `\r` not before a `\n` as a `\n`, of the same length.
+fn lone_returns_as_feeds(text: &str) -> String {
+    let mut bytes = text.as_bytes().to_vec();
+    for i in 0..bytes.len() {
+        if bytes[i] == b'\r' && bytes.get(i + 1) != Some(&b'\n') {
+            bytes[i] = b'\n';
+        }
+    }
+    String::from_utf8(bytes).expect("an ASCII byte replaced by an ASCII byte")
+}
+
 /// Prints `text`, the source without its byte order mark, with arena trees built in `allocator`.
 fn print(
     c: &Component,
@@ -110,6 +157,7 @@ fn print(
     source_text: &str,
     text: &str,
     core: CoreFormatOptions,
+    unparsed_script: Option<Span>,
     allocator: &Allocator,
 ) -> R<String> {
     let mut docs = LayoutInstructions::new();
@@ -132,6 +180,7 @@ fn print(
         last_in_block: None,
         buffers: Vec::new(),
         ignore: Ignore::default(),
+        unparsed_script,
     };
     let root = f.top_level()?;
     refuse_lost_comments(c, &f.embedder.kept, &f.embedder.dropped)?;
@@ -193,6 +242,47 @@ fn is_typescript(c: &Component, source_text: &str) -> bool {
                 && value.is_some_and(|v| v.text(source_text).starts_with("ts"))
         })
     })
+}
+
+/// The body of the JavaScript script holding `rejected`, an error Babel does not recover from
+/// either, so the plugin keeps that body as it is. Babel recovers from the others, and Prettier's
+/// TypeScript parser from more.
+fn unparsed_script(c: &Component, source_text: &str, rejected: &Diagnostic) -> Option<Span> {
+    // Each is a message's start and end.
+    const BABEL_REJECTS: [(&str, &str); 11] = [
+        ("await expression not allowed in formal parameter", ""),
+        ("yield expression not allowed in formal parameter", ""),
+        ("Super calls are not permitted outside constructors", ""),
+        (
+            "Illegal 'use strict' directive in function with non-simple parameter list",
+            "",
+        ),
+        ("'super' can only be referenced in a derived class.", ""),
+        ("Illegal continue statement", ""),
+        ("Illegal break statement", ""),
+        ("Jump target cannot cross function boundary.", ""),
+        (
+            "The operand of a 'delete' operator cannot be a private identifier.",
+            "",
+        ),
+        ("Label `", "` has already been declared"),
+        ("Identifier `#", "` has already been declared"),
+    ];
+    let message = rejected.message.as_str();
+    if !(BABEL_REJECTS.iter())
+        .any(|(start, end)| message.starts_with(start) && message.ends_with(end))
+    {
+        return None;
+    }
+    let script = (c.module.iter().chain(&c.instance)).find(|script| {
+        script.content.start_offset <= rejected.span.start_offset
+            && rejected.span.end_offset <= script.content.end_offset
+    })?;
+    let typescript = script.attributes.iter().any(|&(name, value)| {
+        name.text(source_text) == "lang"
+            && value.is_some_and(|v| v.text(source_text).starts_with("ts"))
+    });
+    (!typescript).then_some(script.content)
 }
 
 /// The plugin's `hasPragma`: `/^\s*<!--\s*@(format|prettier)\W/`.
@@ -320,6 +410,8 @@ struct Printer<'a, 'd, 'x> {
     /// Emptied lists of child layouts, kept so each text node and child list does not allocate.
     buffers: Vec<Vec<LayoutInstructionIdentifier>>,
     ignore: Ignore,
+    /// The body of the script Babel would reject, which the plugin prints as it is.
+    unparsed_script: Option<Span>,
 }
 
 /// The plugin's `ignoreNext` and `ignoreRange`.
@@ -380,6 +472,7 @@ mod blocks;
 mod children;
 mod elements;
 mod embed;
+mod expressions;
 mod javascript;
 mod patterns;
 mod tree;

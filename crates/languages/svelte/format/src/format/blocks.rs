@@ -195,17 +195,14 @@ impl Printer<'_, '_, '_> {
     ) -> R<LayoutInstructionIdentifier> {
         let TemplateNode::Snippet {
             name,
-            type_parameters,
             parameters,
             body,
             span,
+            ..
         } = *self.c.node(identifier)
         else {
             unreachable!("a snippet block")
         };
-        if let Some(t) = type_parameters {
-            return Err(Unsupported::at("a snippet's type parameters", t));
-        }
         self.refuse_unembedded(span)?;
         let c = self.c;
         // From the name to the `)`, the text the plugin formats as `function name(…) {}`.

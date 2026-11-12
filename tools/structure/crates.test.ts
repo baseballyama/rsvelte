@@ -145,11 +145,7 @@ test('every workspace crate has a role from its path', () => {
 		'rsvelte_typescript_content_mapper',
 	]);
 	assert.deepEqual(named('host_library'), ['rsvelte_configuration_loading']);
-	assert.deepEqual(named('host'), [
-		'rsvelte_command_line',
-		'rsvelte_kernel_browser',
-		'rsvelte_site',
-	]);
+	assert.deepEqual(named('host'), ['rsvelte_command_line', 'rsvelte_kernel_browser']);
 	assert.ok(named('capability').length > 0);
 	assert.deepEqual(named('bridge'), ['rsvelte_svelte_to_vue_vapor', 'rsvelte_vue_to_svelte']);
 	assert.deepEqual(named('example'), ['rsvelte_example_plugin']);

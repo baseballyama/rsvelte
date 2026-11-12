@@ -3,7 +3,7 @@
 //! The function is one of the configuration's runtime. It sees the document's path, its text and
 //! its options, and returns reports with `ESLint`'s UTF-16 ranges.
 
-use rsvelte_kernel::source::positions::{LineIndex, Span};
+use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_plugin_interface::{TextContract, TextFunction};
@@ -79,7 +79,7 @@ impl ExternalRule {
             .map_err(|e| e.to_string())?;
         let reports: Vec<ExternalReport> =
             serde_json::from_str(&output).map_err(|e| format!("it returned {e}"))?;
-        let lines = file.context.line_index();
+        let lines = file.context.lines(LineBreaks::Newline);
         let fix = |fix: ExternalFix| {
             span(lines, fix.range)
                 .map(|at| Fix::replace(at, fix.text))

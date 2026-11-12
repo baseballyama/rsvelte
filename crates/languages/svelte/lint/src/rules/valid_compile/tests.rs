@@ -37,7 +37,7 @@ fn reports_the_style_sheet_error_as_the_only_finding() {
     let found = lint(&format!("<p>x</p>\n{BROKEN}"));
     assert_eq!(found.len(), 1, "{found:?}");
     assert_eq!((found[0].0, found[0].1), (3, 10), "{found:?}");
-    assert!(found[0].2.ends_with("(css_parse_error)"), "{found:?}");
+    assert!(found[0].2.ends_with("(css_selector_invalid)"), "{found:?}");
 }
 
 #[test]

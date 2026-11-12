@@ -15,6 +15,7 @@ pub struct Settings {
     functions: Arc<dyn FunctionResolver>,
     selection: Selection,
     tools: Tools,
+    file_system: bool,
 }
 
 impl Settings {
@@ -25,7 +26,22 @@ impl Settings {
             functions,
             selection,
             tools: Tools::default(),
+            file_system: true,
         }
+    }
+
+    /// For a host without files, such as a page: plugins answer what they would read from the
+    /// files around a document without them.
+    #[must_use]
+    pub const fn without_file_system(mut self) -> Self {
+        self.file_system = false;
+        self
+    }
+
+    /// Whether the host reads the files around a document.
+    #[must_use]
+    pub const fn has_file_system(&self) -> bool {
+        self.file_system
     }
 
     /// Sets plugin `identifier`'s options, replacing earlier ones; relative paths in them are

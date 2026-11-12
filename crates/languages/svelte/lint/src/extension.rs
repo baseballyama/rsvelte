@@ -30,8 +30,11 @@ struct Options {
 /// Configures `svelte.lint` from its options. Plugins that add rules ([`LintPlugins`]) install
 /// before it.
 fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallError> {
-    // A host that installs extensions reads files, so rules read the project's files too.
-    crate::project::register_file_system(registry);
+    if settings.has_file_system() {
+        crate::project::register_file_system(registry);
+    } else {
+        crate::project::register_without_files(registry);
+    }
     let Some(options) = settings.options::<Options>(EXTENSION.identifier)? else {
         crate::register(registry);
         return Ok(());
