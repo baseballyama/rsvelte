@@ -1,6 +1,6 @@
 use rsvelte_kernel::source::positions::Span;
 
-use super::{P, ParseError, R, is_ident_byte, push, trim};
+use super::{P, ParseError, R, push, trim};
 use crate::syntax_tree::{Declaration, Rule};
 
 impl P<'_> {
@@ -56,18 +56,14 @@ impl P<'_> {
                                 tokens,
                             },
                         );
+                        // A property scan past the value's end leaves Svelte at a `{`.
+                        if !matches!(self.peek(), Some(b';' | b'}')) {
+                            return Err(self.expected_token(";"));
+                        }
                     }
                 }
             }
         }
-    }
-
-    fn eat(&mut self, c: u8) -> bool {
-        let found = self.peek() == Some(c);
-        if found {
-            self.position += 1;
-        }
-        found
     }
 
     /// Where Svelte ends the value that starts here: at the first `;`, `{` or `}` outside a
@@ -97,8 +93,8 @@ impl P<'_> {
                 b'/' if !in_url && quote.is_none() && self.b.get(at + 1) == Some(&b'*') => {
                     let Some(i) = self.source_text[at + 2..self.end].find("*/") else {
                         return Err(ParseError {
-                            code: "css_parse_error",
-                            message: "unterminated comment".to_owned(),
+                            code: "expected_token",
+                            message: "Expected token */".to_owned(),
                             span: Span::new(self.end as u32, self.end as u32),
                         });
                     };
@@ -149,7 +145,7 @@ impl P<'_> {
                         self.value_tokens.push(self.span(start));
                     }
                 }
-                _ if is_ident_byte(c) || c == b'\\' => {
+                _ if c == b'\\' || self.ident_char(self.position) > 0 => {
                     let start = self.position;
                     self.ident();
                     if self.position == start {

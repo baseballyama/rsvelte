@@ -2009,3 +2009,33 @@
 ["svelte/rsvelte/pattern/css/html-comment-in-a-sheet.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-1/css_empty_declaration_error_span/consecutive_semicolons_span_to_the_following_block_close/6ab50de7e6515fdc.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads the empty declaration between two semicolons, which CSS allows, as css_empty_declaration"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/12c6b8beaa21d52d.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/1d52c2bf6295517c.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/d19e82e3c15ba56b.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/e2a71600612d7577.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/56850d42c980b1cc.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/d1817713cb279f42.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/da7b20631d49c91b.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
+
+["svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/6417a3f535e59cc1.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
+
+["svelte/rsvelte/pattern/issues/3129-comment-between-compounds.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"

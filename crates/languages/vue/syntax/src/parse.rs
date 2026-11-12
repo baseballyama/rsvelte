@@ -27,7 +27,7 @@ type R<T> = Result<T, Diagnostic>;
 /// # Errors
 ///
 /// A `parse_error` [`Diagnostic`] at the first syntax error, or at syntax this parser does not
-/// support; `js_parse_error` / `css_parse_error` from the embedded parsers.
+/// support; `js_parse_error` or the style sheet's Svelte error from the embedded parsers.
 pub fn parse(source_text: &str) -> R<SingleFileComponent> {
     let (javascript, (c, program)) = Tree::build(source_text, |builder| {
         let mut p = P {

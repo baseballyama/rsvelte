@@ -58,17 +58,33 @@ pub(crate) fn format(
     if text.trim_matches(is_ecmascript_whitespace).is_empty() {
         return Ok(bom.to_owned());
     }
-    // Prettier reads a lone `\r` as a line break; this port reads line breaks as `\n` only.
+    // Prettier reads every line ending as `\n` before it parses. A lone `\r` becomes one in its
+    // place, so the spans stay, and the line ending is still guessed from the source.
     if let Some(at) = text
         .match_indices('\r')
         .map(|(i, _)| i)
         .find(|&i| !text[i + 1..].starts_with('\n'))
     {
         let at = (at + bom.len()) as u32;
-        return Err(Unsupported::at(
-            "a carriage return without a line feed",
-            Span::new(at, at + 1),
-        ));
+        let refused = || {
+            Unsupported::at(
+                "a carriage return without a line feed",
+                Span::new(at, at + 1),
+            )
+        };
+        let normalized = lone_returns_as_feeds(source_text);
+        // Where the line feed breaks the parse, Prettier's parse fails too, with its own error.
+        let reparsed =
+            rsvelte_svelte_syntax::parse::parse(&normalized).map_err(|_parse_error| refused())?;
+        let rejected = self::rejected(&reparsed, &normalized);
+        let options = Options {
+            end_of_line: match options.end_of_line {
+                EndOfLine::Auto => guess_end_of_line(text),
+                other => other,
+            },
+            ..options.clone()
+        };
+        return format(&reparsed, &normalized, &options, rejected.as_ref());
     }
     if rsvelte_document_printer::emoji_measured_otherwise(text) {
         return Err(Unsupported::nowhere(
@@ -99,11 +115,10 @@ pub(crate) fn format(
         EndOfLine::Lf => "\n",
         EndOfLine::Crlf => "\r\n",
         EndOfLine::Cr => "\r",
-        // `guessEndOfLine`: the first line ending decides.
-        EndOfLine::Auto => match text.find('\r') {
-            Some(i) if text[i + 1..].starts_with('\n') => "\r\n",
-            Some(_) => "\r",
-            None => "\n",
+        EndOfLine::Auto => match guess_end_of_line(text) {
+            EndOfLine::Crlf => "\r\n",
+            EndOfLine::Cr => "\r",
+            _ => "\n",
         },
     };
     // Prettier's printer writes every `\n` as the chosen line ending.
@@ -113,6 +128,26 @@ pub(crate) fn format(
         printed.replace('\n', eol)
     };
     Ok(format!("{bom}{printed}"))
+}
+
+/// `guessEndOfLine`: the first line ending decides.
+fn guess_end_of_line(text: &str) -> EndOfLine {
+    match text.find('\r') {
+        Some(i) if text[i + 1..].starts_with('\n') => EndOfLine::Crlf,
+        Some(_) => EndOfLine::Cr,
+        None => EndOfLine::Lf,
+    }
+}
+
+/// `text` with each `\r` not before a `\n` as a `\n`, of the same length.
+fn lone_returns_as_feeds(text: &str) -> String {
+    let mut bytes = text.as_bytes().to_vec();
+    for i in 0..bytes.len() {
+        if bytes[i] == b'\r' && bytes.get(i + 1) != Some(&b'\n') {
+            bytes[i] = b'\n';
+        }
+    }
+    String::from_utf8(bytes).expect("an ASCII byte replaced by an ASCII byte")
 }
 
 /// Prints `text`, the source without its byte order mark, with arena trees built in `allocator`.
