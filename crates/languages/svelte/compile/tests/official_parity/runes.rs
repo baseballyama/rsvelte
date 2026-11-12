@@ -65,3 +65,28 @@ fn a_rune_read_without_a_call_raises_upstreams_error_on_both_targets() {
         }
     }
 }
+
+#[test]
+fn a_scripts_error_comes_before_a_refusal_on_both_targets() {
+    // From svelte 5.57.3, compiled with `runes: true`; the `let:` alone is refused.
+    for (source, expected) in [
+        (
+            "<script>export let a = 1;</script><slot let:a />",
+            ("legacy_export_invalid", (8, 25)),
+        ),
+        (
+            "<script>const x = $state;</script><slot let:a />",
+            ("rune_missing_parentheses", (18, 24)),
+        ),
+        ("<slot let:a />", ("unsupported", (0, 14))),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            let expected = Some((expected.0.to_owned(), expected.1));
+            assert_eq!(
+                compile_at(source, target).err(),
+                expected,
+                "{source} on {target:?}"
+            );
+        }
+    }
+}

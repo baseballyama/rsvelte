@@ -239,7 +239,11 @@ pub(crate) fn validate_unit(
     let hoistable = snippets::hoistable(input, res, &names);
     snippets::check_exports(input, res, &hoistable)?;
     const_cycles::check(input, res)?;
-    coverage::check(input, res)?;
+    // A refusal waits for the scripts' errors, which the rune checks raise only later.
+    if let Err(refusal) = coverage::check(input, res) {
+        let script = validation::script_error(input, res, custom_element.is_some());
+        return Err(script.map_or(refusal, |(_, error)| error));
+    }
     if unit == Unit::Component {
         validation::check_typescript(input)?;
     }
