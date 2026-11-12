@@ -3,7 +3,9 @@
 
 use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Each, ElementKind, MetadataTag};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, Each, ElementKind, MetadataTag, Modifiers,
+};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::FxHashSet;
 
@@ -216,6 +218,12 @@ fn element<'a>(
     {
         slots::check(input, slot, node.parent.filter(|_| fills), slots)?;
     }
+    if matches!(
+        el.kind,
+        ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element))
+    ) {
+        animation(input, parent, attributes)?;
+    }
     // The parser has moved content but one text into a `value` after the element's own.
     let values = (attributes.iter())
         .filter(|a| !is_directive(&a.value) && a.name.text(source) == "value")
@@ -233,6 +241,15 @@ fn element<'a>(
     }
     let placement = element_placement(input, identifier, el, placement)?;
     for a in attributes {
+        if let AttributeValue::Style { modifiers, .. } = &a.value
+            && ![Modifiers::default(), Modifiers::IMPORTANT].contains(modifiers)
+        {
+            return invalid(
+                "style_directive_invalid_modifier",
+                "`style:` directive can only use the `important` modifier",
+                a.span,
+            );
+        }
         if let AttributeValue::Bind(target) = a.value
             && !binds_a_name(input.component.javascript, target)
         {
@@ -250,6 +267,58 @@ fn element<'a>(
         _ => owner,
     };
     Ok((owner, placement))
+}
+
+/// Upstream's `animate:` checks: the element is the one child of a keyed `{#each}`, with one
+/// such directive.
+fn animation(
+    input: &CompileInput<'_>,
+    parent: Option<&NodeKind>,
+    attributes: &[Attribute],
+) -> Result<(), Diagnostic> {
+    const PLACEMENT: &str = "An element that uses the `animate:` directive must be the only child \
+        of a keyed `{#each ...}` block";
+    let tree = input.component.compiler_syntax_tree;
+    let source = input.component.source_text;
+    let mut animated = false;
+    for a in attributes
+        .iter()
+        .filter(|a| matches!(a.value, AttributeValue::Animate { .. }))
+    {
+        let Some(NodeKind::Each(each)) = parent else {
+            return invalid("animation_invalid_placement", PLACEMENT, a.span);
+        };
+        if each.key.is_none() {
+            return invalid(
+                "animation_missing_key",
+                &format!("{PLACEMENT}. Did you forget to add a key to your each block?"),
+                a.span,
+            );
+        }
+        let children = (tree.children(each.body).iter())
+            .map(|&child| &tree.node(child).kind)
+            .filter(|kind| {
+                !matches!(
+                    kind,
+                    NodeKind::Comment { .. }
+                        | NodeKind::Const { .. }
+                        | NodeKind::Declaration { .. }
+                ) && !kind.is_blank_text(source)
+            })
+            .count();
+        if children > 1 {
+            return invalid("animation_invalid_placement", PLACEMENT, a.span);
+        }
+        if animated {
+            return invalid(
+                "animation_duplicate",
+                "An element can only have one 'animate' directive",
+                a.span,
+            );
+        }
+        animated = true;
+    }
+    Ok(())
 }
 
 /// Upstream's `bind_invalid_expression` test: a `{get, set}` pair, or a member chain that starts
