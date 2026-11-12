@@ -77,3 +77,14 @@ fn an_open_rule_ends_where_the_template_s_text_ends() {
     let error = component.style_error().expect("the rule is open");
     assert_eq!(error.span.start_offset, 23);
 }
+
+// Svelte 5 reports `expected_token` at 17 for the first and `unexpected_eof` at 12 for the second.
+#[test]
+fn a_style_without_its_closing_tag_reports_what_svelte_does() {
+    let error = parse("<style>a { b: c }\n").expect_err("the style is open");
+    assert_eq!(error.code, "expected_token");
+    assert_eq!(error.span.start_offset, 17);
+    let error = parse("<style>a { b\n").expect_err("the rule is open");
+    assert_eq!(error.code, "css_parse_error");
+    assert_eq!(error.span.start_offset, 12);
+}

@@ -245,7 +245,11 @@ impl Parser<'_, '_> {
                 self.position = sheet.content.end_offset as usize;
                 return self.expected_token("</style");
             }
-            Err(_) => self.raw_text("style")?,
+            // Without a closing tag Svelte has nothing to go on but the sheet's own error.
+            Err(error) => match self.raw_text("style") {
+                Ok(content) => content,
+                Err(_) => return Err(error.clone()),
+            },
         };
         if self.component.style.is_some() {
             return Self::err_at(
