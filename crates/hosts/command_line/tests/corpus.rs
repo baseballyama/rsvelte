@@ -98,8 +98,7 @@ impl Task for CountCoverage {
         {
             Ok(TypeScriptDocument::Checked { .. }) => count(&self.0.prepared),
             Ok(TypeScriptDocument::Unchecked) => count(&self.0.unchecked),
-            // svelte2tsx's parse cuts the style sheet at its first `</style>`.
-            Ok(TypeScriptDocument::Rejected { .. }) => count(&self.0.parse_errors),
+            Ok(TypeScriptDocument::Rejected { .. }) => unreachable!("a parse error returned above"),
             Err(_) => count(&self.0.unsupported),
         };
     }
