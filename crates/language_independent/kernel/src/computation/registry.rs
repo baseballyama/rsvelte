@@ -87,7 +87,11 @@ impl Registry {
         );
     }
 
-    pub fn artifact<A: Artifact>(&mut self) -> &mut Self {
+    /// Registers artifact `A`; its `Debug` is how a host shows it.
+    pub fn artifact<A: Artifact>(&mut self) -> &mut Self
+    where
+        A::Output: std::fmt::Debug,
+    {
         self.artifacts.register::<A>();
         self
     }
