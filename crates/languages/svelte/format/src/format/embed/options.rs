@@ -135,24 +135,7 @@ impl Printer<'_, '_, '_> {
     }
 }
 
-/// Svelte's `validate_tag`, for a name in ASCII; its own pattern also takes many other
-/// characters.
+/// Whether Svelte's `validate_tag` accepts `tag`.
 fn is_valid_tag(tag: &str) -> bool {
-    let mut chars = tag.chars();
-    chars.next().is_some_and(|c| c.is_ascii_lowercase())
-        && tag.contains('-')
-        && tag
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '_' | '.' | '-'))
-        && !matches!(
-            tag,
-            "annotation-xml"
-                | "color-profile"
-                | "font-face"
-                | "font-face-src"
-                | "font-face-uri"
-                | "font-face-format"
-                | "font-face-name"
-                | "missing-glyph"
-        )
+    rsvelte_svelte_semantic::template::custom_element_tag(tag).is_none()
 }
