@@ -3,6 +3,8 @@ use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
+use rsvelte_lint_runner::catalog::{Leveled, all, levels};
+use rsvelte_lint_runner::configuration::RuleLevels;
 use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_typescript_semantic::semantic::Semantic;
@@ -32,14 +34,32 @@ pub static PLUGIN: Plugin = Plugin {
     }],
 };
 
+type TypeScriptRule = dyn Rule<Semantic>;
+
+static RULES: &[&TypeScriptRule] = &[&NoUnusedVariables];
+
+/// The rules a `rules` object turns on; every rule at its own severity without one.
+pub(crate) fn configure(
+    rules: Option<RuleLevels>,
+) -> Result<Vec<Leveled<'static, TypeScriptRule>>, String> {
+    levels(RULES, Rule::identifier, Rule::severity, rules)
+}
+
+/// Turns on `ts.lint/default` with every rule.
 pub fn register(registry: &mut Registry) {
+    register_with(registry, all(RULES, Rule::severity));
+}
+
+pub(crate) fn register_with(registry: &mut Registry, rules: Vec<Leveled<'static, TypeScriptRule>>) {
     registry.plugin(&PLUGIN);
     rsvelte_typescript_tree::register(registry);
-    registry.task(Lint);
+    registry.task(Lint { rules });
 }
 
 #[derive(Debug)]
-pub struct Lint;
+pub struct Lint {
+    rules: Vec<Leveled<'static, TypeScriptRule>>,
+}
 
 impl Task for Lint {
     fn identifier(&self) -> &'static str {
@@ -61,7 +81,7 @@ impl Task for Lint {
         // This task is the only one that analyzes a standalone file's scopes.
         let semantic = Semantic::program(program.tree.clone(), program.root);
         let mut findings = Findings::new();
-        findings.run([&NoUnusedVariables], &semantic);
+        findings.run(&self.rules, &semantic);
         let findings = match findings.finish() {
             Ok(findings) => findings,
             Err(error) => {
@@ -73,7 +93,7 @@ impl Task for Lint {
             "lint.json",
             rsvelte_lint_runner::output::render_json(
                 context.ecmascript_line_index(),
-                [NoUnusedVariables.identifier()],
+                self.rules.iter().map(|rule| rule.rule.identifier()),
                 &findings,
             ),
         );

@@ -12,6 +12,7 @@ doctest = false
 [dependencies]
 rsvelte_kernel.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

@@ -348,3 +348,49 @@ fn json_config_refuses_a_native_function() {
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("unknown variant `native`"));
 }
+
+#[test]
+fn vue_and_typescript_lint_read_rule_levels() {
+    let project = Project::new();
+    project.write(
+        "Input.vue",
+        "<template><button>Hi</button></template>\n<script setup>\nconst unused = 1;\n</script>\n",
+    );
+    project.write("input.ts", "const unused = 1;\n");
+    let lint = |config: &str, file: &str, task: &str| {
+        project.write("config.json", config);
+        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+            .current_dir(&project.0)
+            .args(["run", file, "--config", "config.json", "--task", task])
+            .output()
+            .expect("run CLI");
+        (
+            output.status.success(),
+            String::from_utf8_lossy(&output.stdout).into_owned(),
+            String::from_utf8_lossy(&output.stderr).into_owned(),
+        )
+    };
+    let (ok, out, err) = lint(r#"{"plugins": {}}"#, "Input.vue", "vue.lint/default");
+    assert!(ok, "{err}");
+    assert!(
+        out.contains("vue/html-button-has-type") && out.contains("no-unused-vars"),
+        "{out}"
+    );
+    let config = r#"{"plugins": {"vue.lint": {"rules": {"vue/html-button-has-type": "warn"}}}}"#;
+    let (ok, out, err) = lint(config, "Input.vue", "vue.lint/default");
+    assert!(ok, "{err}");
+    assert!(
+        out.contains("vue/html-button-has-type") && !out.contains("never used"),
+        "{out}"
+    );
+    let config = r#"{"plugins": {"vue.lint": {"rules": {"vue/missing": "error"}}}}"#;
+    let (ok, _, err) = lint(config, "Input.vue", "vue.lint/default");
+    assert!(!ok && err.contains("unknown rule `vue/missing`"), "{err}");
+    let config = r#"{"plugins": {"typescript.lint": {"rules": {"@typescript-eslint/no-unused-vars": "off"}}}}"#;
+    let (ok, out, err) = lint(config, "input.ts", "ts.lint/default");
+    assert!(ok, "{err}");
+    assert!(!out.contains("never used"), "{out}");
+    let (ok, out, err) = lint(r#"{"plugins": {}}"#, "input.ts", "ts.lint/default");
+    assert!(ok, "{err}");
+    assert!(out.contains("never used"), "{out}");
+}

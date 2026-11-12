@@ -6,6 +6,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 
+use crate::configuration::{Running, applies};
 use crate::rule::File;
 use crate::rules::{comment_directive, system};
 use crate::{Configuration, directives};
@@ -28,14 +29,14 @@ pub(crate) fn check(
     file: &File<'_>,
     configuration: &Configuration,
 ) -> Result<Vec<Finding>, Diagnostic> {
+    let running: Vec<Running<'_>> = configuration
+        .rules()
+        .iter()
+        .filter(|rule| applies(rule, file))
+        .map(Running)
+        .collect();
     let mut findings = Findings::new();
-    findings.run(
-        configuration
-            .rules()
-            .iter()
-            .filter(|rule| rule.applies(file)),
-        file,
-    );
+    findings.run(&running, file);
     let mut findings = findings.finish()?;
     // Directive lines are `ESLint`'s, which any ECMAScript line terminator ends.
     let lines = file.context.ecmascript_line_index();
