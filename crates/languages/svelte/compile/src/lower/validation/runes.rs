@@ -405,17 +405,6 @@ impl<'a> RuneWalk<'a> {
                 }
             }
             AstKind::IdentifierReference(reference) => self.check_rune_reference(reference)?,
-            AstKind::LabeledStatement(labeled)
-                if labeled.label.name == "$"
-                    && !place.module
-                    && matches!(parent, Some(AstKind::Program(_))) =>
-            {
-                return crate::lower::special::invalid(
-                    "legacy_reactive_statement_invalid",
-                    "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead",
-                    span_of(labeled),
-                );
-            }
             // Upstream prints any non-plain head as invalid JavaScript, on the server too.
             AstKind::ForInStatement(f) => self.check_head(span_of(f), &f.left)?,
             AstKind::ForOfStatement(f) => self.check_head(span_of(f), &f.left)?,
