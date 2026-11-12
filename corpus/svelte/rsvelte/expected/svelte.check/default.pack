@@ -4682,7 +4682,7 @@
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './01-component-basic.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-3VAklC/lint/no-useless-children-snippet/01-component-basic.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './01-component-basic.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-ppNP8u/lint/no-useless-children-snippet/01-component-basic.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 18
@@ -7945,6 +7945,34 @@
 []
 
 === 3 pattern/adversarial/typescript/type-only-imports-and-exports.svelte	json
+[]
+
+=== 3 pattern/css/consecutive-and-column-combinators.svelte	json
+[]
+
+=== 3 pattern/css/declaration-without-property-or-colon.svelte	json
+[]
+
+=== 3 pattern/css/empty-declaration.svelte	json
+[]
+
+=== 246 pattern/css/html-comment-in-a-sheet.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+		"start": {
+			"line": 8,
+			"character": 0
+		},
+		"end": {
+			"line": 8,
+			"character": 0
+		}
+	}
+]
+
+=== 3 pattern/css/value-ends-outside-strings-and-urls.svelte	json
 []
 
 === 191 pattern/deferred-interface-body-error.svelte	json

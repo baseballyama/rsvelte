@@ -75294,6 +75294,145 @@ export default function Type_only_imports_and_exports($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
+=== 336 pattern/css/consecutive-and-column-combinators.svelte	css
+
+	a.svelte-1ggfu26 >> b:where(.svelte-1ggfu26) {
+		color: red;
+	}
+	a.svelte-1ggfu26 >>> b:where(.svelte-1ggfu26) {
+		color: green;
+	}
+	a.svelte-1ggfu26 > > b:where(.svelte-1ggfu26) {
+		color: blue;
+	}
+	/* (unused) a > + b {
+		color: black;
+	}*/
+	.c || .d.svelte-1ggfu26 {
+		color: white;
+	}
+	col ||td.svelte-1ggfu26 {
+		color: gray;
+	}
+
+=== 411 pattern/css/consecutive-and-column-combinators.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<table><colgroup><col class="c"/></colgroup><tbody><tr><td class="d svelte-1ggfu26"><a class="svelte-1ggfu26"><b class="svelte-1ggfu26">x</b></a></td></tr></tbody></table>`);
+
+export default function Consecutive_and_column_combinators($$anchor) {
+	var table = root();
+
+	$.append($$anchor, table);
+}
+=== 549 pattern/css/consecutive-and-column-combinators.svelte	warnings.json
+[
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 3,
+			"column": 26,
+			"character": 74
+		},
+		"end": {
+			"line": 3,
+			"column": 41,
+			"character": 89
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"a > + b\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 16,
+			"column": 1,
+			"character": 213
+		},
+		"end": {
+			"line": 16,
+			"column": 8,
+			"character": 220
+		}
+	}
+]
+
+=== 56 pattern/css/declaration-without-property-or-colon.svelte	css
+
+	.a.svelte-gxnvnq {
+		: red;
+		color blue;
+		--x: ;
+	}
+
+=== 267 pattern/css/declaration-without-property-or-colon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p class="a svelte-gxnvnq">x</p>`);
+
+export default function Declaration_without_property_or_colon($$anchor) {
+	var p = root();
+
+	$.append($$anchor, p);
+}
+=== 246 pattern/css/empty-declaration.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 36
+	},
+	"end": {
+		"line": 5,
+		"column": 8,
+		"character": 42
+	}
+}
+
+=== 88 pattern/css/html-comment-in-a-sheet.svelte	css
+
+	<!-- .b { color: red; } -->
+	.a.svelte-10sp3my {
+		color: blue;
+	}
+	<!-- </style> -->
+
+=== 271 pattern/css/html-comment-in-a-sheet.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p class="a svelte-10sp3my"><i class="b">x</i></p>`);
+
+export default function Html_comment_in_a_sheet($$anchor) {
+	var p = root();
+
+	$.append($$anchor, p);
+}
+=== 96 pattern/css/value-ends-outside-strings-and-urls.svelte	css
+
+	.a.svelte-12z6sm3 {
+		x: (;
+		y: [;
+		content: ";";
+		background: url(a;b);
+		b: myurl(;);
+	}
+
+=== 266 pattern/css/value-ends-outside-strings-and-urls.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p class="a svelte-12z6sm3">x</p>`);
+
+export default function Value_ends_outside_strings_and_urls($$anchor) {
+	var p = root();
+
+	$.append($$anchor, p);
+}
 === 221 pattern/deferred-interface-body-error.svelte	error.json
 {
 	"code": "expected_token",
@@ -82558,46 +82697,6 @@ export default function _190_double_dollar_slots_legal($$anchor, $$props) {
 	}
 }
 
-=== 926 pattern/issues/3192-dollar-props-binding.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-const s = ($$anchor, $$props = $.noop) => {
-	$.next();
-
-	var text = $.text();
-
-	$.template_effect(() => $.set_text(text, $$sanitized_props));
-	$.append($$anchor, text);
-};
-
-var root = $.from_html(`<b> </b> <!> <!>`, 1);
-
-export default function _192_dollar_props_binding($$anchor) {
-	function f($$sanitized_props) {
-		return $$sanitized_props;
-	}
-
-	var fragment_1 = root();
-	var b = $.first_child(fragment_1);
-	var text_1 = $.only_child(b, true);
-	var node = $.sibling(b, 2);
-
-	$.each(node, 16, () => [1], $.index, ($$anchor, $$props) => {
-		$.next();
-
-		var text_2 = $.text();
-
-		$.template_effect(() => $.set_text(text_2, $$sanitized_props));
-		$.append($$anchor, text_2);
-	});
-
-	var node_1 = $.sibling(node, 2);
-
-	s(node_1, () => 2);
-	$.template_effect(($0) => $.set_text(text_1, $0), [() => f(1)]);
-	$.append($$anchor, fragment_1);
-}
 === 223 pattern/issues/3194-strict-annex-b-function.svelte	error.json
 {
 	"code": "js_parse_error",
@@ -84336,25 +84435,6 @@ export default function _235_rune_name_member_property($$anchor) {
 	}
 }
 
-=== 469 pattern/issues/3256-class-case-clsx.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<div></div> <div></div>`, 1);
-
-export default function _256_class_case_clsx($$anchor) {
-	let classes = $.proxy(['active']);
-	var fragment = root();
-	var div = $.first_child(fragment);
-	var div_1 = $.sibling(div, 2);
-
-	$.template_effect(() => {
-		$.set_class(div, 1, classes);
-		$.set_class(div_1, 1, $.clsx(classes));
-	});
-
-	$.append($$anchor, fragment);
-}
 === 266 pattern/issues/3256-concatenated-is.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
