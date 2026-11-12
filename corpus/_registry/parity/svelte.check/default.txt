@@ -1,4 +1,4 @@
-# svelte.check/default: 35038 match
+# svelte.check/default: 35040 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/animotion/src/lib/components/slides.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
@@ -92,7 +92,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/implicit-snippet.v5/input.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/modulescript-boolean-not-assignable-to-string/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-js.v5/input.svelte	mismatch
@@ -1766,7 +1765,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-hydration-bindin
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/css-injected-options-nested/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte	mismatch
-svelte/sveltekit/packages/kit/src/runtime/components/root.svelte	mismatch
 svelte/sveltekit/packages/kit/test/apps/async/src/routes/+page.svelte	mismatch
 svelte/sveltepress/packages/theme-default/src/components/Navbar.svelte	mismatch
 svelte/sveltepress/packages/theme-default/src/components/icons/SystemDefault.svelte	refused
