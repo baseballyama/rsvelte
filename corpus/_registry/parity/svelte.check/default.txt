@@ -17,12 +17,8 @@ svelte/carbon-components-svelte/tests/OverflowMenu/OverflowMenuItem.icons.test.s
 svelte/cnblocks/src/lib/components/base/TableOfContents.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-slot-types/valid/has-slot-types-with-alias01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-slot-types/valid/has-slot-types01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion03-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion03-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-output.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes03-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes03-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export02-input.svelte	mismatch
@@ -32,8 +28,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/i
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types01-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/invalid/function01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal04-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal05-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/any-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/svelte5-typescript/+page.svelte	mismatch
@@ -799,7 +793,6 @@ svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/a_namespace_import_or_
 svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/a_namespace_import_or_reexport_is_not_a_parse_error/bcd7563cea78b9d9.svelte	mismatch
 svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/a_namespace_import_or_reexport_is_not_a_parse_error/c367ee99f4d4b92d.svelte	mismatch
 svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/a_namespace_import_or_reexport_is_not_a_parse_error/d491e94ca7c20db5.svelte	mismatch
-svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/a_namespace_import_or_reexport_is_not_a_parse_error/f78aa3188c740aa7.svelte	mismatch
 svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/a_namespace_import_or_reexport_is_not_a_parse_error/fb30f1a4eeed4dc6.svelte	mismatch
 svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/0c496554d8d17116.svelte	mismatch
 svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/1cd3a29251cd502b.svelte	mismatch
@@ -1211,7 +1204,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_attribute_prefix_rules/a
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_attribute_prefix_rules/a_slot_takes_the_element_prefix_rule_and_not_the_component_one/fd90f7bbba75133f.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_attribute_prefix_rules/a_slot_takes_the_element_prefix_rule_and_not_the_component_one/fe28d6c3ba3a1d0f.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/degenerate_slot_names_stay_on_the_default_fallback/0cfb2b8120add6c6.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/degenerate_slot_names_stay_on_the_default_fallback/9a75694284de2c10.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_snippet_props_order_3461/moved_generic_props_type_precedes_instance_hoisted_snippet/187b783aab73dcd5.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_start_tag_opener_segments_4385/cell5_svelte_self_opener_keeps_its_expression/49f3777960838430.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_start_tag_opener_segments_4385/cell8_component_slot_opener_keeps_its_expression/41ed549cc4691506.svelte	mismatch
@@ -1311,7 +1303,6 @@ svelte/rsvelte/lint/infinite-reactive-loop/04-await-then-settimeout-order.svelte
 svelte/rsvelte/lint/max-attributes-per-line/07-generics.svelte	refused
 svelte/rsvelte/lint/max-attributes-per-line/11-script-attrs.svelte	refused
 svelte/rsvelte/lint/no-dupe-on-directives/19-ts-casts-and-generics.svelte	mismatch
-svelte/rsvelte/lint/no-dynamic-slot-name/02-require-value.svelte	mismatch
 svelte/rsvelte/lint/no-object-in-text-mustaches/01-basic.svelte	mismatch
 svelte/rsvelte/lint/no-object-in-text-mustaches/09-class-and-function-expressions.svelte	mismatch
 svelte/rsvelte/lint/no-object-in-text-mustaches/17-async-and-generator.svelte	mismatch
@@ -1319,7 +1310,6 @@ svelte/rsvelte/lint/no-reactive-functions/06-as-cast-negative.svelte	refused
 svelte/rsvelte/lint/no-reactive-functions/25-var-declaration-negative.svelte	mismatch
 svelte/rsvelte/lint/no-reactive-literals/19-declaration-and-sequence.svelte	mismatch
 svelte/rsvelte/lint/no-reactive-reassign/10-two-reactive-defs.svelte	mismatch
-svelte/rsvelte/lint/no-svelte-internal/01-basic.svelte	mismatch
 svelte/rsvelte/lint/no-svelte-internal/16-export-without-source.svelte	mismatch
 svelte/rsvelte/lint/no-svelte-internal/20-emoji-columns.svelte	mismatch
 svelte/rsvelte/lint/no-useless-children-snippet/06-boundary-and-self.svelte	mismatch

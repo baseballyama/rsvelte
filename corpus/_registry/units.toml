@@ -1954,3 +1954,33 @@
 
 ["svelte/rsvelte/crates/rsvelte_core/fixtures_utf8_boundary/svelte_ignore_scan.svelte".skip]
 "svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion03-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion03-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes03-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes03-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal04-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal05-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/a_namespace_import_or_reexport_is_not_a_parse_error/f78aa3188c740aa7.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/degenerate_slot_names_stay_on_the_default_fallback/9a75694284de2c10.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on a `<slot name>` attribute without a value (\"Cannot read properties of undefined (reading 'raw')\"), so svelte-check reports that instead of type findings"
+
+["svelte/rsvelte/lint/no-dynamic-slot-name/02-require-value.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on a `<slot name>` attribute without a value (\"Cannot read properties of undefined (reading 'raw')\"), so svelte-check reports that instead of type findings"
+
+["svelte/rsvelte/lint/no-svelte-internal/01-basic.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
