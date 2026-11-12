@@ -65,6 +65,11 @@ pub enum Node {
     Statement(NodeIdentifier),
     Identifier(&'static str),
     StringLiteral(&'static str),
+    /// A generated string whose findings fall on the empty range at `at`.
+    StringLiteralAt {
+        value: &'static str,
+        at: u32,
+    },
     Member {
         object: NodeIdentifier,
         property: NodeIdentifier,

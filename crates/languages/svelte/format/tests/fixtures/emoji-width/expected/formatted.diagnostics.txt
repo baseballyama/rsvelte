@@ -1,1 +1,0 @@
-error format_unsupported 1:1-1:1 not supported by the formatter yet: an emoji sequence, which Prettier measures as one character

@@ -143,7 +143,6 @@ impl Task for Lint {
         rsvelte_lint_runner::output::report(
             out,
             context.ecmascript_line_index(),
-            context.source_text(),
             // The rules that ran, so a report tells a rule that found nothing from one that
             // does not run on this file.
             configuration
@@ -151,7 +150,7 @@ impl Task for Lint {
                 .iter()
                 .filter(|rule| crate::configuration::applies(rule, &file))
                 .map(crate::ConfiguredRule::name),
-            &findings,
+            findings,
         );
     }
 }
