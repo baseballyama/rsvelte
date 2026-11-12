@@ -1,6 +1,6 @@
 use rsvelte_kernel::output::edits::BorrowedEdits as Edits;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_stylesheet_semantic::matcher::is_global;
+use rsvelte_stylesheet_semantic::matcher::{is_explicitly_global, is_global};
 use rsvelte_stylesheet_syntax::properties::{names_keyframes, without_browser_prefix};
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 
@@ -294,16 +294,7 @@ impl Renderer<'_> {
 
     fn selector(&mut self, selector: &ComplexSelector, mut bumped: bool, prune: bool) {
         for relative in &selector.parts {
-            let outer_global = relative.global
-                || relative
-                    .simple
-                    .first()
-                    .is_pseudo(self.source, &["global", "root", "host"]);
-            bumped |= relative.simple.first().is_pseudo(self.source, &["root"])
-                && relative
-                    .simple
-                    .iter()
-                    .any(|s| s.is_pseudo(self.source, &["has"]));
+            let outer_global = relative.global || is_explicitly_global(self.source, relative);
             let standalone_function = relative.simple.len() == 1
                 && relative.simple[0].is_pseudo(self.source, &["is", "where"]);
             let nesting = relative
@@ -316,23 +307,23 @@ impl Renderer<'_> {
                 && !outer_global
             {
                 let modifier = if bumped { self.repeated } else { self.modifier };
+                // Svelte bumps the specificity once per scoped compound, even one it writes nothing
+                // into, such as `:root:has(...)`.
+                bumped = true;
                 for (i, simple) in relative.simple.iter().enumerate().rev() {
                     match simple {
                         Simple::PseudoClass { span, name, .. }
                         | Simple::PseudoElement { span, name, .. } => {
                             if i == 0 && !matches!(name.text(self.source), "root" | "host") {
                                 self.edits.insert(span.start_offset, modifier);
-                                bumped = true;
                             }
                         }
                         Simple::Universal(span) => {
                             self.edits.replace(*span, modifier);
-                            bumped = true;
                             break;
                         }
                         _ => {
                             self.edits.insert(simple.span().end_offset, modifier);
-                            bumped = true;
                             break;
                         }
                     }

@@ -1,4 +1,4 @@
-# svelte.compile.warnings: 31984 match
+# svelte.compile.warnings: 31986 match
 svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/the_shapes_official_already_gets_right_are_unchanged/62731713e2ae3407.svelte	mismatch
 svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/three_string_literals_in_a_script_report_three_times/afdac586527470e9.svelte	mismatch
 svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/two_quasis_of_one_template_literal_report_twice/a623ecae2f12e62a.svelte	mismatch
@@ -41,4 +41,3 @@ svelte/rsvelte/lint/no-raw-special-elements/17-component-slot.svelte	mismatch
 svelte/rsvelte/pattern/issues/2535-root-has-with-class.svelte	unexpected
 svelte/rsvelte/pattern/issues/3175-legacy-derived-server-fold.svelte	unexpected
 svelte/rsvelte/pattern/issues/4115-unresolved-renderer-renders-every-snippet.svelte	mismatch
-svelte/rsvelte/pattern/issues/a-wholly-global-nested-rule-survives-an-unused-parent.svelte	mismatch

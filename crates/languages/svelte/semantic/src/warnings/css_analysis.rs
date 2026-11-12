@@ -3,6 +3,7 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_stylesheet_semantic::matcher::is_explicitly_global;
 use rsvelte_stylesheet_syntax::syntax_tree::{
     Combinator, ComplexSelector, RelativeSelector, Rule, RuleKind, Simple,
 };
@@ -134,7 +135,11 @@ fn complex(
             }
         }
     }
-    if let Some(at) = selector.parts.iter().position(|p| is_global(p, source)) {
+    if let Some(at) = selector
+        .parts
+        .iter()
+        .position(|p| is_explicitly_global(source, p))
+    {
         let first = selector.parts[at].simple.first();
         let arguments = matches!(
             first,
@@ -155,7 +160,7 @@ fn complex(
             && at != selector.parts.len() - 1
             && !selector.parts[at + 1..]
                 .iter()
-                .all(|p| is_global(p, source))
+                .all(|p| is_explicitly_global(source, p))
         {
             return Err(css(
                 "css_global_invalid_placement",
@@ -288,45 +293,6 @@ const fn is_type(simple: &Simple) -> bool {
         simple,
         Simple::Type(_) | Simple::Universal(_) | Simple::NamespacedType { .. }
     )
-}
-
-/// Svelte's `is_global`: `:global`, or a `:global(...)` that every other selector of its compound
-/// leaves unscoped.
-fn is_global(part: &RelativeSelector, source: &str) -> bool {
-    let first = part.simple.first();
-    if !first.is_pseudo(source, &["global"]) {
-        return false;
-    }
-    matches!(
-        first,
-        Simple::PseudoClass {
-            arguments: None,
-            ..
-        }
-    ) || part.simple.iter().all(|simple| {
-        matches!(simple, Simple::PseudoElement { .. }) || is_unscoped_pseudo_class(simple, source)
-    })
-}
-
-/// Svelte's `is_unscoped_pseudo_class`.
-fn is_unscoped_pseudo_class(simple: &Simple, source: &str) -> bool {
-    let Simple::PseudoClass {
-        arguments,
-        selectors,
-        ..
-    } = simple
-    else {
-        return false;
-    };
-    let scoping = simple.is_pseudo(source, &["has", "is", "where"])
-        || (simple.is_pseudo(source, &["not"])
-            && arguments.is_some()
-            && !selectors.iter().all(|s| s.parts.len() == 1));
-    !scoping
-        || arguments.is_none()
-        || selectors
-            .iter()
-            .all(|s| s.parts.iter().all(|p| is_global(p, source)))
 }
 
 fn css(code: &'static str, message: &str, span: Span) -> Diagnostic {
