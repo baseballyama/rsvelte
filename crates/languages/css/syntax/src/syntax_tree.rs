@@ -113,9 +113,8 @@ pub struct RelativeSelector {
     pub id: u32,
     /// `None` for the first compound of a complex selector.
     pub combinator: Option<Combinator>,
-    /// Where Svelte's combinator node is: the combinator Svelte keeps, or the whitespace of a
-    /// descendant one; empty at the compound without a combinator.
-    pub combinator_span: Span,
+    /// Svelte's span: from the combinator it keeps, or a descendant one's whitespace, to the end
+    /// of the compound.
     pub span: Span,
     pub simple: SimpleList,
 }
@@ -258,3 +257,6 @@ impl Simple {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

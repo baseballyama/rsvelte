@@ -1,4 +1,4 @@
-# svelte.compile/server: 36008 match
+# svelte.compile/server: 36016 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -14,10 +14,6 @@ svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/every_strict_res
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/every_strict_reserved_word_reports_at_the_word/d512f141cc7eaccd.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/every_strict_reserved_word_reports_at_the_word/e2489aa6d4eb52de.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/every_strict_reserved_word_reports_at_the_word/f50fa236e28fa214.svelte	mismatch
-svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte	mismatch
-svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/4809229d13f750f6.svelte	mismatch
-svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/7e0bf9a55c019a47.svelte	mismatch
-svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/af4e901d46ddc2c3.svelte	mismatch
 svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/component_sequence_error_points_at_the_expression/c1314d8fdd09c86c.svelte	unexpected
 svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/element_sequence_error_points_at_the_expression/35ccaf71b9485683.svelte	unexpected
 svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/the_shapes_official_already_gets_right_are_unchanged/62731713e2ae3407.svelte	mismatch
@@ -153,7 +149,6 @@ svelte/rsvelte-tests-core-2/global_block_body_not_pruned_4089/a_global_block_ope
 svelte/rsvelte-tests-core-2/global_block_body_not_pruned_4089/a_global_block_opened_by_a_modifier_start_is_one_too/882cc72dc283d5e0.svelte	mismatch
 svelte/rsvelte-tests-core-2/global_block_body_not_pruned_4089/a_global_block_opened_by_a_modifier_start_is_one_too/cf3fb0930976baa6.svelte	mismatch
 svelte/rsvelte-tests-core-2/global_block_body_not_pruned_4089/a_global_block_scopes_only_what_its_prelude_matches/8e4c52bd0555fd5c.svelte	mismatch
-svelte/rsvelte-tests-core-2/global_in_functional_pseudo_3403/matches_the_official_scoped_set/690f6b0f079b5453.svelte	mismatch
 svelte/rsvelte-tests-core-2/html_tag_opening_validation/legacy_html_tag_allows_whitespace_after_opening_bracket/dd685fe951100624.svelte	unexpected
 svelte/rsvelte-tests-core-2/html_tag_opening_validation/runes_html_tag_requires_at_sign_immediately_after_opening_bracket/eae9a644352dd32a.svelte	unexpected
 svelte/rsvelte-tests-core-2/import_assert_newline_3198/javascript_rejects_at_the_brace/404dfd40b20e4bfc.svelte	mismatch
@@ -620,7 +615,6 @@ svelte/rsvelte/pattern/issues/3201-template-strict-proto.svelte	mismatch
 svelte/rsvelte/pattern/issues/3237-nested-rune-named-declaration.svelte	mismatch
 svelte/rsvelte/pattern/issues/3296-template-scope-shadow-write.svelte	refused
 svelte/rsvelte/pattern/issues/4115-unresolved-renderer-renders-every-snippet.svelte	mismatch
-svelte/rsvelte/pattern/issues/a-wholly-global-nested-rule-survives-an-unused-parent.svelte	mismatch
 svelte/rsvelte/pattern/issues/acorn-reserved-word-opens-an-earlier-statement.svelte	mismatch
 svelte/rsvelte/pattern/issues/deferred-script-error-before-unclosed-block.svelte	mismatch
 svelte/rsvelte/pattern/issues/dollar-function-parameter.svelte	mismatch

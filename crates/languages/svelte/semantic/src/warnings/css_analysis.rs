@@ -3,6 +3,7 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_stylesheet_semantic::matcher::is_explicitly_global;
 use rsvelte_stylesheet_syntax::syntax_tree::{
     Combinator, ComplexSelector, RelativeSelector, Rule, RuleKind, Simple,
 };
@@ -68,17 +69,13 @@ fn global_block(
                     if let Some(combinator) =
                         part.combinator.filter(|c| *c != Combinator::Descendant)
                     {
-                        let name = match combinator {
-                            Combinator::Child => ">",
-                            Combinator::NextSibling => "+",
-                            Combinator::SubsequentSibling => "~",
-                            Combinator::Column => "||",
-                            Combinator::Descendant => " ",
-                        };
                         return Err(css(
                             "css_global_block_invalid_combinator",
-                            &format!("A `:global` selector cannot follow a `{name}` combinator"),
-                            Span::new(part.combinator_span.start_offset, part.span.end_offset),
+                            &format!(
+                                "A `:global` selector cannot follow a `{}` combinator",
+                                name(combinator)
+                            ),
+                            part.span,
                         ));
                     }
                     let lone = selector.parts.len() == 1 && selector.parts[0].simple.len() == 1;
@@ -123,12 +120,8 @@ fn complex(
     source: &str,
 ) -> Found {
     for (index, part) in selector.parts.iter().enumerate() {
-        if part.combinator.is_some() && !owner.nested && index == 0 && !in_pseudo_class {
-            return Err(css(
-                "css_selector_invalid",
-                "Invalid selector",
-                part.combinator_span,
-            ));
+        if index == 0 && !owner.nested && !in_pseudo_class {
+            leading_combinator(part)?;
         }
         for simple in &part.simple {
             match simple {
@@ -142,7 +135,11 @@ fn complex(
             }
         }
     }
-    if let Some(at) = selector.parts.iter().position(|p| is_global(p, source)) {
+    if let Some(at) = selector
+        .parts
+        .iter()
+        .position(|p| is_explicitly_global(source, p))
+    {
         let first = selector.parts[at].simple.first();
         let arguments = matches!(
             first,
@@ -163,7 +160,7 @@ fn complex(
             && at != selector.parts.len() - 1
             && !selector.parts[at + 1..]
                 .iter()
-                .all(|p| is_global(p, source))
+                .all(|p| is_explicitly_global(source, p))
         {
             return Err(css(
                 "css_global_invalid_placement",
@@ -220,6 +217,20 @@ fn complex(
     Ok(())
 }
 
+/// Outside a rule, a selector cannot start with a combinator.
+fn leading_combinator(part: &RelativeSelector) -> Found {
+    let Some(combinator) = part.combinator else {
+        return Ok(());
+    };
+    // A leading combinator is always written, so its name is its text.
+    let start = part.span.start_offset;
+    Err(css(
+        "css_selector_invalid",
+        "Invalid selector",
+        Span::new(start, start + name(combinator).len() as u32),
+    ))
+}
+
 fn nesting(at: Span, owner: &Owner<'_>, parent: Option<&Owner<'_>>, source: &str) -> Found {
     let Some(parent) = parent else {
         // Outside a rule, `&` may only open a lone `:global(...)`.
@@ -251,6 +262,16 @@ fn nesting(at: Span, owner: &Owner<'_>, parent: Option<&Owner<'_>>, source: &str
     Ok(())
 }
 
+const fn name(combinator: Combinator) -> &'static str {
+    match combinator {
+        Combinator::Child => ">",
+        Combinator::NextSibling => "+",
+        Combinator::SubsequentSibling => "~",
+        Combinator::Column => "||",
+        Combinator::Descendant => " ",
+    }
+}
+
 const MODIFIER_START: &str =
     "A `:global` selector can only be modified if it is a descendant of other selectors";
 
@@ -272,45 +293,6 @@ const fn is_type(simple: &Simple) -> bool {
         simple,
         Simple::Type(_) | Simple::Universal(_) | Simple::NamespacedType { .. }
     )
-}
-
-/// Svelte's `is_global`: `:global`, or a `:global(...)` that every other selector of its compound
-/// leaves unscoped.
-fn is_global(part: &RelativeSelector, source: &str) -> bool {
-    let first = part.simple.first();
-    if !first.is_pseudo(source, &["global"]) {
-        return false;
-    }
-    matches!(
-        first,
-        Simple::PseudoClass {
-            arguments: None,
-            ..
-        }
-    ) || part.simple.iter().all(|simple| {
-        matches!(simple, Simple::PseudoElement { .. }) || is_unscoped_pseudo_class(simple, source)
-    })
-}
-
-/// Svelte's `is_unscoped_pseudo_class`.
-fn is_unscoped_pseudo_class(simple: &Simple, source: &str) -> bool {
-    let Simple::PseudoClass {
-        arguments,
-        selectors,
-        ..
-    } = simple
-    else {
-        return false;
-    };
-    let scoping = simple.is_pseudo(source, &["has", "is", "where"])
-        || (simple.is_pseudo(source, &["not"])
-            && arguments.is_some()
-            && !selectors.iter().all(|s| s.parts.len() == 1));
-    !scoping
-        || arguments.is_none()
-        || selectors
-            .iter()
-            .all(|s| s.parts.iter().all(|p| is_global(p, source)))
 }
 
 fn css(code: &'static str, message: &str, span: Span) -> Diagnostic {

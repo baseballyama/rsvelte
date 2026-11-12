@@ -61977,6 +61977,71 @@ export default function A_dynamic_id_matches_any_id_selector($$renderer) {
 	}
 ]
 
+=== 594 pattern/issues/a-global-compound-with-a-class-is-still-scoped.svelte	css
+
+	/* Only a pseudo-class or pseudo-element keeps `:global(...)` global: the
+	   class in each compound is scoped, and the specificity bump moves on. */
+	img.k.svelte-1no6214 { color: red }
+	div.svelte-1no6214 img.k:where(.svelte-1no6214) { color: blue }
+	.here.svelte-1no6214 span.k:where(.svelte-1no6214) { color: green }
+	/* (empty) .absent { :global(img).k { color: red } }*/
+	.here.svelte-1no6214 { span.k:where(.svelte-1no6214) { color: red } }
+	img:hover { color: red }
+	:root:has(.in:where(.svelte-1no6214)) .k:where(.svelte-1no6214) { color: red }
+	/* (unused) :host.k { color: red }*/
+
+=== 273 pattern/issues/a-global-compound-with-a-class-is-still-scoped.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function A_global_compound_with_a_class_is_still_scoped($$renderer) {
+	$$renderer.push(`<div class="here svelte-1no6214"><span class="in k svelte-1no6214"></span></div> <img class="k svelte-1no6214" alt=""/>`);
+}
+=== 807 pattern/issues/a-global-compound-with-a-class-is-still-scoped.svelte	warnings.json
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".absent\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 10,
+			"column": 1,
+			"character": 344
+		},
+		"end": {
+			"line": 10,
+			"column": 8,
+			"character": 351
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \":global(img).k\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 10,
+			"column": 11,
+			"character": 354
+		},
+		"end": {
+			"line": 10,
+			"column": 25,
+			"character": 368
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \":host.k\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 14,
+			"column": 1,
+			"character": 498
+		},
+		"end": {
+			"line": 14,
+			"column": 8,
+			"character": 505
+		}
+	}
+]
+
 === 929 pattern/issues/a-has-argument-absent-from-the-component-is-unused.svelte	css
 
 	/* A render tag, a component and a non-exhaustive `{#await}` all make
