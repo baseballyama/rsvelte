@@ -67,23 +67,56 @@ pub struct Replacement {
     pub text: String,
 }
 
-/// A diagnostic, with the replacement that fixes it when its task offers one.
+/// A diagnostic, with the replacements that fix it together; none when its task offers no fix.
 #[derive(Clone, Debug)]
 pub struct Finding {
     pub diagnostic: Diagnostic,
-    pub fix: Option<Replacement>,
+    pub fix: Vec<Replacement>,
 }
 
-/// One pass of fixing, as `ESLint` applies fixes: replacements in range order, and one that starts
-/// at or before the end of the last applied one waits for the next pass.
+/// `ESLint`'s `mergeFixes`: one replacement over the range a fix's replacements cover, with the
+/// text between them kept; `None` for no replacements.
+///
+/// # Panics
+///
+/// Two replacements overlap, which a task must not report.
 #[must_use]
-pub fn apply_fixes<'a>(source: &str, fixes: impl IntoIterator<Item = &'a Replacement>) -> String {
-    let mut fixes: Vec<&Replacement> = fixes.into_iter().collect();
+pub fn merge(source: &str, fix: &[Replacement]) -> Option<Replacement> {
+    let mut parts: Vec<&Replacement> = fix.iter().collect();
+    parts.sort_by_key(|r| (r.span.start_offset, r.span.end_offset));
+    let start = parts.first()?.span.start_offset;
+    let end = parts.iter().map(|r| r.span.end_offset).max()?;
+    let mut text = String::new();
+    let mut at = start;
+    for part in parts {
+        assert!(
+            part.span.start_offset >= at,
+            "the replacements of one fix overlap"
+        );
+        text.push_str(&source[at as usize..part.span.start_offset as usize]);
+        text.push_str(&part.text);
+        at = part.span.end_offset;
+    }
+    text.push_str(&source[at as usize..end as usize]);
+    Some(Replacement {
+        span: Span::new(start, end),
+        text,
+    })
+}
+
+/// One pass of fixing, as `ESLint` applies fixes: each fix merged, fixes in range order, and one
+/// that starts at or before the end of the last applied one waits for the next pass.
+#[must_use]
+pub fn apply_fixes<'a>(source: &str, fixes: impl IntoIterator<Item = &'a [Replacement]>) -> String {
+    let mut fixes: Vec<Replacement> = fixes
+        .into_iter()
+        .filter_map(|fix| merge(source, fix))
+        .collect();
     fixes.sort_by_key(|r| (r.span.start_offset, r.span.end_offset));
     let mut out = String::with_capacity(source.len());
     let mut copied = 0usize;
     let mut last_end: Option<u32> = None;
-    for fix in fixes {
+    for fix in &fixes {
         if last_end.is_some_and(|end| end >= fix.span.start_offset) {
             continue;
         }

@@ -92,9 +92,8 @@ impl Task for Lint {
         rsvelte_lint_runner::output::report(
             out,
             context.ecmascript_line_index(),
-            context.source_text(),
             self.rules.iter().map(|rule| rule.rule.identifier()),
-            &findings,
+            findings,
         );
     }
 }

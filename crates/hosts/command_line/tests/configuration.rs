@@ -392,7 +392,10 @@ fn vue_and_typescript_lint_read_rule_levels() {
     let config = r#"{"plugins": {"vue.lint": {"rules": {"vue/missing": "error"}}}}"#;
     let (ok, _, err) = lint(config, "Input.vue", "vue.lint/default");
     assert!(!ok && err.contains("unknown rule `vue/missing`"), "{err}");
-    let config = r#"{"plugins": {"typescript.lint": {"rules": {"@typescript-eslint/no-unused-vars": "off"}}}}"#;
+    let config = concat!(
+        r#"{"plugins": {"typescript.lint": "#,
+        r#"{"rules": {"@typescript-eslint/no-unused-vars": "off"}}}}"#
+    );
     let (ok, out, err) = lint(config, "input.ts", "ts.lint/default");
     assert!(ok, "{err}");
     assert!(!out.contains("never used"), "{out}");

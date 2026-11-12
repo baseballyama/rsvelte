@@ -79,23 +79,7 @@ impl Fix {
     /// Two edits overlap, which a rule must not report.
     #[must_use]
     pub fn merged(&self, source: &str) -> Option<Edit> {
-        let mut edits = self.edits.clone();
-        edits.sort_by_key(|e| (e.span.start_offset, e.span.end_offset));
-        let start = edits.first()?.span.start_offset;
-        let end = edits.iter().map(|e| e.span.end_offset).max()?;
-        let mut text = String::new();
-        let mut at = start;
-        for edit in &edits {
-            assert!(edit.span.start_offset >= at, "the edits of one fix overlap");
-            text.push_str(&source[at as usize..edit.span.start_offset as usize]);
-            text.push_str(&edit.text);
-            at = edit.span.end_offset;
-        }
-        text.push_str(&source[at as usize..end as usize]);
-        Some(Edit {
-            span: Span::new(start, end),
-            text,
-        })
+        rsvelte_kernel::diagnostics::merge(source, &self.edits)
     }
 }
 
@@ -106,23 +90,24 @@ pub struct Suggestion {
     pub fix: Fix,
 }
 
-/// `ESLint`'s `SourceCodeFixer.applyFixes` for one pass, over the findings' merged fixes.
+/// `ESLint`'s `SourceCodeFixer.applyFixes` for one pass, over the findings' fixes.
 #[must_use]
 pub fn apply_fixes(source: &str, findings: &[Finding]) -> String {
-    let fixes: Vec<Edit> = findings
-        .iter()
-        .filter_map(|f| f.fix.as_ref()?.merged(source))
-        .collect();
-    rsvelte_kernel::diagnostics::apply_fixes(source, &fixes)
+    rsvelte_kernel::diagnostics::apply_fixes(
+        source,
+        findings
+            .iter()
+            .filter_map(|f| f.fix.as_ref().map(|fix| fix.edits.as_slice())),
+    )
 }
 
 impl Finding {
-    /// The finding as a task reports it: its diagnostic, and its fix merged into one replacement.
+    /// The finding as a task reports it: its diagnostic and its fix's edits, moved.
     #[must_use]
-    pub fn reported(&self, source: &str) -> rsvelte_kernel::diagnostics::Finding {
+    pub fn reported(self) -> rsvelte_kernel::diagnostics::Finding {
         rsvelte_kernel::diagnostics::Finding {
-            diagnostic: self.diagnostic.clone(),
-            fix: self.fix.as_ref().and_then(|fix| fix.merged(source)),
+            diagnostic: self.diagnostic,
+            fix: self.fix.map(|fix| fix.edits).unwrap_or_default(),
         }
     }
 }
