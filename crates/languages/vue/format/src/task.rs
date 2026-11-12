@@ -5,6 +5,7 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_vue_syntax::Parsed;
 
 pub static PLUGIN: Plugin = Plugin {
@@ -44,7 +45,7 @@ impl Task for Format {
         };
         let formatted = {
             let _p = measurement::phase("vue.format");
-            crate::format::format(c, context.source_text(), context.line_index())
+            crate::format::format(c, context.source_text(), context.lines(LineBreaks::Newline))
         };
         match formatted {
             Ok(text) => out.file("vue", text),

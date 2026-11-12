@@ -273,12 +273,6 @@ export const sharedParts: SharedPart[] = [
 		href: '/learn/kernel#modules',
 	},
 	{
-		id: 'task_files',
-		label: 'タスクの出力ファイル',
-		module: 'kernel/task_files',
-		href: '/learn/kernel#modules',
-	},
-	{
 		id: 'width',
 		label: '文字の表示幅',
 		module: 'document_printer/width',

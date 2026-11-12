@@ -26,7 +26,7 @@ pub(crate) struct Move {
 }
 
 pub(crate) fn file(registry: &Path, task: &str) -> PathBuf {
-    let (task, variant) = rsvelte_kernel::task_files::location(task);
+    let (task, variant) = crate::task_files::location(task);
     registry
         .join("parity")
         .join(task)

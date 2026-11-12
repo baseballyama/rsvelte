@@ -1,10 +1,10 @@
 use std::path::Path;
 use std::process::ExitCode;
 
+use rsvelte_corpus::task_files::diagnostics_json;
 use rsvelte_kernel::computation::pipeline::{DocumentResult, RunOptions, Sharing};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::{Severity, apply_fixes};
-use rsvelte_kernel::task_files::diagnostics_json;
 
 use crate::usage;
 

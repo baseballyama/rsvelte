@@ -2,7 +2,7 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::{Document, DocumentError};
-use rsvelte_kernel::source::positions::Span;
+use rsvelte_kernel::source::positions::{LineBreaks, Span};
 use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 
@@ -40,7 +40,7 @@ pub(crate) fn check(
     );
     let mut findings = findings.finish()?;
     // Directive lines are `ESLint`'s, which any ECMAScript line terminator ends.
-    let lines = file.context.ecmascript_line_index();
+    let lines = file.context.lines(LineBreaks::Ecmascript);
     let source = file.source();
     directives::apply_javascript(&mut findings, &comments(file), source, lines);
     let Some(component) = file.component() else {

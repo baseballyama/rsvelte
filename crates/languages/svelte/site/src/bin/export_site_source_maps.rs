@@ -19,6 +19,7 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_svelte_compile::{Target, lower_document};
 
 fn main() -> ExitCode {
@@ -65,7 +66,10 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let e = rsvelte_typescript_compile::print::print_mapped(&program, context.line_index());
+    let e = rsvelte_typescript_compile::print::print_mapped(
+        &program,
+        context.lines(LineBreaks::Newline),
+    );
     let mut w = StructuredDataWriter::new(true);
     w.begin_object()
         .key("source")
@@ -83,7 +87,7 @@ fn main() -> ExitCode {
     }
     w.end_array()
         .key("source_map")
-        .write_string(&e.source_map(context.line_index(), name))
+        .write_string(&e.source_map(context.lines(LineBreaks::Newline), name))
         .end_object();
     print!("{}", w.finish());
     ExitCode::SUCCESS

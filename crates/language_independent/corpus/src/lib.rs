@@ -12,6 +12,7 @@ mod ledger;
 pub mod pack;
 mod run;
 mod sources;
+pub mod task_files;
 
 pub use run::Conformance;
 pub use sources::{Source, sources};

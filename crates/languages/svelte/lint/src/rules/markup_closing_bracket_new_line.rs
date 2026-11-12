@@ -1,4 +1,4 @@
-use rsvelte_kernel::source::positions::Span;
+use rsvelte_kernel::source::positions::{LineBreaks, Span};
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
@@ -64,7 +64,7 @@ impl SvelteRule for MarkupClosingBracketNewLine {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let tokens = &component.tokens;
-        let lines = file.context.ecmascript_line_index();
+        let lines = file.context.lines(LineBreaks::Ecmascript);
         let line = |offset: u32| lines.line(offset);
         let start = start_tags(component).map(|tag| {
             let values = if tag.self_closing {

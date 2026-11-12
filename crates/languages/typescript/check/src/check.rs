@@ -13,7 +13,7 @@ use rsvelte_kernel::computation::task::{FinishTask, Part, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::{Atom, Emitter, Mapping};
 use rsvelte_kernel::source::document::Document;
-use rsvelte_kernel::source::positions::Span;
+use rsvelte_kernel::source::positions::{LineBreaks, Span};
 
 /// What a type checker must accept: rsvelte opens a generated `tsconfig.json` (with
 /// `contentMappers`) through the checker's API.
@@ -296,13 +296,19 @@ impl FinishTask for Check {
                 self.stand_in(context)
             }
             Ok(TypeScriptDocument::Unchecked) => {
-                out.file("json", render_findings(context.line_index(), &[]));
+                out.file(
+                    "json",
+                    render_findings(context.lines(LineBreaks::Newline), &[]),
+                );
                 self.stand_in(context)
             }
             Ok(TypeScriptDocument::Rejected { message, span }) => {
                 out.file(
                     "json",
-                    render_findings(context.line_index(), &[(*span, -1, message.clone())]),
+                    render_findings(
+                        context.lines(LineBreaks::Newline),
+                        &[(*span, -1, message.clone())],
+                    ),
                 );
                 self.stand_in(context)
             }

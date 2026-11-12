@@ -5,6 +5,7 @@ use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::LineBreaks;
 
 use crate::Configuration;
 use crate::computation::{
@@ -124,7 +125,7 @@ impl Task for Lint {
         {
             rsvelte_lint_runner::output::report_parse_error(
                 out,
-                context.ecmascript_line_index(),
+                context.lines(LineBreaks::Ecmascript),
                 &error.message,
                 error.span.start_offset,
             );
@@ -142,7 +143,7 @@ impl Task for Lint {
         };
         rsvelte_lint_runner::output::report(
             out,
-            context.ecmascript_line_index(),
+            context.lines(LineBreaks::Ecmascript),
             // The rules that ran, so a report tells a rule that found nothing from one that
             // does not run on this file.
             configuration
