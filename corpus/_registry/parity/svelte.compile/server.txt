@@ -1,4 +1,4 @@
-# svelte.compile/server: 34755 match
+# svelte.compile/server: 34756 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -366,9 +366,6 @@ svelte/rsvelte-tests-core-2/directive_value_3463/a_bad_style_modifier_is_reporte
 svelte/rsvelte-tests-core-2/directive_value_3463/a_bad_style_modifier_is_reported_whatever_the_host/fd57e15b1f33ddba.svelte	unexpected
 svelte/rsvelte-tests-core-2/dollar_parameter_is_not_a_store/a_dollar_local_is_assigned_directly_on_the_server/05162353f0734d2f.svelte	mismatch
 svelte/rsvelte-tests-core-2/dollar_parameter_is_not_a_store/a_dollar_local_is_assigned_directly_on_the_server/e20ca243f0bb5ea1.svelte	mismatch
-svelte/rsvelte-tests-core-2/dollar_props_binding_3192/each_item_read_is_renamed/d92b90ba1f8fb787.svelte	mismatch
-svelte/rsvelte-tests-core-2/dollar_props_binding_3192/script_parameter_and_its_read_are_renamed_on_the_client/357d807117345746.svelte	mismatch
-svelte/rsvelte-tests-core-2/dollar_props_binding_3192/snippet_parameter_read_is_renamed_and_not_read_wrapped/fe951f21ace861f4.svelte	mismatch
 svelte/rsvelte-tests-core-2/duplicate_let_function/let_then_function_errors/38b2ebf41a65088d.svelte	mismatch
 svelte/rsvelte-tests-core-2/duplicate_let_function/let_then_function_errors/b26c8a86fba64e5a.svelte	mismatch
 svelte/rsvelte-tests-core-2/duplicate_let_function/let_then_function_errors/eb501f3013b08414.svelte	mismatch
@@ -401,7 +398,6 @@ svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_wher
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/f91c07a7d1ceda77.svelte	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/the_analyze_phase_duplicate_check_is_still_reachable/1fb31d8590dd4b8b.svelte	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/the_analyze_phase_duplicate_check_is_still_reachable/d6fd0ea8bba6d45d.svelte	unexpected
-svelte/rsvelte-tests-core-2/effect_rune_pin/h121_effect_pending_lowers_in_component_scope/e5b94d7d6021b531.svelte	mismatch
 svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/host_attribute_precedence_matches_official/080f889ecbd071d2.svelte	mismatch
 svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/host_attribute_precedence_matches_official/090c1150bb9c6e12.svelte	mismatch
 svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/host_attribute_precedence_matches_official/09395a1261c5ee0f.svelte	mismatch
@@ -1824,7 +1820,6 @@ svelte/rsvelte/pattern/issues/3175-legacy-derived-server-fold.svelte	refused
 svelte/rsvelte/pattern/issues/3177-module-multi-declarator.svelte	mismatch
 svelte/rsvelte/pattern/issues/3180-snapshot-position.svelte	mismatch
 svelte/rsvelte/pattern/issues/3190-runes-legacy-props.svelte	mismatch
-svelte/rsvelte/pattern/issues/3192-dollar-props-binding.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-assign-eval.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-bind-eval.svelte	mismatch
