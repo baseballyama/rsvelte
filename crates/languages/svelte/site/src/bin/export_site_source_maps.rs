@@ -3,7 +3,7 @@
 //! source-map figures are generated from this, so they show what the pipeline produced rather than
 //! a hand-made example. Offsets are UTF-8 bytes, as the figure explains them.
 //!
-//! `cargo run -p rsvelte_site --bin export_site_source_maps -- <file> <target>`, where
+//! `cargo run -p rsvelte_svelte_site --bin export_site_source_maps -- <file> <target>`, where
 //! `<target>` is `client` or `server`.
 
 #![expect(

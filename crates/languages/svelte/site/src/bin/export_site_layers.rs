@@ -4,7 +4,7 @@
 //! Text nodes that are only whitespace are left out of both trees. Spans are UTF-16 offsets, as the
 //! site indexes the source string.
 //!
-//! `cargo run -p rsvelte_site --bin export_site_layers -- <file.svelte>`
+//! `cargo run -p rsvelte_svelte_site --bin export_site_layers -- <file.svelte>`
 
 #![expect(
     clippy::print_stdout,

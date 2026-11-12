@@ -1298,22 +1298,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsvelte_site"
-version = "0.0.0"
-dependencies = [
- "oxc_allocator",
- "oxc_ast",
- "oxc_semantic",
- "oxc_span",
- "rsvelte_kernel",
- "rsvelte_svelte_compile",
- "rsvelte_svelte_lint",
- "rsvelte_svelte_semantic",
- "rsvelte_svelte_syntax",
- "rsvelte_typescript_compile",
-]
-
-[[package]]
 name = "rsvelte_stylesheet_compile"
 version = "0.0.0"
 dependencies = [
@@ -1457,6 +1441,22 @@ dependencies = [
  "rsvelte_typescript_tree",
  "rustc-hash",
  "self_cell",
+]
+
+[[package]]
+name = "rsvelte_svelte_site"
+version = "0.0.0"
+dependencies = [
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_semantic",
+ "oxc_span",
+ "rsvelte_kernel",
+ "rsvelte_svelte_compile",
+ "rsvelte_svelte_lint",
+ "rsvelte_svelte_semantic",
+ "rsvelte_svelte_syntax",
+ "rsvelte_typescript_compile",
 ]
 
 [[package]]

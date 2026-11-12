@@ -1,5 +1,5 @@
 [package]
-name = "rsvelte_site"
+name = "rsvelte_svelte_site"
 description = "Prints what the pipeline builds, as data for the site's figures"
 edition.workspace = true
 version.workspace = true

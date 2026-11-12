@@ -48,7 +48,7 @@ await Promise.all([
 		'-q',
 		'--release',
 		'-p',
-		'rsvelte_site',
+		'rsvelte_svelte_site',
 		'--bins',
 		'--target-dir',
 		exporters,
