@@ -4,7 +4,7 @@ use super::{compile, compile_at};
 
 #[test]
 fn an_export_specifier_lowers_unless_it_exports_default_on_both_targets() {
-    for (script, refused) in [
+    for (script, default) in [
         ("let a = 1; export { a };", false),
         ("let s = $state(0); export { s };", false),
         ("let { p } = $props(); export { p };", false),
@@ -14,7 +14,7 @@ fn an_export_specifier_lowers_unless_it_exports_default_on_both_targets() {
         let source = format!("<script>{script}</script><p>{{1}}</p>");
         for target in [Target::Client, Target::Server] {
             let outcome = compile(&source, target).err();
-            let expected = refused.then(|| "unsupported".to_owned());
+            let expected = default.then(|| "module_illegal_default_export".to_owned());
             assert_eq!(outcome, expected, "{source} on {target:?}");
         }
     }
