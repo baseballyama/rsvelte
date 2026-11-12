@@ -29,6 +29,9 @@ output. The crate caches facts once per document.
 turns on `no-unused-vars` and `svelte/button-has-type`. Findings keep source order, and
 configuration order breaks ties.
 
+A component that Svelte's parser rejects gets ESLint's one `Parsing error` finding, and no rule
+runs. An error inside `<script>` stays refused: svelte-eslint-parser parses scripts itself.
+
 `register` turns on `svelte.lint/default`. `register_artifacts` registers the plugin and the
 shared facts without turning on its task.
 
