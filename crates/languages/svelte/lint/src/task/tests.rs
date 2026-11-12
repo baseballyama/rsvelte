@@ -68,7 +68,14 @@ fn other_rules_do_not_look_for_a_same_named_file() {
     let document = Document::new("Foo.svelte".to_owned(), "<button></button>".to_owned())
         .expect("a small document");
     let (_, computed) = lint_with("svelte/button-has-type", &document, |_| {});
-    assert_eq!(computed, ["svelte.lint.configuration", "svelte.parse"]);
+    assert_eq!(
+        computed,
+        [
+            "svelte.lint.configuration",
+            "svelte.parse",
+            "svelte.parse.cut_style"
+        ]
+    );
 }
 
 #[test]

@@ -110,21 +110,23 @@ fn typescript_view(
     context: &DocumentContext<'_>,
     env: Option<&Result<Arc<TypeScriptEnv>, String>>,
 ) -> Result<TypeScriptDocument, Diagnostic> {
+    // svelte2tsx throws Svelte's parse error, which svelte-check reports as it is; it cuts the
+    // style sheet at its first `</style>`.
+    if let Some(error) = rsvelte_svelte_syntax::cut_parse_error(
+        context,
+        rsvelte_svelte_syntax::parse::StyleCut::Svelte2tsx,
+    ) {
+        return Ok(TypeScriptDocument::Rejected {
+            message: error.message.clone(),
+            span: if error.has_end {
+                error.span
+            } else {
+                Span::new(error.span.start_offset, error.span.start_offset)
+            },
+        });
+    }
     // svelte-check type-checks a component whose style sheet does not parse.
-    let component = match context.get::<Parsed>() {
-        Ok(component) => component,
-        // svelte2tsx throws Svelte's parse error, which svelte-check reports as it is.
-        Err(error) => {
-            return Ok(TypeScriptDocument::Rejected {
-                message: error.message.clone(),
-                span: if error.has_end {
-                    error.span
-                } else {
-                    Span::new(error.span.start_offset, error.span.start_offset)
-                },
-            });
-        }
-    };
+    let component = context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
     if !component
         .instance
         .as_ref()
