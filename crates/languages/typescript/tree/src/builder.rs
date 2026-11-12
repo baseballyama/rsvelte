@@ -5,7 +5,7 @@ use oxc_ast::ast::{
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::VisitMut;
-use oxc_diagnostics::OxcDiagnostic;
+use oxc_diagnostics::{Diagnostics, OxcDiagnostic};
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, ParseOptions, Parser, Token};
 use oxc_span::SourceType;
@@ -38,6 +38,7 @@ pub struct Builder<'a> {
     comments: Vec<Comment>,
     recorded: Vec<Recorded>,
     wrapped: String,
+    unchecked: &'static [&'static str],
 }
 
 impl std::fmt::Debug for Builder<'_> {
@@ -63,7 +64,35 @@ impl<'a> Builder<'a> {
             comments: Vec::new(),
             recorded: Vec::new(),
             wrapped: String::new(),
+            unchecked: &[],
         }
+    }
+
+    /// Lets the parts break the TypeScript grammar rules with these error codes, which oxc checks
+    /// and the host's own parser does not.
+    pub const fn leave_unchecked(&mut self, codes: &'static [&'static str]) {
+        self.unchecked = codes;
+    }
+
+    /// The first error of a part oxc read the host reports, if any.
+    fn check(&self, diagnostics: Diagnostics, fallback: u32, shift: u32) -> Result<(), Diagnostic> {
+        let reported = |d: &OxcDiagnostic| {
+            d.code.scope.as_deref() != Some("TS")
+                || d.code
+                    .number
+                    .as_deref()
+                    .is_none_or(|n| !self.unchecked.contains(&n))
+        };
+        diagnostics
+            .iter()
+            .position(reported)
+            .map_or(Ok(()), |first| {
+                Err(syntax_error(
+                    diagnostics.into_iter().skip(first),
+                    fallback,
+                    shift,
+                ))
+            })
     }
 
     pub(crate) fn finish(self) -> Trees<'a> {
@@ -129,9 +158,10 @@ impl<'a> Builder<'a> {
             .with_config(TokensParserConfig)
             .with_start(start)
             .parse();
-        if !parsed.diagnostics.is_empty() {
+        if parsed.fatal_error {
             return Err(syntax_error(parsed.diagnostics, start, 0));
         }
+        self.check(parsed.diagnostics, start, 0)?;
         self.record(&parsed.tokens, &parsed.program.comments, 0);
         let mut program = parsed.program;
         // Its spans are the document's, so a task that reads text at a span reads the document.
@@ -185,6 +215,7 @@ impl<'a> Builder<'a> {
             .with_config(TokensParserConfig)
             .parse_expression_at(start)
             .map_err(|errors| syntax_error(errors, start, 0))?;
+        self.check(parsed.diagnostics, start, 0)?;
         self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
         Ok((parsed.expression, parsed.end))
@@ -217,6 +248,7 @@ impl<'a> Builder<'a> {
             .with_config(TokensParserConfig)
             .parse_statement_at(start)
             .map_err(|errors| syntax_error(errors, start, 0))?;
+        self.check(parsed.diagnostics, start, 0)?;
         self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
         Ok((parsed.statement, parsed.end))
@@ -373,6 +405,7 @@ impl<'a> Builder<'a> {
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
             .map_err(|errors| syntax_error(errors, 0, shift))?;
+        self.check(parsed.diagnostics, 0, shift)?;
         if !wrapper(&parsed.expression) {
             return Err(Diagnostic::error("parse_error", expected, range));
         }
