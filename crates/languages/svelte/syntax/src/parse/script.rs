@@ -172,7 +172,7 @@ impl Parser<'_, '_> {
                 memchr::memmem::find(&self.rest().as_bytes()[from..], close.as_bytes())
             else {
                 return if tag == "script" {
-                    let end = self.source_text.len() as u32;
+                    let end = self.trimmed_end() as u32;
                     Self::err_at(
                         Span::new(end, end),
                         "element_unclosed",

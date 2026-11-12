@@ -135,6 +135,8 @@ impl Parser<'_, '_> {
     fn comment(&mut self) -> ParseResult<TemplateNodeIdentifier> {
         let start_offset = self.position;
         let Some(end) = memchr::memmem::find(self.rest().as_bytes(), b"-->") else {
+            // Upstream reads to the end before it requires the `-->`.
+            self.position = self.source_text.len();
             return self.expected_token("-->");
         };
         let data = Span::new((start_offset + 4) as u32, (start_offset + end) as u32);
