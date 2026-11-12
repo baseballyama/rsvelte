@@ -256,6 +256,8 @@ fn match_from<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32)
                                 .is_some_and(|rule| el.nesting(rule) == Match::Maybe)
                 })
         }
+        // Table layout decides a cell's column, so Svelte matches it without the column's selector.
+        Combinator::Column => true,
         Combinator::NextSibling | Combinator::SubsequentSibling => {
             let mut found = false;
             for sibling in el.previous_siblings(last.combinator == Some(Combinator::NextSibling)) {
@@ -312,6 +314,7 @@ fn matches_parent<E: Element>(
         Combinator::NextSibling | Combinator::SubsequentSibling => element
             .previous_siblings(combinator == Some(Combinator::NextSibling))
             .any(|s| s.nesting(rule) != Match::No),
+        Combinator::Column => true,
     }
 }
 

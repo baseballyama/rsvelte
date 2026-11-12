@@ -101,6 +101,8 @@ pub enum Combinator {
     Child,
     NextSibling,
     SubsequentSibling,
+    /// `||`, a table cell's column.
+    Column,
 }
 
 #[derive(Debug)]

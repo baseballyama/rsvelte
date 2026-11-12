@@ -116,7 +116,10 @@ impl Task for Lint {
         // svelte-eslint-parser throws Svelte's parse error, which ESLint reports as the one
         // finding; it parses scripts itself, so an error in one stays refused.
         if rsvelte_svelte_syntax::matches(context.document)
-            && let Err(error) = context.get::<rsvelte_svelte_syntax::Parsed>()
+            && let Some(error) = rsvelte_svelte_syntax::cut_parse_error(
+                context,
+                rsvelte_svelte_syntax::parse::StyleCut::SvelteEslintParser,
+            )
             && !rsvelte_svelte_syntax::parse::in_script_content(
                 context.source_text(),
                 error.span.start_offset,

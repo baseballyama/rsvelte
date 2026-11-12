@@ -6,14 +6,17 @@ use rsvelte_kernel::source::interning::{Atom, Interner};
 use rsvelte_kernel::source::positions::Span;
 use rustc_hash::FxHashMap;
 
-use crate::syntax_tree::{Declaration, Rule, RuleIdentifier, RuleKind, StyleSheet};
+use crate::syntax_tree::{Rule, RuleIdentifier, RuleKind, StyleSheet};
 
 #[derive(Debug, Clone)]
 pub struct ParseError {
+    /// Svelte's error code, or `css_parse_error` where this parser has none of its own.
+    pub code: &'static str,
     pub message: String,
     pub span: Span,
 }
 
+mod declarations;
 mod selectors;
 
 type R<T> = Result<T, ParseError>;
@@ -112,6 +115,7 @@ const fn is_ident_byte(c: u8) -> bool {
 impl P<'_> {
     fn fail<X>(&self, message: &str) -> R<X> {
         Err(ParseError {
+            code: "css_parse_error",
             message: message.to_owned(),
             span: Span::new(self.position as u32, self.position as u32),
         })
@@ -144,10 +148,16 @@ impl P<'_> {
         loop {
             self.whitespace();
             let rest = &self.source_text[self.position..self.end];
-            if rest.starts_with("<!--") {
-                self.position += 4;
-            } else if rest.starts_with("-->") {
-                self.position += 3;
+            // Svelte skips an HTML comment whole, so what it holds is not part of the sheet.
+            if let Some(after) = rest.strip_prefix("<!--") {
+                let Some(i) = after.find("-->") else {
+                    return Err(ParseError {
+                        code: "expected_token",
+                        message: "Expected token -->".to_owned(),
+                        span: Span::new(self.end as u32, self.end as u32),
+                    });
+                };
+                self.position += 4 + i + 3;
             } else if rest.starts_with("/*") {
                 let start = self.position;
                 match self.source_text[self.position + 2..self.end].find("*/") {
@@ -406,113 +416,6 @@ impl P<'_> {
             declarations: declarations.into_boxed_slice(),
             children: children.into_boxed_slice(),
         })
-    }
-
-    fn body(&mut self) -> R<(Vec<Declaration>, Vec<Rule>)> {
-        let mut declarations = Vec::new();
-        let mut children = Vec::new();
-        loop {
-            self.skip_trivia()?;
-            match self.peek() {
-                Some(b'}') | None => return Ok((declarations, children)),
-                Some(b';') => self.position += 1,
-                Some(b'@') => push(&mut children, self.at_rule()?),
-                Some(_) => {
-                    let start = self.position;
-                    let comments = self.comments.len();
-                    let whitespace = self.whitespace.len();
-                    let closers = self.comment_closers.len();
-                    self.skip_balanced_until(b"{;}")?;
-                    let nested = self.peek() == Some(b'{');
-                    self.position = start;
-                    self.comments.truncate(comments);
-                    self.whitespace.truncate(whitespace);
-                    self.comment_closers.truncate(closers);
-                    if nested {
-                        push(&mut children, self.style_rule()?);
-                    } else {
-                        let property_start = self.position;
-                        while self
-                            .peek()
-                            .is_some_and(|c| !c.is_ascii_whitespace() && c != b':')
-                        {
-                            self.position += 1;
-                        }
-                        let property = self.span(property_start);
-                        if property.is_empty() {
-                            return self.fail("expected a property name");
-                        }
-                        self.skip_trivia()?;
-                        if self.peek() == Some(b':') {
-                            self.position += 1;
-                        }
-                        self.skip_trivia()?;
-                        let value_start = self.position;
-                        let tokens = self.value_tokens(property)?;
-                        let value = trim(self.source_text, self.span(value_start));
-                        push(
-                            &mut declarations,
-                            Declaration {
-                                span: Span::new(start as u32, value.end_offset),
-                                property,
-                                value,
-                                tokens,
-                            },
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    fn value_tokens(&mut self, property: Span) -> R<std::ops::Range<u32>> {
-        let first = self.value_tokens.len() as u32;
-        let text = property.text(self.source_text);
-        let text = text
-            .strip_prefix("-webkit-")
-            .or_else(|| text.strip_prefix("-moz-"))
-            .or_else(|| text.strip_prefix("-o-"))
-            .unwrap_or(text);
-        let collect =
-            text.eq_ignore_ascii_case("animation") || text.eq_ignore_ascii_case("animation-name");
-        while let Some(c) = self.peek() {
-            match c {
-                c if c.is_ascii_whitespace() => self.whitespace(),
-                b';' | b'}' => break,
-                b'/' if self.b.get(self.position + 1) == Some(&b'*') => self.skip_trivia()?,
-                b'\'' | b'"' | b'(' | b'[' => {
-                    let start = self.position;
-                    self.position += 1;
-                    if matches!(c, b'\'' | b'"') {
-                        self.position = start;
-                        self.string()?;
-                    } else {
-                        self.skip_balanced_until(if c == b'(' { b")" } else { b"]" })?;
-                        self.expect(if c == b'(' { b')' } else { b']' })?;
-                    }
-                    if collect {
-                        self.value_tokens.push(self.span(start));
-                    }
-                }
-                _ if is_ident_byte(c) || c == b'\\' => {
-                    let start = self.position;
-                    self.ident();
-                    if self.position == start {
-                        self.position += 1;
-                    }
-                    if self.peek() == Some(b'(') {
-                        self.position += 1;
-                        self.skip_balanced_until(b")")?;
-                        self.expect(b')')?;
-                    }
-                    if collect {
-                        self.value_tokens.push(self.span(start));
-                    }
-                }
-                _ => self.position += 1,
-            }
-        }
-        Ok(first..self.value_tokens.len() as u32)
     }
 
     fn keyframes(&mut self) -> R<Vec<Rule>> {

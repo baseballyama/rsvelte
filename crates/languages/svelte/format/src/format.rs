@@ -385,31 +385,6 @@ mod tree;
 #[cfg(test)]
 mod tests;
 
-/// The plugin cuts the style sheet at the first `</style>`, so the document Svelte parses for it
-/// keeps the rest of the sheet and the sheet's own closing tag as markup, which Svelte rejects.
-pub(crate) fn cut_style_sheet(c: &Component, source_text: &str) -> Option<Diagnostic> {
-    let content = c.style.as_ref()?.content;
-    let sheet = content.text(source_text);
-    let mut from = 0;
-    while let Some(at) = sheet[from..].find("</style") {
-        let after = &sheet[from + at + "</style".len()..];
-        if after
-            .trim_start_matches(is_ecmascript_whitespace)
-            .starts_with('>')
-        {
-            let cut = content.start_offset + (from + at) as u32;
-            return Some(Diagnostic::error(
-                "parse_error",
-                "prettier-plugin-svelte ends the style sheet at this `</style>`, and Svelte \
-                 rejects the rest of the sheet as markup",
-                Span::new(cut, cut + "</style".len() as u32),
-            ));
-        }
-        from += at + "</style".len();
-    }
-    None
-}
-
 /// The first error a module rejects in `c`, outside the artifact database.
 pub(crate) fn rejected(c: &Component, source_text: &str) -> Option<Diagnostic> {
     let lowered = rsvelte_svelte_semantic::compiler_syntax_tree::lower(c, source_text);

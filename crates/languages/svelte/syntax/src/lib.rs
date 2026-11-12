@@ -5,4 +5,4 @@ pub mod parse;
 pub mod syntax_tree;
 
 mod computation;
-pub use computation::{PLUGIN, Parsed, fully_parsed, matches, register};
+pub use computation::{CutStyle, PLUGIN, Parsed, cut_parse_error, fully_parsed, matches, register};
