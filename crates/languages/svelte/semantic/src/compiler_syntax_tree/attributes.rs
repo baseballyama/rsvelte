@@ -128,10 +128,14 @@ impl Modifiers {
     pub const ONCE: Self = Self(1 << 4);
     pub const PASSIVE: Self = Self(1 << 5);
     pub const PREVENT_DEFAULT: Self = Self(1);
+    /// A modifier written twice.
+    pub(crate) const REPEATED: Self = Self(1 << 13);
     pub const SELF: Self = Self(1 << 7);
     pub const STOP_IMMEDIATE_PROPAGATION: Self = Self(1 << 2);
     pub const STOP_PROPAGATION: Self = Self(1 << 1);
     pub const TRUSTED: Self = Self(1 << 8);
+    /// A name no directive takes.
+    pub(crate) const UNKNOWN: Self = Self(1 << 12);
 
     /// The modifier a name stands for, if any.
     #[must_use]
@@ -151,6 +155,12 @@ impl Modifiers {
             "important" => Self::IMPORTANT,
             _ => return None,
         })
+    }
+
+    /// Upstream's `StyleDirective` check: none, or `important` once.
+    #[must_use]
+    pub const fn fit_a_style(self) -> bool {
+        self.0 & !Self::IMPORTANT.0 == 0
     }
 
     #[must_use]

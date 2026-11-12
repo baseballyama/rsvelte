@@ -319,8 +319,13 @@ fn textarea_value(
 fn modifiers(c: &Component, source_text: &str, a: &syntax_tree::Attribute) -> Modifiers {
     c.modifiers(a.modifiers)
         .iter()
-        .filter_map(|m| Modifiers::parse(m.text(source_text)))
-        .fold(Modifiers::default(), Modifiers::with)
+        .fold(Modifiers::default(), |all, m| {
+            match Modifiers::parse(m.text(source_text)) {
+                Some(m) if all.contains(m) => all.with(Modifiers::REPEATED),
+                Some(m) => all.with(m),
+                None => all.with(Modifiers::UNKNOWN),
+            }
+        })
 }
 
 /// The one expression of a directive's value, if it has one.

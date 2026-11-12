@@ -232,15 +232,24 @@ fn element<'a>(
         );
     }
     let placement = element_placement(input, identifier, el, placement)?;
+    // Upstream's directive visitors, in attribute order.
     for a in attributes {
-        if let AttributeValue::Bind(target) = a.value
-            && !binds_a_name(input.component.javascript, target)
-        {
-            return invalid(
-                "bind_invalid_expression",
-                "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair",
-                a.span,
-            );
+        match &a.value {
+            AttributeValue::Bind(target) if !binds_a_name(input.component.javascript, *target) => {
+                return invalid(
+                    "bind_invalid_expression",
+                    "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair",
+                    a.span,
+                );
+            }
+            AttributeValue::Style { modifiers, .. } if !modifiers.fit_a_style() => {
+                return invalid(
+                    "style_directive_invalid_modifier",
+                    "`style:` directive can only use the `important` modifier",
+                    a.span,
+                );
+            }
+            _ => {}
         }
     }
     let owner = match el.kind {
