@@ -75,7 +75,6 @@ pub(crate) fn format(
             "an emoji sequence, which Prettier measures as one character",
         ));
     }
-    refuse_rejected_tags(c, source_text)?;
     if let Some(rejected) = rejected {
         return Err(Unsupported::at("code a module rejects", rejected.span));
     }
@@ -237,27 +236,6 @@ fn refuse_lost_comments(c: &Component, kept: &[Span]) -> R<()> {
                 comment,
             ))
         })
-}
-
-/// What Svelte's parser rejects and this parser does not yet: a root-only `svelte:` tag twice.
-fn refuse_rejected_tags(c: &Component, source_text: &str) -> R<()> {
-    let mut seen: Vec<&str> = Vec::new();
-    for node in &c.nodes {
-        let TemplateNode::Element { name, span, .. } = *node else {
-            continue;
-        };
-        let name = name.text(source_text);
-        if matches!(
-            name,
-            "svelte:head" | "svelte:options" | "svelte:window" | "svelte:document" | "svelte:body"
-        ) {
-            if seen.contains(&name) {
-                return Err(Unsupported::at("a root-only `svelte:` tag twice", span));
-            }
-            seen.push(name);
-        }
-    }
-    Ok(())
 }
 
 /// The first option whose value this port does not print yet. The pattern names every field, so

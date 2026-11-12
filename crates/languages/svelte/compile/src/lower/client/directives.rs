@@ -68,46 +68,54 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     let call = self.action(action, argument, node);
                     directives.initializer.push(b.statement(call));
                 }
-                AttributeValue::Transition {
-                    function,
-                    argument,
-                    intro,
-                    outro,
-                    modifiers,
-                } => {
-                    let mut flags = 0;
-                    if modifiers.contains(Modifiers::GLOBAL) {
-                        flags |= TRANSITION_GLOBAL;
-                    }
-                    if intro {
-                        flags |= TRANSITION_IN;
-                    }
-                    if outro {
-                        flags |= TRANSITION_OUT;
-                    }
-                    let mut arguments = vec![
-                        b.number(f64::from(flags)),
-                        b.id(node),
-                        b.thunk(self.expression(function)),
-                    ];
-                    arguments.extend(argument.map(|e| b.thunk(self.expression(e))));
-                    directives
-                        .after
-                        .push(b.statement(b.runtime("transition", arguments)));
-                }
-                AttributeValue::Animate { function, argument } => {
-                    let argument =
-                        argument.map_or_else(|| b.null(), |e| b.thunk(self.expression(e)));
-                    let call = b.runtime(
-                        "animation",
-                        [b.id(node), b.thunk(self.expression(function)), argument],
-                    );
-                    directives.after.push(b.statement(call));
+                AttributeValue::Transition { .. } | AttributeValue::Animate { .. } => {
+                    directives.after.extend(self.motion(a, node));
                 }
                 _ => {}
             }
         }
         directives
+    }
+
+    /// Upstream `TransitionDirective` and `AnimateDirective`, which run after the update.
+    pub(super) fn motion(&self, attribute: &Attribute, node: &str) -> Option<Statement<'o>> {
+        let b = self.b;
+        let call = match attribute.value {
+            AttributeValue::Transition {
+                function,
+                argument,
+                intro,
+                outro,
+                modifiers,
+            } => {
+                let mut flags = 0;
+                if modifiers.contains(Modifiers::GLOBAL) {
+                    flags |= TRANSITION_GLOBAL;
+                }
+                if intro {
+                    flags |= TRANSITION_IN;
+                }
+                if outro {
+                    flags |= TRANSITION_OUT;
+                }
+                let mut arguments = vec![
+                    b.number(f64::from(flags)),
+                    b.id(node),
+                    b.thunk(self.expression(function)),
+                ];
+                arguments.extend(argument.map(|e| b.thunk(self.expression(e))));
+                b.runtime("transition", arguments)
+            }
+            AttributeValue::Animate { function, argument } => {
+                let argument = argument.map_or_else(|| b.null(), |e| b.thunk(self.expression(e)));
+                b.runtime(
+                    "animation",
+                    [b.id(node), b.thunk(self.expression(function)), argument],
+                )
+            }
+            _ => return None,
+        };
+        Some(b.statement(call))
     }
 
     /// Upstream `UseDirective`: `$.action(node, ($$node, $$action_arg) => action?.(…), () => arg)`.
@@ -129,7 +137,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     }
 
     /// Upstream `BindDirective` (client, non-dev) for the bindings coverage admits.
-    fn binding(
+    pub(super) fn binding(
         &self,
         attribute: &Attribute,
         attributes: &[Attribute],
@@ -142,7 +150,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let b = self.b;
         let name = attribute.name.text(self.source_text);
         let property = property_of(name).expect("coverage admits known properties");
-        let (get, set) = self.binding_accessors(target, true);
+        // Upstream writes the value unproxied only for a regular element.
+        let (get, set) = self.binding_accessors(target, !tag.starts_with("svelte:"));
         // Upstream drops a setter that is the getter, as both are a prop's accessor.
         let same = matches!((&get, &set),
             (Expression::Identifier(g), Expression::Identifier(s)) if g.name == s.name);

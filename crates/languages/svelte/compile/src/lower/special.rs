@@ -33,7 +33,7 @@ pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagno
                     } else {
                         (
                             "svelte_head_illegal_attribute",
-                            "`<svelte:head>` cannot have attributes",
+                            "`<svelte:head>` cannot have attributes nor directives",
                         )
                     };
                     return invalid(code, message, attribute.span);
@@ -159,7 +159,13 @@ fn validate_globals(
             }
         } else if !matches!(
             attribute.value,
-            AttributeValue::On { .. } | AttributeValue::Use { .. } | AttributeValue::Attach(_)
+            AttributeValue::On { .. }
+                | AttributeValue::Use { .. }
+                | AttributeValue::Attach(_)
+                | AttributeValue::Style { .. }
+                | AttributeValue::Class(_)
+                | AttributeValue::Transition { .. }
+                | AttributeValue::Animate { .. }
         ) && super::event_attribute(source, attribute).is_none()
         {
             return unsupported("this global attribute", attribute.span);
@@ -287,6 +293,8 @@ pub(super) enum GlobalBinding {
     Online,
     ActiveElement,
     Property(&'static str),
+    /// A binding `<svelte:body>` shares with an element.
+    Element,
 }
 
 pub(super) fn global_binding(tag: MetadataTag, property: &str) -> Option<GlobalBinding> {
@@ -300,6 +308,18 @@ pub(super) fn global_binding(tag: MetadataTag, property: &str) -> Option<GlobalB
         (MetadataTag::Window, "online") => Some(GlobalBinding::Online),
         (MetadataTag::Window, "devicePixelRatio") => Some(GlobalBinding::Property("resize")),
         (MetadataTag::Document, "activeElement") => Some(GlobalBinding::ActiveElement),
+        (
+            MetadataTag::Body,
+            "focused"
+            | "clientWidth"
+            | "clientHeight"
+            | "offsetWidth"
+            | "offsetHeight"
+            | "contentRect"
+            | "contentBoxSize"
+            | "borderBoxSize"
+            | "devicePixelContentBoxSize",
+        ) => Some(GlobalBinding::Element),
         (MetadataTag::Document, "fullscreenElement") => {
             Some(GlobalBinding::Property("fullscreenchange"))
         }

@@ -10,12 +10,13 @@ use oxc_span::GetSpan;
 use rsvelte_kernel::performance::stack::grow;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, NodeKind};
 use rsvelte_typescript_tree::ExpressionIdentifier;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::lower::{CompileInput, Diagnostic, Resolution, Span, Target, span_of};
 
 mod assignments;
 mod calls;
+mod exports;
 mod places;
 
 use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
@@ -113,6 +114,8 @@ struct RuneWalk<'a> {
     refused: Option<Diagnostic>,
     /// The state fields of the classes the walk is inside, innermost last.
     classes: Vec<ClassFields>,
+    /// Where each `{@const}` tag's declaration starts.
+    const_tags: FxHashSet<u32>,
 }
 
 /// A template root: an expression, or a `{@const}` declaration.
@@ -153,6 +156,7 @@ pub(in crate::lower) fn check_runes(
         error: None,
         refused: None,
         classes: Vec::new(),
+        const_tags: FxHashSet::default(),
     };
     if let Some(module) = input.component.module {
         walk.root = place(true, false);
@@ -175,6 +179,14 @@ pub(in crate::lower) fn check_runes(
                 target,
                 (a.span, a.name.text(input.component.source_text) == "this"),
             )),
+            _ => None,
+        })
+        .collect();
+    walk.const_tags = (tree.nodes.iter())
+        .filter_map(|n| match n.kind {
+            NodeKind::Const { declaration } => {
+                Some(javascript.get_declaration(declaration).span.start)
+            }
             _ => None,
         })
         .collect();
@@ -237,6 +249,12 @@ impl<'a> Visit<'a> for RuneWalk<'a> {
         if matches!(kind, AstKind::ClassBody(_)) {
             self.classes.pop();
         }
+        if let AstKind::ExportDeclaration(export) = kind
+            && self.error.is_none()
+            && let Err(error) = self.check_export(export)
+        {
+            self.error = Some(error);
+        }
         self.frames.pop();
     }
 
@@ -263,6 +281,12 @@ pub(in crate::lower) fn rejects_binding(res: &Resolution, e: &Expression<'_>) ->
 }
 
 impl<'a> RuneWalk<'a> {
+    /// Whether the walk is inside a `{@const}` tag's declaration.
+    fn in_const_tag(&self) -> bool {
+        matches!(self.frames.first().map(|f| f.kind),
+            Some(AstKind::VariableDeclaration(d)) if self.const_tags.contains(&d.span.start))
+    }
+
     /// Upstream's `BindDirective` checks of the `bind:` target `e` at `span`; `bind:this` also
     /// takes a global.
     fn check_binding(&self, e: &Expression<'_>, span: Span, this: bool) -> Result<(), Diagnostic> {

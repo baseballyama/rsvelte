@@ -9,6 +9,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     pub(super) fn global_binding(
         &self,
         attribute: &Attribute,
+        attributes: &[Attribute],
         tag: MetadataTag,
         lists: &mut Lists<'o>,
     ) {
@@ -18,6 +19,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         let name = attribute.name.text(self.source_text);
         let binding = global_binding(tag, name).expect("global bindings are validated");
+        if matches!(binding, GlobalBinding::Element) {
+            let call = self.binding(attribute, attributes, "svelte:body", "$.document.body");
+            lists.after.push(b.statement(call));
+            return;
+        }
         let (get, set) = if matches!(binding, GlobalBinding::This | GlobalBinding::Scroll(_)) {
             let (get, set) = self.binding_accessors(expression, false);
             (Some(get), set)
@@ -59,6 +65,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 "bind_property",
                 [b.string(name), b.string(event), global(), set],
             ),
+            GlobalBinding::Element => unreachable!("lowered as an element's"),
         };
         if matches!(binding, GlobalBinding::This) {
             lists.initializer.push(b.statement(call));

@@ -198,7 +198,7 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
 }
 
 /// Each name `pattern` binds, and whether a default value applies to it.
-pub(super) fn bound_names<'a>(
+pub(in crate::lower) fn bound_names<'a>(
     pattern: &'a BindingPattern<'a>,
     default: bool,
     f: &mut impl FnMut(&'a BindingIdentifier<'a>, bool),

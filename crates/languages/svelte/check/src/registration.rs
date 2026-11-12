@@ -113,10 +113,10 @@ fn typescript_view(
     // svelte-check type-checks a component whose style sheet does not parse.
     let component = match context.get::<Parsed>() {
         Ok(component) => component,
-        // svelte2tsx throws Svelte's parse error, which svelte-check reports with its link.
+        // svelte2tsx throws Svelte's parse error, which svelte-check reports as it is.
         Err(error) => {
             return Ok(TypeScriptDocument::Rejected {
-                message: format!("{}\nhttps://svelte.dev/e/{}", error.message, error.code),
+                message: error.message.clone(),
                 span: if error.has_end {
                     error.span
                 } else {

@@ -91,7 +91,7 @@ impl RuneWalk<'_> {
                 if !matches!(
                     parent,
                     Parent::Initializer { .. } | Parent::ClassField | Parent::ConstructorAssignment
-                ) =>
+                ) || self.in_const_tag() && self.frames.len() == 2 =>
             {
                 return state_invalid_placement(rune, span_of(call));
             }
@@ -136,11 +136,18 @@ impl RuneWalk<'_> {
         // Upstream splits a destructured state or derived into one declaration per path.
         let destructured = match place.parent {
             Parent::Initializer { named: false, .. } => match rune {
-                // Only a script's rewrite has the names its `tmp`, `$$d` and arrays take.
-                "$state" | "$state.raw" | "$derived" | "$derived.by" => !matches!(
-                    self.frames.first().map(|f| f.kind),
-                    Some(AstKind::Program(_))
-                ),
+                // Only a script's rewrite, or a declaration tag's at its top level, has the names
+                // its `tmp`, `$$d` and arrays take.
+                "$state" | "$state.raw" | "$derived" | "$derived.by" => {
+                    !match self.frames.as_slice() {
+                        [first, ..] if matches!(first.kind, AstKind::Program(_)) => true,
+                        [tag, _] => {
+                            !self.in_const_tag()
+                                && matches!(tag.kind, AstKind::VariableDeclaration(_))
+                        }
+                        _ => false,
+                    }
+                }
                 _ => false,
             },
             _ => false,
