@@ -123,6 +123,7 @@ fn print(
             typescript: is_typescript(c, source_text),
             options: javascript_options(options, core),
             kept: Vec::new(),
+            dropped: Vec::new(),
         },
         text: vec![None; c.nodes.len()],
         in_pre: false,
@@ -133,7 +134,7 @@ fn print(
         ignore: Ignore::default(),
     };
     let root = f.top_level()?;
-    refuse_lost_comments(c, &f.embedder.kept)?;
+    refuse_lost_comments(c, &f.embedder.kept, &f.embedder.dropped)?;
     let embedding = f.embedder.embedding;
     // Room for output a quarter longer than its source, so the buffer seldom grows.
     embedding
@@ -218,12 +219,13 @@ fn has_pragma(text: &str) -> bool {
 /// A JavaScript comment outside the code the output keeps as text, which the template printer
 /// does not place: around an expression (`{/* a */ b}`) or between a tag's attributes
 /// (`<A // b={1}>`, only a token), it would be lost.
-fn refuse_lost_comments(c: &Component, kept: &[Span]) -> R<()> {
+fn refuse_lost_comments(c: &Component, kept: &[Span], dropped: &[Span]) -> R<()> {
     let mut comments = c
         .tokens
         .iter()
         .filter(|t| t.kind == TokenType::JavaScriptComment)
-        .map(|t| t.span);
+        .map(|t| t.span)
+        .filter(|comment| !dropped.contains(comment));
     comments
         .find(|comment| {
             !kept.iter().any(|s| {

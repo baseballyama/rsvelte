@@ -185,8 +185,23 @@ fn a_doctype_and_empty_inline_elements_print_as_the_plugin_prints_them() {
 #[test]
 fn what_the_template_printer_cannot_place_yet_is_refused() {
     assert_eq!(
-        refusal("<p>{/* a */ x}</p>\n"),
+        refusal("<svelte:element this={/* a */ t}></svelte:element>\n"),
         ("comments in the template's JavaScript", Some("/* a */"))
+    );
+}
+
+#[test]
+fn a_template_expression_keeps_the_comments_before_it_and_drops_those_after() {
+    // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    assert_eq!(formatted("<p>{/* a */ x}</p>\n"), "<p>{/* a */ x}</p>\n");
+    assert_eq!(formatted("<p>{x /* a */}</p>\n"), "<p>{x}</p>\n");
+    assert_eq!(
+        formatted("<p title={// a\nx}></p>\n"),
+        "<p\n  title={// a\n  x}\n></p>\n"
+    );
+    assert_eq!(
+        formatted("{#if /* a */ x /* b */}<p></p>{/if}\n"),
+        "{#if /* a */ x}<p></p>{/if}\n"
     );
 }
 
