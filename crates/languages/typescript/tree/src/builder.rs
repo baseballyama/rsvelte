@@ -4,14 +4,15 @@ use oxc_ast::ast::{
     TSTypeParameterDeclaration, VariableDeclaration,
 };
 use oxc_ast::builder::AstBuilder;
-use oxc_ast_visit::VisitMut;
+use oxc_ast_visit::{Visit, VisitMut};
+use oxc_diagnostics::{Diagnostics, OxcDiagnostic};
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, ParseOptions, Parser, Token};
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
-use crate::syntax_error::{SyntaxError, syntax_error};
+use crate::syntax_error::{Operand, SyntaxError, javascript_stop, syntax_error};
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, Trees, TypeParametersIdentifier,
@@ -38,6 +39,7 @@ pub struct Builder<'a> {
     comments: Vec<Comment>,
     recorded: Vec<Recorded>,
     wrapped: String,
+    unchecked: &'static [&'static str],
 }
 
 impl std::fmt::Debug for Builder<'_> {
@@ -63,7 +65,41 @@ impl<'a> Builder<'a> {
             comments: Vec::new(),
             recorded: Vec::new(),
             wrapped: String::new(),
+            unchecked: &[],
         }
+    }
+
+    /// Lets the parts break the TypeScript grammar rules with these error codes, which oxc checks
+    /// and the host's own parser does not.
+    pub const fn leave_unchecked(&mut self, codes: &'static [&'static str]) {
+        self.unchecked = codes;
+    }
+
+    /// The first error of a part oxc read the host reports, if any; `tokens` and `visit` are the
+    /// part's, for where a JavaScript parser stops.
+    fn check(
+        &self,
+        diagnostics: Diagnostics,
+        (fallback, shift): (u32, u32),
+        tokens: &[Token],
+        visit: impl FnOnce(&mut Operand),
+    ) -> Result<(), SyntaxError> {
+        let reported = |d: &OxcDiagnostic| {
+            d.code.scope.as_deref() != Some("TS")
+                || d.code
+                    .number
+                    .as_deref()
+                    .is_none_or(|n| !self.unchecked.contains(&n))
+        };
+        diagnostics
+            .iter()
+            .position(reported)
+            .map_or(Ok(()), |first| {
+                let stop = javascript_stop(&diagnostics[first], tokens, visit);
+                let mut error = syntax_error(diagnostics.into_iter().skip(first), fallback, shift);
+                error.stop = stop.map(|stop| stop + shift);
+                Err(error)
+            })
     }
 
     pub(crate) fn finish(self) -> Trees<'a> {
@@ -129,9 +165,12 @@ impl<'a> Builder<'a> {
             .with_config(TokensParserConfig)
             .with_start(start)
             .parse();
-        if !parsed.diagnostics.is_empty() {
+        if parsed.fatal_error {
             return Err(syntax_error(parsed.diagnostics, start, 0));
         }
+        let program = &parsed.program;
+        let visit = |operand: &mut Operand| operand.visit_program(program);
+        self.check(parsed.diagnostics, (start, 0), &parsed.tokens, visit)?;
         self.record(&parsed.tokens, &parsed.program.comments, 0);
         let mut program = parsed.program;
         // Its spans are the document's, so a task that reads text at a span reads the document.
@@ -185,6 +224,9 @@ impl<'a> Builder<'a> {
             .with_config(TokensParserConfig)
             .parse_expression_at(start)
             .map_err(|errors| syntax_error(errors, start, 0))?;
+        let expression = &parsed.expression;
+        let visit = |operand: &mut Operand| operand.visit_expression(expression);
+        self.check(parsed.diagnostics, (start, 0), &parsed.tokens, visit)?;
         self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
         Ok((parsed.expression, parsed.end))
@@ -216,7 +258,10 @@ impl<'a> Builder<'a> {
             .with_options(options())
             .with_config(TokensParserConfig)
             .parse_statement_at(start)
-            .map_err(|errors| syntax_error(errors, start, 0).diagnostic)?;
+            .map_err(|errors| syntax_error(errors, start, 0))?;
+        let statement = &parsed.statement;
+        let visit = |operand: &mut Operand| operand.visit_statement(statement);
+        self.check(parsed.diagnostics, (start, 0), &parsed.tokens, visit)?;
         self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
         Ok((parsed.statement, parsed.end))
@@ -372,7 +417,10 @@ impl<'a> Builder<'a> {
             .with_options(options())
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
-            .map_err(|errors| syntax_error(errors, 0, shift).diagnostic)?;
+            .map_err(|errors| syntax_error(errors, 0, shift))?;
+        let expression = &parsed.expression;
+        let visit = |operand: &mut Operand| operand.visit_expression(expression);
+        self.check(parsed.diagnostics, (0, shift), &parsed.tokens, visit)?;
         if !wrapper(&parsed.expression) {
             return Err(Diagnostic::error("parse_error", expected, range));
         }

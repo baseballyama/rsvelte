@@ -2,6 +2,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 
+use super::javascript::javascript_failure;
 use super::{ParseResult, Parser};
 use crate::syntax_tree::{Script, Style, TagAttributes, TokenType};
 
@@ -225,7 +226,7 @@ impl Parser<'_, '_> {
         let program = self
             .builder
             .program(content, source_type)
-            .map_err(|error| self.javascript_failure(error, content, false))?;
+            .map_err(javascript_failure)?;
         // Upstream parses the script before it checks for another.
         if duplicate {
             return Self::err_at(

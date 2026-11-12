@@ -39,3 +39,15 @@ fn an_each_block_reads_up_to_its_as() {
     let source = "{#each true, items as item}<p>{item}</p>{/each}";
     parse(source).expect("the expression is `true, items`");
 }
+
+#[test]
+fn a_parenthesized_operand_stops_at_its_keyword() {
+    let source = "<p>{((a, b)) as T}</p><script>let x = (a) satisfies T;</script>";
+    let error = parse(source).expect_err(source);
+    assert_eq!(error.code, "expected_token", "{error:?}");
+    assert_eq!(
+        error.span.start_offset,
+        source.find("as T").expect("as") as u32
+    );
+    parse("{#each (a, [b]) as z}{z}{/each}").expect("the expression is `(a, [b])`");
+}

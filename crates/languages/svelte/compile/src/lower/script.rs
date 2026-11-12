@@ -16,9 +16,9 @@ pub(super) use classes::Classes;
 pub(super) use exports::{Export, default_exports};
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::ast::{
-    Argument, ArrowFunctionExpression, ClassBody, Declaration, Expression, Function,
-    IdentifierReference, ImportDeclaration, MethodDefinition, ObjectProperty, Program, Statement,
-    SwitchCase, VariableDeclaration, VariableDeclarator, WithClause, WithClauseKeyword,
+    Argument, ArrowFunctionExpression, BindingIdentifier, ClassBody, Declaration, Expression,
+    Function, IdentifierReference, ImportDeclaration, MethodDefinition, ObjectProperty, Program,
+    Statement, SwitchCase, VariableDeclaration, VariableDeclarator, WithClause, WithClauseKeyword,
 };
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::{ReferenceId, SymbolId};
@@ -28,6 +28,9 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_compile::strip::is_type_only;
 use rustc_hash::{FxHashMap, FxHashSet};
+
+/// What upstream's transforms call a `$$props` the source declares.
+const SANITIZED_PROPS: &str = "$$sanitized_props";
 use statements::{Inspect, inspect, is_effect};
 pub(super) use writes::mutates_signal;
 
@@ -99,6 +102,21 @@ impl<'o> ScriptRewrite<'_, 'o> {
         d
     }
 
+    /// Whether a `$$props` of `symbol` is renamed. Upstream also renames the reads of one a
+    /// template declares but not its declaration, which leaves them unbound; this keeps both.
+    fn renames_props(&self, symbol: Option<SymbolId>) -> bool {
+        symbol.is_none_or(|symbol| {
+            !matches!(
+                self.res.binding(symbol).kind,
+                BindingKind::Each
+                    | BindingKind::StaticIndex
+                    | BindingKind::KeyedIndex
+                    | BindingKind::Snippet
+                    | BindingKind::Template
+            )
+        })
+    }
+
     /// Upstream `build_getter` / the `read` transforms, by binding kind and target.
     fn read(&self, identifier: &IdentifierReference<'_>) -> Option<Expression<'o>> {
         let b = self.b;
@@ -110,6 +128,9 @@ impl<'o> ScriptRewrite<'_, 'o> {
                 .is_some_and(|r| reads.contains(&r))
         {
             return Some(b.id("$$props"));
+        }
+        if identifier.name == "$$props" && self.renames_props(self.res.symbol(identifier)) {
+            return Some(b.id_at(SANITIZED_PROPS, identifier.span));
         }
         if self.is_store(identifier) {
             return Some(self.store_read(identifier));
@@ -286,6 +307,13 @@ impl<'o> ScriptRewrite<'_, 'o> {
 }
 
 impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
+    // Upstream renames a declared `$$props` with its reads.
+    fn visit_binding_identifier(&mut self, it: &mut BindingIdentifier<'o>) {
+        if it.name == "$$props" && self.renames_props(it.symbol_id.get()) {
+            it.name = self.b.str(SANITIZED_PROPS).into();
+        }
+    }
+
     fn visit_expression(&mut self, it: &mut Expression<'o>) {
         // Upstream's `mutate` transform of an `{#each}` item of a store's collection.
         if let Some(invalidate) = self.invalidation(it) {

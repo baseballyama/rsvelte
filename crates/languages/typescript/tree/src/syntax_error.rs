@@ -1,21 +1,20 @@
-//! oxc's syntax errors as the document's diagnostics, keeping oxc's code for a host that words
-//! them as another parser does.
+//! oxc's syntax errors as the document's diagnostics, keeping where a parser that knows no
+//! TypeScript stops for a host that reports as one does.
 
-use oxc_allocator::Allocator;
 use oxc_ast::ast::{TSAsExpression, TSSatisfiesExpression};
 use oxc_ast_visit::{Visit, walk};
-use oxc_diagnostics::{OxcCode, OxcDiagnostic};
-use oxc_parser::config::TokensParserConfig;
-use oxc_parser::{Parser, Token};
-use oxc_span::{GetSpan, SourceType};
+use oxc_diagnostics::OxcDiagnostic;
+use oxc_parser::{Kind, Token};
+use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
-/// A syntax error, with oxc's code when its kind has one.
+/// A syntax error, and where a JavaScript parser stops when the error is TypeScript-only syntax.
 #[derive(Clone, Debug)]
 pub struct SyntaxError {
     pub diagnostic: Diagnostic,
-    pub code: Option<OxcCode>,
+    /// The token after an assertion's operand or after a modifier.
+    pub stop: Option<u32>,
 }
 
 impl From<SyntaxError> for Diagnostic {
@@ -39,7 +38,7 @@ pub fn syntax_error(
                 "invalid syntax",
                 Span::new(fallback, fallback),
             ),
-            code: None,
+            stop: None,
         };
     };
     let span = error.labels.first().map_or_else(
@@ -51,66 +50,48 @@ pub fn syntax_error(
     );
     SyntaxError {
         diagnostic: Diagnostic::error("parse_error", error.message.to_string(), span),
-        code: error.code.is_some().then(|| error.code.clone()),
+        stop: None,
     }
 }
 
-/// Where a JavaScript parser that knows no TypeScript stops before `error`'s syntax.
-///
-/// That is the token after the operand of a type assertion, or after a modifier; `None` for any
-/// other error. `expression` says whether `range` holds an expression or a program.
+/// Where a parser that knows no TypeScript stops before `error`'s syntax, in the part whose
+/// tree `visit` walks and whose tokens are `tokens`.
 #[cold]
-#[must_use]
-pub fn javascript_stop(
-    source_text: &str,
-    error: &SyntaxError,
-    range: Span,
-    expression: bool,
-    source_type: SourceType,
+pub(crate) fn javascript_stop(
+    error: &OxcDiagnostic,
+    tokens: &[Token],
+    visit: impl FnOnce(&mut Operand),
 ) -> Option<u32> {
-    let code = error.code.as_ref()?;
-    if code.scope.as_deref() != Some("TS") {
+    if error.code.scope.as_deref() != Some("TS") {
         return None;
     }
-    let label = error.diagnostic.span;
-    let assertion = match code.number.as_deref()? {
-        // `as`, `satisfies`
-        "8016" | "8037" => true,
-        // A class member's or a parameter's modifier.
-        "8009" | "8012" => false,
+    let label = error.labels.first()?;
+    let start = label.offset();
+    let label = oxc_span::Span::new(start, start + label.len());
+    let (after, keyword) = match error.code.number.as_deref()? {
+        // `as`, `satisfies`: oxc labels the whole assertion, and the operand's span leaves out
+        // its parentheses, so the stop is the keyword after it.
+        "8016" => (operand_end(label, visit)?, Some(Kind::As)),
+        "8037" => (operand_end(label, visit)?, Some(Kind::Satisfies)),
+        // A class member's or a parameter's modifier: oxc labels the modifier.
+        "8009" | "8012" => (label.end, None),
         _ => return None,
-    };
-    // The tree that holds the operand: the same text read as TypeScript.
-    let allocator = Allocator::default();
-    let text = &source_text[..range.end_offset as usize];
-    let parser = Parser::new(&allocator, text, source_type.with_typescript(true))
-        .with_config(TokensParserConfig);
-    let mut operand = Operand {
-        label: oxc_span::Span::new(label.start_offset, label.end_offset),
-        end: None,
-    };
-    let tokens = if expression {
-        let parsed = parser.parse_expression_at(range.start_offset).ok()?;
-        operand.visit_expression(&parsed.expression);
-        parsed.tokens
-    } else {
-        let parsed = parser.with_start(range.start_offset).parse();
-        operand.visit_program(&parsed.program);
-        parsed.tokens
-    };
-    let after = if assertion {
-        operand.end?
-    } else {
-        label.end_offset
     };
     tokens
         .iter()
+        .filter(|token| token.start() >= after)
+        .find(|token| keyword.is_none_or(|keyword| token.kind() == keyword))
         .map(Token::start)
-        .find(|&start| start >= after)
+}
+
+fn operand_end(label: oxc_span::Span, visit: impl FnOnce(&mut Operand)) -> Option<u32> {
+    let mut operand = Operand { label, end: None };
+    visit(&mut operand);
+    operand.end
 }
 
 /// The end of the operand of the type assertion that `label` covers.
-struct Operand {
+pub(crate) struct Operand {
     label: oxc_span::Span,
     end: Option<u32>,
 }
