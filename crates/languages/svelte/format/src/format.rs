@@ -75,13 +75,25 @@ pub(crate) fn format(
             "an emoji sequence, which Prettier measures as one character",
         ));
     }
-    if let Some(rejected) = rejected {
-        return Err(Unsupported::at("code a module rejects", rejected.span));
-    }
+    let unparsed_script = match rejected {
+        Some(rejected) => Some(
+            unparsed_script(c, source_text, rejected)
+                .ok_or_else(|| Unsupported::at("code a module rejects", rejected.span))?,
+        ),
+        None => None,
+    };
 
     let core = core_options(options)?;
     let printed = rsvelte_typescript_tree::with_scratch_arena(|allocator| {
-        print(c, options, source_text, text, core, allocator)
+        print(
+            c,
+            options,
+            source_text,
+            text,
+            core,
+            unparsed_script,
+            allocator,
+        )
     })?;
     let eol = match options.end_of_line {
         EndOfLine::Lf => "\n",
@@ -110,6 +122,7 @@ fn print(
     source_text: &str,
     text: &str,
     core: CoreFormatOptions,
+    unparsed_script: Option<Span>,
     allocator: &Allocator,
 ) -> R<String> {
     let mut docs = LayoutInstructions::new();
@@ -132,6 +145,7 @@ fn print(
         last_in_block: None,
         buffers: Vec::new(),
         ignore: Ignore::default(),
+        unparsed_script,
     };
     let root = f.top_level()?;
     refuse_lost_comments(c, &f.embedder.kept, &f.embedder.dropped)?;
@@ -193,6 +207,47 @@ fn is_typescript(c: &Component, source_text: &str) -> bool {
                 && value.is_some_and(|v| v.text(source_text).starts_with("ts"))
         })
     })
+}
+
+/// The body of the JavaScript script holding `rejected`, an error Babel does not recover from
+/// either, so the plugin keeps that body as it is. Babel recovers from the others, and Prettier's
+/// TypeScript parser from more.
+fn unparsed_script(c: &Component, source_text: &str, rejected: &Diagnostic) -> Option<Span> {
+    // Each is a message's start and end.
+    const BABEL_REJECTS: [(&str, &str); 11] = [
+        ("await expression not allowed in formal parameter", ""),
+        ("yield expression not allowed in formal parameter", ""),
+        ("Super calls are not permitted outside constructors", ""),
+        (
+            "Illegal 'use strict' directive in function with non-simple parameter list",
+            "",
+        ),
+        ("'super' can only be referenced in a derived class.", ""),
+        ("Illegal continue statement", ""),
+        ("Illegal break statement", ""),
+        ("Jump target cannot cross function boundary.", ""),
+        (
+            "The operand of a 'delete' operator cannot be a private identifier.",
+            "",
+        ),
+        ("Label `", "` has already been declared"),
+        ("Identifier `#", "` has already been declared"),
+    ];
+    let message = rejected.message.as_str();
+    if !(BABEL_REJECTS.iter())
+        .any(|(start, end)| message.starts_with(start) && message.ends_with(end))
+    {
+        return None;
+    }
+    let script = (c.module.iter().chain(&c.instance)).find(|script| {
+        script.content.start_offset <= rejected.span.start_offset
+            && rejected.span.end_offset <= script.content.end_offset
+    })?;
+    let typescript = script.attributes.iter().any(|&(name, value)| {
+        name.text(source_text) == "lang"
+            && value.is_some_and(|v| v.text(source_text).starts_with("ts"))
+    });
+    (!typescript).then_some(script.content)
 }
 
 /// The plugin's `hasPragma`: `/^\s*<!--\s*@(format|prettier)\W/`.
@@ -320,6 +375,8 @@ struct Printer<'a, 'd, 'x> {
     /// Emptied lists of child layouts, kept so each text node and child list does not allocate.
     buffers: Vec<Vec<LayoutInstructionIdentifier>>,
     ignore: Ignore,
+    /// The body of the script Babel would reject, which the plugin prints as it is.
+    unparsed_script: Option<Span>,
 }
 
 /// The plugin's `ignoreNext` and `ignoreRange`.
