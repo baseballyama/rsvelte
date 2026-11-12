@@ -1,6 +1,7 @@
 use rsvelte_kernel::output::edits::BorrowedEdits as Edits;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_stylesheet_semantic::matcher::is_global;
+use rsvelte_stylesheet_syntax::properties::{names_keyframes, without_browser_prefix};
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 
 mod keyframes;
@@ -86,12 +87,7 @@ impl Renderer<'_> {
         declaration: &rsvelte_stylesheet_syntax::syntax_tree::Declaration,
     ) {
         let property = declaration.property.text(self.source);
-        let name = property
-            .strip_prefix("-webkit-")
-            .or_else(|| property.strip_prefix("-moz-"))
-            .or_else(|| property.strip_prefix("-o-"))
-            .unwrap_or(property);
-        if name.eq_ignore_ascii_case("animation") || name.eq_ignore_ascii_case("animation-name") {
+        if names_keyframes(property) {
             return;
         }
         self.trim_before(declaration.span.start_offset);
@@ -236,7 +232,9 @@ impl Renderer<'_> {
                     });
                 }
             }
-            RuleKind::At { name, prelude, .. } if name.text(self.source).ends_with("keyframes") => {
+            RuleKind::At { name, prelude, .. }
+                if without_browser_prefix(name.text(self.source)) == "keyframes" =>
+            {
                 self.keyframes.rename(*prelude, global, &mut self.edits);
                 return;
             }
