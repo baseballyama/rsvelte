@@ -1,4 +1,4 @@
-# svelte.compile/server: 36013 match
+# svelte.compile/server: 36016 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -65,8 +65,6 @@ svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_neighbouring_pos
 svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_whole_key_subtree_moves_with_it/4f67cefb5b0ba2e9.svelte	unexpected
 svelte/rsvelte-tests-core-1/const_tag_parse_error_3691/an_unparseable_initializer_is_rejected/5be5d4786e84cdc5.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_chain_ancestry_guard_1735/global_inner_chain_with_snippet_kept/d07f3897607656c6.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_global_block_body_uses_the_rule_visitor/an_empty_rule_inside_a_global_block_is_commented_out/9bdbf37610533fbb.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_global_block_body_uses_the_rule_visitor/an_empty_rule_inside_a_global_block_is_commented_out/f0dbcdc7fb242a14.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_global_parent_implicit_nesting_4059/a_fully_global_parent_scopes_the_ancestors_of_an_implicitly_nested_child/131bedeeaf159d0b.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_global_parent_implicit_nesting_4059/a_fully_global_parent_scopes_the_ancestors_of_an_implicitly_nested_child/5a78fa9e434f3e48.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_global_parent_implicit_nesting_4059/a_fully_global_parent_scopes_the_ancestors_of_an_implicitly_nested_child/c46e802a9f112388.svelte	mismatch
@@ -617,7 +615,6 @@ svelte/rsvelte/pattern/issues/acorn-reserved-word-opens-an-earlier-statement.sve
 svelte/rsvelte/pattern/issues/deferred-script-error-before-unclosed-block.svelte	mismatch
 svelte/rsvelte/pattern/issues/dollar-function-parameter.svelte	mismatch
 svelte/rsvelte/pattern/issues/global-block-body-is-not-pruned.svelte	mismatch
-svelte/rsvelte/pattern/issues/global-block-body-uses-the-rule-visitor.svelte	mismatch
 svelte/rsvelte/pattern/issues/is-branch-unused-warning-position.svelte	mismatch
 svelte/rsvelte/pattern/issues/legacy-title-store-call.svelte	refused
 svelte/rsvelte/pattern/issues/script-lang-after-quoted-gt.svelte	refused

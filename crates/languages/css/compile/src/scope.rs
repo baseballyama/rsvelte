@@ -112,7 +112,24 @@ impl Renderer<'_> {
         self.used[selector.id as usize] || selector.parts.iter().all(|p| is_global(self.source, p))
     }
 
+    /// Whether a rule is a `:global { ... }` block, whose body Svelte leaves unscoped.
+    fn global_block(&self, selectors: &[ComplexSelector]) -> bool {
+        selectors.iter().any(|s| {
+            s.parts.iter().any(|p| {
+                p.simple
+                    .iter()
+                    .any(|simple| simple.is_global_block(self.source))
+            })
+        })
+    }
+
     fn empty(&self, rule: &Rule, global: bool) -> bool {
+        // Svelte keeps a `:global` block whose body holds anything, and judges what it holds.
+        if let RuleKind::Style { selectors, .. } = &rule.kind
+            && self.global_block(selectors)
+        {
+            return rule.declarations.is_empty() && rule.children.is_empty();
+        }
         rule.declarations.is_empty()
             && rule.children.iter().all(|child| match &child.kind {
                 RuleKind::At { block, .. } => {
@@ -120,14 +137,7 @@ impl Renderer<'_> {
                 }
                 RuleKind::Keyframe { .. } => false,
                 RuleKind::Style { selectors, .. } => {
-                    let child_global = global
-                        || selectors.iter().any(|s| {
-                            s.parts.iter().any(|p| {
-                                p.simple
-                                    .iter()
-                                    .any(|simple| simple.is_global_block(self.source))
-                            })
-                        });
+                    let child_global = global || self.global_block(selectors);
                     (!child_global && !selectors.iter().any(|s| self.used(s)))
                         || self.empty(child, child_global)
                 }
@@ -167,13 +177,7 @@ impl Renderer<'_> {
                 if self.mode == RenderMode::Minify {
                     self.trim_before(rule.span.start_offset);
                 }
-                let global_block = selectors.iter().any(|s| {
-                    s.parts.iter().any(|p| {
-                        p.simple
-                            .iter()
-                            .any(|simple| simple.is_global_block(self.source))
-                    })
-                });
+                let global_block = self.global_block(selectors);
                 child_global |= global_block;
                 if self.empty(rule, child_global) {
                     if self.mode == RenderMode::Minify {
