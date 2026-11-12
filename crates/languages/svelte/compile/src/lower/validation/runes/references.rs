@@ -1,30 +1,40 @@
-//! Upstream's `Identifier` checks of a reference to a rune that no call follows.
+//! Upstream's `Identifier` checks: `arguments` stands in a function, a member chain off a rune
+//! names a rune, and the rune is called.
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::IdentifierReference;
-use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::resolve::RUNES;
 
 use super::RuneWalk;
 use crate::lower::special::invalid;
-use crate::lower::{Diagnostic, Span};
+use crate::lower::{Diagnostic, Span, span_of};
 
 impl RuneWalk<'_> {
-    /// A rune's name, with each member read after it, must be a rune that is called.
+    /// `reference` is the node being entered; its ancestors are the walk's frames.
     pub(super) fn check_rune_reference(
         &self,
         reference: &IdentifierReference<'_>,
     ) -> Result<(), Diagnostic> {
-        let mut name = reference.name.as_str().to_owned();
-        if !RUNES.contains(&name.as_str())
+        let name = reference.name.as_str();
+        // Upstream counts a method as a function expression, and an arrow as no function.
+        if name == "arguments"
+            && !(self.frames.iter()).any(|frame| matches!(frame.kind, AstKind::Function(_)))
+        {
+            return invalid(
+                "invalid_arguments_usage",
+                "The arguments keyword cannot be used within the template or at the top level of \
+                    a component",
+                span_of(reference),
+            );
+        }
+        if !RUNES.contains(&name)
             || self.res.symbol(reference).is_some()
-            || self.res.is_store_subscription(&name)
+            || self.res.is_store_subscription(name)
         {
             return Ok(());
         }
-        let mut current = reference.span;
-        // Upstream reads a tree without parentheses or types.
-        let mut parents = (self.frames.iter().rev()).map(|f| f.kind).filter(|kind| {
+        // Upstream's tree has no parentheses, and no type wrappers once types are erased.
+        let mut ancestors = (self.frames.iter().rev()).map(|f| f.kind).filter(|kind| {
             !matches!(
                 kind,
                 AstKind::ParenthesizedExpression(_)
@@ -35,45 +45,31 @@ impl RuneWalk<'_> {
                     | AstKind::TSInstantiationExpression(_)
             )
         });
-        let mut parent = parents.next();
+        let mut name = name.to_owned();
+        let mut current = span_of(&AstKind::IdentifierReference(reference));
+        let mut parent = ancestors.next();
         loop {
             let property = match parent {
-                Some(AstKind::StaticMemberExpression(member)) => {
-                    Some((member.property.name.as_str(), member.span))
-                }
                 Some(AstKind::ComputedMemberExpression(member)) => {
                     return invalid(
                         "rune_invalid_computed_property",
                         "Cannot access a computed property of a rune",
-                        span(member.span),
+                        span_of(&AstKind::ComputedMemberExpression(member)),
                     );
                 }
-                _ => None,
-            };
-            let Some((property, member)) = property else {
-                break;
+                Some(AstKind::StaticMemberExpression(member)) => member.property.name.as_str(),
+                Some(AstKind::PrivateFieldExpression(member)) => member.field.name.as_str(),
+                _ => break,
             };
             name.push('.');
             name.push_str(property);
-            current = member;
-            parent = parents.next();
+            current = span_of(&parent.expect("a member expression"));
+            parent = ancestors.next();
             if !RUNES.contains(&name.as_str()) {
-                let at = span(parent.map(|p| p.span()).or(self.tag).unwrap_or(member));
-                let renamed = match name.as_str() {
-                    "$effect.active" => Some("$effect.tracking"),
-                    "$state.frozen" => Some("$state.raw"),
-                    _ => None,
-                };
-                if let Some(replacement) = renamed {
-                    let message = format!("`{name}` is now `{replacement}`");
-                    return invalid("rune_renamed", &message, at);
-                }
-                if name == "$state.is" {
-                    let message = format!("The `{name}` rune has been removed");
-                    return invalid("rune_removed", &message, at);
-                }
-                let message = format!("`{name}` is not a valid rune");
-                return invalid("rune_invalid_name", &message, at);
+                // At a template expression's root upstream names the tag, which the walk cannot
+                // see.
+                let at = parent.map_or(self.tag, |parent| Some(span_of(&parent)));
+                return invalid_name(&name, at.unwrap_or(current), at.is_some());
             }
         }
         if matches!(parent, Some(AstKind::CallExpression(_))) {
@@ -82,11 +78,35 @@ impl RuneWalk<'_> {
         invalid(
             "rune_missing_parentheses",
             "Cannot use rune without parentheses",
-            span(current),
+            current,
         )
     }
 }
 
-const fn span(span: oxc_span::Span) -> Span {
-    Span::new(span.start, span.end)
+fn invalid_name(name: &str, span: Span, known: bool) -> Result<(), Diagnostic> {
+    if !known {
+        return Err(Diagnostic::error(
+            "unsupported",
+            "an invalid rune name at the root of a template attribute",
+            span,
+        ));
+    }
+    match name {
+        "$effect.active" => invalid(
+            "rune_renamed",
+            "`$effect.active` is now `$effect.tracking`",
+            span,
+        ),
+        "$state.frozen" => invalid("rune_renamed", "`$state.frozen` is now `$state.raw`", span),
+        "$state.is" => invalid(
+            "rune_removed",
+            "The `$state.is` rune has been removed",
+            span,
+        ),
+        _ => invalid(
+            "rune_invalid_name",
+            &format!("`{name}` is not a valid rune"),
+            span,
+        ),
+    }
 }

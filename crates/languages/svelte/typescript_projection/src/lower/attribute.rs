@@ -172,6 +172,10 @@ impl Builder<'_> {
             AttributeValue::Parts(range) => self.component.parts(range),
         };
         let value = match (attribute.value, parts) {
+            // svelte2tsx's one exception: a bare `popover` is its empty-string state.
+            (AttributeValue::True, _) if attribute.name.text(self.source) == "popover" => {
+                self.tree.push(Node::StringLiteral(""))
+            }
             (AttributeValue::True, _) => self.tree.push(Node::Boolean),
             (_, &[Part::Text(text)])
                 if intrinsic

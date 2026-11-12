@@ -1,1 +1,0 @@
-error check_unsupported 7:4-7:15 not supported by the type-check projection yet: component directives
