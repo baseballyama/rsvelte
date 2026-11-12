@@ -273,7 +273,7 @@ impl Parser<'_, '_> {
             self.position as u32,
             "</style",
         )
-        .map_err(|e| Diagnostic::error("css_parse_error", e.message, e.span));
+        .map_err(|e| Diagnostic::error(e.code, e.message, e.span));
         let content = match &sheet {
             Ok(sheet)
                 if self.source_text[sheet.content.end_offset as usize..].starts_with("</style") =>

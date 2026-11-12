@@ -10,6 +10,8 @@ use crate::syntax_tree::{Declaration, Rule, RuleIdentifier, RuleKind, StyleSheet
 
 #[derive(Debug, Clone)]
 pub struct ParseError {
+    /// Svelte's error code, or `css_parse_error` where this parser has none of its own.
+    pub code: &'static str,
     pub message: String,
     pub span: Span,
 }
@@ -112,6 +114,7 @@ const fn is_ident_byte(c: u8) -> bool {
 impl P<'_> {
     fn fail<X>(&self, message: &str) -> R<X> {
         Err(ParseError {
+            code: "css_parse_error",
             message: message.to_owned(),
             span: Span::new(self.position as u32, self.position as u32),
         })
@@ -144,10 +147,16 @@ impl P<'_> {
         loop {
             self.whitespace();
             let rest = &self.source_text[self.position..self.end];
-            if rest.starts_with("<!--") {
-                self.position += 4;
-            } else if rest.starts_with("-->") {
-                self.position += 3;
+            // Svelte skips an HTML comment whole, so what it holds is not part of the sheet.
+            if let Some(after) = rest.strip_prefix("<!--") {
+                let Some(i) = after.find("-->") else {
+                    return Err(ParseError {
+                        code: "expected_token",
+                        message: "Expected token -->".to_owned(),
+                        span: Span::new(self.end as u32, self.end as u32),
+                    });
+                };
+                self.position += 4 + i + 3;
             } else if rest.starts_with("/*") {
                 let start = self.position;
                 match self.source_text[self.position + 2..self.end].find("*/") {
@@ -419,15 +428,7 @@ impl P<'_> {
                 Some(b'@') => push(&mut children, self.at_rule()?),
                 Some(_) => {
                     let start = self.position;
-                    let comments = self.comments.len();
-                    let whitespace = self.whitespace.len();
-                    let closers = self.comment_closers.len();
-                    self.skip_balanced_until(b"{;}")?;
-                    let nested = self.peek() == Some(b'{');
-                    self.position = start;
-                    self.comments.truncate(comments);
-                    self.whitespace.truncate(whitespace);
-                    self.comment_closers.truncate(closers);
+                    let nested = self.b[self.value_end()?] == b'{';
                     if nested {
                         push(&mut children, self.style_rule()?);
                     } else {
@@ -439,17 +440,26 @@ impl P<'_> {
                             self.position += 1;
                         }
                         let property = self.span(property_start);
-                        if property.is_empty() {
-                            return self.fail("expected a property name");
-                        }
                         self.skip_trivia()?;
                         if self.peek() == Some(b':') {
                             self.position += 1;
                         }
+                        let colon_end = self.position;
                         self.skip_trivia()?;
                         let value_start = self.position;
-                        let tokens = self.value_tokens(property)?;
+                        let value_end = self.value_end()?;
+                        let sheet_end = std::mem::replace(&mut self.end, value_end);
+                        let tokens = self.value_tokens(property);
+                        self.end = sheet_end;
+                        let tokens = tokens?;
                         let value = trim(self.source_text, self.span(value_start));
+                        if value.is_empty() && !property.text(self.source_text).starts_with("--") {
+                            return Err(ParseError {
+                                code: "css_empty_declaration",
+                                message: "Declaration cannot be empty".to_owned(),
+                                span: Span::new(start as u32, colon_end as u32),
+                            });
+                        }
                         push(
                             &mut declarations,
                             Declaration {
@@ -463,6 +473,63 @@ impl P<'_> {
                 }
             }
         }
+    }
+
+    fn eat(&mut self, c: u8) -> bool {
+        let found = self.peek() == Some(c);
+        if found {
+            self.position += 1;
+        }
+        found
+    }
+
+    /// Where Svelte ends the value that starts here: at the first `;`, `{` or `}` outside a
+    /// string and a `url(...)`, whatever brackets come before it.
+    fn value_end(&self) -> R<usize> {
+        let mut at = self.position;
+        let mut quote = None;
+        let mut in_url = false;
+        // The last bytes of the value as Svelte collects it, which leaves comments out.
+        let mut tail = [0u8; 3];
+        while at < self.end {
+            let c = self.b[at];
+            let read = |tail: &mut [u8; 3], c: u8| *tail = [tail[1], tail[2], c];
+            match c {
+                b'\\' => {
+                    read(&mut tail, c);
+                    at += 1;
+                    if at < self.end {
+                        read(&mut tail, self.b[at]);
+                    }
+                }
+                _ if Some(c) == quote => quote = None,
+                b')' => in_url = false,
+                b'"' | b'\'' if quote.is_none() => quote = Some(c),
+                b'(' if &tail == b"url" => in_url = true,
+                b';' | b'{' | b'}' if !in_url && quote.is_none() => return Ok(at),
+                b'/' if !in_url && quote.is_none() && self.b.get(at + 1) == Some(&b'*') => {
+                    let Some(i) = self.source_text[at + 2..self.end].find("*/") else {
+                        return Err(ParseError {
+                            code: "css_parse_error",
+                            message: "unterminated comment".to_owned(),
+                            span: Span::new(self.end as u32, self.end as u32),
+                        });
+                    };
+                    at += i + 4;
+                    continue;
+                }
+                _ => {}
+            }
+            if c != b'\\' {
+                read(&mut tail, c);
+            }
+            at += 1;
+        }
+        Err(ParseError {
+            code: "unexpected_eof",
+            message: "Unexpected end of input".to_owned(),
+            span: Span::new(self.end as u32, self.end as u32),
+        })
     }
 
     fn value_tokens(&mut self, property: Span) -> R<std::ops::Range<u32>> {
@@ -487,8 +554,9 @@ impl P<'_> {
                         self.position = start;
                         self.string()?;
                     } else {
-                        self.skip_balanced_until(if c == b'(' { b")" } else { b"]" })?;
-                        self.expect(if c == b'(' { b')' } else { b']' })?;
+                        let close = if c == b'(' { b')' } else { b']' };
+                        self.skip_balanced_until(&[close])?;
+                        self.eat(close);
                     }
                     if collect {
                         self.value_tokens.push(self.span(start));
@@ -500,10 +568,9 @@ impl P<'_> {
                     if self.position == start {
                         self.position += 1;
                     }
-                    if self.peek() == Some(b'(') {
-                        self.position += 1;
+                    if self.eat(b'(') {
                         self.skip_balanced_until(b")")?;
-                        self.expect(b')')?;
+                        self.eat(b')');
                     }
                     if collect {
                         self.value_tokens.push(self.span(start));
