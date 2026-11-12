@@ -23,9 +23,9 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 30229393,
-	"alloc_bytes": 4432653248,
-	"peak_live_growth_bytes": 3489183,
+	"allocs": 30245172,
+	"alloc_bytes": 4437931475,
+	"peak_live_growth_bytes": 3489375,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
 			"calls": 2604,
@@ -33,12 +33,12 @@
 			"alloc_bytes": 1661076
 		},
 		"js.print": {
-			"calls": 70283,
-			"allocs": 210871,
-			"alloc_bytes": 139601269
+			"calls": 69793,
+			"allocs": 209401,
+			"alloc_bytes": 139283863
 		},
 		"no-unused-vars": {
-			"calls": 35028,
+			"calls": 35007,
 			"allocs": 124674,
 			"alloc_bytes": 12424434
 		},
@@ -54,13 +54,13 @@
 		},
 		"svelte.compile/client": {
 			"calls": 36861,
-			"allocs": 93860,
-			"alloc_bytes": 13193907
+			"allocs": 93372,
+			"alloc_bytes": 13161723
 		},
 		"svelte.compile/server": {
 			"calls": 36861,
-			"allocs": 93859,
-			"alloc_bytes": 13193969
+			"allocs": 93371,
+			"alloc_bytes": 13161785
 		},
 		"svelte.compileModule/client": {
 			"calls": 2680,
@@ -84,23 +84,23 @@
 		},
 		"svelte.format/default": {
 			"calls": 36861,
-			"allocs": 3745148,
-			"alloc_bytes": 249866090
+			"allocs": 3745008,
+			"alloc_bytes": 249859168
 		},
 		"svelte.lint/default": {
 			"calls": 36861,
-			"allocs": 177131,
-			"alloc_bytes": 17359155
+			"allocs": 177173,
+			"alloc_bytes": 17365722
 		},
 		"svelte.lower.client": {
 			"calls": 36537,
-			"allocs": 5703017,
-			"alloc_bytes": 496735431
+			"allocs": 5692419,
+			"alloc_bytes": 496068567
 		},
 		"svelte.lower.server": {
 			"calls": 36537,
-			"allocs": 4023661,
-			"alloc_bytes": 391044739
+			"allocs": 4016893,
+			"alloc_bytes": 390592412
 		},
 		"svelte.output_identity": {
 			"calls": 34934,
@@ -111,6 +111,11 @@
 			"calls": 36861,
 			"allocs": 570756,
 			"alloc_bytes": 174605251
+		},
+		"svelte.parse.cut_style": {
+			"calls": 35028,
+			"allocs": 35689,
+			"alloc_bytes": 6779547
 		},
 		"svelte.render_plan": {
 			"calls": 34934,
@@ -143,7 +148,7 @@
 			"alloc_bytes": 17920250
 		},
 		"svelte/button-has-type": {
-			"calls": 35028,
+			"calls": 35007,
 			"allocs": 8019,
 			"alloc_bytes": 2095922
 		},
