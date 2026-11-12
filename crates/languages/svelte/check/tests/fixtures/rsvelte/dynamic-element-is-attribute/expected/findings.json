@@ -1,0 +1,26 @@
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './C.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 0,
+			"character": 32
+		},
+		"end": {
+			"line": 0,
+			"character": 44
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"defaultvalue\"' does not exist in type 'HTMLAttributes<any>'.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	}
+]
