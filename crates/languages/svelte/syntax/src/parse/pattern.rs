@@ -1,5 +1,4 @@
 use oxc_ast::ast::FormalParameter;
-use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::PatternIdentifier;
@@ -23,18 +22,14 @@ impl<'a> Parser<'a, '_> {
                 } else {
                     b']'
                 };
-                match_bracket(
+                match match_bracket(
                     self.rest(),
                     self.source_text.as_bytes()[self.position],
                     close,
-                )
-                .ok_or_else(|| {
-                    Diagnostic::error(
-                        "parse_error",
-                        "unterminated pattern",
-                        Span::new(start_offset as u32, start_offset as u32),
-                    )
-                })?
+                ) {
+                    Ok(len) => len,
+                    Err(why) => return self.unmatched(why),
+                }
             }
             _ => self.binding_name_len()?,
         };
