@@ -1,24 +1,9 @@
+/// The compiler's void elements: HTML's, the obsolete `command` and `keygen`, and the doctype.
 #[must_use]
 pub fn is_void(name: &str) -> bool {
-    matches!(
-        name,
-        "area"
-            | "base"
-            | "br"
-            | "col"
-            | "command"
-            | "embed"
-            | "hr"
-            | "img"
-            | "input"
-            | "keygen"
-            | "link"
-            | "meta"
-            | "param"
-            | "source"
-            | "track"
-            | "wbr"
-    ) || name.eq_ignore_ascii_case("!doctype")
+    rsvelte_markup_syntax::is_void(name)
+        || matches!(name, "command" | "keygen")
+        || name.eq_ignore_ascii_case("!doctype")
 }
 
 /// Which children close an open element: only direct children, or children at any depth.

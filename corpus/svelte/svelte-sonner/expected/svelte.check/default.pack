@@ -167,7 +167,7 @@
 === 3 src/components/TestWithProps.svelte	json
 []
 
-=== 776 src/components/Types.svelte	json
+=== 699 src/components/Types.svelte	json
 [
 	{
 		"code": 2307,
@@ -183,7 +183,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Custom.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/components/Custom.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Custom.svelte'. 'src/components/Custom.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 20
@@ -270,7 +270,7 @@
 	}
 ]
 
-=== 2603 src/lib/Toaster.svelte	json
+=== 2218 src/lib/Toaster.svelte	json
 [
 	{
 		"code": 2307,
@@ -298,7 +298,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/SuccessIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/lib/icons/SuccessIcon.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/SuccessIcon.svelte'. 'src/lib/icons/SuccessIcon.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 87,
 			"character": 25
@@ -310,7 +310,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/ErrorIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/lib/icons/ErrorIcon.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/ErrorIcon.svelte'. 'src/lib/icons/ErrorIcon.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 88,
 			"character": 23
@@ -322,7 +322,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/WarningIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/lib/icons/WarningIcon.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/WarningIcon.svelte'. 'src/lib/icons/WarningIcon.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 89,
 			"character": 25
@@ -334,7 +334,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/InfoIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/lib/icons/InfoIcon.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/InfoIcon.svelte'. 'src/lib/icons/InfoIcon.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 90,
 			"character": 22
@@ -346,7 +346,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/CloseIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/lib/icons/CloseIcon.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/CloseIcon.svelte'. 'src/lib/icons/CloseIcon.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 91,
 			"character": 23
@@ -413,7 +413,7 @@
 	}
 ]
 
-=== 1003 src/routes/+page.svelte	json
+=== 926 src/routes/+page.svelte	json
 [
 	{
 		"code": 2307,
@@ -441,7 +441,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../components/Footer.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/components/Footer.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../components/Footer.svelte'. 'src/components/Footer.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 4,
 			"character": 20
@@ -465,7 +465,7 @@
 	}
 ]
 
-=== 1347 src/routes/test/+page.svelte	json
+=== 1193 src/routes/test/+page.svelte	json
 [
 	{
 		"code": 2307,
@@ -505,7 +505,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './CustomIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/routes/test/CustomIcon.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './CustomIcon.svelte'. 'src/routes/test/CustomIcon.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 4,
 			"character": 24
@@ -517,7 +517,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './WideDescription.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/routes/test/WideDescription.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './WideDescription.svelte'. 'src/routes/test/WideDescription.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 5,
 			"character": 29

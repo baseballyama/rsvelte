@@ -145,8 +145,11 @@ fn typescript_view(
         },
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
+        placement: placement::instance(component),
     })
 }
+
+mod placement;
 
 #[cfg(test)]
 mod tests;

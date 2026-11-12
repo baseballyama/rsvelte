@@ -194,7 +194,8 @@ impl Tsc {
             // The command line reports errors only; svelte-check's errors are the oracle.
             .filter(|(_, d)| d.category == ERROR)
             .map(|(syntactic, d)| {
-                located(&d, &paths, &lines, syntactic).ok_or_else(|| unlocated(&self.checker, &d))
+                located(&d, &root, &paths, &lines, syntactic)
+                    .ok_or_else(|| unlocated(&self.checker, &d))
             })
             .collect()
     }
@@ -240,9 +241,12 @@ fn tsconfig_json(
 /// `DiagnosticCategory.Error`.
 const ERROR: u8 = 1;
 
-/// The document and byte range of a diagnostic in one of `paths`, whose texts `lines` index.
+/// The document and byte range of a diagnostic in one of `paths`, whose texts `lines` index. A
+/// path below `root` in the message drops that root, so the message does not depend on where the
+/// project is.
 fn located(
     d: &rsvelte_typescript_api::Diagnostic,
+    root: &Path,
     paths: &[PathBuf],
     lines: &[LineIndex],
     syntactic: bool,
@@ -259,7 +263,10 @@ fn located(
     Some(TypeScriptDiagnostic {
         file,
         code: d.code,
-        message: d.flattened_message(),
+        message: d.flattened_message().replace(
+            &format!("{}{}", root.display(), std::path::MAIN_SEPARATOR),
+            "",
+        ),
         span,
         syntactic,
     })

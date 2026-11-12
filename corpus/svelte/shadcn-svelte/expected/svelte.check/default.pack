@@ -5289,11 +5289,11 @@
 	}
 ]
 
-=== 364 docs/src/lib/components/install-cards.svelte	json
+=== 287 docs/src/lib/components/install-cards.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './svelte-white.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-c5qk35/docs/src/lib/components/svelte-white.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './svelte-white.svelte'. 'docs/src/lib/components/svelte-white.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 2,
 			"character": 25
@@ -15798,7 +15798,7 @@
 	}
 ]
 
-=== 8371 docs/src/lib/registry/blocks/dashboard-01/components/data-table.svelte	json
+=== 8217 docs/src/lib/registry/blocks/dashboard-01/components/data-table.svelte	json
 [
 	{
 		"code": 2307,
@@ -16030,7 +16030,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './data-table-header-limit.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-c5qk35/docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-limit.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './data-table-header-limit.svelte'. 'docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-limit.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 32,
 			"character": 34
@@ -16042,7 +16042,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './data-table-header-target.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-c5qk35/docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-target.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './data-table-header-target.svelte'. 'docs/src/lib/registry/blocks/dashboard-01/components/data-table-header-target.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 33,
 			"character": 35

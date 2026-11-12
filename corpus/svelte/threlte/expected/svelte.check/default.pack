@@ -2392,11 +2392,11 @@
 	}
 ]
 
-=== 394 apps/docs/src/examples/core/three-arcade-game/game/objects/Ball/Ball.svelte	json
+=== 317 apps/docs/src/examples/core/three-arcade-game/game/objects/Ball/Ball.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './BallOut.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-m3c9sw/apps/docs/src/examples/core/three-arcade-game/game/objects/Ball/BallOut.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './BallOut.svelte'. 'apps/docs/src/examples/core/three-arcade-game/game/objects/Ball/BallOut.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 2,
 			"character": 22
@@ -7130,7 +7130,7 @@
 === 3 apps/docs/src/examples/extras/meshline-material/alpha-map/Scene.svelte	json
 []
 
-=== 815 apps/docs/src/examples/extras/meshline-material/animated/App.svelte	json
+=== 738 apps/docs/src/examples/extras/meshline-material/animated/App.svelte	json
 [
 	{
 		"code": 2307,
@@ -7146,7 +7146,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Scene.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-m3c9sw/apps/docs/src/examples/extras/meshline-material/animated/Scene.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Scene.svelte'. 'apps/docs/src/examples/extras/meshline-material/animated/Scene.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 2,
 			"character": 20
@@ -33119,7 +33119,7 @@
 	}
 ]
 
-=== 984 packages/studio/src/routes/+page.svelte	json
+=== 907 packages/studio/src/routes/+page.svelte	json
 [
 	{
 		"code": 2307,
@@ -33135,7 +33135,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Scene.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-m3c9sw/packages/studio/src/routes/Scene.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Scene.svelte'. 'packages/studio/src/routes/Scene.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 2,
 			"character": 20

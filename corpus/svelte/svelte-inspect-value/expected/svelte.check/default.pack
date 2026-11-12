@@ -2601,7 +2601,7 @@
 	}
 ]
 
-=== 1442 packages/svelte/src/lib/components/GetterSetter.svelte	json
+=== 1365 packages/svelte/src/lib/components/GetterSetter.svelte	json
 [
 	{
 		"code": 2307,
@@ -2653,7 +2653,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/CloseIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-bW1cMx/packages/svelte/src/lib/components/icons/CloseIcon.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/CloseIcon.svelte'. 'packages/svelte/src/lib/components/icons/CloseIcon.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 15,
 			"character": 24
@@ -3562,11 +3562,11 @@
 	}
 ]
 
-=== 806 packages/svelte/src/lib/components/StringValue.svelte	json
+=== 729 packages/svelte/src/lib/components/StringValue.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/LinkIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-bW1cMx/packages/svelte/src/lib/components/icons/LinkIcon.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/LinkIcon.svelte'. 'packages/svelte/src/lib/components/icons/LinkIcon.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 10,
 			"character": 23
@@ -5172,11 +5172,11 @@
 	}
 ]
 
-=== 373 packages/svelte/src/routes/(app)/reference/panel/PanelExample.svelte	json
+=== 296 packages/svelte/src/routes/(app)/reference/panel/PanelExample.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Todo.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-bW1cMx/packages/svelte/src/routes/(app)/reference/panel/Todo.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Todo.svelte'. 'packages/svelte/src/routes/(app)/reference/panel/Todo.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 19

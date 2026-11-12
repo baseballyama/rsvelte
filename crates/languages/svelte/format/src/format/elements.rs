@@ -6,12 +6,6 @@ use super::{
 };
 use crate::options::WhitespaceSensitivity;
 
-/// prettier-plugin-svelte `selfClosingTags`.
-const SELF_CLOSING: &[&str] = &[
-    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
-    "track", "wbr",
-];
-
 impl Printer<'_, '_, '_> {
     #[expect(
         clippy::too_many_lines,
@@ -55,7 +49,7 @@ impl Printer<'_, '_, '_> {
         let is_doctype = name.eq_ignore_ascii_case("!DOCTYPE");
         let self_closing = is_empty
             && (did_self_close
-                || SELF_CLOSING.contains(&name)
+                || rsvelte_markup_syntax::is_void(name)
                 || is_doctype
                 || name == "svelte:window");
         let was_pre = self.in_pre;

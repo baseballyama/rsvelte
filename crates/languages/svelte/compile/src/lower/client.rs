@@ -64,22 +64,7 @@ type R<T> = Result<T, Diagnostic>;
 #[must_use]
 pub(super) fn normalize_attribute(name: &str) -> String {
     let lower = name.to_ascii_lowercase();
-    let alias = match lower.as_str() {
-        "formnovalidate" => "formNoValidate",
-        "ismap" => "isMap",
-        "nomodule" => "noModule",
-        "playsinline" => "playsInline",
-        "readonly" => "readOnly",
-        "defaultvalue" => "defaultValue",
-        "defaultchecked" => "defaultChecked",
-        "srcobject" => "srcObject",
-        "novalidate" => "noValidate",
-        "allowfullscreen" => "allowFullscreen",
-        "disablepictureinpicture" => "disablePictureInPicture",
-        "disableremoteplayback" => "disableRemotePlayback",
-        _ => return lower,
-    };
-    alias.to_owned()
+    rsvelte_markup_syntax::property_name(&lower).map_or(lower, str::to_owned)
 }
 
 use binding_accessors::each_scopes;

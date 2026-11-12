@@ -966,7 +966,7 @@
 	}
 ]
 
-=== 1487 docs/src/lib/components/demo-code-container.svelte	json
+=== 1410 docs/src/lib/components/demo-code-container.svelte	json
 [
 	{
 		"code": 2307,
@@ -982,7 +982,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './code-renders/app-css.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-wAnQFY/docs/src/lib/components/code-renders/app-css.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './code-renders/app-css.svelte'. 'docs/src/lib/components/code-renders/app-css.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 4,
 			"character": 20
@@ -7198,7 +7198,7 @@
 	}
 ]
 
-=== 1708 docs/src/lib/components/doc-page-header.svelte	json
+=== 1631 docs/src/lib/components/doc-page-header.svelte	json
 [
 	{
 		"code": 2307,
@@ -7274,7 +7274,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './sidebar-sponsor-mobile.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-wAnQFY/docs/src/lib/components/sidebar-sponsor-mobile.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './sidebar-sponsor-mobile.svelte'. 'docs/src/lib/components/sidebar-sponsor-mobile.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 11,
 			"character": 34
@@ -7286,7 +7286,7 @@
 	}
 ]
 
-=== 1469 docs/src/lib/components/doc-page.svelte	json
+=== 1392 docs/src/lib/components/doc-page.svelte	json
 [
 	{
 		"code": 2307,
@@ -7350,7 +7350,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './sidebar-sponsor.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-wAnQFY/docs/src/lib/components/sidebar-sponsor.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './sidebar-sponsor.svelte'. 'docs/src/lib/components/sidebar-sponsor.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 10,
 			"character": 28

@@ -11518,11 +11518,11 @@
 	}
 ]
 
-=== 382 src/routes/admin-dashboard/(no-sidebar)/+layout.svelte	json
+=== 305 src/routes/admin-dashboard/(no-sidebar)/+layout.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../(no-sidebar)/Footer.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/admin-dashboard/(no-sidebar)/Footer.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../(no-sidebar)/Footer.svelte'. 'src/routes/admin-dashboard/(no-sidebar)/Footer.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 21
@@ -13136,7 +13136,7 @@
 	}
 ]
 
-=== 1164 src/routes/blocks/utils/Paging.svelte	json
+=== 1010 src/routes/blocks/utils/Paging.svelte	json
 [
 	{
 		"code": 2307,
@@ -13164,7 +13164,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/ArrowLeft.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/blocks/utils/icons/ArrowLeft.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/ArrowLeft.svelte'. 'src/routes/blocks/utils/icons/ArrowLeft.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 24
@@ -13176,7 +13176,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/ArrowRight.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/blocks/utils/icons/ArrowRight.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/ArrowRight.svelte'. 'src/routes/blocks/utils/icons/ArrowRight.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 4,
 			"character": 25
@@ -35218,7 +35218,7 @@
 	}
 ]
 
-=== 1264 src/routes/landing/CTA.svelte	json
+=== 1187 src/routes/landing/CTA.svelte	json
 [
 	{
 		"code": 2307,
@@ -35270,7 +35270,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../utils/icons/ArrowRight.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/ArrowRight.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../utils/icons/ArrowRight.svelte'. 'src/routes/utils/icons/ArrowRight.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 5,
 			"character": 25
@@ -35298,7 +35298,7 @@
 	}
 ]
 
-=== 1247 src/routes/landing/Contributors.svelte	json
+=== 1170 src/routes/landing/Contributors.svelte	json
 [
 	{
 		"code": 2307,
@@ -35338,7 +35338,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../utils/icons/Community.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/Community.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../utils/icons/Community.svelte'. 'src/routes/utils/icons/Community.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 4,
 			"character": 24
@@ -35362,7 +35362,7 @@
 	}
 ]
 
-=== 1330 src/routes/landing/DesignFigma.svelte	json
+=== 1099 src/routes/landing/DesignFigma.svelte	json
 [
 	{
 		"code": 2307,
@@ -35378,7 +35378,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../utils/icons/ArrowRight.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/ArrowRight.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../utils/icons/ArrowRight.svelte'. 'src/routes/utils/icons/ArrowRight.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 2,
 			"character": 25
@@ -35390,7 +35390,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../utils/icons/Figma.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/Figma.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../utils/icons/Figma.svelte'. 'src/routes/utils/icons/Figma.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 20
@@ -35402,7 +35402,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../utils/icons/FlowbiteLogo.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/FlowbiteLogo.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../utils/icons/FlowbiteLogo.svelte'. 'src/routes/utils/icons/FlowbiteLogo.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 4,
 			"character": 27
@@ -35414,11 +35414,11 @@
 	}
 ]
 
-=== 374 src/routes/landing/Featured.svelte	json
+=== 297 src/routes/landing/Featured.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../utils/icons/YouTubeFull.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/YouTubeFull.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../utils/icons/YouTubeFull.svelte'. 'src/routes/utils/icons/YouTubeFull.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 5,
 			"character": 26
@@ -35430,7 +35430,7 @@
 	}
 ]
 
-=== 598 src/routes/landing/GetStarted.svelte	json
+=== 521 src/routes/landing/GetStarted.svelte	json
 [
 	{
 		"code": 2307,
@@ -35446,7 +35446,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../utils/icons/ArrowRight.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/ArrowRight.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../utils/icons/ArrowRight.svelte'. 'src/routes/utils/icons/ArrowRight.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 25
@@ -35458,7 +35458,7 @@
 	}
 ]
 
-=== 598 src/routes/landing/Hero.svelte	json
+=== 521 src/routes/landing/Hero.svelte	json
 [
 	{
 		"code": 2307,
@@ -35474,7 +35474,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../utils/icons/ArrowRight.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/ArrowRight.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../utils/icons/ArrowRight.svelte'. 'src/routes/utils/icons/ArrowRight.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 25
@@ -35486,7 +35486,7 @@
 	}
 ]
 
-=== 1949 src/routes/landing/SocialProof.svelte	json
+=== 1718 src/routes/landing/SocialProof.svelte	json
 [
 	{
 		"code": 2307,
@@ -35514,7 +35514,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../utils/icons/Figma.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/Figma.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../utils/icons/Figma.svelte'. 'src/routes/utils/icons/Figma.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 20
@@ -35526,7 +35526,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../utils/icons/Npm.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/Npm.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../utils/icons/Npm.svelte'. 'src/routes/utils/icons/Npm.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 5,
 			"character": 18
@@ -35538,7 +35538,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../utils/icons/Quote.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/Quote.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../utils/icons/Quote.svelte'. 'src/routes/utils/icons/Quote.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 6,
 			"character": 20
@@ -35914,7 +35914,7 @@
 	}
 ]
 
-=== 567 src/routes/utils/CopyCliboardInput.svelte	json
+=== 490 src/routes/utils/CopyCliboardInput.svelte	json
 [
 	{
 		"code": 2307,
@@ -35930,7 +35930,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/Clipboard.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/Clipboard.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/Clipboard.svelte'. 'src/routes/utils/icons/Clipboard.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 24
@@ -36243,7 +36243,7 @@
 	}
 ]
 
-=== 1139 src/routes/utils/Paging.svelte	json
+=== 985 src/routes/utils/Paging.svelte	json
 [
 	{
 		"code": 2307,
@@ -36271,7 +36271,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/ArrowLeft.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/ArrowLeft.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/ArrowLeft.svelte'. 'src/routes/utils/icons/ArrowLeft.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 24
@@ -36283,7 +36283,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/ArrowRight.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-UCb1YA/src/routes/utils/icons/ArrowRight.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/ArrowRight.svelte'. 'src/routes/utils/icons/ArrowRight.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 4,
 			"character": 25
