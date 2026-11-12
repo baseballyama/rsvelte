@@ -374,7 +374,7 @@ fn what_svelte_rejects_is_refused() {
     );
     assert_eq!(
         refusal("<svelte:options runes>\n</svelte:options>\n").0,
-        "`<svelte:options>` with children"
+        "a syntax error"
     );
     for source_text in [
         "<svelte:options runes=\"true\" />\n",
@@ -393,11 +393,7 @@ fn what_svelte_rejects_is_refused() {
         "<svelte:options customElement={x} />\n",
         "<svelte:options customElement />\n",
     ] {
-        assert_eq!(
-            refusal(source_text).0,
-            "a `<svelte:options>` attribute Svelte may reject",
-            "{source_text}"
-        );
+        assert_eq!(refusal(source_text).0, "a syntax error", "{source_text}");
     }
     for source_text in [
         "<svelte:options runes={false} immutable accessors={true} preserveWhitespace />\n",

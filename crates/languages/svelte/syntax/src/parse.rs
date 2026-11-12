@@ -12,6 +12,7 @@ mod element_rules;
 mod fragment;
 mod identifier;
 mod javascript;
+mod options;
 pub use javascript::javascript_failure;
 mod pattern;
 mod script;
@@ -96,7 +97,12 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
         })?;
         Ok(parser.component)
     })?;
-    Ok(template.into_component(javascript))
+    let component = template.into_component(javascript);
+    // Upstream reads the options once the template is parsed; a style sheet's error comes first.
+    if component.style_error().is_none() {
+        options::read_options(&component, source_text)?;
+    }
+    Ok(component)
 }
 
 /// Whether `offset` is in the content of a `<script>` element, which svelte-eslint-parser
