@@ -1,4 +1,4 @@
-# svelte.compile/server: 36016 match
+# svelte.compile/server: 36021 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -79,8 +79,6 @@ svelte/rsvelte-tests-core-1/css_is_where_branch/is_descendant_no_match_reports_w
 svelte/rsvelte-tests-core-1/css_nested_specificity_global_ancestor/a_global_ancestor_with_a_local_selector_still_bumps/ef2faacd70ba2d42.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/6e19c2606f952300.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/d194f58883e60cf4.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_snippet_render_site_scope_4113/a_snippet_reached_only_through_a_component_prop_is_scoped_from_that_component/0e8c2a3cb5af6185.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_snippet_render_site_scope_4113/a_snippet_reached_only_through_a_component_prop_is_scoped_from_that_component/5c6b9df354927381.svelte	mismatch
 svelte/rsvelte-tests-core-1/custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/21427d2c83ae00e7.svelte	mismatch
 svelte/rsvelte-tests-core-1/custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/219c4e938f2705dc.svelte	mismatch
 svelte/rsvelte-tests-core-1/custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/3ba1c33cb1ffa0f4.svelte	mismatch
@@ -269,9 +267,7 @@ svelte/rsvelte-tests-core-3/slot_host_3598/svelte_self_is_a_slot_host/265160175d
 svelte/rsvelte-tests-core-3/slot_host_3598/svelte_self_is_a_slot_host/7b1afc293466c4b0.svelte	refused
 svelte/rsvelte-tests-core-3/slot_host_3598/svelte_self_is_a_slot_host/874b58934488e183.svelte	refused
 svelte/rsvelte-tests-core-3/snippet_param_default_parens_4384/the_client_matches_the_official_compiler/c24a069de8126c33.svelte	mismatch
-svelte/rsvelte-tests-core-3/snippet_render_site_scoping_4115/a_component_handed_a_snippet_by_attribute_is_a_render_site/e3630ce55c7c7f37.svelte	mismatch
 svelte/rsvelte-tests-core-3/snippet_render_site_scoping_4115/a_renderer_written_inside_a_snippet_inherits_that_snippets_own_sites/fdf5afa09809a172.svelte	mismatch
-svelte/rsvelte-tests-core-3/snippet_render_sites_4115/an_unresolved_renderer_is_a_site_of_every_snippet/1f8e004f9d9db58b.svelte	mismatch
 svelte/rsvelte-tests-core-3/state_destructure_default_2002/a_default_is_visited_after_every_array_is_named/7fffa763303d97fe.svelte	mismatch
 svelte/rsvelte-tests-core-3/store_rune_conflict_3597/another_rune_reference_still_enables_runes_mode/85dae5221dd8bfac.svelte	mismatch
 svelte/rsvelte-tests-core-3/svelte_options_deprecations/accessors_silent_in_legacy_mode/b831a5b1000daa5d.svelte	refused
@@ -610,7 +606,6 @@ svelte/rsvelte/pattern/issues/3201-template-strict-param-clash.svelte	mismatch
 svelte/rsvelte/pattern/issues/3201-template-strict-proto.svelte	mismatch
 svelte/rsvelte/pattern/issues/3237-nested-rune-named-declaration.svelte	mismatch
 svelte/rsvelte/pattern/issues/3296-template-scope-shadow-write.svelte	refused
-svelte/rsvelte/pattern/issues/4115-unresolved-renderer-renders-every-snippet.svelte	mismatch
 svelte/rsvelte/pattern/issues/acorn-reserved-word-opens-an-earlier-statement.svelte	mismatch
 svelte/rsvelte/pattern/issues/deferred-script-error-before-unclosed-block.svelte	mismatch
 svelte/rsvelte/pattern/issues/dollar-function-parameter.svelte	mismatch
