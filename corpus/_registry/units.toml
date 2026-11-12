@@ -2066,3 +2066,72 @@
 
 ["svelte/rsvelte/pattern/issues/3129-comment-between-compounds.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/070bec3752f0534a.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/10142769056c4df0.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/1237e93118c4d573.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/2328b6723dc2bdcc.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/5763dd05fa97aab0.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/61b6af671786d9b6.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/64ff442ba3ca2771.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/674835c11438dabe.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/77ab9f4c49216698.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/83ed77bf912e01eb.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/8507b9445ef65556.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/8c8cf039aa8dfee5.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/9075d4944bb14429.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ae48ee57e39caefc.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/bf7ad667d5590c74.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/c2d8ed67fff164c2.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/cb99ee0c2bef4398.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/d55ee7f37b869a7f.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/da61fce49d633b12.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/e19d26e1a7fa87b4.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/e709c5ac7f40094e.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ec117fdddce0c546.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/f7dc731131273e6a.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
