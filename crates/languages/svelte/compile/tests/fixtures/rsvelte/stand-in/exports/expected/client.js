@@ -4,20 +4,23 @@ export const answer = 42;
 export function double(n) {
 	return n * 2;
 }
-var rest_excludes = new Set([
-	"$$slots",
-	"$$events",
-	"$$legacy"
-]);
-var root = $.from_html(`<p> </p>`);
-export default function Exports($$anchor, $$props) {
-	$.push($$props, true);
+var root = $.from_html(`<p><!></p>`);
+export default function Exports($$anchor) {
 	let value = "";
-	const props = $.rest_props($$props, rest_excludes);
 	var p = root();
 	$.set_attribute(p, "title", value);
-	var text = $.only_child(p, true);
-	$.template_effect(() => $.set_text(text, $$props.a));
+	var node = $.child(p);
+	{
+		var consequent = ($$anchor) => {
+			var fragment = $.comment();
+			var node_1 = $.first_child(fragment);
+			Exports(node_1, {});
+			$.append($$anchor, fragment);
+		};
+		$.if(node, ($$render) => {
+			if (value) $$render(consequent);
+		});
+	}
+	$.reset(p);
 	$.append($$anchor, p);
-	$.pop();
 }

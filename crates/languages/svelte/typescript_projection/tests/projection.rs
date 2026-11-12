@@ -140,11 +140,11 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
 
 #[test]
 fn unsupported_semantics_are_reported_at_the_original_construct() {
-    let source = "<script lang=\"ts\">const props = $props();</script>{props.a}";
+    let source = "<script lang=\"ts\">let a = 1;</script>{#if a}<svelte:self />{/if}";
     let component = parse(source).expect("valid Svelte source");
     let error = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
-        .expect_err("an untyped props object needs its own type semantics");
-    assert_eq!(error.span().text(source), "props");
+        .expect_err("a recursive component needs its own type semantics");
+    assert_eq!(error.span().text(source), "svelte:self");
 }
 
 #[test]
