@@ -159,6 +159,15 @@ impl Builder<'_> {
     ) -> Result<Option<&'s VariableDeclaration<'s>>> {
         let export = match statement {
             Statement::VariableDeclaration(declaration) => return Ok(Some(&**declaration)),
+            // In svelte2tsx's render function TypeScript refuses an augmentation (TS1234, which
+            // the check reports) and merges nothing from it, so this top-level copy is left out.
+            Statement::TSGlobalDeclaration(_) | Statement::TSExternalModuleDeclaration(_) => {
+                edits.push(Edit {
+                    span: span(statement.span()),
+                    replacement: None,
+                });
+                return Ok(None);
+            }
             Statement::ExportDeclaration(export) => export,
             Statement::ExportDefaultDeclaration(export) => {
                 return Err(Unsupported::at(
