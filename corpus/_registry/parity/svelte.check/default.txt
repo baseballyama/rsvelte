@@ -172,9 +172,6 @@ svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/a_type_alias_is_a_decla
 svelte/rsvelte-tests-core-2/declaration_tag_missing_initializer_3705/neighbouring_declaration_shapes_keep_their_existing_outcomes/5795cbd2a480629c.svelte	mismatch
 svelte/rsvelte-tests-core-2/declaration_tag_missing_initializer_3705/neighbouring_declaration_shapes_keep_their_existing_outcomes/79df455b3881d80f.svelte	mismatch
 svelte/rsvelte-tests-core-2/dev_prop_mutation_disambiguation/a_non_null_asserted_chain_is_still_a_mutation_site/e78954af2c53e00f.svelte	refused
-svelte/rsvelte-tests-core-2/directive_await_host_product_3318/directive_await_matches_official_on_every_host/437af6754b817682.svelte	mismatch
-svelte/rsvelte-tests-core-2/directive_await_host_product_3318/directive_await_matches_official_on_every_host/51a3412cdd61c59f.svelte	mismatch
-svelte/rsvelte-tests-core-2/directive_await_host_product_3318/directive_await_matches_official_on_every_host/5a27b941a0ec2df7.svelte	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/1592ab866ba0bb0c.svelte	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/70503536f6e568d1.svelte	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/8130d8ebeb2123aa.svelte	mismatch
@@ -319,7 +316,6 @@ svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_top_level_snippet_still_c
 svelte/rsvelte-tests-core-3/root_fragment_scope_3375/two_root_consts_of_one_name_still_collide/5742ac3e859f4c5a.svelte	mismatch
 svelte/rsvelte-tests-core-3/root_fragment_scope_3375/two_top_level_snippets_of_one_name_still_collide/849419d2be3f574a.svelte	mismatch
 svelte/rsvelte-tests-core-3/snippet_param_default_parens_4384/the_client_matches_the_official_compiler/4a893afa07686248.svelte	mismatch
-svelte/rsvelte-tests-core-3/svelte_component_validation/h047_use_directive_errors/0748a23f377dd6d8.svelte	mismatch
 svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/0271511c073bc3b4.svelte	mismatch
 svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/02af14e27b72bb31.svelte	mismatch
 svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/02b8bd4a8ab920ef.svelte	mismatch
@@ -812,7 +808,6 @@ svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/an_already_parsing_bod
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	mismatch
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ad65fdf7d6a621fb.svelte	mismatch
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte	mismatch
-svelte/rsvelte-tests-formatter/await_clauses/shorthand_headers_with_empty_bodies_lose_their_clause/326b22512122face.svelte	mismatch
 svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/011aebbaa3dfa3f0.svelte	mismatch
 svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/0ce4a229f2651289.svelte	mismatch
 svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/105f5e4e537fff6e.svelte	mismatch
@@ -1240,8 +1235,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_asy
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ef94df571dba73fb.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/f7dc731131273e6a.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ff097426cad6ba2f.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_validation_walk_gates/validation_markers_preserve_component_action_errors/9325073e6ba7de20.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_validation_walk_gates/validation_markers_preserve_component_action_errors/bf168dbaca94a1f4.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_valueless_slot_attribute/a_valueless_slot_attribute_declares_no_slot_prop/061635a35865b9e5.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_valueless_slot_attribute/a_valueless_slot_attribute_declares_no_slot_prop/0ab31e48735c5f71.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_valueless_slot_attribute/a_valueless_slot_attribute_declares_no_slot_prop/0c3f44cdc279a33e.svelte	refused
@@ -1294,7 +1287,6 @@ svelte/rsvelte/lint/no-reactive-functions/25-var-declaration-negative.svelte	mis
 svelte/rsvelte/lint/no-reactive-literals/19-declaration-and-sequence.svelte	mismatch
 svelte/rsvelte/lint/no-reactive-reassign/10-two-reactive-defs.svelte	mismatch
 svelte/rsvelte/lint/no-svelte-internal/16-export-without-source.svelte	mismatch
-svelte/rsvelte/lint/no-svelte-internal/20-emoji-columns.svelte	mismatch
 svelte/rsvelte/lint/no-useless-children-snippet/06-boundary-and-self.svelte	mismatch
 svelte/rsvelte/lint/no-useless-children-snippet/17-ts-typed-params.svelte	mismatch
 svelte/rsvelte/lint/require-each-key/13-key-expression-forms.svelte	mismatch
@@ -1414,7 +1406,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-block-effect-que
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-hydration-binding/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/css-injected-options-nested/main.svelte	mismatch
-svelte/svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte	mismatch
 svelte/sveltepress/packages/theme-default/src/components/Navbar.svelte	mismatch
 svelte/sveltestrap/src/Nav/Nav.stories.svelte	mismatch
 svelte/svelteui/apps/docs/src/lib/components/homepage/AllComponents.svelte	mismatch
