@@ -116,3 +116,49 @@ fn a_value_ends_at_the_first_terminator_outside_a_string_and_a_url() {
     assert_eq!(error.code, "css_empty_declaration");
     assert_eq!(error.span, Span::new(11, 13));
 }
+
+// Svelte 5 reports each one at this offset.
+#[test]
+fn a_selector_svelte_cannot_read_is_its_error() {
+    for (source, code, at) in [
+        (". { }", "css_expected_identifier", 1),
+        ("#1a { }", "css_expected_identifier", 1),
+        ("ns| { }", "css_expected_identifier", 3),
+        ("@1a (x) { }", "css_expected_identifier", 1),
+        ("[  ] { }", "css_expected_identifier", 3),
+        (".a, { }", "css_expected_identifier", 4),
+        (".a | .b { }", "css_expected_identifier", 3),
+        ("p > /* c */ { }", "css_expected_identifier", 4),
+        (".a:nth-child(2e) { }", "css_expected_identifier", 13),
+        ("p > { }", "css_selector_invalid", 4),
+        (":is(p >, .a) { }", "css_selector_invalid", 7),
+    ] {
+        let error = whole(source).expect_err(source);
+        assert_eq!(
+            (error.code, error.span),
+            (code, Span::new(at, at)),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn a_selector_css_allows_parses() {
+    // Svelte 5 rejects these.
+    for source in [
+        ".a /* c */ .b { }",
+        "p > /* c */ .a { }",
+        "[*|x] { }",
+        "[|x] { }",
+        ":nth-child(-2n-1) { }",
+        ":nth-child(2N) { }",
+        ":nth-child(-1) { }",
+        ":nth-child(2n /* t */) { }",
+    ] {
+        whole(source).expect(source);
+    }
+    // Svelte 5 reads an `An+B` in any pseudo-class, and an `of` before a symbol.
+    for source in [":global(2n) { }", "li:nth-child(2n of.a) { }"] {
+        whole(source).expect(source);
+    }
+}
