@@ -127,10 +127,11 @@ fn typescript_view(
     }
     // svelte-check type-checks a component whose style sheet does not parse.
     let component = context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
-    if !component
-        .instance
-        .as_ref()
-        .is_some_and(|script| script.typescript)
+    // svelte-check reads the component as TypeScript when either script is.
+    if ![&component.instance, &component.module]
+        .into_iter()
+        .flatten()
+        .any(|script| script.typescript)
     {
         return Ok(TypeScriptDocument::Unchecked);
     }
