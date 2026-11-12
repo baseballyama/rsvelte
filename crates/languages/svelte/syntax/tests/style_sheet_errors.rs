@@ -88,37 +88,3 @@ fn a_style_without_its_closing_tag_reports_what_svelte_does() {
     assert_eq!(error.code, "unexpected_eof");
     assert_eq!(error.span.start_offset, 12);
 }
-
-// prettier-plugin-svelte 4.1.1, svelte-check 4.7.8 and eslint-plugin-svelte agree on each one.
-#[test]
-fn each_tool_cuts_the_sheet_at_the_closing_tag_it_finds() {
-    use rsvelte_svelte_syntax::parse::{StyleCut, cut_style_error};
-    let tools = [
-        StyleCut::PrettierPluginSvelte,
-        StyleCut::Svelte2tsx,
-        StyleCut::SvelteEslintParser,
-    ];
-    for (source, rejected) in [
-        (
-            "<p>x</p>\n<style>.a { content: \"a</style>b\" }</style>\n",
-            [true, true, true],
-        ),
-        (
-            "<p>x</p>\n<style>.a { content: \"a</style >b\" }</style>\n",
-            [true, false, false],
-        ),
-        (
-            "<p>x</p>\n<style>.a { content: \"a</styles>b\" }</style>\n",
-            [false, false, false],
-        ),
-    ] {
-        let component = parse(source).expect("Svelte reads the sheet");
-        for (tool, rejected) in tools.into_iter().zip(rejected) {
-            assert_eq!(
-                cut_style_error(source, &component, tool).is_some(),
-                rejected,
-                "{tool:?} {source}"
-            );
-        }
-    }
-}

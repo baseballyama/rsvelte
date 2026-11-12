@@ -1747,57 +1747,74 @@
 
 ["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_double_quoted_value_is_content/16a88fbeb58ec9c8.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_leading_comment_is_content/f9a9ddcdcef60879.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_quoted_url_is_content/b386532cbe9926f3.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_single_quoted_value_is_content/2ffafb2f266c9dd0.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_trailing_comment_is_content/b799d45c01a456cc.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_an_attribute_selector_value_is_content/e1d926c94d7529d3.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_an_unquoted_url_is_content/e40e97f4d6a6be6c.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/an_escaped_quote_does_not_reopen_the_string/dd4791d121b63c3e.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_bare_terminator_inside_a_rule_is_a_css_error/ff8caef21871e90a.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_comment_is_a_comment/4af889e4d7e202d4.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_nested_at_rule_is_still_a_value/2fc806a64ddbf495.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/01726ffa6744c30a.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/4a4f09bc123bb7cb.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/5012ab13505d74b5.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/7881f7b8d8d61218.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/8a2c6ab63566f277.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/fe62b93807b9d785.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_an_unquoted_url_is_a_declaration_value/88036cc31fc233f5.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests/rsvelte_language_server/context/tests/only_a_style_body_is_css_without_the_parser/0810bf2aa626e026.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
@@ -1984,3 +2001,11 @@
 
 ["svelte/rsvelte/lint/no-svelte-internal/01-basic.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
+["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_an_html_comment_is_content/37e835c52cab486b.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte/pattern/css/html-comment-in-a-sheet.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
