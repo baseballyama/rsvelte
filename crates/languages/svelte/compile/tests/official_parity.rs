@@ -17,6 +17,8 @@ mod exports;
 mod lets;
 #[path = "official_parity/patterns.rs"]
 mod patterns;
+#[path = "official_parity/reactive.rs"]
+mod reactive;
 
 /// The output, or the code of the diagnostic that refuses the source.
 fn compile(source: &str, target: Target) -> Result<String, String> {
