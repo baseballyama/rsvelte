@@ -2,9 +2,9 @@
 
 use std::path::Path;
 
+use rsvelte_corpus::task_files;
 use rsvelte_kernel::computation::pipeline::DocumentResult;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_kernel::task_files;
 
 /// Writes each task's files below `actual`; returns how many were written.
 ///
