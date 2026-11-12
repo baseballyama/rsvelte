@@ -1254,19 +1254,19 @@ version = "0.0.0"
 dependencies = [
  "rsvelte_document_printer",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_svelte_check",
  "rsvelte_svelte_compile",
  "rsvelte_svelte_format",
  "rsvelte_svelte_lint",
- "rsvelte_svelte_semantic",
- "rsvelte_svelte_syntax",
  "rsvelte_svelte_to_vue_vapor",
+ "rsvelte_typescript_compile",
+ "rsvelte_typescript_format",
+ "rsvelte_typescript_lint",
  "rsvelte_vue_check",
  "rsvelte_vue_compile",
  "rsvelte_vue_format",
  "rsvelte_vue_lint",
- "rsvelte_vue_semantic",
- "rsvelte_vue_syntax",
  "rsvelte_vue_to_svelte",
  "wasm-bindgen",
 ]
@@ -1295,22 +1295,6 @@ dependencies = [
  "rsvelte_kernel",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "rsvelte_site"
-version = "0.0.0"
-dependencies = [
- "oxc_allocator",
- "oxc_ast",
- "oxc_semantic",
- "oxc_span",
- "rsvelte_kernel",
- "rsvelte_svelte_compile",
- "rsvelte_svelte_lint",
- "rsvelte_svelte_semantic",
- "rsvelte_svelte_syntax",
- "rsvelte_typescript_compile",
 ]
 
 [[package]]
@@ -1457,6 +1441,22 @@ dependencies = [
  "rsvelte_typescript_tree",
  "rustc-hash",
  "self_cell",
+]
+
+[[package]]
+name = "rsvelte_svelte_site"
+version = "0.0.0"
+dependencies = [
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_semantic",
+ "oxc_span",
+ "rsvelte_kernel",
+ "rsvelte_svelte_compile",
+ "rsvelte_svelte_lint",
+ "rsvelte_svelte_semantic",
+ "rsvelte_svelte_syntax",
+ "rsvelte_typescript_compile",
 ]
 
 [[package]]

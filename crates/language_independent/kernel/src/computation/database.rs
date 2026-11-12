@@ -67,8 +67,22 @@ struct FacetProvider {
 pub struct ArtifactRegistry {
     index: FxHashMap<TypeIdentifier, usize>,
     names: Vec<&'static str>,
+    /// `{:#?}` of each slot's value, by slot; `None` for a facet.
+    views: Vec<Option<View>>,
     facets: FxHashMap<TypeIdentifier, FacetEntry>,
     files: FileFacts,
+}
+
+type View = fn(&dyn Any, &mut dyn std::fmt::Write) -> std::fmt::Result;
+
+fn view<A: Artifact>(value: &dyn Any, out: &mut dyn std::fmt::Write) -> std::fmt::Result
+where
+    A::Output: std::fmt::Debug,
+{
+    let value: &A::Output = value
+        .downcast_ref()
+        .expect("artifact slot holds its own output type");
+    write!(out, "{value:#?}")
 }
 
 impl std::fmt::Debug for ArtifactRegistry {
@@ -83,7 +97,10 @@ impl ArtifactRegistry {
     /// # Panics
     ///
     /// If another artifact or facet uses `A::NAME`.
-    pub(crate) fn register<A: Artifact>(&mut self) {
+    pub(crate) fn register<A: Artifact>(&mut self)
+    where
+        A::Output: std::fmt::Debug,
+    {
         let next = self.names.len();
         if let std::collections::hash_map::Entry::Vacant(e) =
             self.index.entry(TypeIdentifier::of::<A>())
@@ -95,6 +112,7 @@ impl ArtifactRegistry {
             );
             e.insert(next);
             self.names.push(A::NAME);
+            self.views.push(Some(view::<A>));
         }
     }
 
@@ -126,6 +144,7 @@ impl ArtifactRegistry {
             });
         if entry.slot == next {
             self.names.push(F::NAME);
+            self.views.push(None);
         }
         assert!(
             entry.providers.iter().all(|p| p.identifier != identifier),
@@ -283,6 +302,15 @@ impl<'a> DocumentContext<'a> {
     pub fn ecmascript_line_index(&self) -> &LineIndex {
         self.ecmascript_line_index
             .get_or_init(|| LineIndex::with_breaks(self.source_text(), LineBreaks::Ecmascript))
+    }
+
+    /// Writes `{:#?}` of artifact `name` when this context has computed it, for a host that shows
+    /// what tasks computed; `None` when it has not, or `name` is a facet.
+    pub fn view(&self, name: &str, out: &mut dyn std::fmt::Write) -> Option<std::fmt::Result> {
+        let slot = self.registry.names.iter().position(|n| *n == name)?;
+        let view = self.registry.views[slot]?;
+        let value = self.slots[slot].get()?;
+        Some(view(value.as_ref(), out))
     }
 
     /// Artifacts computed so far in this context, in order (for tests and tracing).

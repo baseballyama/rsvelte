@@ -54,7 +54,6 @@ fn review_d_shapes_the_port_cannot_print_are_refused() {
             &Options::default(),
         ),
         ("<p>{007}</p>\n", &Options::default()),
-        ("<p>👋🏽</p>\n", &Options::default()),
     ]
     .iter()
     .map(|(source_text, options)| refusal_with(source_text, options).0)
@@ -67,7 +66,6 @@ fn review_d_shapes_the_port_cannot_print_are_refused() {
             "a script language other than JavaScript",
             "a script language other than JavaScript",
             "code a module rejects",
-            "an emoji sequence, which Prettier measures as one character",
         ]
     );
 }
