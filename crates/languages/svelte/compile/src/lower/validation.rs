@@ -3,10 +3,25 @@ use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
 use rsvelte_typescript_compile::features::{Feature, first_runtime_feature};
 
+mod declarations;
 pub(super) mod markup;
 mod runes;
 
 pub(super) use runes::{check_runes, rejects_binding};
+
+/// Whether oxc's `error` is a name declared again outside the scripts.
+pub(super) fn redeclares_in_template(input: &CompileInput<'_>, error: &Diagnostic) -> bool {
+    let javascript = input.component.javascript;
+    let start = error.span.start_offset;
+    error.message.ends_with("has already been declared")
+        && !(input
+            .component
+            .module
+            .into_iter()
+            .chain(input.component.instance))
+        .map(|program| javascript.get_program(program).span)
+        .any(|span| span.start <= start && start < span.end)
+}
 
 use super::{CompileInput, Diagnostic, Resolution, Span};
 
@@ -25,6 +40,7 @@ pub(super) fn check_analysis(
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
     let component = input.component;
+    errors.extend(declarations::duplicates(input, res));
     errors.extend(dollar_name_errors(
         component.javascript,
         component.instance,
