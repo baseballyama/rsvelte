@@ -10,7 +10,7 @@ use crate::syntax_tree::{Rule, RuleIdentifier, RuleKind, StyleSheet};
 
 #[derive(Debug, Clone)]
 pub struct ParseError {
-    /// Svelte's error code, or `css_parse_error` where this parser has none of its own.
+    /// Svelte's error code.
     pub code: &'static str,
     pub message: String,
     pub span: Span,
@@ -108,22 +108,27 @@ struct P<'a> {
     escaped: FxHashMap<Span, Atom>,
 }
 
-const fn is_ident_byte(c: u8) -> bool {
-    c.is_ascii_alphanumeric() || c == b'-' || c == b'_' || c >= 0x80
-}
-
 impl P<'_> {
-    fn fail<X>(&self, message: &str) -> R<X> {
-        Err(ParseError {
-            code: "css_parse_error",
-            message: message.to_owned(),
+    /// The error of Svelte's `eat(token, true)`.
+    fn expected_token(&self, token: &str) -> ParseError {
+        ParseError {
+            code: "expected_token",
+            message: format!("Expected token {token}"),
             span: Span::new(self.position as u32, self.position as u32),
-        })
+        }
     }
 
     fn at_close(&self) -> bool {
         self.close
             .is_some_and(|close| self.b[self.position..self.end].starts_with(close))
+    }
+
+    fn eat(&mut self, c: u8) -> bool {
+        let found = self.peek() == Some(c);
+        if found {
+            self.position += 1;
+        }
+        found
     }
 
     fn peek(&self) -> Option<u8> {
@@ -147,30 +152,71 @@ impl P<'_> {
     fn skip_trivia(&mut self) -> R<()> {
         loop {
             self.whitespace();
-            let rest = &self.source_text[self.position..self.end];
-            // Svelte skips an HTML comment whole, so what it holds is not part of the sheet.
-            if let Some(after) = rest.strip_prefix("<!--") {
-                let Some(i) = after.find("-->") else {
-                    return Err(ParseError {
-                        code: "expected_token",
-                        message: "Expected token -->".to_owned(),
-                        span: Span::new(self.end as u32, self.end as u32),
-                    });
-                };
-                self.position += 4 + i + 3;
-            } else if rest.starts_with("/*") {
-                let start = self.position;
-                match self.source_text[self.position + 2..self.end].find("*/") {
-                    Some(i) => {
-                        self.position += i + 4;
-                        self.comments.push(self.span(start));
-                    }
-                    None => return self.fail("unterminated comment"),
-                }
-            } else {
+            if !self.comment()? {
                 return Ok(());
             }
         }
+    }
+
+    /// Skips one comment, and tells whether there was one.
+    fn comment(&mut self) -> R<bool> {
+        let rest = &self.source_text[self.position..self.end];
+        // Svelte skips an HTML comment whole, so what it holds is not part of the sheet.
+        let (close, open) = if rest.starts_with("<!--") {
+            ("-->", 4)
+        } else if rest.starts_with("/*") {
+            ("*/", 2)
+        } else {
+            return Ok(false);
+        };
+        let start = self.position;
+        let Some(i) = rest[open..].find(close) else {
+            self.position = self.end;
+            return Err(self.expected_token(close));
+        };
+        self.position += open + i + close.len();
+        if open == 2 {
+            self.comments.push(self.span(start));
+        }
+        Ok(true)
+    }
+
+    /// The length of the identifier character at `at`, or 0: Svelte reads ASCII letters, digits,
+    /// `_`, `-` and any code point from U+00A0.
+    fn ident_char(&self, at: usize) -> usize {
+        match self.b.get(at) {
+            Some(c) if at < self.end && (c.is_ascii_alphanumeric() || matches!(c, b'_' | b'-')) => {
+                1
+            }
+            Some(c) if at < self.end && *c >= 0x80 => self.source_text[at..]
+                .chars()
+                .next()
+                .filter(|c| *c >= '\u{a0}')
+                .map_or(0, char::len_utf8),
+            _ => 0,
+        }
+    }
+
+    /// Whether an identifier Svelte accepts starts at `at`.
+    fn starts_identifier(&self, at: usize) -> bool {
+        let digit = at + usize::from(self.b.get(at) == Some(&b'-'));
+        (self.b.get(at) == Some(&b'\\') || self.ident_char(at) > 0)
+            && !self.b.get(digit).is_some_and(u8::is_ascii_digit)
+    }
+
+    /// Svelte's identifier, which is `css_expected_identifier` when empty or when it starts with
+    /// a digit.
+    fn identifier(&mut self) -> R<Span> {
+        let start = self.position;
+        let digit = start + usize::from(self.peek() == Some(b'-'));
+        if digit < self.end && self.b[digit].is_ascii_digit() {
+            return Err(selectors::expected_identifier(start));
+        }
+        let name = self.ident();
+        if name.is_empty() {
+            return Err(selectors::expected_identifier(start));
+        }
+        Ok(name)
     }
 
     fn ident(&mut self) -> Span {
@@ -184,10 +230,12 @@ impl P<'_> {
                 self.position += 1;
                 text.push(self.escape());
                 plain = self.position;
-            } else if is_ident_byte(byte) {
-                self.position += 1;
             } else {
-                break;
+                let length = self.ident_char(self.position);
+                if length == 0 {
+                    break;
+                }
+                self.position += length;
             }
         }
         let span = self.span(start);
@@ -270,7 +318,11 @@ impl P<'_> {
                 }
             }
         }
-        self.fail("unterminated string")
+        Err(ParseError {
+            code: "unexpected_eof",
+            message: "Unexpected end of input".to_owned(),
+            span: Span::new(self.end as u32, self.end as u32),
+        })
     }
 
     fn skip_balanced_until(&mut self, stops: &[u8]) -> R<()> {
@@ -308,7 +360,7 @@ impl P<'_> {
             match self.peek() {
                 None if !nested => return Ok(rules),
                 Some(_) if !nested && self.at_close() => return Ok(rules),
-                None => return self.fail("expected `}`"),
+                None => return Err(self.expected_token("}")),
                 Some(b'}') if nested => return Ok(rules),
                 Some(b'@') => push(&mut rules, self.at_rule()?),
                 Some(_) => push(&mut rules, self.style_rule()?),
@@ -319,9 +371,9 @@ impl P<'_> {
     fn at_rule(&mut self) -> R<Rule> {
         let start_offset = self.position;
         self.position += 1;
-        let name = self.ident();
+        let name = self.identifier()?;
         let prelude_start_offset = self.position;
-        self.skip_balanced_until(b"{;")?;
+        self.skip_balanced_until(b"{;}")?;
         let prelude = trim(self.source_text, self.span(prelude_start_offset));
         match self.peek() {
             Some(b';') => {
@@ -362,13 +414,13 @@ impl P<'_> {
                     children: children.into_boxed_slice(),
                 })
             }
-            _ => self.fail("expected `{` or `;` after at-rule"),
+            _ => Err(self.expected_token(";")),
         }
     }
 
     fn expect(&mut self, c: u8) -> R<()> {
         if self.peek() != Some(c) {
-            return self.fail(&format!("expected `{}`", c as char));
+            return Err(self.expected_token(&char::from(c).to_string()));
         }
         self.position += 1;
         Ok(())
@@ -381,23 +433,7 @@ impl P<'_> {
         let previous_parent = self.selector_parent;
         self.selector_parent = parent;
         let start_offset = self.position;
-        let mut selectors = Vec::new();
-        loop {
-            push(&mut selectors, self.complex()?);
-            self.skip_trivia()?;
-            match self.peek() {
-                Some(b',') => {
-                    selectors
-                        .last_mut()
-                        .expect("a selector precedes the comma")
-                        .comma = Some(Span::new(self.position as u32, self.position as u32 + 1));
-                    self.position += 1;
-                    self.skip_trivia()?;
-                }
-                Some(b'{') => break,
-                _ => return self.fail("expected `,` or `{` in selector"),
-            }
-        }
+        let selectors = self.selector_list(false)?;
         let block_start_offset = self.position;
         self.position += 1;
         self.current_rule = Some(identifier);
