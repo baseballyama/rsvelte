@@ -1,4 +1,3 @@
-use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 
@@ -167,17 +166,29 @@ impl Parser<'_, '_> {
             _ => unreachable!("only script and style have raw top-level content"),
         };
         let start_offset = self.position;
-        let Some(len) = first_closing_tag(self.rest(), close) else {
-            return if tag == "script" {
-                let end = self.trimmed_end() as u32;
-                Self::err_at(
-                    Span::new(end, end),
-                    "element_unclosed",
-                    "`<script>` was left open",
-                )
-            } else {
-                self.expected_token("</style")
+        let mut from = 0;
+        let len = loop {
+            let Some(next) =
+                memchr::memmem::find(&self.rest().as_bytes()[from..], close.as_bytes())
+            else {
+                return if tag == "script" {
+                    let end = self.trimmed_end() as u32;
+                    Self::err_at(
+                        Span::new(end, end),
+                        "element_unclosed",
+                        "`<script>` was left open",
+                    )
+                } else {
+                    self.expected_token("</style")
+                };
             };
+            let at = from + next;
+            let suffix = &self.rest()[at + close.len()..];
+            let whitespace = super::whitespace::whitespace_len(suffix);
+            if suffix.as_bytes().get(whitespace) == Some(&b'>') {
+                break at;
+            }
+            from = at + close.len();
         };
         self.position += len;
         Ok(Span::new(start_offset as u32, (start_offset + len) as u32))
@@ -254,43 +265,6 @@ impl Parser<'_, '_> {
     }
 
     fn style(&mut self, start_offset: usize, attributes: Vec<TagAttributes>) -> ParseResult<()> {
-        let (content, sheet) = match self.style_end {
-            super::StyleEnd::Sheet => self.sheet_to_its_end()?,
-            super::StyleEnd::Cut(cut) => {
-                let Some(len) = cut.find(self.rest()) else {
-                    return self.expected_token("</style");
-                };
-                let content = Span::new(self.position as u32, (self.position + len) as u32);
-                self.position += len;
-                let sheet = rsvelte_stylesheet_syntax::parse(self.source_text, content)
-                    .map_err(|e| super::svelte_error(e.code, e.message, e.span));
-                (content, sheet)
-            }
-        };
-        if self.component.style.is_some() {
-            return Self::err_at(
-                Span::new(start_offset as u32, start_offset as u32),
-                "style_duplicate",
-                "A component can have a single top-level `<style>` element",
-            );
-        }
-        self.component.tokens.push(TokenType::Stylesheet, content);
-        self.close_style();
-        self.component.style = Some(Style {
-            span: Span::new(start_offset as u32, self.position as u32),
-            attributes,
-            content,
-            sheet,
-        });
-        Ok(())
-    }
-
-    fn sheet_to_its_end(
-        &mut self,
-    ) -> ParseResult<(
-        Span,
-        Result<rsvelte_stylesheet_syntax::StyleSheet, Diagnostic>,
-    )> {
         // The sheet ends at the first `</style` between its rules, as upstream reads it; one that
         // does not parse ends at the first closing tag, so the rest of the component still parses.
         // Svelte parses the template without its trailing whitespace, so an open sheet ends there.
@@ -317,21 +291,21 @@ impl Parser<'_, '_> {
                 Err(_) => return Err(error.clone()),
             },
         };
-        Ok((content, sheet))
-    }
-}
-
-/// Where `close` (`</script` or `</style`) first starts a closing tag in `text`: the `>` may
-/// follow whitespace.
-fn first_closing_tag(text: &str, close: &str) -> Option<usize> {
-    let mut from = 0;
-    loop {
-        let at = from + memchr::memmem::find(&text.as_bytes()[from..], close.as_bytes())?;
-        let suffix = &text[at + close.len()..];
-        let whitespace = super::whitespace::whitespace_len(suffix);
-        if suffix.as_bytes().get(whitespace) == Some(&b'>') {
-            return Some(at);
+        if self.component.style.is_some() {
+            return Self::err_at(
+                Span::new(start_offset as u32, start_offset as u32),
+                "style_duplicate",
+                "A component can have a single top-level `<style>` element",
+            );
         }
-        from = at + close.len();
+        self.component.tokens.push(TokenType::Stylesheet, content);
+        self.close_style();
+        self.component.style = Some(Style {
+            span: Span::new(start_offset as u32, self.position as u32),
+            attributes,
+            content,
+            sheet,
+        });
+        Ok(())
     }
 }

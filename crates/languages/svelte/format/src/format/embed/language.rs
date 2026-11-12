@@ -83,6 +83,14 @@ impl Printer<'_, '_, '_> {
             _ => oxc_formatter_css::CssVariant::Css,
         };
         let text = content.text(self.source_text);
+        // The plugin ends the sheet at the first `</style\s*>` even inside a string or a comment,
+        // which leaves the rest of the sheet to the markup; this formatter does not copy that.
+        if holds_closing_tag(text) {
+            return Err(Unsupported::at(
+                "a `</style>` inside a style sheet, which prettier-plugin-svelte cuts the sheet at",
+                content,
+            ));
+        }
         if text.trim_matches(is_ecmascript_whitespace).is_empty() {
             return Ok(if text.is_empty() {
                 self.d().nil()
@@ -115,4 +123,13 @@ impl Printer<'_, '_, '_> {
         let body = self.keep(ir.ir);
         Ok(self.indented_body(body))
     }
+}
+
+/// Whether `text` holds what prettier-plugin-svelte's `<\/style\s*>` matches.
+fn holds_closing_tag(text: &str) -> bool {
+    text.match_indices("</style").any(|(at, close)| {
+        text[at + close.len()..]
+            .trim_start_matches(is_ecmascript_whitespace)
+            .starts_with('>')
+    })
 }
