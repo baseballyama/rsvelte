@@ -88,7 +88,7 @@ impl Builder<'_> {
                     return Err(Unsupported::at("directives", attribute.span));
                 }
                 AttributeKind::Class if !host.is_component() => {}
-                AttributeKind::Class | AttributeKind::Attach if host.is_component() => {
+                AttributeKind::Class if host.is_component() => {
                     return Err(Unsupported::at("component directives", attribute.span));
                 }
                 // svelte2tsx passes a slot's name, and a dynamic component, outside the props.
