@@ -496,3 +496,21 @@ fn a_script_babel_rejects_is_kept_as_written_and_the_rest_formatted() {
         "code a module rejects"
     );
 }
+
+#[test]
+fn a_lone_carriage_return_is_a_line_break_as_prettier_reads_it() {
+    // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    assert_eq!(
+        formatted("<script>\rlet a=1\r</script>\r<p>{a}</p>\r"),
+        "<script>\n  let a = 1;\n</script>\n\n<p>{a}</p>\n"
+    );
+    let auto = options(r#"{"endOfLine": "auto"}"#);
+    assert_eq!(
+        formatted_with("<p>a</p>\r<p>b</p>\r", &auto),
+        "<p>a</p>\r<p>b</p>\r"
+    );
+    assert_eq!(
+        formatted_with("<p>a</p>\r\n<p>b</p>\r<i>c</i>\n", &auto),
+        "<p>a</p>\r\n<p>b</p>\r\n<i>c</i>\r\n"
+    );
+}
