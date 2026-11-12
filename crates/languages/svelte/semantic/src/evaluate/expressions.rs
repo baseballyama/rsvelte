@@ -1,7 +1,7 @@
 use oxc_ast::ast::{Expression, LogicalExpression, UnaryExpression};
 use oxc_syntax::operator::{BinaryOperator, LogicalOperator, UnaryOperator};
 
-use super::globals::global_constant;
+use super::globals::{Global, global};
 use super::operators::{binary, unary};
 use super::template::cooked;
 use super::{Evaluator, Value, Values, add, bigint};
@@ -71,9 +71,9 @@ impl Evaluator<'_> {
                 add(values, Value::String(result));
             }
             Expression::StaticMemberExpression(_) => {
-                match self.global_keypath(e).and_then(global_constant) {
-                    Some(v) => add(values, Value::Number(v)),
-                    None => add(values, Value::Unknown),
+                match self.global_keypath(e).and_then(global) {
+                    Some(Global::Constant(v)) => add(values, Value::Number(v)),
+                    _ => add(values, Value::Unknown),
                 }
             }
             Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_) => {

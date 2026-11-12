@@ -25,6 +25,18 @@ const fn to_int32(n: f64) -> i32 {
     (((n.trunc() as i64).cast_unsigned() & 0xFFFF_FFFF) as u32).cast_signed()
 }
 
+/// `Number::exponentiate`: unlike `powf`, a NaN exponent and `±1 ** ±Infinity` are NaN.
+#[expect(
+    clippy::float_cmp,
+    reason = "only exactly one is the case JavaScript differs on"
+)]
+fn pow(base: f64, exponent: f64) -> f64 {
+    if exponent.is_nan() || (exponent.is_infinite() && base.abs() == 1.0) {
+        return f64::NAN;
+    }
+    base.powf(exponent)
+}
+
 #[derive(Debug)]
 #[expect(
     clippy::struct_excessive_bools,
