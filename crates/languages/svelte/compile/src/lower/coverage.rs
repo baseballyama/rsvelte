@@ -7,7 +7,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::bindings::{Lowering, attribute_value, property_of};
+use super::bindings::{self, Lowering, attribute_value, property_of};
 use super::javascript::member_root;
 use super::{
     Attribute, AttributeValue, BindingKind, CompileInput, CompilerSyntaxTree, Diagnostic, Element,
@@ -265,7 +265,7 @@ fn check_element_binding(
     if property == "this" {
         return check_target(input, res, a, target);
     }
-    if !supported_binding(source_text, tag, attributes, property) {
+    if !supported_binding(source_text, tag, attributes, a) {
         return unsupported(&format!("`bind:{property}` on this `<{tag}>`"), a.span);
     }
     // A group or a checkbox keeps its `value` apart, as `__value`.
@@ -302,45 +302,35 @@ fn check_element_binding(
     check_target(input, res, a, target)
 }
 
-/// A `bind:` property that upstream's `BindDirective` analysis accepts on `tag`; this port
-/// raises none of the errors it would.
+/// A `bind:` property that upstream's `BindDirective` analysis accepts on `tag`, past the
+/// `bind_invalid_target` the template walk raises; this port raises none of the other errors.
 fn supported_binding(
     source_text: &str,
     tag: &str,
     attributes: &[Attribute],
-    property: &str,
+    a: &Attribute,
 ) -> bool {
+    let property = a.name.text(source_text);
     let Some(p) = property_of(property) else {
         return false;
     };
-    // Upstream checks `svelte:element` against each property's elements too, by that name.
-    if p.elements.is_some_and(|e| !e.contains(&tag)) {
+    if bindings::check_target(source_text, tag, attributes, a).is_err() {
         return false;
     }
-    if tag == "input" {
-        // Upstream takes only `bind:value` beside a `type` not written as text.
-        let ty = match attribute_value(source_text, attributes, "type") {
-            None => None,
-            Some(AttributeValue::Static(ty)) => Some(&**ty),
-            Some(AttributeValue::Boolean) => return false,
-            Some(_) => return property == "value",
-        };
-        let wanted = match property {
-            "checked" => Some("checkbox"),
-            "files" => Some("file"),
-            _ => ty,
-        };
-        if ty != wanted {
-            return false;
-        }
+    // Upstream's `attribute_invalid_type`: only `bind:value` beside a `type` not written as text.
+    if tag == "input"
+        && attribute_value(source_text, attributes, "type").is_some_and(|ty| match ty {
+            AttributeValue::Static(_) => false,
+            AttributeValue::Boolean => true,
+            _ => property != "value",
+        })
+    {
+        return false;
     }
     if tag == "select"
         && attribute_value(source_text, attributes, "multiple")
             .is_some_and(|m| !matches!(m, AttributeValue::Boolean | AttributeValue::Static(_)))
     {
-        return false;
-    }
-    if property == "offsetWidth" && rsvelte_svelte_syntax::names::is_svg(tag) {
         return false;
     }
     if p.lowering == Lowering::ContentEditable {

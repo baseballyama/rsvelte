@@ -41,8 +41,8 @@ struct Placement<'a> {
 /// # Errors
 ///
 /// `svelte_fragment_invalid_placement`, `slot_attribute_invalid_placement`,
-/// `node_invalid_placement` or `bind_invalid_expression`, at the first node in document order
-/// that has one.
+/// `node_invalid_placement`, `bind_invalid_target` or `bind_invalid_expression`, at the first node
+/// in document order that has one.
 pub(in crate::lower) fn check(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
     walk(
         input,
@@ -232,15 +232,26 @@ fn element<'a>(
         );
     }
     let placement = element_placement(input, identifier, el, placement)?;
+    // Upstream's `BindDirective` reads `parent.name`, which is the tag as written.
+    let host = match el.kind {
+        ElementKind::Regular => Some(el.name.text(source)),
+        ElementKind::Metadata(Some(MetadataTag::Element)) => Some("svelte:element"),
+        _ => None,
+    };
     // Upstream's directive visitors, in attribute order.
     for a in attributes {
         match &a.value {
-            AttributeValue::Bind(target) if !binds_a_name(input.component.javascript, *target) => {
-                return invalid(
-                    "bind_invalid_expression",
-                    "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair",
-                    a.span,
-                );
+            AttributeValue::Bind(target) => {
+                if let Some(host) = host {
+                    super::super::bindings::check_target(source, host, attributes, a)?;
+                }
+                if !binds_a_name(input.component.javascript, *target) {
+                    return invalid(
+                        "bind_invalid_expression",
+                        "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair",
+                        a.span,
+                    );
+                }
             }
             AttributeValue::Style { modifiers, .. } if !modifiers.fit_a_style() => {
                 return invalid(

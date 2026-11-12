@@ -152,6 +152,11 @@ fn validate_globals(
     tag: MetadataTag,
     attributes: &[super::Attribute],
 ) -> Result<(), Diagnostic> {
+    let host = match tag {
+        MetadataTag::Window => "svelte:window",
+        MetadataTag::Document => "svelte:document",
+        _ => "svelte:body",
+    };
     // Upstream's visitor checks the attributes before it visits a directive.
     for attribute in attributes {
         let plain = !super::template::is_directive(&attribute.value);
@@ -164,14 +169,9 @@ fn validate_globals(
                     attribute.span,
                 );
             }
-            let name = if tag == MetadataTag::Window {
-                "svelte:window"
-            } else {
-                "svelte:document"
-            };
             return invalid(
                 "illegal_element_attribute",
-                &format!("`<{name}>` does not support non-event attributes or spread attributes"),
+                &format!("`<{host}>` does not support non-event attributes or spread attributes"),
                 attribute.span,
             );
         }
@@ -179,6 +179,7 @@ fn validate_globals(
     for attribute in attributes {
         if let AttributeValue::Bind(_) = attribute.value {
             if global_binding(tag, attribute.name.text(source)).is_none() {
+                super::bindings::check_target(source, host, attributes, attribute)?;
                 return unsupported("this global binding", attribute.span);
             }
         } else if !matches!(
