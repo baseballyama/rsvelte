@@ -132,7 +132,7 @@ impl Printer<'_, '_, '_> {
 
     /// The plugin's `getText` of a template expression: from its first leading comment to its
     /// end. The comments after it, and those outside its parentheses, which Svelte attaches to no
-    /// node, are in no text the plugin prints.
+    /// node, are in no text the plugin prints: it deletes them, so they are refused.
     fn with_leading_comments(&mut self, expression: Span) -> Span {
         let c = self.c;
         let comment = |t: &&Token<TokenType>| t.kind == TokenType::JavaScriptComment;
@@ -145,12 +145,22 @@ impl Printer<'_, '_, '_> {
                 first = t.span.start_offset;
             }
         }
-        let outside = before.filter(comment).map(|t| t.span);
+        let outside = before.filter(comment).map(|t| {
+            (
+                t.span,
+                "a comment outside a template expression's parentheses, which the plugin deletes",
+            )
+        });
         self.embedder.dropped.extend(outside);
         let trailing = (c.tokens.from_offset(expression.end_offset).iter())
             .take_while(|t| t.kind.is_trivia() || t.kind == TokenType::JavaScript(Kind::RParen))
             .filter(comment)
-            .map(|t| t.span);
+            .map(|t| {
+                (
+                    t.span,
+                    "a comment after a template expression, which the plugin deletes",
+                )
+            });
         self.embedder.dropped.extend(trailing);
         Span::new(first, expression.end_offset)
     }

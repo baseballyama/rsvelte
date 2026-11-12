@@ -2436,3 +2436,171 @@
 ["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/af4e901d46ddc2c3.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+
+["svelte/rsvelte-tests-core-1/block_header_pattern_validation/legal_neighbours_still_compile/8a80c229fe285e83.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block's pattern from its nodes (expandNode), so it deletes a comment in it"
+
+["svelte/rsvelte-tests-core-1/block_header_pattern_validation/legal_neighbours_still_compile/f4a2e74dbb010935.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-1/client_attribute_expression_comments_3214/a_comment_on_the_tag_name_line_is_the_first_arguments_trailing_comment/0513ceac25c38cb6.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-1/comment_cursor_3603_await_snippet/client_await_header_comments_stay_with_the_promise_expression/7c2ca4397a1154e9.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-1/compile_result_legacy_ast_3295/compilation_rebuilds_legacy_comment_locations_at_the_json_boundary/3e5801f545086334.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 attaches a comment in a tag only to an attribute, so it deletes one in a tag without attributes"
+
+["svelte/rsvelte-tests-core-2/each_header_comments/legal_forms_still_parse/5b30638cd1c613fd.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-2/each_header_comments/legal_forms_still_parse/fec09272c8956d4f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block's pattern from its nodes (expandNode), so it deletes a comment in it"
+
+["svelte/rsvelte-tests-core-2/parse_ast_comment_attachment_4133/a_comment_before_a_parenthesized_template_expression_is_dropped_with_the_parens/29a76cd13f320fec.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 deletes a comment outside a template expression's parentheses, which Svelte attaches to no node"
+
+["svelte/rsvelte-tests-core-2/parse_ast_comment_attachment_4133/comments_inside_or_after_parens_still_reach_the_expression/9f102071b2d1f718.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/special_tag_bracket_scan/debug_tag_comment_with_brace/55705dc7a048ab7a.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints only the names in {@debug}, so it deletes a comment in it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/controls_still_compile/92d5f5e4654c0d78.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/10e19b15170f3a84.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/19b64d511d2a58f9.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/27c87aa51582232b.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/2e3ad48ee43c8bdc.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/357dfc3d4748dea5.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/7774b278d017cb9c.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/9b7916838f5442fb.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/9e6bf0cb719e5b0d.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/dcc440a866db1d34.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/e25c21d94a883fc2.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expression_comment_3112/client_flushes_a_folded_tags_comment_onto_the_next_located_node/4608f068c893d659.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expression_comments_3112_3214/a_component_with_no_instance_script_drops_the_comment/27a6648756f94a5a.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expression_comments_3112_3214/a_component_with_no_instance_script_drops_the_comment/e7d549d35aaad31b.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expression_comments_3112_3214/a_folded_expression_hands_its_comment_to_the_next_one/74399290a1000cda.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expression_comments_3112_3214/a_folded_expression_with_no_successor_drops_its_comment/d001ee7ad70af135.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expression_comments_3112_3214/the_carried_comment_keeps_its_source_line_distance/8f4164f9f70311b4.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/85602f44f89a6d2f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/c12f26de3001c722.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/await_head_expression_survives/cbb6b349ed958d11.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/2954fb9e5fcf630f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/295f6086c1ed3366.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/2ccd099fc932f111.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/44f1ee907b033ac7.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/5b33fa9fbc93a011.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/7f6f89d2d564d872.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/c388dd61e1e7a2bd.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-formatter/markup_expressions/trailing_comment_keeps_the_tag_an_expression/b287a9cb4387e49f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/5b48c20575ee097e.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/6c31a27208d4d289.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/d15dae7c28fa60c3.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/d9b6042991557371.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/e89d92737973b5ce.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/60de768276a5f99c.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/7af5e2327e6495e1.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/848de04f89c4c556.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/c3bb76f94f2a54ad.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/e930c16638623224.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/ece574aedc893546.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/f8c02f47bdc31d8c.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_source_range/a_comment_between_the_braces_is_kept/102a23729bba7ddb.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte/lint/no-useless-mustaches/05-comments-option.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte/lint/no-useless-mustaches/06-comments-default.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte/lint/prefer-attribute-interpolation/05-comment-outside-template.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte/lint/valid-each-key/06-comment-decoy.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/svelte/packages/svelte/tests/parser-legacy/samples/javascript-comments/input.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"

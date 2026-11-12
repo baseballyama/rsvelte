@@ -47,7 +47,7 @@ impl Printer<'_, '_, '_> {
     /// The comments between `attributes` (`this` left out, as Svelte takes it out) of the tag that
     /// starts at `tag`. The comments of a tag without attributes, and those after the last one from
     /// the first that holds a `>` on (the plugin looks for the tag's end with `indexOf('>')`), are
-    /// in no attribute, so the output drops them.
+    /// in no attribute: the plugin deletes them, so they are refused.
     pub(super) fn attribute_comments(
         &mut self,
         tag: u32,
@@ -67,7 +67,12 @@ impl Printer<'_, '_, '_> {
                 .map(|t| t.span)
         };
         let Some(last) = attributes.last() else {
-            self.embedder.dropped.extend(comments_from(tag));
+            self.embedder.dropped.extend(comments_from(tag).map(|c| {
+                (
+                    c,
+                    "a comment in a tag without attributes, which the plugin deletes",
+                )
+            }));
             return Ok(attached);
         };
         let mut start = tag;
@@ -83,7 +88,10 @@ impl Printer<'_, '_, '_> {
         for comment in comments_from(last.span.end_offset) {
             closed = closed || comment.text(self.source_text).contains('>');
             if closed {
-                self.embedder.dropped.push(comment);
+                self.embedder.dropped.push((
+                    comment,
+                    "a comment after the `>` the plugin takes for the tag's end, which it deletes",
+                ));
             } else {
                 self.embedder.kept.push(comment);
                 attached[attributes.len() - 1].trailing.push(comment);

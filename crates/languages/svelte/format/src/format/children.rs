@@ -324,10 +324,10 @@ impl Printer<'_, '_, '_> {
                 Ok(self.cat(&[open, d, close]))
             }
             TemplateNode::Debug { identifiers, span } => {
-                // The plugin prints the names only.
+                // The plugin prints the names only and deletes the comments.
                 let comments = (self.c.tokens.within(span).iter())
                     .filter(|t| t.kind == TokenType::JavaScriptComment)
-                    .map(|t| t.span);
+                    .map(|t| (t.span, "a comment in {@debug}, which the plugin deletes"));
                 self.embedder.dropped.extend(comments);
                 let javascript = &self.c.javascript;
                 let names: Vec<&str> = self

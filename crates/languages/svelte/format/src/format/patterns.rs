@@ -66,10 +66,15 @@ impl Printer<'_, '_, '_> {
         };
         let parameter = self.c.javascript.get_pattern(pattern);
         self.expand_pattern(&parameter.pattern, &mut out)?;
-        // `expandNode` prints the pattern from its nodes, without its comments.
+        // `expandNode` prints the pattern from its nodes and deletes its comments.
         let comments = (self.c.tokens.within(span(parameter.pattern.span())).iter())
             .filter(|t| t.kind == TokenType::JavaScriptComment)
-            .map(|t| t.span);
+            .map(|t| {
+                (
+                    t.span,
+                    "a comment in a block's pattern, which the plugin deletes",
+                )
+            });
         self.embedder.dropped.extend(comments);
         // `expandNode` prints the root's annotation only and drops the others.
         if has_typescript(|f| f.visit_binding_pattern(&parameter.pattern)) {
