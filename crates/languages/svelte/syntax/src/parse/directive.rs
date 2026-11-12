@@ -91,7 +91,7 @@ impl<'a> Parser<'a, '_> {
         let (expression, end) = self
             .builder
             .read_expression_before(span.start_offset, span.end_offset, source_type)
-            .map_err(javascript_error)?;
+            .map_err(|error| javascript_error(error.into()))?;
         if end != span.end_offset {
             return Self::err_at(span, "parse_error", "expected one expression");
         }

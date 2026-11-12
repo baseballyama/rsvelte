@@ -26,7 +26,7 @@ mod tests;
 pub fn parse(source: &str) -> Result<SvelteConfig, String> {
     let end = u32::try_from(source.len()).map_err(|e| format!("the file is too large: {e}"))?;
     let (tree, program) = Tree::build(source, |builder| {
-        builder.program(Span::new(0, end), SourceType::mjs())
+        (builder.program(Span::new(0, end), SourceType::mjs())).map_err(Into::into)
     })
     .map_err(|error| format!("does not parse: {}", error.message))?;
     let semantic = Semantic::program(tree, program);

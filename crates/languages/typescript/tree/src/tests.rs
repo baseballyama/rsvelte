@@ -37,7 +37,9 @@ fn a_script_and_a_template_expression_parse_in_place() {
 fn an_error_points_into_the_document() {
     let source = "<p>{a +}</p>";
     let error = Tree::build(source, |builder| {
-        builder.expression_at(4, SourceType::mjs()).map(drop)
+        (builder.expression_at(4, SourceType::mjs()))
+            .map(drop)
+            .map_err(Into::into)
     })
     .expect_err("a syntax error");
     assert_eq!(error.code, "parse_error");

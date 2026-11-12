@@ -31,12 +31,14 @@ fn comments_keep_the_first_end_and_do_not_set_script_language() {
             .expect("instance script")
             .typescript
     );
-    let error = parse("<!--日本語🙂--").expect_err("unterminated comment");
+    let source = "<!--日本語🙂--";
+    let error = parse(source).expect_err("unterminated comment");
     assert_eq!(
         error.message,
         "Expected token -->\nhttps://svelte.dev/e/expected_token"
     );
-    assert_eq!(error.span.start_offset, 0);
+    // Upstream reads to the end of the input before it requires the `-->`.
+    assert_eq!(error.span.start_offset as usize, source.len());
 }
 
 #[test]

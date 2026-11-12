@@ -95,3 +95,30 @@ fn an_element_records_only_its_own_end_tag() {
     end_tags.sort_unstable();
     assert_eq!(end_tags, expected);
 }
+
+/// Each code and offset is the official compiler's.
+#[test]
+fn parse_time_checks_report_upstreams_code_and_point() {
+    for (source, code, offset) in [
+        ("<div></div>\n</\n", "unexpected_eof", 14),
+        ("<Foo>\n  </\n", "unexpected_eof", 10),
+        ("<\n", "unexpected_eof", 1),
+        ("<script lang=\"", "unexpected_eof", 14),
+        ("{#nope}x{/nope}", "expected_block_type", 2),
+        ("<svelte:component />", "svelte_component_missing_this", 0),
+        (
+            "<svelte:component this=\"Child\" />",
+            "svelte_component_invalid_this",
+            18,
+        ),
+        ("{#await p}w{:then }d{/await}", "expected_pattern", 18),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(
+            (&*error.code, error.span.start_offset),
+            (code, offset),
+            "{source}"
+        );
+    }
+    parse("<svelte:component this=\"{foo}\" />").expect("one expression");
+}
