@@ -2,7 +2,7 @@
 === 3 src/lib/PivotTable.svelte	json
 []
 
-=== 1879 src/lib/PivotTableUI.svelte	json
+=== 1648 src/lib/PivotTableUI.svelte	json
 [
 	{
 		"code": 2307,
@@ -18,7 +18,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './PivotTable.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-Swv2Ml/src/lib/PivotTable.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './PivotTable.svelte'. 'src/lib/PivotTable.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 27
@@ -42,7 +42,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './UI/Dropdown.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-Swv2Ml/src/lib/UI/Dropdown.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './UI/Dropdown.svelte'. 'src/lib/UI/Dropdown.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 7,
 			"character": 25
@@ -54,7 +54,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './UI/MainTable.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-Swv2Ml/src/lib/UI/MainTable.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './UI/MainTable.svelte'. 'src/lib/UI/MainTable.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 8,
 			"character": 26
@@ -418,11 +418,11 @@
 	}
 ]
 
-=== 343 src/lib/UI/Aggregators.svelte	json
+=== 266 src/lib/UI/Aggregators.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Dropdown.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-Swv2Ml/src/lib/UI/Dropdown.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Dropdown.svelte'. 'src/lib/UI/Dropdown.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 25

@@ -25,7 +25,9 @@ cargo run -p rsvelte_command_line -- run App.svelte --task svelte.lint/default
 ```
 
 Repeat `--task` to request more than one task. `run` prints generated files and diagnostics to
-standard output, with task labels. It does not edit the input file.
+standard output, with task labels. It exits with 1 when an error diagnostic or finding remains,
+and with 2 for a usage error. It does not edit the input file unless you pass `--fix`. Then it
+applies the findings' fixes as ESLint does, in up to 10 passes, and writes the file.
 
 | Command                                    | Purpose                                                         |
 | ------------------------------------------ | --------------------------------------------------------------- |

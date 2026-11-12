@@ -166,7 +166,7 @@ fn element_type(name: &str) -> usize {
         4
     } else if name.starts_with("svelte:") {
         5
-    } else if VOID_ELEMENTS.contains(&name) {
+    } else if rsvelte_markup_syntax::is_void(name) || matches!(name, "keygen" | "menuitem") {
         VOID
     } else if SVG_ELEMENTS.contains(&name) {
         2
@@ -177,12 +177,8 @@ fn element_type(name: &str) -> usize {
     }
 }
 
-/// eslint-plugin-svelte's lists (`src/utils/element-types.ts`).
-const VOID_ELEMENTS: &[&str] = &[
-    "area", "base", "br", "col", "embed", "hr", "img", "input", "keygen", "link", "menuitem",
-    "meta", "param", "source", "track", "wbr",
-];
-
+/// eslint-plugin-svelte's lists (`src/utils/element-types.ts`); its void elements add the obsolete
+/// `keygen` and `menuitem` to HTML's.
 const SVG_ELEMENTS: &[&str] = &[
     "altGlyph",
     "altGlyphDef",

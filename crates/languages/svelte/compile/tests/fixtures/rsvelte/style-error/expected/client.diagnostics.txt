@@ -1,1 +1,2 @@
-error css_parse_error 10:9-10:9 expected `}`
+error unexpected_eof 10:9-10:9 Unexpected end of input
+    https://svelte.dev/e/unexpected_eof

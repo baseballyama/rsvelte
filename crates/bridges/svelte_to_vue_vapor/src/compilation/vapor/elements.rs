@@ -439,18 +439,7 @@ impl<'o> Emitter<'_, 'o> {
 }
 
 fn boolean_property(attribute: &str) -> &str {
-    match attribute {
-        "readonly" => "readOnly",
-        "formnovalidate" => "formNoValidate",
-        "novalidate" => "noValidate",
-        "ismap" => "isMap",
-        "allowfullscreen" => "allowFullscreen",
-        "nomodule" => "noModule",
-        "playsinline" => "playsInline",
-        "disablepictureinpicture" => "disablePictureInPicture",
-        "disableremoteplayback" => "disableRemotePlayback",
-        name => name,
-    }
+    rsvelte_markup_syntax::property_name(attribute).unwrap_or(attribute)
 }
 
 fn escape_attribute(value: &str, out: &mut String) {

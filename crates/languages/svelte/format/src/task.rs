@@ -52,17 +52,14 @@ impl Task for Format {
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        let c = match rsvelte_svelte_syntax::fully_parsed(context) {
+        // The plugin takes the style sheet out before Svelte parses, so its errors do not count.
+        let c = match context.get::<rsvelte_svelte_syntax::Parsed>() {
             Ok(c) => c,
             Err(e) => {
                 out.diagnostics.push(e.clone());
                 return;
             }
         };
-        if let Some(error) = crate::format::cut_style_sheet(c, context.source_text()) {
-            out.diagnostics.push(error);
-            return;
-        }
         let rejected = context
             .get::<rsvelte_svelte_semantic::Resolved>()
             .as_ref()
@@ -81,9 +78,6 @@ impl Task for Format {
 /// The parse error, or the first construct the formatter does not handle yet.
 pub fn format(source_text: &str, options: &Options) -> Result<String, Diagnostic> {
     let component = rsvelte_svelte_syntax::parse::parse(source_text)?;
-    if let Some(error) = crate::format::cut_style_sheet(&component, source_text) {
-        return Err(error);
-    }
     let rejected = crate::format::rejected(&component, source_text);
     formatted(&component, source_text, options, rejected.as_ref())
 }

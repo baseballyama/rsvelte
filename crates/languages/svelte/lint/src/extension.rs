@@ -59,7 +59,7 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
         .map_err(|e| CallError(format!("svelte.lint: {e}")))?;
     let mut external = BTreeMap::new();
     for (prefix, rules) in functions {
-        if !crate::configuration::is_prefix(&prefix)
+        if !rsvelte_lint_runner::catalog::is_prefix(&prefix)
             || prefix == "svelte"
             || plugins.iter().any(|plugin| plugin.prefix == prefix)
         {

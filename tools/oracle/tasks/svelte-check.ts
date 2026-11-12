@@ -14,6 +14,8 @@ const CHECKOUT = SVELTE_PACKAGE.slice(
 	SVELTE_PACKAGE.indexOf(`${path.sep}node_modules${path.sep}`),
 );
 
+const TMPDIR = fs.realpathSync(os.tmpdir());
+
 interface Finding {
 	filename: string;
 	code: unknown;
@@ -70,10 +72,18 @@ function check(units: Unit[]): Map<string, Record<string, Artifact>> {
 			const d = JSON.parse(json) as Finding;
 			const findings = byFile.get(d.filename);
 			if (!findings) continue;
-			// Expected output must not depend on where the checkout is.
-			if (d.message.includes(CHECKOUT))
-				throw new Error(`${d.filename}: the message names a path of this checkout: ${d.message}`);
-			findings.push({ code: d.code, message: d.message, start: d.start, end: d.end });
+			// A path in the workspace is written relative to it, as rsvelte writes one relative to the
+			// project's root, so expected output does not depend on the temporary directory.
+			const message = d.message.split(`${ws}${path.sep}`).join('');
+			// Expected output must not depend on where the checkout or the temporary directory is.
+			for (const [where, root] of [
+				['this checkout', CHECKOUT],
+				['the temporary directory', TMPDIR],
+			] as const) {
+				if (message.includes(root))
+					throw new Error(`${d.filename}: the message names a path of ${where}: ${message}`);
+			}
+			findings.push({ code: d.code, message, start: d.start, end: d.end });
 		}
 		return new Map(
 			[...byFile].map(([file, findings]) => [

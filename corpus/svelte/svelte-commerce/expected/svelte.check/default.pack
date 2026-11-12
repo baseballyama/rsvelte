@@ -12565,7 +12565,7 @@
 	}
 ]
 
-=== 2608 src/routes/(my)/my/orders/[id]/+page.svelte	json
+=== 2531 src/routes/(my)/my/orders/[id]/+page.svelte	json
 [
 	{
 		"code": 2307,
@@ -12593,7 +12593,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../_OrderListSkeleton.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7QBOIg/src/routes/(my)/my/orders/_OrderListSkeleton.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../_OrderListSkeleton.svelte'. 'src/routes/(my)/my/orders/_OrderListSkeleton.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 31
@@ -15645,7 +15645,7 @@
 	}
 ]
 
-=== 2693 src/routes/(www)/order-tracking/+page.svelte	json
+=== 2616 src/routes/(www)/order-tracking/+page.svelte	json
 [
 	{
 		"code": 2307,
@@ -15721,7 +15721,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../../(my)/my/orders/_OrderListSkeleton.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7QBOIg/src/routes/(my)/my/orders/_OrderListSkeleton.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../../(my)/my/orders/_OrderListSkeleton.svelte'. 'src/routes/(my)/my/orders/_OrderListSkeleton.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 7,
 			"character": 31

@@ -402,3 +402,25 @@ fn textarea_content_beside_a_value_is_textarea_invalid_content_on_both_targets()
         }
     }
 }
+
+#[test]
+fn a_reactive_statement_in_the_instance_raises_upstreams_error() {
+    // From svelte 5.57.3, compiled with `runes: true`.
+    for (script, expected) in [
+        (
+            "let a = 1; $: b = a;",
+            Some(("legacy_reactive_statement_invalid", (19, 28))),
+        ),
+        ("function f() { $: x; }", None),
+        ("x: for (;;) break x;", None),
+    ] {
+        let source = format!("<script>{script}</script>");
+        for target in [Target::Client, Target::Server] {
+            let outcome = compile_at(&source, target).err();
+            let expected = expected.map(|(code, at)| (code.to_owned(), at));
+            assert_eq!(outcome, expected, "{source} on {target:?}");
+        }
+    }
+    let module = "<script module>let a = 1; $: b = a;</script>";
+    assert_eq!(compile(module, Target::Client).err(), None);
+}

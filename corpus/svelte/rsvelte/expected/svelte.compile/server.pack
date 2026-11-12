@@ -49595,6 +49595,125 @@ export default function Type_only_imports_and_exports($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
+=== 336 pattern/css/consecutive-and-column-combinators.svelte	css
+
+	a.svelte-1ggfu26 >> b:where(.svelte-1ggfu26) {
+		color: red;
+	}
+	a.svelte-1ggfu26 >>> b:where(.svelte-1ggfu26) {
+		color: green;
+	}
+	a.svelte-1ggfu26 > > b:where(.svelte-1ggfu26) {
+		color: blue;
+	}
+	/* (unused) a > + b {
+		color: black;
+	}*/
+	.c || .d.svelte-1ggfu26 {
+		color: white;
+	}
+	col ||td.svelte-1ggfu26 {
+		color: gray;
+	}
+
+=== 313 pattern/css/consecutive-and-column-combinators.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Consecutive_and_column_combinators($$renderer) {
+	$$renderer.push(`<table><colgroup><col class="c"/></colgroup><tbody><tr><td class="d svelte-1ggfu26"><a class="svelte-1ggfu26"><b class="svelte-1ggfu26">x</b></a></td></tr></tbody></table>`);
+}
+=== 549 pattern/css/consecutive-and-column-combinators.svelte	warnings.json
+[
+	{
+		"code": "a11y_missing_attribute",
+		"message": "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute",
+		"start": {
+			"line": 3,
+			"column": 26,
+			"character": 74
+		},
+		"end": {
+			"line": 3,
+			"column": 41,
+			"character": 89
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"a > + b\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 16,
+			"column": 1,
+			"character": 213
+		},
+		"end": {
+			"line": 16,
+			"column": 8,
+			"character": 220
+		}
+	}
+]
+
+=== 56 pattern/css/declaration-without-property-or-colon.svelte	css
+
+	.a.svelte-gxnvnq {
+		: red;
+		color blue;
+		--x: ;
+	}
+
+=== 177 pattern/css/declaration-without-property-or-colon.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Declaration_without_property_or_colon($$renderer) {
+	$$renderer.push(`<p class="a svelte-gxnvnq">x</p>`);
+}
+=== 246 pattern/css/empty-declaration.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 36
+	},
+	"end": {
+		"line": 5,
+		"column": 8,
+		"character": 42
+	}
+}
+
+=== 88 pattern/css/html-comment-in-a-sheet.svelte	css
+
+	<!-- .b { color: red; } -->
+	.a.svelte-10sp3my {
+		color: blue;
+	}
+	<!-- </style> -->
+
+=== 181 pattern/css/html-comment-in-a-sheet.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Html_comment_in_a_sheet($$renderer) {
+	$$renderer.push(`<p class="a svelte-10sp3my"><i class="b">x</i></p>`);
+}
+=== 96 pattern/css/value-ends-outside-strings-and-urls.svelte	css
+
+	.a.svelte-12z6sm3 {
+		x: (;
+		y: [;
+		content: ";";
+		background: url(a;b);
+		b: myurl(;);
+	}
+
+=== 176 pattern/css/value-ends-outside-strings-and-urls.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Value_ends_outside_strings_and_urls($$renderer) {
+	$$renderer.push(`<p class="a svelte-12z6sm3">x</p>`);
+}
 === 221 pattern/deferred-interface-body-error.svelte	error.json
 {
 	"code": "expected_token",
@@ -55082,32 +55201,6 @@ export default function _190_double_dollar_slots_legal($$renderer, $$props) {
 	}
 }
 
-=== 642 pattern/issues/3192-dollar-props-binding.svelte	js
-import * as $ from 'svelte/internal/server';
-
-function s($$renderer, $$props) {
-	$$renderer.push(`<!---->${$.escape($$sanitized_props)}`);
-}
-
-export default function _192_dollar_props_binding($$renderer) {
-	function f($$sanitized_props) {
-		return $$sanitized_props;
-	}
-
-	$$renderer.push(`<b>${$.escape(f(1))}</b> <!--[-->`);
-
-	const each_array = $.ensure_array_like([1]);
-
-	for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
-		let $$props = each_array[$$index];
-
-		$$renderer.push(`<!---->${$.escape($$sanitized_props)}`);
-	}
-
-	$$renderer.push(`<!--]--> `);
-	s($$renderer, 2);
-	$$renderer.push(`<!---->`);
-}
 === 223 pattern/issues/3194-strict-annex-b-function.svelte	error.json
 {
 	"code": "js_parse_error",

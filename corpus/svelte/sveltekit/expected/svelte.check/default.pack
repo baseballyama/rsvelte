@@ -237,7 +237,7 @@
 === 3 packages/kit/src/runtime/components/layout.svelte	json
 []
 
-=== 573 packages/kit/src/runtime/components/root.svelte	json
+=== 496 packages/kit/src/runtime/components/root.svelte	json
 [
 	{
 		"code": 2307,
@@ -253,7 +253,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../props.svelte.js'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-Qthj4K/packages/kit/src/runtime/props.svelte.js' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../props.svelte.js'. 'packages/kit/src/runtime/props.svelte.js' implicitly has an 'any' type.",
 		"start": {
 			"line": 2,
 			"character": 40

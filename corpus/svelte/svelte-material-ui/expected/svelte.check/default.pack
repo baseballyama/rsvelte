@@ -9449,7 +9449,7 @@
 	}
 ]
 
-=== 1355 packages/site/src/routes/demo/bottom-app-bar/+page.svelte	json
+=== 1124 packages/site/src/routes/demo/bottom-app-bar/+page.svelte	json
 [
 	{
 		"code": 2307,
@@ -9465,7 +9465,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './_Variants.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-vCcAQt/packages/site/src/routes/demo/bottom-app-bar/_Variants.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './_Variants.svelte'. 'packages/site/src/routes/demo/bottom-app-bar/_Variants.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 74,
 			"character": 23
@@ -9477,7 +9477,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './_InsetFab.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-vCcAQt/packages/site/src/routes/demo/bottom-app-bar/_InsetFab.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './_InsetFab.svelte'. 'packages/site/src/routes/demo/bottom-app-bar/_InsetFab.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 76,
 			"character": 23
@@ -9489,7 +9489,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './_Snackbar.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-vCcAQt/packages/site/src/routes/demo/bottom-app-bar/_Snackbar.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './_Snackbar.svelte'. 'packages/site/src/routes/demo/bottom-app-bar/_Snackbar.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 77,
 			"character": 23
@@ -11712,7 +11712,7 @@
 	}
 ]
 
-=== 603 packages/site/src/routes/demo/data-table/+page.svelte	json
+=== 526 packages/site/src/routes/demo/data-table/+page.svelte	json
 [
 	{
 		"code": 2307,
@@ -11728,7 +11728,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './_StickyHeader.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-vCcAQt/packages/site/src/routes/demo/data-table/_StickyHeader.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './_StickyHeader.svelte'. 'packages/site/src/routes/demo/data-table/_StickyHeader.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 47,
 			"character": 27
@@ -12619,7 +12619,7 @@
 	}
 ]
 
-=== 596 packages/site/src/routes/demo/elevation/+page.svelte	json
+=== 519 packages/site/src/routes/demo/elevation/+page.svelte	json
 [
 	{
 		"code": 2307,
@@ -12635,7 +12635,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './_Elevation.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-vCcAQt/packages/site/src/routes/demo/elevation/_Elevation.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './_Elevation.svelte'. 'packages/site/src/routes/demo/elevation/_Elevation.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 34,
 			"character": 24
@@ -17502,7 +17502,7 @@
 	}
 ]
 
-=== 596 packages/site/src/routes/demo/top-app-bar/+page.svelte	json
+=== 519 packages/site/src/routes/demo/top-app-bar/+page.svelte	json
 [
 	{
 		"code": 2307,
@@ -17518,7 +17518,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './_Variants.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-vCcAQt/packages/site/src/routes/demo/top-app-bar/_Variants.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './_Variants.svelte'. 'packages/site/src/routes/demo/top-app-bar/_Variants.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 43,
 			"character": 23
@@ -17977,7 +17977,7 @@
 	}
 ]
 
-=== 599 packages/site/src/routes/demo/typography/+page.svelte	json
+=== 522 packages/site/src/routes/demo/typography/+page.svelte	json
 [
 	{
 		"code": 2307,
@@ -17993,7 +17993,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './_Typography.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-vCcAQt/packages/site/src/routes/demo/typography/_Typography.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './_Typography.svelte'. 'packages/site/src/routes/demo/typography/_Typography.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 24,
 			"character": 25

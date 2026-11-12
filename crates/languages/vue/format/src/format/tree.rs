@@ -1,6 +1,6 @@
 use super::{
     Attributes, Cow, Embed, Kind2, LineIndex, Node, R, ROOT, SingleFileComponent, Span,
-    TagAttributes, TemplateNode, TemplateNodeIdentifier, Tree, Unsupported, VOID_TAGS, only_ws,
+    TagAttributes, TemplateNode, TemplateNodeIdentifier, Tree, Unsupported, only_ws,
 };
 
 /// Elements whose `white-space` is not `normal` (`CSS_WHITE_SPACE_TAGS`) or whose attributes
@@ -184,7 +184,7 @@ impl<'a> Tree<'a> {
                         span,
                     );
                     self.n[identifier].open_end = start_tag.end_offset;
-                    let void = VOID_TAGS.contains(&tag);
+                    let void = rsvelte_markup_syntax::is_void(tag);
                     self.n[identifier].self_closing = void || self_closing;
                     if !void && !self_closing {
                         let close = self.source_text[..span.end_offset as usize]
