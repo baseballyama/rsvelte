@@ -8,6 +8,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_svelte_semantic::{Analyzed, Resolved};
 use rsvelte_typescript_compile::print;
 
@@ -111,7 +112,7 @@ pub(crate) fn compiled<'a>(
         let module = lower_document(context, target, allocator)?;
         let _p = measurement::phase("js.print");
         Ok::<_, Diagnostic>(if mapped {
-            print::print_mapped(&module, context.line_index())
+            print::print_mapped(&module, context.lines(LineBreaks::Newline))
         } else {
             Emitter {
                 out: print::print(&module),

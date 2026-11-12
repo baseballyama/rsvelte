@@ -147,9 +147,12 @@ test('the check rejects a use of a later layer, of the same layer, and of no lay
 	assert.deepEqual(violations(throughSuper).failures, [
 		'computation/database.rs: `computation::database` uses `computation::task`, which is not below it',
 	]);
-	const grouped = edited('task_files.rs', (text) => `use crate::{index, source};\n${text}`);
+	const grouped = edited(
+		'computation/pipeline.rs',
+		(text) => `use crate::{index, source};\n${text}`,
+	);
 	assert.deepEqual(violations(grouped).failures, [
-		'task_files.rs: write one path per `use crate::`',
+		'computation/pipeline.rs: write one path per `use crate::`',
 	]);
 });
 
@@ -158,7 +161,9 @@ test('the check rejects a module outside the list and a list entry without a mod
 	files.set('extra.rs', 'pub fn f() {}\n');
 	files.set(
 		'lib.rs',
-		files.get('lib.rs')!.replace('//! 8. `task_files`', '//! 8. `task_files`, `missing`'),
+		files
+			.get('lib.rs')!
+			.replace('//! 7. `computation::pipeline`', '//! 7. `computation::pipeline`, `missing`'),
 	);
 	assert.deepEqual(violations(files).failures, [
 		'the layer list names `missing`, which is no module',
@@ -167,14 +172,16 @@ test('the check rejects a module outside the list and a list entry without a mod
 	const twice = read();
 	twice.set(
 		'lib.rs',
-		twice.get('lib.rs')!.replace('//! 8. `task_files`', '//! 8. `task_files`, `index`'),
+		twice
+			.get('lib.rs')!
+			.replace('//! 7. `computation::pipeline`', '//! 7. `computation::pipeline`, `index`'),
 	);
 	assert.ok(violations(twice).failures.includes('the layer list names `index` twice'));
 });
 
 test('the check accepts a use of an earlier layer and a comment that names a later one', () => {
 	const downward = edited(
-		'task_files.rs',
+		'computation/pipeline.rs',
 		(text) => `use crate::performance::buffer_pool;\n// See crate::computation::pipeline.\n${text}`,
 	);
 	assert.deepEqual(violations(downward).failures, []);

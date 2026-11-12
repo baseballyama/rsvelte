@@ -7,6 +7,7 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_svelte_lint::{Configuration, LintSettings};
 
 #[cfg(feature = "allocations")]
@@ -129,7 +130,7 @@ fn lint(rules: &str, inputs: &str, rounds: usize) {
             let found = rsvelte_svelte_lint::lint(&context, &configuration)
                 .unwrap_or_else(|error| panic!("{}: {}", document.path, error.message));
             let text = rsvelte_lint_runner::output::render_json(
-                context.ecmascript_line_index(),
+                context.lines(LineBreaks::Ecmascript),
                 names.clone(),
                 &found,
             );

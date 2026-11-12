@@ -11,12 +11,11 @@ use std::time::Instant;
 use rsvelte_kernel::computation::pipeline::{DocumentResult, RunOptions, Sharing, run_each};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_kernel::task_files;
 
 use crate::compare::{self, Ours, Verdict};
-use crate::ledger;
 use crate::pack::{self, Entry, Pack};
 use crate::sources::{self, Source};
+use crate::{ledger, task_files};
 
 /// Set to 1, records the verdicts in the ledger instead of failing on a move.
 const UPDATE: &str = "UPDATE_EXPECT";

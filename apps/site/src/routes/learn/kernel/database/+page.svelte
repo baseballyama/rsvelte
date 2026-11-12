@@ -130,11 +130,11 @@
 <div class="prose-learn">
 	<p>
 		コード検査のタスクの本体は <code>Lint::run</code> です。指摘を JSON で書き出すときは
-		<code>context.ecmascript_line_index()</code> を使います。
+		<code>context.lines(LineBreaks::Ecmascript)</code> を使います。
 	</p>
 </div>
 
-<Code item={data.code.lint} mark={['context.ecmascript_line_index()']} />
+<Code item={data.code.lint} mark={['context.lines(LineBreaks::Ecmascript)']} />
 
 <div class="prose-learn">
 	<p>
@@ -143,15 +143,13 @@
 			>DocumentContext</code
 		>
 		が別の <code>OnceCell</code>
-		で持ちます。行と列への変換はどの言語でも同じなので、カーネルが直接持ちます。表は行の区切り方ごとに二つあります。<code
-			>line_index</code
-		>
-		は、Svelte のコンパイラと同じく <code>\n</code> だけで行を区切ります。<code
-			>ecmascript_line_index</code
-		>
+		で持ちます。行と列への変換はどの言語でも同じなので、カーネルが直接持ちます。表は行の区切り方（<code
+			>LineBreaks</code
+		>）ごとに一つずつあります。<code>Newline</code>
+		は、Svelte のコンパイラと同じく <code>\n</code> だけで行を区切ります。<code>Ecmascript</code>
 		は、ESLint と同じく ECMAScript のすべての改行で区切ります。Vue の整形器も
-		<code>line_index</code>
-		を受け取ります。以前は Svelte と Vue の二つの整形器がそれぞれ表を作っていました。共有に変えると、ベンチマークの
+		<code>Newline</code>
+		の表を受け取ります。以前は Svelte と Vue の二つの整形器がそれぞれ表を作っていました。共有に変えると、ベンチマークの
 		1 ラウンドの命令数は 2,853,755,764 から 2,810,876,017 に減りました（−1.5%）。1 ラウンドは、全ファイルを一回処理する測定です（<a
 			href="/learn/measure">14 章</a
 		>）。

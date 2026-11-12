@@ -1,5 +1,5 @@
 use rsvelte_kernel::source::characters::trim_ecmascript;
-use rsvelte_kernel::source::positions::{LineIndex, Span};
+use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode, TokenType};
 use serde::Deserialize;
@@ -40,7 +40,7 @@ impl SvelteRule for MaxLinesPerBlock {
         let component = file.component().expect("a component rule");
         let lines = Lines {
             source: file.source(),
-            index: file.context.ecmascript_line_index(),
+            index: file.context.lines(LineBreaks::Ecmascript),
         };
         check(component, &lines, &self.0, reporter);
     }

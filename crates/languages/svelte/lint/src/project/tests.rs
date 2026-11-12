@@ -209,3 +209,27 @@ fn a_package_json_is_read_once_until_it_changes() {
     files.invalidate(&directory.path("node_modules"));
     assert_eq!(version("src/b.svelte").as_deref(), Some("2"));
 }
+
+#[test]
+fn without_files_a_document_is_in_a_kit_2_project_by_its_name() {
+    use rsvelte_kernel::computation::database::DocumentContext;
+    use rsvelte_kernel::computation::registry::Registry;
+    use rsvelte_kernel::source::document::Document;
+
+    use crate::computation::{SvelteConfiguration, SvelteKit};
+
+    let mut registry = Registry::new();
+    super::register_without_files(&mut registry);
+    let document = Document::new("/missing/src/routes/+page.svelte".to_owned(), String::new())
+        .expect("document");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let kit = context.facet::<SvelteKit>().expect("answered");
+    assert_eq!(kit.version.as_deref(), Some("2"));
+    assert_eq!(kit.location, Location::NameOnly);
+    assert!(
+        context
+            .facet::<SvelteConfiguration>()
+            .expect("answered")
+            .is_ok()
+    );
+}

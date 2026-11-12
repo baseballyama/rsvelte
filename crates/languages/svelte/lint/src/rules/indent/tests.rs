@@ -2,6 +2,7 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_lint_runner::finding::{Finding, apply_fixes};
 
 /// What `svelte/indent` reports, with the line of each, 1-based.
@@ -15,7 +16,7 @@ fn findings(source_text: &str) -> Vec<(u32, Finding)> {
     configuration
         .rule("svelte/indent", Severity::Error, &[], &[])
         .expect("a known rule");
-    let lines = context.ecmascript_line_index();
+    let lines = context.lines(LineBreaks::Ecmascript);
     crate::lint(&context, &configuration)
         .expect("source parses")
         .into_iter()

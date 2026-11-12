@@ -1,4 +1,4 @@
-# svelte.check/default: 35315 match
+# svelte.check/default: 35324 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/animotion/src/lib/components/slides.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
@@ -14,7 +14,6 @@ svelte/bits-ui/docs/src/lib/components/doc-page-header.svelte	mismatch
 svelte/bits-ui/docs/src/lib/components/doc-page.svelte	mismatch
 svelte/bits-ui/packages/bits-ui/src/lib/bits/select/components/select.svelte	mismatch
 svelte/carbon-components-svelte/tests/OverflowMenu/OverflowMenuItem.icons.test.svelte	mismatch
-svelte/cnblocks/src/lib/components/base/TableOfContents.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-input.svelte	mismatch
@@ -26,7 +25,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/i
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types01-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/invalid/function01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/any-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/svelte5-typescript/+page.svelte	mismatch
 svelte/flowbite-svelte/src/lib/command-palette/CommandPalette.svelte	refused
@@ -45,7 +43,6 @@ svelte/flowbite-svelte/src/routes/utils/CopyCliboardInput.svelte	mismatch
 svelte/flowbite-svelte/src/routes/utils/Paging.svelte	mismatch
 svelte/joy-of-code/src/lib/ui/header/header.svelte	mismatch
 svelte/joy-of-code/src/lib/ui/header/search/search.svelte	mismatch
-svelte/joy-of-code/src/lib/ui/heading.svelte	refused
 svelte/kite-public/src/lib/components/OnThisDay.svelte	mismatch
 svelte/kite-public/src/lib/components/contribute/ContributeHistory.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	mismatch
@@ -895,7 +892,6 @@ svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_
 svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/ca63fda154f4bfbe.svelte	mismatch
 svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/ec823872202ae4e8.svelte	mismatch
 svelte/rsvelte-tests/js/apps/npm/svelte2tsx/test/result-shape.test.mjs/eee7378a0b74be7f.svelte	refused
-svelte/rsvelte-tests/rsvelte_check/svelte_check/mapper/tests/the_epilogue_past_the_last_mapped_line_is_inserted_text/7233ce9cd664e8cd.svelte	refused
 svelte/rsvelte-tests/rsvelte_content_mapper/tests/a_broken_script_body_is_left_for_typescript_to_report/33018fc5a929c17c.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/completions/tests/the_component_doc_comment_is_offered/3088745555afdfa8.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/folding/tests/a_document_being_typed_still_folds/9a8f6b5e0cd9dd2d.svelte	mismatch
@@ -926,7 +922,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/module_shadow_blocks_type_and_dependent_props/c79250a91f4d81d6.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/props_rune/tests/test_component_props_ts_indexed_access_type/b69e126d2c44581e.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/props_rune/tests/test_component_props_ts_inline_object_type/c89bc9e87ec05791.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/props_rune/tests/test_component_props_ts_whole_object/f15039d47816e51a.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/stores/tests/props_id_rune_next_to_props_declaration_is_not_a_store/c1144c764992de79.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/instance_script_dollar_slots_dollar_props_dollar_events_unaffected/bf518e1962ff1a4a.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_exported_interface_dollar_props_throws/6f1a3ee68490bdbe.svelte	mismatch
@@ -1420,7 +1415,6 @@ svelte/svelte-material-ui/packages/tab/src/Tab.svelte	mismatch
 svelte/svelte-material-ui/packages/textfield/src/Textfield.svelte	mismatch
 svelte/svelte-material-ui/packages/tooltip/src/Tooltip.svelte	mismatch
 svelte/svelte-pivottable/src/lib/PivotTableUI.svelte	mismatch
-svelte/svelte-pivottable/src/lib/TSVExportRenderer.svelte	refused
 svelte/svelte-pivottable/src/lib/UI/Aggregators.svelte	mismatch
 svelte/svelte-put/sites/docs/src/lib/components/status-badge/StatusBadge.svelte	mismatch
 svelte/svelte-put/sites/docs/src/lib/notifications/components/Svelte5.svelte	mismatch
@@ -1440,9 +1434,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-inh
 svelte/svelte/packages/svelte/tests/server-side-rendering/samples/css-injected-options-nested/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte	mismatch
 svelte/sveltepress/packages/theme-default/src/components/Navbar.svelte	mismatch
-svelte/sveltepress/packages/theme-default/src/components/icons/SystemDefault.svelte	refused
-svelte/sveltepress/packages/theme-default/src/components/icons/logos/Bun.svelte	refused
-svelte/sveltepress/packages/theme-default/src/components/icons/logos/BunWithColor.svelte	refused
 svelte/sveltestrap/src/Nav/Nav.stories.svelte	mismatch
 svelte/svelteui/apps/docs/src/lib/components/homepage/AllComponents.svelte	mismatch
 svelte/svelteui/apps/docs/src/lib/components/mainpages/NextSteps.svelte	mismatch

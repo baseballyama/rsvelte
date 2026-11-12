@@ -56,6 +56,25 @@ pub fn register_file_system(registry: &mut Registry) {
     );
 }
 
+/// Answers [`SvelteConfiguration`] and [`SvelteKit`] for a host without files: no
+/// `svelte.config.js`, and a Kit 2 project whose route files are known by name, as upstream takes
+/// a page to be.
+pub fn register_without_files(registry: &mut Registry) {
+    registry.provide::<SvelteConfiguration>(
+        "svelte.lint.without_files",
+        |_| true,
+        |_| Ok(SvelteConfig::default()),
+    );
+    registry.provide::<SvelteKit>(
+        "svelte.lint.without_files",
+        |_| true,
+        |_| SvelteKitProject {
+            version: Some("2".to_owned()),
+            location: Location::NameOnly,
+        },
+    );
+}
+
 /// A `package.json`, when it holds a JSON object (`readPackageJson`).
 struct PackageJson;
 

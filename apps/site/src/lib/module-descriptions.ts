@@ -167,10 +167,6 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		summary:
 			'文字列を一文字ずつエスケープすること、JSON で表せない小数を null にすること、深い入れ子とキーを書き出せることを確かめます。',
 	},
-	'kernel/task_files': {
-		title: 'タスクの出力ファイル',
-		summary: 'タスクが文書ごとに残すファイルの名前と中身を決め、診断を JSON で書き出します。',
-	},
 	'kernel/performance/measurement': {
 		title: '処理時間とメモリの計測',
 		summary: '処理ごとの時間と、メモリ割り当ての回数・大きさを測ります。',

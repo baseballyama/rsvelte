@@ -35,7 +35,7 @@ impl Source {
     /// `<dir>/<kind>/<task>/<variant>.pack`.
     #[must_use]
     pub(crate) fn pack(&self, kind: &str, task: &str) -> PathBuf {
-        let (task, variant) = rsvelte_kernel::task_files::location(task);
+        let (task, variant) = crate::task_files::location(task);
         self.dir
             .join(kind)
             .join(task)
@@ -131,7 +131,7 @@ pub(crate) struct UnitTable {
 
 impl UnitTable {
     pub(crate) fn skips(&self, task: &str) -> bool {
-        let (name, _) = rsvelte_kernel::task_files::location(task);
+        let (name, _) = crate::task_files::location(task);
         self.skip.contains_key(task) || self.skip.contains_key(name)
     }
 }
@@ -164,7 +164,7 @@ impl Registry {
 
     /// The rules the official linter of `task` ran.
     pub(crate) fn lint_rules(&self, task: &str) -> &[String] {
-        let (name, _) = rsvelte_kernel::task_files::location(task);
+        let (name, _) = crate::task_files::location(task);
         self.locks.get(name).map_or(&[], |l| &l.rules)
     }
 }
