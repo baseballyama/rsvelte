@@ -89,6 +89,11 @@ impl Parser<'_, '_> {
                 Some(b'/') if self.rest().starts_with("//") || self.rest().starts_with("/*") => {
                     self.tag_comment()?;
                 }
+                // Upstream ends the attributes at a `/` and then requires the `>` right after it.
+                Some(b'/') => {
+                    self.position += 1;
+                    return self.expected_token(">");
+                }
                 Some(b'{') => {
                     let a = self.brace_attribute()?;
                     self.unique_attribute(&a)?;
@@ -110,7 +115,7 @@ impl Parser<'_, '_> {
         } else {
             match self.rest().find("*/") {
                 Some(i) => i + 2,
-                None => return self.err("parse_error", "unterminated comment"),
+                None => return self.unexpected_eof(),
             }
         };
         self.position += end;

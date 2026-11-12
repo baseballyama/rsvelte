@@ -1,5 +1,4 @@
 use oxc_parser::Kind;
-use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 
 use super::identifier::match_bracket;
@@ -45,10 +44,7 @@ impl Parser<'_, '_> {
             i += 1;
         }
         if i == bytes.len() {
-            let end = self
-                .source_text
-                .trim_end_matches(is_ecmascript_whitespace)
-                .len() as u32;
+            let end = self.trimmed_end() as u32;
             return Self::err_at(Span::new(end, end), "expected_token", "Expected token )");
         }
         let span = Span::new(start as u32, i as u32);
