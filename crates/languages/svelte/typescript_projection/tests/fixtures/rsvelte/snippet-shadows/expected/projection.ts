@@ -72,6 +72,7 @@ async () => {
       },
     });
     const { label } = __rsvelte_component_props(__rsvelte_component_0);
+    List;
   }
 };
 const SnippetShadows__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();

@@ -36,6 +36,7 @@ async () => {
       });
       (x);
     }
+    C;
   }
   {
     __rsvelte_component(C)(__rsvelte_internals(), {});
@@ -59,6 +60,7 @@ async () => {
         }
       }
     }
+    C;
   }
   {
     __rsvelte_component(C)(__rsvelte_internals(), {
@@ -68,6 +70,7 @@ async () => {
       svelteHTML.createElement("svelte:fragment", {});
       (x);
     }
+    C;
   }
   {
     svelteHTML.createElement("button", {

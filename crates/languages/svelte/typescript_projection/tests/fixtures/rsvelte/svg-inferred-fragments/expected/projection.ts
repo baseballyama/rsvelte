@@ -32,6 +32,7 @@ async () => {
       });
     }
     __rsvelte_ensure_snippet(dot(2));
+    C;
   }
   {
     svelteHTML.createElement("div", {});

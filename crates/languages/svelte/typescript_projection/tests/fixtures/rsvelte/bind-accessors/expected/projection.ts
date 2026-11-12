@@ -43,6 +43,7 @@ async () => {
         "open": __rsvelte_get_set(() => v, (x) => (v = x)),
       });
       (v);
+      C;
     }
   }
   __rsvelte_ensure_snippet(s());

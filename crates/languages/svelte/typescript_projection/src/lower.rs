@@ -14,7 +14,7 @@ use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{
-    AttributeKind, AttributeValue, Component, Part, Range, TemplateNode,
+    AttributeKind, AttributeValue, Component, Part, Range, TemplateNode, TokenType,
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
@@ -246,10 +246,16 @@ impl Builder<'_> {
                 attributes,
                 children,
                 start_tag,
+                end_tag,
+                span,
                 ..
             } => {
+                // svelte2tsx reads a component's name again where its end tag names it.
+                let end_name = (end_tag && component.is_some())
+                    .then(|| self.end_tag_name(name, span))
+                    .flatten();
                 return self
-                    .element(name, start_tag, component, attributes, children)
+                    .element(name, start_tag, component, attributes, children, end_name)
                     .map(Some);
             }
             TemplateNode::If {
@@ -330,6 +336,7 @@ impl Builder<'_> {
         component: Option<ExpressionIdentifier>,
         attributes: Range,
         children: Range,
+        end_name: Option<Span>,
     ) -> Result<NodeIdentifier> {
         let tag = name.text(self.source);
         // svelte2tsx passes `this` of these outside the props.
@@ -401,8 +408,28 @@ impl Builder<'_> {
         let parent = std::mem::replace(&mut self.slot_parent, named);
         self.element_children(children, snippet_props, lets)?;
         self.slot_parent = parent;
+        if let Some(end_name) = end_name {
+            let name = self.source(
+                oxc_span::Span::new(end_name.start_offset, end_name.end_offset),
+                None,
+            );
+            self.scratch.push(self.tree.push(Node::Statement(name)));
+        }
         let body = self.finish_list(start);
         Ok(self.tree.push(Node::Block { body }))
+    }
+
+    /// The name in an element's own end tag, which follows its last `</`.
+    fn end_tag_name(&self, name: Span, span: Span) -> Option<Span> {
+        let open = self
+            .component
+            .tokens
+            .within(span)
+            .iter()
+            .rev()
+            .find(|token| token.kind == TokenType::EndTagOpen)?;
+        let start = open.span.end_offset;
+        Some(Span::new(start, start + name.len()))
     }
 
     /// The call with what svelte2tsx writes around it: actions before, then bindings, directive

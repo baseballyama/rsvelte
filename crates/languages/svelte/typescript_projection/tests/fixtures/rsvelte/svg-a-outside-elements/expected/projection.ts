@@ -36,6 +36,7 @@ async () => {
         });
       }
     }
+    Chart;
   }
   {
     svelteHTML.createElement("a", {

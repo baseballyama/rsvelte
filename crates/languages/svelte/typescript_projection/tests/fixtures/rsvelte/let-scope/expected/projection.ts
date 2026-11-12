@@ -32,8 +32,10 @@ async () => {
         });
         (x);
         (y);
+        C;
       }
     }
+    C;
   }
   {
     svelteHTML.createElement("button", {

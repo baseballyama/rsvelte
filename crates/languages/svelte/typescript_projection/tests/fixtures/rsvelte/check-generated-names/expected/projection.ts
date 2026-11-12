@@ -11,6 +11,7 @@ async () => {
       children: __rsvelte_children,
       "a": 1,
     });
+    Foo;
   }
   {
     svelteHTML.createElement("div", {

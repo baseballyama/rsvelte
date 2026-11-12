@@ -137,7 +137,7 @@ impl Builder<'_> {
             .push(self.tree.push(Node::Const { name, value }));
     }
 
-    /// Builds the declaration of the named slot's `let:` bindings, from the parent component.
+    /// Builds the declaration of the filled slot's `let:` bindings, from the parent component.
     pub(super) fn slot_let(
         &mut self,
         attributes: Range,
@@ -146,36 +146,41 @@ impl Builder<'_> {
         if directives.slot_lets.is_empty() {
             return Ok(());
         }
-        let Some(slot) = self
+        let slot = self
             .component
             .attributes(attributes)
             .iter()
-            .find(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "slot")
-        else {
-            return Ok(());
+            .find(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "slot");
+        let Some(parent) = self.slot_parent else {
+            return slot.map_or(Ok(()), |slot| Err(Unsupported::at("directives", slot.span)));
         };
-        let unsupported = || Unsupported::at("directives", slot.span);
-        let name = match slot.value {
-            AttributeValue::Parts(parts) => match self.component.parts(parts) {
-                &[Part::Text(text)] => Some(text),
-                _ => None,
+        let name = match slot {
+            None => None,
+            Some(slot) => match slot.value {
+                AttributeValue::Parts(parts) => match self.component.parts(parts) {
+                    &[Part::Text(text)] => Some(text),
+                    _ => return Err(Unsupported::at("directives", slot.span)),
+                },
+                AttributeValue::True => return Err(Unsupported::at("directives", slot.span)),
             },
-            AttributeValue::True => None,
-        }
-        .ok_or_else(unsupported)?;
-        let parent = self.slot_parent.ok_or_else(unsupported)?;
+        };
         let properties = self.tree.list(&directives.slot_lets);
         let pattern = self.tree.push(Node::Object { properties });
         let object = self.instance(parent);
         let property = self.tree.push(Node::Identifier("$$slot_def"));
         let object = self.tree.push(Node::Member { object, property });
-        let text = self.tree.push(Node::Text(name));
-        let parts = self.tree.list(&[text]);
-        let index = self.tree.push(Node::String {
-            parts,
-            template: false,
-        });
-        let value = self.tree.push(Node::Index { object, index });
+        let value = if let Some(name) = name {
+            let text = self.tree.push(Node::Text(name));
+            let parts = self.tree.list(&[text]);
+            let index = self.tree.push(Node::String {
+                parts,
+                template: false,
+            });
+            self.tree.push(Node::Index { object, index })
+        } else {
+            let property = self.tree.push(Node::Identifier("default"));
+            self.tree.push(Node::Member { object, property })
+        };
         directives.slot_let = Some(self.tree.push(Node::Const {
             name: pattern,
             value,

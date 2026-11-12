@@ -36,6 +36,7 @@ async () => {
     {
       svelteHTML.createElement("p", {});
     }
+    Dyn;
   }
   {
     __rsvelte_component(Dyn)(__rsvelte_internals(), {
