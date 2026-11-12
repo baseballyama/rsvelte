@@ -23,8 +23,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 30219777,
-	"alloc_bytes": 4437330864,
+	"allocs": 30214458,
+	"alloc_bytes": 4436632704,
 	"peak_live_growth_bytes": 5834069,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -50,17 +50,17 @@
 		"svelte.compile.warnings": {
 			"calls": 73712,
 			"allocs": 1177163,
-			"alloc_bytes": 92091084
+			"alloc_bytes": 92071642
 		},
 		"svelte.compile/client": {
 			"calls": 36856,
 			"allocs": 93801,
-			"alloc_bytes": 13199749
+			"alloc_bytes": 13190028
 		},
 		"svelte.compile/server": {
 			"calls": 36856,
 			"allocs": 93800,
-			"alloc_bytes": 13199811
+			"alloc_bytes": 13190090
 		},
 		"svelte.compileModule/client": {
 			"calls": 2680,
@@ -85,12 +85,12 @@
 		"svelte.format/default": {
 			"calls": 36856,
 			"allocs": 3740870,
-			"alloc_bytes": 254844313
+			"alloc_bytes": 254834592
 		},
 		"svelte.lint/default": {
 			"calls": 36856,
 			"allocs": 177116,
-			"alloc_bytes": 17374395
+			"alloc_bytes": 17357534
 		},
 		"svelte.lower.client": {
 			"calls": 36517,
@@ -109,8 +109,8 @@
 		},
 		"svelte.parse": {
 			"calls": 36856,
-			"allocs": 575762,
-			"alloc_bytes": 175147348
+			"allocs": 570443,
+			"alloc_bytes": 174572980
 		},
 		"svelte.render_plan": {
 			"calls": 34914,
@@ -125,17 +125,17 @@
 		"svelte.typescript_projection.ast": {
 			"calls": 36856,
 			"allocs": 95916,
-			"alloc_bytes": 6322011
+			"alloc_bytes": 6312290
 		},
 		"svelte.typescript_projection.emit": {
 			"calls": 36856,
 			"allocs": 386880,
-			"alloc_bytes": 217558671
+			"alloc_bytes": 217548950
 		},
 		"svelte.typescript_projection/default": {
 			"calls": 36856,
 			"allocs": 344864,
-			"alloc_bytes": 425099877
+			"alloc_bytes": 425090156
 		},
 		"svelte.validate": {
 			"calls": 34914,
@@ -170,17 +170,17 @@
 		"vuelte.check": {
 			"calls": 71770,
 			"allocs": 99214,
-			"alloc_bytes": 15022306
+			"alloc_bytes": 15012585
 		},
 		"vuelte.compile/client": {
 			"calls": 36856,
 			"allocs": 74838,
-			"alloc_bytes": 8487214
+			"alloc_bytes": 8477493
 		},
 		"vuelte.compile/server": {
 			"calls": 36856,
 			"allocs": 74838,
-			"alloc_bytes": 8487214
+			"alloc_bytes": 8477493
 		},
 		"vuelte.translate": {
 			"calls": 53466,
