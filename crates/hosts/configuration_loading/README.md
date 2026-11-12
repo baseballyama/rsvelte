@@ -39,6 +39,8 @@ from the configuration file.
 | ------------------ | ----------------------------------------------------------------------- |
 | `svelte.compile`   | `cssHash`: a function                                                   |
 | `svelte.lint`      | `rules`: ESLint levels by rule name                                     |
+| `vue.lint`         | `rules`: ESLint levels by rule name; the rules take no options          |
+| `typescript.lint`  | `rules`: ESLint levels by rule name; the rules take no options          |
 | `typescript.check` | `command`: the type checker and its own arguments; `tsconfig`           |
 | `svelte.check`     | `svelte`: the package directory; `contentMapper`: the mapper executable |
 | `vue.check`        | `vue`: the package directory                                            |
@@ -78,7 +80,7 @@ An explicit lint `rules` object replaces the defaults, and empty rules turn ever
 Severity is `off`, `warn` or `error`, or `0`, `1` or `2`. Unknown fields and severities, and
 unknown rules that are on, fail before any task runs, and so do plugins that are not available. As
 in ESLint, a rule that is off is not checked. The CLI adapters so far cover Svelte compile and
-lint.
+Svelte, Vue and TypeScript lint.
 
 Settings apply to every matching language document. File overrides and adapters for other
 plugins do not exist yet. The transport supports named UTF-8 arguments and a UTF-8 result for

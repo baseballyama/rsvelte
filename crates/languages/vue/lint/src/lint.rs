@@ -9,6 +9,8 @@ use oxc_ast::ast::{BindingIdentifier, FormalParameters};
 use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::catalog::{Leveled, all, levels};
+use rsvelte_lint_runner::configuration::RuleLevels;
 use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
@@ -29,7 +31,10 @@ pub(crate) struct RuleContext<'a> {
     pub res: &'a Resolution,
 }
 
-type VueRule = dyn for<'a> Rule<RuleContext<'a>>;
+pub(crate) type VueRule = dyn for<'a> Rule<RuleContext<'a>>;
+
+/// A rule that runs, at its configured severity.
+pub(crate) type Enabled = Leveled<'static, VueRule>;
 
 /// In the oracle configuration's order: core rules, then the plugin's.
 static RULES: &[&VueRule] = &[
@@ -42,14 +47,27 @@ static RULES: &[&VueRule] = &[
 /// # Errors
 ///
 /// A rule failed.
-pub(crate) fn lint(context: &RuleContext<'_>) -> Result<Vec<Finding>, Diagnostic> {
+pub(crate) fn lint(
+    context: &RuleContext<'_>,
+    rules: &[Enabled],
+) -> Result<Vec<Finding>, Diagnostic> {
     let mut f = Findings::new();
-    f.run(RULES.iter().copied(), context);
+    f.run(rules, context);
     f.finish()
 }
 
-pub(crate) fn rule_identifiers() -> impl Iterator<Item = &'static str> + Clone {
-    RULES.iter().map(|r| r.identifier())
+/// Every rule at its own severity.
+pub(crate) fn every_rule() -> Vec<Enabled> {
+    all(RULES, Rule::severity)
+}
+
+/// The rules a `rules` object turns on; every rule at its own severity without one.
+///
+/// # Errors
+///
+/// A rule that is on is unknown or has options.
+pub(crate) fn configure(rules: Option<RuleLevels>) -> Result<Vec<Enabled>, String> {
+    levels(RULES, Rule::identifier, Rule::severity, rules)
 }
 
 #[derive(Debug)]
