@@ -18,18 +18,11 @@ pub(super) struct SvelteOptions {
 
 pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
-    let source = input.component.source_text;
-    // Upstream's parser rejects a misplaced element as it meets it, and reads the options once
-    // the template is parsed, before the analysis.
-    let mut seen = 0_u8;
+    // The parser has checked the placement and the options, as upstream's does.
     let mut options = SvelteOptions::default();
-    for (identifier, element) in tree.elements() {
-        validate_placement(tree, source, identifier, element, &mut seen)?;
-    }
     for (_, element) in tree.elements() {
         if element.kind == ElementKind::Metadata(Some(MetadataTag::Options)) {
-            options = options::validate(input, tree.attributes(element.attributes))?;
-            no_children(tree, source, element)?;
+            options = options::read(input, tree.attributes(element.attributes))?;
         }
     }
     for (_, element) in tree.elements() {
@@ -219,50 +212,6 @@ fn validate_globals(
             && global_binding(tag, attribute.name.text(source)).is_none()
         {
             return unsupported("this global binding", attribute.span);
-        }
-    }
-    Ok(())
-}
-
-fn validate_placement(
-    tree: &CompilerSyntaxTree,
-    source: &str,
-    identifier: CompilerNodeIdentifier,
-    element: &Element,
-    seen: &mut u8,
-) -> Result<(), Diagnostic> {
-    if let ElementKind::Metadata(Some(
-        tag @ (MetadataTag::Head
-        | MetadataTag::Window
-        | MetadataTag::Document
-        | MetadataTag::Body
-        | MetadataTag::Options),
-    )) = element.kind
-    {
-        let bit = match tag {
-            MetadataTag::Head => 1,
-            MetadataTag::Window => 2,
-            MetadataTag::Document => 4,
-            MetadataTag::Body => 8,
-            _ => 16,
-        };
-        let name = element.name.text(source);
-        let start = tree.node(identifier).span.start_offset;
-        let position = Span::new(start, start);
-        if *seen & bit != 0 {
-            return invalid(
-                "svelte_meta_duplicate",
-                &format!("A component can only have one `<{name}>` element"),
-                position,
-            );
-        }
-        *seen |= bit;
-        if tree.node(identifier).parent.is_some() {
-            return invalid(
-                "svelte_meta_invalid_placement",
-                &format!("`<{name}>` tags cannot be inside elements or blocks"),
-                position,
-            );
         }
     }
     Ok(())

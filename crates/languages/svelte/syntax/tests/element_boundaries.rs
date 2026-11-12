@@ -122,3 +122,67 @@ fn parse_time_checks_report_upstreams_code_and_point() {
     }
     parse("<svelte:component this=\"{foo}\" />").expect("one expression");
 }
+
+/// Upstream's parser reads `<svelte:options>` once the template is parsed.
+#[test]
+fn the_options_are_checked_at_parse_time() {
+    for (source, code) in [
+        (
+            r#"<svelte:options customElement="Element"/>"#,
+            "svelte_options_invalid_tagname",
+        ),
+        (
+            r#"<svelte:options customElement="font-face"/>"#,
+            "svelte_options_reserved_tagname",
+        ),
+        (
+            r#"<svelte:options customElement={{props:{value:{type:"Date"}}}}/>"#,
+            "svelte_options_invalid_customelement_props",
+        ),
+        (
+            r#"<svelte:options customElement={{shadow:"closed"}}/>"#,
+            "svelte_options_invalid_customelement_shadow",
+        ),
+        (
+            r#"<svelte:options tag="my-el" />"#,
+            "svelte_options_deprecated_tag",
+        ),
+        (
+            r#"<svelte:options runes="true" />"#,
+            "svelte_options_invalid_attribute_value",
+        ),
+        (
+            "<svelte:options runes>\n</svelte:options>",
+            "svelte_meta_invalid_content",
+        ),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(&*error.code, code, "{source}");
+    }
+    parse(r#"<svelte:options runes customElement={null} css="injected" />"#).expect("valid");
+    // Every attribute is read before the compiler refuses legacy mode.
+    let error = parse("<svelte:options runes={false} bogus />").expect_err("unknown");
+    assert_eq!(
+        (&*error.code, error.span.start_offset, error.span.end_offset),
+        ("svelte_options_unknown_attribute", 30, 35)
+    );
+}
+
+/// svelte2tsx blanks the scripts, so only the markup's syntax decides whether it parses.
+#[test]
+fn a_parse_without_scripts_reads_only_the_markup() {
+    use rsvelte_svelte_syntax::parse::parse_without_scripts;
+    let source = "<script>let a = ;</script>\n<p>{a}</p>";
+    parse(source).expect_err("the script does not parse");
+    let component = parse_without_scripts(source).expect("the markup parses");
+    let instance = component.instance.as_ref().expect("an instance script");
+    assert_eq!(instance.content.text(source), "let a = ;");
+    assert!(
+        component
+            .javascript
+            .get_program(instance.program)
+            .body
+            .is_empty()
+    );
+    parse_without_scripts("<script>let a = ;</script>\n<p>{a +}</p>").expect_err("the markup");
+}

@@ -121,7 +121,7 @@ test('native TS imports Svelte through the Rust mapper and preserves Unicode spa
 test('parse errors and unsupported Svelte constructs remain mapper diagnostics', () => {
 	for (const [source, code] of [
 		['<p>{</p>', 1],
-		['<script lang="ts">const props = $props();</script>{props.a}', 2],
+		['<script lang="ts">let a = 1;</script><svelte:self />', 2],
 	] as const) {
 		project(source, (api, config, file) => {
 			const snapshot = api.createSnapshot({ openProjects: [config] });
