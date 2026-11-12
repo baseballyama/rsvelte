@@ -284,12 +284,10 @@ fn typescript_in_blocks_matches_the_plugin() {
             "{input}"
         );
     }
+    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
     assert_eq!(
-        refusal(&format!(
-            "{typescript}{{#snippet f<T>(a: T)}}x{{/snippet}}\n"
-        ))
-        .0,
-        "a snippet's type parameters"
+        formatted("<script lang=\"ts\"></script>\n{#snippet s<T,U>(a)}x{/snippet}\n"),
+        "<script lang=\"ts\"></script>\n\n{#snippet s<T, U>(a)}x{/snippet}\n"
     );
     assert_eq!(
         refusal("{#each xs as {...{a}}}x{/each}\n").0,

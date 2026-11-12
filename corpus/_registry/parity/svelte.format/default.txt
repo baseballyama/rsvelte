@@ -1,4 +1,4 @@
-# svelte.format/default: 35771 match
+# svelte.format/default: 35790 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -452,10 +452,6 @@ svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_shared_members_behave_
 svelte/rsvelte-tests-core-2/js_whitespace_trim_2502/the_agreed_members_and_a_non_whitespace_trailer_are_unchanged/d128ec6c37771a58.svelte	refused
 svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/0b0bcbfea058b467.svelte	refused
 svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/c576047cfd8ac35e.svelte	refused
-svelte/rsvelte-tests-core-2/malformed_snippet_header/type_parameters_are_matched_as_upstream/0065ae710cc53bcb.svelte	refused
-svelte/rsvelte-tests-core-2/malformed_snippet_header/type_parameters_are_matched_as_upstream/44f2b592e66ab4bf.svelte	refused
-svelte/rsvelte-tests-core-2/malformed_snippet_header/type_parameters_are_matched_as_upstream/48adff43caf247f9.svelte	refused
-svelte/rsvelte-tests-core-2/malformed_snippet_header/type_params_keep_their_inner_whitespace/be13e292dd0e50e2.svelte	refused
 svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/a_member_oxc_already_rejects_does_not_move/1d0f55d0cbab183a.svelte	refused
 svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/a_member_oxc_already_rejects_does_not_move/62f5fd2ac19278a6.svelte	refused
 svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/a_member_oxc_already_rejects_does_not_move/88a080d25d69a08b.svelte	refused
@@ -524,11 +520,6 @@ svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_
 svelte/rsvelte-tests-core-3/root_fragment_scope_3375/two_root_consts_of_one_name_still_collide/5742ac3e859f4c5a.svelte	refused
 svelte/rsvelte-tests-core-3/script_line_terminators_3278/a_line_comment_ends_at_a_separator/fdeb02f2713a52fe.svelte	refused
 svelte/rsvelte-tests-core-3/script_line_terminators_3278/a_reactive_statement_on_a_cr_or_separator_line_keeps_its_effect/9b8c07ef0bc520f1.svelte	refused
-svelte/rsvelte-tests-core-3/snippet_header_typescript_guard/the_same_header_compiles_with_lang_ts/08f24ac631f235d4.svelte	refused
-svelte/rsvelte-tests-core-3/snippet_header_typescript_guard/the_same_header_compiles_with_lang_ts/36fcb5902f797f48.svelte	refused
-svelte/rsvelte-tests-core-3/snippet_header_typescript_guard/the_same_header_compiles_with_lang_ts/5978c7686ded499a.svelte	refused
-svelte/rsvelte-tests-core-3/snippet_header_typescript_guard/the_same_header_compiles_with_lang_ts/9ef6dba7233a425d.svelte	refused
-svelte/rsvelte-tests-core-3/snippet_header_typescript_guard/the_same_header_compiles_with_lang_ts/fe46db0dd2e2122b.svelte	refused
 svelte/rsvelte-tests-core-3/snippet_param_object_type_optional_4116/a_top_level_optional_parameter_is_unchanged/da5a6cbce8bbe6f6.svelte	refused
 svelte/rsvelte-tests-core-3/snippet_param_ts_default_4383/a_sibling_parameter_is_not_collateral/313f200bd663d011.svelte	refused
 svelte/rsvelte-tests-core-3/snippet_param_ts_default_4383/a_typescript_default_keeps_the_whole_parameter_list/ceeed17f60466475.svelte	mismatch
@@ -557,10 +548,6 @@ svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_li
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/161726226857b08a.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/39874a3b777a3442.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/45fa023987e198fc.svelte	mismatch
-svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/4b56b40a3022d931.svelte	refused
-svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/7cd96353f6252f64.svelte	refused
-svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/7e2d136df2f87c35.svelte	refused
-svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/b6b78ee4af97f807.svelte	refused
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/fff242f39886b817.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_literal_cr_fold_3282/cr_at_the_edges_of_the_body/47949bf4b801f9ea.svelte	refused
 svelte/rsvelte-tests-core-3/template_literal_cr_fold_3282/cr_at_the_edges_of_the_body/8ead8b7138efe2e5.svelte	refused
@@ -570,10 +557,6 @@ svelte/rsvelte-tests-core-3/template_literal_cr_fold_3282/let_and_module_declara
 svelte/rsvelte-tests-core-3/template_literal_cr_fold_3282/let_and_module_declarations_normalise_too/dfb9e630f61c7c26.svelte	refused
 svelte/rsvelte-tests-core-3/template_literal_cr_fold_3282/lone_cr_folds_to_lf_on_the_server/630f709a8708e886.svelte	refused
 svelte/rsvelte-tests-core-3/template_quoted_property_key_3714/a_double_quoted_key_stays_double_quoted/953dbc149cd9f120.svelte	mismatch
-svelte/rsvelte-tests-core-3/template_typescript_mode_3261/snippet_type_parameters_follow_the_component_mode/581064536a037a1e.svelte	refused
-svelte/rsvelte-tests-core-3/template_typescript_mode_3261/snippet_type_parameters_follow_the_component_mode/6350a76e66fdb6d4.svelte	refused
-svelte/rsvelte-tests-core-3/template_typescript_mode_3261/snippet_type_parameters_follow_the_component_mode/9997f8854bd1f01a.svelte	refused
-svelte/rsvelte-tests-core-3/template_typescript_mode_3261/snippet_type_parameters_follow_the_component_mode/e263bcae7f26da3c.svelte	refused
 svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/018b55b604f3fc8d.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/0610dba6e8224d13.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/0b0659d05a766317.svelte	mismatch
@@ -810,7 +793,7 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_ty
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/namespace_import_stays_in_its_namespace/25decd71616c26c8.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/a_column_after_a_tsx_rewrite_maps_back_to_its_source_column/e6161b35c984726d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_generic_arrow_already_safe_forms_untouched/c790ae9cf391077d.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_generic_arrow_gets_a_trailing_comma_for_a_tsx_consumer/b0bcfbd204ffc8f4.svelte	refused
+svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_generic_arrow_gets_a_trailing_comma_for_a_tsx_consumer/b0bcfbd204ffc8f4.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_generic_arrow_is_copied_verbatim/d1ee62865cf86de4.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_module_nested_arrow_assertion_uses_collected_facts/b4dfac757edb153a.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/type_assertion/tests/test_nested_function_arrow_assertion_facts_apply_without_store_injection/092bc65b07b2fd82.svelte	mismatch
@@ -867,7 +850,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_asy
 svelte/rsvelte/check/tsx-ambiguous-angle-brackets/project/src/Arrows.svelte	mismatch
 svelte/rsvelte/check/tsx-ambiguous-angle-brackets/project/src/MarkupArrow.svelte	mismatch
 svelte/rsvelte/check/tsx-ambiguous-angle-brackets/project/src/ModuleArrow.svelte	mismatch
-svelte/rsvelte/check/tsx-ambiguous-angle-brackets/project/src/SnippetGeneric.svelte	refused
 svelte/rsvelte/lint/block-lang/05-case-insensitive.svelte	refused
 svelte/rsvelte/lint/experimental-require-slot-types/19-lang-case-variants.svelte	refused
 svelte/rsvelte/lint/first-attribute-linebreak/12-this-comment-first.svelte	refused
@@ -1050,7 +1032,6 @@ svelte/svelte/packages/svelte/tests/hydration/samples/head-css-no-class/main.sve
 svelte/svelte/packages/svelte/tests/migrate/samples/props-ts/output.svelte	mismatch
 svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/input.svelte	refused
 svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/output.svelte	refused
-svelte/svelte/packages/svelte/tests/parser-legacy/samples/generic-snippets/input.svelte	refused
 svelte/svelte/packages/svelte/tests/parser-modern/samples/comment-before-function-binding/input.svelte	refused
 svelte/svelte/packages/svelte/tests/parser-modern/samples/comment-in-tag/input.svelte	refused
 svelte/svelte/packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte	mismatch
