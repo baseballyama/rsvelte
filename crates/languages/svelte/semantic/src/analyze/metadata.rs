@@ -116,14 +116,14 @@ impl<'r, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'r, 'walk, COLLECT_
 
     /// Upstream `is_pure` of a member whose object is `object`: an optional chain there never is.
     fn is_pure_member(&self, object: &Expression<'_>) -> bool {
-        !matches!(object, Expression::ChainExpression(_)) && self.is_pure(object)
+        !is_chain(object) && self.is_pure(object)
     }
 
     /// Upstream `is_pure`. A chain `f().a()…` is followed by a loop: a member's object that is
     /// not an identifier is pure when it is, and an optional chain there never is.
-    fn is_pure(&self, mut e: &Expression<'_>) -> bool {
+    fn is_pure<'e>(&self, mut e: &'e Expression<'e>) -> bool {
         loop {
-            match e {
+            match without_typescript(e) {
                 Expression::StringLiteral(_)
                 | Expression::RegExpLiteral(_)
                 | Expression::BigIntLiteral(_)
@@ -143,9 +143,9 @@ impl<'r, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'r, 'walk, COLLECT_
                     return self.res.symbol(identifier).is_none()
                         && !self.is_store_subscription(identifier);
                 }
-                _ => match e.as_member_expression() {
+                stripped => match stripped.as_member_expression() {
                     Some(member) => {
-                        if matches!(member.object(), Expression::ChainExpression(_)) {
+                        if is_chain(member.object()) {
                             return false;
                         }
                         e = member.object();
@@ -162,7 +162,7 @@ impl<'r, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'r, 'walk, COLLECT_
         call.arguments.iter().all(|a| match a {
             Argument::SpreadElement(_) => false,
             a => a.as_expression().is_some_and(|a| self.is_pure(a)),
-        }) && !matches!(call.callee, Expression::ChainExpression(_))
+        }) && !is_chain(&call.callee)
     }
 
     /// Upstream `is_safe_identifier` of a member whose object is `object`.
@@ -207,7 +207,7 @@ impl<'r, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'r, 'walk, COLLECT_
             self.pure_calls.insert(address(call), pure);
         }
         // A whole optional chain as the callee is upstream's `ChainExpression`.
-        let chain = matches!(call.callee, Expression::ChainExpression(_));
+        let chain = is_chain(&call.callee);
         if rune.is_none() && (chain || !self.is_safe(&call.callee)) {
             self.needs_context = true;
         }
@@ -257,9 +257,7 @@ impl<'a, const COLLECT_METADATA: bool> Visit<'a> for MetadataWalker<'_, '_, COLL
     }
 
     fn visit_call_expression(&mut self, it: &CallExpression<'a>) {
-        let rune = if self.chain_calls.contains(&address(it))
-            || matches!(it.callee, Expression::ChainExpression(_))
-        {
+        let rune = if self.chain_calls.contains(&address(it)) || is_chain(&it.callee) {
             None
         } else {
             self.res.rune_of_call(it)
@@ -304,6 +302,11 @@ impl<'a, const COLLECT_METADATA: bool> Visit<'a> for MetadataWalker<'_, '_, COLL
     fn visit_ts_type(&mut self, _: &TSType<'a>) {}
 }
 
+/// Whether `e` is an optional chain once its types are erased.
+fn is_chain(e: &Expression<'_>) -> bool {
+    matches!(without_typescript(e), Expression::ChainExpression(_))
+}
+
 /// The identifier a member chain starts from; an optional chain as an object has none.
 fn root<'e>(mut e: &'e Expression<'e>) -> Option<&'e IdentifierReference<'e>> {
     loop {
@@ -312,7 +315,7 @@ fn root<'e>(mut e: &'e Expression<'e>) -> Option<&'e IdentifierReference<'e>> {
             return Some(identifier);
         }
         let member = e.as_member_expression()?;
-        if matches!(member.object(), Expression::ChainExpression(_)) {
+        if is_chain(member.object()) {
             return None;
         }
         e = member.object();
