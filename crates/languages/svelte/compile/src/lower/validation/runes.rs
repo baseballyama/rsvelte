@@ -116,6 +116,8 @@ struct RuneWalk<'a> {
     classes: Vec<ClassFields>,
     /// Where each `{@const}` tag's declaration starts.
     const_tags: FxHashSet<u32>,
+    /// The `bind:` target being walked, if the root is one.
+    bind_root: Option<oxc_span::Span>,
 }
 
 /// A template root: an expression, or a `{@const}` declaration.
@@ -157,6 +159,7 @@ pub(in crate::lower) fn check_runes(
         refused: None,
         classes: Vec::new(),
         const_tags: FxHashSet::default(),
+        bind_root: None,
     };
     if let Some(module) = input.component.module {
         walk.root = place(true, false);
@@ -209,6 +212,7 @@ pub(in crate::lower) fn check_runes(
                     walk.error = Some(error);
                     break;
                 }
+                walk.bind_root = binds.contains_key(&identifier).then(|| e.span());
                 walk.visit_expression(e);
             }
             Root::Declaration(d) => walk.visit_variable_declaration(d),
@@ -230,10 +234,20 @@ impl<'a> Visit<'a> for RuneWalk<'a> {
             });
             self.classes.push(fields);
         }
-        let (place, parent) = match self.frames.last() {
+        let (mut place, parent) = match self.frames.last() {
             Some(frame) => (place_of(frame, kind), Some(frame.kind)),
             None => (self.root, None),
         };
+        // Upstream visits the bodies of a `bind:` pair's arrows as the directive's expression.
+        if !matches!(
+            kind,
+            AstKind::FormalParameters(_)
+                | AstKind::TSTypeParameterDeclaration(_)
+                | AstKind::TSTypeAnnotation(_)
+        ) && self.in_bind_pair_arrow()
+        {
+            place.rendering = self.root.rendering;
+        }
         let rune = if self.error.is_none() {
             self.check(kind, parent, place).unwrap_or_else(|error| {
                 self.error = Some(error);
@@ -281,6 +295,14 @@ pub(in crate::lower) fn rejects_binding(res: &Resolution, e: &Expression<'_>) ->
 }
 
 impl<'a> RuneWalk<'a> {
+    /// Whether the walk is at an arrow of a `bind:` target's `{get, set}` pair.
+    fn in_bind_pair_arrow(&self) -> bool {
+        matches!(self.frames.as_slice(),
+            [Frame { kind: AstKind::SequenceExpression(pair), .. },
+             Frame { kind: AstKind::ArrowFunctionExpression(_), .. }]
+                if self.bind_root == Some(pair.span))
+    }
+
     /// Whether the walk is inside a `{@const}` tag's declaration.
     fn in_const_tag(&self) -> bool {
         matches!(self.frames.first().map(|f| f.kind),
@@ -312,20 +334,20 @@ impl<'a> RuneWalk<'a> {
         parent: Option<AstKind<'a>>,
         place: Place,
     ) -> Result<Option<&'static str>, Diagnostic> {
-        // A `for await` suspends rendering as an `await` does; upstream prints it into a
-        // function that is not async.
-        let suspends = match kind {
-            AstKind::AwaitExpression(_) => true,
-            AstKind::ForOfStatement(f) => f.r#await,
-            _ => false,
-        };
-        if place.rendering && suspends {
-            return crate::lower::special::invalid(
-                "experimental_async",
-                "Cannot use `await` in deriveds and template expressions, or at the top level of a \
-                    component, unless the `experimental.async` compiler option is `true`",
-                span_of(&kind),
-            );
+        let message = "Cannot use `await` in deriveds and template expressions, or at the top level \
+                       of a component, unless the `experimental.async` compiler option is `true`";
+        if place.rendering && matches!(kind, AstKind::AwaitExpression(_)) {
+            return crate::lower::special::invalid("experimental_async", message, span_of(&kind));
+        }
+        // Upstream prints a `for await` into a function that is not async, and raises only what
+        // an `await` later raises.
+        if place.rendering
+            && matches!(kind, AstKind::ForOfStatement(f) if f.r#await)
+            && self.refused.is_none()
+        {
+            self.refused =
+                crate::lower::special::invalid::<()>("experimental_async", message, span_of(&kind))
+                    .err();
         }
         let res = self.res;
         match kind {
