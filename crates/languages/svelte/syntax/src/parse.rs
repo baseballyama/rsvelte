@@ -88,6 +88,13 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
     Ok(template.into_component(javascript))
 }
 
+/// Whether `offset` is in the content of a `<script>` element, which svelte-eslint-parser
+/// parses itself.
+#[must_use]
+pub fn in_script_content(source_text: &str, offset: u32) -> bool {
+    script::in_script_content(source_text, offset as usize)
+}
+
 /// oxc's error, under the code and in the words upstream gives a JavaScript syntax error. It
 /// keeps oxc's range, which the parser reads; [`parse`] reports Acorn's position.
 #[cold]
