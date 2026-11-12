@@ -113,6 +113,25 @@ impl Task for Lint {
             .map_or(&*crate::configuration::DEFAULT, |configuration| {
                 configuration.as_ref()
             });
+        // svelte-eslint-parser throws Svelte's parse error, which ESLint reports as the one
+        // finding; it parses scripts itself, so an error in one stays refused.
+        if rsvelte_svelte_syntax::matches(context.document)
+            && let Err(error) = context.get::<rsvelte_svelte_syntax::Parsed>()
+            && !rsvelte_svelte_syntax::parse::in_script_content(
+                context.source_text(),
+                error.span.start_offset,
+            )
+        {
+            out.file(
+                "lint.json",
+                rsvelte_lint_runner::output::render_parse_error(
+                    context.ecmascript_line_index(),
+                    &error.message,
+                    error.span.start_offset,
+                ),
+            );
+            return;
+        }
         let (file, findings) = match crate::rule::File::new(context).and_then(|file| {
             let findings = crate::lint::check(&file, configuration)?;
             Ok((file, findings))

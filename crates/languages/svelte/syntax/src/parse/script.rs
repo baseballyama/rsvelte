@@ -43,6 +43,46 @@ pub(super) fn script_is_typescript(source_text: &str) -> bool {
     }
 }
 
+/// Whether `offset` is in the content of a `<script>` element. svelte-eslint-parser reads those
+/// itself and blanks them before Svelte parses the rest, so an error there is not Svelte's.
+pub(super) fn in_script_content(source_text: &str, offset: usize) -> bool {
+    let mut from = 0;
+    loop {
+        let rest = &source_text[from..];
+        let Some(i) = memchr::memchr(b'<', rest.as_bytes()) else {
+            return false;
+        };
+        let at = &rest[i..];
+        if let Some(body) = at.strip_prefix("<!--") {
+            match memchr::memmem::find(body.as_bytes(), b"-->") {
+                Some(end) => from += i + 4 + end + 3,
+                None => return false,
+            }
+            continue;
+        }
+        from += i + 1;
+        let Some(after) = at.strip_prefix("<script") else {
+            continue;
+        };
+        if !after.starts_with(|c| is_ecmascript_whitespace(c) || c == '>') {
+            continue;
+        }
+        let Some(open) = after.find('>') else {
+            return false;
+        };
+        let start = from + "script".len() + open + 1;
+        let end = memchr::memmem::find(&source_text.as_bytes()[start..], b"</script")
+            .map_or(source_text.len(), |len| start + len);
+        if (start..=end).contains(&offset) {
+            return true;
+        }
+        if offset < start {
+            return false;
+        }
+        from = end;
+    }
+}
+
 /// Upstream `read_script`'s `get_context`: `module`, or the legacy `context="module"`.
 fn is_module(source_text: &str, attributes: &[TagAttributes]) -> bool {
     attributes.iter().any(|(name, value)| {
