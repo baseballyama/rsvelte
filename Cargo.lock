@@ -1342,6 +1342,8 @@ dependencies = [
 name = "rsvelte_svelte_check"
 version = "0.0.0"
 dependencies = [
+ "oxc_ast",
+ "oxc_span",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
  "rsvelte_svelte_syntax",

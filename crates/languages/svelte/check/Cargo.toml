@@ -10,6 +10,8 @@ publish.workspace = true
 doctest = false
 
 [dependencies]
+oxc_ast.workspace = true
+oxc_span.workspace = true
 rsvelte_plugin_interface.workspace = true
 serde.workspace = true
 rsvelte_svelte_syntax.workspace = true

@@ -139,6 +139,9 @@ pub enum TypeScriptDocument {
         projection: Emitter,
         map_back: MapBack,
         env: Arc<TypeScriptEnv>,
+        /// What the checker reports where the upstream projection places code differently from
+        /// this one, by source range, code and message.
+        placement: Vec<(Span, u32, &'static str)>,
     },
 }
 
@@ -261,6 +264,7 @@ struct Prepared {
     map_back: MapBack,
     env: Arc<TypeScriptEnv>,
     source_text: String,
+    placement: Vec<(Span, u32, &'static str)>,
 }
 
 impl FinishTask for Check {
@@ -315,6 +319,7 @@ impl FinishTask for Check {
                 projection,
                 map_back,
                 env,
+                placement,
             }) => Some(Box::new(Prepared {
                 path: context.document.path.clone(),
                 projection: Emitter {
@@ -325,6 +330,7 @@ impl FinishTask for Check {
                 map_back: *map_back,
                 env: Arc::clone(env),
                 source_text: context.source_text().to_owned(),
+                placement: placement.clone(),
             })),
         }
     }
@@ -509,6 +515,21 @@ fn write_findings(docs: &[Prepared], outs: Vec<&mut TaskOutput>, found: Vec<Type
                 message: f.message,
             });
         }
+    }
+    for (d, keyed) in docs.iter().zip(&mut per_doc) {
+        let bom = byte_order_mark(&d.source_text);
+        keyed.extend(d.placement.iter().filter_map(|&(span, code, message)| {
+            Some(Finding {
+                semantic: true,
+                generated: generated_offset(&d.projection, span.start_offset),
+                span: Span::new(
+                    span.start_offset.checked_sub(bom)?,
+                    span.end_offset.checked_sub(bom)?,
+                ),
+                code,
+                message: message.to_owned(),
+            })
+        }));
     }
     // svelte-check and vue-tsc count positions in the text TypeScript reads: without the mark.
     for (((d, out), mut keyed), unmapped) in docs.iter().zip(outs).zip(per_doc).zip(unmapped) {
