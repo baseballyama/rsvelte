@@ -303,6 +303,12 @@ impl Resolution {
         self.semantic().syntax_error()
     }
 
+    /// [`Self::syntax_error`], with what acorn reports for it.
+    #[must_use]
+    pub fn javascript_syntax_error(&self) -> Option<&rsvelte_typescript_tree::SyntaxError> {
+        self.semantic().javascript_syntax_error()
+    }
+
     /// The instance script's scope, where the template's names resolve first; the root scope when
     /// there is no instance script.
     #[must_use]

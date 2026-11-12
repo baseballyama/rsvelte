@@ -221,8 +221,10 @@ pub(crate) fn validate_unit(
     unit: Unit,
 ) -> Result<ValidatedOptions, Diagnostic> {
     // Acorn rejects at parse time what oxc's semantic checker finds after the parser.
-    if let Some(error) = res.syntax_error() {
-        return Err(error.clone());
+    if let Some(error) = res.javascript_syntax_error() {
+        return Err(rsvelte_svelte_syntax::parse::javascript_failure(
+            error.clone(),
+        ));
     }
     let special::SvelteOptions {
         custom_element,
