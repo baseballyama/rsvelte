@@ -1,14 +1,55 @@
 //! The names the instance script exports, which become the component's exports.
 
 use oxc_ast::ast::{
-    Declaration, ExportNamedDeclaration, ModuleExportName, Statement, VariableDeclarationKind,
+    Declaration, ExportFromDeclaration, ExportNamedDeclaration, ModuleExportName, Statement,
+    VariableDeclarationKind,
 };
 use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
 
 use super::super::paths::bound_names;
-use super::super::{span_of, unsupported};
+use super::super::special::error;
+use super::super::{CompileInput, span_of, unsupported};
+
+/// Upstream `module_illegal_default_export`, which its walk of either script raises at an
+/// `export default` or an `export { … as default }`.
+pub(in crate::lower) fn default_exports(
+    input: &CompileInput<'_>,
+) -> impl Iterator<Item = (Raised, Diagnostic)> {
+    let component = input.component;
+    [
+        (Section::Module, component.module),
+        (Section::Instance, component.instance),
+    ]
+    .into_iter()
+    .filter_map(|(section, program)| Some((section, program?)))
+    .flat_map(move |(section, program)| {
+        (component.javascript.get_program(program).body.iter())
+            .filter(|statement| match statement {
+                Statement::ExportDefaultDeclaration(_) => true,
+                Statement::ExportNamedDeclaration(export) => export
+                    .specifiers
+                    .iter()
+                    .any(|specifier| specifier.exported.name() == "default"),
+                _ => false,
+            })
+            .map(move |statement| {
+                let span = span_of(statement);
+                let raised = Raised {
+                    phase: Phase::Walk,
+                    section,
+                    at: span.start_offset,
+                };
+                let message = "A component cannot have a default export";
+                (
+                    raised,
+                    error("module_illegal_default_export", message, span),
+                )
+            })
+    })
+}
 
 /// One of upstream's `analysis.exports`: the local `name`, exported as `alias`.
 pub(in crate::lower) struct Export<'t> {
@@ -54,9 +95,13 @@ pub(super) fn check_declaration<'t>(
     let plain = named
         && exports[start..].iter().all(|export| {
             export.symbol.is_some_and(|symbol| {
+                // A `const` state is never reassigned, so its value is the proxy itself.
                 matches!(
                     res.binding(symbol).kind,
-                    BindingKind::Normal | BindingKind::RestProperty
+                    BindingKind::Normal
+                        | BindingKind::RestProperty
+                        | BindingKind::State
+                        | BindingKind::RawState
                 )
             })
         });
@@ -67,13 +112,13 @@ pub(super) fn check_declaration<'t>(
 }
 
 /// Pushes the names of `export { name as alias }`, which renders nothing in the component.
-pub(super) fn check_specifiers<'t>(
+pub(super) fn push_specifiers<'t>(
     res: &Resolution,
     export: &'t ExportNamedDeclaration<'t>,
     exports: &mut Vec<Export<'t>>,
-) -> Result<(), Diagnostic> {
+) {
     if export.export_kind.is_type() {
-        return Ok(());
+        return;
     }
     for specifier in &export.specifiers {
         if specifier.export_kind.is_type() {
@@ -84,14 +129,36 @@ pub(super) fn check_specifiers<'t>(
         };
         let alias = specifier.exported.name().as_str();
         let symbol = res.symbol(local);
+        exports.push(Export {
+            name: local.name.as_str(),
+            alias,
+            symbol,
+        });
+    }
+}
+
+/// Pushes the names of `export { name as alias } from 'module'`. Upstream drops the statement and
+/// exports `name` as the instance reads it, an import of that name or nothing.
+pub(super) fn check_reexports<'t>(
+    export: &'t ExportFromDeclaration<'t>,
+    exports: &mut Vec<Export<'t>>,
+) -> Result<(), Diagnostic> {
+    if export.export_kind.is_type() {
+        return Ok(());
+    }
+    for specifier in &export.specifiers {
+        if specifier.export_kind.is_type() {
+            continue;
+        }
+        let alias = specifier.exported.name().as_str();
         // Upstream raises `module_illegal_default_export`.
         if alias == "default" {
             return unsupported("this export from the instance script", span_of(specifier));
         }
         exports.push(Export {
-            name: local.name.as_str(),
+            name: specifier.local.name().as_str(),
             alias,
-            symbol,
+            symbol: None,
         });
     }
     Ok(())

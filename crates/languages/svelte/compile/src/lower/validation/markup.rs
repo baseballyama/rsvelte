@@ -200,7 +200,8 @@ fn element<'a>(
     {
         return invalid(
             "slot_attribute_invalid_placement",
-            "Element with a slot='...' attribute must be a child of a component or a descendant of a custom element",
+            "Element with a slot='...' attribute must be a child of a component or a descendant of \
+                a custom element",
             slot.span,
         );
     }
@@ -208,7 +209,9 @@ fn element<'a>(
         Some(Owner::Component(component)) => node.parent == Some(component),
         _ => false,
     };
+    // Upstream's `SlotElement` checks no `slot` attribute of its own.
     if let Some(slot) = slot
+        && el.kind != ElementKind::Slot
         && (fills || matches!(parent, Some(NodeKind::Snippet(_))))
     {
         slots::check(input, slot, node.parent.filter(|_| fills), slots)?;
@@ -223,7 +226,8 @@ fn element<'a>(
     {
         return invalid(
             "textarea_invalid_content",
-            "A `<textarea>` can have either a value attribute or (equivalently) child content, but not both",
+            "A `<textarea>` can have either a value attribute or (equivalently) child content, but \
+                not both",
             node.span,
         );
     }

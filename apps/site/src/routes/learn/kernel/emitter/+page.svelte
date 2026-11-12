@@ -145,7 +145,7 @@
 	</p>
 </div>
 
-<Code item={data.code.checkProjected} mark={['(d.map_back)(&d.projection, f.span)']} />
+<Code item={data.code.writeFindings} mark={['(d.map_back)(&d.projection, span)']} />
 
 <div class="prose-learn">
 	<H2 id="source-map" />

@@ -1,6 +1,8 @@
 //! An attribute as the property svelte2tsx writes for it.
 
+use oxc_span::GetSpan;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part};
 
 use super::{Builder, Node, NodeIdentifier, SourceExpression};
@@ -205,7 +207,19 @@ impl Builder<'_> {
             }
         };
         let node = match attribute.kind {
-            AttributeKind::Spread => Node::Spread(value),
+            AttributeKind::Spread => {
+                let value_start = parts.iter().find_map(|part| match *part {
+                    Part::Expression { expression, .. } => {
+                        Some(self.expression(expression).span().start)
+                    }
+                    Part::Text(_) => None,
+                });
+                let dots = Span::new(
+                    attribute.span.start_offset + 1,
+                    value_start.unwrap_or(attribute.span.start_offset + 1),
+                );
+                Node::Spread { value, dots }
+            }
             AttributeKind::Attach => Node::ComputedProperty {
                 key: self.attachment_key(),
                 value,

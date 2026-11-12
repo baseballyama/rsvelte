@@ -181,7 +181,10 @@ fn a_keyframe_step_scopes_no_element() {
 
 #[test]
 fn a_derived_keeps_its_arrow_only_when_the_callee_may_change() {
-    let source = "<script>import A from './A.svelte'; const g = () => 1; let f = () => 1; function swap() { f = () => 2; } let d = $derived(g()); let e = $derived(f()); let l = $derived(h()); const h = () => 3;</script><A a={f()} b={g()} t={$effect.tracking()} {d} {e} {l} {swap} />";
+    let source = "<script>import A from './A.svelte'; const g = () => 1; let f = () => 1; function \
+        swap() { f = () => 2; } let d = $derived(g()); let e = $derived(f()); let l = \
+        $derived(h()); const h = () => 3;</script><A a={f()} b={g()} t={$effect.tracking()} {d} \
+        {e} {l} {swap} />";
     let client = squashed(source, Target::Client);
     for expected in [
         "letd=$.derived(g);",
@@ -208,7 +211,8 @@ fn a_derived_keeps_its_arrow_only_when_the_callee_may_change() {
 fn the_server_empties_an_effect_wherever_a_statement_stands() {
     let source = "<script>let x = 1; if (x) $effect(() => {}); else $effect.pre(() => {}); \
                   for (;;) $effect(() => {}); while (x) $effect(() => {}); l: $effect(() => {}); \
-                  function f() { a(); $effect(() => {}); b(); } switch (x) { case 1: $effect(() => {}); } \
+                  function f() { a(); $effect(() => {}); b(); } switch (x) { case 1: $effect(() => \
+                      {}); } \
                   $effect(() => {});</script>";
     assert!(
         squashed(source, Target::Server).ends_with(
@@ -253,7 +257,8 @@ fn an_instance_export_is_returned_and_bound() {
 /// esrap skips an empty statement only in a block or program body, not in a `switch` case.
 #[test]
 fn an_empty_statement_is_dropped_from_a_block_or_program_body() {
-    let source = "<script>function f() { a();; b(); } ; if (x) ; switch (x) { case 1: ; default: ; }</script>";
+    let source = "<script>function f() { a();; b(); } ; if (x) ; switch (x) { case 1: ; default: ; \
+        }</script>";
     assert!(
         squashed(source, Target::Client)
             .ends_with("functionf(){a();b();}if(x);switch(x){case1:;default:;}}"),
@@ -264,7 +269,8 @@ fn an_empty_statement_is_dropped_from_a_block_or_program_body() {
 
 #[test]
 fn effect_tracking_is_read_inside_an_effect() {
-    let source = "<script>import C from './C.svelte';</script><C t={$effect.tracking()} /><p>{$effect.tracking()}</p>";
+    let source = "<script>import C from './C.svelte';</script><C t={$effect.tracking()} \
+        /><p>{$effect.tracking()}</p>";
     let client = squashed(source, Target::Client);
     assert!(client.contains("gett()"), "{client}");
     assert!(
@@ -428,7 +434,8 @@ fn a_grouped_optional_chain_is_neither_pure_nor_safe() {
 
 #[test]
 fn a_bindable_prop_member_is_written_through_the_prop() {
-    let source = "<script>import C from './C.svelte'; let { a = $bindable({}) } = $props(); function f() { a.x = 1; a.x++; }</script><C bind:v={a.x} /><button onclick={f}>b</button>";
+    let source = "<script>import C from './C.svelte'; let { a = $bindable({}) } = $props(); \
+        function f() { a.x = 1; a.x++; }</script><C bind:v={a.x} /><button onclick={f}>b</button>";
     let client = squashed(source, Target::Client);
     for expected in [
         "a(a().x=1,true);",
@@ -443,7 +450,8 @@ fn a_bindable_prop_member_is_written_through_the_prop() {
         "a.x=1;a.x++;",
         "getv(){returna.x;}",
         "setv($$value){a.x=$$value;$$settled=false;}",
-        "do{$$settled=true;$$inner_renderer=$$renderer.copy();$$render_inner($$inner_renderer);}while(!$$settled);",
+        "do{$$settled=true;$$inner_renderer=$$renderer.copy();$$render_inner($$inner_renderer);}wh\
+            ile(!$$settled);",
     ] {
         assert!(server.contains(expected), "{expected} in {server}");
     }
@@ -473,7 +481,8 @@ fn a_prop_proxies_where_upstream_reads_it_and_not_where_it_follows_the_default()
 
 #[test]
 fn only_the_instance_splits_a_declaration_into_one_per_declarator() {
-    let source = "<script module>let m = 1, n = 2;</script><script>let p = 1, q = 2; function f() { let r = 1, s = 2; return r + s; }</script>{m}{n}{p}{q}{f()}";
+    let source = "<script module>let m = 1, n = 2;</script><script>let p = 1, q = 2; function f() \
+        { let r = 1, s = 2; return r + s; }</script>{m}{n}{p}{q}{f()}";
     for target in [Target::Client, Target::Server] {
         let output = squashed(source, target);
         for expected in ["letm=1,n=2;", "letp=1;letq=2;", "letr=1,s=2;"] {
@@ -500,7 +509,8 @@ fn an_element_takes_its_namespace_from_its_name_when_a_fragment_is_inferred() {
             ],
         ),
         (
-            "<svg><svelte:element this={'g'}><a href='x'>t</a></svelte:element><C><a>u</a></C></svg>",
+            "<svg><svelte:element this={'g'}><a \
+                href='x'>t</a></svelte:element><C><a>u</a></C></svg>",
             &["$.from_svg(`<ahref=\"x\">t</a>`)", "$.from_svg(`<a>u</a>`)"],
         ),
     ] {
@@ -521,7 +531,8 @@ fn a_scoped_custom_element_sets_its_class_on_the_client_only() {
 
 #[test]
 fn a_grouped_optional_chain_in_a_prop_is_a_member() {
-    let source = "<script>import C from './C.svelte'; let { a } = $props();</script><C x={(a?.b).c} y={a?.b} />";
+    let source = "<script>import C from './C.svelte'; let { a } = $props();</script><C \
+        x={(a?.b).c} y={a?.b} />";
     let client = squashed(source, Target::Client);
     for expected in [
         "let$0=$.derived(()=>$$props.a?.b);",
@@ -537,7 +548,8 @@ fn a_grouped_optional_chain_in_a_prop_is_a_member() {
 /// number itself from a rest object, whose string keys never match it; rsvelte excludes the name.
 #[test]
 fn a_number_props_key_reads_the_prop_its_string_names() {
-    let source = "<script>let { 0: a, 0x10: b, 1.5: c = 1, \"x-y\": d, \"e\": e, ...rest } = $props();</script>{a}{b}{c}{d}{e}{rest}";
+    let source = "<script>let { 0: a, 0x10: b, 1.5: c = 1, \"x-y\": d, \"e\": e, ...rest } = \
+        $props();</script>{a}{b}{c}{d}{e}{rest}";
     let client = squashed(source, Target::Client);
     for expected in [
         r#"newSet(["$$slots","$$events","$$legacy","0","16","1.5","x-y","e"])"#,

@@ -267,7 +267,9 @@ fn a_tree_the_browser_would_repair_raises_node_invalid_placement() {
         (
             "<table><tr><td>a</td></tr></table>",
             (7, 26),
-            "`<tr>` cannot be a child of `<table>`. `<table>` only allows these children: `<caption>`, `<colgroup>`, `<tbody>`, `<thead>`, `<tfoot>`, `<style>`, `<script>`, `<template>`",
+            "`<tr>` cannot be a child of `<table>`. `<table>` only allows these children: \
+                `<caption>`, `<colgroup>`, `<tbody>`, `<thead>`, `<tfoot>`, `<style>`, `<script>`, \
+                `<template>`",
         ),
         (
             "<p><span><div>a</div></span></p>",

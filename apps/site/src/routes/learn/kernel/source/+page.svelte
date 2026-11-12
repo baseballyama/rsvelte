@@ -39,8 +39,8 @@
 		<code>Span::new</code> は <code>start_offset &lt;= end_offset</code> と上限を確かめます。ただし
 		<code>debug_assert!</code>
 		なので、release ビルドでは確かめません。パーサは読んだテキストから <code>Span</code>
-		を作るので、ここは最もよく通る道で、比較一回でも積み重なるからです。外から来た位置（tsc のレポート）は、解析の側で
-		<code>Span</code>
+		を作るので、ここは最もよく通る道で、比較一回でも積み重なるからです。外から来た位置（TypeScript の
+		API が返す行と列）は、<code>Span</code>
 		を作る前に確かめます<Note
 			>範囲外の <code>Span</code> で <code>Span::text</code> を呼ぶと、release でもスライスの境界チェックで
 			panic します。ただし止まるのは、壊れた値を作った場所ではなく、使った場所です。</Note
@@ -145,8 +145,7 @@
 	<p>
 		<code>LineIndex</code>
 		はテキストを持ちません。どの問い合わせにも、三つの表と文書の長さだけで答えます。三つの表は、行の先頭の表、改行が
-		<code>\r\n</code>
-		の行の表、<code>wide</code> です。
+		1 バイトでない行（<code>\r\n</code> など）の表、<code>wide</code> です。
 	</p>
 </div>
 
@@ -222,12 +221,12 @@
 		行目に大きな列を入れると確かめられます。
 	</p>
 	<p>
-		丸めに頼っていた呼び出し側は、tsc のレポートの解析だけでした。tsc は幅 0 の範囲にも <code
-			>~</code
-		> を一つ描きます。そのため行末で起きた診断の終端は、行末の一つ先の列になります。解析の側はこの場合だけ、終端を一つ前の列として読み直します。
+		型検査は、TypeScript の API が返す診断の行と列を、この <code>offset</code>
+		でバイト位置に変えます。<code>None</code>
+		になった診断は元の位置を持たないので、その文書の結果をエラーにします。
 	</p>
 </div>
 
-<Code item={data.code.reportEnd} mark={['(end_line, end_column) == (ln, column)']} />
+<Code item={data.code.located} mark={['lines[file].offset(p.line + 1, p.character)']} />
 
 <ChapterFooter chapter={c} />

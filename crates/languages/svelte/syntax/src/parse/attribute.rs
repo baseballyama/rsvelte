@@ -1,5 +1,4 @@
 use oxc_parser::Kind;
-use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 
@@ -46,11 +45,7 @@ impl Parser<'_, '_> {
     pub(super) fn unique(&mut self, namespace: Unique, name: Span, span: Span) -> ParseResult<()> {
         let name = name.text(self.source_text);
         if self.unique_names.contains(&(namespace, name)) {
-            return Err(Diagnostic::error(
-                "attribute_duplicate",
-                "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
-                span,
-            ));
+            return Self::err_at(span, "attribute_duplicate", "Attributes need to be unique");
         }
         if name != "this" {
             self.unique_names.insert((namespace, name));
@@ -82,7 +77,7 @@ impl Parser<'_, '_> {
         loop {
             self.skip_ws();
             match self.peek() {
-                None => return self.err("unterminated start tag"),
+                None => return self.unexpected_eof(),
                 Some(b'>') => {
                     self.eat_token(TokenType::TagEnd, 1);
                     return Ok((self.attributes_since(start), false));
@@ -115,7 +110,7 @@ impl Parser<'_, '_> {
         } else {
             match self.rest().find("*/") {
                 Some(i) => i + 2,
-                None => return self.err("unterminated comment"),
+                None => return self.err("parse_error", "unterminated comment"),
             }
         };
         self.position += end;
@@ -152,6 +147,14 @@ impl Parser<'_, '_> {
         let name_start = self.position as u32;
         let name_end = name_start + super::identifier::identifier_len(self.rest()) as u32;
         let expression = if kind == AttributeKind::Attribute {
+            if self.binding_name_len()? == 0 {
+                let at = Span::new(start_offset as u32, start_offset as u32);
+                return Self::err_at(
+                    at,
+                    "attribute_empty_shorthand",
+                    "Attribute shorthand cannot be empty",
+                );
+            }
             self.identifier()?
         } else {
             self.expression()?
@@ -184,7 +187,7 @@ impl Parser<'_, '_> {
         self.position += attribute_name_len(self.rest());
         let name = Span::new(start_offset as u32, self.position as u32);
         if name.is_empty() {
-            return self.err("expected an attribute name");
+            return self.expected_token(">");
         }
         self.token(TokenType::AttributeName, start_offset);
         let name_text = name.text(self.source_text);
@@ -220,9 +223,6 @@ impl Parser<'_, '_> {
             shorthand: false,
         };
         let directive = attribute.directive_name(&self.component.modifiers);
-        if directive.is_some_and(Span::is_empty) {
-            return Self::err_at(name, format!("`{name_text}` is missing a name after `:`"));
-        }
         let name_end = self.position;
         self.skip_ws();
         let end_offset = if self.peek() == Some(b'=') {
@@ -232,12 +232,20 @@ impl Parser<'_, '_> {
             self.position
         } else {
             if matches!(self.peek(), Some(b'"' | b'\'')) {
-                return self.err("expected `=`");
+                return self.expected_token("=");
             }
             // The whitespace belongs to the start tag, not to the attribute.
             name_end
         };
         attribute.span = Span::new(start_offset as u32, end_offset as u32);
+        // Upstream reads the value first and names the whole attribute, modifiers too.
+        if let Some(empty) = directive.filter(|d| d.is_empty()) {
+            return Self::err_at(
+                Span::new(name.start_offset, empty.start_offset),
+                "directive_missing_name",
+                format_args!("`{name_text}` name cannot be empty"),
+            );
+        }
         if let Some(directive) = directive {
             self.directive(&mut attribute, directive)?;
         }
@@ -267,10 +275,10 @@ impl Parser<'_, '_> {
                 Some(_) => {
                     self.sequence(None)?;
                     if self.component.parts.len() == start {
-                        return self.err("expected an attribute value");
+                        return self.err("expected_attribute_value", "Expected attribute value");
                     }
                 }
-                None => return self.err("expected an attribute value"),
+                None => return self.err("expected_attribute_value", "Expected attribute value"),
             }
         }
         attribute.value = AttributeValue::Parts(self.parts_since(start));

@@ -63,7 +63,8 @@ impl<'o> ScriptRewrite<'_, 'o> {
         } else {
             derived
         };
-        let state = self.target == Target::Client && (self.res.is_state_source(symbol) || derived);
+        let state = self.target == Target::Client
+            && (self.res.is_state_source(symbol, self.accessors) || derived);
         if !state && !called {
             return None;
         }
@@ -135,7 +136,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
             } else {
                 "update_derived"
             }
-        } else if self.res.is_state_source(symbol) || derived {
+        } else if self.res.is_state_source(symbol, self.accessors) || derived {
             if prefix { "update_pre" } else { "update" }
         } else if is_prop_source(self.res, self.accessors, symbol) {
             if prefix {
@@ -209,7 +210,7 @@ pub(in crate::lower) fn mutates_signal(
     (member_root(object))
         .and_then(|root| res.symbol(root))
         .is_some_and(|symbol| {
-            res.is_state_source(symbol)
+            res.is_state_source(symbol, accessors)
                 || matches!(
                     res.binding(symbol).kind,
                     BindingKind::Derived | BindingKind::DerivedBy

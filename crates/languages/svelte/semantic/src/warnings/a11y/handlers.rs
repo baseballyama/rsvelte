@@ -25,7 +25,9 @@ impl Element<'_, '_> {
             && !(a.handles("keydown") || a.handles("keyup") || a.handles("keypress"))
         {
             let message = format!(
-                "Visible, non-interactive element `<{name}>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate"
+                "Visible, non-interactive element `<{name}>` with a click event must be \
+                    accompanied by a keyboard event handler. Consider whether an interactive \
+                    element such as `<button type=\"button\">` or `<a>` might be more appropriate"
             );
             self.warn("a11y_click_events_have_key_events", &message, span);
         }
@@ -53,7 +55,8 @@ impl Element<'_, '_> {
             && handles(tables::RECOMMENDED_INTERACTIVE_HANDLERS)
         {
             let message = format!(
-                "Non-interactive element `<{name}>` should not be assigned mouse or keyboard event listeners"
+                "Non-interactive element `<{name}>` should not be assigned mouse or keyboard event \
+                    listeners"
             );
             self.warn(
                 "a11y_no_noninteractive_element_interactions",
@@ -134,7 +137,8 @@ impl Element<'_, '_> {
                 format!("The attribute '{name}' is not supported by the role '{role}'")
             } else {
                 format!(
-                    "The attribute '{name}' is not supported by the role '{role}'. This role is implicit on the element `<{}>`",
+                    "The attribute '{name}' is not supported by the role '{role}'. This role is \
+                        implicit on the element `<{}>`",
                     self.name
                 )
             };

@@ -104,9 +104,11 @@ fn the_source_is_trimmed_as_javascript_trims_and_keeps_its_byte_order_mark() {
 fn the_module_script_comes_before_the_instance_script() {
     assert_eq!(
         formatted(
-            "<script>\n  let a = 1;\n</script>\n<script module>\n  let b = 1;\n</script>\n<p>a</p>\n"
+            "<script>\n  let a = 1;\n</script>\n<script module>\n  let b = \
+                1;\n</script>\n<p>a</p>\n"
         ),
-        "<script module>\n  let b = 1;\n</script>\n\n<script>\n  let a = 1;\n</script>\n\n<p>a</p>\n"
+        "<script module>\n  let b = 1;\n</script>\n\n<script>\n  let a = \
+            1;\n</script>\n\n<p>a</p>\n"
     );
 }
 
@@ -252,8 +254,10 @@ fn typescript_in_blocks_matches_the_plugin() {
             "{#if x}\n  {@const a = b satisfies C}\n{/if}\n",
         ),
         (
-            "{#if x}\n  {@const prevStoryWithCategory = index > 0 ? (displayedStories[index - 1] as StoryWithCategory) : null}\n{/if}\n",
-            "{#if x}\n  {@const prevStoryWithCategory =\n    index > 0 ? (displayedStories[index - 1] as StoryWithCategory) : null}\n{/if}\n",
+            "{#if x}\n  {@const prevStoryWithCategory = index > 0 ? (displayedStories[index - 1] \
+                as StoryWithCategory) : null}\n{/if}\n",
+            "{#if x}\n  {@const prevStoryWithCategory =\n    index > 0 ? (displayedStories[index - \
+                1] as StoryWithCategory) : null}\n{/if}\n",
         ),
         ("{let a = 1;}\n", "{let a = 1}\n"),
         ("{let a}\n", "{let a;}\n"),
@@ -353,7 +357,7 @@ fn pre_content_and_written_names_print_as_written() {
 fn what_svelte_rejects_is_refused() {
     assert_eq!(
         refusal("<svelte:head></svelte:head><svelte:head></svelte:head>\n").0,
-        "a root-only `svelte:` tag twice"
+        "a syntax error"
     );
     assert_eq!(
         refusal("<svelte:options runes>\n</svelte:options>\n").0,
@@ -451,11 +455,13 @@ fn a_script_or_style_inside_an_element_is_embedded_as_the_plugin_embeds_it() {
         ),
         (
             "<div><script type=\"text/typescript\">let a:number=1</script></div>\n",
-            "<div>\n  <script type=\"text/typescript\">\n    let a: number = 1;\n  </script>\n</div>\n",
+            "<div>\n  <script type=\"text/typescript\">\n    let a: number = 1;\n  \
+                </script>\n</div>\n",
         ),
         (
             "<div><style lang=\"scss\">p {\na {\ncolor:red}}</style></div>\n",
-            "<div>\n  <style lang=\"scss\">\n    p {\n      a {\n        color: red;\n      }\n    }\n  </style>\n</div>\n",
+            "<div>\n  <style lang=\"scss\">\n    p {\n      a {\n        color: red;\n      }\n    \
+                }\n  </style>\n</div>\n",
         ),
     ] {
         assert_eq!(formatted(input), expected, "{input:?}");

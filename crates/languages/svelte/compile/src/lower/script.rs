@@ -13,12 +13,12 @@ mod stores;
 mod writes;
 
 pub(super) use classes::Classes;
-pub(super) use exports::Export;
+pub(super) use exports::{Export, default_exports};
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::ast::{
-    Argument, ArrowFunctionExpression, ClassBody, Declaration, Expression, Function,
-    IdentifierReference, ImportDeclaration, MethodDefinition, ObjectProperty, Program, Statement,
-    SwitchCase, VariableDeclaration, VariableDeclarator, WithClause, WithClauseKeyword,
+    Argument, ArrowFunctionExpression, BindingIdentifier, ClassBody, Declaration, Expression,
+    Function, IdentifierReference, ImportDeclaration, MethodDefinition, ObjectProperty, Program,
+    Statement, SwitchCase, VariableDeclaration, VariableDeclarator, WithClause, WithClauseKeyword,
 };
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_semantic::{ReferenceId, SymbolId};
@@ -28,6 +28,9 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_compile::strip::is_type_only;
 use rustc_hash::{FxHashMap, FxHashSet};
+
+/// What upstream's transforms call a `$$props` the source declares.
+const SANITIZED_PROPS: &str = "$$sanitized_props";
 use statements::{Inspect, inspect, is_effect};
 pub(super) use writes::mutates_signal;
 
@@ -58,7 +61,7 @@ pub(super) struct ScriptRewrite<'r, 'o> {
     pub classes: Classes,
     /// The names a script takes for what it declares, such as a nested destructured derived's;
     /// a template's rewrite declares none.
-    pub names: Option<&'r Names>,
+    pub names: Option<&'r Names<'r>>,
 }
 
 /// How a name the template declares is read on the client.
@@ -99,6 +102,21 @@ impl<'o> ScriptRewrite<'_, 'o> {
         d
     }
 
+    /// Whether a `$$props` of `symbol` is renamed. Upstream also renames the reads of one a
+    /// template declares but not its declaration, which leaves them unbound; this keeps both.
+    fn renames_props(&self, symbol: Option<SymbolId>) -> bool {
+        symbol.is_none_or(|symbol| {
+            !matches!(
+                self.res.binding(symbol).kind,
+                BindingKind::Each
+                    | BindingKind::StaticIndex
+                    | BindingKind::KeyedIndex
+                    | BindingKind::Snippet
+                    | BindingKind::Template
+            )
+        })
+    }
+
     /// Upstream `build_getter` / the `read` transforms, by binding kind and target.
     fn read(&self, identifier: &IdentifierReference<'_>) -> Option<Expression<'o>> {
         let b = self.b;
@@ -110,6 +128,9 @@ impl<'o> ScriptRewrite<'_, 'o> {
                 .is_some_and(|r| reads.contains(&r))
         {
             return Some(b.id("$$props"));
+        }
+        if identifier.name == "$$props" && self.renames_props(self.res.symbol(identifier)) {
+            return Some(b.id_at(SANITIZED_PROPS, identifier.span));
         }
         if self.is_store(identifier) {
             return Some(self.store_read(identifier));
@@ -138,7 +159,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
         let get = || b.runtime(if var() { "safe_get" } else { "get" }, [x()]);
         match (self.target, info.kind) {
             (Target::Client, BindingKind::State | BindingKind::RawState)
-                if self.res.is_state_source(symbol) =>
+                if self.res.is_state_source(symbol, self.accessors) =>
             {
                 Some(get())
             }
@@ -286,6 +307,13 @@ impl<'o> ScriptRewrite<'_, 'o> {
 }
 
 impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
+    // Upstream renames a declared `$$props` with its reads.
+    fn visit_binding_identifier(&mut self, it: &mut BindingIdentifier<'o>) {
+        if it.name == "$$props" && self.renames_props(it.symbol_id.get()) {
+            it.name = self.b.str(SANITIZED_PROPS).into();
+        }
+    }
+
     fn visit_expression(&mut self, it: &mut Expression<'o>) {
         // Upstream's `mutate` transform of an `{#each}` item of a store's collection.
         if let Some(invalidate) = self.invalidation(it) {
@@ -430,15 +458,65 @@ pub(super) fn props_id(program: &Program<'_>, res: &Resolution) -> Option<String
 ///
 /// An `unsupported` [`Diagnostic`] for an export the instance script cannot lower, and
 /// upstream's errors for the exports it can.
+/// Makes the string statements that open the component's function, or the server's context
+/// callback in it, its prologue: upstream prints them bare, where they are directives.
+pub(super) fn with_prologue<'o>(b: &Builder<'o>, mut function: Statement<'o>) -> Statement<'o> {
+    if let Statement::FunctionDeclaration(f) = &mut function
+        && let Some(body) = &mut f.body
+    {
+        hoist_body(b, body);
+    }
+    function
+}
+
+fn hoist_body<'o>(b: &Builder<'o>, body: &mut oxc_ast::ast::FunctionBody<'o>) {
+    hoist_into(b, body);
+    if let [Statement::ExpressionStatement(statement)] = body.statements.as_mut_slice()
+        && let Expression::CallExpression(call) = &mut statement.expression
+        && let Some(Argument::ArrowFunctionExpression(callback)) = call.arguments.first_mut()
+        && let oxc_ast::ast::ArrowFunctionBody::FunctionBody(body) = &mut callback.body
+    {
+        hoist_into(b, body);
+    }
+}
+
+fn hoist_into<'o>(b: &Builder<'o>, body: &mut oxc_ast::ast::FunctionBody<'o>) {
+    let count = (body.statements.iter())
+        .take_while(|s| {
+            matches!(s, Statement::ExpressionStatement(e)
+                if matches!(e.expression, Expression::StringLiteral(_)))
+        })
+        .count();
+    for statement in body.statements.drain(..count) {
+        let Statement::ExpressionStatement(statement) = statement else {
+            unreachable!("counted as a string statement")
+        };
+        let Expression::StringLiteral(literal) = statement.unbox().expression else {
+            unreachable!("counted as a string statement")
+        };
+        let literal = literal.unbox();
+        let raw = b.str(&super::javascript::string_value(literal.value));
+        let directive =
+            oxc_ast::ast::Directive::new(literal.span, literal.clone_in(b.allocator()), raw, b);
+        body.directives.push(directive);
+    }
+}
+
 pub(super) fn lower_script<'t, 'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
     program: &'t Program<'t>,
     hoisted: &mut Vec<Statement<'o>>,
-    names: &Names,
+    names: &Names<'_>,
     mut context: ScriptContext<'_, 't>,
 ) -> Result<Vec<Statement<'o>>, Diagnostic> {
     let instance = matches!(context, ScriptContext::Instance { .. });
-    let mut out = Vec::with_capacity(program.body.len());
+    let mut out = Vec::with_capacity(program.directives.len() + program.body.len());
+    // Upstream's parser reads a prologue as statements, which it keeps where they are.
+    if !matches!(context, ScriptContext::File) {
+        out.extend(
+            (program.directives.iter()).map(|d| rw.b.statement(rw.b.string(d.directive.as_str()))),
+        );
+    }
     for statement in &program.body {
         // Upstream erases the types before it analyzes the component.
         // A module's types are TypeScript's emit to erase, once it is lowered.
@@ -465,7 +543,7 @@ pub(super) fn lower_script<'t, 'o>(
             Statement::ExportNamedDeclaration(export)
                 if let ScriptContext::Instance { exports } = &mut context =>
             {
-                exports::check_specifiers(rw.res, export, exports)?;
+                exports::push_specifiers(rw.res, export, exports);
             }
             // TypeScript keeps an export of types only as `export {}`, which oxc's emit drops.
             Statement::ExportNamedDeclaration(export)
@@ -487,11 +565,14 @@ pub(super) fn lower_script<'t, 'o>(
             // Upstream drops a re-export of everything, which names nothing the component can
             // export.
             Statement::ExportAllDeclaration(_) if instance => {}
+            Statement::ExportFromDeclaration(export)
+                if let ScriptContext::Instance { exports } = &mut context =>
+            {
+                exports::check_reexports(export, exports)?;
+            }
             // Upstream turns these into the component's exports; copying them would put an
             // `export` inside the component function.
-            Statement::ExportDefaultDeclaration(_) | Statement::ExportFromDeclaration(_)
-                if instance =>
-            {
+            Statement::ExportDefaultDeclaration(_) if instance => {
                 return unsupported("an export from the instance script", span_of(statement));
             }
             Statement::VariableDeclaration(d) => {
@@ -517,7 +598,7 @@ pub(super) fn lower_script<'t, 'o>(
 pub(super) fn lower_declaration_tag<'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
     declaration: &VariableDeclaration<'_>,
-    names: &Names,
+    names: &Names<'_>,
 ) -> Vec<Statement<'o>> {
     let mut out = Vec::with_capacity(1);
     let mut hoisted = Vec::new();
@@ -532,7 +613,7 @@ fn lower_declaration<'o>(
     split: bool,
     out: &mut Vec<Statement<'o>>,
     hoisted: &mut Vec<Statement<'o>>,
-    names: &Names,
+    names: &Names<'_>,
 ) {
     let b = rw.b;
     let mut lowered = Vec::with_capacity(declaration.declarations.len());
@@ -553,7 +634,7 @@ fn lower_declarator<'o>(
     d: &VariableDeclarator<'_>,
     out: &mut Vec<VariableDeclarator<'o>>,
     hoisted: &mut Vec<Statement<'o>>,
-    names: &Names,
+    names: &Names<'_>,
 ) {
     let rune = d
         .init

@@ -203,22 +203,22 @@ pub(crate) fn validate(
     input: &CompileInput<'_>,
     res: &Resolution,
 ) -> Result<ValidatedOptions, Diagnostic> {
-    validate_erased_by(input, res, Erasure::Svelte)
+    validate_unit(input, res, Unit::Component)
 }
 
-/// Who erases the types before upstream analyzes the source.
+/// What upstream compiles, which decides the checks only a component gets.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Erasure {
-    /// Upstream's own, which rejects a TypeScript feature that has a runtime meaning.
-    Svelte,
-    /// TypeScript's emit, as a bundler runs it on a `.svelte.ts` module.
-    TypeScript,
+pub(crate) enum Unit {
+    /// Upstream erases its types itself, rejecting a TypeScript feature with a runtime meaning.
+    Component,
+    /// A `.svelte.js` or `.svelte.ts` module, whose types TypeScript's emit erases first.
+    Module,
 }
 
-pub(crate) fn validate_erased_by(
+pub(crate) fn validate_unit(
     input: &CompileInput<'_>,
     res: &Resolution,
-    erasure: Erasure,
+    unit: Unit,
 ) -> Result<ValidatedOptions, Diagnostic> {
     // Acorn rejects at parse time what oxc's semantic checker finds after the parser.
     if let Some(error) = res.syntax_error() {
@@ -229,12 +229,16 @@ pub(crate) fn validate_erased_by(
         stylesheet_injected,
     } = special::validate(input)?;
     let names = stores::Names::new(input, res);
-    validation::check_analysis(input, res, &names, snippets::errors(input, res))?;
+    let mut errors = snippets::errors(input, res);
+    if unit == Unit::Component {
+        errors.extend(script::default_exports(input));
+    }
+    validation::check_analysis(input, res, &names, errors)?;
     let hoistable = snippets::hoistable(input, res, &names);
     snippets::check_exports(input, res, &hoistable)?;
     const_cycles::check(input, res)?;
     coverage::check(input, res)?;
-    if erasure == Erasure::Svelte {
+    if unit == Unit::Component {
         validation::check_typescript(input)?;
     }
     let rest_reads = rest_reads::build(res, custom_element.is_some());
@@ -248,7 +252,7 @@ pub(crate) fn validate_erased_by(
 }
 
 pub(crate) struct Prepared<'c, 'o> {
-    names: names::Names,
+    names: names::Names<'c>,
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
     binding_groups: binding_groups::BindingGroups,
     /// The module script, imports included. Upstream places it apart from `hoisted`, and the

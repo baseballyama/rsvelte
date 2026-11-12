@@ -60,14 +60,67 @@ impl Parser<'_, '_> {
             self.require_ws()?;
             return self.snippet_block(start_offset);
         }
-        self.err("expected `if`, `each`, `await`, `key` or `snippet`")
+        self.err(
+            "expected_block_type",
+            "Expected 'if', 'each', 'await', 'key' or 'snippet'",
+        )
     }
 
+    /// The sigil after the `{` here, where upstream reports a block tag's error.
+    pub(super) fn sigil(&self) -> Span {
+        let after = &self.rest()[1..];
+        let gap = after.len() - super::whitespace::trim_whitespace_start(after).len();
+        let at = (self.position + 1 + gap) as u32;
+        Span::new(at, at)
+    }
+
+    /// `{/name}`, or upstream's error for the clause or closing tag here instead.
+    #[expect(
+        clippy::literal_string_with_formatting_args,
+        reason = "upstream's messages quote block tags"
+    )]
     pub(super) fn block_end(&mut self, name: &str) -> ParseResult<()> {
-        if !self.eat_marker('/', name) {
-            return self.err(format!("expected `{{/{name}}}`"));
+        if self.eat_marker('/', name) {
+            return self.close_mustache();
         }
-        self.close_mustache()
+        let at = self.sigil();
+        let inner = &self.source_text[at.start_offset as usize..];
+        // Upstream's `close()` requires the open block's name right after the `/`.
+        if inner.starts_with('/') {
+            let after = Span::new(at.start_offset + 1, at.start_offset + 1);
+            return Self::err_at(
+                after,
+                "expected_token",
+                format_args!("Expected token {name}"),
+            );
+        }
+        // The block's own clauses were read, so a clause here repeats one or does not belong.
+        let clause = &inner[1..];
+        let word = |w: &str| {
+            clause.starts_with(w)
+                && !clause[w.len()..]
+                    .chars()
+                    .next()
+                    .is_some_and(is_identifier_continue)
+        };
+        let (code, message) = match name {
+            "if" | "each" if word("else") => (
+                "block_duplicate_clause",
+                "{:else} cannot appear more than once within a block",
+            ),
+            "if" => ("expected_token", "Expected token {:else} or {:else if}"),
+            "each" => ("expected_token", "Expected token {:else}"),
+            "await" => (
+                "expected_token",
+                "Expected token {:then ...} or {:catch ...}",
+            ),
+            _ => (
+                "block_invalid_continuation_placement",
+                "{:...} block is invalid at this position (did you forget to close the preceding \
+                 element or block?)",
+            ),
+        };
+        Self::err_at(at, code, message)
     }
 
     /// An `{#if}` block; a `{:else if}` chain is read in a loop and built innermost first.
@@ -77,21 +130,24 @@ impl Parser<'_, '_> {
         elseif: bool,
     ) -> ParseResult<TemplateNodeIdentifier> {
         let mut outer = Vec::new();
-        let mut head = self.if_head(start_offset, elseif)?;
+        let mut brace = start_offset as u32;
+        let mut head = self.if_head(start_offset, elseif, brace)?;
         let alternate = loop {
+            let clause = self.position as u32;
             if !self.eat_marker(':', "else") {
                 break None;
             }
             self.skip_ws();
             if !self.at_word("if") {
                 self.close_mustache()?;
-                break Some(self.fragment(End::Block)?);
+                break Some(self.fragment(End::Block { start: brace })?);
             }
             let inner_start_offset = self.position;
             self.eat_token(TokenType::BlockKeyword, 2);
             self.require_ws()?;
             outer.push(head);
-            head = self.if_head(inner_start_offset, true)?;
+            brace = clause;
+            head = self.if_head(inner_start_offset, true, brace)?;
         };
         self.block_end("if")?;
         let mut node = self.if_node(head, alternate);
@@ -104,10 +160,10 @@ impl Parser<'_, '_> {
     }
 
     /// `test}` and the consequent of an `{#if}` or `{:else if}` starting at `start_offset`.
-    fn if_head(&mut self, start_offset: usize, elseif: bool) -> ParseResult<IfHead> {
+    fn if_head(&mut self, start_offset: usize, elseif: bool, brace: u32) -> ParseResult<IfHead> {
         let test = self.expression()?;
         self.close_mustache()?;
-        let consequent = self.fragment(End::Block)?;
+        let consequent = self.fragment(End::Block { start: brace })?;
         Ok(IfHead {
             start_offset,
             elseif,
@@ -150,16 +206,20 @@ impl Parser<'_, '_> {
             key = Some(self.expression()?);
             self.skip_ws();
             if self.peek() != Some(b')') {
-                return self.err("expected `)`");
+                return self.expected_token(")");
             }
             self.eat_token(TokenType::JavaScript(Kind::RParen), 1);
         }
         self.close_mustache()?;
-        let body = self.fragment(End::Block)?;
+        let body = self.fragment(End::Block {
+            start: start_offset as u32,
+        })?;
         let mut fallback = self.empty_range();
         let has_fallback = if self.eat_marker(':', "else") {
             self.close_mustache()?;
-            fallback = self.fragment(End::Block)?;
+            fallback = self.fragment(End::Block {
+                start: start_offset as u32,
+            })?;
             true
         } else {
             false
@@ -182,7 +242,7 @@ impl Parser<'_, '_> {
     fn binding_identifier(&mut self) -> ParseResult<PatternIdentifier> {
         let len = self.binding_name_len()?;
         if len == 0 {
-            return self.err("expected an identifier");
+            return self.err("expected_identifier", "Expected an identifier");
         }
         let span = Span::new(self.position as u32, (self.position + len) as u32);
         let source_type = self.source_type();
@@ -281,27 +341,42 @@ impl Parser<'_, '_> {
             0
         };
         self.close_mustache()?;
-        let body = self.fragment(End::Block)?;
+        let body = self.fragment(End::Block {
+            start: start_offset as u32,
+        })?;
         match first {
             1 => then = body,
             2 => catch = body,
             _ => pending = body,
         }
         loop {
+            let colon = self.sigil();
             if self.eat_marker(':', "then") {
                 if then.present().is_some() {
-                    return self.err("`{:then}` cannot appear twice in a block");
+                    return Self::err_at(
+                        colon,
+                        "block_duplicate_clause",
+                        "{:then} cannot appear more than once within a block",
+                    );
                 }
                 value = self.optional_pattern()?;
                 self.close_mustache()?;
-                then = self.fragment(End::Block)?;
+                then = self.fragment(End::Block {
+                    start: start_offset as u32,
+                })?;
             } else if self.eat_marker(':', "catch") {
                 if catch.present().is_some() {
-                    return self.err("`{:catch}` cannot appear twice in a block");
+                    return Self::err_at(
+                        colon,
+                        "block_duplicate_clause",
+                        "{:catch} cannot appear more than once within a block",
+                    );
                 }
                 error = self.optional_pattern()?;
                 self.close_mustache()?;
-                catch = self.fragment(End::Block)?;
+                catch = self.fragment(End::Block {
+                    start: start_offset as u32,
+                })?;
             } else {
                 break;
             }
@@ -328,7 +403,7 @@ impl Parser<'_, '_> {
         }
         if self.position == at {
             self.component.tokens.truncate(tokens);
-            return self.err("expected whitespace");
+            return self.err("expected_whitespace", "Expected whitespace");
         }
         self.pattern().map(Some)
     }
@@ -336,7 +411,9 @@ impl Parser<'_, '_> {
     fn key_block(&mut self, start_offset: usize) -> ParseResult<TemplateNodeIdentifier> {
         let expression = self.expression()?;
         self.close_mustache()?;
-        let body = self.fragment(End::Block)?;
+        let body = self.fragment(End::Block {
+            start: start_offset as u32,
+        })?;
         self.block_end("key")?;
         let span = Span::new(start_offset as u32, self.position as u32);
         Ok(self.push_node(TemplateNode::Key {

@@ -363,11 +363,11 @@ impl Resolution {
         let AstKind::IdentifierReference(identifier) = nodes.kind(node) else {
             return false;
         };
-        matches!(
-            nodes.parent_kind(node),
-            AstKind::CallExpression(call)
-                if matches!(&call.callee, Expression::Identifier(callee) if callee.span == identifier.span)
-        ) && RUNES.contains(&identifier.name.as_str())
+        let AstKind::CallExpression(call) = nodes.parent_kind(node) else {
+            return false;
+        };
+        matches!(&call.callee, Expression::Identifier(callee) if callee.span == identifier.span)
+            && RUNES.contains(&identifier.name.as_str())
     }
 
     /// The scope the reference `reference` is in.
@@ -489,13 +489,13 @@ impl Resolution {
     }
 
     /// Upstream `is_state_source`: in runes mode a `$state` needs a signal only if it is
-    /// reassigned.
+    /// reassigned, or if `accessors`, as a custom element's are, can read it from outside.
     #[must_use]
-    pub fn is_state_source(&self, symbol: SymbolId) -> bool {
+    pub fn is_state_source(&self, symbol: SymbolId, accessors: bool) -> bool {
         matches!(
             self.binding(symbol).kind,
             BindingKind::State | BindingKind::RawState
-        ) && self.reassigned(symbol)
+        ) && (accessors || self.reassigned(symbol))
     }
 
     /// Upstream `is_prop_source`, runes mode.

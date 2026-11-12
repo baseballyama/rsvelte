@@ -68,11 +68,11 @@ fn typescript_env(
 ) -> Result<TypeScriptEnv, String> {
     let types = svelte.join("types/index.d.ts");
     let text = std::fs::read_to_string(&types).map_err(|e| format!("{}: {e}", types.display()))?;
-    let svelte_html = svelte.join("svelte-html.d.ts");
-    let (declarations, include) = if svelte_html.is_file() {
+    let element_types = svelte.join("svelte-html.d.ts");
+    let (declarations, include) = if element_types.is_file() {
         (
             rsvelte_svelte_typescript_projection::SHIMS,
-            vec![types.clone(), svelte_html],
+            vec![types.clone(), element_types],
         )
     } else {
         (
@@ -111,7 +111,20 @@ fn typescript_view(
     env: Option<&Result<Arc<TypeScriptEnv>, String>>,
 ) -> Result<TypeScriptDocument, Diagnostic> {
     // svelte-check type-checks a component whose style sheet does not parse.
-    let component = context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
+    let component = match context.get::<Parsed>() {
+        Ok(component) => component,
+        // svelte2tsx throws Svelte's parse error, which svelte-check reports as it is.
+        Err(error) => {
+            return Ok(TypeScriptDocument::Rejected {
+                message: error.message.clone(),
+                span: if error.has_end {
+                    error.span
+                } else {
+                    Span::new(error.span.start_offset, error.span.start_offset)
+                },
+            });
+        }
+    };
     if !component
         .instance
         .as_ref()

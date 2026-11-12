@@ -14,7 +14,10 @@ fn resolved(source_text: &str) -> (SingleFileComponent, CompilerSyntaxTree, Reso
 #[test]
 fn script_setup_bindings_are_typed_as_compile_script_types_them() {
     let (_, _, r) = resolved(
-        "<script setup lang=\"ts\">\nimport { ref as r } from 'vue'\nimport X from './X.vue'\nimport { y } from './y'\nconst a = r(1)\nlet b = 1\nconst c = 1 as number\nconst d = {}\nconst e = y()\nfunction f() {}\nconst props = defineProps({ p: Number, a: String })\n</script>\n<template><p>{{ a }}</p></template>\n",
+        "<script setup lang=\"ts\">\nimport { ref as r } from 'vue'\nimport X from \
+            './X.vue'\nimport { y } from './y'\nconst a = r(1)\nlet b = 1\nconst c = 1 as \
+            number\nconst d = {}\nconst e = y()\nfunction f() {}\nconst props = defineProps({ p: \
+            Number, a: String })\n</script>\n<template><p>{{ a }}</p></template>\n",
     );
     for (name, want) in [
         ("r", BindingType::SetupConst),
@@ -45,7 +48,8 @@ fn script_setup_bindings_are_typed_as_compile_script_types_them() {
 #[test]
 fn template_names_resolve_to_the_script_or_a_v_for_alias() {
     let (c, compiler_syntax_tree, r) = resolved(
-        "<script setup>\nconst items = [1]\n</script>\n<template><p v-for=\"item in items\">{{ item + other }}</p></template>\n",
+        "<script setup>\nconst items = [1]\n</script>\n<template><p v-for=\"item in items\">{{ \
+            item + other }}</p></template>\n",
     );
     let element = compiler_syntax_tree.root()[0];
     assert!(r.for_scope(element).is_some());

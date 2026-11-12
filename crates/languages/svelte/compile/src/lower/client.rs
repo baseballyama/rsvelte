@@ -163,7 +163,7 @@ struct ClientCompilationContext<'c, 'o> {
     source_text: &'o str,
     res: &'c Resolution,
     an: &'c Analysis,
-    names: Names,
+    names: Names<'c>,
     hoisted: Vec<Statement<'o>>,
     templates: FxHashMap<String, String>,
     events: Vec<String>,
@@ -267,6 +267,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         stylesheet.is_some(),
         props_id.as_deref(),
     );
+    let func = super::script::with_prologue(b, func);
     let registration = context.custom_element_registration(&exports);
 
     let mut program = Vec::new();

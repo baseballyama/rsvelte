@@ -40,7 +40,8 @@ fn the_table_comes_from_the_versions_the_oracle_installs() {
             .expect("the oracle pins the package");
         assert!(
             header.contains(&format!("{name} {pinned}")),
-            "{header}: the oracle installs {name} {pinned}; run `node tools/oracle/oracle.ts entities`"
+            "{header}: the oracle installs {name} {pinned}; run `node tools/oracle/oracle.ts \
+                entities`"
         );
     }
 }

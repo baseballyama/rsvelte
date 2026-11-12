@@ -66,7 +66,8 @@ impl<'a> Template<'a> {
             && !is_mathml(local)
         {
             let message = format!(
-                "Self-closing HTML tags for non-void elements are ambiguous — use `<{name} ...></{name}>` rather than `<{name} ... />`"
+                "Self-closing HTML tags for non-void elements are ambiguous — use `<{name} \
+                    ...></{name}>` rather than `<{name} ... />`"
             );
             self.warn(
                 span.start_offset,
@@ -169,13 +170,15 @@ impl<'a> Template<'a> {
             if runes && name == "svelte:component" {
                 self.warn(at, warning(
                     "svelte_component_deprecated",
-                    "`<svelte:component>` is deprecated in runes mode — components are dynamic by default",
+                    "`<svelte:component>` is deprecated in runes mode — components are dynamic by \
+                        default",
                     span,
                 ));
             }
             if runes && name == "svelte:self" {
                 let message = format!(
-                    "`<svelte:self>` is deprecated — use self-imports (e.g. `import {} from './{}'`) instead",
+                    "`<svelte:self>` is deprecated — use self-imports (e.g. `import {} from \
+                        './{}'`) instead",
                     self.context.name, self.context.basename
                 );
                 self.warn(at, warning("svelte_self_deprecated", &message, span));
@@ -186,7 +189,8 @@ impl<'a> Template<'a> {
             if runes && !self.context.custom_element {
                 self.warn(at, warning(
                     "slot_element_deprecated",
-                    "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead",
+                    "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` \
+                        tags instead",
                     span,
                 ));
             }
@@ -229,7 +233,8 @@ impl<'a> Template<'a> {
             .first()
             .map_or(closed_at, |&c| component.node(c).span().start_offset);
         let message = format!(
-            "This element is implicitly closed by the following `{tag}`, which can cause an unexpected DOM structure. Add an explicit `</{name}>` to avoid surprises."
+            "This element is implicitly closed by the following `{tag}`, which can cause an \
+                unexpected DOM structure. Add an explicit `</{name}>` to avoid surprises."
         );
         self.found.push(
             Stage::Parse,
@@ -253,7 +258,8 @@ impl<'a> Template<'a> {
         });
         if global {
             let message = format!(
-                "You are referencing `globalThis.{name}`. Did you forget to declare a variable with that name?"
+                "You are referencing `globalThis.{name}`. Did you forget to declare a variable \
+                    with that name?"
             );
             self.warn(
                 at,
@@ -331,11 +337,15 @@ impl<'a> Template<'a> {
     /// `attribute_quoted`: a value that is one quoted expression.
     fn quoted(&mut self, at: u32, attribute: &Attribute) {
         if attribute.quoted && expression(attribute, self.context.component).is_some() {
-            self.warn(at, warning(
-                "attribute_quoted",
-                "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes",
-                attribute.span,
-            ));
+            self.warn(
+                at,
+                warning(
+                    "attribute_quoted",
+                    "Quoted attributes on components and custom elements will be stringified in a \
+                    future version of Svelte. If this isn't what you want, remove the quotes",
+                    attribute.span,
+                ),
+            );
         }
     }
 
@@ -347,11 +357,15 @@ impl<'a> Template<'a> {
                 .iter()
                 .any(|p| name.starts_with(p))
         {
-            self.warn(at, warning(
-                "attribute_illegal_colon",
-                "Attributes should not contain ':' characters to prevent ambiguity with Svelte directives",
-                attribute.span,
-            ));
+            self.warn(
+                at,
+                warning(
+                    "attribute_illegal_colon",
+                    "Attributes should not contain ':' characters to prevent ambiguity with Svelte \
+                    directives",
+                    attribute.span,
+                ),
+            );
         }
     }
 
@@ -366,7 +380,8 @@ impl<'a> Template<'a> {
             && scoping.get_resolved_reference_ids(symbol).is_empty()
         {
             let message = format!(
-                "`<{name}>` will be treated as an HTML element unless it begins with a capital letter"
+                "`<{name}>` will be treated as an HTML element unless it begins with a capital \
+                    letter"
             );
             self.warn(at, warning("component_name_lowercase", &message, span));
         }
@@ -385,7 +400,8 @@ impl<'a> Template<'a> {
                     };
                     let name = name.text(source);
                     let message = format!(
-                        "Using `on:{name}` to listen to the {name} event is deprecated. Use the event attribute `on{name}` instead"
+                        "Using `on:{name}` to listen to the {name} event is deprecated. Use the \
+                            event attribute `on{name}` instead"
                     );
                     self.warn(
                         at,
@@ -431,7 +447,8 @@ impl<'a> Template<'a> {
         let declared = scoping.symbol_span(symbol);
         let name = scoping.symbol_name(symbol);
         let message = format!(
-            "The rest operator (...) will create a new object and binding '{name}' with the original object will not work"
+            "The rest operator (...) will create a new object and binding '{name}' with the \
+                original object will not work"
         );
         self.warn(
             at,
@@ -459,7 +476,8 @@ impl<'a> Template<'a> {
                 this.span.start_offset,
                 warning(
                     "svelte_element_invalid_this",
-                    "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte",
+                    "`this` should be an `{expression}`. Using a string attribute value will cause \
+                        an error in future versions of Svelte",
                     this.span,
                 ),
             );

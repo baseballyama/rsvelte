@@ -32,7 +32,10 @@ fn comments_keep_the_first_end_and_do_not_set_script_language() {
             .typescript
     );
     let error = parse("<!--日本語🙂--").expect_err("unterminated comment");
-    assert_eq!(error.message, "unterminated comment");
+    assert_eq!(
+        error.message,
+        "Expected token -->\nhttps://svelte.dev/e/expected_token"
+    );
     assert_eq!(error.span.start_offset, 0);
 }
 
@@ -54,7 +57,10 @@ fn nested_raw_elements_keep_text_and_exact_closing_names() {
         assert_eq!(text, body);
         let source = format!("<div><{name}>日本語</{name}x></div>");
         let error = parse(&source).expect_err("exact closing name required");
-        assert_eq!(error.message, format!("expected `</{name}>`"));
+        assert_eq!(
+            error.message,
+            format!("Expected token </{name}>\nhttps://svelte.dev/e/expected_token")
+        );
         assert_eq!(error.span.start_offset as usize, source.len());
     }
 }

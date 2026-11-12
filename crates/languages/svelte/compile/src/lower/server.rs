@@ -84,7 +84,7 @@ struct ServerCompilationContext<'c, 'o> {
     source_text: &'o str,
     res: &'c Resolution,
     an: &'c Analysis,
-    names: Names,
+    names: Names<'c>,
     each_index: FxHashMap<CompilerNodeIdentifier, String>,
     /// The `{#each}` blocks that pass their index to a `bind:group`.
     group_each: FxHashSet<CompilerNodeIdentifier>,
@@ -216,9 +216,8 @@ pub(super) fn lower_prepared<'c, 'o>(
     if takes_props(an, res, !exports.is_empty(), input) {
         parameters.push("$$props");
     }
-    let Statement::FunctionDeclaration(function) =
-        b.function_declaration(&component_name, b.parameters(parameters), body, false)
-    else {
+    let function = b.function_declaration(&component_name, b.parameters(parameters), body, false);
+    let Statement::FunctionDeclaration(function) = super::script::with_prologue(b, function) else {
         unreachable!("a function declaration")
     };
 

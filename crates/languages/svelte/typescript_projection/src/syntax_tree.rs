@@ -69,6 +69,11 @@ pub enum Node {
         object: NodeIdentifier,
         property: NodeIdentifier,
     },
+    /// `object[index]`.
+    Index {
+        object: NodeIdentifier,
+        index: NodeIdentifier,
+    },
     Call {
         callee: NodeIdentifier,
         arguments: Range,
@@ -122,7 +127,11 @@ pub enum Node {
     /// svelte2tsx's `children` prop for a component's content, mapped to this offset.
     ImplicitChildren(u32),
     Shorthand(NodeIdentifier),
-    Spread(NodeIdentifier),
+    Spread {
+        value: NodeIdentifier,
+        /// The source `...`, where a finding on the spread starts.
+        dots: Span,
+    },
     ComputedProperty {
         key: NodeIdentifier,
         value: NodeIdentifier,

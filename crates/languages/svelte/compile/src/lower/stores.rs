@@ -108,7 +108,8 @@ impl<'r> Names<'r> {
             if let Some(&r) = scoped {
                 return super::special::invalid(
                     "store_invalid_scoped_subscription",
-                    "Cannot subscribe to stores that are not declared at the top level of the component",
+                    "Cannot subscribe to stores that are not declared at the top level of the \
+                        component",
                     span(r),
                 );
             }
@@ -200,7 +201,8 @@ fn global_reference_invalid(name: &str, span: Span) -> Result<(), Diagnostic> {
     super::special::invalid(
         "global_reference_invalid",
         &format!(
-            "`{name}` is an illegal variable name. To reference a global variable called `{name}`, use `globalThis.{name}`"
+            "`{name}` is an illegal variable name. To reference a global variable called `{name}`, \
+                use `globalThis.{name}`"
         ),
         span,
     )

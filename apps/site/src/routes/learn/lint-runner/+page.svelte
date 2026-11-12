@@ -39,28 +39,27 @@
 
 <div class="prose-learn">
 	<p>
-		Svelte プラグインのコンテキストは、文書の計算結果を持つ <code>DocumentContext</code>
-		一つです。設定は enum <code>RuleConfiguration</code> の値の並びです。その各値が、そのまま
-		<code>Rule&lt;DocumentContext&gt;</code>
-		を実装したルールです。各ルールは、自分の問いに答える層をその場で求めます。層は元の構文木、名前解決、コンパイル用に整理した構文木です（<a
+		Svelte プラグインのルールが受け取るのは、文書の計算結果を読む <code>File</code>
+		一つです。設定は <code>ConfiguredRule</code> の並びです。<code>ConfiguredRule</code>
+		は、ルールの名前と重大度と、オプションを読んで作ったルール（<code>dyn SvelteRule</code
+		>）を持ちます。<code>Rule&lt;File&gt;</code> を実装するのは <code>ConfiguredRule</code>
+		です。各ルールは、自分の問いに答える層をその場で求めます。層は元の構文木、名前解決、コンパイル用に整理した構文木です（<a
 			href="/learn/kernel/layers#lint">05 章</a
-		>）。ルールは設定の順に走り、出した指摘には設定の重大度（<code>severity</code>）を付けます。
+		>）。ルールは設定の順に走り、出した指摘には設定の重大度（<code>severity</code>）が付きます。
 	</p>
 </div>
 
 <Code item={data.code.rules} />
 <Code item={data.code.ruleImpl} />
-<Code
-	item={data.code.noUnused}
-	mark={['rsvelte_typescript_lint::no_unused_variables(&facts, |_| true, reporter)']}
-/>
+<Code item={data.code.noUnused} mark={['rsvelte_typescript_lint::no_unused_variables(']} />
 
 <div class="prose-learn">
 	<p>
 		<code>no-unused-vars</code> の本体は <code>rsvelte_typescript_lint</code> にあります。JavaScript
 		の意味に属するルールなので、Vue
-		プラグインもそのまま使っています。違うのは、どの束縛を判定するかを呼び出す側が関数で渡すことだけです。Vue
-		では <code>v-for</code>
+		プラグインもそのまま使っています。言語ごとの違いは、呼び出す側が渡す 3
+		つの関数に閉じています。どの束縛を判定するか、ほかに読み出しとして数える参照、自己参照とみなすスコープ（Svelte
+		の snippet の本体）です。Vue では <code>v-for</code>
 		の変数を、共通の <code>no-unused-vars</code> でなく <code>vue/no-unused-vars</code>
 		が判定します。<code>v-for</code> の変数も共通のルールに判定させると、テスト
 		<code>lint-cases</code>
@@ -81,7 +80,7 @@
 	item={data.code.run}
 	mark={[
 		'measurement::phase(rule.identifier())',
-		'Reporter::new(rule, &mut self.out)',
+		'Reporter::new(rule, &mut self.out, &mut self.failure)',
 		'sort_by_key',
 	]}
 />

@@ -48,7 +48,7 @@ pub(super) fn lower_value_declarator<'o>(
     walk_mut::walk_binding_pattern(rw, &mut d.id);
     let signal = (d.id.get_binding_identifier())
         .and_then(|identifier| identifier.symbol_id.get())
-        .is_some_and(|symbol| rw.res.is_state_source(symbol));
+        .is_some_and(|symbol| rw.res.is_state_source(symbol, rw.accessors));
     let lowering = Lowering {
         proxy,
         signal,
@@ -104,7 +104,7 @@ pub(super) fn lower_destructured_state<'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
     d: &VariableDeclarator<'_>,
     out: &mut Vec<VariableDeclarator<'o>>,
-    names: &Names,
+    names: &Names<'_>,
 ) {
     let b = rw.b;
     let init = d.init.as_ref().expect("a rune initialises the declarator");
@@ -137,7 +137,8 @@ pub(super) fn lower_destructured_state<'o>(
     }
     for path in paths {
         let binding = path.binding.clone_in_with_semantic_ids(b.allocator());
-        let signal = (binding.symbol_id.get()).is_some_and(|symbol| rw.res.is_state_source(symbol));
+        let signal = (binding.symbol_id.get())
+            .is_some_and(|symbol| rw.res.is_state_source(symbol, rw.accessors));
         // Upstream proxies each path, as none is a value `should_proxy` keeps.
         let lowering = Lowering {
             proxy: rune == "$state",
@@ -220,7 +221,7 @@ pub(super) fn lower_destructured_derived<'o>(
     rw: &mut ScriptRewrite<'_, 'o>,
     d: &VariableDeclarator<'_>,
     out: &mut Vec<VariableDeclarator<'o>>,
-    names: &Names,
+    names: &Names<'_>,
 ) {
     let b = rw.b;
     let init = d.init.as_ref().expect("a rune initialises the declarator");
@@ -276,7 +277,7 @@ pub(super) fn lower_destructured_derived<'o>(
 /// A destructured derived keeps each array in a derived of its own.
 struct Hooks<'w, 'r, 'o> {
     rw: &'w mut ScriptRewrite<'r, 'o>,
-    names: &'w Names,
+    names: &'w Names<'w>,
     array: &'static str,
     out: &'w mut Vec<VariableDeclarator<'o>>,
     /// The name `$derived` reads when it is the value destructured.

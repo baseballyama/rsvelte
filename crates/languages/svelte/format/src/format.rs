@@ -75,7 +75,6 @@ pub(crate) fn format(
             "an emoji sequence, which Prettier measures as one character",
         ));
     }
-    refuse_rejected_tags(c, source_text)?;
     if let Some(rejected) = rejected {
         return Err(Unsupported::at("code a module rejects", rejected.span));
     }
@@ -239,27 +238,6 @@ fn refuse_lost_comments(c: &Component, kept: &[Span]) -> R<()> {
         })
 }
 
-/// What Svelte's parser rejects and this parser does not yet: a root-only `svelte:` tag twice.
-fn refuse_rejected_tags(c: &Component, source_text: &str) -> R<()> {
-    let mut seen: Vec<&str> = Vec::new();
-    for node in &c.nodes {
-        let TemplateNode::Element { name, span, .. } = *node else {
-            continue;
-        };
-        let name = name.text(source_text);
-        if matches!(
-            name,
-            "svelte:head" | "svelte:options" | "svelte:window" | "svelte:document" | "svelte:body"
-        ) {
-            if seen.contains(&name) {
-                return Err(Unsupported::at("a root-only `svelte:` tag twice", span));
-            }
-            seen.push(name);
-        }
-    }
-    Ok(())
-}
-
 /// The first option whose value this port does not print yet. The pattern names every field, so
 /// a new option does not compile until it is decided here.
 #[must_use]
@@ -406,6 +384,31 @@ mod tree;
 
 #[cfg(test)]
 mod tests;
+
+/// The plugin cuts the style sheet at the first `</style>`, so the document Svelte parses for it
+/// keeps the rest of the sheet and the sheet's own closing tag as markup, which Svelte rejects.
+pub(crate) fn cut_style_sheet(c: &Component, source_text: &str) -> Option<Diagnostic> {
+    let content = c.style.as_ref()?.content;
+    let sheet = content.text(source_text);
+    let mut from = 0;
+    while let Some(at) = sheet[from..].find("</style") {
+        let after = &sheet[from + at + "</style".len()..];
+        if after
+            .trim_start_matches(is_ecmascript_whitespace)
+            .starts_with('>')
+        {
+            let cut = content.start_offset + (from + at) as u32;
+            return Some(Diagnostic::error(
+                "parse_error",
+                "prettier-plugin-svelte ends the style sheet at this `</style>`, and Svelte \
+                 rejects the rest of the sheet as markup",
+                Span::new(cut, cut + "</style".len() as u32),
+            ));
+        }
+        from += at + "</style".len();
+    }
+    None
+}
 
 /// The first error a module rejects in `c`, outside the artifact database.
 pub(crate) fn rejected(c: &Component, source_text: &str) -> Option<Diagnostic> {

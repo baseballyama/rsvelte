@@ -1,7 +1,9 @@
-use oxc_ast::ast::{ArrowFunctionExpression, CallExpression, Expression, IdentifierReference};
+use oxc_ast::ast::{
+    Argument, ArrowFunctionExpression, CallExpression, Expression, IdentifierReference,
+};
 use oxc_semantic::{SymbolFlags, SymbolId};
 
-use super::globals::global_function;
+use super::globals::{Global, global};
 use super::{Evaluator, Value, Values, add};
 use crate::resolve::BindingKind;
 
@@ -92,7 +94,8 @@ impl Evaluator<'_> {
             return;
         }
         if let Some(path) = self.global_keypath(&call.callee)
-            && let Some((kind, fold)) = global_function(path)
+            && let Some(Global::Function(kind, fold)) = global(path)
+            && !call.arguments.iter().any(Argument::is_spread)
         {
             let arguments = &call.arguments;
             let mut inline = [Value::Undefined, Value::Undefined];

@@ -1399,3 +1399,342 @@
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-style-with-expr-input.svelte".skip]
 "svelte.compile" = "upstream bug: a `style:` shorthand whose name is no identifier is read as an expression (`style:max-width` sets `max - width`), and the server lowercases the key the client keeps"
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/named_reexport_is_hoisted_out_of_render_body/ef9d513487cc4903.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `x` from an instance-script `export { x } from`, which binds no local `x`, so the component throws a ReferenceError"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/reexport_mixes_with_plain_named_exports_in_source_order/de9aaa4626a274d0.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `x` from an instance-script `export { x } from`, which binds no local `x`, so the component throws a ReferenceError"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/reexport_of_a_local_let_still_widens_and_stays_a_prop/603d62102a5ffdc1.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `x` from an instance-script `export { x } from`, which binds no local `x`, so the component throws a ReferenceError"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/renamed_reexport_keeps_official_local_to_exported_mapping/f2186ac6a152b18e.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 exports `x` from an instance-script `export { x } from`, which binds no local `x`, so the component throws a ReferenceError"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/dynamic_slot_attribute_on_a_slot_element_keeps_the_slot_prop/36e13c4f5dd374c9.svelte".skip]
+"svelte.compile/server" = "upstream bug: svelte 5.57.3's server reads the first text of a `<slot>` element's `slot={n}`, and crashes as it has none, while its client fills the default slot"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/interpolated_slot_attribute_on_a_slot_element_keeps_the_slot_prop/8562adffe2dd3415.svelte".skip]
+"svelte.compile/server" = "upstream bug: svelte 5.57.3's server fills the slot `a`, the first text of a `<slot>` element's `slot=\"a{b}c\"`, while its client fills the default slot"
+
+["svelte/rsvelte-tests-core-3/server_effect_pending_declarator_3213/a_declarator_initializer_is_void_0/2332f60b2ae47c8f.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3's client drops a declarator of `$effect.pending()`, so a read of its name throws a ReferenceError, and its server declares it `void 0` where the same rune in an expression is `0`"
+
+["svelte/rsvelte-tests-core-3/server_effect_pending_declarator_3213/a_declarator_initializer_is_void_0/30b02f159d759adf.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3's client drops a declarator of `$effect.pending()`, so a read of its name throws a ReferenceError, and its server declares it `void 0` where the same rune in an expression is `0`"
+
+["svelte/rsvelte-tests-core-3/server_effect_pending_declarator_3213/a_declarator_initializer_is_void_0/b5cbcfb53a526636.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3's client drops a declarator of `$effect.pending()`, so a read of its name throws a ReferenceError, and its server declares it `void 0` where the same rune in an expression is `0`"
+
+["svelte/rsvelte-tests-core-3/server_effect_pending_declarator_3213/a_declarator_initializer_is_void_0/cb83b250d1814afb.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3's client drops a declarator of `$effect.pending()`, so a read of its name throws a ReferenceError, and its server declares it `void 0` where the same rune in an expression is `0`"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/006dc23b44cf5e7e.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/0121c9fe01f7e32a.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/0d48464ad8941351.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/0f774e57c9d74794.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/1448ddcb472f1c3f.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/27d3993b860f01e8.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/2825be34589c6b1b.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/2ea543ec22ab33fa.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/3411190034ac9678.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/344d1d7cf11e64d9.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/35fc36565914f3a0.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/3c8166683fae46e8.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/3d45e36d6e9603ee.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/429aee8b24691bff.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/46b8b395c46596e5.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/473da3c318ec575e.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/4e4363b2cc9ccc19.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/63303640c5809743.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/66cb7f081f9de9e0.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/6dbd34f637395da8.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/6fc94c72aa969b5e.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/7aab71439c181dff.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/7c1294900827bc06.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/7e13752c6952fa00.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/7ea6c0fb8775cdd3.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/7f66f6a90e513b41.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/9c44b42560a8c4b6.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/9ebc2f91c757cc97.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/ad284b3e20bc3023.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/af19c65462eca708.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/b308d0cfcd2d4aeb.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/b56356f71053279e.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/b81f3c5f9c3bceb0.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/ba34ca17bcf7e7b1.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/bcbe478c44406885.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/bfe574ecdabeeee4.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/c0b67e798da4f6b8.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/c3c865356a7e0d47.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/ca2a4e4ee0154d37.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/cbbb9eca79e8eeed.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/d227f247d645de8d.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/d60efcc102f2d0d4.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/d6eaba609b14c12c.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/dbdf4de0c2a5c7e5.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/dde53930efec98dd.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/e4b098035b15f26f.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/f81a0fc7d73bbcf1.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_index_signature_3422/a_class_index_signature_is_erased/fa34ecbed01b3f10.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-3/ts_only_nodes_in_parse_ast_4195/a_class_body_index_signature_reaches_the_class_body/abcf83b10632eff3.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a TypeScript index signature in a class body (`Cannot read properties of undefined (reading 'type')`)"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/0e3abc198418bc74.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/2618d0bc377704a3.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/42ac82a706464018.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/5692964a76de3f52.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/66376f67124b4d81.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/68629d53c79fcf5a.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/6a936932e986470d.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/6fd16479e929dc6d.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/85ddd8c637dd1099.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/966796ac4d297f6f.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/a13c53ad2b76b622.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/a241a352683b3e49.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/ab9c47ba37e79731.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/ad07f339dcdf112d.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/d19c15ef72770620.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/d53f03b5f885c454.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/f33536cb7a64911a.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-2/number_of_bigint_3654/the_operators_still_refuse_a_bigint/0e1a967c0600006c.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/707b8495618a84da.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/7eed68000c2fb1b7.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/85c020f989bf01f9.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/aaeb425f4f512192.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/b573ea7718283b17.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/c65113fd27c1708c.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/e02cdbb999fb1470.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/e698f9d7b260d0bf.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 crashes on a dotted namespace `namespace N.M {}` (`node.body.body.map is not a function`)"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/6974a5a87fbd5b68.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/9de45e3b32fb9351.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/faf95531bc451aa2.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/fb93c1f8400ba356.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/09511e45c2f398d2.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/45399919d09d6ede.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/1c753cd80489c8fb.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/87e34b3a689f9448.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-2/globals_table_3617/two_shapes_stay_unfolded_on_purpose/181620c5ec25570d.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+
+["svelte/rsvelte-tests-core-3/server_global_fold_fns_3388/an_out_of_range_code_point_is_not_folded/7d852d86356c29fe.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+
+["svelte/rsvelte-tests-core-2/globals_table_3617/two_shapes_stay_unfolded_on_purpose/90b344717c29bda3.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+
+["svelte/rsvelte-tests-core-3/server_global_fold_fns_3388/an_out_of_range_code_point_is_not_folded/f4163d314d83ab72.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+
+["svelte/rsvelte-tests-core-2/globals_table_3617/two_shapes_stay_unfolded_on_purpose/f971de0d0c72cc7f.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+
+["svelte/rsvelte-tests-core-3/server_global_fold_fns_3388/an_out_of_range_code_point_is_not_folded/aff6c094f7f09b91.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+
+["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/f38d296e65efce2f.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-3/snippet_param_ts_default_4383/the_shapes_that_already_worked_are_unmoved/8c068ffb4a63fc91.svelte".skip]
+"svelte.compile" = "oxc_codegen prints `a ?? (b ?? c)` as `a ?? b ?? c`, which reads back as another tree; the fork's codegen needs a fix"
+
+["svelte/rsvelte-tests-core-2/dollar_props_binding_3192/each_item_read_is_renamed/d92b90ba1f8fb787.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 renames the reads of a `$$props` an `{#each}` or a snippet declares but not the declaration, so each read throws a ReferenceError"
+
+["svelte/rsvelte-tests-core-2/dollar_props_binding_3192/snippet_parameter_read_is_renamed_and_not_read_wrapped/fe951f21ace861f4.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 renames the reads of a `$$props` an `{#each}` or a snippet declares but not the declaration, so each read throws a ReferenceError"
+
+["svelte/rsvelte/pattern/issues/3192-dollar-props-binding.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 renames the reads of a `$$props` an `{#each}` or a snippet declares but not the declaration, so each read throws a ReferenceError"
+
+["svelte/rsvelte-tests-core-2/props_numeric_key_3229/a_numeric_key_is_excluded_from_rest_props_as_a_number/0cdac3e7036fbd2c.svelte".skip]
+"svelte.compile/client" = "upstream bug: svelte 5.57.3 excludes a numeric prop key from `$props()`'s rest as a number, which never equals the string key, so the rest keeps the prop"
+
+["svelte/rsvelte-tests-core-1/await_catch_transform_conformance_4111/a_catch_binding_leaks_its_transform_past_the_block/532d9524ed8007d8.svelte".skip]
+"svelte.compile/client" = "upstream bug: svelte 5.57.3 leaks an `{:catch}` binding's transform past its block, so a read of the prop of the same name calls `$.get` on a plain value"
+
+["svelte/rsvelte-tests-core-1/await_catch_transform_conformance_4111/a_destructured_catch_binding_leaks_too/37e8d7f376ff461d.svelte".skip]
+"svelte.compile/client" = "upstream bug: svelte 5.57.3 leaks an `{:catch}` binding's transform past its block, so a read of the prop of the same name calls `$.get` on a plain value"
+
+["svelte/rsvelte-tests-core-2/for_head_rune_reads_3300/derived_declared_in_a_for_head_keeps_every_read_transform/44abeca9c53d077e.svelte".skip]
+"svelte.compile/client" = "upstream bug: svelte 5.57.3 does not transform the reads and writes of a `$state` or `$derived` declared in a `for` head, so the loop compares and updates the signal itself"
+
+["svelte/rsvelte-tests-core-2/for_head_rune_reads_3300/state_declared_in_a_for_head_keeps_every_reference_transform/bfcd6f317efed0e6.svelte".skip]
+"svelte.compile/client" = "upstream bug: svelte 5.57.3 does not transform the reads and writes of a `$state` or `$derived` declared in a `for` head, so the loop compares and updates the signal itself"
+
+["svelte/rsvelte-tests-core-1/case_clause_state_3420/a_bare_case_clause_declaration_stays_reactive/4fafa621e682e581.svelte".skip]
+"svelte.compile/client" = "upstream bug: svelte 5.57.3 does not transform the reads and writes of a `$state` declared in a bare `case` clause, so it updates and returns the signal itself"
+
+["svelte/rsvelte-tests-core-3/snippet_param_destructuring/array_temporaries_precede_every_leaf_binding/c78ff7dc64c102c9.svelte".skip]
+"svelte.compile/client" = "upstream bug: svelte 5.57.3 reads a snippet parameter's nested array temporary without `$.get`, so it indexes the derived signal itself"
+
+["svelte/rsvelte-tests-core-2/effect_rune_pin/h121_effect_pending_lowers_in_component_scope/e5b94d7d6021b531.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3's client drops a declarator of `$effect.pending()`, so a read of its name throws a ReferenceError, and its server declares it `void 0` where the same rune in an expression is `0`"
+
+["svelte/rsvelte/pattern/issues/3256-class-case-clsx.svelte".skip]
+"svelte.compile/client" = "upstream bug: svelte 5.57.3 skips `$.clsx` for an upper-case `CLASS` attribute, so an array or object value is set as its string"

@@ -52,6 +52,38 @@ pub fn render_json<'a>(
     w.finish()
 }
 
+/// `ESLint`'s report of a file whose parser threw `message` at `offset`: no rule runs, and the
+/// one finding has no rule, no end, and the parser's 0-based column.
+#[must_use]
+pub fn render_parse_error(lines: &LineIndex, message: &str, offset: u32) -> String {
+    let at = lines.line_column(offset);
+    let mut w = StructuredDataWriter::with_capacity(true, FINDING_BYTES + message.len());
+    w.begin_object()
+        .key("rules")
+        .begin_array()
+        .end_array()
+        .key("findings")
+        .begin_array()
+        .begin_object()
+        .key("rule")
+        .null()
+        .key("message")
+        .write_string(&format!("Parsing error: {message}"))
+        .key("start")
+        .begin_object()
+        .key("line")
+        .write_number(at.line)
+        .key("column")
+        .write_number(at.column)
+        .end_object()
+        .key("end")
+        .null()
+        .end_object()
+        .end_array()
+        .end_object();
+    w.finish()
+}
+
 /// An upper bound on the report's length, unless a message needs many escapes.
 fn capacity<'a>(rules: impl IntoIterator<Item = &'a str>, findings: &[Finding]) -> usize {
     let rules: usize = rules.into_iter().map(|r| r.len() + 8).sum();

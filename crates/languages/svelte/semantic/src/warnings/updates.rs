@@ -67,7 +67,8 @@ pub(super) fn non_reactive_updates(
                 }
                 let name = scoping.symbol_name(symbol);
                 let message = format!(
-                    "`{name}` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates"
+                    "`{name}` is updated, but is not declared with `$state(...)`. Changing its \
+                        value will not correctly trigger updates"
                 );
                 found.push(
                     Stage::Bindings,

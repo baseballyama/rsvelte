@@ -43,6 +43,46 @@ pub(super) fn script_is_typescript(source_text: &str) -> bool {
     }
 }
 
+/// Whether `offset` is in the content of a `<script>` element. svelte-eslint-parser reads those
+/// itself and blanks them before Svelte parses the rest, so an error there is not Svelte's.
+pub(super) fn in_script_content(source_text: &str, offset: usize) -> bool {
+    let mut from = 0;
+    loop {
+        let rest = &source_text[from..];
+        let Some(i) = memchr::memchr(b'<', rest.as_bytes()) else {
+            return false;
+        };
+        let at = &rest[i..];
+        if let Some(body) = at.strip_prefix("<!--") {
+            match memchr::memmem::find(body.as_bytes(), b"-->") {
+                Some(end) => from += i + 4 + end + 3,
+                None => return false,
+            }
+            continue;
+        }
+        from += i + 1;
+        let Some(after) = at.strip_prefix("<script") else {
+            continue;
+        };
+        if !after.starts_with(|c| is_ecmascript_whitespace(c) || c == '>') {
+            continue;
+        }
+        let Some(open) = after.find('>') else {
+            return false;
+        };
+        let start = from + "script".len() + open + 1;
+        let end = memchr::memmem::find(&source_text.as_bytes()[start..], b"</script")
+            .map_or(source_text.len(), |len| start + len);
+        if (start..=end).contains(&offset) {
+            return true;
+        }
+        if offset < start {
+            return false;
+        }
+        from = end;
+    }
+}
+
 /// Upstream `read_script`'s `get_context`: `module`, or the legacy `context="module"`.
 fn is_module(source_text: &str, attributes: &[TagAttributes]) -> bool {
     attributes.iter().any(|(name, value)| {
@@ -68,7 +108,7 @@ impl Parser<'_, '_> {
         loop {
             self.skip_ws();
             match self.peek() {
-                None => return self.err("unterminated start tag"),
+                None => return self.unexpected_eof(),
                 Some(b'>') => {
                     self.eat_token(TokenType::TagEnd, 1);
                     return Ok(attributes);
@@ -77,7 +117,7 @@ impl Parser<'_, '_> {
                     let name_start = self.position;
                     self.position += super::attribute::attribute_name_len(self.rest());
                     if self.position == name_start {
-                        return self.err("expected an attribute name");
+                        return self.expected_token(">");
                     }
                     let name = Span::new(name_start as u32, self.position as u32);
                     self.token(TokenType::AttributeName, name_start);
@@ -88,7 +128,7 @@ impl Parser<'_, '_> {
                             let value_start = self.position + 1;
                             let Some(len) = self.source_text[value_start..].find(quote as char)
                             else {
-                                return self.err("unterminated attribute value");
+                                return self.err("parse_error", "unterminated attribute value");
                             };
                             value = Some(Span::new(value_start as u32, (value_start + len) as u32));
                             let quote = super::attribute::quote_token(quote);
@@ -103,7 +143,8 @@ impl Parser<'_, '_> {
                                 .find(|c| is_ecmascript_whitespace(c) || c == '>')
                                 .unwrap_or_else(|| self.rest().len());
                             if len == 0 {
-                                return self.err("expected an attribute value");
+                                return self
+                                    .err("expected_attribute_value", "Expected attribute value");
                             }
                             value = Some(Span::new(value_start as u32, (value_start + len) as u32));
                             self.position += len;
@@ -130,7 +171,16 @@ impl Parser<'_, '_> {
             let Some(next) =
                 memchr::memmem::find(&self.rest().as_bytes()[from..], close.as_bytes())
             else {
-                return self.err(format!("`<{tag}>` was left open"));
+                return if tag == "script" {
+                    let end = self.source_text.len() as u32;
+                    Self::err_at(
+                        Span::new(end, end),
+                        "element_unclosed",
+                        "`<script>` was left open",
+                    )
+                } else {
+                    self.expected_token("</style")
+                };
             };
             let at = from + next;
             let suffix = &self.rest()[at + close.len()..];
@@ -142,6 +192,17 @@ impl Parser<'_, '_> {
         };
         self.position += len;
         Ok(Span::new(start_offset as u32, (start_offset + len) as u32))
+    }
+
+    /// `</style`, and the `>` after it if there is one: upstream reads the rest as the template's.
+    fn close_style(&mut self) {
+        self.eat_token(TokenType::EndTagOpen, 2);
+        self.eat_token(TokenType::TagName, "style".len());
+        let whitespace = super::whitespace::whitespace_len(self.rest());
+        if self.rest().as_bytes().get(whitespace) == Some(&b'>') {
+            self.skip_ws();
+            self.eat_token(TokenType::TagEnd, 1);
+        }
     }
 
     fn close_raw(&mut self, tag: &str) {
@@ -160,18 +221,20 @@ impl Parser<'_, '_> {
         } else {
             self.component.instance.is_some()
         };
-        if duplicate {
-            return Self::err_at(
-                content,
-                "a component can have a single top-level `<script>` element and/or a single \
-                 top-level `<script module>` element",
-            );
-        }
         let source_type = self.source_type();
         let program = self
             .builder
             .program(content, source_type)
             .map_err(javascript_error)?;
+        // Upstream parses the script before it checks for another.
+        if duplicate {
+            return Self::err_at(
+                Span::new(start_offset as u32, start_offset as u32),
+                "script_duplicate",
+                "A component can have a single top-level `<script>` element and/or a single \
+                 top-level `<script module>` element",
+            );
+        }
         self.javascript_region(content.start_offset, content.end_offset);
         // Svelte only strips `generics`, so a list that does not parse is left out, as
         // `svelte-eslint-parser` does; read after the program's tokens are taken.
@@ -202,17 +265,41 @@ impl Parser<'_, '_> {
     }
 
     fn style(&mut self, start_offset: usize, attributes: Vec<TagAttributes>) -> ParseResult<()> {
-        let content = self.raw_text("style")?;
+        // The sheet ends at the first `</style` between its rules, as upstream reads it; one that
+        // does not parse ends at the first closing tag, so the rest of the component still parses.
+        // Svelte parses the template without its trailing whitespace, so an open sheet ends there.
+        let sheet = rsvelte_stylesheet_syntax::parse_until(
+            self.source_text.trim_end_matches(is_ecmascript_whitespace),
+            self.position as u32,
+            "</style",
+        )
+        .map_err(|e| Diagnostic::error("css_parse_error", e.message, e.span));
+        let content = match &sheet {
+            Ok(sheet)
+                if self.source_text[sheet.content.end_offset as usize..].starts_with("</style") =>
+            {
+                self.position = sheet.content.end_offset as usize;
+                sheet.content
+            }
+            Ok(sheet) => {
+                self.position = sheet.content.end_offset as usize;
+                return self.expected_token("</style");
+            }
+            // Without a closing tag Svelte has nothing to go on but the sheet's own error.
+            Err(error) => match self.raw_text("style") {
+                Ok(content) => content,
+                Err(_) => return Err(error.clone()),
+            },
+        };
         if self.component.style.is_some() {
             return Self::err_at(
-                content,
-                "a component can have a single top-level `<style>` element",
+                Span::new(start_offset as u32, start_offset as u32),
+                "style_duplicate",
+                "A component can have a single top-level `<style>` element",
             );
         }
         self.component.tokens.push(TokenType::Stylesheet, content);
-        self.close_raw("style");
-        let sheet = rsvelte_stylesheet_syntax::parse(self.source_text, content)
-            .map_err(|e| Diagnostic::error("css_parse_error", e.message, e.span));
+        self.close_style();
         self.component.style = Some(Style {
             span: Span::new(start_offset as u32, self.position as u32),
             attributes,

@@ -79,8 +79,10 @@ fn review_e_shapes_print_as_the_plugin_prints_them() {
         ("<p>{1..toString()}</p>\n", "<p>{(1).toString()}</p>\n"),
         ("<p>{1_0.5_0}</p>\n", "<p>{1_0.5_0}</p>\n"),
         (
-            "<style>\n  p {\n    a: 1;\n\n\n    b: 2;\n    .x {\n      c: 1;\n    }\n    d: 3;\n  }\n</style>\n",
-            "<style>\n  p {\n    a: 1;\n\n    b: 2;\n    .x {\n      c: 1;\n    }\n    d: 3;\n  }\n</style>\n",
+            "<style>\n  p {\n    a: 1;\n\n\n    b: 2;\n    .x {\n      c: 1;\n    }\n    d: 3;\n  \
+                }\n</style>\n",
+            "<style>\n  p {\n    a: 1;\n\n    b: 2;\n    .x {\n      c: 1;\n    }\n    d: 3;\n  \
+                }\n</style>\n",
         ),
         (
             "<script>\n  setTimeout(function () { return 1; }, x + y);\n</script>\n",
@@ -222,123 +224,145 @@ fn review_f_shapes_are_refused() {
 fn corpus_shapes_print_as_the_plugin_prints_them() {
     for (source_text, want) in [
         (
-            "<script lang=\"ts\">\n  let { a, b }: {\n a: string; b: number } = $props();\n</script>\n",
-            "<script lang=\"ts\">\n  let {\n    a,\n    b,\n  }: {\n    a: string;\n    b: number;\n  } = $props();\n</script>\n",
+            "<script lang=\"ts\">\n  let { a, b }: {\n a: string; b: number } = \
+                $props();\n</script>\n",
+            "<script lang=\"ts\">\n  let {\n    a,\n    b,\n  }: {\n    a: string;\n    b: \
+                number;\n  } = $props();\n</script>\n",
         ),
         (
             "<script>\n  import {} from \"svelte\";\n</script>\n",
             "<script>\n  import {} from \"svelte\";\n</script>\n",
         ),
         (
-            "<script lang=\"ts\">\n  interface P {\n    a: {\n      b: string;\n    };\n    c: number;\n  }\n</script>\n",
-            "<script lang=\"ts\">\n  interface P {\n    a: {\n      b: string;\n    };\n    c: number;\n  }\n</script>\n",
+            "<script lang=\"ts\">\n  interface P {\n    a: {\n      b: string;\n    };\n    c: \
+                number;\n  }\n</script>\n",
+            "<script lang=\"ts\">\n  interface P {\n    a: {\n      b: string;\n    };\n    c: \
+                number;\n  }\n</script>\n",
         ),
         (
-            "<script>\n  let a = [\n    { name: \"Online Stores\", help: \"Connect with third-party tools that you are already using.\" },\n\n    { name: \"Segmentation\" },\n  ];\n</script>\n",
-            "<script>\n  let a = [\n    {\n      name: \"Online Stores\",\n      help: \"Connect with third-party tools that you are already using.\",\n    },\n\n    { name: \"Segmentation\" },\n  ];\n</script>\n",
+            "<script>\n  let a = [\n    { name: \"Online Stores\", help: \"Connect with \
+                third-party tools that you are already using.\" },\n\n    { name: \"Segmentation\" \
+                },\n  ];\n</script>\n",
+            "<script>\n  let a = [\n    {\n      name: \"Online Stores\",\n      help: \"Connect \
+                with third-party tools that you are already using.\",\n    },\n\n    { name: \
+                \"Segmentation\" },\n  ];\n</script>\n",
         ),
         // Three calls, counting the base `Array(100)`, expand the chain.
         (
-            "<script>\n  const xs = Array(100).fill(0).map((_, index) => \"Item \" + index);\n</script>\n",
-            "<script>\n  const xs = Array(100)\n    .fill(0)\n    .map((_, index) => \"Item \" + index);\n</script>\n",
+            "<script>\n  const xs = Array(100).fill(0).map((_, index) => \"Item \" + \
+                index);\n</script>\n",
+            "<script>\n  const xs = Array(100)\n    .fill(0)\n    .map((_, index) => \"Item \" + \
+                index);\n</script>\n",
         ),
     ] {
         assert_eq!(formatted(source_text), want, "{source_text}");
     }
 }
 
-/// Inputs the earlier printer refused; expected outputs from Prettier 3.9.10 with
-/// prettier-plugin-svelte 4.1.1.
+/// Inputs the earlier printer refused, with their print width; expected outputs from Prettier
+/// 3.9.10 with prettier-plugin-svelte 4.1.1.
+const ONCE_REFUSED: &[(u32, &str, &str)] = &[
+    (
+        20,
+        "<title>x</title>{a + b}\n",
+        "<title>x</title>{a +\n  b}\n",
+    ),
+    (
+        80,
+        "<script>\n\tlet a = { 'b': 1 };\n</script>\n",
+        "<script>\n  let a = { b: 1 };\n</script>\n",
+    ),
+    (
+        80,
+        "<script lang=\"ts\">\n  a as T > c;\n</script>\n",
+        "<script lang=\"ts\">\n  (a as T) > c;\n</script>\n",
+    ),
+    (
+        80,
+        "<script lang=\"ts\">\n  let a = b satisfies { a: string } < c;\n</script>\n",
+        "<script lang=\"ts\">\n  let a = (b satisfies { a: string }) < c;\n</script>\n",
+    ),
+    (
+        30,
+        "<script>\n  promise.then((a) => {\n    x;\n  }).then(b).catch(c);\n</script>\n",
+        "<script>\n  promise\n    .then((a) => {\n      x;\n    })\n    .then(b)\n    \
+            .catch(c);\n</script>\n",
+    ),
+    (80, "<p>{a || (b || c)}</p>\n", "<p>{a || b || c}</p>\n"),
+    (
+        80,
+        "<style>\n  a {\n    content: \"a  b\";\n  }\n</style>\n",
+        "<style>\n  a {\n    content: \"a  b\";\n  }\n</style>\n",
+    ),
+    (
+        16,
+        "{array.map((item) => {\n  return item + 1\n})}\n",
+        "{array.map(\n  (item) => {\n    return (\n      item + 1\n    );\n  },\n)}\n",
+    ),
+    (
+        80,
+        "<p>{a || `x\ny`}</p>\n",
+        "<p>\n  {a ||\n    `x\ny`}\n</p>\n",
+    ),
+    (
+        80,
+        "{#if z}{@const q = a = b}{q}{/if}\n",
+        "{#if z}{@const q = a = b}{q}{/if}\n",
+    ),
+    (
+        80,
+        "<script lang=\"ts\">\n  [...(a as T)];\n</script>\n",
+        "<script lang=\"ts\">\n  [...(a as T)];\n</script>\n",
+    ),
+    (
+        80,
+        "<script lang=\"ts\">\n  (a as T)!;\n</script>\n",
+        "<script lang=\"ts\">\n  (a as T)!;\n</script>\n",
+    ),
+    (
+        80,
+        "<script>\n  it(\"x\", function () { a(); }, 1000);\n</script>\n",
+        "<script>\n  it(\"x\", function () {\n    a();\n  }, 1000);\n</script>\n",
+    ),
+    (
+        80,
+        "<script lang=\"ts\">\n  function f(a: { k: T }) {}\n</script>\n",
+        "<script lang=\"ts\">\n  function f(a: { k: T }) {}\n</script>\n",
+    ),
+    (
+        80,
+        "<script>\n  let s = `\n\t\tnext ${() => { x; }} post`;\n</script>\n",
+        "<script>\n  let s = `\n\t\tnext ${() => {\n      x;\n    }} post`;\n</script>\n",
+    ),
+    (
+        80,
+        "<script>\n  let x = this.a[() => { x; }];\n</script>\n",
+        "<script>\n  let x =\n    this.a[\n      () => {\n        x;\n      }\n    \
+            ];\n</script>\n",
+    ),
+    (
+        80,
+        "<script lang=\"ts\">\n  \
+            f(user!.pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp);\n\
+            </script>\n",
+        "<script lang=\"ts\">\n  f(\n    user!\n      \
+            .pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp,\n  \
+            );\n</script>\n",
+    ),
+    (
+        80,
+        "<script>\n  let x = \
+            Foo.API[0].bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\
+            ;\n</script>\n",
+        "<script>\n  let x =\n    Foo.API[0]\n      \
+            .bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;\n</scrip\
+            t>\n",
+    ),
+];
+
 #[test]
 fn shapes_once_refused_print_as_the_plugin_prints_them() {
-    for (print_width, source_text, want) in [
-        (
-            20,
-            "<title>x</title>{a + b}\n",
-            "<title>x</title>{a +\n  b}\n",
-        ),
-        (
-            80,
-            "<script>\n\tlet a = { 'b': 1 };\n</script>\n",
-            "<script>\n  let a = { b: 1 };\n</script>\n",
-        ),
-        (
-            80,
-            "<script lang=\"ts\">\n  a as T > c;\n</script>\n",
-            "<script lang=\"ts\">\n  (a as T) > c;\n</script>\n",
-        ),
-        (
-            80,
-            "<script lang=\"ts\">\n  let a = b satisfies { a: string } < c;\n</script>\n",
-            "<script lang=\"ts\">\n  let a = (b satisfies { a: string }) < c;\n</script>\n",
-        ),
-        (
-            30,
-            "<script>\n  promise.then((a) => {\n    x;\n  }).then(b).catch(c);\n</script>\n",
-            "<script>\n  promise\n    .then((a) => {\n      x;\n    })\n    .then(b)\n    .catch(c);\n</script>\n",
-        ),
-        (80, "<p>{a || (b || c)}</p>\n", "<p>{a || b || c}</p>\n"),
-        (
-            80,
-            "<style>\n  a {\n    content: \"a  b\";\n  }\n</style>\n",
-            "<style>\n  a {\n    content: \"a  b\";\n  }\n</style>\n",
-        ),
-        (
-            16,
-            "{array.map((item) => {\n  return item + 1\n})}\n",
-            "{array.map(\n  (item) => {\n    return (\n      item + 1\n    );\n  },\n)}\n",
-        ),
-        (
-            80,
-            "<p>{a || `x\ny`}</p>\n",
-            "<p>\n  {a ||\n    `x\ny`}\n</p>\n",
-        ),
-        (
-            80,
-            "{#if z}{@const q = a = b}{q}{/if}\n",
-            "{#if z}{@const q = a = b}{q}{/if}\n",
-        ),
-        (
-            80,
-            "<script lang=\"ts\">\n  [...(a as T)];\n</script>\n",
-            "<script lang=\"ts\">\n  [...(a as T)];\n</script>\n",
-        ),
-        (
-            80,
-            "<script lang=\"ts\">\n  (a as T)!;\n</script>\n",
-            "<script lang=\"ts\">\n  (a as T)!;\n</script>\n",
-        ),
-        (
-            80,
-            "<script>\n  it(\"x\", function () { a(); }, 1000);\n</script>\n",
-            "<script>\n  it(\"x\", function () {\n    a();\n  }, 1000);\n</script>\n",
-        ),
-        (
-            80,
-            "<script lang=\"ts\">\n  function f(a: { k: T }) {}\n</script>\n",
-            "<script lang=\"ts\">\n  function f(a: { k: T }) {}\n</script>\n",
-        ),
-        (
-            80,
-            "<script>\n  let s = `\n\t\tnext ${() => { x; }} post`;\n</script>\n",
-            "<script>\n  let s = `\n\t\tnext ${() => {\n      x;\n    }} post`;\n</script>\n",
-        ),
-        (
-            80,
-            "<script>\n  let x = this.a[() => { x; }];\n</script>\n",
-            "<script>\n  let x =\n    this.a[\n      () => {\n        x;\n      }\n    ];\n</script>\n",
-        ),
-        (
-            80,
-            "<script lang=\"ts\">\n  f(user!.pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp);\n</script>\n",
-            "<script lang=\"ts\">\n  f(\n    user!\n      .pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp,\n  );\n</script>\n",
-        ),
-        (
-            80,
-            "<script>\n  let x = Foo.API[0].bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;\n</script>\n",
-            "<script>\n  let x =\n    Foo.API[0]\n      .bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;\n</script>\n",
-        ),
-    ] {
+    for &(print_width, source_text, want) in ONCE_REFUSED {
         let options = options(&format!(r#"{{"printWidth": {print_width}}}"#));
         assert_eq!(
             formatted_with(source_text, &options),
@@ -360,9 +384,11 @@ fn upstream_quirks_are_not_reproduced() {
             "{#if f(`x\ny`, () => {})}y{/if}\n",
         ),
         (
-            "{#if f(someQuiteLongIdentifierNumberOne + someQuiteLongIdentifierNumberOne, [a, b])}y{/if}\n",
+            "{#if f(someQuiteLongIdentifierNumberOne + someQuiteLongIdentifierNumberOne, [a, \
+                b])}y{/if}\n",
             &Options::default(),
-            "{#if f(someQuiteLongIdentifierNumberOne + someQuiteLongIdentifierNumberOne, [a, b])}y{/if}\n",
+            "{#if f(someQuiteLongIdentifierNumberOne + someQuiteLongIdentifierNumberOne, [a, \
+                b])}y{/if}\n",
         ),
         (
             "{#await { k: obj.props((a) => { x; }) }}\n  w\n{/await}\n",
@@ -371,9 +397,11 @@ fn upstream_quirks_are_not_reproduced() {
         ),
         // `removeLines` keeps a member chain's hard lines, so a head meant for one line breaks.
         (
-            "{#key items >> someLongIdentifierName.b(1).x.i(~anotherQuiteLongVariableName(`a ${b} c`, items))}k{/key}\n",
+            "{#key items >> someLongIdentifierName.b(1).x.i(~anotherQuiteLongVariableName(`a ${b} \
+                c`, items))}k{/key}\n",
             &narrow,
-            "{#key items >> someLongIdentifierName.b(1).x.i(~anotherQuiteLongVariableName(`a ${b} c`, items))}k{/key}\n",
+            "{#key items >> someLongIdentifierName.b(1).x.i(~anotherQuiteLongVariableName(`a ${b} \
+                c`, items))}k{/key}\n",
         ),
         // Prettier puts the `{` after a `url(…)` prelude on its own line.
         (

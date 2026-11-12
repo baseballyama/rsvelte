@@ -24,7 +24,8 @@ use rsvelte_typescript_check::{Tsc, TypeChecker, TypeScriptDocument, TypeScriptV
 struct Coverage {
     parse_errors: AtomicUsize,
     /// Invariants that do not need an oracle and failed: a projection that is not valid
-    /// TypeScript, or a token table that is not the source byte for byte.
+    /// TypeScript beyond the grammar rules its source may break, or a token table that is not the
+    /// source byte for byte.
     invalid: std::sync::Mutex<Vec<String>>,
     /// The projection: valid TypeScript, or not produced.
     projected: AtomicUsize,
@@ -66,9 +67,15 @@ impl Task for CountCoverage {
             Ok(projection) => {
                 let allocator = Allocator::default();
                 let result = Parser::new(&allocator, &projection.out, SourceType::ts()).parse();
-                if result.diagnostics.is_empty() {
-                    count(&self.0.projected);
-                } else {
+                // The projection keeps the script's own grammar, which may break these rules.
+                let added = result.diagnostics.iter().any(|d| {
+                    d.code.scope.as_deref() != Some("TS")
+                        || d.code.number.as_deref().is_none_or(|n| {
+                            !rsvelte_svelte_syntax::parse::ACORN_UNCHECKED_TYPESCRIPT_RULES
+                                .contains(&n)
+                        })
+                });
+                if added {
                     self.0
                         .invalid
                         .lock()
@@ -77,6 +84,8 @@ impl Task for CountCoverage {
                             "{}: {:?}",
                             context.document.path, result.diagnostics
                         ));
+                } else {
+                    count(&self.0.projected);
                 }
             }
             Err(_) => {
@@ -89,6 +98,7 @@ impl Task for CountCoverage {
         {
             Ok(TypeScriptDocument::Checked { .. }) => count(&self.0.prepared),
             Ok(TypeScriptDocument::Unchecked) => count(&self.0.unchecked),
+            Ok(TypeScriptDocument::Rejected { .. }) => unreachable!("a parse error returned above"),
             Err(_) => count(&self.0.unsupported),
         };
     }

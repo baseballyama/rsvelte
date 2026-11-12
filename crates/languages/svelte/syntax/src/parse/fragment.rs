@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::positions::Span;
 
 use super::element_rules::closing_tag_omitted;
-use super::{End, ParseResult, Parser, element};
+use super::{End, ParseResult, Parser, element, is_void};
 use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
 
 impl Parser<'_, '_> {
@@ -9,7 +9,7 @@ impl Parser<'_, '_> {
     /// markup nests and the depth is checked in one place.
     pub(super) fn fragment(&mut self, end: End<'_>) -> ParseResult<Range> {
         if self.depth == super::MAX_NESTING {
-            return self.err("elements and blocks nest too deeply");
+            return self.err("parse_error", "elements and blocks nest too deeply");
         }
         self.depth += 1;
         let children = rsvelte_kernel::performance::stack::grow(|| self.children(end));
@@ -22,10 +22,19 @@ impl Parser<'_, '_> {
         loop {
             let rest = self.rest();
             if rest.is_empty() {
+                // Upstream reports the innermost open node's first character.
                 return match end {
                     End::Eof => Ok(self.finish_children(children_start)),
-                    End::Tag { name, .. } => self.err(format!("`<{name}>` was left open")),
-                    End::Block => self.err("block was left open"),
+                    End::Tag { name, start, .. } => Self::err_at(
+                        Span::new(start, start + 1),
+                        "element_unclosed",
+                        format_args!("`<{name}>` was left open"),
+                    ),
+                    End::Block { start } => Self::err_at(
+                        Span::new(start, start + 1),
+                        "block_unclosed",
+                        "Block was left open",
+                    ),
                 };
             }
             let child = match rest.as_bytes()[0] {
@@ -33,13 +42,14 @@ impl Parser<'_, '_> {
                     if let End::Tag { .. } = end {
                         return Ok(self.finish_children(children_start));
                     }
-                    return self.err("unexpected closing tag");
+                    return self.stray_closing_tag();
                 }
                 b'<' if rest.starts_with("<!--") => self.comment()?,
                 b'<' => {
                     if let End::Tag {
                         name,
                         regular: true,
+                        ..
                     } = end
                         && closing_tag_omitted(name, || element::peek_tag_name(&rest[1..]))
                     {
@@ -51,8 +61,8 @@ impl Parser<'_, '_> {
                     }
                 }
                 b'{' if self.at_block_continuation() => {
-                    let End::Block = end else {
-                        return self.err("unexpected block continuation or closing tag");
+                    let End::Block { .. } = end else {
+                        return self.stray_block_continuation();
                     };
                     return Ok(self.finish_children(children_start));
                 }
@@ -60,6 +70,45 @@ impl Parser<'_, '_> {
                 _ => self.text(),
             };
             self.pending_children.push(child);
+        }
+    }
+
+    /// Upstream's error for `</name>` with no element of its own open.
+    fn stray_closing_tag<T>(&mut self) -> ParseResult<T> {
+        let start = self.position as u32;
+        let name = element::peek_tag_name(&self.rest()[2..]);
+        self.position += 2 + name.len();
+        self.skip_ws();
+        if self.peek() != Some(b'>') {
+            return self.expected_token(">");
+        }
+        let at = Span::new(start, start);
+        if is_void(name) {
+            return Self::err_at(
+                at,
+                "void_element_invalid_content",
+                "Void elements cannot have children or closing tags",
+            );
+        }
+        Self::err_at(
+            at,
+            "element_invalid_closing_tag",
+            format_args!("`</{name}>` attempted to close an element that was not open"),
+        )
+    }
+
+    /// Upstream's error for `{:…}` or `{/…}` outside a block, at the `:` or `/`.
+    fn stray_block_continuation<T>(&self) -> ParseResult<T> {
+        let at = self.sigil();
+        if self.source_text[at.start_offset as usize..].starts_with('/') {
+            Self::err_at(at, "block_unexpected_close", "Unexpected block closing tag")
+        } else {
+            Self::err_at(
+                at,
+                "block_invalid_continuation_placement",
+                "{:...} block is invalid at this position (did you forget to close the preceding \
+                 element or block?)",
+            )
         }
     }
 
@@ -86,7 +135,7 @@ impl Parser<'_, '_> {
     fn comment(&mut self) -> ParseResult<TemplateNodeIdentifier> {
         let start_offset = self.position;
         let Some(end) = memchr::memmem::find(self.rest().as_bytes(), b"-->") else {
-            return self.err("unterminated comment");
+            return self.expected_token("-->");
         };
         let data = Span::new((start_offset + 4) as u32, (start_offset + end) as u32);
         self.position += end + 3;
