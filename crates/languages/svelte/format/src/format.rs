@@ -437,6 +437,7 @@ mod blocks;
 mod children;
 mod elements;
 mod embed;
+mod expressions;
 mod javascript;
 mod patterns;
 mod tree;

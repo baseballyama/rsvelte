@@ -1,4 +1,4 @@
-use super::children::Comments;
+use super::expressions::Comments;
 use super::{
     Attribute, AttributeKind, AttributeValue, Cow, ElementKind, LayoutInstructionIdentifier, Part,
     Printer, R, Unsupported, only_ws,

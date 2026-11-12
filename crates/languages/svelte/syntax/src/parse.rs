@@ -61,77 +61,6 @@ pub const ACORN_UNCHECKED_TYPESCRIPT_RULES: &[&str] = &[
 /// sheet's error alone is kept on [`Style::sheet`](crate::syntax_tree::Style::sheet);
 /// [`crate::fully_parsed`] reports it.
 pub fn parse(source_text: &str) -> ParseResult<Component> {
-    parse_with(source_text, StyleEnd::Sheet)
-}
-
-/// The parse error a tool that cuts `component`'s style sheet at the first closing tag it finds
-/// reports, if the sheet holds one (see [`StyleEnd::Cut`]).
-#[must_use]
-pub fn cut_style_error(
-    source_text: &str,
-    component: &Component,
-    cut: StyleCut,
-) -> Option<Diagnostic> {
-    let style = component.style.as_ref()?;
-    cut.find(style.content.text(source_text))?;
-    parse_with(source_text, StyleEnd::Cut(cut)).err()
-}
-
-/// Where a top-level `<style>` element ends.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum StyleEnd {
-    /// At the first `</style` between the sheet's rules, as Svelte reads it.
-    Sheet,
-    /// At the first closing tag a tool finds, as it cuts the sheet out before Svelte parses the
-    /// rest, which leaves the rest of the sheet to the markup.
-    Cut(StyleCut),
-}
-
-/// The tools that cut a style sheet out at the first closing tag they find, and what they find.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum StyleCut {
-    /// prettier-plugin-svelte: `</style\s*>`.
-    PrettierPluginSvelte,
-    /// svelte2tsx, so svelte-check: `</style>`.
-    Svelte2tsx,
-    /// svelte-eslint-parser: `</style>` in any case.
-    SvelteEslintParser,
-}
-
-impl StyleCut {
-    /// Where the closing tag this tool cuts at first starts in `text`.
-    #[must_use]
-    pub fn find(self, text: &str) -> Option<usize> {
-        match self {
-            Self::PrettierPluginSvelte => {
-                let mut from = 0;
-                loop {
-                    let at = from + text[from..].find("</style")?;
-                    let after = &text[at + "</style".len()..];
-                    if after
-                        .trim_start_matches(is_ecmascript_whitespace)
-                        .starts_with('>')
-                    {
-                        return Some(at);
-                    }
-                    from = at + "</style".len();
-                }
-            }
-            Self::Svelte2tsx => text.find("</style>"),
-            Self::SvelteEslintParser => text
-                .as_bytes()
-                .windows("</style>".len())
-                .position(|w| w.eq_ignore_ascii_case(b"</style>")),
-        }
-    }
-}
-
-/// [`parse`], with a top-level `<style>` element that ends at `style_end`.
-///
-/// # Errors
-///
-/// As [`parse`].
-pub fn parse_with(source_text: &str, style_end: StyleEnd) -> ParseResult<Component> {
     let (javascript, template) = Tree::build(source_text, |builder| {
         builder.leave_unchecked(ACORN_UNCHECKED_TYPESCRIPT_RULES);
         let mut parser = Parser {
@@ -145,7 +74,6 @@ pub fn parse_with(source_text: &str, style_end: StyleEnd) -> ParseResult<Compone
             unique_names: FxHashSet::default(),
             meta_tags: 0,
             depth: 0,
-            style_end,
         };
         // Upstream removes a leading byte order mark before parsing, so no node covers it.
         if source_text.starts_with('\u{feff}') {
@@ -155,14 +83,12 @@ pub fn parse_with(source_text: &str, style_end: StyleEnd) -> ParseResult<Compone
         buffer_pool::give_keyed::<Parser<'static, 'static>, _>(std::mem::take(
             &mut parser.pending_children,
         ));
-        // The style sheet's error came first in the document, so it is the one upstream reports;
-        // the tools that cut the sheet out do not parse it.
+        // The style sheet's error came first in the document, so it is the one upstream reports.
         parser.component.root = root.map_err(|e| {
             parser
                 .component
                 .style
                 .as_ref()
-                .filter(|_| style_end == StyleEnd::Sheet)
                 .and_then(|style| style.sheet.as_ref().err())
                 .cloned()
                 .unwrap_or_else(|| acorn_position(e))
@@ -320,7 +246,6 @@ struct Parser<'a, 'b> {
     meta_tags: u8,
     /// How many fragments are open.
     depth: u32,
-    style_end: StyleEnd,
 }
 
 impl<'a> Parser<'a, '_> {

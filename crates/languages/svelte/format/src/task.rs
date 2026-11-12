@@ -33,9 +33,6 @@ pub fn register_with_options(registry: &mut Registry, options: Options) {
     registry.task(Format { options });
 }
 
-const PRETTIER: rsvelte_svelte_syntax::parse::StyleCut =
-    rsvelte_svelte_syntax::parse::StyleCut::PrettierPluginSvelte;
-
 #[derive(Debug)]
 pub struct Format {
     options: Options,
@@ -63,10 +60,6 @@ impl Task for Format {
                 return;
             }
         };
-        if let Some(error) = rsvelte_svelte_syntax::cut_parse_error(context, PRETTIER) {
-            out.diagnostics.push(error.clone());
-            return;
-        }
         let rejected = context
             .get::<rsvelte_svelte_semantic::Resolved>()
             .as_ref()
@@ -85,11 +78,6 @@ impl Task for Format {
 /// The parse error, or the first construct the formatter does not handle yet.
 pub fn format(source_text: &str, options: &Options) -> Result<String, Diagnostic> {
     let component = rsvelte_svelte_syntax::parse::parse(source_text)?;
-    if let Some(error) =
-        rsvelte_svelte_syntax::parse::cut_style_error(source_text, &component, PRETTIER)
-    {
-        return Err(error);
-    }
     let rejected = crate::format::rejected(&component, source_text);
     formatted(&component, source_text, options, rejected.as_ref())
 }
