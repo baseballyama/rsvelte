@@ -2,15 +2,25 @@ use oxc_ast::ast::Expression;
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+use rsvelte_kernel::source::tokens::{Token, TokenKind};
 use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
 
 use super::javascript::{Adjust, Part, trim_semicolon};
 use super::patterns::{has_typescript, span};
 use super::{
     Cow, LayoutInstructionIdentifier, Printer, R, Span, TemplateNode, TemplateNodeIdentifier,
-    Unsupported, ends_with_linebreak, is_collapse_ws, only_ws, starts_with_linebreak,
+    TokenType, Unsupported, ends_with_linebreak, is_collapse_ws, only_ws, starts_with_linebreak,
 };
 use crate::options::EmbeddedLanguageFormatting;
+
+/// Which comments around a template expression the output keeps.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Comments {
+    /// Those the plugin's `getText` takes: the ones before it.
+    AsThePlugin,
+    /// None: one the printer would lose is refused.
+    Refused,
+}
 
 /// A child of a fragment: a template node, or, at the root under `svelteSortOrder: "none"`, a
 /// `<script>` or `<style>` already printed, which the plugin prints like any other node.
@@ -369,7 +379,7 @@ impl Printer<'_, '_, '_> {
         single_line: bool,
         single_quote: bool,
     ) -> R<LayoutInstructionIdentifier> {
-        self.expression_with(e, single_line, single_quote, false)
+        self.expression_with(e, single_line, single_quote, false, Comments::AsThePlugin)
     }
 
     /// The plugin parses each expression wrapped as `(expression\n)`, and Prettier then keeps the
@@ -429,17 +439,23 @@ impl Printer<'_, '_, '_> {
         single_line: bool,
         single_quote: bool,
         bare_sequence: bool,
+        comments: Comments,
     ) -> R<LayoutInstructionIdentifier> {
         if self.options.embedded_language_formatting == EmbeddedLanguageFormatting::Off {
             return self.unformatted_expression(e);
         }
         let expression = self.c.javascript.get_expression(e);
-        let span = span(expression.span());
         let adjust = Adjust {
             single_quote,
             single_line,
             remove_parentheses: bare_sequence
                 && matches!(expression, Expression::SequenceExpression(_)),
+        };
+        // The parentheses come off only when the text starts with them.
+        let span = if comments == Comments::AsThePlugin && !adjust.remove_parentheses {
+            self.with_leading_comments(span(expression.span()))
+        } else {
+            span(expression.span())
         };
         let d = self.embed(span, Part::Expression, adjust)?;
         // The plugin parses `(a = b\n)`, and Prettier keeps those parentheses; oxc keeps them
@@ -450,6 +466,24 @@ impl Printer<'_, '_, '_> {
         let open = self.lit("(");
         let close = self.lit(")");
         Ok(self.cat(&[open, d, close]))
+    }
+
+    /// The plugin's `getText` of a template expression: from its first leading comment to its
+    /// end. The comments after it are in no text the plugin prints.
+    fn with_leading_comments(&mut self, expression: Span) -> Span {
+        let tokens = &self.c.tokens;
+        let comment = |t: &&Token<TokenType>| t.kind == TokenType::JavaScriptComment;
+        let first = (tokens.until_offset(expression.start_offset).iter().rev())
+            .take_while(|t| t.kind.is_trivia())
+            .filter(comment)
+            .last()
+            .map_or(expression.start_offset, |t| t.span.start_offset);
+        let trailing = (tokens.from_offset(expression.end_offset).iter())
+            .take_while(|t| t.kind.is_trivia())
+            .filter(comment)
+            .map(|t| t.span);
+        self.embedder.dropped.extend(trailing);
+        Span::new(first, expression.end_offset)
     }
 
     /// The source of `e`.

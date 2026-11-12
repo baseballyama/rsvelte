@@ -1,5 +1,6 @@
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
+use super::children::Comments;
 use super::{
     Attribute, AttributeKind, AttributeValue, ElementKind, LayoutInstructionIdentifier, Part,
     Printer, R, TemplateNode, TemplateNodeIdentifier, Unsupported, is_collapse_ws,
@@ -382,7 +383,10 @@ impl Printer<'_, '_, '_> {
                     );
                 if !literal {
                     let open = self.lit("this={");
-                    let e = self.expression(expression, false, false)?;
+                    // The plugin also prints a comment here among the attributes, which this does
+                    // not yet.
+                    let e =
+                        self.expression_with(expression, false, false, false, Comments::Refused)?;
                     let close = self.lit("}");
                     return Ok(self.cat(&[open, e, close]));
                 }
