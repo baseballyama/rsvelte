@@ -37,8 +37,7 @@ of a missing component fails. An unchecked component, written in JavaScript or w
 projection, still resolves: the checker reads it as `any`, with the exports of its module
 script. Empty findings do not prove that the checker checked its props or its instance. A
 component that does not parse is not checked: as in svelte-check, its one finding is the
-parser's error, with the code `-1`. That parse is svelte2tsx's: it first blanks each `<script>`
-and `<style>` body that its own patterns find, so the error can differ from the compiler's.
+parser's error, with the code `-1`.
 
 ```sh
 cargo test -p rsvelte_svelte_check --test fixtures

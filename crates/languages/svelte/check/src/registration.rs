@@ -110,30 +110,11 @@ fn typescript_view(
     context: &DocumentContext<'_>,
     env: Option<&Result<Arc<TypeScriptEnv>, String>>,
 ) -> Result<TypeScriptDocument, Diagnostic> {
-    // svelte2tsx parses the component with the script and style bodies it finds blanked, and
-    // throws Svelte's parse error of that text, which svelte-check reports as it is. The text
-    // parses as the component does unless those bodies are not the parser's.
-    let text = &context.document.text;
-    let bodies = verbatim::bodies(text);
-    let parsed = context.get::<Parsed>();
-    let same_bodies = parsed.as_ref().is_ok_and(|component| {
-        let mut contents: Vec<(usize, usize)> = [&component.module, &component.instance]
-            .into_iter()
-            .flatten()
-            .map(|script| script.content)
-            .chain(component.style.as_ref().map(|style| style.content))
-            .map(|span| (span.start_offset as usize, span.end_offset as usize))
-            .collect();
-        contents.sort_unstable();
-        contents == bodies
-    });
-    let blanked_error = (!same_bodies && !bodies.is_empty())
-        .then(|| rsvelte_svelte_syntax::parse::parse(&verbatim::blanked(text, &bodies)).err())
-        .flatten();
     // svelte-check type-checks a component whose style sheet does not parse.
-    let component = match (parsed, &blanked_error) {
-        (Ok(component), None) => component,
-        (_, Some(error)) | (Err(error), None) => {
+    let component = match context.get::<Parsed>() {
+        Ok(component) => component,
+        // svelte2tsx throws Svelte's parse error, which svelte-check reports as it is.
+        Err(error) => {
             return Ok(TypeScriptDocument::Rejected {
                 message: error.message.clone(),
                 span: if error.has_end {
@@ -166,8 +147,6 @@ fn typescript_view(
         env: Arc::clone(env),
     })
 }
-
-mod verbatim;
 
 #[cfg(test)]
 mod tests;
