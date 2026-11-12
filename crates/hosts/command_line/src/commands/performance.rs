@@ -12,10 +12,12 @@
 //! documents gave it; counting that round would count the order, not the work.
 //!
 //! Instructions are counted outside, by cachegrind, as the difference between a run with
-//! `rounds=2` and one with `rounds=1`: exactly one warm round, whatever loading and warming cost.
+//! `rounds=2` and one with `rounds=1`: one round after the first, whatever loading costs.
 //! `rounds=0` only loads, so cachegrind counts loading with it; its counters are `UNMEASURED`.
 //! That needs no `metrics` feature, so the instructions are the shipped build's; without the
-//! feature the allocation fields are `UNMEASURED`.
+//! feature the allocation fields are `UNMEASURED`. Nor does such a run wait for warm pools, so
+//! its second round can still grow an arena and count the order of the documents.
+//! UNMEASURED: how many instructions that is.
 //!
 //! A document whose task panicked loses its outputs, so the counters would measure less work and
 //! look like an improvement: such a run reports the documents and fails.
