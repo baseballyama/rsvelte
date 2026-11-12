@@ -40,6 +40,9 @@ pub fn emoji_measured_otherwise(s: &str) -> bool {
         return false;
     }
     s.split(is_ecmascript_whitespace).any(|run| {
+        if is_printable_ascii(run) {
+            return false;
+        }
         let mut previous = None;
         let emoji = run.char_indices().any(|(i, c)| {
             let next = run[i + c.len_utf8()..].chars().next();
@@ -61,7 +64,12 @@ pub fn emoji_measured_otherwise(s: &str) -> bool {
 /// The length of the longest emoji sequence of more than one character that `s` starts with.
 /// The regex never takes a shorter sequence where a longer one matches, so this is its match.
 fn emoji_sequence(s: &str) -> Option<usize> {
-    let first = &s[..s.chars().next()?.len_utf8()];
+    let mut chars = s.chars();
+    let first = &s[..chars.next()?.len_utf8()];
+    // Most text fails this, and skips the search.
+    if !chars.next().is_some_and(continues_emoji_sequence) {
+        return None;
+    }
     let count = EMOJI_SEQUENCES.len() / EMOJI_RECORD;
     let mut low = 0;
     let mut high = count;
@@ -79,6 +87,15 @@ fn emoji_sequence(s: &str) -> Option<usize> {
         .filter(|q| s.starts_with(*q))
         .map(str::len)
         .max()
+}
+
+/// Whether `c` is the second character of some emoji sequence: a joiner, the keycap, the
+/// emoji presentation selector, a regional indicator, a skin tone or a tag.
+const fn continues_emoji_sequence(c: char) -> bool {
+    matches!(
+        c as u32,
+        0x200D | 0x20E3 | 0xFE0F | 0x1F1E6..=0x1F1FF | 0x1F3FB..=0x1F3FF | 0xE0067
+    )
 }
 
 /// Prettier 3.9.10's emoji sequences of more than one character, sorted by their UTF-8, each

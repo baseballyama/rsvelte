@@ -1,4 +1,4 @@
-# svelte.lint/default: 36244 match
+# svelte.lint/default: 36245 match
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_let_that_opens_a_declaration_keeps_the_parsers_position/0215afc9063b8da6.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_let_that_opens_a_declaration_keeps_the_parsers_position/29f7ab0bdc6f67e4.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_let_that_opens_a_declaration_keeps_the_parsers_position/afa81a756d5738cd.svelte	refused

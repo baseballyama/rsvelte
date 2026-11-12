@@ -19,7 +19,6 @@ impl Printer<'_, '_, '_> {
         let TemplateNode::Element {
             name,
             attributes,
-            span,
             self_closing: did_self_close,
             ..
         } = *self.c.node(identifier)
@@ -36,13 +35,8 @@ impl Printer<'_, '_, '_> {
             "style" => return self.nested_tag(identifier, "style"),
             _ => {}
         }
-        if name == "template"
-            && attributes
-                .get(&self.c.attributes)
-                .iter()
-                .any(|a| matches!(a.name.text(self.source_text), "lang" | "type"))
-        {
-            return Err(Unsupported::at("<template> with a language", span));
+        if name == "template" && self.is_pug(attributes.get(&self.c.attributes)) {
+            return self.nested_tag(identifier, "template");
         }
         let children = self.children(identifier);
         let is_empty = children.iter().all(|&c| self.is_empty_text(c));

@@ -163,7 +163,7 @@ impl P<'_> {
     ) -> R<RelativeSelector> {
         let id = self.relative_count;
         self.relative_count += 1;
-        let start_offset = self.position;
+        let start_offset = combinator.map_or(self.position, |(_, span)| span.start_offset as usize);
         let first = self.simple(inside_pseudo)?;
         let mut rest = Vec::new();
         while self.adjacent(inside_pseudo) {
@@ -175,10 +175,6 @@ impl P<'_> {
             global: false,
             id,
             combinator: combinator.map(|(combinator, _)| combinator),
-            combinator_span: combinator.map_or_else(
-                || Span::new(start_offset as u32, start_offset as u32),
-                |(_, span)| span,
-            ),
             span: self.span(start_offset),
             simple: SimpleList::new(first, rest.into_boxed_slice()),
         })

@@ -37,13 +37,19 @@ pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagno
             );
         };
         let tag = &tree.attributes[tag];
+        // Upstream keeps only the first chunk of `this="h{n}"`, which drops the rest of the tag.
+        if matches!(&tag.value, AttributeValue::Interpolated(parts) if parts.len() > 1) {
+            return unsupported(
+                "a `this` of text and expressions, which upstream cuts to its first chunk",
+                tag.span,
+            );
+        }
         if !matches!(
             &tag.value,
             AttributeValue::Static(_)
                 | AttributeValue::Expression { .. }
                 | AttributeValue::Shorthand(_)
-        ) && !matches!(&tag.value, AttributeValue::Interpolated(parts) if !parts.is_empty())
-        {
+        ) {
             return unsupported("this dynamic tag value", tag.span);
         }
     }

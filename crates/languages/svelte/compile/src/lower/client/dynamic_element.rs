@@ -22,7 +22,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         let attributes = tree.attributes(element.attributes);
         let tag = &tree.attributes[element.this.expect("dynamic tag is validated")];
-        let tag = match super::super::template::dynamic_tag(self.source_text, &tag.value) {
+        let tag = match super::super::template::dynamic_tag(&tag.value) {
             DynamicTag::Text(tag) => b.string(&tag),
             DynamicTag::Expression(e) => self.expression(e),
         };

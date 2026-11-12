@@ -2,7 +2,7 @@ use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 use super::children::Child;
 use super::{
-    AttributeKind, AttributeValue, Cow, ElementKind, LayoutInstructionIdentifier,
+    Attribute, AttributeKind, AttributeValue, Cow, ElementKind, LayoutInstructionIdentifier,
     LayoutInstructions, Part, Printer, R, Span, TagAttributes, TemplateNode,
     TemplateNodeIdentifier, Unsupported, only_ws,
 };
@@ -33,7 +33,7 @@ impl Printer<'_, '_, '_> {
             {
                 self.preformatted(script.content)
             } else {
-                self.refuse_script_language(&script.attributes)?;
+                self.refuse_script_language(&script.attributes, script.content, true)?;
                 self.script_body(script.content)?
             };
             let attributes = self.tag_attributes(&script.attributes);

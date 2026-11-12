@@ -10021,6 +10021,9 @@
 === 3 pattern/issues/a-dynamic-id-matches-any-id-selector.svelte	json
 []
 
+=== 3 pattern/issues/a-global-compound-with-a-class-is-still-scoped.svelte	json
+[]
+
 === 3 pattern/issues/a-has-argument-absent-from-the-component-is-unused.svelte	json
 []
 

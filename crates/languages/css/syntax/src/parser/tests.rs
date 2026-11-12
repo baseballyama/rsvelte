@@ -86,7 +86,7 @@ fn the_last_of_the_combinators_in_a_row_is_the_selector_s() {
 }
 
 #[test]
-fn an_html_comment_is_skipped_whole() {
+fn a_markup_comment_is_skipped_whole() {
     let sheet = whole("<!-- .b { } --> .a { }").expect("parses");
     assert_eq!(sheet.rules.len(), 1);
     let error = whole(".a { } <!-- .b { }").expect_err("the comment is open");
@@ -143,7 +143,7 @@ fn a_selector_svelte_cannot_read_is_its_error() {
 }
 
 #[test]
-fn a_selector_css_allows_parses() {
+fn a_selector_the_stylesheet_grammar_allows_parses() {
     // Svelte 5 rejects these.
     for source in [
         ".a /* c */ .b { }",

@@ -2405,3 +2405,34 @@
 
 ["svelte/rsvelte-tests-core-1/const_tag_cycle_error_span/const_tag_cycle_points_at_the_first_declaration_in_the_cycle/0be01fe38154ef62.svelte".skip]
 "svelte.compile" = "upstream bug: runes mode does not report `const_tag_cycle`: the client reads `b` in `a`'s derived before `b` is declared, and the server emits `const a = b; const b = a;`, which throws"
+
+["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/expression_then_text_keeps_the_whole_value/c9f317fe9e598e4e.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
+
+["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
+
+["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
+
+["svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/input.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
+
+["svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/output.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
+
+["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+
+["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/4809229d13f750f6.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+
+["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/7e0bf9a55c019a47.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+
+["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/af4e901d46ddc2c3.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
