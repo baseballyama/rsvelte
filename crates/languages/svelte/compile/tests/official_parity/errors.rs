@@ -368,7 +368,6 @@ fn a_binding_upstream_rejects_on_its_element_is_refused_on_both_targets() {
         "<select multiple={t} bind:value={x}></select>",
         "<svg bind:offsetWidth={x}></svg>",
         "<div bind:nope={x}></div>",
-        "<input type=\"radio\" bind:group={() => x, (v) => (x = v)} />",
         "{#snippet s(y)}<input type=\"radio\" bind:group={y} />{/snippet}",
     ] {
         let source = format!("<script>let x = $state(); let t = $state();</script>{element}");

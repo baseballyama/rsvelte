@@ -1,5 +1,5 @@
-//! Upstream's `Identifier` checks of a rune's name: a member chain off it must name a rune, and
-//! the rune must be called.
+//! Upstream's `Identifier` checks: `arguments` stands in a function, a member chain off a rune
+//! names a rune, and the rune is called.
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::IdentifierReference;
@@ -16,6 +16,17 @@ impl RuneWalk<'_> {
         reference: &IdentifierReference<'_>,
     ) -> Result<(), Diagnostic> {
         let name = reference.name.as_str();
+        // Upstream counts a method as a function expression, and an arrow as no function.
+        if name == "arguments"
+            && !(self.frames.iter()).any(|frame| matches!(frame.kind, AstKind::Function(_)))
+        {
+            return invalid(
+                "invalid_arguments_usage",
+                "The arguments keyword cannot be used within the template or at the top level of \
+                    a component",
+                span_of(reference),
+            );
+        }
         if !RUNES.contains(&name)
             || self.res.symbol(reference).is_some()
             || self.res.is_store_subscription(name)

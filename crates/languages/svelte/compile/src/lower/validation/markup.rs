@@ -184,6 +184,7 @@ fn element<'a>(
             node.span,
         );
     }
+    event_handlers(source, el, attributes)?;
     let slot = attributes
         .iter()
         .find(|a| !is_directive(&a.value) && a.name.text(source) == "slot");
@@ -240,26 +241,7 @@ fn element<'a>(
         );
     }
     let placement = element_placement(input, identifier, el, placement)?;
-    for a in attributes {
-        if let AttributeValue::Style { modifiers, .. } = &a.value
-            && ![Modifiers::default(), Modifiers::IMPORTANT].contains(modifiers)
-        {
-            return invalid(
-                "style_directive_invalid_modifier",
-                "`style:` directive can only use the `important` modifier",
-                a.span,
-            );
-        }
-        if let AttributeValue::Bind(target) = a.value
-            && !binds_a_name(input.component.javascript, target)
-        {
-            return invalid(
-                "bind_invalid_expression",
-                "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair",
-                a.span,
-            );
-        }
-    }
+    directives(input, attributes)?;
     let owner = match el.kind {
         kind if kind.renders_component() => Some(Owner::Component(identifier)),
         ElementKind::Metadata(Some(MetadataTag::Element)) => Some(Owner::Element),
@@ -317,6 +299,71 @@ fn animation(
             );
         }
         animated = true;
+    }
+    Ok(())
+}
+
+/// Upstream's `attribute_invalid_event_handler`: an `on…` attribute of an element is an
+/// expression.
+fn event_handlers(source: &str, el: &Element, attributes: &[Attribute]) -> Result<(), Diagnostic> {
+    if matches!(
+        el.kind,
+        ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element))
+    ) && let Some(handler) = attributes.iter().find(|a| {
+        let name = a.name.text(source);
+        name.len() > 2
+            && name.starts_with("on")
+            && matches!(
+                a.value,
+                AttributeValue::Boolean
+                    | AttributeValue::Static(_)
+                    | AttributeValue::Interpolated(_)
+            )
+    }) {
+        return invalid(
+            "attribute_invalid_event_handler",
+            "Event attribute must be a JavaScript expression, not a string",
+            handler.span,
+        );
+    }
+    Ok(())
+}
+
+/// The directives' own checks, which upstream makes after the element's.
+fn directives(input: &CompileInput<'_>, attributes: &[Attribute]) -> Result<(), Diagnostic> {
+    let source = input.component.source_text;
+    for a in attributes {
+        if let AttributeValue::Style { modifiers, .. } = &a.value
+            && ![Modifiers::default(), Modifiers::IMPORTANT].contains(modifiers)
+        {
+            return invalid(
+                "style_directive_invalid_modifier",
+                "`style:` directive can only use the `important` modifier",
+                a.span,
+            );
+        }
+        if let AttributeValue::Bind(target) = a.value
+            && a.name.text(source) == "group"
+            && matches!(
+                input.component.javascript.get_expression(target),
+                Expression::SequenceExpression(_)
+            )
+        {
+            return invalid(
+                "bind_group_invalid_expression",
+                "`bind:group` can only bind to an Identifier or MemberExpression",
+                a.span,
+            );
+        }
+        if let AttributeValue::Bind(target) = a.value
+            && !binds_a_name(input.component.javascript, target)
+        {
+            return invalid(
+                "bind_invalid_expression",
+                "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair",
+                a.span,
+            );
+        }
     }
     Ok(())
 }

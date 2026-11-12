@@ -203,3 +203,52 @@ fn an_await_in_a_bind_pairs_arrow_needs_experimental_async() {
         ),
     ]);
 }
+
+#[test]
+fn an_event_attribute_is_an_expression() {
+    assert_outcomes(&[
+        ("<button onclick=\"{h}\">x</button>", None),
+        ("<button on>x</button>", None),
+        ("<C onclick=\"h\" />", None),
+        (
+            "<button onclick>x</button>",
+            Some(("attribute_invalid_event_handler", (8, 15))),
+        ),
+        (
+            "<button onclick=\"before {handler}\">click</button>",
+            Some(("attribute_invalid_event_handler", (8, 34))),
+        ),
+        (
+            "<svelte:element this=\"div\" onclick=\"h\"></svelte:element>",
+            Some(("attribute_invalid_event_handler", (27, 38))),
+        ),
+    ]);
+}
+
+#[test]
+fn arguments_stands_in_a_function() {
+    assert_outcomes(&[
+        (
+            "<script>function f() { return () => arguments; }</script>",
+            None,
+        ),
+        ("{(function () { return arguments; })()}", None),
+        ("{arguments}", Some(("invalid_arguments_usage", (1, 10)))),
+        (
+            "<script>let a = arguments;</script>",
+            Some(("invalid_arguments_usage", (16, 25))),
+        ),
+        (
+            "<script>const f = () => arguments;</script>",
+            Some(("invalid_arguments_usage", (24, 33))),
+        ),
+    ]);
+}
+
+#[test]
+fn a_group_binding_takes_no_pair() {
+    assert_outcomes(&[(
+        "<input bind:group={() => v, (nv) => (v = nv)} />",
+        Some(("bind_group_invalid_expression", (7, 45))),
+    )]);
+}
