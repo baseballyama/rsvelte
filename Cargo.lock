@@ -1277,6 +1277,7 @@ version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1342,6 +1343,8 @@ dependencies = [
 name = "rsvelte_svelte_check"
 version = "0.0.0"
 dependencies = [
+ "oxc_ast",
+ "oxc_span",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
  "rsvelte_svelte_syntax",
@@ -1392,6 +1395,7 @@ dependencies = [
  "oxc_span",
  "rsvelte_document_printer",
  "rsvelte_kernel",
+ "rsvelte_markup_syntax",
  "rsvelte_plugin_interface",
  "rsvelte_stylesheet_syntax",
  "rsvelte_svelte_semantic",
@@ -1485,6 +1489,7 @@ dependencies = [
  "oxc_span",
  "oxc_syntax",
  "rsvelte_kernel",
+ "rsvelte_markup_syntax",
  "rsvelte_plugin_interface",
  "rsvelte_svelte_compile",
  "rsvelte_svelte_semantic",
@@ -1596,6 +1601,7 @@ dependencies = [
  "rsvelte_typescript_semantic",
  "rsvelte_typescript_tree",
  "rustc-hash",
+ "serde",
 ]
 
 [[package]]
@@ -1674,6 +1680,7 @@ dependencies = [
  "oxc_span",
  "rsvelte_document_printer",
  "rsvelte_kernel",
+ "rsvelte_markup_syntax",
  "rsvelte_plugin_interface",
  "rsvelte_test_harness",
  "rsvelte_typescript_tree",
@@ -1696,6 +1703,7 @@ dependencies = [
  "rsvelte_vue_semantic",
  "rsvelte_vue_syntax",
  "rustc-hash",
+ "serde",
 ]
 
 [[package]]
@@ -1721,6 +1729,7 @@ dependencies = [
  "oxc_parser",
  "oxc_span",
  "rsvelte_kernel",
+ "rsvelte_markup_syntax",
  "rsvelte_stylesheet_syntax",
  "rsvelte_typescript_tree",
 ]

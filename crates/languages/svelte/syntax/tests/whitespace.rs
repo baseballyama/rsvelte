@@ -125,3 +125,20 @@ fn other_unicode_spaces_are_not_whitespace() {
         assert!(parse(&format!("<div{c}></div>")).is_err(), "{c:?}");
     }
 }
+
+/// Each offset is the official compiler's: a block or tag keyword is read as a prefix, and the
+/// whitespace after it is required before the trimmed end.
+#[test]
+fn a_keyword_needs_whitespace_after_it() {
+    for (source, offset) in [
+        ("{#ifx}a{/if}", 4),
+        ("{@renderfoo()}", 8),
+        ("{#await p}a{:catche}b{/await}", 18),
+        ("{#if a}x{:else ifb}y{/if}", 17),
+        ("{#each ", 6),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(error.code, "expected_whitespace", "{source}");
+        assert_eq!(error.span.start_offset, offset, "{source}");
+    }
+}

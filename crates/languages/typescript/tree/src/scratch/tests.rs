@@ -34,7 +34,8 @@ fn a_build_that_fails_gives_its_arena_back() {
     let text = format!("let = ;{}", " ".repeat(1 << 20));
     let failed = crate::Tree::build(&text, |builder| {
         let source_text = builder.source_text();
-        builder.parse_program(source_text, 0, oxc_span::SourceType::mjs())
+        (builder.parse_program(source_text, 0, oxc_span::SourceType::mjs()))
+            .map_err(rsvelte_kernel::diagnostics::Diagnostic::from)
     });
     failed.expect_err("the text does not parse");
     let capacity = with_scratch_arena(oxc_allocator::Allocator::capacity);

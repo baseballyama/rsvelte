@@ -9,11 +9,6 @@ use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 use super::{Body, Emitter, method};
 use crate::compilation::asynchronous::has_await;
 
-const VOID_ELEMENTS: &[&str] = &[
-    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
-    "track", "wbr",
-];
-
 impl<'o> Emitter<'_, 'o> {
     /// `{ renderContent }` for setup to return, and the `ssrRender` that prints it.
     pub(super) fn server_setup(
@@ -214,7 +209,7 @@ impl<'o> Emitter<'_, 'o> {
             editable,
         } = self.server_attributes(element, tag, default_namespace, &mut output);
         output.push(b.string(">"));
-        if !VOID_ELEMENTS.contains(&tag) {
+        if !rsvelte_markup_syntax::is_void(tag) {
             let mut content = match textarea {
                 Some(value) => b.call(b.id("$$escape"), [value]),
                 None if tag == "style" => {

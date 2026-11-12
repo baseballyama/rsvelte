@@ -10,34 +10,16 @@ impl P<'_> {
         let id = self.selector_count;
         self.selector_count += 1;
         let start_offset = self.position;
-        let combinator = match self.peek() {
-            Some(b'>') => Some(Combinator::Child),
-            Some(b'+') => Some(Combinator::NextSibling),
-            Some(b'~') => Some(Combinator::SubsequentSibling),
-            _ => None,
-        };
-        if combinator.is_some() {
-            self.position += 1;
-            self.skip_trivia()?;
-        }
+        let combinator = self.combinators()?;
         let mut parts = vec![self.relative(combinator)?];
         loop {
             let before = self.position;
             let comments = self.comments.len();
             let whitespace = self.whitespace.len();
             self.skip_trivia()?;
-            let explicit = match self.peek() {
-                Some(b'>') => Some(Combinator::Child),
-                Some(b'+') => Some(Combinator::NextSibling),
-                Some(b'~') => Some(Combinator::SubsequentSibling),
-                _ => None,
-            };
+            let explicit = self.combinators()?;
             let combinator = match (explicit, self.peek()) {
-                (Some(c), _) => {
-                    self.position += 1;
-                    self.skip_trivia()?;
-                    c
-                }
+                (Some(c), _) => c,
                 (None, Some(b',' | b'{' | b')') | None) => {
                     self.position = before;
                     self.comments.truncate(comments);
@@ -71,6 +53,25 @@ impl P<'_> {
             comma: None,
             parts: parts.into_boxed_slice(),
         })
+    }
+
+    /// Svelte keeps only the last of the combinators written in a row, as in `a > + b`.
+    fn combinators(&mut self) -> R<Option<Combinator>> {
+        let mut last = None;
+        loop {
+            let (combinator, length) = match self.peek() {
+                Some(b'>') => (Combinator::Child, 1),
+                Some(b'+') => (Combinator::NextSibling, 1),
+                Some(b'~') => (Combinator::SubsequentSibling, 1),
+                Some(b'|') if self.b[self.position..self.end].starts_with(b"||") => {
+                    (Combinator::Column, 2)
+                }
+                _ => return Ok(last),
+            };
+            self.position += length;
+            self.skip_trivia()?;
+            last = Some(combinator);
+        }
     }
 
     fn relative(&mut self, combinator: Option<Combinator>) -> R<RelativeSelector> {

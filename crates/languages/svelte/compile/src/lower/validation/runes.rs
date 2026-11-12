@@ -347,6 +347,15 @@ impl<'a> RuneWalk<'a> {
         }
         let res = self.res;
         match kind {
+            AstKind::LabeledStatement(statement)
+                if place.parent == Parent::InstanceBody && statement.label.name == "$" =>
+            {
+                return crate::lower::special::invalid(
+                    "legacy_reactive_statement_invalid",
+                    "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead",
+                    span_of(&kind),
+                );
+            }
             AstKind::CallExpression(call) => {
                 if let Some(rune) = res.rune_of_call(call) {
                     let chained = matches!(parent, Some(AstKind::ChainExpression(_)));

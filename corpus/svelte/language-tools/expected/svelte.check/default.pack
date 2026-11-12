@@ -668,11 +668,11 @@
 === 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/imported.svelte	json
 []
 
-=== 1007 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/input.svelte	json
+=== 930 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/input.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './imported.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/imported.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './imported.svelte'. 'packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/imported.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 25
@@ -1240,11 +1240,11 @@
 === 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/component-with-getters.svelte	json
 []
 
-=== 447 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/input.svelte	json
+=== 370 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/input.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './component-with-getters.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/component-with-getters.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './component-with-getters.svelte'. 'packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/component-with-getters.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 37
@@ -1530,7 +1530,7 @@
 	}
 ]
 
-=== 1813 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/input.svelte	json
+=== 1505 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/input.svelte	json
 [
 	{
 		"code": 2307,
@@ -1546,7 +1546,7 @@
 	},
 	{
 		"code": 1192,
-		"message": "Module '\"/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/b.svelte\"' has no default export.",
+		"message": "Module '\"packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/b.svelte\"' has no default export.",
 		"start": {
 			"line": 2,
 			"character": 11
@@ -1558,7 +1558,7 @@
 	},
 	{
 		"code": 6263,
-		"message": "Module './c.svelte' was resolved to '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/c.d.svelte.ts', but '--allowArbitraryExtensions' is not set.",
+		"message": "Module './c.svelte' was resolved to 'packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/c.d.svelte.ts', but '--allowArbitraryExtensions' is not set.",
 		"start": {
 			"line": 4,
 			"character": 22
@@ -1570,7 +1570,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './d.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/d.svelte.js' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './d.svelte'. 'packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/d.svelte.js' implicitly has an 'any' type.",
 		"start": {
 			"line": 5,
 			"character": 18
@@ -1582,7 +1582,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './d.svelte.js'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/d.svelte.js' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './d.svelte.js'. 'packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/d.svelte.js' implicitly has an 'any' type.",
 		"start": {
 			"line": 6,
 			"character": 22
@@ -1952,11 +1952,11 @@
 	}
 ]
 
-=== 978 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/input.svelte	json
+=== 901 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/input.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './strictEvents.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/strictEvents.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './strictEvents.svelte'. 'packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/strictEvents.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 29
@@ -3456,11 +3456,11 @@
 === 3 packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte	json
 []
 
-=== 1740 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	json
+=== 1432 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. 'packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 25
@@ -3472,7 +3472,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. 'packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 5,
 			"character": 28
@@ -3484,7 +3484,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. 'packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 7,
 			"character": 9
@@ -3496,7 +3496,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. 'packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 14,
 			"character": 35
@@ -3508,11 +3508,11 @@
 	}
 ]
 
-=== 437 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent2.svelte	json
+=== 360 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent2.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. 'packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 25

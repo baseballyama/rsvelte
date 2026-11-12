@@ -5505,11 +5505,11 @@
 === 3 src/lib/components/roles/base.svelte	json
 []
 
-=== 349 src/lib/components/roles/default.svelte	json
+=== 272 src/lib/components/roles/default.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './base.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-BOuPeX/src/lib/components/roles/base.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './base.svelte'. 'src/lib/components/roles/base.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 21
@@ -22325,7 +22325,7 @@
 === 3 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/icons/CheckCircleDuotone.svelte	json
 []
 
-=== 1811 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/save.svelte	json
+=== 1734 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/save.svelte	json
 [
 	{
 		"code": 2307,
@@ -22341,7 +22341,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/CheckCircleDuotone.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-BOuPeX/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/icons/CheckCircleDuotone.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/CheckCircleDuotone.svelte'. 'src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/icons/CheckCircleDuotone.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 2,
 			"character": 35
@@ -46742,7 +46742,7 @@
 === 3 src/routes/(console)/project-[region]-[project]/sites/create-site/finish/(components)/check.svelte	json
 []
 
-=== 3770 src/routes/(console)/project-[region]-[project]/sites/create-site/finish/+page.svelte	json
+=== 3693 src/routes/(console)/project-[region]-[project]/sites/create-site/finish/+page.svelte	json
 [
 	{
 		"code": 2307,
@@ -46806,7 +46806,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './(components)/check.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-BOuPeX/src/routes/(console)/project-[region]-[project]/sites/create-site/finish/(components)/check.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './(components)/check.svelte'. 'src/routes/(console)/project-[region]-[project]/sites/create-site/finish/(components)/check.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 6,
 			"character": 22

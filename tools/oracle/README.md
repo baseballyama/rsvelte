@@ -18,3 +18,6 @@ mise exec -- node $F upgrade     # after changing an oracle's version in package
 | `tasks/`     | One module per task: how its oracle runs and what it writes (`tasks.ts` lists them) |
 | `behaviour/` | The behavior oracle: compiled components run in a DOM and in Chrome                 |
 | `semantic/`  | The TypeScript projection's semantics, compared through TS 7 content mappers        |
+
+Expected output never names the checkout or a temporary directory. The `svelte.check` task drops
+the workspace's root from a path in a message, as rsvelte drops the project's root.

@@ -5,7 +5,9 @@
 //! - [`findings`]: runs rules over a document and orders their findings as `ESLint` does.
 //! - [`output`]: writes findings as `ESLint` reports them.
 //! - [`configuration`]: reads a rule's entry in lint options.
+//! - [`catalog`]: the rules a linter knows, the plugins that add more, and the rules that run.
 
+pub mod catalog;
 pub mod configuration;
 pub mod finding;
 pub mod findings;

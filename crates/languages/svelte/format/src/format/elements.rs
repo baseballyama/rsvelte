@@ -1,16 +1,11 @@
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
+use super::children::Comments;
 use super::{
     Attribute, AttributeKind, AttributeValue, ElementKind, LayoutInstructionIdentifier, Part,
     Printer, R, TemplateNode, TemplateNodeIdentifier, Unsupported, is_collapse_ws,
 };
 use crate::options::WhitespaceSensitivity;
-
-/// prettier-plugin-svelte `selfClosingTags`.
-const SELF_CLOSING: &[&str] = &[
-    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
-    "track", "wbr",
-];
 
 impl Printer<'_, '_, '_> {
     #[expect(
@@ -55,7 +50,7 @@ impl Printer<'_, '_, '_> {
         let is_doctype = name.eq_ignore_ascii_case("!DOCTYPE");
         let self_closing = is_empty
             && (did_self_close
-                || SELF_CLOSING.contains(&name)
+                || rsvelte_markup_syntax::is_void(name)
                 || is_doctype
                 || name == "svelte:window");
         let was_pre = self.in_pre;
@@ -388,7 +383,10 @@ impl Printer<'_, '_, '_> {
                     );
                 if !literal {
                     let open = self.lit("this={");
-                    let e = self.expression(expression, false, false)?;
+                    // The plugin also prints a comment here among the attributes, which this does
+                    // not yet.
+                    let e =
+                        self.expression_with(expression, false, false, false, Comments::Refused)?;
                     let close = self.lit("}");
                     return Ok(self.cat(&[open, e, close]));
                 }

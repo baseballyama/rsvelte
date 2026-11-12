@@ -1738,3 +1738,217 @@
 
 ["svelte/rsvelte/pattern/issues/3256-class-case-clsx.svelte".skip]
 "svelte.compile/client" = "upstream bug: svelte 5.57.3 skips `$.clsx` for an upper-case `CLASS` attribute, so an array or object value is set as its string"
+
+["svelte/rsvelte-tests-core-2/deferred_error_order/a_deferred_script_error_precedes_a_later_unclosed_block/5a4557902338d7e3.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+
+["svelte/rsvelte-tests-core-2/deferred_error_order/an_error_in_the_second_script_precedes_the_duplicate_error/f6da568b96254190.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+
+["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_double_quoted_value_is_content/16a88fbeb58ec9c8.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_leading_comment_is_content/f9a9ddcdcef60879.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_quoted_url_is_content/b386532cbe9926f3.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_single_quoted_value_is_content/2ffafb2f266c9dd0.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_trailing_comment_is_content/b799d45c01a456cc.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_an_attribute_selector_value_is_content/e1d926c94d7529d3.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_an_unquoted_url_is_content/e40e97f4d6a6be6c.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/an_escaped_quote_does_not_reopen_the_string/dd4791d121b63c3e.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_terminator_3593/a_bare_terminator_inside_a_rule_is_a_css_error/ff8caef21871e90a.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+
+["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_comment_is_a_comment/4af889e4d7e202d4.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_nested_at_rule_is_still_a_value/2fc806a64ddbf495.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/01726ffa6744c30a.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/4a4f09bc123bb7cb.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/5012ab13505d74b5.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/7881f7b8d8d61218.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/8a2c6ab63566f277.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/fe62b93807b9d785.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_an_unquoted_url_is_a_declaration_value/88036cc31fc233f5.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte-tests/rsvelte_language_server/context/tests/only_a_style_body_is_css_without_the_parser/0810bf2aa626e026.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+
+["svelte/rsvelte-tests/rsvelte_language_server/context/tests/script_and_style_bodies_are_found_without_the_parser/9dfd680f4ccc7a5c.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+
+["svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/2d584954c74f2845.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+
+["svelte/rsvelte/pattern/issues/deferred-script-error-before-unclosed-block.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/4-indent/test01-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/4-indent/test01-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/style-directive01-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/style-directive01-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test01-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test01-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test02-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test02-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/test01-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/test01-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/rsvelte-tests-formatter/style_directive_text_fill/a_collapsed_value_that_fits_puts_the_open_tag_on_one_line/c635ec0376937059.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/plain_javascript_is_unaffected/0e8016c12287c287.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/plain_javascript_is_unaffected/10da7aec64a367ed.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/plain_javascript_is_unaffected/16b734da2d6d5b34.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/plain_javascript_is_unaffected/1ea59dcd98419ae0.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/plain_javascript_is_unaffected/3008ed44ebe5af2f.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/plain_javascript_is_unaffected/49ada6559860ca59.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/plain_javascript_is_unaffected/4ac22166f63f1fbd.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/plain_javascript_is_unaffected/50022d85dc0d1ba1.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/plain_javascript_is_unaffected/9448d5a12453d93d.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/01fb01e58b99ac97.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/209add8579013121.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2a14e4126065dd1a.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/34b31867ac6c8355.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/35f0a405fd82ede2.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/39d2830093d8b7dc.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/4517ec8495a40313.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/528cfda3a987176a.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/5c0d0d5ea914d137.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6e60cf692af283fb.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/74e847c583e55574.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7d78f1886e765e88.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/9e36be80c9ebde39.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b698a40db30ad660.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/bbc338188f31e129.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/ca25c907983fb7c1.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/d5a43d7b490faa75.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/e7db5b8ac84fc412.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/f86c64dd42630672.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads `y` from a broken neighbor and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_an_html_comment_is_content/37e835c52cab486b.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
+
+["svelte/rsvelte/pattern/css/html-comment-in-a-sheet.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"

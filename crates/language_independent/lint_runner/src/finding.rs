@@ -32,11 +32,7 @@ pub struct Fix {
     edits: Vec<Edit>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Edit {
-    pub span: Span,
-    pub text: String,
-}
+pub use rsvelte_kernel::diagnostics::Replacement as Edit;
 
 impl Fix {
     #[must_use]
@@ -110,29 +106,25 @@ pub struct Suggestion {
     pub fix: Fix,
 }
 
-/// `ESLint`'s `SourceCodeFixer.applyFixes` for one pass: fixes in range order, and a fix that
-/// starts at or before the end of the last applied one is left for the next pass.
+/// `ESLint`'s `SourceCodeFixer.applyFixes` for one pass, over the findings' merged fixes.
 #[must_use]
 pub fn apply_fixes(source: &str, findings: &[Finding]) -> String {
-    let mut fixes: Vec<Edit> = findings
+    let fixes: Vec<Edit> = findings
         .iter()
         .filter_map(|f| f.fix.as_ref()?.merged(source))
         .collect();
-    fixes.sort_by_key(|e| (e.span.start_offset, e.span.end_offset));
-    let mut out = String::with_capacity(source.len());
-    let mut copied = 0usize;
-    let mut last_end: Option<u32> = None;
-    for edit in &fixes {
-        if last_end.is_some_and(|end| end >= edit.span.start_offset) {
-            continue;
+    rsvelte_kernel::diagnostics::apply_fixes(source, &fixes)
+}
+
+impl Finding {
+    /// The finding as a task reports it: its diagnostic, and its fix merged into one replacement.
+    #[must_use]
+    pub fn reported(&self, source: &str) -> rsvelte_kernel::diagnostics::Finding {
+        rsvelte_kernel::diagnostics::Finding {
+            diagnostic: self.diagnostic.clone(),
+            fix: self.fix.as_ref().and_then(|fix| fix.merged(source)),
         }
-        out.push_str(&source[copied..edit.span.start_offset as usize]);
-        out.push_str(&edit.text);
-        copied = edit.span.end_offset as usize;
-        last_end = Some(edit.span.end_offset);
     }
-    out.push_str(&source[copied..]);
-    out
 }
 
 /// The source with one fix applied, as `ESLint` applies a suggestion.
