@@ -192,8 +192,8 @@ pub struct DocumentContext<'a> {
     pub document: &'a Document,
     registry: &'a ArtifactRegistry,
     slots: Vec<OnceCell<Box<dyn Any>>>,
-    line_index: OnceCell<LineIndex>,
-    ecmascript_line_index: OnceCell<LineIndex>,
+    /// One per [`LineBreaks`], in its order.
+    line_indexes: [OnceCell<LineIndex>; 2],
     #[cfg(feature = "trace-artifacts")]
     computed: RefCell<Vec<&'static str>>,
     #[cfg(feature = "trace-artifacts")]
@@ -211,8 +211,7 @@ impl<'a> DocumentContext<'a> {
             document,
             registry,
             slots,
-            line_index: OnceCell::new(),
-            ecmascript_line_index: OnceCell::new(),
+            line_indexes: [OnceCell::new(), OnceCell::new()],
             #[cfg(feature = "trace-artifacts")]
             computed: RefCell::default(),
             #[cfg(feature = "trace-artifacts")]
@@ -292,16 +291,13 @@ impl<'a> DocumentContext<'a> {
         &self.registry.files
     }
 
-    /// Lines as the Svelte compiler counts them: they end at `\n`.
-    pub fn line_index(&self) -> &LineIndex {
-        self.line_index
-            .get_or_init(|| LineIndex::new(self.source_text()))
-    }
-
-    /// Lines as `ESLint` counts them: they end at any ECMAScript line terminator.
-    pub fn ecmascript_line_index(&self) -> &LineIndex {
-        self.ecmascript_line_index
-            .get_or_init(|| LineIndex::with_breaks(self.source_text(), LineBreaks::Ecmascript))
+    /// The document's lines, ended as `breaks` ends them; built once per convention.
+    pub fn lines(&self, breaks: LineBreaks) -> &LineIndex {
+        let slot = match breaks {
+            LineBreaks::Newline => 0,
+            LineBreaks::Ecmascript => 1,
+        };
+        self.line_indexes[slot].get_or_init(|| LineIndex::with_breaks(self.source_text(), breaks))
     }
 
     /// Writes `{:#?}` of artifact `name` when this context has computed it, for a host that shows

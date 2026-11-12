@@ -1,3 +1,4 @@
+use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_lint_runner::rule::Reporter;
 use serde::Deserialize;
 
@@ -76,7 +77,7 @@ impl SvelteRule for Indent {
         let tokens = Tokens::new(
             component,
             file.source(),
-            file.context.ecmascript_line_index(),
+            file.context.lines(LineBreaks::Ecmascript),
         );
         let mut layout = Layout::new(tokens, self.0);
         template::Template {
