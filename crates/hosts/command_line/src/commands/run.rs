@@ -32,7 +32,7 @@ pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str], fix: bool) -
             .outputs
             .iter()
             .flat_map(|(_, out)| &out.findings)
-            .filter_map(|finding| finding.fix.as_ref());
+            .map(|finding| finding.fix.as_slice());
         let fixed = apply_fixes(&text, replacements);
         if fixed == text {
             break result;
