@@ -41,7 +41,10 @@ fn whitespace_lookahead_keeps_blocks_expressions_and_comments() {
     }
     let source = "<input disabled \n  \"value\"/>";
     let error = parse(source).expect_err("missing equals sign");
-    assert_eq!(error.message, "expected `=`");
+    assert_eq!(
+        error.message,
+        "Expected token =\nhttps://svelte.dev/e/expected_token"
+    );
     assert_eq!(
         error.span.start_offset as usize,
         source.find('\"').expect("quote")

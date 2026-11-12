@@ -31,7 +31,11 @@ impl<'a> Parser<'a, '_> {
                     Some(Part::Text(s) | Part::Expression { span: s, .. }) => *s,
                     None => attribute.span,
                 };
-                return Self::err_at(at, "a directive value must be one `{expression}`");
+                return Self::err_at(
+                    Span::new(at.start_offset, at.start_offset),
+                    "directive_invalid_value",
+                    "Directive value must be a JavaScript expression enclosed in curly braces",
+                );
             }
         }
         if matches!(
@@ -53,7 +57,11 @@ impl<'a> Parser<'a, '_> {
                 let text = directive.text(self.source_text);
                 if identifier_len(text) != text.len() {
                     if attribute.kind == AttributeKind::Bind {
-                        return Self::err_at(directive, "expected a property name after `bind:`");
+                        return Self::err_at(
+                            directive,
+                            "parse_error",
+                            "expected a property name after `bind:`",
+                        );
                     }
                     if attribute.kind == AttributeKind::Style {
                         // `style:--custom-property` has no expression; it sets the empty string.
@@ -85,7 +93,7 @@ impl<'a> Parser<'a, '_> {
             .read_expression_before(span.start_offset, span.end_offset, source_type)
             .map_err(javascript_error)?;
         if end != span.end_offset {
-            return Self::err_at(span, "expected one expression");
+            return Self::err_at(span, "parse_error", "expected one expression");
         }
         Ok(self.builder.keep_expression(expression))
     }

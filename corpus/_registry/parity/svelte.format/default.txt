@@ -1,4 +1,4 @@
-# svelte.format/default: 35566 match
+# svelte.format/default: 35567 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -458,7 +458,6 @@ svelte/rsvelte-tests-core-1/css_value_scan_4046/a_brace_inside_any_bracket_but_u
 svelte/rsvelte-tests-core-1/css_value_scan_4046/a_line_comment_that_reaches_a_brace_is_still_an_identifier_error/565742e847c7ca12.svelte	refused
 svelte/rsvelte-tests-core-1/css_value_scan_4046/a_line_comment_that_reaches_a_brace_is_still_an_identifier_error/6dd628aaa6b68558.svelte	refused
 svelte/rsvelte-tests-core-1/css_value_scan_4046/a_value_scan_that_reaches_eof_is_unexpected_eof/f82b1da365283885.svelte	refused
-svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/the_word_class_is_the_regex_one_not_the_identifier_one/877778233440d796.svelte	unexpected
 svelte/rsvelte-tests-core-2/directive_attribute_locations/directive_locations_cover_the_full_unicode_attribute_names/3d067ac2960a5475.svelte	refused
 svelte/rsvelte-tests-core-2/directive_attribute_locations/multiline_attribute_comments_keep_exact_locations/d8488d50b4a17def.svelte	refused
 svelte/rsvelte-tests-core-2/directive_modifiers_3221_3222_3223/animate_modifier_is_not_part_of_the_transition_name/b14067c2be382f4d.svelte	refused

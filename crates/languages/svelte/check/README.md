@@ -35,7 +35,9 @@ beside `tsconfig.json`. Imports between the documents of one run resolve as on t
 svelte-check, the checker blanks the svelte package's `declare module '*.svelte'`, so an import
 of a missing component fails. An unchecked component, written in JavaScript or with a refused
 projection, still resolves: the checker reads it as `any`, with the exports of its module
-script. Empty findings do not prove that the checker checked its props or its instance.
+script. Empty findings do not prove that the checker checked its props or its instance. A
+component that does not parse is not checked: as in svelte-check, its one finding is the
+parser's error, with the code `-1`.
 
 ```sh
 cargo test -p rsvelte_svelte_check --test fixtures

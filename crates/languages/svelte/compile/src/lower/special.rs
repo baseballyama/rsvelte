@@ -33,7 +33,7 @@ pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagno
                     } else {
                         (
                             "svelte_head_illegal_attribute",
-                            "`<svelte:head>` cannot have attributes",
+                            "`<svelte:head>` cannot have attributes nor directives",
                         )
                     };
                     return invalid(code, message, attribute.span);

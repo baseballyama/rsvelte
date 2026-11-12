@@ -39,7 +39,10 @@ impl<'a> Parser<'a, '_> {
             _ => self.binding_name_len()?,
         };
         if len == 0 {
-            return self.err("expected an identifier or a destructuring pattern");
+            return self.err(
+                "expected_pattern",
+                "Expected identifier or destructure pattern",
+            );
         }
         if self.typescript {
             len += self.type_annotation_len(start_offset + len);

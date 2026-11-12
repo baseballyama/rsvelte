@@ -1,0 +1,1 @@
+error check_unsupported 2:2-2:29 not supported by the type-check projection yet: instance export contracts
