@@ -27,7 +27,7 @@ pub use embedding::{Embedding, Unprinted};
 pub use lower::Unlowered;
 use rsvelte_kernel::performance::buffer_pool;
 pub use trace::{GroupDecision, TraceEvent, TraceMode};
-pub use width::{has_emoji_sequence, string_width};
+pub use width::{emoji_measured_otherwise, string_width};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct LayoutInstructionIdentifier(u32);
