@@ -1,7 +1,7 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    BindingPattern, Declaration, Expression, PropertyKey, Statement, VariableDeclaration,
-    VariableDeclarationKind,
+    BindingPattern, Declaration, Expression, PropertyKey, Statement, TSNamespaceDeclaration,
+    TSNamespaceDeclarationKind, VariableDeclaration, VariableDeclarationKind,
 };
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
@@ -167,6 +167,10 @@ impl Builder<'_> {
                 });
                 return Ok(None);
             }
+            Statement::TSNamespaceDeclaration(namespace) => {
+                self.namespace_keyword(namespace, edits);
+                return Ok(None);
+            }
             Statement::ExportDeclaration(export) => export,
             Statement::ExportDefaultDeclaration(export) => {
                 return Err(Unsupported::at(
@@ -199,6 +203,11 @@ impl Builder<'_> {
                 self.export_property(name.span, exports);
                 None
             }
+            Declaration::ClassDeclaration(class) if class.id.is_some() => {
+                let name = class.id.as_ref().expect("checked above");
+                self.export_property(name.span, exports);
+                None
+            }
             Declaration::VariableDeclaration(declaration)
                 if declaration.kind == VariableDeclarationKind::Const =>
             {
@@ -210,6 +219,18 @@ impl Builder<'_> {
             Declaration::TSTypeAliasDeclaration(_) | Declaration::TSInterfaceDeclaration(_) => {
                 return Ok(None);
             }
+            Declaration::TSGlobalDeclaration(_) | Declaration::TSExternalModuleDeclaration(_) => {
+                edits.push(Edit {
+                    span: span(export.span),
+                    replacement: None,
+                });
+                return Ok(None);
+            }
+            Declaration::TSNamespaceDeclaration(namespace) => {
+                self.namespace_keyword(namespace, edits);
+                None
+            }
+            Declaration::TSEnumDeclaration(_) => None,
             _ => {
                 return Err(Unsupported::at(
                     "instance export contracts",
@@ -222,6 +243,27 @@ impl Builder<'_> {
             replacement: None,
         });
         Ok(declaration)
+    }
+
+    /// In svelte2tsx's render function TypeScript reports a namespace written `module` only as
+    /// misplaced (TS1235), so the top-level copy says `namespace` and draws no TS1540.
+    fn namespace_keyword(
+        &mut self,
+        namespace: &TSNamespaceDeclaration<'_>,
+        edits: &mut Buffer<Edit>,
+    ) {
+        if namespace.kind != TSNamespaceDeclarationKind::Module {
+            return;
+        }
+        let keyword = if namespace.declare {
+            "declare namespace "
+        } else {
+            "namespace "
+        };
+        edits.push(Edit {
+            span: Span::new(namespace.span.start, namespace.id.span.start),
+            replacement: Some(self.tree.push(Node::Identifier(keyword))),
+        });
     }
 
     fn export_pattern(

@@ -14,6 +14,11 @@ const AMBIENT_MODULE: (u32, &str) = (
     1234,
     "An ambient module declaration is only allowed at the top level in a file.",
 );
+const EXPORTED_AMBIENT: (u32, &str) = (
+    2668,
+    "'export' modifier cannot be applied to ambient modules and module augmentations since they \
+     are always visible.",
+);
 /// svelte-check adds the second line to TypeScript's message.
 const DECLARE: (u32, &str) = (
     1184,
@@ -21,69 +26,110 @@ const DECLARE: (u32, &str) = (
      context=\"module\">..</script>",
 );
 
-/// TypeScript's finding for each namespace, ambient module or other `declare` the instance script
-/// has at its top level, over the statement's first token.
+/// TypeScript's findings for each namespace, ambient module or other `declare` the instance
+/// script has at its top level, over the token svelte2tsx leaves first.
 pub(super) fn instance(component: &Component) -> Vec<(Span, u32, &'static str)> {
     let Some(script) = &component.instance else {
         return Vec::new();
     };
     let program = component.javascript.get_program(script.program);
-    program
-        .body
-        .iter()
-        .filter_map(|statement| {
-            let (exported, declaration) = match statement {
-                Statement::ExportDeclaration(export) => (true, &export.declaration),
-                statement => (false, statement.as_declaration()?),
-            };
-            let (start, declare, keyword, (code, message)) = match declaration {
-                Declaration::TSNamespaceDeclaration(namespace) => (
-                    namespace.span.start,
-                    namespace.declare,
-                    match namespace.kind {
-                        TSNamespaceDeclarationKind::Namespace => "namespace",
-                        TSNamespaceDeclarationKind::Module => "module",
-                    },
+    let mut findings = Vec::new();
+    for statement in &program.body {
+        let (exported, declaration) = match statement {
+            Statement::ExportDeclaration(export) => (true, &export.declaration),
+            statement => match statement.as_declaration() {
+                Some(declaration) => (false, declaration),
+                None => continue,
+            },
+        };
+        let at = |start: u32, token: &str| {
+            Span::new(
+                start,
+                start + u32::try_from(token.len()).expect("a keyword is short"),
+            )
+        };
+        let export = at(statement.span().start, "export");
+        let (span, finding) = match declaration {
+            Declaration::TSNamespaceDeclaration(namespace) => {
+                let keyword = match namespace.kind {
+                    TSNamespaceDeclarationKind::Namespace => "namespace",
+                    TSNamespaceDeclarationKind::Module => "module",
+                };
+                (
+                    first(
+                        exported,
+                        namespace.declare,
+                        export,
+                        namespace.span.start,
+                        keyword,
+                        at,
+                    ),
                     NAMESPACE,
+                )
+            }
+            Declaration::TSExternalModuleDeclaration(module) => (
+                first(
+                    exported,
+                    module.declare,
+                    export,
+                    module.span.start,
+                    "module",
+                    at,
                 ),
-                Declaration::TSExternalModuleDeclaration(module) => {
-                    (module.span.start, module.declare, "module", AMBIENT_MODULE)
-                }
-                Declaration::TSGlobalDeclaration(global) => {
-                    (global.span.start, global.declare, "global", AMBIENT_MODULE)
-                }
-                // An exported declaration is a prop or is hoisted, as svelte2tsx decides.
-                _ if exported => return None,
-                Declaration::FunctionDeclaration(function) if function.declare => {
-                    (function.span.start, true, "", DECLARE)
-                }
-                Declaration::VariableDeclaration(variable) if variable.declare => {
-                    (variable.span.start, true, "", DECLARE)
-                }
-                Declaration::ClassDeclaration(class) if class.declare => {
-                    (class.span.start, true, "", DECLARE)
-                }
-                Declaration::TSEnumDeclaration(enumeration) if enumeration.declare => {
-                    (enumeration.span.start, true, "", DECLARE)
-                }
-                _ => return None,
-            };
-            let first = if exported {
-                "export"
-            } else if declare {
-                "declare"
-            } else {
-                keyword
-            };
-            let start = if exported {
-                statement.span().start
-            } else {
-                start
-            };
-            let end = start + u32::try_from(first.len()).expect("a keyword is short");
-            Some((Span::new(start, end), code, message))
-        })
-        .collect()
+                AMBIENT_MODULE,
+            ),
+            Declaration::TSGlobalDeclaration(global) => (
+                first(
+                    exported,
+                    global.declare,
+                    export,
+                    global.span.start,
+                    "global",
+                    at,
+                ),
+                AMBIENT_MODULE,
+            ),
+            // svelte2tsx keeps `export` on an enum.
+            Declaration::TSEnumDeclaration(enumeration) if enumeration.declare || exported => (
+                first(exported, true, export, enumeration.span.start, "", at),
+                DECLARE,
+            ),
+            // svelte2tsx drops `export` from these, so `declare` comes first.
+            Declaration::FunctionDeclaration(function) if function.declare => {
+                (at(function.span.start, "declare"), DECLARE)
+            }
+            Declaration::VariableDeclaration(variable) if variable.declare => {
+                (at(variable.span.start, "declare"), DECLARE)
+            }
+            Declaration::ClassDeclaration(class) if class.declare => {
+                (at(class.span.start, "declare"), DECLARE)
+            }
+            _ => continue,
+        };
+        findings.push((span, finding.0, finding.1));
+        if exported && finding.0 == AMBIENT_MODULE.0 {
+            findings.push((span, EXPORTED_AMBIENT.0, EXPORTED_AMBIENT.1));
+        }
+    }
+    findings
+}
+
+/// The first token of a statement svelte2tsx keeps as written.
+fn first(
+    exported: bool,
+    declare: bool,
+    export: Span,
+    start: u32,
+    keyword: &str,
+    at: impl Fn(u32, &str) -> Span,
+) -> Span {
+    if exported {
+        export
+    } else if declare {
+        at(start, "declare")
+    } else {
+        at(start, keyword)
+    }
 }
 
 #[cfg(test)]
