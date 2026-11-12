@@ -13,6 +13,7 @@ use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
+use rsvelte_markup_syntax::is_void;
 use rsvelte_typescript_tree::{Builder, ExpressionIdentifier, ProgramIdentifier, Tree};
 
 use crate::syntax_tree::{
@@ -22,17 +23,6 @@ use crate::syntax_tree::{
 };
 
 type R<T> = Result<T, Diagnostic>;
-
-/// `@vue/shared`'s `VOID_TAGS`.
-const VOID_TAGS: &[&str] = &[
-    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
-    "track", "wbr",
-];
-
-#[must_use]
-pub(crate) fn is_void(name: &str) -> bool {
-    VOID_TAGS.contains(&name)
-}
 
 /// # Errors
 ///
@@ -94,7 +84,8 @@ struct Markup {
 
 /// oxc's error, under the code compiler-sfc's callers give a JavaScript syntax error.
 #[cold]
-fn javascript_error(mut e: Diagnostic) -> Diagnostic {
+fn javascript_error(e: impl Into<Diagnostic>) -> Diagnostic {
+    let mut e = e.into();
     e.code = "js_parse_error".into();
     e
 }

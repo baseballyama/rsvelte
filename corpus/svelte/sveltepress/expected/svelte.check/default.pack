@@ -916,7 +916,7 @@
 === 3 packages/theme-default/src/components/NavItem.svelte	json
 []
 
-=== 3495 packages/theme-default/src/components/Navbar.svelte	json
+=== 2956 packages/theme-default/src/components/Navbar.svelte	json
 [
 	{
 		"code": 2307,
@@ -944,7 +944,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/Discord.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/icons/Discord.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/Discord.svelte'. 'packages/theme-default/src/components/icons/Discord.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 5,
 			"character": 22
@@ -956,7 +956,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './icons/Github.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/icons/Github.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './icons/Github.svelte'. 'packages/theme-default/src/components/icons/Github.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 6,
 			"character": 21
@@ -980,7 +980,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Logo.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/Logo.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Logo.svelte'. 'packages/theme-default/src/components/Logo.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 8,
 			"character": 19
@@ -992,7 +992,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './MobileSubNav.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/MobileSubNav.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './MobileSubNav.svelte'. 'packages/theme-default/src/components/MobileSubNav.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 9,
 			"character": 27
@@ -1004,7 +1004,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './NavbarMobile.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/NavbarMobile.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './NavbarMobile.svelte'. 'packages/theme-default/src/components/NavbarMobile.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 10,
 			"character": 27
@@ -1016,7 +1016,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './NavItem.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/NavItem.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './NavItem.svelte'. 'packages/theme-default/src/components/NavItem.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 11,
 			"character": 22
@@ -1028,7 +1028,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './ToggleDark.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/ToggleDark.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './ToggleDark.svelte'. 'packages/theme-default/src/components/ToggleDark.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 12,
 			"character": 25

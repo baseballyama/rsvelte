@@ -11,19 +11,17 @@ use super::{End, ParseResult, Parser, javascript_error};
 use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
 
 impl Parser<'_, '_> {
+    /// `{`, the sigil and `word`. Upstream's `eat(word)` takes a prefix, so `{#ifx}` is an
+    /// `{#if` that needs its whitespace.
     pub(super) fn eat_marker(&mut self, sigil: char, word: &str) -> bool {
         let rest = self.rest();
         let Some(after) = rest.strip_prefix('{') else {
             return false;
         };
         let inner = super::whitespace::trim_whitespace_start(after);
-        let Some(after_word) = inner.strip_prefix(sigil).and_then(|s| s.strip_prefix(word)) else {
-            return false;
-        };
-        if after_word
-            .chars()
-            .next()
-            .is_some_and(is_identifier_continue)
+        if !inner
+            .strip_prefix(sigil)
+            .is_some_and(|s| s.starts_with(word))
         {
             return false;
         }
@@ -60,7 +58,10 @@ impl Parser<'_, '_> {
             self.require_ws()?;
             return self.snippet_block(start_offset);
         }
-        self.err(
+        // Upstream reports it just after the `#`.
+        let at = self.sigil().start_offset + 1;
+        Self::err_at(
+            Span::new(at, at),
             "expected_block_type",
             "Expected 'if', 'each', 'await', 'key' or 'snippet'",
         )
@@ -96,13 +97,7 @@ impl Parser<'_, '_> {
         }
         // The block's own clauses were read, so a clause here repeats one or does not belong.
         let clause = &inner[1..];
-        let word = |w: &str| {
-            clause.starts_with(w)
-                && !clause[w.len()..]
-                    .chars()
-                    .next()
-                    .is_some_and(is_identifier_continue)
-        };
+        let word = |w: &str| clause.starts_with(w);
         let (code, message) = match name {
             "if" | "each" if word("else") => (
                 "block_duplicate_clause",
@@ -134,11 +129,19 @@ impl Parser<'_, '_> {
         let mut head = self.if_head(start_offset, elseif, brace)?;
         let alternate = loop {
             let clause = self.position as u32;
+            let colon = self.sigil();
             if !self.eat_marker(':', "else") {
                 break None;
             }
+            if self.rest().starts_with("if") {
+                return Self::err_at(
+                    colon,
+                    "block_invalid_elseif",
+                    "'elseif' should be 'else if'",
+                );
+            }
             self.skip_ws();
-            if !self.at_word("if") {
+            if !self.rest().starts_with("if") {
                 self.close_mustache()?;
                 break Some(self.fragment(End::Block { start: brace })?);
             }
@@ -359,7 +362,7 @@ impl Parser<'_, '_> {
                         "{:then} cannot appear more than once within a block",
                     );
                 }
-                value = self.optional_pattern()?;
+                value = self.clause_pattern()?;
                 self.close_mustache()?;
                 then = self.fragment(End::Block {
                     start: start_offset as u32,
@@ -372,7 +375,7 @@ impl Parser<'_, '_> {
                         "{:catch} cannot appear more than once within a block",
                     );
                 }
-                error = self.optional_pattern()?;
+                error = self.clause_pattern()?;
                 self.close_mustache()?;
                 catch = self.fragment(End::Block {
                     start: start_offset as u32,
@@ -392,6 +395,15 @@ impl Parser<'_, '_> {
             catch,
             span,
         }))
+    }
+
+    /// `{:then …}` or `{:catch …}`: upstream takes no pattern only right before the `}`.
+    fn clause_pattern(&mut self) -> ParseResult<Option<PatternIdentifier>> {
+        if self.peek() == Some(b'}') {
+            return Ok(None);
+        }
+        self.require_ws()?;
+        self.pattern().map(Some)
     }
 
     fn optional_pattern(&mut self) -> ParseResult<Option<PatternIdentifier>> {

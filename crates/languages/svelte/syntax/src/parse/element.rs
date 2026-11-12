@@ -5,7 +5,9 @@ use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{End, ParseResult, Parser, is_void};
 use crate::names::{META_TAGS, is_component_name, is_valid_element_name};
-use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
+use crate::syntax_tree::{
+    AttributeKind, AttributeValue, Part, Range, TemplateNode, TemplateNodeIdentifier, TokenType,
+};
 
 /// Upstream `read_tag_name`: up to whitespace, `/` or `>`.
 pub(super) fn peek_tag_name(s: &str) -> &str {
@@ -31,12 +33,13 @@ impl<'a> Parser<'a, '_> {
     pub(super) fn element(&mut self, at_root: bool) -> ParseResult<Option<TemplateNodeIdentifier>> {
         let start_offset = self.position;
         self.eat_token(TokenType::TagOpen, 1);
+        // Upstream's `read_until` stops at the trimmed end before it reads the name.
+        if self.position >= self.trimmed_end() {
+            return self.unexpected_eof();
+        }
         let name = self.tag_name();
         let name_text = name.text(self.source_text);
         if name.is_empty() {
-            if self.rest().is_empty() {
-                return self.unexpected_eof();
-            }
             return self.err("tag_invalid_name", TAG_INVALID_NAME);
         }
         if at_root && matches!(name_text, "script" | "style") {
@@ -78,6 +81,9 @@ impl<'a> Parser<'a, '_> {
             .then(|| self.component_reference(name))
             .flatten();
         let (attributes, self_closing) = self.attributes()?;
+        if name_text == "svelte:component" {
+            self.component_this(start_offset, attributes)?;
+        }
         let start_tag = Span::new(start_offset as u32, self.position as u32);
         let regular = !name_text.starts_with("svelte:") && !component_name;
         let (children, end_tag) = if self_closing || is_void(name_text) {
@@ -105,6 +111,37 @@ impl<'a> Parser<'a, '_> {
             end_tag,
             span,
         })))
+    }
+
+    /// Upstream requires `this={…}` on `<svelte:component>` while it parses.
+    #[expect(
+        clippy::literal_string_with_formatting_args,
+        reason = "upstream's message quotes an expression tag"
+    )]
+    fn component_this(&self, start_offset: usize, attributes: Range) -> ParseResult<()> {
+        let this = attributes.get(&self.component.attributes).iter().find(|a| {
+            a.kind == AttributeKind::Attribute && a.name.text(self.source_text) == "this"
+        });
+        let Some(this) = this else {
+            let at = Span::new(start_offset as u32, start_offset as u32);
+            return Self::err_at(
+                at,
+                "svelte_component_missing_this",
+                "`<svelte:component>` must have a 'this' attribute",
+            );
+        };
+        // Upstream's `is_expression_attribute`: one `{…}`, quoted or not.
+        let expression = matches!(this.value, AttributeValue::Parts(parts)
+                if matches!(parts.get(&self.component.parts), [Part::Expression { .. }]));
+        if expression {
+            return Ok(());
+        }
+        let at = Span::new(this.span.start_offset, this.span.start_offset);
+        Self::err_at(
+            at,
+            "svelte_component_invalid_this",
+            "Invalid component definition — must be an `{expression}`",
+        )
     }
 
     /// What a component's name refers to: `Foo`, or the member chain `ui.Button`.
@@ -148,6 +185,9 @@ impl<'a> Parser<'a, '_> {
             // `closing_tag_omitted` stopped the children at a start tag.
             return Ok(false);
         };
+        if self.position + 2 >= self.trimmed_end() {
+            return self.unexpected_eof();
+        }
         let closing = peek_tag_name(after);
         if closing != name {
             if regular {

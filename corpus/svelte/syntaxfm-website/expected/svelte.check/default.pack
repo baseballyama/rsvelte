@@ -294,11 +294,11 @@
 	}
 ]
 
-=== 340 src/lib/PodcastHero.svelte	json
+=== 263 src/lib/PodcastHero.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './schedule.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-JXElgr/src/lib/schedule.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './schedule.svelte'. 'src/lib/schedule.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 4,
 			"character": 22
@@ -381,7 +381,7 @@
 	}
 ]
 
-=== 2357 src/lib/ShowCard.svelte	json
+=== 2203 src/lib/ShowCard.svelte	json
 [
 	{
 		"code": 2307,
@@ -433,7 +433,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './badges/Badge.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-JXElgr/src/lib/badges/Badge.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './badges/Badge.svelte'. 'src/lib/badges/Badge.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 9,
 			"character": 19
@@ -445,7 +445,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './badges/Badges.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-JXElgr/src/lib/badges/Badges.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './badges/Badges.svelte'. 'src/lib/badges/Badges.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 10,
 			"character": 20
@@ -567,7 +567,7 @@
 === 3 src/lib/forms/Input.svelte	json
 []
 
-=== 2032 src/lib/forms/UserSubmissionForm.svelte	json
+=== 1955 src/lib/forms/UserSubmissionForm.svelte	json
 [
 	{
 		"code": 2307,
@@ -619,7 +619,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './InlineError.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-JXElgr/src/lib/forms/InlineError.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './InlineError.svelte'. 'src/lib/forms/InlineError.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 5,
 			"character": 25
@@ -769,11 +769,11 @@
 	}
 ]
 
-=== 586 src/lib/newsletter/NewsletterForm.svelte	json
+=== 509 src/lib/newsletter/NewsletterForm.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './NewsletterLogo.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-JXElgr/src/lib/newsletter/NewsletterLogo.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './NewsletterLogo.svelte'. 'src/lib/newsletter/NewsletterLogo.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 28
