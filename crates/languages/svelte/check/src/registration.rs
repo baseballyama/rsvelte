@@ -125,10 +125,11 @@ fn typescript_view(
             });
         }
     };
-    if !component
-        .instance
-        .as_ref()
-        .is_some_and(|script| script.typescript)
+    // svelte-check reads the component as TypeScript when either script is.
+    if ![&component.instance, &component.module]
+        .into_iter()
+        .flatten()
+        .any(|script| script.typescript)
     {
         return Ok(TypeScriptDocument::Unchecked);
     }
