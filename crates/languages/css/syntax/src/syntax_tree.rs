@@ -257,3 +257,6 @@ impl Simple {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
