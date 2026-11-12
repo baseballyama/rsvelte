@@ -1,6 +1,7 @@
 use std::sync::{Arc, LazyLock};
 
 use rsvelte_kernel::diagnostics::Severity;
+use rsvelte_lint_runner::catalog::{self, Enabled, EnabledRules};
 use rsvelte_lint_runner::rule::{Reporter, Rule};
 use serde_json::value::RawValue;
 
@@ -10,40 +11,32 @@ use crate::rule::{File, Files, LintPlugin, RuleDefinition, RuleOptions, SvelteRu
 /// The rules that run, in configuration order, and the settings they were configured with.
 #[derive(Debug)]
 pub struct Configuration {
-    rules: Vec<ConfiguredRule>,
+    rules: EnabledRules<dyn SvelteRule, Files>,
     settings: Arc<LintSettings>,
 }
 
+/// A rule that configuration turned on, with the documents it runs on.
+pub type ConfiguredRule = Enabled<dyn SvelteRule, Files>;
+
+pub(crate) fn applies(rule: &ConfiguredRule, file: &File<'_>) -> bool {
+    rule.extra == Files::All || file.is_component()
+}
+
+/// Runs a configured rule over a document; its own name and severity stamp its findings.
 #[derive(Debug)]
-pub struct ConfiguredRule {
-    name: &'static str,
-    files: Files,
-    severity: Severity,
-    rule: Box<dyn SvelteRule>,
-}
+pub(crate) struct Running<'r>(pub &'r ConfiguredRule);
 
-impl ConfiguredRule {
-    #[must_use]
-    pub const fn name(&self) -> &'static str {
-        self.name
-    }
-
-    pub(crate) fn applies(&self, file: &File<'_>) -> bool {
-        self.files == Files::All || file.is_component()
-    }
-}
-
-impl Rule<File<'_>> for ConfiguredRule {
+impl Rule<File<'_>> for Running<'_> {
     fn identifier(&self) -> &'static str {
-        self.name
+        self.0.name()
     }
 
     fn severity(&self) -> Severity {
-        self.severity
+        self.0.severity()
     }
 
     fn check(&self, context: &File<'_>, reporter: &mut Reporter<'_>) {
-        self.rule.check(context, reporter);
+        self.0.rule().check(context, reporter);
     }
 }
 
@@ -52,7 +45,7 @@ impl Configuration {
     #[must_use]
     pub fn new(settings: LintSettings) -> Self {
         Self {
-            rules: Vec::new(),
+            rules: EnabledRules::default(),
             settings: Arc::new(settings),
         }
     }
@@ -92,21 +85,13 @@ impl Configuration {
         severity: Severity,
         rule: Box<dyn SvelteRule>,
     ) -> Result<&mut Self, String> {
-        if self.rules.iter().any(|r| r.name == name) {
-            return Err(format!("rule `{name}` is configured twice"));
-        }
-        self.rules.push(ConfiguredRule {
-            name,
-            files,
-            severity,
-            rule,
-        });
+        self.rules.push(name, severity, files, rule)?;
         Ok(self)
     }
 
     #[must_use]
     pub fn rules(&self) -> &[ConfiguredRule] {
-        &self.rules
+        self.rules.as_slice()
     }
 
     #[must_use]
@@ -117,60 +102,23 @@ impl Configuration {
     /// Whether a rule runs on JavaScript and TypeScript modules too.
     #[must_use]
     pub fn lints_modules(&self) -> bool {
-        self.rules.iter().any(|r| r.files == Files::All)
+        self.rules().iter().any(|r| r.extra == Files::All)
     }
 }
 
-/// Whether `prefix` can prefix plugin rules: a non-empty name without `/`.
-pub(crate) fn is_prefix(prefix: &str) -> bool {
-    !prefix.is_empty() && !prefix.contains('/')
-}
-
-/// Plugins name their rules `<prefix>/<rule>` under a prefix of their own, never `svelte`, so no
-/// plugin rule can stand for another rule.
+/// Plugins name their rules `<prefix>/<rule>` under a prefix of their own, never `svelte`.
 ///
 /// # Errors
 ///
 /// A plugin's prefix or rule name breaks that, or two plugins share a prefix.
 pub fn check_plugins(plugins: &[&'static LintPlugin]) -> Result<(), String> {
-    for (i, plugin) in plugins.iter().enumerate() {
-        if !is_prefix(plugin.prefix) || plugin.prefix == "svelte" {
-            return Err(format!(
-                "a plugin cannot use the prefix `{}`",
-                plugin.prefix
-            ));
-        }
-        if plugins[..i]
-            .iter()
-            .any(|other| other.prefix == plugin.prefix)
-        {
-            return Err(format!("two plugins use the prefix `{}`", plugin.prefix));
-        }
-        for rule in plugin.rules {
-            let named = rule
-                .name
-                .strip_prefix(plugin.prefix)
-                .and_then(|rest| rest.strip_prefix('/'))
-                .is_some_and(|rest| !rest.is_empty());
-            if !named {
-                return Err(format!(
-                    "plugin `{}` names a rule `{}` outside its prefix",
-                    plugin.prefix, rule.name
-                ));
-            }
-        }
-    }
-    Ok(())
+    catalog::check_plugins("svelte", plugins)
 }
 
 /// The built-in rule or plugin rule called `name`.
 #[must_use]
 pub fn definition(name: &str, plugins: &[&'static LintPlugin]) -> Option<&'static RuleDefinition> {
-    crate::rules::BUILT_IN
-        .iter()
-        .chain(plugins.iter().flat_map(|plugin| plugin.rules))
-        .find(|definition| definition.name == name)
-        .copied()
+    catalog::find(crate::rules::BUILT_IN, plugins, name)
 }
 
 const DEFAULT_RULES: &[&str] = &["no-unused-vars", "svelte/button-has-type"];

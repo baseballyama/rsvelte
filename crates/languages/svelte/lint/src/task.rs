@@ -151,7 +151,7 @@ impl Task for Lint {
                 configuration
                     .rules()
                     .iter()
-                    .filter(|rule| rule.applies(&file))
+                    .filter(|rule| crate::configuration::applies(rule, &file))
                     .map(crate::ConfiguredRule::name),
                 &findings,
             ),

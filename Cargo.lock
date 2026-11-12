@@ -1277,6 +1277,7 @@ version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1600,6 +1601,7 @@ dependencies = [
  "rsvelte_typescript_semantic",
  "rsvelte_typescript_tree",
  "rustc-hash",
+ "serde",
 ]
 
 [[package]]
@@ -1701,6 +1703,7 @@ dependencies = [
  "rsvelte_vue_semantic",
  "rsvelte_vue_syntax",
  "rustc-hash",
+ "serde",
 ]
 
 [[package]]
