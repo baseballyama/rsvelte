@@ -70,13 +70,11 @@ impl Printer<'_, '_, '_> {
         Ok(self.indented_body(body))
     }
 
-    /// `formatBodyContent` around the style sheet at `content`; `parses` is whether the style
-    /// sheet parser reads it.
+    /// `formatBodyContent` around the style sheet at `content`.
     pub(super) fn style_body(
         &mut self,
         content: Span,
         attributes: &[TagAttributes],
-        parses: bool,
     ) -> R<LayoutInstructionIdentifier> {
         // The plugin's `embedStyle`: any language but Less and SCSS, such as `postcss`, is CSS.
         let variant = match self.language(attributes).as_ref().map(|(_, l)| &**l) {
@@ -84,13 +82,6 @@ impl Printer<'_, '_, '_> {
             Some("scss") => oxc_formatter_css::CssVariant::Scss,
             _ => oxc_formatter_css::CssVariant::Css,
         };
-        // Where Svelte's parser fails, Prettier's CSS parser may fail too and keep the body.
-        if variant == oxc_formatter_css::CssVariant::Css && !parses {
-            return Err(Unsupported::at(
-                "a style sheet that does not parse",
-                content,
-            ));
-        }
         let text = content.text(self.source_text);
         if text.trim_matches(is_ecmascript_whitespace).is_empty() {
             return Ok(if text.is_empty() {
