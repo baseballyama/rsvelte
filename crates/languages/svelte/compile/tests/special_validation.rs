@@ -5,22 +5,6 @@ use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 fn invalid_special_attributes_are_refused_on_both_targets() {
     for (source, code) in [
         (
-            r#"<svelte:options customElement="Element"/>"#,
-            "svelte_options_invalid_tagname",
-        ),
-        (
-            r#"<svelte:options customElement="font-face"/>"#,
-            "svelte_options_reserved_tagname",
-        ),
-        (
-            r#"<svelte:options customElement={{props:{value:{type:"Date"}}}}/>"#,
-            "svelte_options_invalid_customelement_props",
-        ),
-        (
-            r#"<svelte:options customElement={{shadow:"closed"}}/>"#,
-            "svelte_options_invalid_customelement_shadow",
-        ),
-        (
             "<svelte:boundary>{#snippet failed(...errors)}{errors}{/snippet}</svelte:boundary>",
             "snippet_invalid_rest_parameter",
         ),

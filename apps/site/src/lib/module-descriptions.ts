@@ -11,6 +11,11 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: 'エラーや警告の情報',
 		summary: '問題の種類、メッセージ、ソース内の位置を記録します。',
 	},
+	'kernel/diagnostics/tests': {
+		title: '修正の適用のテスト',
+		summary:
+			'修正が位置の順に当たること、重なる修正と直前の修正の終わりから始まる修正は次の回まで待つこと、1 つの修正の置き換えが間の文とつながることを確かめます。',
+	},
 	'kernel/output': {
 		title: '文字列の出力',
 		summary: '位置の対応を持つコードの出力、元の文への編集、JSON の書き出しを扱います。',
