@@ -63,7 +63,10 @@ impl Builder<'_> {
                     let event = self.component_event(attribute)?;
                     directives.events.push(event);
                 }
-                AttributeKind::Let if self.has_slot(attributes) => {
+                AttributeKind::Let
+                    if self.has_slot(attributes)
+                        || (host.intrinsic() && self.slot_parent.is_some()) =>
+                {
                     let property = self.component_let(attribute)?;
                     directives.slot_lets.push(property);
                 }

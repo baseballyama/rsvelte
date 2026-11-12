@@ -1,4 +1,4 @@
-# svelte.check/default: 35335 match
+# svelte.check/default: 35342 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/animotion/src/lib/components/slides.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
@@ -1346,13 +1346,6 @@ svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-event02-input.svelte	mi
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-event02-type-output.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-event04-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-event04-type-output.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-let/ts-let01-input.svelte	refused
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-let/ts-let01-sveltev4-type-output.svelte	refused
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-let/ts-let01-type-output.svelte	refused
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-slot-binding01-input.svelte	refused
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-slot-binding01-sveltev4-input.svelte	refused
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-slot-binding01-sveltev4-type-output.svelte	refused
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-slot-binding01-type-output.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store02-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store02-type-output.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store03-input.svelte	mismatch
