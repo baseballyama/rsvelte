@@ -120,6 +120,9 @@ struct RuneWalk<'a> {
     const_tags: FxHashSet<u32>,
     /// The expression tag whose expression the walk is in.
     tag: Option<Span>,
+    /// Where the arrow functions of the `bind:` pair the walk is in start: upstream analyzes
+    /// their bodies as the template expression.
+    bind_arrows: [Option<u32>; 2],
 }
 
 /// A template root: an expression, or a `{@const}` declaration.
@@ -199,6 +202,16 @@ pub(in crate::lower) fn check_runes(
                     break;
                 }
                 walk.tag = tags.get(&identifier).copied();
+                walk.bind_arrows = match e {
+                    Expression::SequenceExpression(pair) if binds.contains_key(&identifier) => {
+                        let mut arrows = pair.expressions.iter().map(|e| match e {
+                            Expression::ArrowFunctionExpression(arrow) => Some(arrow.span.start),
+                            _ => None,
+                        });
+                        [arrows.next().flatten(), arrows.next().flatten()]
+                    }
+                    _ => [None; 2],
+                };
                 walk.visit_expression(e);
             }
             Root::Declaration(d) => {
@@ -255,6 +268,7 @@ fn walk_scripts<'a>(
         classes: Vec::new(),
         const_tags: FxHashSet::default(),
         tag: None,
+        bind_arrows: [None; 2],
     };
     if let Some(module) = input.component.module {
         walk.root = place(true, false);
@@ -366,7 +380,17 @@ impl<'a> RuneWalk<'a> {
             AstKind::ForOfStatement(f) => f.r#await,
             _ => false,
         };
-        if place.rendering && suspends {
+        let in_bind_arrow = || {
+            let function = self.frames.iter().rev().find(|f| {
+                matches!(
+                    f.kind,
+                    AstKind::Function(_) | AstKind::ArrowFunctionExpression(_)
+                )
+            });
+            matches!(function.map(|f| f.kind), Some(AstKind::ArrowFunctionExpression(arrow))
+                if self.bind_arrows.contains(&Some(arrow.span.start)))
+        };
+        if suspends && (place.rendering || in_bind_arrow()) {
             return crate::lower::special::invalid(
                 "experimental_async",
                 "Cannot use `await` in deriveds and template expressions, or at the top level of a \

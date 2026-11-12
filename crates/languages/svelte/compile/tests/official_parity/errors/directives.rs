@@ -181,3 +181,25 @@ fn a_rune_is_called_by_a_name_svelte_knows() {
         ),
     ]);
 }
+
+#[test]
+fn an_await_in_a_bind_pairs_arrow_needs_experimental_async() {
+    assert_outcomes(&[
+        (
+            "<button onclick={async () => { await p; }}>x</button>",
+            None,
+        ),
+        (
+            "<input bind:value={() => v, (nv) => { const f = async () => { await p; }; }} />",
+            None,
+        ),
+        (
+            "<input bind:value={() => v, async (nv) => { await p; }} />",
+            Some(("experimental_async", (44, 51))),
+        ),
+        (
+            "<C bind:value={() => v, async (nv) => { await p; }} />",
+            Some(("experimental_async", (40, 47))),
+        ),
+    ]);
+}
