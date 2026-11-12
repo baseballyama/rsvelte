@@ -76,6 +76,10 @@ impl Parser<'_, '_> {
     /// Upstream's error for `</name>` with no element of its own open.
     fn stray_closing_tag<T>(&mut self) -> ParseResult<T> {
         let start = self.position as u32;
+        // Upstream's `read_until` stops at the trimmed end before it reads the name.
+        if self.position + 2 >= self.trimmed_end() {
+            return self.unexpected_eof();
+        }
         let name = element::peek_tag_name(&self.rest()[2..]);
         self.position += 2 + name.len();
         self.skip_ws();

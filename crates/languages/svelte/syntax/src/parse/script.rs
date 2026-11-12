@@ -128,7 +128,7 @@ impl Parser<'_, '_> {
                             let value_start = self.position + 1;
                             let Some(len) = self.source_text[value_start..].find(quote as char)
                             else {
-                                return self.err("parse_error", "unterminated attribute value");
+                                return self.unexpected_eof();
                             };
                             value = Some(Span::new(value_start as u32, (value_start + len) as u32));
                             let quote = super::attribute::quote_token(quote);

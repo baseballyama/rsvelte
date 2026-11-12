@@ -58,7 +58,10 @@ impl Parser<'_, '_> {
             self.require_ws()?;
             return self.snippet_block(start_offset);
         }
-        self.err(
+        // Upstream reports it just after the `#`.
+        let at = self.sigil().start_offset + 1;
+        Self::err_at(
+            Span::new(at, at),
             "expected_block_type",
             "Expected 'if', 'each', 'await', 'key' or 'snippet'",
         )
@@ -359,7 +362,7 @@ impl Parser<'_, '_> {
                         "{:then} cannot appear more than once within a block",
                     );
                 }
-                value = self.optional_pattern()?;
+                value = self.clause_pattern()?;
                 self.close_mustache()?;
                 then = self.fragment(End::Block {
                     start: start_offset as u32,
@@ -372,7 +375,7 @@ impl Parser<'_, '_> {
                         "{:catch} cannot appear more than once within a block",
                     );
                 }
-                error = self.optional_pattern()?;
+                error = self.clause_pattern()?;
                 self.close_mustache()?;
                 catch = self.fragment(End::Block {
                     start: start_offset as u32,
@@ -392,6 +395,15 @@ impl Parser<'_, '_> {
             catch,
             span,
         }))
+    }
+
+    /// `{:then …}` or `{:catch …}`: upstream takes no pattern only right before the `}`.
+    fn clause_pattern(&mut self) -> ParseResult<Option<PatternIdentifier>> {
+        if self.peek() == Some(b'}') {
+            return Ok(None);
+        }
+        self.require_ws()?;
+        self.pattern().map(Some)
     }
 
     fn optional_pattern(&mut self) -> ParseResult<Option<PatternIdentifier>> {

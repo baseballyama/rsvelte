@@ -115,7 +115,7 @@ impl Parser<'_, '_> {
         } else {
             match self.rest().find("*/") {
                 Some(i) => i + 2,
-                None => return self.err("parse_error", "unterminated comment"),
+                None => return self.unexpected_eof(),
             }
         };
         self.position += end;
