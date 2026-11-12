@@ -57,7 +57,7 @@ fn global_block(
         for (index, part) in selector.parts.iter().enumerate() {
             match part.simple.iter().position(|s| s.is_global_block(source)) {
                 Some(0) if part.simple.len() > 1 && index == 0 && !nested => {
-                    return Err(css(
+                    return Err(error(
                         "css_global_block_invalid_modifier_start",
                         MODIFIER_START,
                         part.simple[1].span(),
@@ -69,7 +69,7 @@ fn global_block(
                     if let Some(combinator) =
                         part.combinator.filter(|c| *c != Combinator::Descendant)
                     {
-                        return Err(css(
+                        return Err(error(
                             "css_global_block_invalid_combinator",
                             &format!(
                                 "A `:global` selector cannot follow a `{}` combinator",
@@ -86,7 +86,7 @@ fn global_block(
                         && lone
                         && selectors.len() == 1
                     {
-                        return Err(css(
+                        return Err(error(
                             "css_global_block_invalid_declaration",
                             "A top-level `:global {...}` block can only contain rules, not \
                                 declarations",
@@ -95,7 +95,7 @@ fn global_block(
                     }
                 }
                 Some(at) => {
-                    return Err(css(
+                    return Err(error(
                         "css_global_block_invalid_modifier",
                         "A `:global` selector cannot modify an existing selector",
                         part.simple[at].span(),
@@ -149,7 +149,7 @@ fn complex(
             }
         );
         if in_pseudo_class && !arguments {
-            return Err(css(
+            return Err(error(
                 "css_global_block_invalid_placement",
                 "A `:global` selector cannot be inside a pseudoclass",
                 first.span(),
@@ -162,7 +162,7 @@ fn complex(
                 .iter()
                 .all(|p| is_explicitly_global(source, p))
         {
-            return Err(css(
+            return Err(error(
                 "css_global_invalid_placement",
                 "`:global(...)` can be at the start or end of a selector sequence, but not in the \
                     middle",
@@ -186,7 +186,7 @@ fn complex(
             }
             let child = selectors.first().map(|s| s.parts[0].simple.first());
             if child.is_some_and(is_type) && index != 0 {
-                return Err(css(
+                return Err(error(
                     "css_global_invalid_selector_list",
                     "`:global(...)` must not contain type or universal selectors when used in a \
                         compound selector",
@@ -196,7 +196,7 @@ fn complex(
             if let Some(next) = part.simple.iter().nth(index + 1)
                 && is_type(next)
             {
-                return Err(css(
+                return Err(error(
                     "css_type_selector_invalid_placement",
                     "`:global(...)` must not be followed by a type selector",
                     next.span(),
@@ -206,7 +206,7 @@ fn complex(
                 && selectors.len() > 1
                 && (selector.parts.len() > 1 || part.simple.len() > 1)
             {
-                return Err(css(
+                return Err(error(
                     "css_global_invalid_selector",
                     "`:global(...)` must contain exactly one selector",
                     *span,
@@ -224,7 +224,7 @@ fn leading_combinator(part: &RelativeSelector) -> Found {
     };
     // A leading combinator is always written, so its name is its text.
     let start = part.span.start_offset;
-    Err(css(
+    Err(error(
         "css_selector_invalid",
         "Invalid selector",
         Span::new(start, start + name(combinator).len() as u32),
@@ -243,7 +243,7 @@ fn nesting(at: Span, owner: &Owner<'_>, parent: Option<&Owner<'_>>, source: &str
         if opens_global {
             return Ok(());
         }
-        return Err(css(
+        return Err(error(
             "css_nesting_selector_invalid_placement",
             "Nesting selectors can only be used inside a rule or as the first selector inside a \
                 lone `:global(...)`",
@@ -253,7 +253,7 @@ fn nesting(at: Span, owner: &Owner<'_>, parent: Option<&Owner<'_>>, source: &str
     let lone =
         parent.selectors[0].parts.len() == 1 && parent.selectors[0].parts[0].simple.len() == 1;
     if parent.global_block && !parent.nested && lone {
-        return Err(css(
+        return Err(error(
             "css_global_block_invalid_modifier_start",
             MODIFIER_START,
             at,
@@ -276,7 +276,7 @@ const MODIFIER_START: &str =
     "A `:global` selector can only be modified if it is a descendant of other selectors";
 
 fn invalid_list(selectors: &[ComplexSelector]) -> Diagnostic {
-    css(
+    error(
         "css_global_block_invalid_list",
         "A `:global` selector cannot be part of a selector list with entries that don't contain \
             `:global`",
@@ -293,10 +293,6 @@ const fn is_type(simple: &Simple) -> bool {
         simple,
         Simple::Type(_) | Simple::Universal(_) | Simple::NamespacedType { .. }
     )
-}
-
-fn css(code: &'static str, message: &str, span: Span) -> Diagnostic {
-    error(code, message, span)
 }
 
 #[cfg(test)]
