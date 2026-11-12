@@ -285,6 +285,31 @@ impl<'a> Parser<'a, '_> {
 
     /// Upstream's `unexpected_eof`, at the end of the component without its trailing whitespace,
     /// which upstream trims before it parses.
+    /// Upstream `match_bracket`'s error for the brackets that start here.
+    #[cold]
+    fn unmatched<T>(&self, why: identifier::Unmatched) -> ParseResult<T> {
+        let at = |offset: usize| {
+            let at = (self.position + offset) as u32;
+            Span::new(at, at)
+        };
+        match why {
+            identifier::Unmatched::End => self.unexpected_eof(),
+            identifier::Unmatched::Quote(offset) => Self::err_at(
+                at(offset),
+                "unterminated_string_constant",
+                "Unterminated string constant",
+            ),
+            identifier::Unmatched::Bracket {
+                at: offset,
+                expected,
+            } => Self::err_at(
+                at(offset),
+                "expected_token",
+                format_args!("Expected token {}", char::from(expected)),
+            ),
+        }
+    }
+
     #[cold]
     fn unexpected_eof<T>(&self) -> ParseResult<T> {
         let end = self

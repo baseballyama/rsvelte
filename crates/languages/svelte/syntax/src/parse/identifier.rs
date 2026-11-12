@@ -20,10 +20,21 @@ pub(super) fn identifier_len(s: &str) -> usize {
         .map_or(s.len(), |(i, _)| i)
 }
 
+/// Why upstream `match_bracket` stops, with offsets into its text.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum Unmatched {
+    /// The text ends first.
+    End,
+    /// A string or template literal that opens just before this offset does not close.
+    Quote(usize),
+    /// The bracket at this offset is not `expected`.
+    Bracket { at: usize, expected: u8 },
+}
+
 /// The length of the bracketed text `s` starts with, through its matching bracket. Strings are
 /// skipped, and a template literal's `${…}` is matched with the default brackets, as upstream
-/// `match_bracket` does. `None` when a bracket does not match or `s` ends first.
-pub(super) fn match_bracket(s: &str, open: u8, close: u8) -> Option<usize> {
+/// `match_bracket` does.
+pub(super) fn match_bracket(s: &str, open: u8, close: u8) -> Result<usize, Unmatched> {
     /// What closes an open construct, and whether the default brackets apply inside it.
     #[derive(Clone, Copy, PartialEq, Eq)]
     enum Open {
@@ -46,12 +57,12 @@ pub(super) fn match_bracket(s: &str, open: u8, close: u8) -> Option<usize> {
     };
     let default_brackets = matches!((open, close), (b'{', b'}') | (b'(', b')') | (b'[', b']'));
     let b = s.as_bytes();
-    let mut stack: Vec<Open> = Vec::new();
+    let mut stack: Vec<(Open, usize)> = Vec::new();
     let mut i = 0;
     while i < b.len() {
         let c = b[i];
         i += 1;
-        let default = match stack.last() {
+        let default = match stack.last().map(|(open, _)| open) {
             Some(Open::Template) => {
                 match c {
                     b'\\' => i += 1,
@@ -60,10 +71,11 @@ pub(super) fn match_bracket(s: &str, open: u8, close: u8) -> Option<usize> {
                     }
                     b'$' if b.get(i) == Some(&b'{') => {
                         i += 1;
-                        stack.push(Open::Bracket {
+                        let close = Open::Bracket {
                             close: b'}',
                             default: true,
-                        });
+                        };
+                        stack.push((close, i));
                     }
                     _ => {}
                 }
@@ -74,27 +86,41 @@ pub(super) fn match_bracket(s: &str, open: u8, close: u8) -> Option<usize> {
         };
         match c {
             b'"' | b'\'' => {
+                let quote = i;
                 while i < b.len() && b[i] != c {
                     i += if b[i] == b'\\' { 2 } else { 1 };
                 }
+                if i >= b.len() {
+                    return Err(Unmatched::Quote(quote));
+                }
                 i += 1;
             }
-            b'`' => stack.push(Open::Template),
+            b'`' => stack.push((Open::Template, i)),
             c if let Some(close) = opener(c, default) => {
-                stack.push(Open::Bracket { close, default });
+                stack.push((Open::Bracket { close, default }, i));
             }
-            c if closes(c, default) => {
-                if stack.pop() != Some(Open::Bracket { close: c, default }) {
-                    return None;
+            c if closes(c, default) => match stack.pop() {
+                Some((Open::Bracket { close, .. }, _)) if close == c => {
+                    if stack.is_empty() {
+                        return Ok(i);
+                    }
                 }
-                if stack.is_empty() {
-                    return Some(i);
+                Some((Open::Bracket { close, .. }, _)) => {
+                    return Err(Unmatched::Bracket {
+                        at: i - 1,
+                        expected: close,
+                    });
                 }
-            }
+                _ => return Err(Unmatched::End),
+            },
             _ => {}
         }
     }
-    None
+    // An open template literal is upstream's unterminated string.
+    match stack.last() {
+        Some(&(Open::Template, quote)) => Err(Unmatched::Quote(quote)),
+        _ => Err(Unmatched::End),
+    }
 }
 
 /// Upstream `is_reserved` (`utils.js`): the words `read_identifier` refuses as a name.
