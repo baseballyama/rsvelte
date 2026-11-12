@@ -328,7 +328,7 @@ fn compound<E: Element>(source_text: &str, rel: &RelativeSelector, el: E) -> Mat
                 Some(_) => Match::No,
                 None => Match::Maybe,
             },
-            Simple::Universal(_) => Match::Yes,
+            Simple::Universal(_) | Simple::Nth(_) => Match::Yes,
             Simple::Nesting(_) => rel
                 .parent_rule
                 .map_or(Match::Maybe, |rule| el.nesting(rule)),

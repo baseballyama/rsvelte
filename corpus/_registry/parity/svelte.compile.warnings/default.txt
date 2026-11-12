@@ -1,4 +1,4 @@
-# svelte.compile.warnings: 31980 match
+# svelte.compile.warnings: 31984 match
 svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte	mismatch
 svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/4809229d13f750f6.svelte	mismatch
 svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/7e0bf9a55c019a47.svelte	mismatch
@@ -28,8 +28,6 @@ svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_computed_key_in_a_
 svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_template_expression_keeps_its_positions/f9e1a8d36317a200.svelte	unexpected
 svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/69872f6e8c224c02.svelte	unexpected
 svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_whole_key_subtree_moves_with_it/4f67cefb5b0ba2e9.svelte	unexpected
-svelte/rsvelte-tests-core-1/css_pseudo_class_args/an_plus_b_is_accepted_in_any_pseudo_class/9372c5fa97f7f359.svelte	unexpected
-svelte/rsvelte-tests-core-1/css_pseudo_class_args/an_plus_b_is_accepted_in_any_pseudo_class/95f1c9c19d018646.svelte	unexpected
 svelte/rsvelte-tests-core-1/css_snippet_render_site_scope_4113/a_snippet_reached_only_through_a_component_prop_is_scoped_from_that_component/0e8c2a3cb5af6185.svelte	unexpected
 svelte/rsvelte-tests-core-1/css_snippet_render_site_scope_4113/a_snippet_reached_only_through_a_component_prop_is_scoped_from_that_component/5c6b9df354927381.svelte	unexpected
 svelte/rsvelte-tests-core-2/legacy_derived_server_fold/the_declaration_still_subscribes_to_the_store/17575a31c5ff0f56.svelte	unexpected
@@ -40,13 +38,11 @@ svelte/rsvelte-tests-core-3/store_rune_conflict_3597/another_rune_reference_stil
 svelte/rsvelte-tests-core-3/template_function_rune_3233/a_derived_local_in_a_handler_reads_through_get/38db9a590b3474fa.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_function_rune_3233/a_reassigned_state_local_in_a_handler_is_a_source/d6e4fe8e1fc9de97.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_function_rune_3233/a_state_local_that_is_never_reassigned_stays_a_plain_value/41b740762a32b567.svelte	mismatch
-svelte/rsvelte-tests-formatter/css_native/unparseable_style_body_is_spliced_without_a_blank_line/f8bd54d445626702.svelte	unexpected
 svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/non_css_style_ignore_is_treated_as_used/befdd05c4edb8a56.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/plain_css_unused_ignore_is_still_reported/964da7c6a5553df3.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/transformed_scss_unused_ignore_is_reported/e19fecebd6a045c3.svelte	mismatch
 svelte/rsvelte/lint/no-raw-special-elements/17-component-slot.svelte	mismatch
 svelte/rsvelte/pattern/issues/2535-root-has-with-class.svelte	unexpected
-svelte/rsvelte/pattern/issues/3130-nth-of-in-any-pseudo-class.svelte	unexpected
 svelte/rsvelte/pattern/issues/3175-legacy-derived-server-fold.svelte	unexpected
 svelte/rsvelte/pattern/issues/4115-unresolved-renderer-renders-every-snippet.svelte	mismatch
 svelte/rsvelte/pattern/issues/a-wholly-global-nested-rule-survives-an-unused-parent.svelte	mismatch

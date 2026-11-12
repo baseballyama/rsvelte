@@ -113,6 +113,9 @@ pub struct RelativeSelector {
     pub id: u32,
     /// `None` for the first compound of a complex selector.
     pub combinator: Option<Combinator>,
+    /// Where Svelte's combinator node is: the combinator Svelte keeps, or the whitespace of a
+    /// descendant one; empty at the compound without a combinator.
+    pub combinator_span: Span,
     pub span: Span,
     pub simple: SimpleList,
 }
@@ -124,6 +127,8 @@ pub enum Simple {
         name: Span,
     },
     Nesting(Span),
+    /// An `An+B` in a pseudo-class's argument, which constrains no element.
+    Nth(Span),
     Type(Span),
     Universal(Span),
     Class {
@@ -243,7 +248,7 @@ impl Simple {
     #[must_use]
     pub const fn span(&self) -> Span {
         match *self {
-            Self::Type(s) | Self::Universal(s) | Self::Nesting(s) => s,
+            Self::Type(s) | Self::Universal(s) | Self::Nesting(s) | Self::Nth(s) => s,
             Self::Class { span, .. }
             | Self::NamespacedType { span, .. }
             | Self::Identifier { span, .. }
