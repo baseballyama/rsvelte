@@ -29,14 +29,15 @@ pub(crate) fn check(
     file: &File<'_>,
     configuration: &Configuration,
 ) -> Result<Vec<Finding>, Diagnostic> {
-    let running: Vec<Running<'_>> = configuration
-        .rules()
-        .iter()
-        .filter(|rule| applies(rule, file))
-        .map(Running)
-        .collect();
     let mut findings = Findings::new();
-    findings.run(&running, file);
+    findings.run(
+        configuration
+            .rules()
+            .iter()
+            .filter(|rule| applies(rule, file))
+            .map(Running),
+        file,
+    );
     let mut findings = findings.finish()?;
     // Directive lines are `ESLint`'s, which any ECMAScript line terminator ends.
     let lines = file.context.ecmascript_line_index();

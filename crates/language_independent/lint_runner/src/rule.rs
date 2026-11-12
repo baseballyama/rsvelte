@@ -21,6 +21,20 @@ pub trait Rule<C: ?Sized>: Send + Sync {
     fn check(&self, context: &C, reporter: &mut Reporter<'_>);
 }
 
+impl<C: ?Sized, R: Rule<C> + ?Sized> Rule<C> for &R {
+    fn identifier(&self) -> &'static str {
+        (**self).identifier()
+    }
+
+    fn severity(&self) -> Severity {
+        (**self).severity()
+    }
+
+    fn check(&self, context: &C, reporter: &mut Reporter<'_>) {
+        (**self).check(context, reporter);
+    }
+}
+
 /// Where a rule reports. It stamps the rule's identifier and severity on each finding, so a rule
 /// cannot report under another rule's name.
 #[derive(Debug)]

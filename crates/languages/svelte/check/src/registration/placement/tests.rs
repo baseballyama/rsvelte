@@ -26,7 +26,22 @@ fn a_namespace_or_ambient_module_in_the_instance_is_refused_at_its_first_token()
         .into_iter()
         .map(|(span, code, _)| (span.text(declared), code))
         .collect();
-    assert_eq!(codes, [("declare", 1184); 4]);
+    assert_eq!(codes, [("declare", 1184); 5]);
+    let exported = "<script lang=\"ts\">export declare enum E {}\nexport declare global {}\nexport enum F {}</script>";
+    let component = rsvelte_svelte_syntax::parse::parse(exported).expect("parses");
+    let codes: Vec<(&str, u32)> = instance(&component)
+        .into_iter()
+        .map(|(span, code, _)| (span.text(exported), code))
+        .collect();
+    assert_eq!(
+        codes,
+        [
+            ("export", 1184),
+            ("export", 1234),
+            ("export", 2668),
+            ("export", 1184)
+        ]
+    );
     let module = "<script lang=\"ts\" module>namespace A {}</script>";
     let component = rsvelte_svelte_syntax::parse::parse(module).expect("parses");
     assert!(
