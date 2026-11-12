@@ -4678,11 +4678,11 @@
 === 3 lint/no-useless-children-snippet/16-whitespace-params.svelte	json
 []
 
-=== 385 lint/no-useless-children-snippet/17-ts-typed-params.svelte	json
+=== 308 lint/no-useless-children-snippet/17-ts-typed-params.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './01-component-basic.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-3VAklC/lint/no-useless-children-snippet/01-component-basic.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './01-component-basic.svelte'. 'lint/no-useless-children-snippet/01-component-basic.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 18
@@ -10654,22 +10654,6 @@
 		"end": {
 			"line": 5,
 			"character": 6
-		}
-	}
-]
-
-=== 194 pattern/issues/deferred-script-error-before-unclosed-block.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
-		"start": {
-			"line": 4,
-			"character": 0
-		},
-		"end": {
-			"line": 4,
-			"character": 1
 		}
 	}
 ]

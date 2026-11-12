@@ -1343,11 +1343,11 @@
 	}
 ]
 
-=== 390 packages/svelte-lexical/src/lib/components/richtext/ToolbarRichText.svelte	json
+=== 313 packages/svelte-lexical/src/lib/components/richtext/ToolbarRichText.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../toolbar/Divider.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-u7HUeN/packages/svelte-lexical/src/lib/components/toolbar/Divider.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../toolbar/Divider.svelte'. 'packages/svelte-lexical/src/lib/components/toolbar/Divider.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 22
@@ -1934,7 +1934,7 @@
 === 3 packages/svelte-lexical/src/lib/components/toolbar/Divider.svelte	json
 []
 
-=== 1031 packages/svelte-lexical/src/lib/components/toolbar/DropDownAlign.svelte	json
+=== 954 packages/svelte-lexical/src/lib/components/toolbar/DropDownAlign.svelte	json
 [
 	{
 		"code": 2307,
@@ -1950,7 +1950,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Divider.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-u7HUeN/packages/svelte-lexical/src/lib/components/toolbar/Divider.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Divider.svelte'. 'packages/svelte-lexical/src/lib/components/toolbar/Divider.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 8,
 			"character": 22

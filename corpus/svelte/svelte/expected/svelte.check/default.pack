@@ -2717,11 +2717,11 @@
 === 3 packages/svelte/tests/runtime-legacy/samples/component-slot-named-scope/Parent.svelte	json
 []
 
-=== 614 packages/svelte/tests/runtime-legacy/samples/component-slot-named-scope/main.svelte	json
+=== 537 packages/svelte/tests/runtime-legacy/samples/component-slot-named-scope/main.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Parent.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-4A887c/packages/svelte/tests/runtime-legacy/samples/component-slot-named-scope/Parent.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Parent.svelte'. 'packages/svelte/tests/runtime-legacy/samples/component-slot-named-scope/Parent.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 20
@@ -3990,11 +3990,11 @@
 === 3 packages/svelte/tests/runtime-runes/samples/async-block-effect-queueing/B.svelte	json
 []
 
-=== 1188 packages/svelte/tests/runtime-runes/samples/async-block-effect-queueing/main.svelte	json
+=== 1034 packages/svelte/tests/runtime-runes/samples/async-block-effect-queueing/main.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './A.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-4A887c/packages/svelte/tests/runtime-runes/samples/async-block-effect-queueing/A.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './A.svelte'. 'packages/svelte/tests/runtime-runes/samples/async-block-effect-queueing/A.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 2,
 			"character": 15
@@ -4006,7 +4006,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './B.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-4A887c/packages/svelte/tests/runtime-runes/samples/async-block-effect-queueing/B.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './B.svelte'. 'packages/svelte/tests/runtime-runes/samples/async-block-effect-queueing/B.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 15
@@ -4144,7 +4144,7 @@
 === 3 packages/svelte/tests/runtime-runes/samples/async-hydration-binding/Bound.svelte	json
 []
 
-=== 612 packages/svelte/tests/runtime-runes/samples/async-hydration-binding/main.svelte	json
+=== 535 packages/svelte/tests/runtime-runes/samples/async-hydration-binding/main.svelte	json
 [
 	{
 		"code": 2307,
@@ -4160,7 +4160,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Binding.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-4A887c/packages/svelte/tests/runtime-runes/samples/async-hydration-binding/Binding.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Binding.svelte'. 'packages/svelte/tests/runtime-runes/samples/async-hydration-binding/Binding.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 2,
 			"character": 21
@@ -6160,11 +6160,11 @@
 === 3 packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-1/sub.svelte	json
 []
 
-=== 810 packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/main.svelte	json
+=== 656 packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/main.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './sub.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-4A887c/packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/sub.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './sub.svelte'. 'packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/sub.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 17
@@ -6176,7 +6176,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './state.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-4A887c/packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/state.svelte.js' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './state.svelte'. 'packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/state.svelte.js' implicitly has an 'any' type.",
 		"start": {
 			"line": 2,
 			"character": 33
@@ -7548,11 +7548,11 @@
 === 3 packages/svelte/tests/server-side-rendering/samples/css-injected-options-nested/Nested.svelte	json
 []
 
-=== 408 packages/svelte/tests/server-side-rendering/samples/css-injected-options-nested/main.svelte	json
+=== 331 packages/svelte/tests/server-side-rendering/samples/css-injected-options-nested/main.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Nested.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-4A887c/packages/svelte/tests/server-side-rendering/samples/css-injected-options-nested/Nested.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Nested.svelte'. 'packages/svelte/tests/server-side-rendering/samples/css-injected-options-nested/Nested.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 20

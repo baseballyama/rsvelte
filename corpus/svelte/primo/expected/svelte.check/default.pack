@@ -1,5 +1,5 @@
 # rsvelte pack 1
-=== 4642 src/lib/builder/Primo.svelte	json
+=== 4565 src/lib/builder/Primo.svelte	json
 [
 	{
 		"code": 2307,
@@ -27,7 +27,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './ui/IconButton.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/ui/IconButton.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './ui/IconButton.svelte'. 'src/lib/builder/ui/IconButton.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 4,
 			"character": 24
@@ -1021,7 +1021,7 @@
 	}
 ]
 
-=== 6165 src/lib/builder/components/Fields/FieldItem.svelte	json
+=== 6011 src/lib/builder/components/Fields/FieldItem.svelte	json
 [
 	{
 		"code": 2307,
@@ -1085,7 +1085,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Condition.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/components/Fields/Condition.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Condition.svelte'. 'src/lib/builder/components/Fields/Condition.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 8,
 			"character": 23
@@ -1097,7 +1097,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './ImageFieldOptions.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/components/Fields/ImageFieldOptions.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './ImageFieldOptions.svelte'. 'src/lib/builder/components/Fields/ImageFieldOptions.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 14,
 			"character": 31
@@ -1884,7 +1884,7 @@
 	}
 ]
 
-=== 2170 src/lib/builder/components/Fields/SelectField.svelte	json
+=== 2093 src/lib/builder/components/Fields/SelectField.svelte	json
 [
 	{
 		"code": 2307,
@@ -1900,7 +1900,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../../components/IconPicker.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/components/IconPicker.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../../components/IconPicker.svelte'. 'src/lib/builder/components/IconPicker.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 2,
 			"character": 24
@@ -3146,7 +3146,7 @@
 	}
 ]
 
-=== 7188 src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte	json
+=== 7034 src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte	json
 [
 	{
 		"code": 2307,
@@ -3222,7 +3222,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../../ui/Dropdown.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/ui/Dropdown.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../../ui/Dropdown.svelte'. 'src/lib/builder/ui/Dropdown.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 8,
 			"character": 23
@@ -3258,7 +3258,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../../components/IFrame.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/components/IFrame.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../../components/IFrame.svelte'. 'src/lib/builder/components/IFrame.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 11,
 			"character": 20
@@ -3668,7 +3668,7 @@
 	}
 ]
 
-=== 1834 src/lib/builder/field-types/IconField.svelte	json
+=== 1757 src/lib/builder/field-types/IconField.svelte	json
 [
 	{
 		"code": 2307,
@@ -3696,7 +3696,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../components/IconPicker.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/components/IconPicker.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../components/IconPicker.svelte'. 'src/lib/builder/components/IconPicker.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 24
@@ -3768,7 +3768,7 @@
 	}
 ]
 
-=== 3446 src/lib/builder/field-types/ImageField.svelte	json
+=== 3292 src/lib/builder/field-types/ImageField.svelte	json
 [
 	{
 		"code": 2307,
@@ -3796,7 +3796,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../ui/TextInput.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/ui/TextInput.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../ui/TextInput.svelte'. 'src/lib/builder/ui/TextInput.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 23
@@ -3808,7 +3808,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../ui/Spinner.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/ui/Spinner.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../ui/Spinner.svelte'. 'src/lib/builder/ui/Spinner.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 4,
 			"character": 21
@@ -5546,7 +5546,7 @@
 	}
 ]
 
-=== 1412 src/lib/builder/field-types/TextField.svelte	json
+=== 1335 src/lib/builder/field-types/TextField.svelte	json
 [
 	{
 		"code": 2307,
@@ -5562,7 +5562,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../ui/TextInput.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/ui/TextInput.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../ui/TextInput.svelte'. 'src/lib/builder/ui/TextInput.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 3,
 			"character": 23
@@ -6804,7 +6804,7 @@
 === 3 src/lib/builder/views/editor/LocaleSelector.svelte	json
 []
 
-=== 19550 src/lib/builder/views/editor/Page.svelte	json
+=== 19396 src/lib/builder/views/editor/Page.svelte	json
 [
 	{
 		"code": 2307,
@@ -6856,7 +6856,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Layout/BlockToolbar.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/views/editor/Layout/BlockToolbar.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Layout/BlockToolbar.svelte'. 'src/lib/builder/views/editor/Layout/BlockToolbar.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 8,
 			"character": 26
@@ -6868,7 +6868,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Layout/DropIndicator.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/views/editor/Layout/DropIndicator.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Layout/DropIndicator.svelte'. 'src/lib/builder/views/editor/Layout/DropIndicator.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 9,
 			"character": 27
@@ -7960,7 +7960,7 @@
 	}
 ]
 
-=== 22344 src/lib/builder/views/editor/PageType.svelte	json
+=== 22190 src/lib/builder/views/editor/PageType.svelte	json
 [
 	{
 		"code": 2307,
@@ -8024,7 +8024,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Layout/BlockToolbar-simple.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/views/editor/Layout/BlockToolbar-simple.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Layout/BlockToolbar-simple.svelte'. 'src/lib/builder/views/editor/Layout/BlockToolbar-simple.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 10,
 			"character": 26
@@ -8036,7 +8036,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './Layout/DropIndicator.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/views/editor/Layout/DropIndicator.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './Layout/DropIndicator.svelte'. 'src/lib/builder/views/editor/Layout/DropIndicator.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 11,
 			"character": 27
@@ -9296,7 +9296,7 @@
 	}
 ]
 
-=== 9073 src/lib/builder/views/editor/Toolbar.svelte	json
+=== 8996 src/lib/builder/views/editor/Toolbar.svelte	json
 [
 	{
 		"code": 2307,
@@ -9360,7 +9360,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './ToolbarButton.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/views/editor/ToolbarButton.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './ToolbarButton.svelte'. 'src/lib/builder/views/editor/ToolbarButton.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 7,
 			"character": 27
@@ -9795,7 +9795,7 @@
 === 3 src/lib/builder/views/editor/ToolbarButton.svelte	json
 []
 
-=== 6795 src/lib/builder/views/modal/BlockEditor.svelte	json
+=== 6718 src/lib/builder/views/modal/BlockEditor.svelte	json
 [
 	{
 		"code": 2307,
@@ -9835,7 +9835,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './SectionEditor/FullCodeEditor.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/views/modal/SectionEditor/FullCodeEditor.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './SectionEditor/FullCodeEditor.svelte'. 'src/lib/builder/views/modal/SectionEditor/FullCodeEditor.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 10,
 			"character": 28
@@ -10714,7 +10714,7 @@
 	}
 ]
 
-=== 2470 src/lib/builder/views/modal/PageTypeModal/PageTypeForm.svelte	json
+=== 2393 src/lib/builder/views/modal/PageTypeModal/PageTypeForm.svelte	json
 [
 	{
 		"code": 2307,
@@ -10754,7 +10754,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../../../components/IconPicker.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/components/IconPicker.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../../../components/IconPicker.svelte'. 'src/lib/builder/components/IconPicker.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 6,
 			"character": 24
@@ -10941,7 +10941,7 @@
 === 3 src/lib/builder/views/modal/SectionEditor/FullCodeEditor.svelte	json
 []
 
-=== 7392 src/lib/builder/views/modal/SectionEditor/SectionEditor.svelte	json
+=== 7238 src/lib/builder/views/modal/SectionEditor/SectionEditor.svelte	json
 [
 	{
 		"code": 2307,
@@ -10969,7 +10969,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module '../../../ui/LargeSwitch.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/ui/LargeSwitch.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module '../../../ui/LargeSwitch.svelte'. 'src/lib/builder/ui/LargeSwitch.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 9,
 			"character": 25
@@ -10981,7 +10981,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './FullCodeEditor.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qSmSeO/src/lib/builder/views/modal/SectionEditor/FullCodeEditor.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './FullCodeEditor.svelte'. 'src/lib/builder/views/modal/SectionEditor/FullCodeEditor.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 10,
 			"character": 28

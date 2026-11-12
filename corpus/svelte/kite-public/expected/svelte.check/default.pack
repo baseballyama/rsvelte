@@ -1142,7 +1142,7 @@
 === 3 src/lib/components/MapView.svelte	json
 []
 
-=== 599 src/lib/components/OnThisDay.svelte	json
+=== 522 src/lib/components/OnThisDay.svelte	json
 [
 	{
 		"code": 2307,
@@ -1158,7 +1158,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './onthisday/OnThisDaySkeleton.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-yzZYu5/src/lib/components/onthisday/OnThisDaySkeleton.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './onthisday/OnThisDaySkeleton.svelte'. 'src/lib/components/onthisday/OnThisDaySkeleton.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 4,
 			"character": 30

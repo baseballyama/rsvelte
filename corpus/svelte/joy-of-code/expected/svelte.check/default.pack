@@ -564,11 +564,11 @@
 	}
 ]
 
-=== 766 src/lib/ui/header/header.svelte	json
+=== 689 src/lib/ui/header/header.svelte	json
 [
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './logo.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-1S0fvM/src/lib/ui/header/logo.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './logo.svelte'. 'src/lib/ui/header/logo.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 1,
 			"character": 18
@@ -764,7 +764,7 @@
 === 3 src/lib/ui/header/search/search-icon.svelte	json
 []
 
-=== 1799 src/lib/ui/header/search/search.svelte	json
+=== 1722 src/lib/ui/header/search/search.svelte	json
 [
 	{
 		"code": 2307,
@@ -804,7 +804,7 @@
 	},
 	{
 		"code": 7016,
-		"message": "Could not find a declaration file for module './search-icon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-1S0fvM/src/lib/ui/header/search/search-icon.svelte' implicitly has an 'any' type.",
+		"message": "Could not find a declaration file for module './search-icon.svelte'. 'src/lib/ui/header/search/search-icon.svelte' implicitly has an 'any' type.",
 		"start": {
 			"line": 6,
 			"character": 24
