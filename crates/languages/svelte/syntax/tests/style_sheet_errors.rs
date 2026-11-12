@@ -9,7 +9,7 @@ fn a_style_sheet_error_alone_keeps_the_component() {
     let error = component
         .style_error()
         .expect("the style sheet does not parse");
-    assert_eq!(error.code, "css_parse_error");
+    assert_eq!(error.code, "css_expected_identifier");
     assert_eq!(component.root.len, 1);
 }
 
@@ -17,10 +17,10 @@ fn a_style_sheet_error_alone_keeps_the_component() {
 fn the_first_error_in_the_document_wins() {
     let style_first =
         parse(&format!("{BAD_STYLE}<div>{{</div>")).expect_err("the document does not parse");
-    assert_eq!(style_first.code, "css_parse_error");
+    assert_eq!(style_first.code, "css_expected_identifier");
     let markup_first =
         parse(&format!("<div>{{</div>{BAD_STYLE}")).expect_err("the document does not parse");
-    assert_ne!(markup_first.code, "css_parse_error");
+    assert_ne!(markup_first.code, "css_expected_identifier");
 }
 
 // Each verdict was checked against svelte 5's `compile`.
