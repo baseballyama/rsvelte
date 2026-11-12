@@ -33,7 +33,7 @@ impl Printer<'_, '_, '_> {
             {
                 self.preformatted(script.content)
             } else {
-                self.refuse_script_language(&script.attributes)?;
+                self.refuse_script_language(&script.attributes, script.content, true)?;
                 self.script_body(script.content)?
             };
             let attributes = self.tag_attributes(&script.attributes);

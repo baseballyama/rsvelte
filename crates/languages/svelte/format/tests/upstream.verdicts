@@ -205,8 +205,8 @@ pass	printer/svelte-head-script-content.html
 pass	printer/svelte-options-element.html
 pass	printer/svelte-self-element.html
 pass	printer/svelte-window-element.html
-refused	printer/template-empty-with-url.html	<template> with a language
-refused	printer/template-pug.html	<template> with a language
+pass	printer/template-empty-with-url.html
+pass	printer/template-pug.html
 pass	printer/text-html-entities.html
 pass	printer/textarea-preserve-whitespace.html
 pass	printer/toplevel-blocks.html

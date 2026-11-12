@@ -2397,6 +2397,15 @@
 ["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/fec25aeeddc26f64.svelte".skip]
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
+["svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/ebed4d1b2bd8825d.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads a `let:` on a `<slot>` outside a component's content from `$$slotProps` on the client and from no binding on the server, neither of which exists there"
+
+["svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/f864cc9d8fba5124.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads a `let:` on a `<slot>` outside a component's content from `$$slotProps` on the client and from no binding on the server, neither of which exists there"
+
+["svelte/rsvelte-tests-core-1/const_tag_cycle_error_span/const_tag_cycle_points_at_the_first_declaration_in_the_cycle/0be01fe38154ef62.svelte".skip]
+"svelte.compile" = "upstream bug: runes mode does not report `const_tag_cycle`: the client reads `b` in `a`'s derived before `b` is declared, and the server emits `const a = b; const b = a;`, which throws"
+
 ["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"

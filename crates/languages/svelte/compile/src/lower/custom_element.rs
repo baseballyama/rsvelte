@@ -1,5 +1,6 @@
 use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKey};
 use rsvelte_svelte_semantic::compiler_syntax_tree::AttributeValue;
+use rsvelte_svelte_semantic::template::custom_element_tag;
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 
 use super::template::single_expression;
@@ -171,51 +172,7 @@ fn validate_props(expression: &Expression<'_>, span: Span) -> Result<(), Diagnos
 }
 
 fn validate_tag(tag: &str, span: Span) -> Result<(), Diagnostic> {
-    if !tag.is_empty()
-        && (!tag.contains('-')
-            || !tag.starts_with(|c: char| c.is_ascii_lowercase())
-            || !tag.chars().all(is_tag_character))
-    {
-        return invalid("svelte_options_invalid_tagname", span);
-    }
-    if matches!(
-        tag,
-        "annotation-xml"
-            | "color-profile"
-            | "font-face"
-            | "font-face-src"
-            | "font-face-uri"
-            | "font-face-format"
-            | "font-face-name"
-            | "missing-glyph"
-    ) {
-        return invalid("svelte_options_reserved_tagname", span);
-    }
-    Ok(())
-}
-
-const fn is_tag_character(c: char) -> bool {
-    matches!(
-        c,
-        'a'..='z'
-            | '0'..='9'
-            | '_'
-            | '.'
-            | '-'
-            | '\u{b7}'
-            | '\u{c0}'..='\u{d6}'
-            | '\u{d8}'..='\u{f6}'
-            | '\u{f8}'..='\u{37d}'
-            | '\u{37f}'..='\u{1fff}'
-            | '\u{200c}'..='\u{200d}'
-            | '\u{203f}'..='\u{2040}'
-            | '\u{2070}'..='\u{218f}'
-            | '\u{2c00}'..='\u{2fef}'
-            | '\u{3001}'..='\u{d7ff}'
-            | '\u{f900}'..='\u{fdcf}'
-            | '\u{fdf0}'..='\u{fffd}'
-            | '\u{10000}'..='\u{effff}'
-    )
+    custom_element_tag(tag).map_or(Ok(()), |code| invalid(code, span))
 }
 
 fn invalid<T>(code: &'static str, span: Span) -> Result<T, Diagnostic> {

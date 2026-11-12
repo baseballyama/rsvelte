@@ -9,7 +9,7 @@ use super::{Cow, LayoutInstructionIdentifier, Printer, R, Span, TagAttributes, U
 impl Printer<'_, '_, '_> {
     /// The plugin's `getLangAttribute`: the decoded text of `lang`, else `type`, without a
     /// `text/` prefix, with the attribute's name.
-    fn language(&self, attributes: &[TagAttributes]) -> Option<(Span, Cow<'_, str>)> {
+    pub(super) fn language(&self, attributes: &[TagAttributes]) -> Option<(Span, Cow<'_, str>)> {
         let value = |name: &str| {
             attributes
                 .iter()
@@ -37,16 +37,29 @@ impl Printer<'_, '_, '_> {
         })
     }
 
-    /// The plugin's `getLangAttribute` names a language other than JavaScript or TypeScript: JSON
-    /// goes to Prettier's JSON printer, and any other body the plugin keeps when it does not parse.
-    pub(super) fn refuse_script_language(&self, attributes: &[TagAttributes]) -> R<()> {
+    /// The plugin's `embedScript` sends a body whose language ends in `json` or `importmap` to
+    /// Prettier's JSON printer, and any other to Babel, which formats what Svelte parsed as
+    /// JavaScript at the top level. A nested `<script>` Svelte does not parse, so the body Babel
+    /// may reject is refused, as is JSON; a blank body is never printed.
+    pub(super) fn refuse_script_language(
+        &self,
+        attributes: &[TagAttributes],
+        content: Span,
+        top_level: bool,
+    ) -> R<()> {
         let Some((at, lang)) = self.language(attributes) else {
             return Ok(());
         };
-        if matches!(
+        let blank = content
+            .text(self.source_text)
+            .trim_matches(is_ecmascript_whitespace)
+            .is_empty();
+        let json = lang.ends_with("json") || lang.ends_with("importmap");
+        let script = matches!(
             &*lang,
             "ts" | "typescript" | "js" | "javascript" | "module" | "application/javascript"
-        ) {
+        );
+        if blank || (!json && (top_level || script)) {
             Ok(())
         } else {
             Err(Unsupported::at(

@@ -4,6 +4,8 @@ use rsvelte_svelte_compile::Target;
 
 use super::{compile, compile_at};
 
+#[path = "errors/declarations.rs"]
+mod declarations;
 #[path = "errors/directives.rs"]
 mod directives;
 #[path = "errors/options.rs"]
