@@ -1,5 +1,5 @@
 //! svelte2tsx writes the instance script inside its render function, where TypeScript refuses a
-//! namespace or an ambient module; this projection keeps the script at the top level instead.
+//! namespace, an ambient module or a `declare`; this projection keeps the script at the top level.
 
 use oxc_ast::ast::{Declaration, Statement, TSNamespaceDeclarationKind};
 use oxc_span::GetSpan;
@@ -14,9 +14,15 @@ const AMBIENT_MODULE: (u32, &str) = (
     1234,
     "An ambient module declaration is only allowed at the top level in a file.",
 );
+/// svelte-check adds the second line to TypeScript's message.
+const DECLARE: (u32, &str) = (
+    1184,
+    "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script \
+     context=\"module\">..</script>",
+);
 
-/// TypeScript's finding for each namespace or ambient module the instance script declares at its
-/// top level, over the statement's first token.
+/// TypeScript's finding for each namespace, ambient module or other `declare` the instance script
+/// has at its top level, over the statement's first token.
 pub(super) fn instance(component: &Component) -> Vec<(Span, u32, &'static str)> {
     let Some(script) = &component.instance else {
         return Vec::new();
@@ -45,6 +51,20 @@ pub(super) fn instance(component: &Component) -> Vec<(Span, u32, &'static str)> 
                 }
                 Declaration::TSGlobalDeclaration(global) => {
                     (global.span.start, global.declare, "global", AMBIENT_MODULE)
+                }
+                // An exported declaration is a prop or is hoisted, as svelte2tsx decides.
+                _ if exported => return None,
+                Declaration::FunctionDeclaration(function) if function.declare => {
+                    (function.span.start, true, "", DECLARE)
+                }
+                Declaration::VariableDeclaration(variable) if variable.declare => {
+                    (variable.span.start, true, "", DECLARE)
+                }
+                Declaration::ClassDeclaration(class) if class.declare => {
+                    (class.span.start, true, "", DECLARE)
+                }
+                Declaration::TSEnumDeclaration(enumeration) if enumeration.declare => {
+                    (enumeration.span.start, true, "", DECLARE)
                 }
                 _ => return None,
             };
