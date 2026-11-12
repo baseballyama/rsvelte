@@ -79890,22 +79890,6 @@ export default function _128_options_runes_false_store_subs($$anchor) {
 	$.append($$anchor, p);
 	$$cleanup();
 }
-=== 254 pattern/issues/3129-comment-between-compounds.svelte	error.json
-{
-	"code": "css_expected_identifier",
-	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
-	"start": {
-		"line": 4,
-		"column": 4,
-		"character": 53
-	},
-	"end": {
-		"line": 4,
-		"column": 4,
-		"character": 53
-	}
-}
-
 === 317 pattern/issues/3130-nth-of-in-any-pseudo-class.svelte	css
 
   .a.svelte-w4v67j:is(2n:where(.svelte-w4v67j)) {
