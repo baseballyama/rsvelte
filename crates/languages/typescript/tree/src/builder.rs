@@ -4,7 +4,7 @@ use oxc_ast::ast::{
     TSTypeParameterDeclaration, VariableDeclaration,
 };
 use oxc_ast::builder::AstBuilder;
-use oxc_ast_visit::VisitMut;
+use oxc_ast_visit::{Visit, VisitMut};
 use oxc_diagnostics::{Diagnostics, OxcDiagnostic};
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, ParseOptions, Parser, Token};
@@ -12,6 +12,7 @@ use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
+use crate::syntax_error::{Operand, SyntaxError, javascript_stop, syntax_error};
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, Trees, TypeParametersIdentifier,
@@ -74,8 +75,15 @@ impl<'a> Builder<'a> {
         self.unchecked = codes;
     }
 
-    /// The first error of a part oxc read the host reports, if any.
-    fn check(&self, diagnostics: Diagnostics, fallback: u32, shift: u32) -> Result<(), Diagnostic> {
+    /// The first error of a part oxc read the host reports, if any; `tokens` and `visit` are the
+    /// part's, for where a JavaScript parser stops.
+    fn check(
+        &self,
+        diagnostics: Diagnostics,
+        (fallback, shift): (u32, u32),
+        tokens: &[Token],
+        visit: impl FnOnce(&mut Operand),
+    ) -> Result<(), SyntaxError> {
         let reported = |d: &OxcDiagnostic| {
             d.code.scope.as_deref() != Some("TS")
                 || d.code
@@ -87,11 +95,10 @@ impl<'a> Builder<'a> {
             .iter()
             .position(reported)
             .map_or(Ok(()), |first| {
-                Err(syntax_error(
-                    diagnostics.into_iter().skip(first),
-                    fallback,
-                    shift,
-                ))
+                let stop = javascript_stop(&diagnostics[first], tokens, visit);
+                let mut error = syntax_error(diagnostics.into_iter().skip(first), fallback, shift);
+                error.stop = stop.map(|stop| stop + shift);
+                Err(error)
             })
     }
 
@@ -141,7 +148,7 @@ impl<'a> Builder<'a> {
         &mut self,
         range: Span,
         source_type: SourceType,
-    ) -> Result<ProgramIdentifier, Diagnostic> {
+    ) -> Result<ProgramIdentifier, SyntaxError> {
         let text = &self.source_text[..range.end_offset as usize];
         self.parse_program(text, range.start_offset, source_type)
     }
@@ -152,7 +159,7 @@ impl<'a> Builder<'a> {
         text: &'a str,
         start: u32,
         source_type: SourceType,
-    ) -> Result<ProgramIdentifier, Diagnostic> {
+    ) -> Result<ProgramIdentifier, SyntaxError> {
         let parsed = Parser::new(self.allocator, text, source_type)
             .with_options(options())
             .with_config(TokensParserConfig)
@@ -161,7 +168,9 @@ impl<'a> Builder<'a> {
         if parsed.fatal_error {
             return Err(syntax_error(parsed.diagnostics, start, 0));
         }
-        self.check(parsed.diagnostics, start, 0)?;
+        let program = &parsed.program;
+        let visit = |operand: &mut Operand| operand.visit_program(program);
+        self.check(parsed.diagnostics, (start, 0), &parsed.tokens, visit)?;
         self.record(&parsed.tokens, &parsed.program.comments, 0);
         let mut program = parsed.program;
         // Its spans are the document's, so a task that reads text at a span reads the document.
@@ -180,7 +189,7 @@ impl<'a> Builder<'a> {
         &mut self,
         start: u32,
         source_type: SourceType,
-    ) -> Result<(ExpressionIdentifier, u32), Diagnostic> {
+    ) -> Result<(ExpressionIdentifier, u32), SyntaxError> {
         let (expression, end) = self.read_expression_at(start, source_type)?;
         Ok((self.keep_expression(expression), end))
     }
@@ -194,7 +203,7 @@ impl<'a> Builder<'a> {
         &mut self,
         start: u32,
         source_type: SourceType,
-    ) -> Result<(Expression<'a>, u32), Diagnostic> {
+    ) -> Result<(Expression<'a>, u32), SyntaxError> {
         self.read_expression_before(start, self.source_text.len() as u32, source_type)
     }
 
@@ -208,14 +217,16 @@ impl<'a> Builder<'a> {
         start: u32,
         limit: u32,
         source_type: SourceType,
-    ) -> Result<(Expression<'a>, u32), Diagnostic> {
+    ) -> Result<(Expression<'a>, u32), SyntaxError> {
         let text = &self.source_text[..limit as usize];
         let parsed = Parser::new(self.allocator, text, source_type)
             .with_options(options())
             .with_config(TokensParserConfig)
             .parse_expression_at(start)
             .map_err(|errors| syntax_error(errors, start, 0))?;
-        self.check(parsed.diagnostics, start, 0)?;
+        let expression = &parsed.expression;
+        let visit = |operand: &mut Operand| operand.visit_expression(expression);
+        self.check(parsed.diagnostics, (start, 0), &parsed.tokens, visit)?;
         self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
         Ok((parsed.expression, parsed.end))
@@ -248,7 +259,9 @@ impl<'a> Builder<'a> {
             .with_config(TokensParserConfig)
             .parse_statement_at(start)
             .map_err(|errors| syntax_error(errors, start, 0))?;
-        self.check(parsed.diagnostics, start, 0)?;
+        let statement = &parsed.statement;
+        let visit = |operand: &mut Operand| operand.visit_statement(statement);
+        self.check(parsed.diagnostics, (start, 0), &parsed.tokens, visit)?;
         self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
         Ok((parsed.statement, parsed.end))
@@ -405,7 +418,9 @@ impl<'a> Builder<'a> {
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
             .map_err(|errors| syntax_error(errors, 0, shift))?;
-        self.check(parsed.diagnostics, 0, shift)?;
+        let expression = &parsed.expression;
+        let visit = |operand: &mut Operand| operand.visit_expression(expression);
+        self.check(parsed.diagnostics, (0, shift), &parsed.tokens, visit)?;
         if !wrapper(&parsed.expression) {
             return Err(Diagnostic::error("parse_error", expected, range));
         }
@@ -517,29 +532,4 @@ fn options() -> ParseOptions {
         parse_regular_expression: true,
         ..ParseOptions::default()
     }
-}
-
-/// The first error, at the place oxc labels `shift` bytes later, or at `fallback` when it labels
-/// none.
-pub fn syntax_error(
-    errors: impl IntoIterator<Item = OxcDiagnostic>,
-    fallback: u32,
-    shift: u32,
-) -> Diagnostic {
-    let fallback = fallback + shift;
-    let Some(error) = errors.into_iter().next() else {
-        return Diagnostic::error(
-            "parse_error",
-            "invalid syntax",
-            Span::new(fallback, fallback),
-        );
-    };
-    let span = error.labels.first().map_or_else(
-        || Span::new(fallback, fallback),
-        |label| {
-            let start = label.offset() + shift;
-            Span::new(start, start + label.len())
-        },
-    );
-    Diagnostic::error("parse_error", error.message.to_string(), span)
 }

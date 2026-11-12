@@ -75,11 +75,9 @@ impl Semantic {
         Self(cell::Cell::new(tree, |tree| {
             let builder = Self::builder().with_scoping_allocator(SCOPINGS.take());
             let analysis = build(tree, builder);
-            let syntax_error = analysis
-                .diagnostics
-                .errors()
-                .next()
-                .map(|error| rsvelte_typescript_tree::syntax_error([error.clone()], 0, 0));
+            let syntax_error = analysis.diagnostics.errors().next().map(|error| {
+                rsvelte_typescript_tree::syntax_error([error.clone()], 0, 0).diagnostic
+            });
             Analyzed {
                 semantic: Some(analysis.semantic),
                 syntax_error,
