@@ -1810,3 +1810,36 @@
 
 ["svelte/rsvelte/pattern/issues/deferred-script-error-before-unclosed-block.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/4-indent/test01-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/4-indent/test01-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/style-directive01-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/style-directive01-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test01-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test01-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test02-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test02-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/test01-input.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/test01-output.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"
+
+["svelte/rsvelte-tests-formatter/style_directive_text_fill/a_collapsed_value_that_fits_puts_the_open_tag_on_one_line/c635ec0376937059.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx copies source text with a newline into a string literal, from the whitespace after an attribute name or from a style directive's text value, so svelte-check reports TS1002 and the errors after it"

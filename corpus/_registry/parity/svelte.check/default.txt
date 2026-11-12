@@ -20,16 +20,6 @@ svelte/carbon-components-svelte/tests/OverflowMenu/OverflowMenuItem.icons.test.s
 svelte/cnblocks/src/lib/components/base/TableOfContents.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-slot-types/valid/has-slot-types-with-alias01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-slot-types/valid/has-slot-types01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/4-indent/test01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/4-indent/test01-output.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/style-directive01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/style-directive01-output.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test01-output.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test02-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test02-output.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/test01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/test01-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion03-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion03-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-input.svelte	mismatch
@@ -973,7 +963,6 @@ svelte/rsvelte-tests-formatter/markup_cast_head_parens/type_operator_operand_mat
 svelte/rsvelte-tests-formatter/markup_cast_head_parens/type_operator_operand_matches_oracle/2747c6d54d9941b7.svelte	mismatch
 svelte/rsvelte-tests-formatter/markup_cast_head_parens/type_operator_operand_matches_oracle/3f98a0deb6534381.svelte	mismatch
 svelte/rsvelte-tests-formatter/render_neutral_divergences/a_style_close_tag_keeps_its_internal_whitespace/f9b7f23dbe8da7ae.svelte	mismatch
-svelte/rsvelte-tests-formatter/style_directive_text_fill/a_collapsed_value_that_fits_puts_the_open_tag_on_one_line/c635ec0376937059.svelte	mismatch
 svelte/rsvelte-tests-formatter/typescript/const_tag_typed_annotation_round_trips/83c927bbbf71c868.svelte	mismatch
 svelte/rsvelte-tests-formatter/typescript/const_tag_untyped_still_normalizes/a102e715fb6d3738.svelte	mismatch
 svelte/rsvelte-tests-formatter/typescript/mustache_ts_casts_round_trip/c904afe9a2df46cb.svelte	mismatch
