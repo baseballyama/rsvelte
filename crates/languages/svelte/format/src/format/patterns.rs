@@ -7,7 +7,7 @@ use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 use rsvelte_typescript_tree::PatternIdentifier;
 
-use super::{Printer, R, Span, Unsupported};
+use super::{Printer, R, Span, TokenType, Unsupported};
 
 /// The document position of an oxc node.
 pub(super) const fn span(span: oxc_span::Span) -> Span {
@@ -59,13 +59,18 @@ impl<'p> Value<'p, '_> {
 impl Printer<'_, '_, '_> {
     /// The plugin's `expandNode`: an `{#each}` or `{#await}` pattern on one line, each part after
     /// a space (` { a, b: [c] }`), with the root's type annotation as written.
-    pub(super) fn expand(&self, pattern: Option<PatternIdentifier>) -> R<String> {
+    pub(super) fn expand(&mut self, pattern: Option<PatternIdentifier>) -> R<String> {
         let mut out = String::new();
         let Some(pattern) = pattern else {
             return Ok(out);
         };
         let parameter = self.c.javascript.get_pattern(pattern);
         self.expand_pattern(&parameter.pattern, &mut out)?;
+        // `expandNode` prints the pattern from its nodes, without its comments.
+        let comments = (self.c.tokens.within(span(parameter.pattern.span())).iter())
+            .filter(|t| t.kind == TokenType::JavaScriptComment)
+            .map(|t| t.span);
+        self.embedder.dropped.extend(comments);
         // `expandNode` prints the root's annotation only and drops the others.
         if has_typescript(|f| f.visit_binding_pattern(&parameter.pattern)) {
             return Err(Unsupported::at(

@@ -186,8 +186,64 @@ fn a_doctype_and_empty_inline_elements_print_as_the_plugin_prints_them() {
 fn what_the_template_printer_cannot_place_yet_is_refused() {
     assert_eq!(
         refusal("<svelte:element this={/* a */ t}></svelte:element>\n"),
-        ("comments in the template's JavaScript", Some("/* a */"))
+        (
+            "a comment in `this`, which the plugin prints twice",
+            Some("/* a */")
+        )
     );
+    assert_eq!(
+        refusal("<span a // x\n>t</span>\n"),
+        (
+            "a comment after the last attribute where no line break follows",
+            Some("// x")
+        )
+    );
+    assert_eq!(
+        refusal("<div /* x\ny */ a></div>\n"),
+        (
+            "a comment on more than one line among attributes that may stay on one line",
+            Some("/* x\ny */")
+        )
+    );
+}
+
+#[test]
+fn a_comment_between_attributes_goes_with_the_attribute_as_the_plugin_attaches_it() {
+    // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    for (source_text, expected) in [
+        ("<div a /* x */ b></div>", "<div a /* x */ b></div>\n"),
+        (
+            "<div\n  a\n\n  // x\n\n  b\n></div>",
+            "<div\n  a\n  // x\n\n  b\n></div>\n",
+        ),
+        ("<div a // x\n></div>", "<div\n  a // x\n></div>\n"),
+        (
+            "<div a\n  /* x */></div>",
+            "<div\n  a\n  /* x */\n></div>\n",
+        ),
+        ("<input a // x\n/>", "<input\n  a // x\n/>\n"),
+        // In no attribute, or after the `>` the plugin's `indexOf` finds: dropped.
+        ("<div /* x */></div>", "<div></div>\n"),
+        ("<div a /* > */></div>", "<div a></div>\n"),
+    ] {
+        assert_eq!(formatted(source_text), expected, "{source_text}");
+    }
+}
+
+#[test]
+fn a_comment_the_plugin_prints_from_no_text_is_dropped() {
+    // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    for (source_text, expected) in [
+        (
+            "{#each xs as { a /* c */ }}{a}{/each}",
+            "{#each xs as { a }}{a}{/each}\n",
+        ),
+        ("{@debug a /* c */}", "{@debug a}\n"),
+        ("{/* c */ (a)}", "{a}\n"),
+        ("{(/* c */ a)}", "{/* c */ a}\n"),
+    ] {
+        assert_eq!(formatted(source_text), expected, "{source_text}");
+    }
 }
 
 #[test]

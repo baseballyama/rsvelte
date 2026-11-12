@@ -2,7 +2,7 @@ use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 
 use super::{
-    Cow, LayoutInstructionIdentifier, Printer, R, TemplateNode, TemplateNodeIdentifier,
+    Cow, LayoutInstructionIdentifier, Printer, R, TemplateNode, TemplateNodeIdentifier, TokenType,
     ends_with_linebreak, is_collapse_ws, only_ws, starts_with_linebreak,
 };
 
@@ -323,7 +323,12 @@ impl Printer<'_, '_, '_> {
                 let close = self.lit("}");
                 Ok(self.cat(&[open, d, close]))
             }
-            TemplateNode::Debug { identifiers, .. } => {
+            TemplateNode::Debug { identifiers, span } => {
+                // The plugin prints the names only.
+                let comments = (self.c.tokens.within(span).iter())
+                    .filter(|t| t.kind == TokenType::JavaScriptComment)
+                    .map(|t| t.span);
+                self.embedder.dropped.extend(comments);
                 let javascript = &self.c.javascript;
                 let names: Vec<&str> = self
                     .c
