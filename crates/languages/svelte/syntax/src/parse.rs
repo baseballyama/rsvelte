@@ -329,8 +329,10 @@ impl<'a> Parser<'a, '_> {
         self.token(TokenType::Whitespace, start_offset);
     }
 
+    /// Upstream's `require_whitespace`, over the input without its trailing whitespace.
     fn require_ws(&mut self) -> ParseResult<()> {
-        if !self.rest().starts_with(is_ecmascript_whitespace) {
+        if self.position >= self.trimmed_end() || !self.rest().starts_with(is_ecmascript_whitespace)
+        {
             return self.err("expected_whitespace", "Expected whitespace");
         }
         self.skip_ws();

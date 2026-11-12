@@ -1,4 +1,4 @@
-# svelte.format/default: 35567 match
+# svelte.format/default: 35568 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -515,7 +515,6 @@ svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_wher
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/f91c07a7d1ceda77.svelte	refused
 svelte/rsvelte-tests-core-2/early_errors_3243/the_analyze_phase_duplicate_check_is_still_reachable/1fb31d8590dd4b8b.svelte	refused
 svelte/rsvelte-tests-core-2/empty_expression_message_3319/valid_expressions_still_compile/a7f1bd0d52fce117.svelte	refused
-svelte/rsvelte-tests-core-2/expected_whitespace_2581/debug_tag_needs_no_separator/f9539a1b2894544d.svelte	refused
 svelte/rsvelte-tests-core-2/export_specifier_error_spans/export_undefined_points_at_the_whole_export_specifier/b9cd0b02029ce8d3.svelte	refused
 svelte/rsvelte-tests-core-2/import_assert_newline_3198/javascript_rejects_at_the_brace/404dfd40b20e4bfc.svelte	refused
 svelte/rsvelte-tests-core-2/import_assert_newline_3198/javascript_rejects_at_the_brace/f4319458422084af.svelte	refused
