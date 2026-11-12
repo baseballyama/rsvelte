@@ -62,13 +62,33 @@ pub fn emoji_measured_otherwise(s: &str) -> bool {
 /// The regex never takes a shorter sequence where a longer one matches, so this is its match.
 fn emoji_sequence(s: &str) -> Option<usize> {
     let first = &s[..s.chars().next()?.len_utf8()];
-    let start = emoji::SEQUENCES.partition_point(|q| *q < first);
-    emoji::SEQUENCES[start..]
-        .iter()
+    let count = EMOJI_SEQUENCES.len() / EMOJI_RECORD;
+    let mut low = 0;
+    let mut high = count;
+    while low < high {
+        let middle = usize::midpoint(low, high);
+        if emoji_sequence_at(middle) < first {
+            low = middle + 1;
+        } else {
+            high = middle;
+        }
+    }
+    (low..count)
+        .map(emoji_sequence_at)
         .take_while(|q| q.starts_with(first))
-        .filter(|q| s.starts_with(**q))
-        .map(|q| q.len())
+        .filter(|q| s.starts_with(*q))
+        .map(str::len)
         .max()
+}
+
+/// Prettier 3.9.10's emoji sequences of more than one character, sorted by their UTF-8, each
+/// padded with `.` to one record; expanded from its emoji regex (emoji-regex 10.6.0).
+static EMOJI_SEQUENCES: &str = include_str!("width/emoji_sequences.txt");
+/// The bytes of a record, its line feed included.
+const EMOJI_RECORD: usize = 36;
+
+fn emoji_sequence_at(i: usize) -> &'static str {
+    EMOJI_SEQUENCES[i * EMOJI_RECORD..(i + 1) * EMOJI_RECORD - 1].trim_end_matches('.')
 }
 
 /// Whether Prettier counts `c` alone as two columns.
@@ -98,5 +118,4 @@ pub(crate) fn is_printable_ascii(s: &str) -> bool {
 #[cfg(test)]
 mod tests;
 
-mod emoji;
 mod wide;

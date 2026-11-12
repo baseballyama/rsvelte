@@ -97,3 +97,19 @@ fn an_emoji_sequence_is_named_only_where_oxc_measures_it_otherwise() {
         assert!(emoji_measured_otherwise(text), "{text:?}");
     }
 }
+
+#[test]
+fn the_emoji_table_is_whole_sorted_records() {
+    let table = include_str!("emoji_sequences.txt");
+    assert_eq!(table.len() % super::EMOJI_RECORD, 0);
+    let records: Vec<&str> = (0..table.len() / super::EMOJI_RECORD)
+        .map(super::emoji_sequence_at)
+        .collect();
+    assert!(records.windows(2).all(|w| w[0] < w[1]));
+    assert!(
+        table
+            .as_bytes()
+            .chunks(super::EMOJI_RECORD)
+            .all(|r| r.ends_with(b"\n"))
+    );
+}
