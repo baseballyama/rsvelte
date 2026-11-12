@@ -73,7 +73,7 @@ fn bind_writes_and_member_writes_are_counted() {
     let a = symbol(&res, source, "a =");
     let b = symbol(&res, source, "b =");
     assert_eq!(res.writes(a), 1);
-    assert!(res.is_state_source(a));
+    assert!(res.is_state_source(a, false));
     assert_eq!(res.writes(b), 0);
     assert_eq!(res.mutations(b), 2);
 }
@@ -328,7 +328,7 @@ fn an_instance_export_specifier_reassigns_and_a_module_one_does_not() {
         assert!(res.reassigned(symbol), "{name}");
     }
     assert!(!res.reassigned(module_local));
-    assert!(res.is_state_source(counter));
+    assert!(res.is_state_source(counter, false));
     assert!(res.is_prop_source(prop));
     assert!(!res.binding(handler).is_function);
 }

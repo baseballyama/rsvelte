@@ -52,7 +52,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             _ => (source, None),
         };
-        let names = each_names(self.res, &self.each_scopes, getter);
+        let names = each_names(
+            self.res,
+            self.custom_element.is_some(),
+            &self.each_scopes,
+            getter,
+        );
         let mut reads = self.reads.clone();
         for &(symbol, _) in &names {
             reads.insert(symbol, Read::Plain);
@@ -157,11 +162,13 @@ pub(super) fn each_scopes(tree: &CompilerSyntaxTree, res: &Resolution) -> FxHash
 /// anything, even a property key.
 fn each_names<'e>(
     res: &Resolution,
+    accessors: bool,
     each_scopes: &FxHashSet<ScopeId>,
     e: &Expression<'e>,
 ) -> Vec<(SymbolId, &'e str)> {
     struct Names<'r, 'e> {
         res: &'r Resolution,
+        accessors: bool,
         each_scopes: &'r FxHashSet<ScopeId>,
         seen: FxHashSet<&'e str>,
         found: Vec<(SymbolId, &'e str)>,
@@ -179,7 +186,7 @@ fn each_names<'e>(
                 && self
                     .each_scopes
                     .contains(&self.res.scoping().symbol_scope_id(symbol))
-                && !self.res.is_state_source(symbol)
+                && !self.res.is_state_source(symbol, self.accessors)
                 && !matches!(
                     self.res.binding(symbol).kind,
                     BindingKind::Derived | BindingKind::DerivedBy
@@ -199,6 +206,7 @@ fn each_names<'e>(
     }
     let mut names = Names {
         res,
+        accessors,
         each_scopes,
         seen: FxHashSet::default(),
         found: Vec::new(),
