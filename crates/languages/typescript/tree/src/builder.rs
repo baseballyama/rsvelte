@@ -5,13 +5,13 @@ use oxc_ast::ast::{
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::VisitMut;
-use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, ParseOptions, Parser, Token};
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
+use crate::syntax_error::{SyntaxError, syntax_error};
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, Trees, TypeParametersIdentifier,
@@ -112,7 +112,7 @@ impl<'a> Builder<'a> {
         &mut self,
         range: Span,
         source_type: SourceType,
-    ) -> Result<ProgramIdentifier, Diagnostic> {
+    ) -> Result<ProgramIdentifier, SyntaxError> {
         let text = &self.source_text[..range.end_offset as usize];
         self.parse_program(text, range.start_offset, source_type)
     }
@@ -123,7 +123,7 @@ impl<'a> Builder<'a> {
         text: &'a str,
         start: u32,
         source_type: SourceType,
-    ) -> Result<ProgramIdentifier, Diagnostic> {
+    ) -> Result<ProgramIdentifier, SyntaxError> {
         let parsed = Parser::new(self.allocator, text, source_type)
             .with_options(options())
             .with_config(TokensParserConfig)
@@ -150,7 +150,7 @@ impl<'a> Builder<'a> {
         &mut self,
         start: u32,
         source_type: SourceType,
-    ) -> Result<(ExpressionIdentifier, u32), Diagnostic> {
+    ) -> Result<(ExpressionIdentifier, u32), SyntaxError> {
         let (expression, end) = self.read_expression_at(start, source_type)?;
         Ok((self.keep_expression(expression), end))
     }
@@ -164,7 +164,7 @@ impl<'a> Builder<'a> {
         &mut self,
         start: u32,
         source_type: SourceType,
-    ) -> Result<(Expression<'a>, u32), Diagnostic> {
+    ) -> Result<(Expression<'a>, u32), SyntaxError> {
         self.read_expression_before(start, self.source_text.len() as u32, source_type)
     }
 
@@ -178,7 +178,7 @@ impl<'a> Builder<'a> {
         start: u32,
         limit: u32,
         source_type: SourceType,
-    ) -> Result<(Expression<'a>, u32), Diagnostic> {
+    ) -> Result<(Expression<'a>, u32), SyntaxError> {
         let text = &self.source_text[..limit as usize];
         let parsed = Parser::new(self.allocator, text, source_type)
             .with_options(options())
@@ -216,7 +216,7 @@ impl<'a> Builder<'a> {
             .with_options(options())
             .with_config(TokensParserConfig)
             .parse_statement_at(start)
-            .map_err(|errors| syntax_error(errors, start, 0))?;
+            .map_err(|errors| syntax_error(errors, start, 0).diagnostic)?;
         self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
         Ok((parsed.statement, parsed.end))
@@ -372,7 +372,7 @@ impl<'a> Builder<'a> {
             .with_options(options())
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
-            .map_err(|errors| syntax_error(errors, 0, shift))?;
+            .map_err(|errors| syntax_error(errors, 0, shift).diagnostic)?;
         if !wrapper(&parsed.expression) {
             return Err(Diagnostic::error("parse_error", expected, range));
         }
@@ -484,29 +484,4 @@ fn options() -> ParseOptions {
         parse_regular_expression: true,
         ..ParseOptions::default()
     }
-}
-
-/// The first error, at the place oxc labels `shift` bytes later, or at `fallback` when it labels
-/// none.
-pub fn syntax_error(
-    errors: impl IntoIterator<Item = OxcDiagnostic>,
-    fallback: u32,
-    shift: u32,
-) -> Diagnostic {
-    let fallback = fallback + shift;
-    let Some(error) = errors.into_iter().next() else {
-        return Diagnostic::error(
-            "parse_error",
-            "invalid syntax",
-            Span::new(fallback, fallback),
-        );
-    };
-    let span = error.labels.first().map_or_else(
-        || Span::new(fallback, fallback),
-        |label| {
-            let start = label.offset() + shift;
-            Span::new(start, start + label.len())
-        },
-    );
-    Diagnostic::error("parse_error", error.message.to_string(), span)
 }

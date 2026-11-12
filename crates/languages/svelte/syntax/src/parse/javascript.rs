@@ -1,10 +1,11 @@
 use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, SyntaxError, javascript_stop};
 
 use super::identifier::{identifier_len, is_reserved};
-use super::{ParseResult, Parser, javascript_error};
+use super::{ParseResult, Parser, javascript_error, svelte_error};
 use crate::syntax_tree::TokenType;
 
 impl<'a> Parser<'a, '_> {
@@ -32,12 +33,42 @@ impl<'a> Parser<'a, '_> {
     pub(super) fn read_expression_before(&mut self, limit: u32) -> ParseResult<Expression<'a>> {
         let start_offset = self.position as u32;
         let source_type = self.source_type();
-        let (expression, next) = self
-            .builder
-            .read_expression_before(start_offset, limit, source_type)
-            .map_err(javascript_error)?;
+        let range = Span::new(start_offset, limit);
+        let (expression, next) =
+            match self
+                .builder
+                .read_expression_before(start_offset, limit, source_type)
+            {
+                Ok(read) => read,
+                Err(error) => {
+                    let stop = javascript_stop(self.source_text, &error, range, true, source_type)
+                        .ok_or_else(|| javascript_error(error.into()))?;
+                    // Acorn's expression ends where it stops, and the template goes on from there.
+                    let truncated =
+                        (self.builder).read_expression_before(start_offset, stop, source_type);
+                    // Inside brackets the operand alone does not parse, and acorn fails at the
+                    // stop.
+                    let Ok((expression, _)) = truncated else {
+                        return Err(unexpected_token(stop));
+                    };
+                    (expression, stop)
+                }
+            };
         self.javascript_region(start_offset, next);
         Ok(expression)
+    }
+
+    /// Upstream's error for `error` in `range`: Acorn stops at TypeScript-only syntax.
+    #[cold]
+    pub(super) fn javascript_failure(
+        &self,
+        error: SyntaxError,
+        range: Span,
+        expression: bool,
+    ) -> Diagnostic {
+        let source_type = self.source_type();
+        javascript_stop(self.source_text, &error, range, expression, source_type)
+            .map_or_else(|| javascript_error(error.into()), unexpected_token)
     }
 
     pub(super) fn identifier(&mut self) -> ParseResult<ExpressionIdentifier> {
@@ -72,4 +103,10 @@ impl<'a> Parser<'a, '_> {
         }
         Ok(self.builder.keep_expression(expression))
     }
+}
+
+/// Acorn's error at a token it cannot read.
+#[cold]
+fn unexpected_token(at: u32) -> Diagnostic {
+    svelte_error("js_parse_error", "Unexpected token", Span::new(at, at))
 }

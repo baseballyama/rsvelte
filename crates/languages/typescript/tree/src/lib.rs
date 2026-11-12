@@ -16,7 +16,9 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
 
 mod builder;
-pub use builder::{Builder, Recorded, syntax_error};
+pub use builder::{Builder, Recorded};
+mod syntax_error;
+pub use syntax_error::{SyntaxError, javascript_stop, syntax_error};
 
 pub mod scratch;
 pub use scratch::with_scratch_arena;
@@ -178,7 +180,9 @@ impl Tree {
     ) -> Result<(Self, ProgramIdentifier), Diagnostic> {
         Self::build(&document.text, |builder| {
             let text = builder.source_text();
-            builder.parse_program(text, 0, source_type)
+            builder
+                .parse_program(text, 0, source_type)
+                .map_err(Diagnostic::from)
         })
     }
 
