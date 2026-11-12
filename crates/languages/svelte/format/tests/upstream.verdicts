@@ -96,7 +96,7 @@ pass	printer/element-with-text.html
 pass	printer/element.html
 pass	printer/empty-elements-no-newline.html
 pass	printer/empty-elements.html
-refused	printer/event-handler-comments.html	comments in the template's JavaScript
+pass	printer/event-handler-comments.html
 pass	printer/event-handler-with-expression.html
 pass	printer/event-handler.html
 pass	printer/event-with-modifier.html
