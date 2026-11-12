@@ -117,14 +117,7 @@ impl P<'_> {
 
     fn value_tokens(&mut self, property: Span) -> R<std::ops::Range<u32>> {
         let first = self.value_tokens.len() as u32;
-        let text = property.text(self.source_text);
-        let text = text
-            .strip_prefix("-webkit-")
-            .or_else(|| text.strip_prefix("-moz-"))
-            .or_else(|| text.strip_prefix("-o-"))
-            .unwrap_or(text);
-        let collect =
-            text.eq_ignore_ascii_case("animation") || text.eq_ignore_ascii_case("animation-name");
+        let collect = crate::properties::names_keyframes(property.text(self.source_text));
         while let Some(c) = self.peek() {
             match c {
                 c if c.is_ascii_whitespace() => self.whitespace(),

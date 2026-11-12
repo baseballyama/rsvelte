@@ -1,4 +1,4 @@
-use super::{is_known, longhands, vendor_prefix};
+use super::{is_known, longhands, names_keyframes, vendor_prefix, without_browser_prefix};
 
 #[test]
 fn known_properties_come_from_the_vendored_list() {
@@ -19,4 +19,34 @@ fn a_vendor_prefix_is_a_dash_a_word_and_a_dash() {
 fn shorthands_list_their_longhands() {
     assert!(longhands("margin").contains(&"margin-top"));
     assert_eq!(longhands("color").len(), 0);
+}
+
+// Svelte 5 lowercases the property as JavaScript does, then removes the browser prefix.
+#[test]
+fn an_animation_property_names_keyframes() {
+    for property in [
+        "animation",
+        "ANIMATION-NAME",
+        "-ms-animation",
+        "-WEBKIT-ANIMATION",
+        "-WEB\u{212a}IT-ANIMATION",
+    ] {
+        assert!(names_keyframes(property), "{property}");
+    }
+    for property in ["-khtml-animation", "animation-duration"] {
+        assert!(!names_keyframes(property), "{property}");
+    }
+}
+
+#[test]
+fn a_browser_prefix_is_removed_as_written() {
+    assert_eq!(without_browser_prefix("-ms-keyframes"), "keyframes");
+    assert_eq!(
+        without_browser_prefix("-WEBKIT-keyframes"),
+        "-WEBKIT-keyframes"
+    );
+    assert_eq!(
+        without_browser_prefix("-khtml-keyframes"),
+        "-khtml-keyframes"
+    );
 }
