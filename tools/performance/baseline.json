@@ -23,8 +23,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 30347018,
-	"alloc_bytes": 4462614793,
+	"allocs": 30347064,
+	"alloc_bytes": 4462625595,
 	"peak_live_growth_bytes": 3489263,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -35,7 +35,7 @@
 		"js.print": {
 			"calls": 69509,
 			"allocs": 208549,
-			"alloc_bytes": 139106053
+			"alloc_bytes": 139106111
 		},
 		"no-unused-vars": {
 			"calls": 35029,
@@ -44,23 +44,23 @@
 		},
 		"svelte.analyze": {
 			"calls": 40129,
-			"allocs": 332746,
-			"alloc_bytes": 38391432
+			"allocs": 332758,
+			"alloc_bytes": 38391488
 		},
 		"svelte.compile.warnings": {
 			"calls": 73724,
-			"allocs": 1177444,
-			"alloc_bytes": 92091065
+			"allocs": 1177410,
+			"alloc_bytes": 92086777
 		},
 		"svelte.compile/client": {
 			"calls": 36862,
-			"allocs": 93168,
-			"alloc_bytes": 13185607
+			"allocs": 93164,
+			"alloc_bytes": 13184985
 		},
 		"svelte.compile/server": {
 			"calls": 36862,
-			"allocs": 93167,
-			"alloc_bytes": 13185669
+			"allocs": 93163,
+			"alloc_bytes": 13185047
 		},
 		"svelte.compileModule/client": {
 			"calls": 2680,
@@ -80,7 +80,7 @@
 		"svelte.css": {
 			"calls": 33837,
 			"allocs": 45669,
-			"alloc_bytes": 5178048
+			"alloc_bytes": 5178094
 		},
 		"svelte.format/default": {
 			"calls": 36862,
@@ -94,13 +94,13 @@
 		},
 		"svelte.lower.client": {
 			"calls": 36439,
-			"allocs": 5744254,
-			"alloc_bytes": 497061698
+			"allocs": 5744260,
+			"alloc_bytes": 497061903
 		},
 		"svelte.lower.server": {
 			"calls": 36439,
-			"allocs": 4070424,
-			"alloc_bytes": 391675253
+			"allocs": 4070434,
+			"alloc_bytes": 391675514
 		},
 		"svelte.output_identity": {
 			"calls": 34914,
@@ -184,13 +184,13 @@
 		},
 		"vuelte.translate": {
 			"calls": 53466,
-			"allocs": 4118103,
-			"alloc_bytes": 518618004
+			"allocs": 4118129,
+			"alloc_bytes": 518619296
 		},
 		"vuelte.vapor": {
 			"calls": 50826,
-			"allocs": 5828559,
-			"alloc_bytes": 906551456
+			"allocs": 5828593,
+			"alloc_bytes": 906565872
 		}
 	},
 	"instructions": {
