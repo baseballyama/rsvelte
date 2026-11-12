@@ -15,7 +15,7 @@ impl Parser<'_, '_> {
         let mut type_parameters = None;
         if self.typescript && self.peek() == Some(b'<') {
             let Some(len) = match_bracket(self.rest(), b'<', b'>') else {
-                return self.err("expected `>`");
+                return self.expected_token(">");
             };
             type_parameters = Some(Span::new(
                 self.position as u32,
@@ -41,7 +41,7 @@ impl Parser<'_, '_> {
                 i += 1;
             }
             if i == bytes.len() {
-                return self.err("expected `)`");
+                return self.expected_token(")");
             }
             let span = Span::new(start as u32, i as u32);
             let source_type = self.source_type();
@@ -55,7 +55,9 @@ impl Parser<'_, '_> {
             self.eat_token(TokenType::JavaScript(Kind::RParen), 1);
         }
         self.close_mustache()?;
-        let body = self.fragment(End::Block)?;
+        let body = self.fragment(End::Block {
+            start: start_offset as u32,
+        })?;
         self.block_end("snippet")?;
         let span = Span::new(start_offset as u32, self.position as u32);
         Ok(self.push_node(TemplateNode::Snippet {

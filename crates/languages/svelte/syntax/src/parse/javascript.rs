@@ -1,6 +1,5 @@
 use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;
-use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
@@ -12,7 +11,7 @@ impl<'a> Parser<'a, '_> {
     pub(super) fn close_mustache(&mut self) -> ParseResult<()> {
         self.skip_ws();
         if self.peek() != Some(b'}') {
-            return self.err("expected `}`");
+            return self.expected_token("}");
         }
         self.eat_token(TokenType::MustacheClose, 1);
         Ok(())
@@ -45,7 +44,7 @@ impl<'a> Parser<'a, '_> {
         let start_offset = self.position;
         let len = self.binding_name_len()?;
         if len == 0 {
-            return self.err("expected an identifier");
+            return self.err("expected_identifier", "Expected an identifier");
         }
         let span = Span::new(start_offset as u32, (start_offset + len) as u32);
         self.expression_in(span)
@@ -56,14 +55,10 @@ impl<'a> Parser<'a, '_> {
         let len = identifier_len(self.rest());
         let word = &self.rest()[..len];
         if is_reserved(word) {
-            return Err(Diagnostic::error(
+            return self.err(
                 "unexpected_reserved_word",
-                format!(
-                    "'{word}' is a reserved word in JavaScript and cannot be used here\n\
-                     https://svelte.dev/e/unexpected_reserved_word"
-                ),
-                Span::new(self.position as u32, self.position as u32),
-            ));
+                format_args!("'{word}' is a reserved word in JavaScript and cannot be used here"),
+            );
         }
         Ok(len)
     }
@@ -73,7 +68,7 @@ impl<'a> Parser<'a, '_> {
         self.position = span.start_offset as usize;
         let expression = self.read_expression_before(span.end_offset)?;
         if expression.span().end != span.end_offset {
-            return Self::err_at(span, "expected one expression");
+            return Self::err_at(span, "parse_error", "expected one expression");
         }
         Ok(self.builder.keep_expression(expression))
     }

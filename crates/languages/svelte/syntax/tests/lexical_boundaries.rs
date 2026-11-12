@@ -94,7 +94,7 @@ fn debug_tags_keep_single_and_multiple_identifiers() {
 fn unterminated_values_report_the_utf8_byte_offset() {
     let source = "<div title=\"日本語🙂";
     let error = parse(source).expect_err("unterminated quote");
-    assert_eq!(error.message, "unexpected end of input");
+    assert_eq!(error.code, "unexpected_eof");
     assert_eq!(error.span.start_offset as usize, source.len());
 }
 
@@ -277,4 +277,15 @@ fn a_textarea_end_tag_runs_to_its_first_greater_than_sign() {
     assert_eq!(component.nodes[*p as usize].span().start_offset, 54);
     // Without whitespace after the name it is text, as in upstream's parse.
     parse("<textarea>a</textareax>b</textarea></textarea\t>").unwrap_err();
+}
+
+#[test]
+fn script_content_is_found_past_comments_and_other_tags() {
+    use rsvelte_svelte_syntax::parse::in_script_content;
+    let source = "<!-- <script>no</script> --><p>{a}</p><script lang=\"ts\">enum E {}</script>{b}";
+    let at = |needle: &str| source.find(needle).expect("in the source") as u32;
+    assert!(!in_script_content(source, at("no")));
+    assert!(!in_script_content(source, at("{a}")));
+    assert!(in_script_content(source, at("enum")));
+    assert!(!in_script_content(source, at("{b}")));
 }
