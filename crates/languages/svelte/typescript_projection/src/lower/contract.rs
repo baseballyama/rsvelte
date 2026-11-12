@@ -318,10 +318,9 @@ impl Builder<'_> {
             if let Some(span) = annotation {
                 return Ok(self.tree.push(Node::SourceCopy { span }));
             }
-            return Err(Unsupported::at(
-                "untyped props object contracts",
-                span(pattern.span()),
-            ));
+            // svelte2tsx names an undeclared `$$ComponentProps` here, which TypeScript reads as
+            // `any`.
+            return Ok(self.tree.push(Node::Identifier("any")));
         };
         let mut required = Buffer::new(0);
         let mut optional = Buffer::new(0);

@@ -1,4 +1,4 @@
-use rsvelte_kernel::source::positions::Span;
+use rsvelte_kernel::source::positions::{LineBreaks, Span};
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::TagAttributes;
@@ -86,7 +86,7 @@ impl SvelteRule for BlockLang {
         // when the line is shorter, since a position past it does not exist.
         let first_line = file
             .context
-            .ecmascript_line_index()
+            .lines(LineBreaks::Ecmascript)
             .line_span(1)
             .expect("a first line")
             .text(source);

@@ -1,6 +1,6 @@
 use oxc_parser::Kind;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_javascript_whitespace;
-use rsvelte_kernel::source::positions::Span;
+use rsvelte_kernel::source::positions::{LineBreaks, Span};
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{TemplateNode, TokenType};
@@ -36,7 +36,7 @@ impl SvelteRule for NoTrailingSpaces {
         let component = file.component().expect("a component rule");
         let source = file.source();
         // `sourceCode.lines`.
-        let lines = file.context.ecmascript_line_index();
+        let lines = file.context.lines(LineBreaks::Ecmascript);
         let line_of = |offset: u32| lines.line(offset) as usize - 1;
         let mut ignored = vec![false; lines.line_count()];
         // Lines a token spans, the last one included or not.

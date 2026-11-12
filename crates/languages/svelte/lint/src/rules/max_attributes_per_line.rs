@@ -1,3 +1,4 @@
+use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
@@ -52,7 +53,7 @@ impl SvelteRule for MaxAttributesPerLine {
         let component = file.component().expect("a component rule");
         let tokens = &component.tokens;
         let source = file.source();
-        let lines = file.context.ecmascript_line_index();
+        let lines = file.context.lines(LineBreaks::Ecmascript);
         let line = |offset: u32| lines.line(offset);
         let mut report = |attribute: TagAttribute<'_>| {
             let gap = whitespace_before(tokens, attribute.span.start_offset);

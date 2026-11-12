@@ -8,7 +8,6 @@
 
 <script lang="ts">
 	let value = $state('');
-	const props = $props();
 </script>
 
-<p title={value}>{props.a}</p>
+<p title={value}>{#if value}<svelte:self />{/if}</p>
