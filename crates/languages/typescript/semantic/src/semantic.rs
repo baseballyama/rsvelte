@@ -7,7 +7,7 @@
 use oxc_semantic::{AstNodes, Scoping, SemanticBuilder, SemanticBuilderReturn};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_typescript_tree::scratch::{Arenas, Pool};
-use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
+use rsvelte_typescript_tree::{ProgramIdentifier, SyntaxError, Tree};
 
 thread_local! {
     static SCOPING_ARENAS: Arenas = const { Arenas::new(Vec::new()) };
@@ -40,7 +40,7 @@ struct Analyzed<'a> {
     semantic: Option<oxc_semantic::Semantic<'a>>,
     /// The first error a module rejects that the parser does not: `delete x`, a name declared
     /// twice, an octal escape, ….
-    syntax_error: Option<Diagnostic>,
+    syntax_error: Option<Box<SyntaxError>>,
 }
 
 /// The scope analysis of one document.
@@ -75,8 +75,14 @@ impl Semantic {
         Self(cell::Cell::new(tree, |tree| {
             let builder = Self::builder().with_scoping_allocator(SCOPINGS.take());
             let analysis = build(tree, builder);
-            let syntax_error = analysis.diagnostics.errors().next().map(|error| {
-                rsvelte_typescript_tree::syntax_error([error.clone()], 0, 0).diagnostic
+            let text = tree.source_text();
+            let syntax_error = (analysis.diagnostics.errors().next()).map(|error| {
+                Box::new(rsvelte_typescript_tree::syntax_error(
+                    [error.clone()],
+                    text,
+                    0,
+                    0,
+                ))
             });
             Analyzed {
                 semantic: Some(analysis.semantic),
@@ -111,7 +117,14 @@ impl Semantic {
     /// The first error a module rejects that the parser does not report.
     #[must_use]
     pub fn syntax_error(&self) -> Option<&Diagnostic> {
-        self.0.borrow_dependent().syntax_error.as_ref()
+        self.javascript_syntax_error()
+            .map(|error| &error.diagnostic)
+    }
+
+    /// [`Self::syntax_error`], with what acorn reports for it.
+    #[must_use]
+    pub fn javascript_syntax_error(&self) -> Option<&SyntaxError> {
+        self.0.borrow_dependent().syntax_error.as_deref()
     }
 
     /// Every node with its parent and scope.

@@ -12,6 +12,7 @@ mod element_rules;
 mod fragment;
 mod identifier;
 mod javascript;
+pub use javascript::javascript_failure;
 mod pattern;
 mod script;
 mod sequence;

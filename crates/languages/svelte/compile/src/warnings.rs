@@ -35,8 +35,10 @@ impl Artifact for Warned {
             return Ok(Vec::new());
         };
         // The compile fails at parse time, before any warning.
-        if let Some(error) = resolution.syntax_error() {
-            return Err(error.clone());
+        if let Some(error) = resolution.javascript_syntax_error() {
+            return Err(rsvelte_svelte_syntax::parse::javascript_failure(
+                error.clone(),
+            ));
         }
         let Some(compiler_syntax_tree) = context.get::<Lowered>().as_ref() else {
             return Ok(Vec::new());
