@@ -7,7 +7,7 @@ mod declarations;
 pub(super) mod markup;
 mod runes;
 
-pub(super) use runes::{check_runes, rejects_binding};
+pub(super) use runes::{check_runes, rejects_binding, script_error};
 
 /// Whether oxc's `error` is a name declared again outside the scripts.
 pub(super) fn redeclares_in_template(input: &CompileInput<'_>, error: &Diagnostic) -> bool {
@@ -68,7 +68,7 @@ pub(super) fn check_analysis(
     if errors
         .iter()
         .any(|(raised, _)| raised.section == Section::Template)
-        && let Some((module, error)) = runes::script_error(input, res, custom_element)
+        && let Some((module, error)) = script_error(input, res, custom_element)
     {
         let section = if module {
             Section::Module
