@@ -18,6 +18,7 @@ mod assignments;
 mod calls;
 mod exports;
 mod places;
+mod references;
 
 use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
 use places::place_of;
@@ -116,6 +117,9 @@ struct RuneWalk<'a> {
     classes: Vec<ClassFields>,
     /// Where each `{@const}` tag's declaration starts.
     const_tags: FxHashSet<u32>,
+    /// The `{expression}` tag around the template expression being walked, which upstream
+    /// visits as the expression's parent.
+    tag: Option<oxc_span::Span>,
 }
 
 /// A template root: an expression, or a `{@const}` declaration.
@@ -157,6 +161,7 @@ pub(in crate::lower) fn check_runes(
         refused: None,
         classes: Vec::new(),
         const_tags: FxHashSet::default(),
+        tag: None,
     };
     if let Some(module) = input.component.module {
         walk.root = place(true, false);
@@ -190,6 +195,15 @@ pub(in crate::lower) fn check_runes(
             _ => None,
         })
         .collect();
+    let tags: FxHashMap<ExpressionIdentifier, oxc_span::Span> = (tree.nodes.iter())
+        .filter_map(|n| match n.kind {
+            NodeKind::Expression { expression } => Some((
+                expression,
+                oxc_span::Span::new(n.span.start_offset, n.span.end_offset),
+            )),
+            _ => None,
+        })
+        .collect();
     let mut template: Vec<(u32, Root<'_>)> = (javascript.expressions())
         .map(|(identifier, e)| (e.span().start, Root::Expression(identifier, e)))
         .chain((javascript.declarations()).map(|(_, d)| (d.span.start, Root::Declaration(d))))
@@ -203,6 +217,7 @@ pub(in crate::lower) fn check_runes(
         }
         match root {
             Root::Expression(identifier, e) => {
+                walk.tag = tags.get(&identifier).copied();
                 if let Some(&(span, this)) = binds.get(&identifier)
                     && let Err(error) = walk.check_binding(e, span, this)
                 {
@@ -211,7 +226,10 @@ pub(in crate::lower) fn check_runes(
                 }
                 walk.visit_expression(e);
             }
-            Root::Declaration(d) => walk.visit_variable_declaration(d),
+            Root::Declaration(d) => {
+                walk.tag = None;
+                walk.visit_variable_declaration(d);
+            }
         }
     }
     match (walk.error, walk.refused) {
@@ -377,6 +395,7 @@ impl<'a> RuneWalk<'a> {
                     return state_field_invalid_assignment(span_of(p));
                 }
             }
+            AstKind::IdentifierReference(reference) => self.check_rune_reference(reference)?,
             AstKind::LabeledStatement(labeled)
                 if labeled.label.name == "$"
                     && !place.module
