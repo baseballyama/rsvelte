@@ -1,9 +1,8 @@
-# svelte.check/default: 35299 match
+# svelte.check/default: 35308 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/animotion/src/lib/components/slides.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/lib/components/code.svelte	mismatch
-svelte/appwrite-console/src/lib/components/menu/subMenu.svelte	mismatch
 svelte/appwrite-console/src/lib/components/roles/default.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sidesheet.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
@@ -1372,14 +1371,6 @@ svelte/svelte-commerce/src/routes/(www)/order-tracking/+page.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/attach04-ts-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/ts-event02-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/ts-event02-type-output.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-$$slots01-input.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-$$slots01-type-output.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-$$slots02-no-slot-input.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-$$slots02-no-slot-type-output.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-$$slots03-named-input.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-$$slots03-named-type-output.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-$$slots04-named-input.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-$$slots04-named-type-output.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-event02-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-event02-type-output.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-event04-input.svelte	mismatch

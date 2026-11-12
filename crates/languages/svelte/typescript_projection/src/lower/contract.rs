@@ -49,6 +49,9 @@ impl Builder<'_> {
                     replacement: Some(snippets),
                 });
             }
+            if let Some(flags) = self.slot_flags(script.content.start_offset) {
+                edits.push(flags);
+            }
             for statement in &program.body {
                 let Some(declaration) =
                     self.instance_export(statement, &mut exports, &mut edits)?
@@ -576,4 +579,5 @@ impl Builder<'_> {
 }
 
 mod siblings;
+mod slot_flags;
 use siblings::Siblings;
