@@ -113,3 +113,12 @@ fn the_emoji_table_is_whole_sorted_records() {
             .all(|r| r.ends_with(b"\n"))
     );
 }
+
+#[test]
+fn every_emoji_sequence_continues_with_a_character_the_filter_lets_through() {
+    let table = include_str!("emoji_sequences.txt");
+    for record in (0..table.len() / super::EMOJI_RECORD).map(super::emoji_sequence_at) {
+        let second = record.chars().nth(1).expect("more than one character");
+        assert!(super::continues_emoji_sequence(second), "{record:?}");
+    }
+}

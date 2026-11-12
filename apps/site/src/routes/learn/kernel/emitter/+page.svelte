@@ -55,10 +55,10 @@
 <div class="prose-learn">
 	<p>
 		位置の対応はまだ {data.counter.mappings.length} 個しかなく、すべて点です<Note
-			>図のデータは、ビルドのたびに <code
+			>図のデータを作るのは <code
 				>crates/languages/svelte/site/src/bin/export_site_source_maps.rs</code
 			>
-			で作ります。コンパイルタスク自体は、今は位置の対応をファイルに書き出しません。</Note
+			です。ビルドのたびに作ります。コンパイルタスク自体は、今は位置の対応をファイルに書き出しません。</Note
 		>。同じ入力を公式の Svelte コンパイラ 5.57.3 でコンパイルすると、source map
 		のセグメント（位置の対応を表す項目）は 24 個になります<Note
 			>rsvelte の <code>source_map</code>

@@ -19,7 +19,6 @@ use crate::compiler_syntax_tree::CompilerSyntaxTree;
 use crate::resolve::{Resolution, Roots, TemplateName, TemplateScope};
 
 mod a11y;
-mod css_analysis;
 mod exports;
 mod found;
 mod fuzzymatch;
@@ -28,6 +27,7 @@ mod runes;
 mod script;
 mod selectors;
 mod setup;
+mod stylesheet_analysis;
 mod template;
 #[cfg(test)]
 mod tests;
@@ -358,7 +358,7 @@ pub fn warnings(
         unused_exports(component, resolution, source, &mut found);
     }
     if let Some(Ok(sheet)) = component.style.as_ref().map(|s| &s.sheet)
-        && let Some(found) = css_analysis::first_error(&sheet.rules, source)
+        && let Some(found) = stylesheet_analysis::first_error(&sheet.rules, source)
     {
         let raised = Raised {
             phase: Phase::Stylesheet,

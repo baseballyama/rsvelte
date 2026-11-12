@@ -373,17 +373,24 @@ fn matches_parent<E: Element>(
     }
 }
 
-fn compound<E: Element>(source_text: &str, rel: &RelativeSelector, el: E) -> Match {
-    let mut result = Match::Yes;
-    // Svelte matches only the `:has(...)` of a compound that holds `:root`.
+/// The selectors of a compound that Svelte tests against an element: only the `:has(...)` of a
+/// compound that holds `:root`.
+pub fn tested<'a>(
+    source_text: &'a str,
+    rel: &'a RelativeSelector,
+) -> impl Iterator<Item = &'a Simple> {
     let root = rel
         .simple
         .iter()
         .any(|s| s.is_pseudo(source_text, &["root"]));
-    for s in &rel.simple {
-        if root && !s.is_pseudo(source_text, &["has"]) {
-            continue;
-        }
+    rel.simple
+        .iter()
+        .filter(move |s| !root || s.is_pseudo(source_text, &["has"]))
+}
+
+fn compound<E: Element>(source_text: &str, rel: &RelativeSelector, el: E) -> Match {
+    let mut result = Match::Yes;
+    for s in tested(source_text, rel) {
         let m = match s {
             Simple::NamespacedType { name, .. } if el.text(source_text, *name) == "*" => Match::Yes,
             Simple::Type(name) | Simple::NamespacedType { name, .. } => match el.tag_name() {
