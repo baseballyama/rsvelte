@@ -130,6 +130,7 @@ impl Builder<'_> {
     /// the component's `$$Slots` when it declares one.
     pub(super) fn slot_call(
         &mut self,
+        tag_start: u32,
         attributes: Range,
         properties: NodeIdentifier,
     ) -> Result<NodeIdentifier> {
@@ -139,7 +140,11 @@ impl Builder<'_> {
             .iter()
             .find(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "name");
         let name = match named.map(|a| (a, a.value)) {
-            None => self.tree.push(Node::StringLiteral("default")),
+            // svelte2tsx reports a default slot `$$Slots` lacks at the start of its tag.
+            None => self.tree.push(Node::StringLiteralAt {
+                value: "default",
+                at: tag_start,
+            }),
             Some((a, AttributeValue::Parts(parts))) => match self.component.parts(parts) {
                 &[Part::Text(text)] => {
                     let text = self.tree.push(Node::Text(text));

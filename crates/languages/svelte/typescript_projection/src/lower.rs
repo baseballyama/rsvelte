@@ -385,7 +385,10 @@ impl Builder<'_> {
                     || self.fills_slot_with_lets(children),
             )
         } else if slot {
-            (self.slot_call(attributes, properties)?, None)
+            (
+                self.slot_call(start_tag.start_offset, attributes, properties)?,
+                None,
+            )
         } else {
             (
                 self.element_call(name, attributes, &directives.action_names, properties),

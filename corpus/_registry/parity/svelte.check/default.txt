@@ -1,4 +1,4 @@
-# svelte.check/default: 35308 match
+# svelte.check/default: 35312 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/animotion/src/lib/components/slides.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
@@ -15,8 +15,6 @@ svelte/bits-ui/docs/src/lib/components/doc-page.svelte	mismatch
 svelte/bits-ui/packages/bits-ui/src/lib/bits/select/components/select.svelte	mismatch
 svelte/carbon-components-svelte/tests/OverflowMenu/OverflowMenuItem.icons.test.svelte	mismatch
 svelte/cnblocks/src/lib/components/base/TableOfContents.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-slot-types/valid/has-slot-types-with-alias01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-slot-types/valid/has-slot-types01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-input.svelte	mismatch
@@ -916,8 +914,6 @@ svelte/rsvelte-tests/rsvelte_language_server/tsgo_overlay/tests/an_unparseable_s
 svelte/rsvelte-tests/rsvelte_language_server/tsgo_response/tests/prospective_shadow_alias_uses_old_projection_and_new_visible_uri/bf3cf11d49c306d5.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/tsgo_response/tests/semantic_tokens_decode_map_filter_sort_and_reencode_utf16/ac0b9b0db711bce6.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/tsgo_symbols/tests/generated_snippet_functions_go_and_template_functions_the_user_wrote_stay/297bbd8238f2200b.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_lint/experimental_and_dispatcher/slot_types_valid_cases/a283dd2772c812c9.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_lint/experimental_and_dispatcher/slot_types_valid_cases/e27ea9b7e5f536a1.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_lint/non_ascii_word_boundary/event_prefix_type_name_is_not_matched_by_a_non_ascii_suffixed_type/24da32669426728e.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_lint/rules/experimental_require_slot_types/tests/comment_decoy_still_reports/3cee2f25e21e6b74.svelte	refused
 svelte/rsvelte-tests/rsvelte_lint/rules/experimental_require_slot_types/tests/declared_interface_is_ok/3e6475a86aba596d.svelte	refused
