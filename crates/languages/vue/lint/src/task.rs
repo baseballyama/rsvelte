@@ -3,6 +3,7 @@ use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_vue_semantic::Resolved;
 use rsvelte_vue_syntax::Parsed;
 
@@ -69,10 +70,9 @@ impl Task for Lint {
         };
         rsvelte_lint_runner::output::report(
             out,
-            context.ecmascript_line_index(),
-            context.source_text(),
+            context.lines(LineBreaks::Ecmascript),
             self.rules.iter().map(|rule| rule.rule.identifier()),
-            &findings,
+            findings,
         );
     }
 }

@@ -2,7 +2,7 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::{Document, DocumentError};
-use rsvelte_kernel::source::positions::Span;
+use rsvelte_kernel::source::positions::{LineBreaks, Span};
 use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 
@@ -29,17 +29,18 @@ pub(crate) fn check(
     file: &File<'_>,
     configuration: &Configuration,
 ) -> Result<Vec<Finding>, Diagnostic> {
-    let running: Vec<Running<'_>> = configuration
-        .rules()
-        .iter()
-        .filter(|rule| applies(rule, file))
-        .map(Running)
-        .collect();
     let mut findings = Findings::new();
-    findings.run(&running, file);
+    findings.run(
+        configuration
+            .rules()
+            .iter()
+            .filter(|rule| applies(rule, file))
+            .map(Running),
+        file,
+    );
     let mut findings = findings.finish()?;
     // Directive lines are `ESLint`'s, which any ECMAScript line terminator ends.
-    let lines = file.context.ecmascript_line_index();
+    let lines = file.context.lines(LineBreaks::Ecmascript);
     let source = file.source();
     directives::apply_javascript(&mut findings, &comments(file), source, lines);
     let Some(component) = file.component() else {

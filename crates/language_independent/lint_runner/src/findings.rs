@@ -20,20 +20,16 @@ impl Findings {
     }
 
     /// Runs `rules` over one layer's context, in order.
-    pub fn run<'r, C, R>(
-        &mut self,
-        rules: impl IntoIterator<Item = &'r R>,
-        context: &C,
-    ) -> &mut Self
+    pub fn run<C, R>(&mut self, rules: impl IntoIterator<Item = R>, context: &C) -> &mut Self
     where
         C: ?Sized,
-        R: Rule<C> + ?Sized + 'r,
+        R: Rule<C>,
     {
         for rule in rules {
             let _phase = measurement::phase(rule.identifier());
             rule.check(
                 context,
-                &mut Reporter::new(rule, &mut self.out, &mut self.failure),
+                &mut Reporter::new(&rule, &mut self.out, &mut self.failure),
             );
         }
         self

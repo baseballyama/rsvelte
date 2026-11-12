@@ -1,10 +1,10 @@
 use std::path::Path;
 use std::process::ExitCode;
 
+use rsvelte_corpus::task_files::diagnostics_json;
 use rsvelte_kernel::computation::pipeline::{DocumentResult, RunOptions, Sharing};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::{Severity, apply_fixes};
-use rsvelte_kernel::task_files::diagnostics_json;
 
 use crate::usage;
 
@@ -32,7 +32,7 @@ pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str], fix: bool) -
             .outputs
             .iter()
             .flat_map(|(_, out)| &out.findings)
-            .filter_map(|finding| finding.fix.as_ref());
+            .map(|finding| finding.fix.as_slice());
         let fixed = apply_fixes(&text, replacements);
         if fixed == text {
             break result;

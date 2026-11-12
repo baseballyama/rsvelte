@@ -12,6 +12,7 @@ mod element_rules;
 mod fragment;
 mod identifier;
 mod javascript;
+pub use javascript::javascript_failure;
 mod pattern;
 mod script;
 mod sequence;
@@ -140,11 +141,11 @@ fn acorn_message(message: &str) -> std::borrow::Cow<'_, str> {
     }
 }
 
-/// Upstream's error `code`, whose message ends with the link to its docs; an error of these
-/// parsers' own, `parse_error` or `css_parse_error`, has no docs page.
+/// Upstream's error `code`, whose message ends with the link to its docs; an error of this
+/// parser's own, `parse_error`, has no docs page.
 #[cold]
 fn svelte_error(code: &'static str, message: impl std::fmt::Display, span: Span) -> Diagnostic {
-    let message = if matches!(code, "parse_error" | "css_parse_error") {
+    let message = if code == "parse_error" {
         message.to_string()
     } else {
         format!("{message}\nhttps://svelte.dev/e/{code}")

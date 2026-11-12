@@ -284,12 +284,10 @@ fn typescript_in_blocks_matches_the_plugin() {
             "{input}"
         );
     }
+    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
     assert_eq!(
-        refusal(&format!(
-            "{typescript}{{#snippet f<T>(a: T)}}x{{/snippet}}\n"
-        ))
-        .0,
-        "a snippet's type parameters"
+        formatted("<script lang=\"ts\"></script>\n{#snippet s<T,U>(a)}x{/snippet}\n"),
+        "<script lang=\"ts\"></script>\n\n{#snippet s<T, U>(a)}x{/snippet}\n"
     );
     assert_eq!(
         refusal("{#each xs as {...{a}}}x{/each}\n").0,
@@ -481,4 +479,37 @@ fn a_script_or_style_inside_an_element_is_embedded_as_the_plugin_embeds_it() {
     ] {
         assert_eq!(formatted(input), expected, "{input:?}");
     }
+}
+
+#[test]
+fn a_script_babel_rejects_is_kept_as_written_and_the_rest_formatted() {
+    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    let script = "<script>\n\tfunction f() { continue; }\n\tlet   x =  1\n</script>\n";
+    assert_eq!(
+        formatted(&format!("{script}<div   class=\"a\"  >{{x+1}}</div>\n")),
+        format!("{script}\n<div class=\"a\">{{x + 1}}</div>\n")
+    );
+    // Prettier's TypeScript parser recovers, and the port does not know what it prints.
+    assert_eq!(
+        refusal("<script lang=\"ts\">\n\tfunction f() { continue; }\n</script>\n<p>x</p>\n").0,
+        "code a module rejects"
+    );
+}
+
+#[test]
+fn a_lone_carriage_return_is_a_line_break_as_prettier_reads_it() {
+    // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    assert_eq!(
+        formatted("<script>\rlet a=1\r</script>\r<p>{a}</p>\r"),
+        "<script>\n  let a = 1;\n</script>\n\n<p>{a}</p>\n"
+    );
+    let auto = options(r#"{"endOfLine": "auto"}"#);
+    assert_eq!(
+        formatted_with("<p>a</p>\r<p>b</p>\r", &auto),
+        "<p>a</p>\r<p>b</p>\r"
+    );
+    assert_eq!(
+        formatted_with("<p>a</p>\r\n<p>b</p>\r<i>c</i>\n", &auto),
+        "<p>a</p>\r\n<p>b</p>\r\n<i>c</i>\r\n"
+    );
 }

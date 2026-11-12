@@ -8,7 +8,7 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::{Document, DocumentError};
-use rsvelte_kernel::source::positions::Span;
+use rsvelte_kernel::source::positions::{LineBreaks, Span};
 use rsvelte_plugin_interface::Function;
 
 use crate::computation::CompileConfiguration;
@@ -93,7 +93,7 @@ pub fn compile(source: &str, options: &CompileOptions) -> Result<CompileResult, 
     let compiled = crate::task::compiled(&context, options.generate, true)?;
     let map = compiled
         .javascript
-        .source_map(context.line_index(), &options.filename);
+        .source_map(context.lines(LineBreaks::Newline), &options.filename);
     Ok(CompileResult {
         js: JavaScript {
             code: compiled.javascript.out,

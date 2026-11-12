@@ -1,5 +1,11 @@
 use super::*;
 
+fn bounded_debug(value: &impl fmt::Debug) -> String {
+    let mut out = Bounded::new();
+    let written = write!(out, "{value:#?}");
+    out.finish(written)
+}
+
 #[test]
 fn disabled_plugins_and_empty_operations_run_nothing() {
     for (plugins, tasks) in [("", "format"), ("svelte", ""), ("vue", "format")] {
@@ -48,4 +54,10 @@ fn input_errors_are_reported() {
     assert!(json.contains(r#""diagnostics":[{"code":"#), "{json}");
     let json = run("", "App.svelte", "unknown", "format", true);
     assert!(json.contains(r#""ok":false"#), "{json}");
+}
+
+#[test]
+fn a_page_lints() {
+    let json = run("<button></button>", "App.svelte", "svelte", "lint", true);
+    assert!(json.contains("svelte/button-has-type"), "{json}");
 }

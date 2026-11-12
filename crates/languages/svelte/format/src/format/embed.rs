@@ -27,7 +27,10 @@ impl Printer<'_, '_, '_> {
         let mut hoisted = Vec::new();
         for script in c.module.iter().chain(&c.instance) {
             let comments = self.leading_comments(&mut root, script.span.start_offset);
-            let body = if self.ignores(&comments) || self.unsupported(&script.attributes) {
+            let body = if self.ignores(&comments)
+                || self.unsupported(&script.attributes)
+                || self.unparsed_script == Some(script.content)
+            {
                 self.preformatted(script.content)
             } else {
                 self.refuse_script_language(&script.attributes)?;
