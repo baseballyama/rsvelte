@@ -25,11 +25,39 @@ type R<T> = Result<T, ParseError>;
 /// [`ParseError`] at the first syntax error: an unterminated comment, a missing brace, or a
 /// malformed selector or declaration.
 pub fn parse(source_text: &str, content: Span) -> R<StyleSheet> {
+    read(
+        source_text,
+        content.start_offset as usize,
+        content.end_offset as usize,
+        None,
+    )
+}
+
+/// Parses the style sheet that starts at `start` and ends before the first `close` between its
+/// rules, or at the end of `source_text`.
+///
+/// It reads the sheet of an element that ends where its sheet does, so a `close` inside a string,
+/// a `url()` or a comment is the sheet's.
+///
+/// # Errors
+///
+/// [`ParseError`] at the first syntax error, as [`parse`] returns it.
+pub fn parse_until(source_text: &str, start: u32, close: &str) -> R<StyleSheet> {
+    read(
+        source_text,
+        start as usize,
+        source_text.len(),
+        Some(close.as_bytes()),
+    )
+}
+
+fn read(source_text: &str, start: usize, end: usize, close: Option<&[u8]>) -> R<StyleSheet> {
     let mut p = P {
         b: source_text.as_bytes(),
         source_text,
-        position: content.start_offset as usize,
-        end: content.end_offset as usize,
+        position: start,
+        end,
+        close,
         comments: Vec::new(),
         whitespace: Vec::new(),
         comment_closers: Vec::new(),
@@ -44,7 +72,7 @@ pub fn parse(source_text: &str, content: Span) -> R<StyleSheet> {
     };
     let rules = p.rules(false)?;
     Ok(StyleSheet {
-        content,
+        content: Span::new(start as u32, p.position as u32),
         rules: rules.into_boxed_slice(),
         comments: p.comments,
         whitespace: p.whitespace.into_boxed_slice(),
@@ -63,6 +91,7 @@ struct P<'a> {
     source_text: &'a str,
     position: usize,
     end: usize,
+    close: Option<&'a [u8]>,
     comments: Vec<Span>,
     whitespace: Vec<Span>,
     comment_closers: Vec<Span>,
@@ -86,6 +115,11 @@ impl P<'_> {
             message: message.to_owned(),
             span: Span::new(self.position as u32, self.position as u32),
         })
+    }
+
+    fn at_close(&self) -> bool {
+        self.close
+            .is_some_and(|close| self.b[self.position..self.end].starts_with(close))
     }
 
     fn peek(&self) -> Option<u8> {
@@ -263,6 +297,7 @@ impl P<'_> {
             self.skip_trivia()?;
             match self.peek() {
                 None if !nested => return Ok(rules),
+                Some(_) if !nested && self.at_close() => return Ok(rules),
                 None => return self.fail("expected `}`"),
                 Some(b'}') if nested => return Ok(rules),
                 Some(b'@') => push(&mut rules, self.at_rule()?),

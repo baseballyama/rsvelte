@@ -13,7 +13,7 @@ mod stores;
 mod writes;
 
 pub(super) use classes::Classes;
-pub(super) use exports::Export;
+pub(super) use exports::{Export, default_exports};
 use oxc_allocator::{CloneIn, GetAllocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, ClassBody, Declaration, Expression, Function,
@@ -138,7 +138,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
         let get = || b.runtime(if var() { "safe_get" } else { "get" }, [x()]);
         match (self.target, info.kind) {
             (Target::Client, BindingKind::State | BindingKind::RawState)
-                if self.res.is_state_source(symbol) =>
+                if self.res.is_state_source(symbol, self.accessors) =>
             {
                 Some(get())
             }
@@ -515,7 +515,7 @@ pub(super) fn lower_script<'t, 'o>(
             Statement::ExportNamedDeclaration(export)
                 if let ScriptContext::Instance { exports } = &mut context =>
             {
-                exports::check_specifiers(rw.res, export, exports)?;
+                exports::push_specifiers(rw.res, export, exports);
             }
             // TypeScript keeps an export of types only as `export {}`, which oxc's emit drops.
             Statement::ExportNamedDeclaration(export)

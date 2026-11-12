@@ -1,6 +1,6 @@
 use oxc_syntax::operator::{BinaryOperator, UnaryOperator};
 
-use super::{Value, bigint, to_int32};
+use super::{Value, bigint, pow, to_int32};
 
 pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> {
     use BinaryOperator::{
@@ -49,7 +49,7 @@ pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> 
         Mul => num(|x, y| x * y),
         Div => num(|x, y| x / y),
         Remainder => num(|x, y| x % y),
-        Exp => num(f64::powf),
+        Exp => num(pow),
         BitAnd => int(|x, y| x & y),
         BitOr => int(|x, y| x | y),
         BitXor => int(|x, y| x ^ y),

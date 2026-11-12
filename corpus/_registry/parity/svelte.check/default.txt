@@ -1,4 +1,4 @@
-# svelte.check/default: 34907 match
+# svelte.check/default: 34910 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/animotion/src/lib/components/slides.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
@@ -320,7 +320,6 @@ svelte/rsvelte-tests-core-2/malformed_markup_positions/malformed_markup_reports_
 svelte/rsvelte-tests-core-2/malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/5326bec40f64f765.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/5fe5d773ee7f35e7.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/671d2aac388388af.svelte	mismatch
-svelte/rsvelte-tests-core-2/malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/6c3ce9ac0a3ff519.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/8625bd4fa8b495e5.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/88bdbae875580e09.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/943d5f1ebb615ee7.svelte	mismatch
@@ -454,7 +453,6 @@ svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_sin
 svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_a_trailing_comment_is_content/b799d45c01a456cc.svelte	mismatch
 svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_an_attribute_selector_value_is_content/e1d926c94d7529d3.svelte	mismatch
 svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_inside_an_unquoted_url_is_content/e40e97f4d6a6be6c.svelte	mismatch
-svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/a_closing_tag_with_a_space_before_the_bracket_is_content/5c2c2e9d9a7148a8.svelte	mismatch
 svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/an_escaped_quote_does_not_reopen_the_string/dd4791d121b63c3e.svelte	mismatch
 svelte/rsvelte-tests-core-3/style_terminator_3593/a_bare_terminator_inside_a_rule_is_a_css_error/ff8caef21871e90a.svelte	mismatch
 svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_comment_is_a_comment/4af889e4d7e202d4.svelte	mismatch
@@ -1798,7 +1796,6 @@ svelte/rsvelte/pattern/issues/3209-lone-lt.svelte	mismatch
 svelte/rsvelte/pattern/issues/3210-slash-before-attribute.svelte	mismatch
 svelte/rsvelte/pattern/issues/3210-unterminated-comment.svelte	mismatch
 svelte/rsvelte/pattern/issues/3210-unterminated-script.svelte	mismatch
-svelte/rsvelte/pattern/issues/3210-unterminated-style.svelte	mismatch
 svelte/rsvelte/pattern/issues/3219-closing-tag-eof.svelte	mismatch
 svelte/rsvelte/pattern/issues/3219-html-tag-eof.svelte	mismatch
 svelte/rsvelte/pattern/issues/3241-unterminated-comment.svelte	mismatch

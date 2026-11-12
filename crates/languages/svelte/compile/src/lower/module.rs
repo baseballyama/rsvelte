@@ -13,8 +13,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
 
 use super::{
-    Builder, CompileInput, Erasure, Target, check_runes, client, prepare, script,
-    validate_erased_by,
+    Builder, CompileInput, Target, Unit, check_runes, client, prepare, script, validate_unit,
 };
 
 /// The module of one target, in `allocator`; its spans index the module's text.
@@ -28,7 +27,7 @@ pub(crate) fn lower_module<'o>(
     target: Target,
     allocator: &'o Allocator,
 ) -> Result<Program<'o>, Diagnostic> {
-    let validated = validate_erased_by(input, res, Erasure::TypeScript)?;
+    let validated = validate_unit(input, res, Unit::Module)?;
     check_runes(input, res, target, false)?;
     let component = &input.component;
     let program = component
