@@ -6,9 +6,9 @@
 
 use std::borrow::Cow;
 
-use crate::computation::task::TaskOutput;
-use crate::output::structured_data::StructuredDataWriter;
-use crate::source::positions::LineIndex;
+use rsvelte_kernel::computation::task::TaskOutput;
+use rsvelte_kernel::output::structured_data::StructuredDataWriter;
+use rsvelte_kernel::source::positions::LineIndex;
 
 /// The extension of the diagnostics file.
 pub(crate) const DIAGNOSTICS: &str = "diagnostics.json";

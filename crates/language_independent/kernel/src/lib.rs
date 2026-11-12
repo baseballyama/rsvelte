@@ -10,7 +10,6 @@
 //! 5. `computation::task`
 //! 6. `computation::registry`
 //! 7. `computation::pipeline`
-//! 8. `task_files`
 
 /// Registration, cached computation, and task execution.
 pub mod computation {
@@ -43,4 +42,3 @@ pub mod source {
     pub mod positions;
     pub mod tokens;
 }
-pub mod task_files;
