@@ -235,7 +235,7 @@ pub(crate) fn validate_unit(
     if unit == Unit::Component {
         errors.extend(script::default_exports(input));
     }
-    validation::check_analysis(input, res, &names, errors)?;
+    validation::check_analysis(input, res, &names, errors, custom_element.is_some())?;
     let hoistable = snippets::hoistable(input, res, &names);
     snippets::check_exports(input, res, &hoistable)?;
     const_cycles::check(input, res)?;

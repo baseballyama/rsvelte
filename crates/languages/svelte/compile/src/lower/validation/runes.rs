@@ -2,8 +2,9 @@
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    AssignmentTarget, BindingPattern, Expression, ForStatementLeft, MemberExpression,
-    MethodDefinitionKind, Statement, VariableDeclaration, VariableDeclarator,
+    AssignmentTarget, BindingPattern, Expression, ForStatementLeft, ImportDeclaration,
+    ImportDeclarationSpecifier, MemberExpression, MethodDefinitionKind, ModuleExportName,
+    Statement, VariableDeclaration, VariableDeclarator,
 };
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
@@ -18,6 +19,7 @@ mod assignments;
 mod calls;
 mod exports;
 mod places;
+mod references;
 
 use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
 use places::place_of;
@@ -116,6 +118,11 @@ struct RuneWalk<'a> {
     classes: Vec<ClassFields>,
     /// Where each `{@const}` tag's declaration starts.
     const_tags: FxHashSet<u32>,
+    /// The expression tag whose expression the walk is in.
+    tag: Option<Span>,
+    /// Where the arrow functions of the `bind:` pair the walk is in start: upstream analyzes
+    /// their bodies as the template expression.
+    bind_arrows: [Option<u32>; 2],
 }
 
 /// A template root: an expression, or a `{@const}` declaration.
@@ -140,32 +147,7 @@ pub(in crate::lower) fn check_runes(
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
     let javascript = input.component.javascript;
-    let place = |module, rendering| Place {
-        parent: Parent::Other,
-        module,
-        rendering,
-    };
-    let mut walk = RuneWalk {
-        res,
-        target,
-        custom_element,
-        props: false,
-        props_id: false,
-        root: place(false, false),
-        frames: Vec::new(),
-        error: None,
-        refused: None,
-        classes: Vec::new(),
-        const_tags: FxHashSet::default(),
-    };
-    if let Some(module) = input.component.module {
-        walk.root = place(true, false);
-        walk.visit_program(javascript.get_program(module));
-    }
-    if let Some(instance) = input.component.instance {
-        walk.root = place(false, true);
-        walk.visit_program(javascript.get_program(instance));
-    }
+    let mut walk = walk_scripts(input, res, target, custom_element);
     // Upstream checks a binding's target where it visits the directive, before the expression.
     let tree = input.component.compiler_syntax_tree;
     let binds: FxHashMap<ExpressionIdentifier, (Span, bool)> = (tree.nodes.iter())
@@ -179,6 +161,12 @@ pub(in crate::lower) fn check_runes(
                 target,
                 (a.span, a.name.text(input.component.source_text) == "this"),
             )),
+            _ => None,
+        })
+        .collect();
+    let tags: FxHashMap<ExpressionIdentifier, Span> = (tree.nodes.iter())
+        .filter_map(|n| match n.kind {
+            NodeKind::Expression { expression } => Some((expression, n.span)),
             _ => None,
         })
         .collect();
@@ -196,7 +184,11 @@ pub(in crate::lower) fn check_runes(
         .collect();
     // The tree keeps them in the order the parser met them, which is not the document's.
     template.sort_by_key(|&(start, _)| start);
-    walk.root = place(false, true);
+    walk.root = Place {
+        parent: Parent::Other,
+        module: false,
+        rendering: true,
+    };
     for (_, root) in template {
         if walk.error.is_some() {
             break;
@@ -209,15 +201,84 @@ pub(in crate::lower) fn check_runes(
                     walk.error = Some(error);
                     break;
                 }
+                walk.tag = tags.get(&identifier).copied();
+                walk.bind_arrows = match e {
+                    Expression::SequenceExpression(pair) if binds.contains_key(&identifier) => {
+                        let mut arrows = pair.expressions.iter().map(|e| match e {
+                            Expression::ArrowFunctionExpression(arrow) => Some(arrow.span.start),
+                            _ => None,
+                        });
+                        [arrows.next().flatten(), arrows.next().flatten()]
+                    }
+                    _ => [None; 2],
+                };
                 walk.visit_expression(e);
             }
-            Root::Declaration(d) => walk.visit_variable_declaration(d),
+            Root::Declaration(d) => {
+                walk.tag = None;
+                walk.visit_variable_declaration(d);
+            }
         }
     }
     match (walk.error, walk.refused) {
         (Some(error), _) | (None, Some(error)) => Err(error),
         (None, None) => Ok(()),
     }
+}
+
+/// The first upstream error the scripts raise, which upstream's analysis meets before the
+/// template, and whether the module raises it.
+pub(in crate::lower) fn script_error(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    custom_element: bool,
+) -> Option<(bool, Diagnostic)> {
+    let walk = walk_scripts(input, res, Target::Client, custom_element);
+    let error = walk.error.filter(|error| error.code != "unsupported")?;
+    let module = input.component.module.is_some_and(|module| {
+        let span = input.component.javascript.get_program(module).span;
+        (span.start..span.end).contains(&error.span.start_offset)
+    });
+    Some((module, error))
+}
+
+/// A walk over the module script, then the instance's.
+fn walk_scripts<'a>(
+    input: &CompileInput<'a>,
+    res: &'a Resolution,
+    target: Target,
+    custom_element: bool,
+) -> RuneWalk<'a> {
+    let javascript = input.component.javascript;
+    let place = |module, rendering| Place {
+        parent: Parent::Other,
+        module,
+        rendering,
+    };
+    let mut walk = RuneWalk {
+        res,
+        target,
+        custom_element,
+        props: false,
+        props_id: false,
+        root: place(false, false),
+        frames: Vec::new(),
+        error: None,
+        refused: None,
+        classes: Vec::new(),
+        const_tags: FxHashSet::default(),
+        tag: None,
+        bind_arrows: [None; 2],
+    };
+    if let Some(module) = input.component.module {
+        walk.root = place(true, false);
+        walk.visit_program(javascript.get_program(module));
+    }
+    if let Some(instance) = input.component.instance {
+        walk.root = place(false, true);
+        walk.visit_program(javascript.get_program(instance));
+    }
+    walk
 }
 
 impl<'a> Visit<'a> for RuneWalk<'a> {
@@ -319,7 +380,17 @@ impl<'a> RuneWalk<'a> {
             AstKind::ForOfStatement(f) => f.r#await,
             _ => false,
         };
-        if place.rendering && suspends {
+        let in_bind_arrow = || {
+            let function = self.frames.iter().rev().find(|f| {
+                matches!(
+                    f.kind,
+                    AstKind::Function(_) | AstKind::ArrowFunctionExpression(_)
+                )
+            });
+            matches!(function.map(|f| f.kind), Some(AstKind::ArrowFunctionExpression(arrow))
+                if self.bind_arrows.contains(&Some(arrow.span.start)))
+        };
+        if suspends && (place.rendering || in_bind_arrow()) {
             return crate::lower::special::invalid(
                 "experimental_async",
                 "Cannot use `await` in deriveds and template expressions, or at the top level of a \
@@ -338,6 +409,8 @@ impl<'a> RuneWalk<'a> {
                     span_of(&kind),
                 );
             }
+            AstKind::ImportDeclaration(import) => imports(import)?,
+            AstKind::IdentifierReference(reference) => self.check_rune_reference(reference)?,
             AstKind::CallExpression(call) => {
                 if let Some(rune) = res.rune_of_call(call) {
                     let chained = matches!(parent, Some(AstKind::ChainExpression(_)));
@@ -439,6 +512,53 @@ impl<'a> RuneWalk<'a> {
             self.check_pattern_assignment(span, target, Target::Client)
         })
     }
+}
+
+/// Upstream's `ImportDeclaration` checks in runes mode.
+fn imports(import: &ImportDeclaration<'_>) -> Result<(), Diagnostic> {
+    let is_value = |s: &&ImportDeclarationSpecifier<'_>| match s {
+        ImportDeclarationSpecifier::ImportSpecifier(s) => !s.import_kind.is_type(),
+        _ => true,
+    };
+    // Upstream erases a type-only import, and one whose specifiers are all types, first.
+    let mut values = import
+        .specifiers
+        .iter()
+        .flatten()
+        .filter(is_value)
+        .peekable();
+    if import.import_kind.is_type()
+        || (import.specifiers.as_ref().is_some_and(|s| !s.is_empty()) && values.peek().is_none())
+    {
+        return Ok(());
+    }
+    let source = &import.source.value;
+    if source.starts_with("svelte/internal") {
+        return crate::lower::special::invalid(
+            "import_svelte_internal_forbidden",
+            "Imports of `svelte/internal/*` are forbidden. It contains private runtime code which \
+                is subject to change without notice. If you're importing from `svelte/internal/*` \
+                to work around a limitation of Svelte, please open an issue at \
+                https://github.com/sveltejs/svelte and explain your use case",
+            span_of(import),
+        );
+    }
+    if *source != "svelte" {
+        return Ok(());
+    }
+    for specifier in values {
+        if let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier
+            && let ModuleExportName::IdentifierName(imported) = &specifier.imported
+            && matches!(imported.name.as_str(), "beforeUpdate" | "afterUpdate")
+        {
+            return crate::lower::special::invalid(
+                "runes_mode_invalid_import",
+                &format!("{} cannot be used in runes mode", imported.name),
+                span_of(&**specifier),
+            );
+        }
+    }
+    Ok(())
 }
 
 /// Upstream `VariableDeclarator`: `$props()` binds a name or flat object pattern, checked before

@@ -22,6 +22,7 @@ pub(super) fn check_analysis(
     res: &Resolution,
     names: &super::stores::Names<'_>,
     mut errors: Vec<(Raised, Diagnostic)>,
+    custom_element: bool,
 ) -> Result<(), Diagnostic> {
     let component = input.component;
     errors.extend(dollar_name_errors(
@@ -31,14 +32,34 @@ pub(super) fn check_analysis(
         res,
         true,
     ));
-    if let Err(error) = markup::check(input) {
+    let walk = |section, error: Diagnostic| {
         let at = error.span.start_offset;
         let raised = Raised {
             phase: Phase::Walk,
-            section: Section::Template,
+            section,
             at,
         };
-        errors.push((raised, error));
+        (raised, error)
+    };
+    let template = [super::special::analysis(input), markup::check(input)];
+    errors.extend(
+        template
+            .into_iter()
+            .filter_map(Result::err)
+            .map(|e| walk(Section::Template, e)),
+    );
+    // Only a template error needs the scripts' first, which the later rune checks raise anyway.
+    if errors
+        .iter()
+        .any(|(raised, _)| raised.section == Section::Template)
+        && let Some((module, error)) = runes::script_error(input, res, custom_element)
+    {
+        let section = if module {
+            Section::Module
+        } else {
+            Section::Instance
+        };
+        errors.push(walk(section, error));
     }
     errors.sort_by_key(|&(raised, _)| raised);
     let mut errors = errors.into_iter().peekable();

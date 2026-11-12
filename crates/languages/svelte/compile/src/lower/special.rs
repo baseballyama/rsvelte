@@ -6,6 +6,8 @@ use super::{
     NodeKind, Span, unsupported,
 };
 
+mod options;
+
 /// What `<svelte:options>` asks of the output.
 #[derive(Default)]
 pub(super) struct SvelteOptions {
@@ -17,10 +19,53 @@ pub(super) struct SvelteOptions {
 pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
+    // Upstream's parser rejects a misplaced element as it meets it, and reads the options once
+    // the template is parsed, before the analysis.
     let mut seen = 0_u8;
     let mut options = SvelteOptions::default();
     for (identifier, element) in tree.elements() {
         validate_placement(tree, source, identifier, element, &mut seen)?;
+    }
+    for (_, element) in tree.elements() {
+        if element.kind == ElementKind::Metadata(Some(MetadataTag::Options)) {
+            options = options::validate(input, tree.attributes(element.attributes))?;
+            no_children(tree, source, element)?;
+        }
+    }
+    for (_, element) in tree.elements() {
+        if element.kind != ElementKind::Metadata(Some(MetadataTag::Element)) {
+            continue;
+        }
+        let Some(tag) = element.this else {
+            return invalid(
+                "svelte_element_missing_this",
+                "`<svelte:element>` must have a 'this' attribute with a value",
+                element.name,
+            );
+        };
+        let tag = &tree.attributes[tag];
+        if !matches!(
+            &tag.value,
+            AttributeValue::Static(_)
+                | AttributeValue::Expression { .. }
+                | AttributeValue::Shorthand(_)
+        ) && !matches!(&tag.value, AttributeValue::Interpolated(parts) if !parts.is_empty())
+        {
+            return unsupported("this dynamic tag value", tag.span);
+        }
+    }
+    Ok(options)
+}
+
+/// The special elements' errors upstream's analysis raises, the first in document order.
+///
+/// # Errors
+///
+/// That error.
+pub(super) fn analysis(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
+    let tree = input.component.compiler_syntax_tree;
+    let source = input.component.source_text;
+    for (identifier, element) in tree.elements() {
         let attributes = tree.attributes(element.attributes);
         match element.kind {
             ElementKind::Metadata(Some(MetadataTag::Head)) | ElementKind::Title => {
@@ -78,37 +123,16 @@ pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagno
             ElementKind::Metadata(Some(
                 tag @ (MetadataTag::Window | MetadataTag::Document | MetadataTag::Body),
             )) => {
+                no_children(tree, source, element)?;
                 validate_globals(source, tag, attributes)?;
-            }
-            ElementKind::Metadata(Some(MetadataTag::Options)) => {
-                options = validate_options(input, attributes)?;
             }
             ElementKind::Metadata(Some(MetadataTag::Component | MetadataTag::SelfRef)) => {
                 validate_dynamic_component(tree, identifier, element)?;
             }
-            ElementKind::Metadata(Some(MetadataTag::Element)) => {
-                let Some(tag) = element.this else {
-                    return invalid(
-                        "svelte_element_missing_this",
-                        "`<svelte:element>` must have a 'this' attribute with a value",
-                        element.name,
-                    );
-                };
-                let tag = &tree.attributes[tag];
-                if !matches!(
-                    &tag.value,
-                    AttributeValue::Static(_)
-                        | AttributeValue::Expression { .. }
-                        | AttributeValue::Shorthand(_)
-                ) && !matches!(&tag.value, AttributeValue::Interpolated(parts) if !parts.is_empty())
-                {
-                    return unsupported("this dynamic tag value", tag.span);
-                }
-            }
             _ => {}
         }
     }
-    Ok(options)
+    Ok(())
 }
 
 /// Upstream's parser checks `<svelte:component>`'s `this`, and its analysis where
@@ -153,22 +177,42 @@ fn validate_globals(
     attributes: &[super::Attribute],
 ) -> Result<(), Diagnostic> {
     for attribute in attributes {
-        if let AttributeValue::Bind(_) = attribute.value {
-            if global_binding(tag, attribute.name.text(source)).is_none() {
-                return unsupported("this global binding", attribute.span);
-            }
-        } else if !matches!(
+        let plain = matches!(
             attribute.value,
-            AttributeValue::On { .. }
-                | AttributeValue::Use { .. }
-                | AttributeValue::Attach(_)
-                | AttributeValue::Style { .. }
-                | AttributeValue::Class(_)
-                | AttributeValue::Transition { .. }
-                | AttributeValue::Animate { .. }
-        ) && super::event_attribute(source, attribute).is_none()
+            AttributeValue::Boolean
+                | AttributeValue::Static(_)
+                | AttributeValue::Expression { .. }
+                | AttributeValue::Shorthand(_)
+                | AttributeValue::Interpolated(_)
+        );
+        if matches!(attribute.value, AttributeValue::Spread(_))
+            || (plain && super::event_attribute(source, attribute).is_none())
         {
-            return unsupported("this global attribute", attribute.span);
+            if tag == MetadataTag::Body {
+                return invalid(
+                    "svelte_body_illegal_attribute",
+                    "`<svelte:body>` does not support non-event attributes or spread attributes",
+                    attribute.span,
+                );
+            }
+            let name = if tag == MetadataTag::Window {
+                "svelte:window"
+            } else {
+                "svelte:document"
+            };
+            return invalid(
+                "illegal_element_attribute",
+                &format!("`<{name}>` does not support non-event attributes or spread attributes"),
+                attribute.span,
+            );
+        }
+    }
+    // Upstream checks a binding where it visits the directive, after the element's attributes.
+    for attribute in attributes {
+        if let AttributeValue::Bind(_) = attribute.value
+            && global_binding(tag, attribute.name.text(source)).is_none()
+        {
+            return unsupported("this global binding", attribute.span);
         }
     }
     Ok(())
@@ -214,63 +258,29 @@ fn validate_placement(
                 position,
             );
         }
-        if tag != MetadataTag::Head && !tree.children(element.children).is_empty() {
-            return invalid(
-                "svelte_meta_invalid_content",
-                &format!("<{name}> cannot have children"),
-                position,
-            );
-        }
     }
     Ok(())
 }
 
-fn validate_options(
-    input: &CompileInput<'_>,
-    attributes: &[super::Attribute],
-) -> Result<SvelteOptions, Diagnostic> {
-    let source = input.component.source_text;
-    let mut options = SvelteOptions::default();
-    for attribute in attributes {
-        let name = attribute.name.text(source);
-        if name == "customElement" {
-            options.custom_element = super::custom_element::parse(input, attribute)?;
-            continue;
-        }
-        if name == "css" && crate::input::static_string(input, &attribute.value) == Some("injected")
-        {
-            options.stylesheet_injected = true;
-            continue;
-        }
-        if name == "namespace"
-            && let Some(value) = crate::input::static_string(input, &attribute.value)
-            && (matches!(value, "html" | "svg" | "mathml")
-                || crate::render_plan::Namespace::from_url(value).is_some())
-        {
-            continue;
-        }
-        let value = match attribute.value {
-            AttributeValue::Boolean => Some(true),
-            _ => single_expression(&attribute.value).and_then(|e| {
-                match input
-                    .component
-                    .javascript
-                    .get_expression(e)
-                    .get_inner_expression()
-                {
-                    oxc_ast::ast::Expression::BooleanLiteral(literal) => Some(literal.value),
-                    _ => None,
-                }
-            }),
-        };
-        if !matches!(
-            (name, value),
-            ("runes", Some(true)) | ("immutable" | "accessors" | "preserveWhitespace", Some(_))
-        ) {
-            return unsupported("this compiler option", attribute.span);
-        }
+/// Upstream's `disallow_children`, which spans the children.
+fn no_children(
+    tree: &CompilerSyntaxTree,
+    source: &str,
+    element: &Element,
+) -> Result<(), Diagnostic> {
+    let children = tree.children(element.children);
+    if let (Some(&first), Some(&last)) = (children.first(), children.last()) {
+        let name = element.name.text(source);
+        return invalid(
+            "svelte_meta_invalid_content",
+            &format!("<{name}> cannot have children"),
+            Span::new(
+                tree.node(first).span.start_offset,
+                tree.node(last).span.end_offset,
+            ),
+        );
     }
-    Ok(options)
+    Ok(())
 }
 
 pub(super) fn invalid<T>(code: &'static str, message: &str, span: Span) -> Result<T, Diagnostic> {
