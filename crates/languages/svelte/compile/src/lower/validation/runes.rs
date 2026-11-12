@@ -144,33 +144,7 @@ pub(in crate::lower) fn check_runes(
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
     let javascript = input.component.javascript;
-    let place = |module, rendering| Place {
-        parent: Parent::Other,
-        module,
-        rendering,
-    };
-    let mut walk = RuneWalk {
-        res,
-        target,
-        custom_element,
-        props: false,
-        props_id: false,
-        root: place(false, false),
-        frames: Vec::new(),
-        error: None,
-        refused: None,
-        classes: Vec::new(),
-        const_tags: FxHashSet::default(),
-        tag: None,
-    };
-    if let Some(module) = input.component.module {
-        walk.root = place(true, false);
-        walk.visit_program(javascript.get_program(module));
-    }
-    if let Some(instance) = input.component.instance {
-        walk.root = place(false, true);
-        walk.visit_program(javascript.get_program(instance));
-    }
+    let mut walk = walk_scripts(input, res, target, custom_element);
     // Upstream checks a binding's target where it visits the directive, before the expression.
     let tree = input.component.compiler_syntax_tree;
     let binds: FxHashMap<ExpressionIdentifier, (Span, bool)> = (tree.nodes.iter())
@@ -207,7 +181,11 @@ pub(in crate::lower) fn check_runes(
         .collect();
     // The tree keeps them in the order the parser met them, which is not the document's.
     template.sort_by_key(|&(start, _)| start);
-    walk.root = place(false, true);
+    walk.root = Place {
+        parent: Parent::Other,
+        module: false,
+        rendering: true,
+    };
     for (_, root) in template {
         if walk.error.is_some() {
             break;
@@ -233,6 +211,60 @@ pub(in crate::lower) fn check_runes(
         (Some(error), _) | (None, Some(error)) => Err(error),
         (None, None) => Ok(()),
     }
+}
+
+/// The first upstream error the scripts raise, which upstream's analysis meets before the
+/// template, and whether the module raises it.
+pub(in crate::lower) fn script_error(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    custom_element: bool,
+) -> Option<(bool, Diagnostic)> {
+    let walk = walk_scripts(input, res, Target::Client, custom_element);
+    let error = walk.error.filter(|error| error.code != "unsupported")?;
+    let module = input.component.module.is_some_and(|module| {
+        let span = input.component.javascript.get_program(module).span;
+        (span.start..span.end).contains(&error.span.start_offset)
+    });
+    Some((module, error))
+}
+
+/// A walk over the module script, then the instance's.
+fn walk_scripts<'a>(
+    input: &CompileInput<'a>,
+    res: &'a Resolution,
+    target: Target,
+    custom_element: bool,
+) -> RuneWalk<'a> {
+    let javascript = input.component.javascript;
+    let place = |module, rendering| Place {
+        parent: Parent::Other,
+        module,
+        rendering,
+    };
+    let mut walk = RuneWalk {
+        res,
+        target,
+        custom_element,
+        props: false,
+        props_id: false,
+        root: place(false, false),
+        frames: Vec::new(),
+        error: None,
+        refused: None,
+        classes: Vec::new(),
+        const_tags: FxHashSet::default(),
+        tag: None,
+    };
+    if let Some(module) = input.component.module {
+        walk.root = place(true, false);
+        walk.visit_program(javascript.get_program(module));
+    }
+    if let Some(instance) = input.component.instance {
+        walk.root = place(false, true);
+        walk.visit_program(javascript.get_program(instance));
+    }
+    walk
 }
 
 impl<'a> Visit<'a> for RuneWalk<'a> {

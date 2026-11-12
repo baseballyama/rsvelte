@@ -32,6 +32,39 @@ pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagno
             no_children(tree, source, element)?;
         }
     }
+    for (_, element) in tree.elements() {
+        if element.kind != ElementKind::Metadata(Some(MetadataTag::Element)) {
+            continue;
+        }
+        let Some(tag) = element.this else {
+            return invalid(
+                "svelte_element_missing_this",
+                "`<svelte:element>` must have a 'this' attribute with a value",
+                element.name,
+            );
+        };
+        let tag = &tree.attributes[tag];
+        if !matches!(
+            &tag.value,
+            AttributeValue::Static(_)
+                | AttributeValue::Expression { .. }
+                | AttributeValue::Shorthand(_)
+        ) && !matches!(&tag.value, AttributeValue::Interpolated(parts) if !parts.is_empty())
+        {
+            return unsupported("this dynamic tag value", tag.span);
+        }
+    }
+    Ok(options)
+}
+
+/// The special elements' errors upstream's analysis raises, the first in document order.
+///
+/// # Errors
+///
+/// That error.
+pub(super) fn analysis(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
+    let tree = input.component.compiler_syntax_tree;
+    let source = input.component.source_text;
     for (identifier, element) in tree.elements() {
         let attributes = tree.attributes(element.attributes);
         match element.kind {
@@ -96,29 +129,10 @@ pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagno
             ElementKind::Metadata(Some(MetadataTag::Component | MetadataTag::SelfRef)) => {
                 validate_dynamic_component(tree, identifier, element)?;
             }
-            ElementKind::Metadata(Some(MetadataTag::Element)) => {
-                let Some(tag) = element.this else {
-                    return invalid(
-                        "svelte_element_missing_this",
-                        "`<svelte:element>` must have a 'this' attribute with a value",
-                        element.name,
-                    );
-                };
-                let tag = &tree.attributes[tag];
-                if !matches!(
-                    &tag.value,
-                    AttributeValue::Static(_)
-                        | AttributeValue::Expression { .. }
-                        | AttributeValue::Shorthand(_)
-                ) && !matches!(&tag.value, AttributeValue::Interpolated(parts) if !parts.is_empty())
-                {
-                    return unsupported("this dynamic tag value", tag.span);
-                }
-            }
             _ => {}
         }
     }
-    Ok(options)
+    Ok(())
 }
 
 /// Upstream's parser checks `<svelte:component>`'s `this`, and its analysis where

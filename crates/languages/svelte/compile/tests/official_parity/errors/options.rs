@@ -66,3 +66,21 @@ fn a_global_element_takes_only_event_attributes() {
         ),
     ]);
 }
+
+#[test]
+fn the_scripts_are_analyzed_before_the_template_and_after_the_options() {
+    assert_outcomes(&[
+        (
+            "<script>export let b;</script><svelte:body cols=\"3\" />",
+            Some(("legacy_export_invalid", (8, 21))),
+        ),
+        (
+            "<svelte:body cols=\"3\" /><script>export let b;</script>",
+            Some(("legacy_export_invalid", (32, 45))),
+        ),
+        (
+            "<script>export let b;</script><svelte:options foo />",
+            Some(("svelte_options_unknown_attribute", (46, 49))),
+        ),
+    ]);
+}
