@@ -334,8 +334,9 @@ impl<'a> RuneWalk<'a> {
         parent: Option<AstKind<'a>>,
         place: Place,
     ) -> Result<Option<&'static str>, Diagnostic> {
-        let message = "Cannot use `await` in deriveds and template expressions, or at the top level \
-                       of a component, unless the `experimental.async` compiler option is `true`";
+        let message = "Cannot use `await` in deriveds and template expressions, or at the top \
+                       level of a component, unless the `experimental.async` compiler option is \
+                       `true`";
         if place.rendering && matches!(kind, AstKind::AwaitExpression(_)) {
             return crate::lower::special::invalid("experimental_async", message, span_of(&kind));
         }
