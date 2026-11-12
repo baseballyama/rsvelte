@@ -1,4 +1,4 @@
-use super::{has_emoji_sequence, string_width};
+use super::{emoji_measured_otherwise, string_width};
 
 /// Each width is Prettier 3.9.10's, measured as the narrowest `printWidth` that keeps
 /// `group([text, line, "x"])` flat, minus two.
@@ -65,22 +65,35 @@ fn measures_text_as_prettier_does() {
     }
 }
 
+/// Each width is Prettier 3.9.10's `util.getStringWidth`.
 #[test]
-fn emoji_sequences_are_named_not_measured() {
-    for text in ["👋🏽", "🚀🏽", "👨‍👩‍👧‍👦", "←\u{FE0F}", "🏴\u{E0067}", "a\u{FE0F}"]
-    {
-        assert!(has_emoji_sequence(text), "{text:?}");
-    }
-    for text in [
-        "hello",
-        "日本語",
-        "🚀",
-        "\t",
-        "🇯🇵",
-        "1️⃣",
-        "❤️",
-        "a\u{200D}b",
+fn measures_an_emoji_sequence_as_one_emoji() {
+    for (text, width) in [
+        ("👋🏽", 2),
+        ("🚀🏽", 4),
+        ("👨‍👩‍👧‍👦", 2),
+        ("←\u{FE0F}", 1),
+        ("🏴\u{E0067}", 3),
+        (
+            "🏴\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}",
+            2,
+        ),
+        ("x👩‍🚀y", 4),
+        ("🗣️", 2),
+        ("🤷‍♂️", 2),
+        ("👨‍👩‍", 6),
     ] {
-        assert!(!has_emoji_sequence(text), "{text:?}");
+        assert_eq!(string_width(text), width, "{text:?}");
+    }
+}
+
+#[test]
+fn an_emoji_sequence_is_named_only_where_oxc_measures_it_otherwise() {
+    for text in ["hello", "日本語", "👩‍🚀", "a 👨‍👩‍👧‍👦 b", "\u{200B}", "a\u{200D}b"]
+    {
+        assert!(!emoji_measured_otherwise(text), "{text:?}");
+    }
+    for text in ["a 👨‍👩‍ b", "🏴\u{E0067}", "1\u{FE0F}"] {
+        assert!(emoji_measured_otherwise(text), "{text:?}");
     }
 }

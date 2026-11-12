@@ -70,9 +70,9 @@ pub(crate) fn format(
             Span::new(at, at + 1),
         ));
     }
-    if rsvelte_document_printer::has_emoji_sequence(text) {
+    if rsvelte_document_printer::emoji_measured_otherwise(text) {
         return Err(Unsupported::nowhere(
-            "an emoji sequence, which Prettier measures as one character",
+            "an emoji sequence oxc's printer measures otherwise than Prettier",
         ));
     }
     let unparsed_script = match rejected {
