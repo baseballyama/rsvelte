@@ -60,8 +60,13 @@ fn main() -> ExitCode {
     let mut config = configuration::Options::default();
     let mut overrides = Vec::new();
     let mut positional = Vec::new();
+    let mut fix = false;
     let mut it = arguments.iter();
     while let Some(a) = it.next() {
+        if a == "--fix" {
+            fix = true;
+            continue;
+        }
         if a == "--options" {
             let (Some(plugin), Some(options)) = (it.next(), it.next()) else {
                 return usage("--options needs a plugin and its options as JSON");
@@ -100,7 +105,10 @@ fn main() -> ExitCode {
     if let Err(e) = reg.check_task_identifiers(&tasks) {
         return usage(&e.to_string());
     }
-    dispatch(&reg, &positional, &tasks, tools)
+    if fix && positional.first() != Some(&"run") {
+        return usage("--fix applies to `run` only");
+    }
+    dispatch(&reg, &positional, &tasks, tools, fix)
 }
 
 /// Installs every plugin with its options, and returns the programs its tasks will run. Every
@@ -143,13 +151,14 @@ fn dispatch(
     positional: &[&str],
     tasks: &[&str],
     tools: Vec<rsvelte_plugin_interface::Tool>,
+    fix: bool,
 ) -> ExitCode {
     match positional {
         ["corpus", dirs @ ..] if !dirs.is_empty() => {
             let roots: Vec<&Path> = dirs.iter().map(Path::new).collect();
             corpus(reg, &roots, tasks)
         }
-        ["run", file] => run_file(reg, Path::new(file), tasks),
+        ["run", file] => run_file(reg, Path::new(file), tasks, fix),
         ["benchmark", dir, rest @ ..] => match benchmark::Options::parse(rest) {
             Ok(mut options) => {
                 options.tools = tools;

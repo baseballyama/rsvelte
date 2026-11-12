@@ -7,7 +7,7 @@
 use std::any::Any;
 
 use crate::computation::database::{ArtifactRegistry, DocumentContext};
-use crate::diagnostics::Diagnostic;
+use crate::diagnostics::{Diagnostic, Finding};
 use crate::source::document::Document;
 
 /// Tasks read shared artifacts and produce separate output; they do not modify the input.
@@ -38,6 +38,8 @@ pub trait FinishTask: Send + Sync {
 pub struct TaskOutput {
     pub files: Vec<OutputFile>,
     pub diagnostics: Vec<Diagnostic>,
+    /// Reports about the input, such as lint findings, each with its fix when it has one.
+    pub findings: Vec<Finding>,
 }
 
 #[derive(Debug)]

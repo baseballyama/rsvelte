@@ -23,7 +23,7 @@ fn output(files: &[(&str, &str)]) -> TaskOutput {
                 text: text.to_owned(),
             })
             .collect(),
-        diagnostics: Vec::new(),
+        ..TaskOutput::default()
     }
 }
 
