@@ -3,7 +3,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::identifier::identifier_len;
-use super::{ParseResult, Parser, javascript_error};
+use super::{ParseResult, Parser, javascript_failure};
 use crate::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part};
 
 /// Upstream `regex_valid_identifier`, which decides how `parse_directive_name` reads a member.
@@ -91,7 +91,7 @@ impl<'a> Parser<'a, '_> {
         let (expression, end) = self
             .builder
             .read_expression_before(span.start_offset, span.end_offset, source_type)
-            .map_err(|error| javascript_error(error.into()))?;
+            .map_err(javascript_failure)?;
         if end != span.end_offset {
             return Self::err_at(span, "parse_error", "expected one expression");
         }
