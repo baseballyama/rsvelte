@@ -2,7 +2,8 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 
-use super::{ParseResult, Parser, javascript_error};
+use super::javascript::javascript_failure;
+use super::{ParseResult, Parser};
 use crate::syntax_tree::{Script, Style, TagAttributes, TokenType};
 
 /// Ports upstream's `regex_lang_attribute` (1-parse/index.js): the first `<script …lang=…>` outside
@@ -225,7 +226,7 @@ impl Parser<'_, '_> {
         let program = self
             .builder
             .program(content, source_type)
-            .map_err(javascript_error)?;
+            .map_err(javascript_failure)?;
         // Upstream parses the script before it checks for another.
         if duplicate {
             return Self::err_at(
