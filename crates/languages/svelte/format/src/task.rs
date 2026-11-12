@@ -33,6 +33,9 @@ pub fn register_with_options(registry: &mut Registry, options: Options) {
     registry.task(Format { options });
 }
 
+const PRETTIER: rsvelte_svelte_syntax::parse::StyleCut =
+    rsvelte_svelte_syntax::parse::StyleCut::PrettierPluginSvelte;
+
 #[derive(Debug)]
 pub struct Format {
     options: Options,
@@ -52,15 +55,16 @@ impl Task for Format {
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        let c = match rsvelte_svelte_syntax::fully_parsed(context) {
+        // The plugin takes the style sheet out before Svelte parses, so its errors do not count.
+        let c = match context.get::<rsvelte_svelte_syntax::Parsed>() {
             Ok(c) => c,
             Err(e) => {
                 out.diagnostics.push(e.clone());
                 return;
             }
         };
-        if let Some(error) = crate::format::cut_style_sheet(c, context.source_text()) {
-            out.diagnostics.push(error);
+        if let Some(error) = rsvelte_svelte_syntax::cut_parse_error(context, PRETTIER) {
+            out.diagnostics.push(error.clone());
             return;
         }
         let rejected = context
@@ -81,7 +85,9 @@ impl Task for Format {
 /// The parse error, or the first construct the formatter does not handle yet.
 pub fn format(source_text: &str, options: &Options) -> Result<String, Diagnostic> {
     let component = rsvelte_svelte_syntax::parse::parse(source_text)?;
-    if let Some(error) = crate::format::cut_style_sheet(&component, source_text) {
+    if let Some(error) =
+        rsvelte_svelte_syntax::parse::cut_style_error(source_text, &component, PRETTIER)
+    {
         return Err(error);
     }
     let rejected = crate::format::rejected(&component, source_text);

@@ -45,7 +45,7 @@ impl Printer<'_, '_, '_> {
             let body = if self.ignores(&comments) || self.unsupported(&style.attributes) {
                 self.preformatted(style.content)
             } else {
-                self.style_body(style.content, &style.attributes, style.sheet.is_ok())?
+                self.style_body(style.content, &style.attributes)?
             };
             let attributes = self.tag_attributes(&style.attributes);
             let tag = self.embed_tag("style", attributes, body);
