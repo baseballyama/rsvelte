@@ -17,10 +17,20 @@ pub(super) struct SvelteOptions {
 pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
+    // Upstream's parser places each special element as it meets it, reads `<svelte:options>`
+    // once the template ends, and leaves the rest to its analysis.
     let mut seen = 0_u8;
-    let mut options = SvelteOptions::default();
     for (identifier, element) in tree.elements() {
         validate_placement(tree, source, identifier, element, &mut seen)?;
+    }
+    let options = match (tree.elements())
+        .find(|(_, element)| element.kind == ElementKind::Metadata(Some(MetadataTag::Options)))
+    {
+        Some((_, element)) => validate_options(input, tree.attributes(element.attributes))?,
+        None => SvelteOptions::default(),
+    };
+    for (identifier, element) in tree.elements() {
+        validate_content(tree, source, element)?;
         let attributes = tree.attributes(element.attributes);
         match element.kind {
             ElementKind::Metadata(Some(MetadataTag::Head)) | ElementKind::Title => {
@@ -79,9 +89,6 @@ pub(super) fn validate(input: &CompileInput<'_>) -> Result<SvelteOptions, Diagno
                 tag @ (MetadataTag::Window | MetadataTag::Document | MetadataTag::Body),
             )) => {
                 validate_globals(source, tag, attributes)?;
-            }
-            ElementKind::Metadata(Some(MetadataTag::Options)) => {
-                options = validate_options(input, attributes)?;
             }
             ElementKind::Metadata(Some(MetadataTag::Component | MetadataTag::SelfRef)) => {
                 validate_dynamic_component(tree, identifier, element)?;
@@ -208,63 +215,122 @@ fn validate_placement(
                 position,
             );
         }
-        if tag != MetadataTag::Head && !tree.children(element.children).is_empty() {
-            return invalid(
-                "svelte_meta_invalid_content",
-                &format!("<{name}> cannot have children"),
-                position,
-            );
-        }
     }
     Ok(())
 }
 
+/// Upstream `disallow_children`: a special element other than `<svelte:head>` has no children.
+fn validate_content(
+    tree: &CompilerSyntaxTree,
+    source: &str,
+    element: &Element,
+) -> Result<(), Diagnostic> {
+    if let ElementKind::Metadata(Some(
+        MetadataTag::Window | MetadataTag::Document | MetadataTag::Body | MetadataTag::Options,
+    )) = element.kind
+        && let [first, .., last] | [first @ last] = tree.children(element.children)
+    {
+        let name = element.name.text(source);
+        return invalid(
+            "svelte_meta_invalid_content",
+            &format!("<{name}> cannot have children"),
+            Span::new(
+                tree.node(*first).span.start_offset,
+                tree.node(*last).span.end_offset,
+            ),
+        );
+    }
+    Ok(())
+}
+
+/// Upstream `read_options`. A component that opts out of runes is refused only once every
+/// attribute is read, as upstream reads them all first.
 fn validate_options(
     input: &CompileInput<'_>,
     attributes: &[super::Attribute],
 ) -> Result<SvelteOptions, Diagnostic> {
     let source = input.component.source_text;
     let mut options = SvelteOptions::default();
+    let mut legacy = None;
     for attribute in attributes {
-        let name = attribute.name.text(source);
-        if name == "customElement" {
-            options.custom_element = super::custom_element::parse(input, attribute)?;
-            continue;
+        if super::template::is_directive(&attribute.value) {
+            return invalid(
+                "svelte_options_invalid_attribute",
+                "`<svelte:options>` can only receive static attributes",
+                attribute.span,
+            );
         }
-        if name == "css" && crate::input::static_string(input, &attribute.value) == Some("injected")
-        {
-            options.stylesheet_injected = true;
-            continue;
-        }
-        if name == "namespace"
-            && let Some(value) = crate::input::static_string(input, &attribute.value)
-            && (matches!(value, "html" | "svg" | "mathml")
-                || crate::render_plan::Namespace::from_url(value).is_some())
-        {
-            continue;
-        }
-        let value = match attribute.value {
-            AttributeValue::Boolean => Some(true),
-            _ => single_expression(&attribute.value).and_then(|e| {
-                match input
-                    .component
-                    .javascript
-                    .get_expression(e)
-                    .get_inner_expression()
-                {
-                    oxc_ast::ast::Expression::BooleanLiteral(literal) => Some(literal.value),
-                    _ => None,
-                }
-            }),
+        let value = || static_value(input, &attribute.value);
+        let invalid_value = |list: &str| {
+            invalid(
+                "svelte_options_invalid_attribute_value",
+                &format!("Value must be {list}, if specified"),
+                attribute.span,
+            )
         };
-        if !matches!(
-            (name, value),
-            ("runes", Some(true)) | ("immutable" | "accessors" | "preserveWhitespace", Some(_))
-        ) {
-            return unsupported("this compiler option", attribute.span);
+        match attribute.name.text(source) {
+            "customElement" => {
+                options.custom_element = super::custom_element::parse(input, attribute)?;
+            }
+            "namespace" => match value() {
+                Static::String(value)
+                    if matches!(value, "html" | "svg" | "mathml")
+                        || crate::render_plan::Namespace::from_url(value).is_some() => {}
+                _ => return invalid_value("\"html\", \"mathml\" or \"svg\""),
+            },
+            "css" => match value() {
+                Static::String("injected") => options.stylesheet_injected = true,
+                _ => return invalid_value("\"injected\""),
+            },
+            name @ ("runes" | "immutable" | "accessors" | "preserveWhitespace") => {
+                let Static::Boolean(value) = value() else {
+                    return invalid_value("true or false");
+                };
+                if name == "runes" && !value {
+                    legacy.get_or_insert(attribute.span);
+                }
+            }
+            "tag" => {
+                return invalid(
+                    "svelte_options_deprecated_tag",
+                    "\"tag\" option is deprecated — use \"customElement\" instead",
+                    attribute.span,
+                );
+            }
+            name => {
+                return invalid(
+                    "svelte_options_unknown_attribute",
+                    &format!("`<svelte:options>` unknown attribute '{name}'"),
+                    attribute.span,
+                );
+            }
         }
     }
+    if let Some(span) = legacy {
+        return unsupported("this compiler option", span);
+    }
     Ok(options)
+}
+
+/// What upstream `get_static_value` reads from an attribute's value.
+enum Static<'a> {
+    Boolean(bool),
+    String(&'a str),
+    /// Any other literal, or a value that is not one.
+    Other,
+}
+
+fn static_value<'a>(input: &CompileInput<'a>, value: &'a AttributeValue) -> Static<'a> {
+    if matches!(value, AttributeValue::Boolean) {
+        return Static::Boolean(true);
+    }
+    if let Some(text) = crate::input::static_string(input, value) {
+        return Static::String(text);
+    }
+    match single_expression(value).map(|e| input.component.javascript.get_expression(e)) {
+        Some(oxc_ast::ast::Expression::BooleanLiteral(literal)) => Static::Boolean(literal.value),
+        _ => Static::Other,
+    }
 }
 
 pub(super) fn invalid<T>(code: &'static str, message: &str, span: Span) -> Result<T, Diagnostic> {

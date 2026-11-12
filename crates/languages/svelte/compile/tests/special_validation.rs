@@ -1,6 +1,9 @@
 use rsvelte_svelte_compile::{CompileInput, Target, compile_input};
 use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 
+#[path = "special_validation/options.rs"]
+mod options;
+
 #[test]
 fn invalid_special_attributes_are_refused_on_both_targets() {
     for (source, code) in [
