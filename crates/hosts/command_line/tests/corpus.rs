@@ -30,9 +30,12 @@ struct Coverage {
     /// The projection: valid TypeScript, or not produced.
     projected: AtomicUsize,
     not_projected: AtomicUsize,
-    /// The type check's view: prepared for the checker, a document it skips, or unsupported.
+    /// The type check's view: prepared for the checker, a document it skips, one svelte2tsx would
+    /// not parse, or unsupported.
     prepared: AtomicUsize,
     unchecked: AtomicUsize,
+    /// Parsed here, but not in the text svelte2tsx parses.
+    rejected: AtomicUsize,
     unsupported: AtomicUsize,
 }
 
@@ -98,7 +101,7 @@ impl Task for CountCoverage {
         {
             Ok(TypeScriptDocument::Checked { .. }) => count(&self.0.prepared),
             Ok(TypeScriptDocument::Unchecked) => count(&self.0.unchecked),
-            Ok(TypeScriptDocument::Rejected { .. }) => unreachable!("a parse error returned above"),
+            Ok(TypeScriptDocument::Rejected { .. }) => count(&self.0.rejected),
             Err(_) => count(&self.0.unsupported),
         };
     }
@@ -177,13 +180,14 @@ fn main() -> ExitCode {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     eprintln!(
         "coverage: {} parse errors, {} invariants broken; projection: {} valid TypeScript, {} not \
-         produced; type check: {} prepared, {} unchecked, {} unsupported",
+         produced; type check: {} prepared, {} unchecked, {} rejected, {} unsupported",
         n(&c.parse_errors),
         invalid.len(),
         n(&c.projected),
         n(&c.not_projected),
         n(&c.prepared),
         n(&c.unchecked),
+        n(&c.rejected),
         n(&c.unsupported),
     );
     for i in invalid.iter() {
