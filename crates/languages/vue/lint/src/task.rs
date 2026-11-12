@@ -6,6 +6,8 @@ use rsvelte_kernel::source::document::Document;
 use rsvelte_vue_semantic::Resolved;
 use rsvelte_vue_syntax::Parsed;
 
+use crate::lint::Enabled;
+
 pub static PLUGIN: Plugin = Plugin {
     identifier: "vue.lint",
     version: env!("CARGO_PKG_VERSION"),
@@ -15,14 +17,21 @@ pub static PLUGIN: Plugin = Plugin {
     }],
 };
 
+/// Turns on `vue.lint/default` with every rule.
 pub fn register(registry: &mut Registry) {
+    register_with(registry, crate::lint::every_rule());
+}
+
+pub(crate) fn register_with(registry: &mut Registry, rules: Vec<Enabled>) {
     registry.plugin(&PLUGIN);
     rsvelte_vue_semantic::register(registry);
-    registry.task(Lint);
+    registry.task(Lint { rules });
 }
 
 #[derive(Debug)]
-pub struct Lint;
+pub struct Lint {
+    rules: Vec<Enabled>,
+}
 
 impl Task for Lint {
     fn identifier(&self) -> &'static str {
@@ -51,20 +60,19 @@ impl Task for Lint {
             path: &context.document.path,
             res,
         };
-        let findings = match crate::lint::lint(&rule_context) {
+        let findings = match crate::lint::lint(&rule_context, &self.rules) {
             Ok(findings) => findings,
             Err(error) => {
                 out.diagnostics.push(error);
                 return;
             }
         };
-        out.file(
-            "lint.json",
-            rsvelte_lint_runner::output::render_json(
-                context.ecmascript_line_index(),
-                crate::lint::rule_identifiers(),
-                &findings,
-            ),
+        rsvelte_lint_runner::output::report(
+            out,
+            context.ecmascript_line_index(),
+            context.source_text(),
+            self.rules.iter().map(|rule| rule.rule.identifier()),
+            &findings,
         );
     }
 }

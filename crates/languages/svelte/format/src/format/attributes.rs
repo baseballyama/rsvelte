@@ -1,3 +1,4 @@
+use super::expressions::Comments;
 use super::{
     Attribute, AttributeKind, AttributeValue, Cow, ElementKind, LayoutInstructionIdentifier, Part,
     Printer, R, Unsupported, only_ws,
@@ -135,7 +136,8 @@ impl Printer<'_, '_, '_> {
                 }
                 let expression = lone.expect("a binding or class directive has one expression");
                 let bind = a.kind == AttributeKind::Bind;
-                let e = self.expression_with(expression, false, false, bind)?;
+                let e =
+                    self.expression_with(expression, false, false, bind, Comments::AsThePlugin)?;
                 // `surroundWithSoftline` belongs to `embed`, which "off" skips.
                 let embedded = self.options.embedded_language_formatting
                     != crate::options::EmbeddedLanguageFormatting::Off;

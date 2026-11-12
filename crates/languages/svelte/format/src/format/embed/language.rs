@@ -70,13 +70,11 @@ impl Printer<'_, '_, '_> {
         Ok(self.indented_body(body))
     }
 
-    /// `formatBodyContent` around the style sheet at `content`; `parses` is whether the style
-    /// sheet parser reads it.
+    /// `formatBodyContent` around the style sheet at `content`.
     pub(super) fn style_body(
         &mut self,
         content: Span,
         attributes: &[TagAttributes],
-        parses: bool,
     ) -> R<LayoutInstructionIdentifier> {
         // The plugin's `embedStyle`: any language but Less and SCSS, such as `postcss`, is CSS.
         let variant = match self.language(attributes).as_ref().map(|(_, l)| &**l) {
@@ -84,14 +82,15 @@ impl Printer<'_, '_, '_> {
             Some("scss") => oxc_formatter_css::CssVariant::Scss,
             _ => oxc_formatter_css::CssVariant::Css,
         };
-        // Where Svelte's parser fails, Prettier's CSS parser may fail too and keep the body.
-        if variant == oxc_formatter_css::CssVariant::Css && !parses {
+        let text = content.text(self.source_text);
+        // The plugin ends the sheet at the first `</style\s*>` even inside a string or a comment,
+        // which leaves the rest of the sheet to the markup; this formatter does not copy that.
+        if holds_closing_tag(text) {
             return Err(Unsupported::at(
-                "a style sheet that does not parse",
+                "a `</style>` inside a style sheet, which prettier-plugin-svelte cuts the sheet at",
                 content,
             ));
         }
-        let text = content.text(self.source_text);
         if text.trim_matches(is_ecmascript_whitespace).is_empty() {
             return Ok(if text.is_empty() {
                 self.d().nil()
@@ -124,4 +123,13 @@ impl Printer<'_, '_, '_> {
         let body = self.keep(ir.ir);
         Ok(self.indented_body(body))
     }
+}
+
+/// Whether `text` holds what prettier-plugin-svelte's `<\/style\s*>` matches.
+fn holds_closing_tag(text: &str) -> bool {
+    text.match_indices("</style").any(|(at, close)| {
+        text[at + close.len()..]
+            .trim_start_matches(is_ecmascript_whitespace)
+            .starts_with('>')
+    })
 }

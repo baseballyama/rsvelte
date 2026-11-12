@@ -123,6 +123,7 @@ fn print(
             typescript: is_typescript(c, source_text),
             options: javascript_options(options, core),
             kept: Vec::new(),
+            dropped: Vec::new(),
         },
         text: vec![None; c.nodes.len()],
         in_pre: false,
@@ -133,7 +134,7 @@ fn print(
         ignore: Ignore::default(),
     };
     let root = f.top_level()?;
-    refuse_lost_comments(c, &f.embedder.kept)?;
+    refuse_lost_comments(c, &f.embedder.kept, &f.embedder.dropped)?;
     let embedding = f.embedder.embedding;
     // Room for output a quarter longer than its source, so the buffer seldom grows.
     embedding
@@ -218,12 +219,13 @@ fn has_pragma(text: &str) -> bool {
 /// A JavaScript comment outside the code the output keeps as text, which the template printer
 /// does not place: around an expression (`{/* a */ b}`) or between a tag's attributes
 /// (`<A // b={1}>`, only a token), it would be lost.
-fn refuse_lost_comments(c: &Component, kept: &[Span]) -> R<()> {
+fn refuse_lost_comments(c: &Component, kept: &[Span], dropped: &[Span]) -> R<()> {
     let mut comments = c
         .tokens
         .iter()
         .filter(|t| t.kind == TokenType::JavaScriptComment)
-        .map(|t| t.span);
+        .map(|t| t.span)
+        .filter(|comment| !dropped.contains(comment));
     comments
         .find(|comment| {
             !kept.iter().any(|s| {
@@ -378,37 +380,13 @@ mod blocks;
 mod children;
 mod elements;
 mod embed;
+mod expressions;
 mod javascript;
 mod patterns;
 mod tree;
 
 #[cfg(test)]
 mod tests;
-
-/// The plugin cuts the style sheet at the first `</style>`, so the document Svelte parses for it
-/// keeps the rest of the sheet and the sheet's own closing tag as markup, which Svelte rejects.
-pub(crate) fn cut_style_sheet(c: &Component, source_text: &str) -> Option<Diagnostic> {
-    let content = c.style.as_ref()?.content;
-    let sheet = content.text(source_text);
-    let mut from = 0;
-    while let Some(at) = sheet[from..].find("</style") {
-        let after = &sheet[from + at + "</style".len()..];
-        if after
-            .trim_start_matches(is_ecmascript_whitespace)
-            .starts_with('>')
-        {
-            let cut = content.start_offset + (from + at) as u32;
-            return Some(Diagnostic::error(
-                "parse_error",
-                "prettier-plugin-svelte ends the style sheet at this `</style>`, and Svelte \
-                 rejects the rest of the sheet as markup",
-                Span::new(cut, cut + "</style".len() as u32),
-            ));
-        }
-        from += at + "</style".len();
-    }
-    None
-}
 
 /// The first error a module rejects in `c`, outside the artifact database.
 pub(crate) fn rejected(c: &Component, source_text: &str) -> Option<Diagnostic> {

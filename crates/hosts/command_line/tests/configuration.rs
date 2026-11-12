@@ -48,6 +48,11 @@ impl Project {
     }
 }
 
+/// The run finished: exit code 0, or 1 for error diagnostics or findings, not 2 for a usage error.
+fn completed(output: &std::process::Output) -> bool {
+    matches!(output.status.code(), Some(0 | 1))
+}
+
 impl Drop for Project {
     fn drop(&mut self) {
         std::fs::remove_dir_all(&self.0).expect("remove project");
@@ -67,7 +72,7 @@ fn discovers_json_and_applies_lint_configuration_without_node() {
     );
     let output = project.run_without_runtime(&["--task", "svelte.lint/default"]);
     assert!(
-        output.status.success(),
+        completed(&output),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
@@ -108,7 +113,7 @@ fn node_config_callbacks_reach_client_server_and_stylesheet_output() {
         "svelte.compile/server",
     ]);
     assert!(
-        output.status.success(),
+        completed(&output),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
@@ -148,7 +153,7 @@ fn a_node_function_is_a_lint_rule_with_options_and_utf16_ranges() {
         "svelte.lint/default",
     ]);
     assert!(
-        output.status.success(),
+        completed(&output),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
@@ -221,7 +226,7 @@ fn command_line_options_replace_a_plugins_options_from_the_file() {
         arguments.extend(extra);
         let output = project.run_without_runtime(&arguments);
         assert!(
-            output.status.success(),
+            completed(&output),
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
@@ -248,7 +253,7 @@ fn an_off_rule_is_not_validated_as_eslint_does_not() {
     );
     let output = project.run(&["--config", "config.json", "--task", "svelte.lint/default"]);
     assert!(
-        output.status.success(),
+        completed(&output),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
@@ -296,7 +301,7 @@ fn a_type_aware_rule_is_configured_as_any_other_rule() {
             "svelte.lint/default",
         ]);
         assert!(
-            output.status.success(),
+            completed(&output),
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
@@ -313,7 +318,7 @@ fn discovery_reports_ambiguity_and_explicit_config_resolves_it() {
     project.write("rsvelte.config.json", "{}");
     project.write("rsvelte.config.mjs", "export default {};");
     let output = project.run(&["--task", "svelte.lint/default"]);
-    assert!(!output.status.success());
+    assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains("multiple configuration files"));
     assert!(
         project
@@ -324,7 +329,8 @@ fn discovery_reports_ambiguity_and_explicit_config_resolves_it() {
                 "svelte.lint/default"
             ])
             .status
-            .success()
+            .code()
+            .is_some_and(|code| code < 2)
     );
 }
 
@@ -347,4 +353,92 @@ fn json_config_refuses_a_native_function() {
     ]);
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("unknown variant `native`"));
+}
+
+#[test]
+fn vue_and_typescript_lint_read_rule_levels() {
+    let project = Project::new();
+    project.write(
+        "Input.vue",
+        "<template><button>Hi</button></template>\n<script setup>\nconst unused = 1;\n</script>\n",
+    );
+    project.write("input.ts", "const unused = 1;\n");
+    let lint = |config: &str, file: &str, task: &str| {
+        project.write("config.json", config);
+        let output = Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+            .current_dir(&project.0)
+            .args(["run", file, "--config", "config.json", "--task", task])
+            .output()
+            .expect("run CLI");
+        (
+            completed(&output),
+            String::from_utf8_lossy(&output.stdout).into_owned(),
+            String::from_utf8_lossy(&output.stderr).into_owned(),
+        )
+    };
+    let (ok, out, err) = lint(r#"{"plugins": {}}"#, "Input.vue", "vue.lint/default");
+    assert!(ok, "{err}");
+    assert!(
+        out.contains("vue/html-button-has-type") && out.contains("no-unused-vars"),
+        "{out}"
+    );
+    let config = r#"{"plugins": {"vue.lint": {"rules": {"vue/html-button-has-type": "warn"}}}}"#;
+    let (ok, out, err) = lint(config, "Input.vue", "vue.lint/default");
+    assert!(ok, "{err}");
+    assert!(
+        out.contains("vue/html-button-has-type") && !out.contains("never used"),
+        "{out}"
+    );
+    let config = r#"{"plugins": {"vue.lint": {"rules": {"vue/missing": "error"}}}}"#;
+    let (ok, _, err) = lint(config, "Input.vue", "vue.lint/default");
+    assert!(!ok && err.contains("unknown rule `vue/missing`"), "{err}");
+    let config = r#"{"plugins": {"typescript.lint": {"rules": {"@typescript-eslint/no-unused-vars": "off"}}}}"#;
+    let (ok, out, err) = lint(config, "input.ts", "ts.lint/default");
+    assert!(ok, "{err}");
+    assert!(!out.contains("never used"), "{out}");
+    let (ok, out, err) = lint(r#"{"plugins": {}}"#, "input.ts", "ts.lint/default");
+    assert!(ok, "{err}");
+    assert!(out.contains("never used"), "{out}");
+}
+
+#[test]
+fn run_fails_on_error_findings_and_fix_rewrites_the_file() {
+    let project = Project::new();
+    project.write("Fix.svelte", "<p>{'hello'}</p>\n");
+    project.write(
+        "config.json",
+        r#"{"plugins": {"svelte.lint": {"rules": {"svelte/no-useless-mustaches": "error"}}}}"#,
+    );
+    let run = |extra: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+            .current_dir(&project.0)
+            .args(["run", "Fix.svelte", "--config", "config.json"])
+            .args(["--task", "svelte.lint/default"])
+            .args(extra)
+            .output()
+            .expect("run CLI")
+    };
+    let read = || std::fs::read_to_string(project.0.join("Fix.svelte")).expect("component");
+    let output = run(&[]);
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "an error finding fails the run"
+    );
+    assert_eq!(read(), "<p>{'hello'}</p>\n", "run leaves the file alone");
+    let output = run(&["--fix"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert_eq!(read(), "<p>hello</p>\n");
+    let output = run(&[]);
+    assert!(output.status.success());
+    project.write(
+        "config.json",
+        r#"{"plugins": {"svelte.lint": {"rules": {"svelte/no-useless-mustaches": "warn"}}}}"#,
+    );
+    project.write("Fix.svelte", "<p>{'hello'}</p>\n");
+    assert!(run(&[]).status.success(), "a warning does not fail the run");
 }

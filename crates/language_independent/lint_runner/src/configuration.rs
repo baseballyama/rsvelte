@@ -175,6 +175,9 @@ impl<'de, O: Deserialize<'de>> Visitor<'de> for ListVisitor<O> {
     }
 }
 
+/// A `rules` object for rules that take no options: each entry's level, and any options to refuse.
+pub type RuleLevels = Rules<RuleEntryList<de::IgnoredAny>>;
+
 /// A `rules` object in the order the configuration writes it, which is the order `ESLint` runs the
 /// rules in. A repeated key keeps its first place and its last value, as a JavaScript object does.
 #[derive(Debug)]
