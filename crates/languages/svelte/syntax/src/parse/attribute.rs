@@ -147,6 +147,14 @@ impl Parser<'_, '_> {
         let name_start = self.position as u32;
         let name_end = name_start + super::identifier::identifier_len(self.rest()) as u32;
         let expression = if kind == AttributeKind::Attribute {
+            if self.binding_name_len()? == 0 {
+                let at = Span::new(start_offset as u32, start_offset as u32);
+                return Self::err_at(
+                    at,
+                    "attribute_empty_shorthand",
+                    "Attribute shorthand cannot be empty",
+                );
+            }
             self.identifier()?
         } else {
             self.expression()?
