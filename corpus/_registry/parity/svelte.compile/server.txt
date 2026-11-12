@@ -1,4 +1,4 @@
-# svelte.compile/server: 36016 match
+# svelte.compile/server: 36018 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -51,7 +51,6 @@ svelte/rsvelte-tests-core-1/class_field_super_4549/super_is_legal_exactly_where_
 svelte/rsvelte-tests-core-1/class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/9f33b40fde461238.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase2_analyze/store_subscriptions/tests/dollar_named_parameters_are_not_outer_store_subscriptions/620841e8ef148b9f.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/tests/reactive_iife_local_store_spelling_is_not_rewritten/f5bc6b420bfc7d93.svelte	mismatch
-svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/tests/root_has_compound_scopes_its_matching_element/12ae3792c9b0d0f0.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/1bc072884a4f64e9.svelte	refused
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/3d23525a1ea60c3b.svelte	refused
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/84c042fec75b88ba.svelte	refused
@@ -582,7 +581,6 @@ svelte/rsvelte/pattern/adversarial/runes/inspect-with-and-snapshot-nesting.svelt
 svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/special-elements/options-legacy-mode.svelte	refused
 svelte/rsvelte/pattern/adversarial/special-elements/window-legacy-event-syntax.svelte	refused
-svelte/rsvelte/pattern/issues/2535-root-has-with-class.svelte	mismatch
 svelte/rsvelte/pattern/issues/3107-textarea-bind-fallback.svelte	refused
 svelte/rsvelte/pattern/issues/3124-slot-snippet-conflict-span.svelte	mismatch
 svelte/rsvelte/pattern/issues/3128-options-runes-false-store-subs.svelte	refused
