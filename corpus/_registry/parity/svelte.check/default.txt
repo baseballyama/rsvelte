@@ -1,6 +1,5 @@
-# svelte.check/default: 35342 match
+# svelte.check/default: 35352 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
-svelte/animotion/src/lib/components/slides.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/roles/default.svelte	mismatch
@@ -68,17 +67,11 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/component-handler/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/function-call-in-props/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-checkJs-module.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component3.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/component-props-completion-rune.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-text.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/string-completion.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/documentsymbols-snippets.v5/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent2.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/performance.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/preferences/module-specifier-js.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/workspace-symbols/workspace-symbols.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/emitDts/samples/typescript/src/Interfaces.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/svelte-self-forward-event/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-4.v5/input.svelte	mismatch
@@ -548,13 +541,11 @@ svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_com
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/1bb5fb922d107565.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/294b9a96c0d4a818.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/352be5c37b112081.svelte	mismatch
-svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/389629abab915315.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/3dadc066f0f76798.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/49c4466e9da1389b.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/534444420fe144a0.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/6379b84be95deee1.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/7fd32825aec72e85.svelte	mismatch
-svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/965ed58bcbea865c.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/99de15ba5221d0e0.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/a8398e50cf040f29.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/aa592e2a00fb5326.svelte	mismatch
@@ -1184,7 +1175,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_attribute_prefix_rules/a
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/degenerate_slot_names_stay_on_the_default_fallback/0cfb2b8120add6c6.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_snippet_props_order_3461/moved_generic_props_type_precedes_instance_hoisted_snippet/187b783aab73dcd5.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_start_tag_opener_segments_4385/cell5_svelte_self_opener_keeps_its_expression/49f3777960838430.svelte	refused
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_start_tag_opener_segments_4385/cell8_component_slot_opener_keeps_its_expression/41ed549cc4691506.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/0747857e339aa28c.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/7e2ac6445c7a4503.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/f9eb825ab25210d3.svelte	mismatch

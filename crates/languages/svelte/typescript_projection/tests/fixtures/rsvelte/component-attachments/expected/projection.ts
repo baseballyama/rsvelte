@@ -29,6 +29,7 @@ async () => {
       children: __rsvelte_children,
       [Symbol("@attach")]: a,
     });
+    D;
   }
   {
     __rsvelte_component(D)(__rsvelte_internals(), {

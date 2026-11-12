@@ -60,6 +60,7 @@ async () => {
           "foo": w,
         });
         (w);
+        C;
       }
       {
         const {
@@ -72,6 +73,7 @@ async () => {
         (twice);
       }
     }
+    C;
   }
   {
     const __rsvelte_component_0 = __rsvelte_component(C);
@@ -85,6 +87,7 @@ async () => {
       svelteHTML.createElement("svelte:fragment", {});
       (v);
     }
+    C;
   }
   {
     const __rsvelte_component_0 = __rsvelte_component(C);
@@ -100,6 +103,7 @@ async () => {
       });
       (u);
     }
+    C;
   }
 };
 const LetDirectives__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

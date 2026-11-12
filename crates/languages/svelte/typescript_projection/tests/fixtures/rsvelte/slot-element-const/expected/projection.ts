@@ -15,6 +15,7 @@ async () => {
       const twice = k * 2;
       (twice);
     }
+    C;
   }
   {
     svelteHTML.createElement("button", {
