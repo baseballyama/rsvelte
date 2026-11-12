@@ -1,0 +1,2 @@
+error svelte_body_illegal_attribute 1:33-1:42 `<svelte:body>` does not support non-event attributes or spread attributes
+    https://svelte.dev/e/svelte_body_illegal_attribute

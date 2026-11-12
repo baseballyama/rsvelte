@@ -152,6 +152,30 @@ fn validate_globals(
     tag: MetadataTag,
     attributes: &[super::Attribute],
 ) -> Result<(), Diagnostic> {
+    // Upstream's visitor checks the attributes before it visits a directive.
+    for attribute in attributes {
+        let plain = !super::template::is_directive(&attribute.value);
+        let spread = matches!(attribute.value, AttributeValue::Spread(_));
+        if (spread || plain) && super::event_attribute(source, attribute).is_none() {
+            if tag == MetadataTag::Body {
+                return invalid(
+                    "svelte_body_illegal_attribute",
+                    "`<svelte:body>` does not support non-event attributes or spread attributes",
+                    attribute.span,
+                );
+            }
+            let name = if tag == MetadataTag::Window {
+                "svelte:window"
+            } else {
+                "svelte:document"
+            };
+            return invalid(
+                "illegal_element_attribute",
+                &format!("`<{name}>` does not support non-event attributes or spread attributes"),
+                attribute.span,
+            );
+        }
+    }
     for attribute in attributes {
         if let AttributeValue::Bind(_) = attribute.value {
             if global_binding(tag, attribute.name.text(source)).is_none() {
