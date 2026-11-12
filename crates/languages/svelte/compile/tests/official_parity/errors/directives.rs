@@ -5,10 +5,10 @@ use rsvelte_svelte_compile::Target;
 use super::super::compile_at;
 
 /// A diagnostic's code and byte range.
-type Error<'a> = Option<(&'a str, (u32, u32))>;
+pub(super) type Error<'a> = Option<(&'a str, (u32, u32))>;
 
 /// Each source's outcome, from svelte 5.57.3 compiled with `runes: true`, on both targets.
-fn assert_outcomes(cases: &[(&str, Error<'_>)]) {
+pub(super) fn assert_outcomes(cases: &[(&str, Error<'_>)]) {
     for &(source, expected) in cases {
         for target in [Target::Client, Target::Server] {
             let outcome = compile_at(source, target).err();
