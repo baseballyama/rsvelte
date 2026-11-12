@@ -1,13 +1,39 @@
 //! Findings as `ESLint` reports them.
 
+use rsvelte_kernel::computation::task::TaskOutput;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
-use rsvelte_kernel::source::positions::LineIndex;
+use rsvelte_kernel::source::positions::{LineIndex, Span};
 
 use crate::finding::Finding;
 
 /// Bytes of one finding's pretty JSON beyond its rule and message, with room for large positions,
 /// so the output is allocated once.
 const FINDING_BYTES: usize = 200;
+
+/// A lint task's output: `lint.json` as [`render_json`] writes it, and each finding with its fix.
+pub fn report<'a>(
+    out: &mut TaskOutput,
+    lines: &LineIndex,
+    source: &str,
+    rules: impl IntoIterator<Item = &'a str> + Clone,
+    findings: &[Finding],
+) {
+    out.file("lint.json", render_json(lines, rules, findings));
+    out.findings
+        .extend(findings.iter().map(|finding| finding.reported(source)));
+}
+
+/// A lint task's output when the document does not parse: `lint.json` as
+/// [`render_parse_error`] writes it, and the error as the one finding.
+pub fn report_parse_error(out: &mut TaskOutput, lines: &LineIndex, message: &str, offset: u32) {
+    out.file("lint.json", render_parse_error(lines, message, offset));
+    out.findings.push(rsvelte_kernel::diagnostics::Finding {
+        diagnostic: Diagnostic::error("parse_error", message, Span::new(offset, offset))
+            .without_end(),
+        fix: None,
+    });
+}
 
 /// `{rules, findings: [{rule, message, start: {line, column}, end: {line, column}}]}` with
 /// `ESLint`'s positions: 1-based lines and 1-based UTF-16 columns.

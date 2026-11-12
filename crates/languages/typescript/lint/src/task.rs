@@ -89,13 +89,12 @@ impl Task for Lint {
                 return;
             }
         };
-        out.file(
-            "lint.json",
-            rsvelte_lint_runner::output::render_json(
-                context.ecmascript_line_index(),
-                self.rules.iter().map(|rule| rule.rule.identifier()),
-                &findings,
-            ),
+        rsvelte_lint_runner::output::report(
+            out,
+            context.ecmascript_line_index(),
+            context.source_text(),
+            self.rules.iter().map(|rule| rule.rule.identifier()),
+            &findings,
         );
     }
 }
