@@ -223,14 +223,6 @@ impl Parser<'_, '_> {
             shorthand: false,
         };
         let directive = attribute.directive_name(&self.component.modifiers);
-        if let Some(empty) = directive.filter(|d| d.is_empty()) {
-            let prefix = &name_text[..(empty.start_offset - name.start_offset) as usize];
-            return Self::err_at(
-                name,
-                "directive_missing_name",
-                format_args!("`{prefix}` name cannot be empty"),
-            );
-        }
         let name_end = self.position;
         self.skip_ws();
         let end_offset = if self.peek() == Some(b'=') {
@@ -246,6 +238,14 @@ impl Parser<'_, '_> {
             name_end
         };
         attribute.span = Span::new(start_offset as u32, end_offset as u32);
+        // Upstream reads the value first and names the whole attribute, modifiers too.
+        if let Some(empty) = directive.filter(|d| d.is_empty()) {
+            return Self::err_at(
+                Span::new(name.start_offset, empty.start_offset),
+                "directive_missing_name",
+                format_args!("`{name_text}` name cannot be empty"),
+            );
+        }
         if let Some(directive) = directive {
             self.directive(&mut attribute, directive)?;
         }
