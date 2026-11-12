@@ -3,7 +3,10 @@ use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 
 /// The code and span of the error that rejects `source`, or `None` when it compiles.
 fn rejected(source: &str, target: Target) -> Option<(String, (u32, u32))> {
-    let component = rsvelte_svelte_syntax::parse::parse(source).expect("valid syntax");
+    let component = match rsvelte_svelte_syntax::parse::parse(source) {
+        Ok(component) => component,
+        Err(e) => return Some((e.code.to_string(), (e.span.start_offset, e.span.end_offset))),
+    };
     let tree = compiler_syntax_tree::lower(&component, source);
     let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "test.svelte");
     let resolution = resolve::resolve(
@@ -19,7 +22,7 @@ fn rejected(source: &str, target: Target) -> Option<(String, (u32, u32))> {
 }
 
 #[test]
-fn svelte_options_raise_upstreams_errors_after_placement_and_before_content() {
+fn svelte_options_raise_upstreams_errors_after_the_parsers_and_before_content() {
     // From svelte 5.57.3, compiled with `runes: true`.
     for (source, expected) in [
         (
