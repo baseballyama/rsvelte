@@ -34,8 +34,13 @@ pub(super) fn mark_dynamic(
             | NodeKind::Render { .. }
             | NodeKind::Html { .. }
             | NodeKind::Const { .. }
-            | NodeKind::Debug { .. }
             | NodeKind::Declaration { .. } => any = true,
+            // Upstream's `{@debug}` marks nothing; only its identifiers do.
+            NodeKind::Debug { identifiers } => {
+                any |= !compiler_syntax_tree
+                    .debug_identifiers(*identifiers)
+                    .is_empty();
+            }
             NodeKind::If {
                 branches,
                 otherwise,
