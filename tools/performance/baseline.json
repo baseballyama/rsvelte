@@ -24,7 +24,7 @@
 		]
 	},
 	"allocs": 30201816,
-	"alloc_bytes": 4430059751,
+	"alloc_bytes": 4430059831,
 	"peak_live_growth_bytes": 3489183,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -35,7 +35,7 @@
 		"js.print": {
 			"calls": 70133,
 			"allocs": 210421,
-			"alloc_bytes": 139515382
+			"alloc_bytes": 139515462
 		},
 		"no-unused-vars": {
 			"calls": 34958,
