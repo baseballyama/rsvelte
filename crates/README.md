@@ -18,11 +18,12 @@ crates/
 │   ├── lint/                  lint tasks, or what linters share (html: button types)
 │   └── check/                 type check tasks (svelte, typescript, vue)
 ├── languages/svelte/typescript_projection/  Svelte to TypeScript, for type checks
+├── languages/svelte/site/     prints the Svelte trees and source maps the site draws
 ├── languages/typescript/content_mapper/  the protocol to the native TypeScript checker
 ├── bridges/                   compile one framework's components for another's runtime
 │   ├── svelte_to_vue_vapor/   Svelte compiled for the Vue Vapor runtime
 │   └── vue_to_svelte/         Vue compiled for the Svelte runtime
-└── hosts/                     run plugins: command_line, browser, site; see hosts/README.md
+└── hosts/                     run plugins: command_line, browser; see hosts/README.md
     └── configuration_loading/ loads configuration files, for hosts only
 ```
 

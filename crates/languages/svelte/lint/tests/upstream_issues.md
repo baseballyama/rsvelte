@@ -7,6 +7,8 @@ Each entry names the test that holds this crate's behavior.
 
 ## A mustache fix that decodes to another string (`svelte/no-useless-mustaches`)
 
+Issue: [eslint-plugin-svelte #1646](https://github.com/sveltejs/eslint-plugin-svelte/issues/1646).
+
 | Input                  | Upstream fix        | Compiler reads input as | Compiler reads fix as |
 | ---------------------- | ------------------- | ----------------------- | --------------------- |
 | `<p>{'&amp;'}</p>`     | `<p>&amp;</p>`      | `&amp;`                 | `&`                   |
@@ -24,12 +26,16 @@ Cases: `tests/cases/no-useless-mustaches/invalid/entity-*`, `null-escape` and
 
 ## An option that misses `\0` (`svelte/no-useless-mustaches`)
 
+Issue: [eslint-plugin-svelte #1684](https://github.com/sveltejs/eslint-plugin-svelte/issues/1684).
+
 With `[{ "ignoreStringEscape": true }]`, upstream reports `<p>{'\0'}</p>` and fixes it to `0`.
 The escape list (`nrvtbfux`) leaves out `\0`, the one digit escape that strict code allows. This
 crate counts `\0` as an escape and does not report it.
 Case: `tests/cases/no-useless-mustaches/valid/null-escape-ignored-input.svelte`.
 
 ## A shorthand that does not compile (`svelte/shorthand-attribute`)
+
+Issue: [eslint-plugin-svelte #1685](https://github.com/sveltejs/eslint-plugin-svelte/issues/1685).
 
 | Input                 | Upstream fix        | `svelte/compiler` on the fix |
 | --------------------- | ------------------- | ---------------------------- |
@@ -41,6 +47,8 @@ attributes and writes no fix.
 Cases: `tests/cases/shorthand-attribute/invalid/parenthesized` and `commented`.
 
 ## Runes mode from a rune named in some types (svelte-eslint-parser)
+
+Issue: [svelte-eslint-parser #1001](https://github.com/sveltejs/svelte-eslint-parser/issues/1001).
 
 `hasRunesSymbol` walks the script with ESLint's visitor keys. Those keys skip an identifier's
 annotation, a return type and type arguments, but they fall back to every key of a TypeScript node.
@@ -59,6 +67,8 @@ half that agrees with upstream.
 
 ## A destructured name read as the whole object (`svelte/no-not-function-handler`)
 
+Issue: [eslint-plugin-svelte #1686](https://github.com/sveltejs/eslint-plugin-svelte/issues/1686).
+
 `findRootExpression` follows `const { h } = { h: 1 }` to `{ h: 1 }` and reports "Unexpected
 object in event handler." for `onclick={h}`. `const [h] = [1]` gets "array". Here `h` is 1. This
 crate does not follow a destructured name, and reports nothing.
@@ -67,12 +77,16 @@ Cases: `tests/cases/no-not-function-handler/valid/destructured-object` and
 
 ## A `{@const}` that the rule does not follow (`svelte/no-not-function-handler`)
 
+Issue: [eslint-plugin-svelte #1687](https://github.com/sveltejs/eslint-plugin-svelte/issues/1687).
+
 `{#if 1}{@const h = 1}<button onclick={h}></button>{/if}` gets no report, because the variable's
 definition is not a script `const`. A `{@const}` is as constant as a script `const`, so this crate
 follows it and reports "Unexpected number value in event handler.".
 Case: `tests/cases/no-not-function-handler/invalid/const-tag-input.svelte`.
 
 ## A value written before the modifiers (`svelte/shorthand-directive`)
+
+Issue: [eslint-plugin-svelte #1688](https://github.com/sveltejs/eslint-plugin-svelte/issues/1688).
 
 With `prefer: never`, upstream fixes `<div style:color|important>` to
 `<div style:color={color}|important>`. The compiler accepts that, but it reads the value as the
@@ -81,6 +95,8 @@ text `{color}|important`, so the directive loses `|important`. This crate writes
 Case: `tests/cases/shorthand-directive/invalid/value-after-modifiers-input.svelte`.
 
 ## A slot name fix that breaks the attribute (`svelte/no-dynamic-slot-name`)
+
+Not filed: upstream deprecates the rule.
 
 | Input                      | Upstream fix           | What breaks                             |
 | -------------------------- | ---------------------- | --------------------------------------- |
@@ -93,6 +109,8 @@ Cases: `tests/cases/no-dynamic-slot-name/invalid/quote-in-expression`,
 `quote-in-quoted-value` and `space-in-unquoted-value`.
 
 ## U+2028 and U+2029 do not end a line in node locations
+
+Issue: [svelte-eslint-parser #1002](https://github.com/sveltejs/svelte-eslint-parser/issues/1002).
 
 - Rules: `svelte/max-attributes-per-line`, `svelte/html-closing-bracket-new-line`,
   `svelte/first-attribute-linebreak`, and every rule that compares the lines of template nodes.
@@ -111,6 +129,8 @@ Cases: `tests/cases/no-dynamic-slot-name/invalid/quote-in-expression`,
 
 ## `svelte/valid-compile`: a block holding only a `svelte-ignore` comment reports `block_empty`
 
+Issue: [eslint-plugin-svelte #1689](https://github.com/sveltejs/eslint-plugin-svelte/issues/1689).
+
 - Case: `valid-compile/invalid/invalid-svelte-ignore03-input.svelte`
 - Upstream reports `Empty block` (`block_empty`) at 2:30 and 14:30, on `{#await …}` blocks whose
   pending branch holds only `<!-- svelte-ignore … -->`.
@@ -121,6 +141,8 @@ Cases: `tests/cases/no-dynamic-slot-name/invalid/quote-in-expression`,
   warns about.
 
 ## `svelte/no-unused-svelte-ignore` and `svelte/valid-compile` drop the last of two or more codes
+
+Issue: [eslint-plugin-svelte #1640](https://github.com/sveltejs/eslint-plugin-svelte/issues/1640).
 
 - Case: none upstream; rsvelte's own
   `tests/cases/no-unused-svelte-ignore/invalid/last-code-without-separator`.
@@ -134,6 +156,8 @@ Cases: `tests/cases/no-dynamic-slot-name/invalid/quote-in-expression`,
   `export_let_unused` and `a11y_accesskey` as unused.
 
 ## Suggestions of `svelte/no-reactive-literals` that do not parse
+
+Issue: [eslint-plugin-svelte #1690](https://github.com/sveltejs/eslint-plugin-svelte/issues/1690).
 
 Input:
 
@@ -152,6 +176,8 @@ error unless the assignment is `name = literal`. This crate reports both stateme
 the move only for `=` with a name on the left.
 
 ## A cast or `!` hides an assignment from `svelte/no-reactive-reassign`
+
+Issue: [eslint-plugin-svelte #1691](https://github.com/sveltejs/eslint-plugin-svelte/issues/1691).
 
 Input:
 
@@ -173,6 +199,8 @@ assignments to reactive values go unreported. This crate reports both.
 
 ## An inverted member test in `svelte/prefer-destructured-store-props`
 
+Issue: [eslint-plugin-svelte #1692](https://github.com/sveltejs/eslint-plugin-svelte/issues/1692).
+
 `isExpressionIdentifier` (`utils/ast-utils.ts`) returns `!parent.computed || parent.property !==
 node` for a member, and the same for a property key. That is true for the name in `x.name` and
 false for the index in `x[index]`, the opposite of what it means. Two inputs show it:
@@ -193,6 +221,8 @@ This crate does the opposite in both cases.
 
 ## A crash in `svelte/no-reactive-functions` on ESLint 10
 
+Fixed in eslint-plugin-svelte 3.24.1.
+
 Input:
 
 ```svelte
@@ -207,6 +237,8 @@ tests expect.
 
 ## `svelte/prefer-const` treats a `<script module>` export as a prop
 
+Issue: [svelte-eslint-parser #992](https://github.com/sveltejs/svelte-eslint-parser/issues/992).
+
 - Case: `tests/cases/prefer-const/invalid/script-module-input.svelte`,
   `<script module>\n\texport let m = 1;\n</script>`.
 - Upstream reports nothing. The `analyzePropsScope` of svelte-eslint-parser adds a write to every
@@ -216,6 +248,8 @@ tests expect.
   props, so nothing writes `m` after its declaration.
 
 ## `svelte/prefer-svelte-reactivity`: a reassigned variable hides its later constructions
+
+Fixed in eslint-plugin-svelte 3.24.1, which reports the first construction twice instead: [eslint-plugin-svelte #1693](https://github.com/sveltejs/eslint-plugin-svelte/issues/1693).
 
 - Case: `tests/cases/prefer-svelte-reactivity/invalid/reassigned-input.svelte.js`,
   `let q = new Set(); q = new Set(); q.add(1);`.
@@ -227,6 +261,8 @@ tests expect.
   from each construction and reports both.
 
 ## `svelte/indent`: a snippet without parameters takes a `(` from its body
+
+Issue: [eslint-plugin-svelte #1694](https://github.com/sveltejs/eslint-plugin-svelte/issues/1694).
 
 With eslint-plugin-svelte 3.23.1 and default options.
 
@@ -251,6 +287,8 @@ parameters. With one parameter (`{#snippet foo(a)}`) the same body reports nothi
 first one after the snippet's name.
 
 ## `svelte/indent` and `svelte/max-lines-per-block`: U+2028 and U+2029 do not end a line
+
+Issue: [svelte-eslint-parser #1002](https://github.com/sveltejs/svelte-eslint-parser/issues/1002).
 
 With eslint-plugin-svelte 3.23.1, take each input below with every `\n` replaced by U+2028 (or
 U+2029):
@@ -283,6 +321,8 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 
 ## The style directive fix cuts a value after a comment
 
+Issue: [eslint-plugin-svelte #1695](https://github.com/sveltejs/eslint-plugin-svelte/issues/1695).
+
 - Rule: `prefer-style-directive`.
 - Case: `tests/cases/prefer-style-directive/invalid/declaration-with-comment-input.svelte`.
 - Upstream: the fix turns `<div style="color: a /* c */ b;">` into `<div style:color="a /*">`.
@@ -291,6 +331,8 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
   (`decl.value.range`), and a comment makes the cleaned value shorter than the written one.
 
 ## A shorthand ID attribute does not count
+
+Issue: [eslint-plugin-svelte #1696](https://github.com/sveltejs/eslint-plugin-svelte/issues/1696).
 
 - Rule: `consistent-selector-style`.
 - Case: `tests/cases/consistent-selector-style/valid/shorthand-id-input.svelte`.
@@ -301,6 +343,8 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 
 ## A selector inside `@keyframes` counts as an element type
 
+Issue: [eslint-plugin-svelte #1697](https://github.com/sveltejs/eslint-plugin-svelte/issues/1697).
+
 - Rule: `consistent-selector-style`.
 - Case: `tests/cases/consistent-selector-style/valid/keyframe-selectors-input.svelte`.
 - Upstream: with `style: ["class"]`, `@keyframes a { from {} 50% {} }` reports `from` and `50%` as
@@ -309,6 +353,8 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 - Why: the rule checks every rule inside an at-rule, `@keyframes` included.
 
 ## An each block's else branch counts as repeated
+
+Issue: [eslint-plugin-svelte #1698](https://github.com/sveltejs/eslint-plugin-svelte/issues/1698).
 
 - Rule: `consistent-selector-style`.
 - Case: `tests/cases/consistent-selector-style/invalid/each-else-branch-input.svelte`.
@@ -321,6 +367,8 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 
 ## A space beside an expression names an empty class
 
+Issue: [eslint-plugin-svelte #1700](https://github.com/sveltejs/eslint-plugin-svelte/issues/1700).
+
 - Rule: `no-unused-class-name`.
 - Cases: `tests/cases/no-unused-class-name/valid/space-after-expression` and
   `space-before-expression`.
@@ -331,6 +379,8 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 
 ## The style directive fix breaks a value with a double quote
 
+Issue: [eslint-plugin-svelte #1695](https://github.com/sveltejs/eslint-plugin-svelte/issues/1695).
+
 - Rule: `prefer-style-directive`.
 - Case: `tests/cases/prefer-style-directive/invalid/value-with-double-quote-input.svelte`.
 - Upstream: the fix turns `<div style='font-family: "Arial"'>` into
@@ -340,6 +390,8 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 
 ## The style directive fix drops `!important` from a conditional
 
+Issue: [eslint-plugin-svelte #1695](https://github.com/sveltejs/eslint-plugin-svelte/issues/1695).
+
 - Rule: `prefer-style-directive`.
 - Case: `tests/cases/prefer-style-directive/invalid/conditional-important-input.svelte`.
 - Upstream: the fix turns `style={c ? "color: red !important" : ""}` into
@@ -348,6 +400,8 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 - Why: the fix writes the declaration's value, and `PostCSS` keeps `!important` apart from it.
 
 ## The style directive fix changes a property that the style sets twice
+
+Issue: [eslint-plugin-svelte #1695](https://github.com/sveltejs/eslint-plugin-svelte/issues/1695).
 
 - Rule: `prefer-style-directive`.
 - Cases: `tests/cases/prefer-style-directive/invalid/property-set-twice` and
@@ -361,6 +415,8 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 
 ## The class directive fix duplicates a directive
 
+Issue: [eslint-plugin-svelte #1701](https://github.com/sveltejs/eslint-plugin-svelte/issues/1701).
+
 - Rule: `prefer-class-directive`.
 - Case: `tests/cases/prefer-class-directive/invalid/class-with-its-directive-input.svelte`.
 - Upstream: the fix turns `<div class={a ? "" : "x"} class:x={b}>` into
@@ -369,6 +425,8 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 - Why: the fix does not look at the element's other directives.
 
 ## Quirks of the CSS parsers that upstream uses
+
+Not filed.
 
 A differential fuzz finds these. It compares this crate's port with `postcss` 8.5.32,
 `postcss-scss` 4.0.9 and the inline style reader of `eslint-plugin-svelte` 3.23.1 on 173,841
@@ -392,6 +450,8 @@ repository, and no lint case covers these quirks.
 
 ## The SvelteKit navigation rules: `$app/paths` through a namespace, a constant or a pattern
 
+Issue: [eslint-plugin-svelte #1702](https://github.com/sveltejs/eslint-plugin-svelte/issues/1702), for `no-navigation-without-resolve`. Not filed for `no-navigation-without-base`, which upstream deprecates.
+
 In eslint-plugin-svelte 3.23.1, each input below is in a Kit 2 project, and its `<script>` holds
 `import { goto } from '$app/navigation';` and the import shown:
 
@@ -413,6 +473,8 @@ Tests in `crates/hosts/command_line/tests/svelte_kit.rs`: `asset_through_the_nam
 
 ## The SvelteKit navigation rules throw
 
+Not filed: upstream deprecates `no-goto-without-base` and `no-navigation-without-base`. Since eslint-plugin-svelte 3.24.1, `rel` no longer throws.
+
 In eslint-plugin-svelte 3.23.1, these inputs in a Kit 2 project make a rule throw:
 
 | Rule                            | Input                                                                          | Upstream throws                                         |
@@ -432,6 +494,8 @@ Tests in `svelte_kit.rs`: `base_through_the_namespace_prefixes_a_url`,
 
 ## `svelte/no-export-load-in-svelte-module-in-kit-pages` misses `<script module>`
 
+Fixed in eslint-plugin-svelte 3.24.1 ([eslint-plugin-svelte #1664](https://github.com/sveltejs/eslint-plugin-svelte/issues/1664)).
+
 In eslint-plugin-svelte 3.23.1, the rule reports nothing for this `+error.svelte` or
 `+layout.svelte` in a Kit 2 project:
 
@@ -447,6 +511,8 @@ attribute does not count. The export is the same mistake under either attribute.
 Test in `svelte_kit.rs`: `load_in_a_module_script_of_an_error_page_is_reported`.
 
 ## `svelte/valid-prop-names-in-kit-pages` reports a computed key
+
+Issue: [eslint-plugin-svelte #1703](https://github.com/sveltejs/eslint-plugin-svelte/issues/1703).
 
 In eslint-plugin-svelte 3.23.1, the rule reports `[k]` in this `+page.svelte` of a Kit 2 project:
 
@@ -483,6 +549,8 @@ Test in `rsvelte_markup_syntax`: `character_references::tests::html_follows_the_
 
 ## A component's `let:` names reach its named slots (svelte-eslint-parser)
 
+Issue: [svelte-eslint-parser #1003](https://github.com/sveltejs/svelte-eslint-parser/issues/1003).
+
 - Case: `<C let:x><p slot="a">{x}</p></C>` beside an instance `let x`, as in Svelte's own
   `runtime-legacy/samples/component-slot-let-scope` and `component-slot-let-scope-3` and
   `runtime-runes/samples/component-let-directive`, and in five corpus apps.
@@ -495,6 +563,8 @@ Test in `rsvelte_markup_syntax`: `character_references::tests::html_follows_the_
 
 ## A component's `let:` names reach its own attributes (svelte-eslint-parser)
 
+Issue: [svelte-eslint-parser #1004](https://github.com/sveltejs/svelte-eslint-parser/issues/1004).
+
 - Case: `<Child message={message} let:message>` beside an instance `let message`, as in Svelte's
   `runtime-runes/samples/slot-static` and svelte2tsx's `component-slot-shadowed-prop`.
 - Upstream resolves `{message}` to the `let:` name. So no-unused-vars reports the instance
@@ -504,6 +574,8 @@ Test in `rsvelte_markup_syntax`: `character_references::tests::html_follows_the_
   Test: `rsvelte_svelte_semantic` `resolve::tests::an_element_attribute_sees_its_let_names_and_a_component_one_only_with_a_slot`.
 
 ## An each block's key sees a `{@const}` of the body (svelte-eslint-parser)
+
+Issue: [svelte-eslint-parser #1005](https://github.com/sveltejs/svelte-eslint-parser/issues/1005).
 
 - Case: `{#each things as thing (key)}{@const key = thing.id}…{/each}`, eslint-plugin-svelte's
   own `valid-each-key/invalid/const-key01`.
@@ -522,6 +594,15 @@ Test in `rsvelte_markup_syntax`: `character_references::tests::html_follows_the_
 | `{@const x = (y)}`                                       | `Parsing error: ')' expected.`  | 2            |
 | `<template lang="pug">` with a `{a}`                     | no reference to `a`             | 1            |
 
+Issues for the rows of the table:
+
+- `<script` in a string: [svelte-eslint-parser #346](https://github.com/sveltejs/svelte-eslint-parser/issues/346).
+- `Script` and `Style`: [svelte-eslint-parser #1006](https://github.com/sveltejs/svelte-eslint-parser/issues/1006). `Style` parses since svelte-eslint-parser 1.10.1.
+- Directive names: [svelte-eslint-parser #1007](https://github.com/sveltejs/svelte-eslint-parser/issues/1007), for a member name. Svelte reads a name with `-` as a subtraction, so that one has no issue.
+- The one-line script: [svelte-eslint-parser #1009](https://github.com/sveltejs/svelte-eslint-parser/issues/1009). It fails with TypeScript when `</script>` ends the file.
+- `{@const x = (y)}`: [svelte-eslint-parser #1008](https://github.com/sveltejs/svelte-eslint-parser/issues/1008).
+- `<template lang="pug">`: [svelte-eslint-parser #727](https://github.com/sveltejs/svelte-eslint-parser/issues/727).
+
 Svelte 5.57.3 compiles every one of them, so this crate lints them. The corpus skips their lint
 units (`corpus/_registry/units.toml`).
 
@@ -531,6 +612,7 @@ units (`corpus/_registry/units.toml`).
   `svelte-material-ui` and one of `threlte`.
 - `svelte/consistent-selector-style` throws `Unexpected '!'` on an HTML comment in `<style>`
   (Svelte's `css/samples/comment-html`).
+- Issues: the `svelte/indent` crash comes from a mapped type in a `$props()` annotation, and [eslint-plugin-svelte #970](https://github.com/sveltejs/eslint-plugin-svelte/issues/970) fixes it on `main`, not yet released. [eslint-plugin-svelte #1699](https://github.com/sveltejs/eslint-plugin-svelte/issues/1699) is the `consistent-selector-style` crash.
 - ESLint then reports nothing for the file. This crate reports every rule, and the corpus skips
   these lint units.
 
