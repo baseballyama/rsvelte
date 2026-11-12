@@ -33,12 +33,6 @@ type R<T> = Result<T, Unsupported>;
 const PRINT_WIDTH: usize = 80;
 const TAB_WIDTH: usize = 2;
 
-/// `@vue/shared`'s `VOID_TAGS`, which the HTML parser prettier uses agrees with.
-const VOID_TAGS: &[&str] = &[
-    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
-    "track", "wbr",
-];
-
 /// # Errors
 ///
 /// [`Unsupported`] if the component holds a construct this formatter does not print.

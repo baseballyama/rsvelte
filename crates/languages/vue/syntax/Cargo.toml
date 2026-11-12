@@ -9,6 +9,7 @@ publish = false
 doctest = false
 
 [dependencies]
+rsvelte_markup_syntax.workspace = true
 rsvelte_kernel.workspace = true
 oxc_parser.workspace = true
 oxc_span.workspace = true

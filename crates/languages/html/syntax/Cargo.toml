@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_markup_syntax"
-description = "HTML character references"
+description = "HTML facts the Svelte and Vue crates share: character references, void elements and DOM properties"
 version = "0.0.0"
 edition.workspace = true
 publish = false
