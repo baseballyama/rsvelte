@@ -109,15 +109,17 @@ impl P<'_> {
     }
 
     /// The combinators between two compounds, of which Svelte keeps the last, as in `a > + b`.
-    fn combinators(&mut self, inside_pseudo: bool) -> R<Combinator> {
+    fn combinators(&mut self, inside_pseudo: bool) -> R<(Combinator, Span)> {
         // Svelte reads a name where a comment follows the whitespace before a compound.
         let mut comment = None;
-        let mut spaced = false;
+        let mut spaced = None;
         let mut explicit = None;
         loop {
             let start = self.position;
             self.whitespace();
-            spaced |= self.position > start;
+            if self.position > start {
+                spaced.get_or_insert_with(|| self.span(start));
+            }
             let at = self.position;
             if self.comment()? {
                 comment.get_or_insert(at);
@@ -131,9 +133,10 @@ impl P<'_> {
                 _ => break,
             };
             self.position += length;
-            explicit = Some(combinator);
+            explicit = Some((combinator, self.span(self.position - length)));
         }
-        let combinator = explicit.or_else(|| spaced.then_some(Combinator::Descendant));
+        let combinator =
+            explicit.or_else(|| spaced.map(|whitespace| (Combinator::Descendant, whitespace)));
         if let Some(combinator) = combinator
             && self.starts_compound()
         {
@@ -150,12 +153,12 @@ impl P<'_> {
             });
         }
         // What follows is not a selector, which the compound after it reports.
-        Ok(combinator.unwrap_or(Combinator::Descendant))
+        Ok(combinator.unwrap_or_else(|| (Combinator::Descendant, self.span(self.position))))
     }
 
     fn relative(
         &mut self,
-        combinator: Option<Combinator>,
+        combinator: Option<(Combinator, Span)>,
         inside_pseudo: bool,
     ) -> R<RelativeSelector> {
         let id = self.relative_count;
@@ -171,7 +174,11 @@ impl P<'_> {
             implicit_parent: true,
             global: false,
             id,
-            combinator,
+            combinator: combinator.map(|(combinator, _)| combinator),
+            combinator_span: combinator.map_or_else(
+                || Span::new(start_offset as u32, start_offset as u32),
+                |(_, span)| span,
+            ),
             span: self.span(start_offset),
             simple: SimpleList::new(first, rest.into_boxed_slice()),
         })
@@ -194,12 +201,12 @@ impl P<'_> {
 
     fn simple(&mut self, inside_pseudo: bool) -> R<Simple> {
         let s = self.position;
-        // Svelte reads an `An+B` in any pseudo-class, as a name no element has.
+        // Svelte reads an `An+B` in any pseudo-class.
         if inside_pseudo && let Some(length) = self.nth() {
             self.position += length;
             let nth = self.span(s);
             self.whitespace();
-            return Ok(Simple::Type(nth));
+            return Ok(Simple::Nth(nth));
         }
         let Some(c) = self.peek() else {
             return Err(if self.end == self.b.len() {

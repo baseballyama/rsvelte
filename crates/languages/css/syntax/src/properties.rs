@@ -26,6 +26,38 @@ pub fn vendor_prefix(name: &str) -> &str {
     }
 }
 
+/// `name` without the browser prefix Svelte removes: `-webkit-`, `-moz-`, `-o-` or `-ms-`.
+#[must_use]
+pub fn without_browser_prefix(name: &str) -> &str {
+    BROWSER_PREFIXES
+        .iter()
+        .find_map(|prefix| name.strip_prefix(prefix))
+        .unwrap_or(name)
+}
+
+const BROWSER_PREFIXES: [&str; 4] = ["-webkit-", "-moz-", "-o-", "-ms-"];
+
+/// Whether Svelte renames the keyframes in the value of `property`: `animation` or
+/// `animation-name` once lowercased as JavaScript does and without a browser prefix.
+#[must_use]
+pub fn names_keyframes(property: &str) -> bool {
+    if !property.is_ascii() {
+        // A non-ASCII letter can lowercase to an ASCII one, as the Kelvin sign does to `k`.
+        let lower = property.to_lowercase();
+        return lower.is_ascii() && names_keyframes(&lower);
+    }
+    let name = BROWSER_PREFIXES
+        .iter()
+        .find_map(|prefix| {
+            property
+                .get(..prefix.len())
+                .filter(|start| start.eq_ignore_ascii_case(prefix))
+                .map(|_| &property[prefix.len()..])
+        })
+        .unwrap_or(property);
+    name.eq_ignore_ascii_case("animation") || name.eq_ignore_ascii_case("animation-name")
+}
+
 /// The longhands a shorthand property sets; empty for any other property.
 #[must_use]
 pub fn longhands(shorthand: &str) -> &'static [&'static str] {

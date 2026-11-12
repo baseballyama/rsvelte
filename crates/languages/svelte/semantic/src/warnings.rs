@@ -19,6 +19,7 @@ use crate::compiler_syntax_tree::CompilerSyntaxTree;
 use crate::resolve::{Resolution, Roots, TemplateName, TemplateScope};
 
 mod a11y;
+mod css_analysis;
 mod exports;
 mod found;
 mod fuzzymatch;
@@ -67,6 +68,8 @@ pub enum Phase {
     Parse,
     Scopes,
     Walk,
+    /// The compiler analyzes the style sheet after it walks every tree.
+    Stylesheet,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -353,6 +356,16 @@ pub fn warnings(
         updates::non_reactive_updates(component, resolution, &bind_this, exported, &mut found);
     } else {
         unused_exports(component, resolution, source, &mut found);
+    }
+    if let Some(Ok(sheet)) = component.style.as_ref().map(|s| &s.sheet)
+        && let Some(found) = css_analysis::first_error(&sheet.rules, source)
+    {
+        let raised = Raised {
+            phase: Phase::Stylesheet,
+            section: Section::Template,
+            at: found.span.start_offset,
+        };
+        out.errors.push((raised, found));
     }
     if let (Some(Ok(sheet)), Some(analysis)) =
         (component.style.as_ref().map(|s| &s.sheet), analysis)

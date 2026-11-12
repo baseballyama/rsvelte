@@ -395,11 +395,12 @@ impl P<'_> {
                 let block_start_offset = self.position;
                 self.position += 1;
                 let name_text = name.text(self.source_text);
-                let (declarations, children) = if name_text.ends_with("keyframes") {
-                    (Vec::new(), self.keyframes()?)
-                } else {
-                    self.body()?
-                };
+                let (declarations, children) =
+                    if crate::properties::without_browser_prefix(name_text) == "keyframes" {
+                        (Vec::new(), self.keyframes()?)
+                    } else {
+                        self.body()?
+                    };
                 self.expect(b'}')?;
                 Ok(Rule {
                     identifier: None,

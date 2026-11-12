@@ -328,7 +328,7 @@ fn compound<E: Element>(source_text: &str, rel: &RelativeSelector, el: E) -> Mat
                 Some(_) => Match::No,
                 None => Match::Maybe,
             },
-            Simple::Universal(_) => Match::Yes,
+            Simple::Universal(_) | Simple::Nth(_) => Match::Yes,
             Simple::Nesting(_) => rel
                 .parent_rule
                 .map_or(Match::Maybe, |rule| el.nesting(rule)),
@@ -422,9 +422,25 @@ fn mark<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32) + ?Si
                         }
                     }
                 }
+                // Svelte cannot tell whether a `:not` of more than one compound matches, so it
+                // scopes the compounds before its trailing `:global`s, the element and each
+                // element around it.
                 "not" => {
                     for selector in selectors.iter().filter(|s| s.parts.len() > 1) {
-                        matches_with(source, selector, element, scoped, used);
+                        used(selector.id);
+                        let kept = selector
+                            .parts
+                            .iter()
+                            .rposition(|part| {
+                                !is_global(source, part)
+                                    && !part.simple.first().is_global_block(source)
+                            })
+                            .map_or(0, |last| last + 1);
+                        for part in &selector.parts[..kept] {
+                            for at in std::iter::successors(Some(element), E::parent) {
+                                scoped(at, part);
+                            }
+                        }
                     }
                 }
                 "has" => {
