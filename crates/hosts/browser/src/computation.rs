@@ -1,6 +1,6 @@
 //! Browser execution of language tasks.
 
-use std::fmt::{self, Debug, Write as _};
+use std::fmt::{self, Write as _};
 use std::sync::{Arc, Mutex};
 
 use rsvelte_kernel::computation::database::{ArtifactAccess, DocumentContext};
@@ -11,6 +11,7 @@ use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;
+use rsvelte_plugin_interface::{Extension, NoFunctions, Selection, Settings};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(js_name = runPipeline)]
@@ -27,7 +28,6 @@ pub fn run_pipeline(
 
 const MAX_INPUT_BYTES: usize = 64 * 1024;
 const MAX_SNAPSHOT_CHARS: usize = 80_000;
-const PLUGINS: &[&str] = &["svelte", "vue", "svue", "vuelte"];
 const OPERATIONS: &[&str] = &["compile-client", "compile-server", "format", "lint"];
 
 struct Observation {
@@ -70,115 +70,90 @@ impl Task for ObservedTask {
     }
 }
 
+/// `{:#?}` of artifact `name`, cut after [`MAX_SNAPSHOT_CHARS`] characters; `None` for a facet.
 fn snapshot(context: &DocumentContext<'_>, name: &str) -> Option<String> {
-    use rsvelte_vue_to_svelte::{Client, Server};
-    Some(match name {
-        "svelte.parse" => bounded_debug(context.get::<rsvelte_svelte_syntax::Parsed>()),
-        "svelte.resolve" => bounded_debug(context.get::<rsvelte_svelte_semantic::Resolved>()),
-        "svelte.compiler_syntax_tree" => {
-            bounded_debug(context.get::<rsvelte_svelte_semantic::Lowered>())
-        }
-        "svelte.analyze" => bounded_debug(context.get::<rsvelte_svelte_semantic::Analyzed>()),
-        "svelte.css" => bounded_debug(context.get::<rsvelte_svelte_compile::ScopedStylesheet>()),
-        "vue.parse" => bounded_debug(context.get::<rsvelte_vue_syntax::Parsed>()),
-        "vue.compiler_syntax_tree" => bounded_debug(context.get::<rsvelte_vue_semantic::Lowered>()),
-        "vue.resolve" => bounded_debug(context.get::<rsvelte_vue_semantic::Resolved>()),
-        "svue.translate.client" => {
-            bounded_debug(context.get::<rsvelte_vue_to_svelte::Translated<Client>>())
-        }
-        "svue.resolve.client" => {
-            bounded_debug(context.get::<rsvelte_vue_to_svelte::Resolved<Client>>())
-        }
-        "svue.analyze.client" => {
-            bounded_debug(context.get::<rsvelte_vue_to_svelte::Analyzed<Client>>())
-        }
-        "svue.translate.server" => {
-            bounded_debug(context.get::<rsvelte_vue_to_svelte::Translated<Server>>())
-        }
-        "svue.resolve.server" => {
-            bounded_debug(context.get::<rsvelte_vue_to_svelte::Resolved<Server>>())
-        }
-        "svue.analyze.server" => {
-            bounded_debug(context.get::<rsvelte_vue_to_svelte::Analyzed<Server>>())
-        }
-        "vuelte.check" => bounded_debug(context.get::<rsvelte_svelte_to_vue_vapor::Checked>()),
-        _ => return None,
-    })
+    let mut out = Bounded::new();
+    let written = context.view(name, &mut out)?;
+    Some(out.finish(written))
 }
 
-/// `{:#?}` of `value`, cut after [`MAX_SNAPSHOT_CHARS`] characters.
-fn bounded_debug(value: &impl Debug) -> String {
-    struct Bounded {
-        text: String,
-        room: usize,
+struct Bounded {
+    text: String,
+    room: usize,
+}
+
+impl Bounded {
+    const fn new() -> Self {
+        Self {
+            text: String::new(),
+            room: MAX_SNAPSHOT_CHARS,
+        }
     }
-    impl fmt::Write for Bounded {
-        fn write_str(&mut self, s: &str) -> fmt::Result {
-            for ch in s.chars() {
-                if self.room == 0 {
-                    // Stops the formatter, so a large tree is not formatted only to be cut.
-                    return Err(fmt::Error);
-                }
-                self.room -= 1;
-                self.text.push(ch);
+
+    fn finish(mut self, written: fmt::Result) -> String {
+        if written.is_err() {
+            write!(
+                self.text,
+                "\n[Snapshot truncated after {MAX_SNAPSHOT_CHARS} characters]"
+            )
+            .expect("writing to a String does not fail");
+        }
+        self.text
+    }
+}
+
+impl fmt::Write for Bounded {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        for ch in s.chars() {
+            if self.room == 0 {
+                // Stops the formatter, so a large tree is not formatted only to be cut.
+                return Err(fmt::Error);
             }
-            Ok(())
+            self.room -= 1;
+            self.text.push(ch);
         }
+        Ok(())
     }
-    let mut out = Bounded {
-        text: String::new(),
-        room: MAX_SNAPSHOT_CHARS,
-    };
-    if write!(out, "{value:#?}").is_err() {
-        write!(
-            out.text,
-            "\n[Snapshot truncated after {MAX_SNAPSHOT_CHARS} characters]"
-        )
-        .expect("writing to a String does not fail");
-    }
-    out.text
 }
 
-fn registry(plugins: &[&str]) -> Registry {
+/// The plugins a page offers. A plugin's extensions are those whose identifier is its name or
+/// starts with its name and a dot.
+static EXTENSIONS: &[&Extension] = &[
+    &rsvelte_typescript_compile::EXTENSION,
+    &rsvelte_typescript_format::EXTENSION,
+    &rsvelte_typescript_lint::EXTENSION,
+    &rsvelte_svelte_compile::EXTENSION,
+    &rsvelte_svelte_format::EXTENSION,
+    &rsvelte_svelte_lint::EXTENSION,
+    &rsvelte_svelte_check::EXTENSION,
+    &rsvelte_vue_compile::EXTENSION,
+    &rsvelte_vue_format::EXTENSION,
+    &rsvelte_vue_lint::EXTENSION,
+    &rsvelte_vue_check::EXTENSION,
+    &rsvelte_vue_to_svelte::EXTENSION,
+    &rsvelte_svelte_to_vue_vapor::EXTENSION,
+];
+
+fn plugin_of(extension: &Extension) -> &'static str {
+    extension
+        .identifier
+        .split_once('.')
+        .map_or(extension.identifier, |(plugin, _)| plugin)
+}
+
+fn registry(plugins: &[&str]) -> Result<Registry, String> {
+    let extensions: Vec<&Extension> = EXTENSIONS
+        .iter()
+        .copied()
+        .filter(|extension| plugins.contains(&plugin_of(extension)))
+        .collect();
+    // A page runs per-document tasks only, and has no files.
+    let mut settings =
+        Settings::new(Selection::DocumentTasks, Arc::new(NoFunctions)).without_file_system();
     let mut reg = Registry::new();
-    for plugin in plugins {
-        match *plugin {
-            "svelte" => {
-                rsvelte_svelte_compile::register(&mut reg);
-                rsvelte_svelte_format::register(&mut reg);
-                rsvelte_svelte_lint::register(&mut reg);
-                // A page has no files, so no `svelte.config.js` and no `package.json` either.
-                reg.provide::<rsvelte_svelte_lint::computation::SvelteConfiguration>(
-                    "browser",
-                    |_| true,
-                    |_| Ok(rsvelte_svelte_lint::SvelteConfig::default()),
-                );
-                reg.provide::<rsvelte_svelte_lint::computation::SvelteKit>(
-                    "browser",
-                    |_| true,
-                    // Upstream takes a page to be a Kit 2 project.
-                    |_| rsvelte_svelte_lint::project::SvelteKitProject {
-                        version: Some("2".to_owned()),
-                        location: rsvelte_svelte_lint::project::Location::NameOnly,
-                    },
-                );
-                rsvelte_svelte_check::register(
-                    &mut reg,
-                    &rsvelte_svelte_check::Configuration::default(),
-                );
-            }
-            "vue" => {
-                rsvelte_vue_compile::register(&mut reg);
-                rsvelte_vue_format::register(&mut reg);
-                rsvelte_vue_lint::register(&mut reg);
-                rsvelte_vue_check::register(&mut reg, &rsvelte_vue_check::Configuration::default());
-            }
-            "svue" => rsvelte_vue_to_svelte::register(&mut reg),
-            "vuelte" => rsvelte_svelte_to_vue_vapor::register(&mut reg),
-            _ => unreachable!("plugin names were validated at the boundary"),
-        }
-    }
-    reg
+    rsvelte_plugin_interface::install(&mut reg, &extensions, &mut settings)
+        .map_err(|e| e.to_string())?;
+    Ok(reg)
 }
 
 fn operation(identifier: &str) -> Option<&'static str> {
@@ -234,9 +209,10 @@ fn execute(
     if source.len() > MAX_INPUT_BYTES {
         return Err(format!("source exceeds {MAX_INPUT_BYTES} bytes"));
     }
-    let plugins = selections(plugins, PLUGINS)?;
+    let known: Vec<&str> = EXTENSIONS.iter().map(|e| plugin_of(e)).collect();
+    let plugins = selections(plugins, &known)?;
     let operations = selections(tasks, OPERATIONS)?;
-    let mut reg = registry(&plugins);
+    let mut reg = registry(&plugins)?;
     let registered = reg.document_task_identifiers();
     let selected: Vec<&str> = registered
         .iter()

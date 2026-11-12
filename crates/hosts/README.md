@@ -11,7 +11,10 @@ runtime functions they name. Node is optional.
 | --------------- | ------------------------------------------------------------------- | ---------------------------------- |
 | `command_line/` | People running rsvelte in a terminal, and toolchain developers      | The native `rsvelte` executable    |
 | `browser/`      | Developers embedding rsvelte in a web page; for now, the Learn site | JavaScript bindings to WebAssembly |
-| `site/`         | The site's build (`apps/site/scripts/generate.ts`)                  | Executables that print figure data |
+
+A host knows no language. It installs the plugins' extensions and runs their tasks; a page
+installs them without a file system, and shows each artifact a task computed through the
+artifact's `Debug`.
 
 ## Command line
 
