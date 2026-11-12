@@ -116,19 +116,20 @@ impl Task for Lint {
         // svelte-eslint-parser throws Svelte's parse error, which ESLint reports as the one
         // finding; it parses scripts itself, so an error in one stays refused.
         if rsvelte_svelte_syntax::matches(context.document)
-            && let Err(error) = context.get::<rsvelte_svelte_syntax::Parsed>()
+            && let Some(error) = rsvelte_svelte_syntax::cut_parse_error(
+                context,
+                rsvelte_svelte_syntax::parse::StyleCut::SvelteEslintParser,
+            )
             && !rsvelte_svelte_syntax::parse::in_script_content(
                 context.source_text(),
                 error.span.start_offset,
             )
         {
-            out.file(
-                "lint.json",
-                rsvelte_lint_runner::output::render_parse_error(
-                    context.ecmascript_line_index(),
-                    &error.message,
-                    error.span.start_offset,
-                ),
+            rsvelte_lint_runner::output::report_parse_error(
+                out,
+                context.ecmascript_line_index(),
+                &error.message,
+                error.span.start_offset,
             );
             return;
         }
@@ -142,19 +143,18 @@ impl Task for Lint {
                 return;
             }
         };
-        out.file(
-            "lint.json",
-            rsvelte_lint_runner::output::render_json(
-                context.ecmascript_line_index(),
-                // The rules that ran, so a report tells a rule that found nothing from one that
-                // does not run on this file.
-                configuration
-                    .rules()
-                    .iter()
-                    .filter(|rule| rule.applies(&file))
-                    .map(crate::ConfiguredRule::name),
-                &findings,
-            ),
+        rsvelte_lint_runner::output::report(
+            out,
+            context.ecmascript_line_index(),
+            context.source_text(),
+            // The rules that ran, so a report tells a rule that found nothing from one that
+            // does not run on this file.
+            configuration
+                .rules()
+                .iter()
+                .filter(|rule| crate::configuration::applies(rule, &file))
+                .map(crate::ConfiguredRule::name),
+            &findings,
         );
     }
 }

@@ -41,8 +41,9 @@ impl Project {
             .output()
             .expect("run CLI");
         let stdout = String::from_utf8(output.stdout).expect("UTF-8");
+        // Exit code 1 means the rules found errors; 2 means the run did not happen.
         assert!(
-            output.status.success(),
+            matches!(output.status.code(), Some(0 | 1)),
             "{stdout}{}",
             String::from_utf8_lossy(&output.stderr)
         );

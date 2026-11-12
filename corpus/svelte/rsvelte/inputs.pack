@@ -35720,6 +35720,77 @@ export const pair = $state({ a: 1, b: "two" });
   {@render body(labelled)}
 {/if}
 
+=== 312 pattern/css/consecutive-and-column-combinators.svelte	svelte	runes	neutral
+<table>
+	<colgroup><col class="c" /></colgroup>
+	<tbody><tr><td class="d"><a><b>x</b></a></td></tr></tbody>
+</table>
+
+<style>
+	a >> b {
+		color: red;
+	}
+	a >>> b {
+		color: green;
+	}
+	a > > b {
+		color: blue;
+	}
+	a > + b {
+		color: black;
+	}
+	.c || .d {
+		color: white;
+	}
+	col ||td {
+		color: gray;
+	}
+</style>
+
+=== 78 pattern/css/declaration-without-property-or-colon.svelte	svelte	runes	neutral
+<p class="a">x</p>
+
+<style>
+	.a {
+		: red;
+		color blue;
+		--x: ;
+	}
+</style>
+
+=== 57 pattern/css/empty-declaration.svelte	svelte	runes	rejected
+<p class="a">x</p>
+
+<style>
+	.a {
+		color: ;
+	}
+</style>
+
+=== 126 pattern/css/html-comment-in-a-sheet.svelte	svelte	runes	neutral
+<p class="a"><i class="b">x</i></p>
+
+<style>
+	<!-- .b { color: red; } -->
+	.a {
+		color: blue;
+	}
+	<!-- </style> -->
+</style>
+
+=== 117 pattern/css/value-ends-outside-strings-and-urls.svelte	svelte	runes	neutral
+<p class="a">x</p>
+
+<style>
+	.a {
+		x: (;
+		y: [;
+		content: ";";
+		background: url(a;b);
+		b: myurl(;);
+	}
+</style>
+
 === 43 pattern/deferred-interface-body-error.svelte	svelte	runes	rejected
 export interface Config {
   src: string;

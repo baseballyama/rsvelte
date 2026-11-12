@@ -55,8 +55,7 @@ impl Printer<'_, '_, '_> {
             self.refuse_script_language(&named)?;
             self.script_body(content)?
         } else {
-            let parses = rsvelte_stylesheet_syntax::parse(self.source_text, content).is_ok();
-            self.style_body(content, &named, parses)?
+            self.style_body(content, &named)?
         };
         let many = attributes.len() > 1;
         let mut docs = Vec::with_capacity(attributes.len() + 1);

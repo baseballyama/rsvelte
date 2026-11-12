@@ -33977,6 +33977,77 @@ plain text with no script, no markup elements and no expressions
   {@render body(labelled)}
 {/if}
 
+=== 329 pattern/css/consecutive-and-column-combinators.svelte	svelte
+<table>
+  <colgroup><col class="c" /></colgroup>
+  <tbody><tr><td class="d"><a><b>x</b></a></td></tr></tbody>
+</table>
+
+<style>
+  a>>b {
+    color: red;
+  }
+  a >>> b {
+    color: green;
+  }
+  a > b {
+    color: blue;
+  }
+  a + b {
+    color: black;
+  }
+  .c||.d {
+    color: white;
+  }
+  col||td {
+    color: gray;
+  }
+</style>
+
+=== 78 pattern/css/declaration-without-property-or-colon.svelte	svelte
+<p class="a">x</p>
+
+<style>
+	.a {
+		: red;
+		color blue;
+		--x: ;
+	}
+</style>
+
+=== 60 pattern/css/empty-declaration.svelte	svelte
+<p class="a">x</p>
+
+<style>
+  .a {
+    color:;
+  }
+</style>
+
+=== 240 pattern/css/html-comment-in-a-sheet.svelte	error.txt
+`</style>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+  2 |
+  3 | <style>
+> 4 | 	<!-- .b { color: red; } -->
+    | 	                          ^
+  5 | 	.a {
+  6 | 		color: blue;
+  7 | 	}
+
+=== 117 pattern/css/value-ends-outside-strings-and-urls.svelte	svelte
+<p class="a">x</p>
+
+<style>
+	.a {
+		x: (;
+		y: [;
+		content: ";";
+		background: url(a;b);
+		b: myurl(;);
+	}
+</style>
+
 === 132 pattern/deferred-interface-body-error.svelte	error.txt
 Expected token }
 https://svelte.dev/e/expected_token

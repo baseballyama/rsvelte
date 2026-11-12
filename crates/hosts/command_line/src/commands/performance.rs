@@ -2,15 +2,22 @@
 //! counters CI ratchets (`tools/performance`). `every=N` keeps every N-th document, in path order.
 //!
 //! Wall time moves with the machine, so what gates is what does not: every document task over the
-//! population, serially, `rounds` times, and the allocations of the last round, which runs with
-//! warm buffer pools. On one thread the sequence of allocations is a function of the input and
-//! the binary alone, so the counts repeat exactly, per phase and in total.
+//! population, serially, `rounds` times, and the allocations of the last round. On one thread the
+//! sequence of allocations is a function of the input and the binary alone, so the counts repeat
+//! exactly, per phase and in total.
+//!
+//! The last round runs with warm buffer pools: with the `metrics` feature, rounds go on until one
+//! allocates what the one before it did. An arena keeps one chunk, so a document that outgrew it
+//! grows it again in the next round, and whether it does depends on which arena the order of the
+//! documents gave it; counting that round would count the order, not the work.
 //!
 //! Instructions are counted outside, by cachegrind, as the difference between a run with
-//! `rounds=2` and one with `rounds=1`: exactly one warm round, whatever loading and warming cost.
+//! `rounds=2` and one with `rounds=1`: one round after the first, whatever loading costs.
 //! `rounds=0` only loads, so cachegrind counts loading with it; its counters are `UNMEASURED`.
 //! That needs no `metrics` feature, so the instructions are the shipped build's; without the
-//! feature the allocation fields are `UNMEASURED`.
+//! feature the allocation fields are `UNMEASURED`. Nor does such a run wait for warm pools, so
+//! its second round can still grow an arena and count the order of the documents.
+//! UNMEASURED: how many instructions that is.
 //!
 //! A document whose task panicked loses its outputs, so the counters would measure less work and
 //! look like an improvement: such a run reports the documents and fails.
@@ -104,7 +111,13 @@ pub(crate) fn performance(
         }
         None => print!("{report}"),
     }
-    if m.panicked.is_empty() {
+    if measurement::ENABLED && options.rounds > 0 && !m.warm {
+        eprintln!(
+            "rsvelte performance: the allocations still change after {} rounds",
+            m.rounds
+        );
+        ExitCode::FAILURE
+    } else if m.panicked.is_empty() {
         ExitCode::SUCCESS
     } else {
         for (path, message) in &m.panicked {
@@ -114,7 +127,15 @@ pub(crate) fn performance(
     }
 }
 
+/// Rounds after which pools that still grow fail the run; each grows only to the largest
+/// document's need, so a run that reaches it allocates outside the documents' work.
+const MOST_ROUNDS: usize = 8;
+
 struct Measured {
+    /// The rounds that ran, `rounds` or more.
+    rounds: usize,
+    /// Whether the last round allocated what the one before it did.
+    warm: bool,
     totals: Option<measurement::GlobalMeasurements>,
     phases: Vec<measurement::PhaseMeasurements>,
     output_bytes: usize,
@@ -123,30 +144,32 @@ struct Measured {
     panicked: Vec<(String, String)>,
 }
 
-/// `rounds` serial runs; the counters are the last round's.
+/// At least `rounds` serial runs, and with counters until the pools are warm; the counters are the
+/// last round's.
 fn measure(reg: &Registry, docs: &[Document], tasks: &[&str], rounds: usize) -> Measured {
     let run = RunOptions {
         tasks,
         sharing: Sharing::Shared,
         threads: Some(1),
     };
-    let mut totals = None;
+    let mut totals: Option<measurement::GlobalMeasurements> = None;
     let mut counted = Counted::default();
-    for round in 0..rounds {
-        let last = round + 1 == rounds;
-        if last {
-            measurement::reset();
-            measurement::track_global(true);
-        }
+    let (mut round, mut warm) = (0, false);
+    while round < rounds || (measurement::ENABLED && rounds > 0 && !warm && round < MOST_ROUNDS) {
+        round += 1;
+        measurement::reset();
+        measurement::track_global(true);
         let round_counted = Counted::default();
         // `main` has checked the task identifiers.
         pipeline::run_each(reg, docs, &run, &|i, result| round_counted.add(i, result))
             .expect("known task ids");
-        if last {
-            measurement::track_global(false);
-            totals = Some(measurement::global());
-            counted = round_counted;
-        }
+        measurement::track_global(false);
+        let now = measurement::global();
+        warm = totals.is_some_and(|before| {
+            (before.allocations, before.bytes) == (now.allocations, now.bytes)
+        });
+        totals = Some(now);
+        counted = round_counted;
     }
     let panicked = counted
         .panicked
@@ -158,6 +181,8 @@ fn measure(reg: &Registry, docs: &[Document], tasks: &[&str], rounds: usize) -> 
     let mut phases = measurement::snapshot();
     phases.sort_unstable_by_key(|p| p.name);
     Measured {
+        rounds: round,
+        warm,
         totals,
         phases,
         output_bytes: counted.output_bytes.into_inner(),
@@ -206,7 +231,7 @@ fn report(
     w.key("metrics")
         .write_boolean(measurement::ENABLED)
         .key("rounds")
-        .write_number(options.rounds)
+        .write_number(m.rounds)
         .key("documents")
         .write_number(docs.len())
         .key("skipped")

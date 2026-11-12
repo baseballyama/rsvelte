@@ -21,6 +21,7 @@ rsvelte_typescript_lint.workspace = true
 oxc_ast.workspace = true
 oxc_semantic.workspace = true
 rustc-hash.workspace = true
+serde.workspace = true
 
 [dev-dependencies]
 rsvelte_test_harness.workspace = true

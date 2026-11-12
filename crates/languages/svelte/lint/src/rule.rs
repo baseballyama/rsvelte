@@ -1,7 +1,5 @@
 //! What a rule implements, built in or from a plugin.
 
-use std::sync::Arc;
-
 use oxc_semantic::AstNodes;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Contribution;
@@ -15,8 +13,6 @@ use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree};
-use serde::de::DeserializeOwned;
-use serde_json::value::RawValue;
 
 use crate::computation::{
     ConditionTypes, ModuleSemantic, NativeConditionTypes, SvelteConfiguration, SvelteKit,
@@ -40,6 +36,12 @@ pub struct RuleDefinition {
     pub configure: fn(&RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String>,
 }
 
+impl rsvelte_lint_runner::catalog::Definition for RuleDefinition {
+    fn name(&self) -> &'static str {
+        self.name
+    }
+}
+
 /// Which documents a rule runs on.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Files {
@@ -49,12 +51,7 @@ pub enum Files {
 }
 
 /// Rules a plugin adds. Each rule's name is `<prefix>/<rule>`.
-#[derive(Debug)]
-pub struct LintPlugin {
-    /// Not `svelte`, and no other plugin's.
-    pub prefix: &'static str,
-    pub rules: &'static [&'static RuleDefinition],
-}
+pub type LintPlugin = rsvelte_lint_runner::catalog::Plugin<RuleDefinition>;
 
 /// The [`Contribution`] list of plugin rules; a plugin adds to it before `svelte.lint` installs.
 #[derive(Debug)]
@@ -65,48 +62,7 @@ impl Contribution for LintPlugins {
 }
 
 /// A rule's options: `ESLint`'s entry without its level, and the shared settings.
-#[derive(Debug)]
-pub struct RuleOptions<'a> {
-    pub options: &'a [Box<RawValue>],
-    pub settings: &'a Arc<LintSettings>,
-}
-
-impl RuleOptions<'_> {
-    /// Option `index`, decoded; `None` when it is absent.
-    ///
-    /// # Errors
-    ///
-    /// The option does not decode as `T`.
-    pub fn get<T: DeserializeOwned>(&self, index: usize) -> Result<Option<T>, String> {
-        self.options
-            .get(index)
-            .map(|raw| serde_json::from_str(raw.get()).map_err(|e| e.to_string()))
-            .transpose()
-    }
-
-    /// The first option, or `T::default()`.
-    ///
-    /// # Errors
-    ///
-    /// There is more than one option, or the first does not decode as `T`.
-    pub fn single<T: DeserializeOwned + Default>(&self) -> Result<T, String> {
-        if self.options.len() > 1 {
-            return Err("takes one option".to_owned());
-        }
-        Ok(self.get(0)?.unwrap_or_default())
-    }
-
-    /// # Errors
-    ///
-    /// There are options.
-    pub fn none(&self) -> Result<(), String> {
-        if self.options.is_empty() {
-            Ok(())
-        } else {
-            Err("takes no options".to_owned())
-        }
-    }
-}
+pub type RuleOptions<'a> = rsvelte_lint_runner::catalog::RuleOptions<'a, LintSettings>;
 
 /// The document a rule checks. Each fact is computed on first request and shared by the rules.
 #[derive(Debug)]
