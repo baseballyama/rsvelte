@@ -167,3 +167,22 @@ fn the_options_are_checked_at_parse_time() {
         ("svelte_options_unknown_attribute", 30, 35)
     );
 }
+
+/// svelte2tsx blanks the scripts, so only the markup's syntax decides whether it parses.
+#[test]
+fn a_parse_without_scripts_reads_only_the_markup() {
+    use rsvelte_svelte_syntax::parse::parse_without_scripts;
+    let source = "<script>let a = ;</script>\n<p>{a}</p>";
+    parse(source).expect_err("the script does not parse");
+    let component = parse_without_scripts(source).expect("the markup parses");
+    let instance = component.instance.as_ref().expect("an instance script");
+    assert_eq!(instance.content.text(source), "let a = ;");
+    assert!(
+        component
+            .javascript
+            .get_program(instance.program)
+            .body
+            .is_empty()
+    );
+    parse_without_scripts("<script>let a = ;</script>\n<p>{a +}</p>").expect_err("the markup");
+}

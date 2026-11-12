@@ -63,6 +63,20 @@ pub const ACORN_UNCHECKED_TYPESCRIPT_RULES: &[&str] = &[
 /// sheet's error alone is kept on [`Style::sheet`](crate::syntax_tree::Style::sheet);
 /// [`crate::fully_parsed`] reports it.
 pub fn parse(source_text: &str) -> ParseResult<Component> {
+    parse_with(source_text, true)
+}
+
+/// The component as svelte2tsx parses it: with each script's content left out, so a script's
+/// syntax is TypeScript's to report. Each script's program is empty.
+///
+/// # Errors
+///
+/// As [`parse`], for the markup.
+pub fn parse_without_scripts(source_text: &str) -> ParseResult<Component> {
+    parse_with(source_text, false)
+}
+
+fn parse_with(source_text: &str, scripts: bool) -> ParseResult<Component> {
     let (javascript, template) = Tree::build(source_text, |builder| {
         builder.leave_unchecked(ACORN_UNCHECKED_TYPESCRIPT_RULES);
         let mut parser = Parser {
@@ -76,6 +90,7 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
             unique_names: FxHashSet::default(),
             meta_tags: 0,
             depth: 0,
+            scripts,
         };
         // Upstream removes a leading byte order mark before parsing, so no node covers it.
         if source_text.starts_with('\u{feff}') {
@@ -253,6 +268,8 @@ struct Parser<'a, 'b> {
     meta_tags: u8,
     /// How many fragments are open.
     depth: u32,
+    /// Whether each script's content is parsed.
+    scripts: bool,
 }
 
 impl<'a> Parser<'a, '_> {
