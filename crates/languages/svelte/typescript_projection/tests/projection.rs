@@ -347,7 +347,7 @@ fn a_default_slot_lets_the_component_take_children_as_svelte2tsx_does() {
 fn a_component_s_snippets_are_props_after_its_attributes_as_svelte2tsx_passes_them() {
     let source = "<script lang=\"ts\">import Foo from \"./Foo.svelte\"; let n = 1;</script>\
                   <Foo a={n}>{#snippet head(x: number)}<b>{x}</b>{/snippet}text\
-                  {#snippet foot}{n}{/snippet}</Foo>";
+                  {#snippet foot()}{n}{/snippet}</Foo>";
     let (_, output) = project(source);
     let out = &output.out;
     let at = |text: &str| out.find(text).unwrap_or_else(|| panic!("{text}\n{out}"));

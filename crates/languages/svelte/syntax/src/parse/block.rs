@@ -85,8 +85,14 @@ impl Parser<'_, '_> {
         }
         let at = self.sigil();
         let inner = &self.source_text[at.start_offset as usize..];
+        // Upstream's `close()` requires the open block's name right after the `/`.
         if inner.starts_with('/') {
-            return Self::err_at(at, "block_unexpected_close", "Unexpected block closing tag");
+            let after = Span::new(at.start_offset + 1, at.start_offset + 1);
+            return Self::err_at(
+                after,
+                "expected_token",
+                format_args!("Expected token {name}"),
+            );
         }
         // The block's own clauses were read, so a clause here repeats one or does not belong.
         let clause = &inner[1..];

@@ -1,4 +1,5 @@
 use oxc_parser::Kind;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 
 use super::identifier::match_bracket;
@@ -14,8 +15,9 @@ impl Parser<'_, '_> {
         self.skip_ws();
         let mut type_parameters = None;
         if self.typescript && self.peek() == Some(b'<') {
-            let Some(len) = match_bracket(self.rest(), b'<', b'>') else {
-                return self.expected_token(">");
+            let len = match match_bracket(self.rest(), b'<', b'>') {
+                Ok(len) => len,
+                Err(why) => return self.unmatched(why),
             };
             type_parameters = Some(Span::new(
                 self.position as u32,
@@ -24,36 +26,41 @@ impl Parser<'_, '_> {
             self.eat_token(TokenType::Text, len);
             self.skip_ws();
         }
-        let mut parameters = None;
-        if self.peek() == Some(b'(') {
-            self.eat_token(TokenType::JavaScript(Kind::LParen), 1);
-            let start = self.position;
-            let mut depth = 1usize;
-            let bytes = self.source_text.as_bytes();
-            let mut i = start;
-            while i < bytes.len() {
-                match bytes[i] {
-                    b'(' => depth += 1,
-                    b')' if depth == 1 => break,
-                    b')' => depth -= 1,
-                    _ => {}
-                }
-                i += 1;
-            }
-            if i == bytes.len() {
-                return self.expected_token(")");
-            }
-            let span = Span::new(start as u32, i as u32);
-            let source_type = self.source_type();
-            parameters = Some(
-                self.builder
-                    .parameters(span, source_type)
-                    .map_err(javascript_error)?,
-            );
-            self.javascript_region(span.start_offset, span.end_offset);
-            self.position = i;
-            self.eat_token(TokenType::JavaScript(Kind::RParen), 1);
+        // Upstream requires the parameter list.
+        if self.peek() != Some(b'(') {
+            return self.expected_token("(");
         }
+        self.eat_token(TokenType::JavaScript(Kind::LParen), 1);
+        let start = self.position;
+        let mut depth = 1usize;
+        let bytes = self.source_text.as_bytes();
+        let mut i = start;
+        while i < bytes.len() {
+            match bytes[i] {
+                b'(' => depth += 1,
+                b')' if depth == 1 => break,
+                b')' => depth -= 1,
+                _ => {}
+            }
+            i += 1;
+        }
+        if i == bytes.len() {
+            let end = self
+                .source_text
+                .trim_end_matches(is_ecmascript_whitespace)
+                .len() as u32;
+            return Self::err_at(Span::new(end, end), "expected_token", "Expected token )");
+        }
+        let span = Span::new(start as u32, i as u32);
+        let source_type = self.source_type();
+        let parameters = Some(
+            self.builder
+                .parameters(span, source_type)
+                .map_err(javascript_error)?,
+        );
+        self.javascript_region(span.start_offset, span.end_offset);
+        self.position = i;
+        self.eat_token(TokenType::JavaScript(Kind::RParen), 1);
         self.close_mustache()?;
         let body = self.fragment(End::Block {
             start: start_offset as u32,
