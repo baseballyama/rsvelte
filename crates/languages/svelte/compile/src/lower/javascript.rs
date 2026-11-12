@@ -39,6 +39,7 @@ pub(crate) fn is_simple_expression(e: &Expression<'_>) -> bool {
     match e.get_inner_expression() {
         Expression::StringLiteral(_)
         | Expression::RegExpLiteral(_)
+        | Expression::BigIntLiteral(_)
         | Expression::NumericLiteral(_)
         | Expression::BooleanLiteral(_)
         | Expression::NullLiteral(_)

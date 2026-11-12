@@ -138,7 +138,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
         let get = || b.runtime(if var() { "safe_get" } else { "get" }, [x()]);
         match (self.target, info.kind) {
             (Target::Client, BindingKind::State | BindingKind::RawState)
-                if self.res.is_state_source(symbol) =>
+                if self.res.is_state_source(symbol, self.accessors) =>
             {
                 Some(get())
             }

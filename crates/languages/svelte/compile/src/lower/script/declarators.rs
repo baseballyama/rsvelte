@@ -48,7 +48,7 @@ pub(super) fn lower_value_declarator<'o>(
     walk_mut::walk_binding_pattern(rw, &mut d.id);
     let signal = (d.id.get_binding_identifier())
         .and_then(|identifier| identifier.symbol_id.get())
-        .is_some_and(|symbol| rw.res.is_state_source(symbol));
+        .is_some_and(|symbol| rw.res.is_state_source(symbol, rw.accessors));
     let lowering = Lowering {
         proxy,
         signal,
@@ -137,7 +137,8 @@ pub(super) fn lower_destructured_state<'o>(
     }
     for path in paths {
         let binding = path.binding.clone_in_with_semantic_ids(b.allocator());
-        let signal = (binding.symbol_id.get()).is_some_and(|symbol| rw.res.is_state_source(symbol));
+        let signal = (binding.symbol_id.get())
+            .is_some_and(|symbol| rw.res.is_state_source(symbol, rw.accessors));
         // Upstream proxies each path, as none is a value `should_proxy` keeps.
         let lowering = Lowering {
             proxy: rune == "$state",

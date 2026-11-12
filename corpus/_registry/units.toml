@@ -1699,3 +1699,6 @@
 
 ["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/f38d296e65efce2f.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
+
+["svelte/rsvelte-tests-core-3/snippet_param_ts_default_4383/the_shapes_that_already_worked_are_unmoved/8c068ffb4a63fc91.svelte".skip]
+"svelte.compile" = "oxc_codegen prints `a ?? (b ?? c)` as `a ?? b ?? c`, which reads back as another tree; the fork's codegen needs a fix"
