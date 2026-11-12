@@ -99,13 +99,12 @@ impl Printer<'_> {
                 self.output.push(";\n");
             }
             Node::Identifier(name) => self.output.push(name),
-            Node::StringLiteral(value) => {
-                self.output.push("\"");
-                for ch in value.chars() {
-                    self.character(ch, false);
-                }
-                self.output.push("\"");
+            Node::StringLiteralAt { value, at } => {
+                let start = self.output.out.len() as u32;
+                self.node_string_literal(value);
+                self.output.atom_since(start, Span::new(at, at));
             }
+            Node::StringLiteral(value) => self.node_string_literal(value),
             Node::Member { object, property } => {
                 self.node(object);
                 self.output.push(".");
@@ -499,6 +498,14 @@ impl Printer<'_> {
             self.output.push("}");
         }
         self.output.push("\n");
+    }
+
+    fn node_string_literal(&mut self, value: &str) {
+        self.output.push("\"");
+        for ch in value.chars() {
+            self.character(ch, false);
+        }
+        self.output.push("\"");
     }
 
     fn string(&mut self, parts: Range, template: bool) {
