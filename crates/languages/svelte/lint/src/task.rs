@@ -122,13 +122,11 @@ impl Task for Lint {
                 error.span.start_offset,
             )
         {
-            out.file(
-                "lint.json",
-                rsvelte_lint_runner::output::render_parse_error(
-                    context.ecmascript_line_index(),
-                    &error.message,
-                    error.span.start_offset,
-                ),
+            rsvelte_lint_runner::output::report_parse_error(
+                out,
+                context.ecmascript_line_index(),
+                &error.message,
+                error.span.start_offset,
             );
             return;
         }
@@ -142,19 +140,18 @@ impl Task for Lint {
                 return;
             }
         };
-        out.file(
-            "lint.json",
-            rsvelte_lint_runner::output::render_json(
-                context.ecmascript_line_index(),
-                // The rules that ran, so a report tells a rule that found nothing from one that
-                // does not run on this file.
-                configuration
-                    .rules()
-                    .iter()
-                    .filter(|rule| crate::configuration::applies(rule, &file))
-                    .map(crate::ConfiguredRule::name),
-                &findings,
-            ),
+        rsvelte_lint_runner::output::report(
+            out,
+            context.ecmascript_line_index(),
+            context.source_text(),
+            // The rules that ran, so a report tells a rule that found nothing from one that
+            // does not run on this file.
+            configuration
+                .rules()
+                .iter()
+                .filter(|rule| crate::configuration::applies(rule, &file))
+                .map(crate::ConfiguredRule::name),
+            &findings,
         );
     }
 }
