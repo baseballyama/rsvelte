@@ -1461,6 +1461,10 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 152 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/1b5f08cc0dbef9ec.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+2:5 2:6 svelte/prefer-const "'h' is never reassigned. Use 'const' instead."
+
 === 489 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/25e87d8b2841404b.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1482,6 +1486,9 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 76 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/3d3048a89478a458.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 
 === 400 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/47199aa7f9190a2b.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1505,6 +1512,15 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 76 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/6bd8fd8509c53deb.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+
+=== 76 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/6c76127e70607799.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+
+=== 76 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/6d8568c67fcf5e8d.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 
 === 476 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/6e3f296a2fee4188.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1544,11 +1560,20 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 76 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/9b500eaba56a76ae.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+
+=== 76 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/a0f4f19deab286a5.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+
 === 319 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/afbfc5c3a5b67290.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 76 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/c6b414fcd534c8cb.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 
 === 408 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/d2cfcc892002b89b.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1570,6 +1595,9 @@
 2:6 2:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 76 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/f344157db8701909.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 
 === 948 assign_dev_global_root/a_chain_rooted_at_a_declared_name_still_is/0812bbad19fe0429.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -3011,12 +3039,50 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:7 7:47 svelte/button-has-type "Missing an explicit type attribute for button."
 
+=== 44 await_comment_run_relocation/a_cast_comment_crosses_the_cast_parens/fd8685a29fdc61cc.svelte.js	lint.txt
+2:36 2:40 no-undef "'load' is not defined."
+
+=== 83 await_comment_run_relocation/a_comma_separated_run_on_its_own_line_moves_inside_the_wrap/f14243686af2bdb6.svelte.js	lint.txt
+2:2 2:3 no-undef "'g' is not defined."
+4:17 4:21 no-undef "'load' is not defined."
+
+=== 44 await_comment_run_relocation/a_comment_before_a_parenthesized_await_moves_inside_the_wrap/ab7893912e11a72f.svelte.js	lint.txt
+2:24 2:28 no-undef "'load' is not defined."
+
+=== 44 await_comment_run_relocation/a_comment_before_an_enclosing_calls_paren_stays_outside/16fe3f9e730607ae.svelte.js	lint.txt
+2:24 2:28 no-undef "'load' is not defined."
+
+=== 44 await_comment_run_relocation/a_comment_between_await_and_its_operand_still_lands_inside/e71067ca4daeeb10.svelte.js	lint.txt
+2:23 2:27 no-undef "'load' is not defined."
+
+=== 44 await_comment_run_relocation/a_comment_leading_an_enclosing_expression_stays_outside_the_wrap/8e173669cdf1fa53.svelte.js	lint.txt
+2:23 2:27 no-undef "'load' is not defined."
+
+=== 43 await_comment_run_relocation/a_comment_on_its_own_line_keeps_the_break/58fe6c882b7eacd8.svelte.js	lint.txt
+4:9 4:13 no-undef "'load' is not defined."
+
+=== 43 await_comment_run_relocation/a_comment_on_its_own_line_keeps_the_break/72796355ca4dcfc8.svelte.js	lint.txt
+4:9 4:13 no-undef "'load' is not defined."
+
+=== 83 await_comment_run_relocation/a_comment_trailing_the_previous_list_element_stays_outside_the_wrap/17e2aacaa7f2e783.svelte.js	lint.txt
+2:2 2:3 no-undef "'g' is not defined."
+2:21 2:25 no-undef "'load' is not defined."
+
+=== 44 await_comment_run_relocation/a_later_comment_does_not_break_the_moved_run/60f7c2b45f9f4304.svelte.js	lint.txt
+2:24 2:28 no-undef "'load' is not defined."
+
 === 369 await_comment_run_relocation/a_legacy_instance_script_relocates_the_run_too/9722898dbeb88c58.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:25 4:29 no-undef "'load' is not defined."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 44 await_comment_run_relocation/a_paren_that_opens_no_node_does_not_break_the_run/62168cc13f6c3db5.svelte.js	lint.txt
+2:24 2:28 no-undef "'load' is not defined."
+
+=== 44 await_comment_run_relocation/a_run_broken_by_a_paren_moves_only_its_adjacent_half/0604ac556690e43a.svelte.js	lint.txt
+2:32 2:36 no-undef "'load' is not defined."
 
 === 445 await_comment_run_relocation/a_runes_instance_script_keeps_a_statement_leading_run_outside/71d022aec64d53d8.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3041,6 +3107,23 @@
 4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:25 4:29 no-undef "'load' is not defined."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 44 await_comment_run_relocation/a_statement_leading_comment_stays_outside_the_wrap/90dbded1a9d2d6c3.svelte.js	lint.txt
+2:16 2:20 no-undef "'load' is not defined."
+
+=== 44 await_comment_run_relocation/an_ignored_await_keeps_its_run_in_place/1830aa07548057bf.svelte.js	lint.txt
+3:24 3:28 no-undef "'load' is not defined."
+
+=== 185 await_comment_run_relocation/comment_after_a_previous_statement_does_not_cross_into_a_later_await_wrap/7f9602a6b24336fe.svelte.js	lint.txt
+2:6 2:7 no-unused-vars "'y' is assigned a value but never used."
+2:6 2:7 svelte/prefer-const "'y' is never reassigned. Use 'const' instead."
+2:35 2:39 no-undef "'load' is not defined."
+
+=== 44 await_comment_run_relocation/every_comment_in_the_run_moves_together/42a4cf4473e93801.svelte.js	lint.txt
+2:32 2:36 no-undef "'load' is not defined."
+
+=== 41 await_comment_run_relocation/nested_cast_awaits_each_keep_their_run/6d7159d53526fe25.svelte.js	lint.txt
+2:60 2:61 no-undef "'h' is not defined."
 
 === 123 await_duplicate_clause_3349/a_header_clause_occupies_the_slot/7722beaa15f3526f.svelte	lint.txt
 1:19 - - "Parsing error: {:then} cannot appear more than once within a block\nhttps://svelte.dev/e/block_duplicate_clause"
@@ -3103,6 +3186,21 @@
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:5 2:6 svelte/prefer-const "'p' is never reassigned. Use 'const' instead."
 5:10 5:11 no-irregular-whitespace "Irregular whitespace not allowed."
+
+=== 42 await_reactivity_loss_comment_2090/a_line_comment_survives/e22f2e98d539e363.svelte.js	lint.txt
+3:3 3:7 no-undef "'load' is not defined."
+
+=== 44 await_reactivity_loss_comment_2090/a_parenthesized_operand_stays_balanced/9cd0c3ce04c499bc.svelte.js	lint.txt
+2:17 2:21 no-undef "'load' is not defined."
+
+=== 44 await_reactivity_loss_comment_2090/an_ignored_await_is_left_alone/35eb96715440f5c5.svelte.js	lint.txt
+3:24 3:28 no-undef "'load' is not defined."
+
+=== 44 await_reactivity_loss_comment_2090/every_comment_in_the_run_is_kept/6176c3f8b2e02401.svelte.js	lint.txt
+2:31 2:35 no-undef "'load' is not defined."
+
+=== 44 await_reactivity_loss_comment_2090/svelte_js_module_keeps_the_comment/743ccd5def3576e8.svelte.js	lint.txt
+2:24 2:28 no-undef "'load' is not defined."
 
 === 528 await_yield_in_params_2547/a_keyword_inside_a_nested_function_still_compiles/053a86f96b607447.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3170,6 +3268,13 @@
 3:6 3:15 svelte/prefer-const "'awaitable' is never reassigned. Use 'const' instead."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:8 4:9 no-unused-vars "'f' is assigned a value but never used."
+
+=== 61 await_yield_in_params_2547/a_keyword_inside_a_nested_function_still_compiles_on_the_module_path/1a00bde7bf71e723.svelte.js	lint.txt
+1:10 1:14 no-unused-vars "'load' is defined but never used."
+
+=== 0 await_yield_in_params_2547/a_keyword_inside_a_nested_function_still_compiles_on_the_module_path/24373a392b37bb8e.svelte.js	lint.txt
+
+=== 0 await_yield_in_params_2547/a_keyword_inside_a_nested_function_still_compiles_on_the_module_path/cbd0db198924bc48.svelte.js	lint.txt
 
 === 587 await_yield_in_params_2547/await_in_a_parameter_default_is_rejected_in_every_function_form/0c704bb7f1602a97.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3276,6 +3381,11 @@
 
 === 106 await_yield_in_params_2547/template_expressions_reject_it_too/56cd453e3b23962e.svelte	lint.txt
 6:16 - - "Parsing error: Await expression cannot be a default value\nhttps://svelte.dev/e/js_parse_error"
+
+=== 44 await_yield_in_params_2547/the_module_entry_point_rejects_it_too/4141f97ded0c1b17.svelte.js	lint.txt
+1:43 1:47 no-undef "'load' is not defined."
+
+=== 0 await_yield_in_params_2547/the_module_entry_point_rejects_it_too/ad97a54f92d09056.svelte.js	lint.txt
 
 === 657 await_yield_in_params_2547/yield_in_a_parameter_default_is_rejected_in_every_generator_form/860279f3769dce45.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6795,6 +6905,10 @@
 === 81 bom_stripping/a_leading_byte_order_mark_is_not_template_text/ca6c2f5d82ccbbd9.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 bom_stripping/a_leading_byte_order_mark_is_stripped_from_a_module/4ae49d81a55c7a3f.svelte.js	lint.txt
+
+=== 0 bom_stripping/a_leading_byte_order_mark_is_stripped_from_a_module/a2098bd92b10bf8b.svelte.js	lint.txt
+
 === 369 boundary_snippet_settle_loop_4138/a_component_local_snippet_still_precedes_the_settle_loop/d5245b1930ebd79f.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -7090,6 +7204,22 @@
 
 === 0 character_references_3337/uppercase_marker_decodes_in_every_host/f39c6b6750aa5471.svelte	lint.txt
 
+=== 87 class_block_comment_members/a_block_comment_before_the_member_keeps_lowering_the_assignment/d41f3a45b5e19459.svelte.js	lint.txt
+11:2 11:14 no-unused-private-class-members "'#get_promise' is defined but never used."
+
+=== 85 class_block_comment_members/a_multiline_block_comment_does_not_split_the_class_member_before_it/41b600be172c56f8.svelte.js	lint.txt
+8:2 8:14 no-unused-private-class-members "'#get_promise' is defined but never used."
+
+=== 85 class_block_comment_members/a_multiline_template_literal_keeps_its_own_line_breaks/6015ee4b125c175c.svelte.js	lint.txt
+8:2 8:14 no-unused-private-class-members "'#get_promise' is defined but never used."
+
+=== 85 class_block_comment_members/the_server_keeps_a_nested_multiline_template_literal/828cacab2a7501df.svelte.js	lint.txt
+8:2 8:14 no-unused-private-class-members "'#get_promise' is defined but never used."
+
+=== 131 class_block_comment_members/the_server_still_reindents_a_multiline_code_initializer/0d7306d46a84072e.svelte.js	lint.txt
+8:2 8:14 no-unused-private-class-members "'#get_promise' is defined but never used."
+13:8 13:13 no-undef "'build' is not defined."
+
 === 562 class_directive_shorthand_spread_4117/a_differently_named_value_beside_a_spread_is_still_transformed/ef48726c0ace2e07.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -7122,6 +7252,168 @@
 6:4 6:25 svelte/shorthand-directive "Expected shorthand directive."
 6:26 6:35 svelte/max-attributes-per-line "'{...rest}' should be on a new line."
 
+=== 136 class_field_comment_brackets_2601/a_close_brace_in_a_comment_does_not_end_a_state_field/442d1ac39c598038.svelte.js	lint.txt
+6:10 6:49 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 272 class_field_comment_brackets_2601/a_close_paren_in_a_comment_does_not_end_a_derived_field/fec61122892c65e1.svelte.js	lint.txt
+6:10 6:49 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+7:11 13:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 177 class_field_comment_brackets_2601/a_close_paren_in_a_comment_does_not_end_a_plain_field/2a39c0dd35c97462.svelte.js	lint.txt
+6:10 6:49 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+7:11 7:12 no-undef "'f' is not defined."
+
+=== 272 class_field_comment_brackets_2601/a_close_paren_in_a_string_does_not_end_a_derived_field/02139b9bac0d4a30.svelte.js	lint.txt
+6:10 6:49 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+7:11 12:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 272 class_field_comment_brackets_2601/a_comment_free_multi_line_derived_field_is_unchanged/f3055154ba06b0c2.svelte.js	lint.txt
+6:10 6:49 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+7:11 12:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 272 class_field_comment_brackets_2601/the_delimiter_may_sit_in_a_block_comment_spanning_lines/08c681da7eb0a88b.svelte.js	lint.txt
+6:10 6:49 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+7:11 14:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 91 class_field_comment_lookahead/a_block_comment_before_the_question_mark_keeps_the_initializer/5269f6bca276f432.svelte.js	lint.txt
+3:29 3:35 no-undef "'crypto' is not defined."
+5:6 5:12 no-undef "'crypto' is not defined."
+
+=== 91 class_field_comment_lookahead/a_comment_with_no_delimiter_reaches_the_same_arm/9e0df7a6389afc5c.svelte.js	lint.txt
+3:29 3:35 no-undef "'crypto' is not defined."
+5:6 5:12 no-undef "'crypto' is not defined."
+
+=== 91 class_field_comment_lookahead/a_multi_line_block_comment_keeps_the_initializer/8a05ab5d0043e343.svelte.js	lint.txt
+3:29 3:35 no-undef "'crypto' is not defined."
+7:6 7:12 no-undef "'crypto' is not defined."
+
+=== 91 class_field_comment_lookahead/the_client_is_unaffected/267b14d26ffc0d64.svelte.js	lint.txt
+3:29 3:35 no-undef "'crypto' is not defined."
+4:6 4:12 no-undef "'crypto' is not defined."
+
+=== 74 class_field_leading_comment_2437/block_comment_above_a_private_field_is_unchanged/d88f5f3cb0bc1b35.svelte.js	lint.txt
+3:2 3:4 no-unused-private-class-members "'#n' is defined but never used."
+
+=== 0 class_field_leading_comment_2437/constructor_assigned_field_keeps_the_comment_above/692e7406b55cd9c7.svelte.js	lint.txt
+
+=== 148 class_field_leading_comment_2437/each_commented_field_keeps_its_own_comment/f931303581830b47.svelte.js	lint.txt
+3:2 3:4 no-unused-private-class-members "'#a' is defined but never used."
+5:2 5:4 no-unused-private-class-members "'#b' is defined but never used."
+
+=== 74 class_field_leading_comment_2437/non_rune_field_comment_is_unchanged/33dc1b8aacf77892.svelte.js	lint.txt
+3:2 3:4 no-unused-private-class-members "'#n' is defined but never used."
+
+=== 74 class_field_leading_comment_2437/private_derived_comment_stays_above_the_field/348d92f6d5a2f5ac.svelte.js	lint.txt
+4:2 4:4 no-unused-private-class-members "'#d' is defined but never used."
+
+=== 74 class_field_leading_comment_2437/private_state_comment_stays_above_the_field/0d326ff2b92c76cf.svelte.js	lint.txt
+3:2 3:4 no-unused-private-class-members "'#n' is defined but never used."
+
+=== 74 class_field_leading_comment_2437/private_state_raw_comment_stays_above_the_field/4582b72557e73627.svelte.js	lint.txt
+3:2 3:4 no-unused-private-class-members "'#n' is defined but never used."
+
+=== 0 class_field_leading_comment_2437/public_field_comment_stays_after_the_equals/6832292b236e61bc.svelte.js	lint.txt
+
+=== 139 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/042445ff74ae418c.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 207 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/2648de080b3809e5.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 142 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/3683d327cd47bb03.svelte.js	lint.txt
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 65 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/3800a95a278f7312.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+
+=== 133 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/3e1ee0390a39a11e.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+
+=== 139 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/3e6b5028ec060fd2.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 68 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/44e96ff8ce812ef6.svelte.js	lint.txt
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+
+=== 142 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/519c45fd71ed306c.svelte.js	lint.txt
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 133 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/53ef010def1e228f.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+
+=== 133 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/60cfd27be3112dc8.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+
+=== 207 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/62d19440d0fe1b5a.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 133 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/720b5edb0222a258.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+
+=== 139 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/772ab3bd5bac5de5.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 68 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/7a68b62c7783e15b.svelte.js	lint.txt
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+
+=== 142 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/9032f805cbfc463e.svelte.js	lint.txt
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 207 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/9206cb9ef0d31287.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 139 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/af4a3d4af44580ae.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 207 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/c1a4e122855e340f.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 207 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/dd8bd7736d718256.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 65 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/e49f7faf88ff7f9c.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+
+=== 142 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/f18e8e77d21a38f6.svelte.js	lint.txt
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 207 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/f1a1f966090c446b.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 207 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/fb118760763555f9.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 207 class_field_state_proxy_4168/every_call_site_resolves_an_identifier_through_its_binding/fd6d2b9d86945589.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'D' is assigned a value but never used."
+2:7 2:10 no-unused-vars "'OBJ' is assigned a value but never used."
+4:2 4:4 no-unused-private-class-members "'#a' is defined but never used."
+
 === 142 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/0421c429446ee84e.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:7 2:8 no-unused-vars "'o' is assigned a value but never used."
@@ -7131,6 +7423,12 @@
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:7 3:8 no-unused-vars "'C' is defined but never used."
 3:37 3:37 svelte/valid-compile "'super' keyword outside a method\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
+
+=== 65 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/152965a7040758c7.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'o' is assigned a value but never used."
+
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/199693b572542927.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
 
 === 142 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/208d01ca357645e1.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -7154,6 +7452,9 @@
 3:7 3:8 no-unused-vars "'C' is defined but never used."
 3:30 3:30 svelte/valid-compile "super() call outside constructor of a subclass\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/3f444903d7c83c4f.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
+
 === 268 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/49aa3609da29cc35.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -7170,10 +7471,15 @@
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:7 3:8 no-unused-vars "'C' is defined but never used."
 
+=== 0 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/665d33de3f0f11e9.svelte.js	lint.txt
+
 === 266 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/6e4ac838e930dea5.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:7 2:8 no-unused-vars "'C' is defined but never used."
 2:26 2:26 svelte/valid-compile "super() call outside constructor of a subclass\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
+
+=== 65 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/6f376d7b51812c66.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'o' is assigned a value but never used."
 
 === 210 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/738a14f12bcb8c54.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -7195,6 +7501,9 @@
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:7 3:8 no-unused-vars "'C' is defined but never used."
 
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/8fe698c8f8f0c0ba.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
+
 === 329 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/91a6890b98038681.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -7207,14 +7516,39 @@
 3:7 3:8 no-unused-vars "'C' is defined but never used."
 3:33 3:33 svelte/valid-compile "super() call outside constructor of a subclass\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 
+=== 65 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/a520d66a65684913.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'o' is assigned a value but never used."
+
 === 210 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/a6c101dfb0f57e8f.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:7 3:8 no-unused-vars "'C' is defined but never used."
 
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/a6fd7dab53b818f5.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'C' is defined but never used."
+
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/ab291c5114bf738d.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
+
 === 142 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/c54a6000699c6b6b.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:7 2:8 no-unused-vars "'o' is assigned a value but never used."
+
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/c687c385d1051409.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
+
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/cc8e91bc46a8f6fc.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
+
+=== 114 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/ccb7015a9c6ca4fd.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
+2:21 2:61 constructor-super "Expected to call 'super()'."
+
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/d1e72d78031a601c.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
+
+=== 65 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/d434e658159af30f.svelte.js	lint.txt
+1:7 1:8 no-unused-vars "'o' is assigned a value but never used."
 
 === 329 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/d9b5f709ac03c140.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -7222,9 +7556,133 @@
 3:7 3:8 no-unused-vars "'C' is defined but never used."
 3:22 3:22 svelte/valid-compile "'super' keyword outside a method\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/dfe71f46fbaa00fe.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
+
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/e3986086d7695904.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
+
 === 194 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/e94b96f240d673e0.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:1 2:1 svelte/valid-compile "'super' keyword outside a method\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
+
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/f16fe68177c543e5.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
+
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/f9b4cfe11de1e284.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
+
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/fa1f3b7c1bdc4b13.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
+
+=== 56 class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/fa693c6aeeaae50a.svelte.js	lint.txt
+2:7 2:8 no-unused-vars "'C' is defined but never used."
+
+=== 0 class_field_tag_label_2021/a_named_class_expression_uses_its_own_name/14bbc0a14b6043b3.svelte.js	lint.txt
+
+=== 0 class_field_tag_label_2021/anonymous_class_falls_back_to_the_upstream_placeholder/0860dafe2dc30de4.svelte.js	lint.txt
+
+=== 0 class_field_tag_label_2021/private_field_keeps_its_hash/efe4ca25cb100719.svelte.js	lint.txt
+
+=== 0 class_field_tag_label_2021/production_emits_no_label/335831cc48e689e0.svelte.js	lint.txt
+
+=== 0 class_fields_same_line_2087/a_method_between_two_fields_on_one_line_keeps_all_three/adb6584185b1d1fe.svelte.js	lint.txt
+
+=== 0 class_fields_same_line_2087/a_one_line_nested_class_expression_keeps_its_own_fields/20a1936628ba72d2.svelte.js	lint.txt
+
+=== 0 class_fields_same_line_2087/a_semicolon_inside_a_literal_is_not_a_member_boundary/47ef77b52bf175aa.svelte.js	lint.txt
+
+=== 0 class_fields_same_line_2087/constructor_declarations_on_one_line_all_survive/cb1af53136ba266f.svelte.js	lint.txt
+
+=== 0 class_fields_same_line_2087/derived_after_state_on_one_line_is_lowered_for_the_client/8509ed13b5da2df1.svelte.js	lint.txt
+
+=== 136 class_fields_same_line_2087/several_runes_on_one_line_all_survive/7cb4be591805691e.svelte.js	lint.txt
+1:59 1:84 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 136 class_heritage_brace_scan/a_function_expression_heritage_does_not_hide_the_class_body/1825580cf35eb4e0.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/a_function_expression_heritage_does_not_hide_the_class_body/807cfac3bb89a1d3.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/a_function_expression_heritage_does_not_hide_the_class_body/825fc1c748341011.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/a_function_expression_heritage_does_not_hide_the_class_body/86a1b4d2b51ab88f.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/a_function_expression_heritage_does_not_hide_the_class_body/cc88be41431cc9af.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/a_function_expression_heritage_does_not_hide_the_class_body/cfce21083e0f7aa5.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/an_object_literal_heritage_does_not_hide_the_class_body/42677c175e2424bf.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/an_object_literal_heritage_does_not_hide_the_class_body/bf9f8e86835c41eb.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/0dbcaf2a255fb1ca.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 70 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/3876915132591044.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+
+=== 66 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/454cfdc8bd15bf80.svelte.js	lint.txt
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 194 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/4e783448ebd7a0bf.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+4:46 4:47 no-unused-vars "'Q' is defined but never used."
+
+=== 66 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/610de6b977e08aae.svelte.js	lint.txt
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/6e67667ea65a3202.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/974bf081c279c6b2.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/a5c0aa27e1d9a425.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/aa6f7ee09d76520a.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 66 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/ba355913d9a8ad9d.svelte.js	lint.txt
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/c495025ddfe21362.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/cb194693c6f3016a.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/cf16075b5eb3acec.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
+
+=== 136 class_heritage_brace_scan/the_heritage_shapes_that_already_worked_still_work/e25e837f3e85e6c3.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'mixin' is assigned a value but never used."
+3:7 3:9 no-unused-vars "'ns' is assigned a value but never used."
 
 === 645 class_member_dollar_name/a_class_field_initializer_still_reads_its_store/d7a45e9d941ad803.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -7281,6 +7739,14 @@
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:6 9:7 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+
+=== 0 class_member_margins_2284/adjacent_methods_get_a_margin_even_without_one_in_the_source/4c2cb0bd9428644a.svelte.js	lint.txt
+
+=== 74 class_member_margins_2284/adjacent_single_line_properties_get_no_margin/7c55c70815427ed0.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 56 class_member_margins_2284/method_after_constructor_keeps_its_margin/892448112e735068.svelte.js	lint.txt
+8:4 8:5 no-unused-vars "'s' is defined but never used."
 
 === 1191 class_method_default_param_local_derived/default_param_method_client/1a5024bc83f27915.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -7543,6 +8009,9 @@
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 3:3 3:10 no-undef "'console' is not defined."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 46 client_effect_trailing_comment_2718/trailing_effect_comment_wraps_module_call_in_client_and_dev/679abe0fff06b09e.svelte.js	lint.txt
+3:3 3:10 no-undef "'console' is not defined."
 
 === 349 client_effect_trailing_comment_2718/trailing_inspect_comment_wraps_dev_console_call/92cde440db93a449.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -8604,6 +9073,15 @@
 2:21 2:31 svelte/valid-compile "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class(perf_avoid_nested_class)"
 2:27 2:28 no-unused-vars "'A' is defined but never used."
 
+=== 102 compiler/phases/phase2_analyze/visitors/class_declaration/tests/standalone_module_allows_function_depth_1/e3db04b6d0f49d8c.svelte.js	lint.txt
+1:1 1:9 no-undef "'describe' is not defined."
+2:8 2:9 no-unused-vars "'A' is defined but never used."
+
+=== 143 compiler/phases/phase2_analyze/visitors/class_declaration/tests/standalone_module_warns_at_function_depth_2/a57580564f667907.svelte.js	lint.txt
+1:1 1:9 no-undef "'describe' is not defined."
+2:2 2:4 no-undef "'it' is not defined."
+3:9 3:10 no-unused-vars "'A' is defined but never used."
+
 === 1025 compiler/phases/phase3_transform/client/tests/a_comment_reemitted_from_a_typescript_declaration_is_not_repeated/a880e98fc0725b13.svelte	lint.txt
 1:1 10:14 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
@@ -8723,6 +9201,8 @@
 8:6 8:10 svelte/prefer-const "'left' is never reassigned. Use 'const' instead."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 compiler/phases/phase3_transform/client/tests/compile_module_class_derived_only_rehomes_the_first_public_field_jsdoc/f0a10ed386748e2c.svelte.js	lint.txt
+
 === 762 compiler/phases/phase3_transform/client/tests/constant_fold_does_not_resolve_a_binding_from_a_sibling_snippet/f0d00eef0449b4cd.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:5 4:15 svelte/no-useless-children-snippet "Found an unnecessary children snippet."
@@ -8840,6 +9320,15 @@
 6:1 6:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
 6:43 6:79 svelte/max-attributes-per-line "'content' should be on a new line."
 
+=== 114 compiler/phases/phase3_transform/client/tests/module_async_derived_instruments_its_thunk_in_dev/a70e89098f9b811a.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'value' is assigned a value but never used."
+1:30 1:34 no-undef "'load' is not defined."
+
+=== 159 compiler/phases/phase3_transform/client/tests/module_async_derived_prelude_does_not_reorder_console_analysis/aa33996234c562fd.svelte.js	lint.txt
+2:7 2:12 no-unused-vars "'value' is assigned a value but never used."
+2:30 2:34 no-undef "'load' is not defined."
+3:1 3:8 no-undef "'console' is not defined."
+
 === 632 compiler/phases/phase3_transform/client/tests/module_class_derived_only_rehomes_the_first_public_field_jsdoc/b5d9c106d55c9771.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -8862,6 +9351,10 @@
 12:1 12:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 13:1 13:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
+=== 126 compiler/phases/phase3_transform/client/tests/module_derived_name_containing_dollar_is_unwrapped/0d5a160ba4810465.svelte.js	lint.txt
+4:6 4:16 no-unused-vars "'intervalId' is assigned a value but never used."
+5:34 5:45 no-undef "'setInterval' is not defined."
+
 === 1580 compiler/phases/phase3_transform/client/tests/module_interface_comments_after_a_class_do_not_reach_component_parameters/3731b5266b15670a.svelte	lint.txt
 2:9 13:18 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:24 2:33 svelte/max-attributes-per-line "'lang' should be on a new line."
@@ -8883,6 +9376,13 @@
 16:1 16:9 svelte/indent "Expected indentation of 0 spaces but found 8 spaces."
 17:1 17:9 svelte/indent "Expected indentation of 0 spaces but found 8 spaces."
 18:1 18:5 svelte/no-trailing-spaces "Trailing spaces not allowed."
+
+=== 153 compiler/phases/phase3_transform/client/tests/module_raw_state_private_nullish_assignment_inside_untrack_is_lowered/508866601b19e808.svelte.js	lint.txt
+6:13 6:25 no-unused-private-class-members "'#get_promise' is defined but never used."
+11:1 11:5 svelte/no-trailing-spaces "Trailing spaces not allowed."
+
+=== 65 compiler/phases/phase3_transform/client/tests/module_return_jsdoc_cast_parenthesizes_its_arrow/3a701e1687e0fbba.svelte.js	lint.txt
+8:1 8:5 svelte/no-trailing-spaces "Trailing spaces not allowed."
 
 === 1126 compiler/phases/phase3_transform/client/tests/nesting_compound_preserves_comma_separated_parent_alternatives/851f73a1fa5693ab.svelte	lint.txt
 1:13 1:17 svelte/prefer-const "'copy' is never reassigned. Use 'const' instead."
@@ -9321,6 +9821,23 @@
 1:16 1:29 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
 1:47 1:57 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
+=== 59 compiler/phases/phase3_transform/client/tests/server_compile_module_dev_inspect_keeps_trailing_comments_on_the_argument/1d1da7aa281b862b.svelte.js	lint.txt
+2:2 2:10 svelte/no-inspect "Do not use $inspect directive"
+
+=== 59 compiler/phases/phase3_transform/client/tests/server_compile_module_dev_inspect_keeps_trailing_comments_on_the_argument/5778823f9d4e96b1.svelte.js	lint.txt
+2:2 2:10 svelte/no-inspect "Do not use $inspect directive"
+
+=== 104 compiler/phases/phase3_transform/client/tests/server_compile_module_dev_inspect_keeps_trailing_comments_on_the_argument/b7780e2ba2cce00a.svelte.js	lint.txt
+2:2 2:10 svelte/no-inspect "Do not use $inspect directive"
+3:2 3:9 no-undef "'console' is not defined."
+
+=== 104 compiler/phases/phase3_transform/client/tests/server_compile_module_dev_inspect_keeps_trailing_comments_on_the_argument/edf4d4057dd64cf8.svelte.js	lint.txt
+2:2 2:10 svelte/no-inspect "Do not use $inspect directive"
+3:2 3:9 no-undef "'console' is not defined."
+
+=== 65 compiler/phases/phase3_transform/client/tests/server_module_var_derived_reads_use_optional_calls/e39e5c9cca4bf157.svelte.js	lint.txt
+6:1 6:5 svelte/no-trailing-spaces "Trailing spaces not allowed."
+
 === 130 compiler/phases/phase3_transform/client/tests/snippet_defaults_preserve_parenthesized_expression_nodes/5c6021622b004448.svelte	lint.txt
 1:17 1:21 no-constant-condition "Unexpected constant condition."
 1:24 1:29 no-constant-condition "Unexpected constant condition."
@@ -9370,6 +9887,37 @@
 
 === 47 compiler/phases/phase3_transform/client/tests/test_derived_trailing_comma_no_syntax_error/a7d520e7cedeb7e0.svelte	lint.txt
 7:7 7:15 no-undef "'position' is not defined."
+
+=== 47 compiler/phases/phase3_transform/client/tests/test_module_arrow_param_not_wrapped_when_shadowing_state/ac118815c502a4f4.svelte.js	lint.txt
+9:19 9:26 no-undef "'console' is not defined."
+
+=== 128 compiler/phases/phase3_transform/client/tests/test_module_const_state_after_obj_gets_proxy_only/8cca26584d53ea3a.svelte.js	lint.txt
+3:11 3:15 no-unused-vars "'node' is defined but never used."
+4:11 4:12 no-unused-vars "'d' is assigned a value but never used."
+
+=== 76 compiler/phases/phase3_transform/client/tests/test_module_derived_var_gets_get_in_arrow_return/fc41f7755222c9c5.svelte.js	lint.txt
+3:7 3:8 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
+
+=== 219 compiler/phases/phase3_transform/client/tests/test_module_derived_with_ts_annotation_gets_get/86de7711a0456376.svelte.js	lint.txt
+3:7 3:15 svelte/prefer-const "'position' is never reassigned. Use 'const' instead."
+5:24 7:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 74 compiler/phases/phase3_transform/client/tests/test_module_nested_fn_call_in_arrow_body_shadow/1955ec3c9940b03b.svelte.js	lint.txt
+4:9 4:18 no-unused-vars "'transform' is assigned a value but never used."
+
+=== 0 compiler/phases/phase3_transform/client/tests/test_module_state_literal_no_proxy/ad4327cd64cc225d.svelte.js	lint.txt
+
+=== 81 compiler/phases/phase3_transform/client/tests/test_module_state_with_bitwise_and_no_proxy/2e1bdbce21471dc8.svelte.js	lint.txt
+3:7 3:12 svelte/prefer-const "'flags' is never reassigned. Use 'const' instead."
+
+=== 83 compiler/phases/phase3_transform/client/tests/test_module_state_with_logical_and_gets_proxy/17ea5f9ad56b285d.svelte.js	lint.txt
+3:7 3:14 svelte/prefer-const "'loading' is never reassigned. Use 'const' instead."
+
+=== 0 compiler/phases/phase3_transform/client/tests/test_module_state_with_logical_or_gets_proxy/bf49d5265aebc277.svelte.js	lint.txt
+
+=== 0 compiler/phases/phase3_transform/client/tests/test_module_state_with_nullish_coalescing_gets_proxy/5b399fcf8e0947e6.svelte.js	lint.txt
+
+=== 0 compiler/phases/phase3_transform/client/tests/test_module_state_with_ts_generic_gets_tracked/2feb8a1dab81c635.svelte.js	lint.txt
 
 === 77 compiler/phases/phase3_transform/client/tests/test_props_destructuring_comma_separated/e896b179bb118cd4.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -11785,6 +12333,9 @@
 
 === 0 compiler/tests/test_compile_if_elseif_else_block_server/8ed17f459498d7a3.svelte	lint.txt
 
+=== 83 compiler/tests/test_server_module_jsdoc_not_mangled/66edac37a0bd02a8.svelte.js	lint.txt
+2:3 2:13 no-unused-private-class-members "'#fieldNode' is defined but never used."
+
 === 136 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/25cc84cda4760858.svelte	lint.txt
 1:51 1:60 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 1:76 1:77 no-unused-vars "'A' is defined but never used."
@@ -12367,6 +12918,121 @@
 1:13 1:14 no-unused-vars "'o' is assigned a value but never used."
 1:13 1:14 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 1:23 1:28 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
+
+=== 187 console_wrap_known_value/a_module_agrees_with_the_oracle/00437304de0d4486.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:5 2:6 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+2:45 2:52 no-undef "'console' is not defined."
+
+=== 111 console_wrap_known_value/a_module_agrees_with_the_oracle/0297a03a26f8b636.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:28 2:35 no-undef "'console' is not defined."
+
+=== 111 console_wrap_known_value/a_module_agrees_with_the_oracle/038455bdad8ac4f6.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:17 2:24 no-undef "'console' is not defined."
+
+=== 187 console_wrap_known_value/a_module_agrees_with_the_oracle/12393c299043a9cc.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:5 2:6 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+2:20 2:27 no-undef "'console' is not defined."
+
+=== 109 console_wrap_known_value/a_module_agrees_with_the_oracle/15a0551a1fc1acc2.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:1 2:8 no-undef "'console' is not defined."
+
+=== 111 console_wrap_known_value/a_module_agrees_with_the_oracle/17f6fef8f2c740a9.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:29 2:36 no-undef "'console' is not defined."
+
+=== 45 console_wrap_known_value/a_module_agrees_with_the_oracle/1934de3dbac02522.svelte.js	lint.txt
+2:1 2:8 no-undef "'console' is not defined."
+
+=== 111 console_wrap_known_value/a_module_agrees_with_the_oracle/1a55766e512f48e8.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:25 2:32 no-undef "'console' is not defined."
+
+=== 330 console_wrap_known_value/a_module_agrees_with_the_oracle/23f5a288f064460e.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:5 2:6 no-unused-vars "'c' is assigned a value but never used."
+2:5 2:6 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+2:39 2:40 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+2:46 2:53 no-undef "'console' is not defined."
+
+=== 111 console_wrap_known_value/a_module_agrees_with_the_oracle/2570fb128c4f042d.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:35 2:42 no-undef "'console' is not defined."
+
+=== 111 console_wrap_known_value/a_module_agrees_with_the_oracle/2ac6cd4d32aa5b4c.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:25 2:32 no-undef "'console' is not defined."
+
+=== 111 console_wrap_known_value/a_module_agrees_with_the_oracle/3b2129cd624ca5d6.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:29 2:36 no-undef "'console' is not defined."
+
+=== 189 console_wrap_known_value/a_module_agrees_with_the_oracle/3e0b44dc3802fbee.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:32 2:33 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+2:49 2:56 no-undef "'console' is not defined."
+
+=== 111 console_wrap_known_value/a_module_agrees_with_the_oracle/493c14659b409419.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:16 2:23 no-undef "'console' is not defined."
+
+=== 187 console_wrap_known_value/a_module_agrees_with_the_oracle/6241e0d863232301.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:5 2:6 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+2:24 2:31 no-undef "'console' is not defined."
+
+=== 187 console_wrap_known_value/a_module_agrees_with_the_oracle/6b45ea125ed5db54.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:5 2:6 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
+2:12 2:19 no-undef "'console' is not defined."
+
+=== 111 console_wrap_known_value/a_module_agrees_with_the_oracle/76dd3a4a64c7148f.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:28 2:35 no-undef "'console' is not defined."
+
+=== 330 console_wrap_known_value/a_module_agrees_with_the_oracle/7abfc712a871404a.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:5 2:6 no-unused-vars "'c' is assigned a value but never used."
+2:5 2:6 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+2:40 2:41 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+2:47 2:54 no-undef "'console' is not defined."
+
+=== 187 console_wrap_known_value/a_module_agrees_with_the_oracle/a5778435b0f7db1b.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:5 2:6 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+2:19 2:26 no-undef "'console' is not defined."
+
+=== 207 console_wrap_known_value/a_module_agrees_with_the_oracle/a63f8bedb706a4b7.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:5 2:6 no-useless-assignment "The value assigned to 'c' is not used in subsequent statements."
+2:27 2:34 no-undef "'console' is not defined."
+
+=== 323 console_wrap_known_value/a_module_agrees_with_the_oracle/b897ed4688140830.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:5 2:6 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+2:28 2:52 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+2:54 2:61 no-undef "'console' is not defined."
+
+=== 207 console_wrap_known_value/a_module_agrees_with_the_oracle/c9393e72621b9a12.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:5 2:6 no-useless-assignment "The value assigned to 'n' is not used in subsequent statements."
+2:19 2:26 no-undef "'console' is not defined."
+
+=== 187 console_wrap_known_value/a_module_agrees_with_the_oracle/f3f2ec4916d6fda4.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:5 2:6 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+2:41 2:48 no-undef "'console' is not defined."
+
+=== 314 console_wrap_known_value/a_module_agrees_with_the_oracle/fafad791c0b235e4.svelte.js	lint.txt
+1:8 1:16 no-unused-vars "'imported' is defined but never used."
+2:20 2:21 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+2:27 2:34 no-undef "'console' is not defined."
+2:64 2:65 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+2:71 2:78 no-undef "'console' is not defined."
 
 === 481 console_wrap_known_value/an_instance_script_agrees_with_the_oracle/1d789d0617bb08db.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -13529,6 +14195,24 @@
 === 162 constant_fold_value_type_3027/a_ternary_over_two_different_nullish_literals_stays_reactive/ac8e0a948ee89a97.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 constructor_rune_spanning_lines/a_rune_call_that_spans_lines_still_declares_its_field/17f1753ef83151f5.svelte.js	lint.txt
+
+=== 0 constructor_rune_spanning_lines/a_rune_call_that_spans_lines_still_declares_its_field/1aa9a4f3044c0623.svelte.js	lint.txt
+
+=== 39 constructor_rune_spanning_lines/a_rune_call_that_spans_lines_still_declares_its_field/3bc08cc0b1cd069e.svelte.js	lint.txt
+6:7 6:8 no-undef "'x' is not defined."
+
+=== 0 constructor_rune_spanning_lines/a_rune_call_that_spans_lines_still_declares_its_field/4cef709d0d8fe2bf.svelte.js	lint.txt
+
+=== 0 constructor_rune_spanning_lines/a_rune_call_that_spans_lines_still_declares_its_field/d93a36bed5c1f865.svelte.js	lint.txt
+
+=== 39 constructor_rune_spanning_lines/a_rune_call_that_spans_lines_still_declares_its_field/e25f39b120707723.svelte.js	lint.txt
+6:7 6:8 no-undef "'f' is not defined."
+
+=== 0 constructor_rune_spanning_lines/an_initializer_that_starts_on_the_next_line_still_works/4a6d0c0b1f1bd959.svelte.js	lint.txt
+
+=== 0 constructor_rune_spanning_lines/an_initializer_that_starts_on_the_next_line_still_works/8d77733bca7edccf.svelte.js	lint.txt
 
 === 85 contenteditable_bound_context/bound_editable_children_are_initialized_without_a_reactive_text_update/e403a4f2841862be.svelte	lint.txt
 1:68 1:90 svelte/max-attributes-per-line "'bind:innerText' should be on a new line."
@@ -15768,6 +16452,82 @@ Rule: "svelte/consistent-selector-style"
 3:10 3:28 svelte/require-each-key "Each block should have a key"
 4:8 4:10 svelte/consistent-selector-style "Selector should select by element type instead of class"
 4:13 4:15 svelte/consistent-selector-style "Selector should select by element type instead of class"
+
+=== 123 ctor_private_state_read_and_proxy_2395/a_function_nested_in_the_constructor_reads_through_get/2c2fdeed07e487a2.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#n' is defined but never used."
+6:3 6:13 no-undef "'setTimeout' is not defined."
+
+=== 141 ctor_private_state_read_and_proxy_2395/a_plain_block_in_the_constructor_still_reads_dot_v/53d2868754859d0d.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#n' is defined but never used."
+8:14 8:15 no-unused-vars "'q' is assigned a value but never used."
+
+=== 148 ctor_private_state_read_and_proxy_2395/constructor_compound_assignment_reads_dot_v/9ded37f23d26749d.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+4:2 4:4 no-unused-private-class-members "'#d' is defined but never used."
+
+=== 148 ctor_private_state_read_and_proxy_2395/the_reported_repro_matches_official_byte_for_byte/16fa70d458334ef5.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+3:2 3:4 no-unused-private-class-members "'#n' is defined but never used."
+
+=== 74 ctor_private_state_set_paren_2253/a_brace_in_a_comment_does_not_truncate_the_class_body/4539afbe6d5968a5.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 74 ctor_private_state_set_paren_2253/a_comment_containing_brackets_and_a_semicolon_is_text/5a9dc5d35121fc02.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 74 ctor_private_state_set_paren_2253/a_comment_containing_brackets_and_a_semicolon_is_text/63ea8bd7e20fccc1.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 74 ctor_private_state_set_paren_2253/a_static_initialization_block_is_not_emitted_as_fields/27143d28043115ec.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 74 ctor_private_state_set_paren_2253/a_static_initialization_block_is_not_emitted_as_fields/2bb370f23d12d3e5.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 74 ctor_private_state_set_paren_2253/brackets_and_semicolons_inside_literals_are_not_statement_ends/131164255a1e5eed.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 74 ctor_private_state_set_paren_2253/brackets_and_semicolons_inside_literals_are_not_statement_ends/13af0c165f035522.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 115 ctor_private_state_set_paren_2253/brackets_and_semicolons_inside_literals_are_not_statement_ends/2b77a025271478cf.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+6:15 6:16 no-undef "'g' is not defined."
+
+=== 74 ctor_private_state_set_paren_2253/brackets_and_semicolons_inside_literals_are_not_statement_ends/5442894fec60e36a.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 74 ctor_private_state_set_paren_2253/brackets_and_semicolons_inside_literals_are_not_statement_ends/6f9cbc9b592ebc74.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 74 ctor_private_state_set_paren_2253/brackets_and_semicolons_inside_literals_are_not_statement_ends/89e9273817a08e5f.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 115 ctor_private_state_set_paren_2253/brackets_and_semicolons_inside_literals_are_not_statement_ends/bb72445fac1bb29f.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+6:15 6:16 no-undef "'g' is not defined."
+
+=== 74 ctor_private_state_set_paren_2253/brackets_and_semicolons_inside_literals_are_not_statement_ends/f0b9692950f48a9b.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 148 ctor_private_state_set_paren_2253/compound_and_logical_assignments_keep_nested_comments/ad4ee94df7f4abed.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+3:2 3:4 no-unused-private-class-members "'#n' is defined but never used."
+
+=== 74 ctor_private_state_set_paren_2253/constructor_and_method_agree/2ebe14531f08a8b0.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 74 ctor_private_state_set_paren_2253/constructor_array_literal_with_line_comment/d9d62725d773d4d6.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 74 ctor_private_state_set_paren_2253/constructor_literal_with_trailing_line_comment_in_last_position/f10e9bccbdecc8fb.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#x' is defined but never used."
+
+=== 43 ctor_private_state_set_paren_2253/module_level_class_members_are_indented_one_level/9521d98c084d69ab.svelte.js	lint.txt
+4:25 4:28 no-undef "'gen' is not defined."
+
+=== 81 ctor_private_state_set_paren_2253/top_level_trailing_comment_is_still_the_tail/19920e2ce471d72f.svelte.js	lint.txt
+2:2 2:10 no-unused-private-class-members "'#current' is defined but never used."
 
 === 475 custom_element_await_attribute/custom_element_await_attribute_emits_parseable_output/3faefbeb30713f6f.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

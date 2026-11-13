@@ -350,6 +350,8 @@
 101:5 107:6 svelte/no-unused-class-name "Unused class \"focus:outline-hidden\"."
 106:7 106:49 svelte/sort-attributes "Attribute 'onclick' should go before 'title'."
 
+=== 0 apps/docs/src/components/Example/exampleContext.svelte.ts	lint.txt
+
 === 0 apps/docs/src/components/Example/stackblitz-files/src/Layout.svelte	lint.txt
 
 === 687 apps/docs/src/components/Hero/AnimatableCube.svelte	lint.txt
@@ -1511,6 +1513,8 @@
 130:3 130:27 svelte/sort-attributes "Attribute 'position' should go before 'rotation.x'."
 131:3 131:31 svelte/sort-attributes "Attribute 'text' should go before 'textAlign'."
 
+=== 0 apps/docs/src/examples/core/three-arcade-game/game/Game.svelte.ts	lint.txt
+
 === 179 apps/docs/src/examples/core/three-arcade-game/game/Renderer.svelte	lint.txt
 1:1 75:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 53:7 53:18 svelte/prefer-const "'renderEvery' is never reassigned. Use 'const' instead."
@@ -1526,6 +1530,15 @@
 81:5 81:33 svelte/sort-attributes "Attribute 'args' should go before 'bind:ref'."
 82:5 82:26 svelte/sort-attributes "Attribute 'position' should go before 'bind:ref'."
 83:5 83:41 svelte/sort-attributes "Attribute 'rotation.x' should go before 'bind:ref'."
+
+=== 0 apps/docs/src/examples/core/three-arcade-game/game/controls.svelte.ts	lint.txt
+
+=== 391 apps/docs/src/examples/core/three-arcade-game/game/hooks/useTimeout.svelte.ts	lint.txt
+2:27 2:67 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+2:27 2:67 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+2:53 2:63 no-undef "'setTimeout' is not defined."
+5:21 5:31 no-undef "'setTimeout' is not defined."
+12:9 12:21 no-undef "'clearTimeout' is not defined."
 
 === 1424 apps/docs/src/examples/core/three-arcade-game/game/objects/Arena.svelte	lint.txt
 1:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -2585,6 +2598,8 @@
 110:7 110:14 svelte/sort-attributes "Attribute 'min' should go before 'bind:value'."
 111:7 111:14 svelte/sort-attributes "Attribute 'max' should go before 'bind:value'."
 
+=== 0 apps/docs/src/examples/extras/image-material/Card.svelte.ts	lint.txt
+
 === 2980 apps/docs/src/examples/extras/image-material/Scene.svelte	lint.txt
 1:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 17:1 119:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -2622,6 +2637,10 @@
 === 165 apps/docs/src/examples/extras/instanced-mesh/colors/App.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 15:5 15:13 svelte/sort-attributes "Attribute 'max' should go before 'min'."
+
+=== 120 apps/docs/src/examples/extras/instanced-mesh/colors/BallInstance.svelte.ts	lint.txt
+14:12 14:21 no-unused-vars "'x' is defined but never used."
+15:12 15:21 no-unused-vars "'z' is defined but never used."
 
 === 871 apps/docs/src/examples/extras/instanced-mesh/colors/Scene.svelte	lint.txt
 1:1 52:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -4923,11 +4942,6 @@
 130:13 130:19 svelte/sort-attributes "Attribute 'id' should go before 'position'."
 132:13 132:53 svelte/sort-attributes "Attribute 'frameId' should go before 'position'."
 
-=== 156 apps/docs/src/examples/marching-cubes/lava-lamp/App.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting apps/docs/src/examples/marching-cubes/lava-lamp/App.svelte:12
-Rule: "svelte/indent"
-
 === 181 apps/docs/src/examples/marching-cubes/lava-lamp/MarchingCubes.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 20:1 83:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -5023,6 +5037,8 @@ Rule: "svelte/indent"
 51:5 51:15 svelte/sort-attributes "Attribute 'castShadow' should go before 'receiveShadow'."
 64:3 64:16 svelte/sort-attributes "Attribute 'intensity' should go before 'position'."
 65:3 65:13 svelte/sort-attributes "Attribute 'castShadow' should go before 'position'."
+
+=== 0 apps/docs/src/examples/plugins/lookAt/lookAtPlugin.svelte.ts	lint.txt
 
 === 337 apps/docs/src/examples/postprocessing/outline/App.svelte	lint.txt
 1:1 56:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -5543,6 +5559,16 @@ Rule: "svelte/indent"
 35:5 35:18 svelte/sort-attributes "Attribute 'hubGeometry' should go before 'position'."
 36:5 36:18 svelte/sort-attributes "Attribute 'hubMaterial' should go before 'position'."
 
+=== 121 apps/docs/src/examples/rapier/pachinko/gameState.svelte.ts	lint.txt
+36:29 36:58 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 293 apps/docs/src/examples/rapier/pachinko/spawnQueue.svelte.ts	lint.txt
+6:11 6:20 no-unused-vars "'x' is defined but never used."
+6:22 6:31 no-unused-vars "'y' is defined but never used."
+6:33 6:43 no-unused-vars "'vx' is defined but never used."
+6:45 6:55 no-unused-vars "'vy' is defined but never used."
+7:13 7:23 no-unused-vars "'id' is defined but never used."
+
 === 172 apps/docs/src/examples/rapier/rigid-body/App.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 12:3 12:19 svelte/sort-attributes "Attribute 'position' should go before 'title'."
@@ -5941,6 +5967,47 @@ Rule: "svelte/indent"
 138:9 138:58 svelte/button-has-type "Missing an explicit type attribute for button."
 138:39 138:47 no-undef "'location' is not defined."
 
+=== 148 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourManager.svelte.ts	lint.txt
+92:7 92:14 no-undef "'console' is not defined."
+108:7 108:14 no-undef "'console' is not defined."
+115:7 115:14 no-undef "'console' is not defined."
+
+=== 134 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/TourStop.svelte.ts	lint.txt
+13:21 13:32 no-unused-vars "'mask' is defined but never used."
+14:21 14:48 no-unused-vars "'instructions' is defined but never used."
+
+=== 202 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/CameraPositionTourStop/CameraPositionTourStop.svelte.ts	lint.txt
+12:33 12:41 no-undef "'document' is not defined."
+14:11 14:19 no-undef "'document' is not defined."
+16:11 16:22 no-undef "'XPathResult' is not defined."
+21:14 21:21 no-undef "'Element' is not defined."
+
+=== 0 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/EditorCameraTourStop/EditorCameraTourStop.svelte.ts	lint.txt
+
+=== 202 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/InspectorTourStop/InspectorTourStop.svelte.ts	lint.txt
+10:33 10:41 no-undef "'document' is not defined."
+12:11 12:19 no-undef "'document' is not defined."
+14:11 14:22 no-undef "'XPathResult' is not defined."
+17:80 17:87 no-undef "'Element' is not defined."
+
+=== 0 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/IntroTourStop/IntroTourStop.svelte.ts	lint.txt
+
+=== 0 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/JumpToCodeTourStop/JumpToCodeTourStop.svelte.ts	lint.txt
+
+=== 0 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/OutroTourStop/OutroTourStop.svelte.ts	lint.txt
+
+=== 0 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/RotateTorusTourStop/RotateTorusTourStop.svelte.ts	lint.txt
+
+=== 202 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/SceneHierarchyTourStop/SceneHierarchyTourStop.svelte.ts	lint.txt
+11:33 11:41 no-undef "'document' is not defined."
+13:11 13:19 no-undef "'document' is not defined."
+15:11 15:22 no-undef "'XPathResult' is not defined."
+18:80 18:87 no-undef "'Element' is not defined."
+
+=== 171 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/SelectTorusTourStop/SelectTorusTourStop.svelte.ts	lint.txt
+38:5 42:7 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+38:5 38:11 no-undef "'window' is not defined."
+
 === 931 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/SyncTourStop/SyncInstructions.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 10:1 10:34 svelte/no-unused-class-name "Unused class \"flex\"."
@@ -5955,6 +6022,22 @@ Rule: "svelte/indent"
 13:3 13:71 svelte/no-unused-class-name "Unused class \"text-sm\"."
 13:3 13:71 svelte/no-unused-class-name "Unused class \"whitespace-pre-wrap\"."
 14:5 14:17 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
+
+=== 0 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/SyncTourStop/SyncTourStop.svelte.ts	lint.txt
+
+=== 202 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/ToolbarTourStop/ToolbarTourStop.svelte.ts	lint.txt
+10:33 10:41 no-undef "'document' is not defined."
+12:11 12:19 no-undef "'document' is not defined."
+14:11 14:22 no-undef "'XPathResult' is not defined."
+17:80 17:87 no-undef "'Element' is not defined."
+
+=== 0 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/TransformControlsTourStop/TransformControlsTourStop.svelte.ts	lint.txt
+
+=== 213 apps/docs/src/examples/studio/getting-started/Tour/Tour/instructions/InstructionsManager.svelte.ts	lint.txt
+7:27 7:38 no-undef "'HTMLElement' is not defined."
+11:36 11:50 no-undef "'SVGRectElement' is not defined."
+12:34 12:45 no-undef "'HTMLElement' is not defined."
+13:39 13:50 no-undef "'HTMLElement' is not defined."
 
 === 3774 apps/docs/src/examples/studio/getting-started/Tour/Tour/instructions/instructions-types/basic/InstructionsBasic.svelte	lint.txt
 1:1 17:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -6010,6 +6093,34 @@ Rule: "svelte/indent"
 62:5 65:6 svelte/no-unused-class-name "Unused class \"text-neutral-600\"."
 62:5 65:6 svelte/no-unused-class-name "Unused class \"text-center\"."
 
+=== 330 apps/docs/src/examples/studio/getting-started/Tour/Tour/masks/MaskManager.svelte.ts	lint.txt
+8:22 8:33 no-undef "'HTMLElement' is not defined."
+10:23 10:36 no-undef "'SVGSVGElement' is not defined."
+12:28 12:42 no-undef "'SVGRectElement' is not defined."
+14:33 14:47 no-undef "'SVGRectElement' is not defined."
+16:32 16:46 no-undef "'SVGRectElement' is not defined."
+130:24 130:36 no-undef "'PointerEvent' is not defined."
+
+=== 656 apps/docs/src/examples/studio/getting-started/Tour/Tour/masks/mask-types/MaskDom.svelte.ts	lint.txt
+8:20 8:27 no-undef "'Element' is not defined."
+9:17 9:24 no-undef "'DOMRect' is not defined."
+12:22 12:56 no-unused-vars "'selector' is defined but never used."
+12:48 12:55 no-undef "'Element' is not defined."
+13:21 13:64 no-unused-vars "'shape' is assigned a value but never used."
+14:21 14:68 no-unused-vars "'padding' is assigned a value but never used."
+15:21 15:55 no-unused-vars "'blockPointer' is assigned a value but never used."
+16:21 16:63 no-unused-vars "'darkenBackground' is assigned a value but never used."
+17:22 17:38 no-unused-vars "'spotlightVisible' is assigned a value but never used."
+22:43 22:51 no-undef "'document' is not defined."
+
+=== 452 apps/docs/src/examples/studio/getting-started/Tour/Tour/masks/mask-types/MaskThreeObject.svelte.ts	lint.txt
+25:21 25:33 no-unused-vars "'object' is defined but never used."
+26:21 26:64 no-unused-vars "'shape' is defined but never used."
+27:21 27:68 no-unused-vars "'padding' is assigned a value but never used."
+28:21 28:55 no-unused-vars "'blockPointer' is assigned a value but never used."
+29:21 29:63 no-unused-vars "'darkenBackground' is assigned a value but never used."
+30:21 30:37 no-unused-vars "'spotlightVisible' is assigned a value but never used."
+
 === 0 apps/docs/src/examples/studio/static-state-gap/App.svelte	lint.txt
 
 === 169 apps/docs/src/examples/studio/static-state-gap/Box.svelte	lint.txt
@@ -6049,6 +6160,8 @@ Rule: "svelte/indent"
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 16:5 16:34 svelte/sort-attributes "Attribute 'opacity' should go before 'transparent'."
 17:5 17:20 svelte/sort-attributes "Attribute 'alphaToCoverage' should go before 'color'."
+
+=== 0 apps/docs/src/examples/studio/static-state/config.svelte.ts	lint.txt
 
 === 172 apps/docs/src/examples/template/App.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -6527,6 +6640,14 @@ Rule: "svelte/indent"
 14:24 14:38 no-undef "'HTMLDivElement' is not defined."
 22:9 22:17 svelte/sort-attributes "Attribute 'canvas' should go before 'dom'."
 
+=== 300 packages/core/src/lib/__tests__/Canvas.spec.svelte.ts	lint.txt
+21:34 21:42 no-undef "'document' is not defined."
+115:49 115:55 no-undef "'window' is not defined."
+132:19 132:25 no-undef "'window' is not defined."
+138:19 138:25 no-undef "'window' is not defined."
+144:22 144:28 no-undef "'window' is not defined."
+153:19 153:25 no-undef "'window' is not defined."
+
 === 255 packages/core/src/lib/__tests__/__fixtures__/CanvasContext.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 8:18 8:47 no-unused-vars "'ctx' is defined but never used."
@@ -6593,6 +6714,76 @@ Rule: "svelte/indent"
 === 89 packages/core/src/lib/components/T/__tests__/__fixtures__/TwoCameras.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
+=== 0 packages/core/src/lib/components/T/utils/useAttach.svelte.ts	lint.txt
+
+=== 0 packages/core/src/lib/components/T/utils/useCamera.svelte.ts	lint.txt
+
+=== 242 packages/core/src/lib/components/T/utils/useDispose.svelte.ts	lint.txt
+39:26 39:53 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+39:26 39:53 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
+=== 416 packages/core/src/lib/components/T/utils/useProps.svelte.ts	lint.txt
+52:25 58:6 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+52:25 58:6 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+88:11 88:18 no-undef "'console' is not defined."
+103:7 103:52 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+
+=== 0 packages/core/src/lib/context/createThrelteContext.svelte.ts	lint.txt
+
+=== 63 packages/core/src/lib/context/fragments/camera.svelte.ts	lint.txt
+15:9 15:23 no-unused-vars "'value' is defined but never used."
+
+=== 437 packages/core/src/lib/context/fragments/disposal.svelte.ts	lint.txt
+10:29 10:53 no-unused-vars "'object' is defined but never used."
+13:31 13:55 no-unused-vars "'object' is defined but never used."
+15:30 15:54 no-unused-vars "'object' is defined but never used."
+21:29 21:64 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+21:29 21:64 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 218 packages/core/src/lib/context/fragments/dom.svelte.ts	lint.txt
+7:8 7:19 no-undef "'HTMLElement' is not defined."
+8:11 8:28 no-undef "'HTMLCanvasElement' is not defined."
+14:8 14:19 no-undef "'HTMLElement' is not defined."
+15:11 15:28 no-undef "'HTMLCanvasElement' is not defined."
+
+=== 174 packages/core/src/lib/context/fragments/renderer.svelte.ts	lint.txt
+32:44 32:69 no-unused-vars "'canvas' is defined but never used."
+32:52 32:69 no-undef "'HTMLCanvasElement' is not defined."
+149:48 149:54 no-undef "'window' is not defined."
+
+=== 121 packages/core/src/lib/context/fragments/scheduler.svelte.ts	lint.txt
+82:29 82:38 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
+=== 833 packages/core/src/lib/hooks/useTask.svelte.ts	lint.txt
+122:3 122:30 no-unused-vars "'fn' is defined but never used."
+122:8 122:21 no-unused-vars "'delta' is defined but never used."
+123:3 123:34 no-unused-vars "'options' is defined but never used."
+125:17 125:24 no-redeclare "'useTask' is already defined."
+126:3 126:11 no-unused-vars "'key' is defined but never used."
+127:3 127:30 no-unused-vars "'fn' is defined but never used."
+127:8 127:21 no-unused-vars "'delta' is defined but never used."
+128:3 128:34 no-unused-vars "'options' is defined but never used."
+130:17 130:24 no-redeclare "'useTask' is already defined."
+131:20 131:33 no-unused-vars "'delta' is defined but never used."
+132:19 132:32 no-unused-vars "'delta' is defined but never used."
+145:12 145:25 no-unused-vars "'delta' is defined but never used."
+149:26 149:39 no-unused-vars "'delta' is defined but never used."
+
+=== 195 packages/core/src/lib/utilities/observe.svelte.ts	lint.txt
+17:42 17:63 no-unused-vars "'deps' is defined but never used."
+39:5 39:73 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+
+=== 548 packages/core/src/lib/utilities/useMeasure.svelte.ts	lint.txt
+18:37 18:48 no-undef "'HTMLElement' is not defined."
+46:43 46:53 no-undef "'setTimeout' is not defined."
+50:41 50:53 no-undef "'clearTimeout' is not defined."
+51:24 51:34 no-undef "'setTimeout' is not defined."
+61:24 61:38 no-undef "'ResizeObserver' is not defined."
+106:5 106:73 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+106:5 106:11 no-undef "'window' is not defined."
+109:7 109:13 no-undef "'window' is not defined."
+110:43 110:55 no-undef "'clearTimeout' is not defined."
+
 === 89 packages/core/src/routes/+page.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
@@ -6614,6 +6805,33 @@ Rule: "svelte/indent"
 === 138 packages/extras/src/lib/audio/PositionalAudio/PositionalAudio.svelte	lint.txt
 1:1 76:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 32:7 32:14 no-undef "'console' is not defined."
+
+=== 1312 packages/extras/src/lib/audio/utils/useAudio.svelte.ts	lint.txt
+4:29 4:40 no-undef "'AudioBuffer' is not defined."
+4:43 4:59 no-undef "'HTMLMediaElement' is not defined."
+4:62 4:83 no-undef "'AudioBufferSourceNode' is not defined."
+4:86 4:97 no-undef "'MediaStream' is not defined."
+13:13 13:39 no-unused-vars "'buffer' is defined but never used."
+13:21 13:32 no-undef "'AudioBuffer' is not defined."
+14:14 14:31 no-unused-vars "'event' is defined but never used."
+14:21 14:31 no-undef "'ErrorEvent' is not defined."
+15:17 15:37 no-unused-vars "'event' is defined but never used."
+15:24 15:37 no-undef "'ProgressEvent' is not defined."
+22:42 22:50 no-undef "'GainNode' is not defined."
+31:15 31:41 no-unused-vars "'buffer' is defined but never used."
+31:23 31:34 no-undef "'AudioBuffer' is not defined."
+32:16 32:33 no-unused-vars "'event' is defined but never used."
+32:23 32:33 no-undef "'ErrorEvent' is not defined."
+33:19 33:39 no-unused-vars "'event' is defined but never used."
+33:26 33:39 no-undef "'ProgressEvent' is not defined."
+66:9 66:16 no-undef "'console' is not defined."
+128:36 128:47 no-undef "'AudioBuffer' is not defined."
+130:36 130:52 no-undef "'HTMLMediaElement' is not defined."
+132:36 132:57 no-undef "'AudioBufferSourceNode' is not defined."
+134:36 134:47 no-undef "'MediaStream' is not defined."
+142:26 142:36 no-undef "'ErrorEvent' is not defined."
+
+=== 0 packages/extras/src/lib/bvh/bvh.svelte.ts	lint.txt
 
 === 312 packages/extras/src/lib/components/Align/Align.svelte	lint.txt
 1:1 109:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -6675,9 +6893,17 @@ Rule: "svelte/indent"
 1:1 57:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:3 2:64 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
 
+=== 0 packages/extras/src/lib/components/Bounds/useBounds.svelte.ts	lint.txt
+
 === 153 packages/extras/src/lib/components/CSM/CSM.svelte	lint.txt
 1:1 128:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 28:19 28:27 no-unused-vars "'csm' is defined but never used."
+
+=== 370 packages/extras/src/lib/components/CSM/useMaterials.svelte.ts	lint.txt
+7:36 7:63 no-unused-vars "'material' is defined but never used."
+9:48 9:57 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+9:48 9:57 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+48:50 48:68 no-unused-vars "'material' is defined but never used."
 
 === 1109 packages/extras/src/lib/components/CameraControls/CameraControls.svelte	lint.txt
 1:1 48:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -7089,12 +7315,124 @@ Rule: "svelte/indent"
 1:1 71:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 75:3 75:39 svelte/sort-attributes "Attribute 'attach' should go before 'is'."
 
+=== 0 packages/extras/src/lib/components/environment/utils/useEnvironment.svelte.ts	lint.txt
+
 === 138 packages/extras/src/lib/components/portals/Portal.svelte	lint.txt
 1:1 37:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 17:7 17:14 no-undef "'console' is not defined."
 
 === 90 packages/extras/src/lib/components/portals/PortalTarget.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+
+=== 0 packages/extras/src/lib/components/portals/usePortalContext.svelte.ts	lint.txt
+
+=== 0 packages/extras/src/lib/hooks/useCubeCamera.svelte.ts	lint.txt
+
+=== 389 packages/extras/src/lib/hooks/useCursor.svelte.ts	lint.txt
+52:7 52:18 no-undef "'HTMLElement' is not defined."
+53:9 53:33 no-unused-vars "'instance' is defined but never used."
+54:12 54:36 no-unused-vars "'instance' is defined but never used."
+65:12 65:23 no-undef "'HTMLElement' is not defined."
+94:13 94:24 no-undef "'HTMLElement' is not defined."
+94:37 94:45 no-undef "'document' is not defined."
+97:5 97:12 no-undef "'console' is not defined."
+
+=== 244 packages/extras/src/lib/hooks/useFBO.svelte.ts	lint.txt
+41:24 41:65 no-unused-vars "'options' is defined but never used."
+54:17 54:23 no-redeclare "'useFBO' is already defined."
+54:24 54:47 no-unused-vars "'options' is defined but never used."
+56:17 56:23 no-redeclare "'useFBO' is already defined."
+
+=== 0 packages/extras/src/lib/hooks/useFollow.svelte.ts	lint.txt
+
+=== 2323 packages/extras/src/lib/hooks/useGamepad/useGamepad.svelte.ts	lint.txt
+38:26 38:43 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+42:3 42:10 no-undef "'console' is not defined."
+124:12 124:39 no-unused-vars "'event' is defined but never used."
+125:18 125:19 no-unused-vars "'K' is defined but never used."
+133:8 133:35 no-unused-vars "'name' is defined but never used."
+133:37 133:43 no-unused-vars "'fn' is defined but never used."
+134:9 134:36 no-unused-vars "'name' is defined but never used."
+134:38 134:44 no-unused-vars "'fn' is defined but never used."
+154:8 154:22 no-unused-vars "'name' is defined but never used."
+154:24 154:30 no-unused-vars "'fn' is defined but never used."
+155:9 155:23 no-unused-vars "'name' is defined but never used."
+155:25 155:31 no-unused-vars "'fn' is defined but never used."
+205:18 205:25 no-undef "'Gamepad' is not defined."
+285:18 285:25 no-undef "'Gamepad' is not defined."
+348:12 348:25 no-undef "'GamepadButton' is not defined."
+420:17 420:27 no-redeclare "'useGamepad' is already defined."
+420:28 420:71 no-unused-vars "'options' is defined but never used."
+421:17 421:27 no-redeclare "'useGamepad' is already defined."
+421:28 421:69 no-unused-vars "'options' is defined but never used."
+422:17 422:27 no-redeclare "'useGamepad' is already defined."
+479:15 479:28 no-undef "'XRInputSource' is not defined."
+497:15 497:28 no-undef "'XRInputSource' is not defined."
+532:9 532:66 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+533:9 533:72 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+564:19 564:28 no-undef "'navigator' is not defined."
+590:21 590:34 no-undef "'GamepadButton' is not defined."
+645:47 645:59 no-undef "'GamepadEvent' is not defined."
+656:19 656:28 no-undef "'navigator' is not defined."
+669:7 669:74 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+669:7 669:13 no-undef "'window' is not defined."
+670:7 670:80 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+670:7 670:13 no-undef "'window' is not defined."
+673:9 673:15 no-undef "'window' is not defined."
+674:9 674:15 no-undef "'window' is not defined."
+
+=== 512 packages/extras/src/lib/hooks/useGltfAnimations.svelte.ts	lint.txt
+58:3 58:38 no-unused-vars "'gltf' is defined but never used."
+59:3 59:36 no-unused-vars "'root' is defined but never used."
+76:17 76:34 no-redeclare "'useGltfAnimations' is already defined."
+79:3 79:18 no-unused-vars "'root' is defined but never used."
+94:17 94:34 no-redeclare "'useGltfAnimations' is already defined."
+97:3 97:42 no-unused-vars "'gltf' is defined but never used."
+97:44 97:59 no-unused-vars "'root' is defined but never used."
+99:17 99:34 no-redeclare "'useGltfAnimations' is already defined."
+
+=== 554 packages/extras/src/lib/hooks/useInputMap.svelte.ts	lint.txt
+92:19 92:38 no-unused-vars "'map' is defined but never used."
+102:24 102:54 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+102:24 102:54 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+103:27 103:53 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+103:27 103:53 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 2017 packages/extras/src/lib/hooks/useKeyboard.svelte.ts	lint.txt
+17:12 17:23 no-undef "'EventTarget' is not defined."
+28:30 28:50 no-unused-vars "'event' is defined but never used."
+28:37 28:50 no-undef "'KeyboardEvent' is not defined."
+43:16 43:43 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+43:16 43:43 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+44:23 44:40 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+44:23 44:40 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+45:21 45:38 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+45:21 45:38 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+46:28 46:45 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+46:28 46:45 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+58:14 58:23 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+59:12 59:21 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+72:33 72:38 no-undef "'Event' is not defined."
+73:24 73:37 no-undef "'KeyboardEvent' is not defined."
+85:31 85:36 no-undef "'Event' is not defined."
+86:24 86:37 no-undef "'KeyboardEvent' is not defined."
+153:22 153:28 no-undef "'window' is not defined."
+156:5 156:71 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+157:5 157:67 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+158:5 158:48 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+
+=== 605 packages/extras/src/lib/hooks/useTrailTexture.svelte.ts	lint.txt
+19:11 19:28 no-undef "'HTMLCanvasElement' is not defined."
+20:8 20:32 no-undef "'CanvasRenderingContext2D' is not defined."
+28:10 28:19 no-unused-vars "'t' is defined but never used."
+32:10 32:34 no-undef "'CanvasRenderingContext2D' is not defined."
+42:25 42:49 no-undef "'CanvasRenderingContext2D' is not defined."
+55:19 55:27 no-undef "'document' is not defined."
+128:9 128:18 no-useless-assignment "The value assigned to 'intensity' is not used in subsequent statements."
+193:17 193:41 no-undef "'CanvasRenderingContext2D' is not defined."
+195:17 195:26 no-unused-vars "'t' is defined but never used."
+
+=== 0 packages/extras/src/lib/hooks/useViewport.svelte.ts	lint.txt
 
 === 1407 packages/extras/src/lib/interactivity/__tests__/__fixtures__/OverlappingScene.svelte	lint.txt
 1:1 27:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -7160,12 +7498,52 @@ Rule: "svelte/indent"
 93:3 93:43 svelte/sort-attributes "Attribute 'onpointermissed' should go before 'position'."
 102:3 102:43 svelte/sort-attributes "Attribute 'onpointermissed' should go before 'position'."
 
+=== 107 packages/extras/src/lib/interactivity/defaults.svelte.ts	lint.txt
+6:35 6:46 no-undef "'HTMLElement' is not defined."
+17:30 17:44 no-undef "'ResizeObserver' is not defined."
+
+=== 0 packages/extras/src/lib/interactivity/plugin.svelte.ts	lint.txt
+
+=== 1606 packages/extras/src/lib/interactivity/setupInteractivity.svelte.ts	lint.txt
+48:20 48:37 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+48:20 48:37 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+63:59 63:71 no-undef "'PointerEvent' is not defined."
+64:61 64:73 no-undef "'PointerEvent' is not defined."
+75:18 75:35 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+75:18 75:35 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+109:33 109:43 no-undef "'MouseEvent' is not defined."
+141:34 141:45 no-undef "'performance' is not defined."
+148:7 148:18 no-undef "'performance' is not defined."
+213:75 213:87 no-undef "'PointerEvent' is not defined."
+214:76 214:88 no-undef "'PointerEvent' is not defined."
+222:71 222:83 no-undef "'PointerEvent' is not defined."
+283:17 283:38 no-undef "'requestAnimationFrame' is not defined."
+296:31 296:42 no-undef "'HTMLElement' is not defined."
+310:28 310:39 no-undef "'HTMLElement' is not defined."
+315:9 315:84 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+317:9 317:75 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+319:9 319:76 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+321:9 321:69 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+
+=== 0 packages/extras/src/lib/layers/plugin.svelte.ts	lint.txt
+
 === 581 packages/extras/src/lib/suspense/Suspense.svelte	lint.txt
 1:1 57:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 15:16 15:30 no-unused-vars "'error' is defined but never used."
 21:67 21:72 svelte/valid-compile "This reference only captures the initial value of `final`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 62:3 62:17 svelte/sort-attributes "Attribute 'attach' should go before 'is'."
 67:6 67:20 svelte/prefer-destructured-store-props "Destructure length from $errors for better change tracking & fewer redraws"
+
+=== 0 packages/extras/src/lib/suspense/onReveal.svelte.ts	lint.txt
+
+=== 0 packages/extras/src/lib/suspense/onSuspend.svelte.ts	lint.txt
+
+=== 327 packages/extras/src/lib/transitions/transitions.svelte.ts	lint.txt
+6:44 6:52 no-undef "'document' is not defined."
+71:28 71:33 no-undef "'Event' is not defined."
+86:7 86:69 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+87:13 87:17 no-unused-vars "'args' is defined but never used."
+88:22 88:29 no-undef "'Element' is not defined."
 
 === 89 packages/extras/src/routes/+page.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -7696,6 +8074,8 @@ Rule: "svelte/indent"
 === 91 packages/rapier/src/lib/components/RigidBody/RigidBody.svelte	lint.txt
 1:1 197:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
+=== 0 packages/rapier/src/lib/components/RigidBody/overrideTeleportMethods.svelte.ts	lint.txt
+
 === 4709 packages/rapier/src/lib/components/World/InnerWorld.svelte	lint.txt
 1:1 71:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 31:12 31:19 svelte/valid-compile "This reference only captures the initial value of `gravity`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
@@ -7721,6 +8101,20 @@ Rule: "svelte/indent"
 
 === 89 packages/rapier/src/lib/components/World/World.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+
+=== 242 packages/rapier/src/lib/hooks/useCollisionGroups.svelte.ts	lint.txt
+22:37 22:46 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+22:37 22:46 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 472 packages/rapier/src/lib/hooks/useJoint.svelte.ts	lint.txt
+7:21 7:42 no-unused-vars "'rigidBodyA' is defined but never used."
+7:44 7:65 no-unused-vars "'rigidBodyB' is defined but never used."
+7:67 7:85 no-unused-vars "'ctx' is defined but never used."
+14:18 20:5 svelte/require-stores-init "Always set a default value for svelte stores."
+14:54 14:57 svelte/derived-has-same-inputs-outputs "The argument name should be '$rigidBodyA'."
+14:59 14:62 svelte/derived-has-same-inputs-outputs "The argument name should be '$rigidBodyB'."
+
+=== 0 packages/rapier/src/lib/lib/initRapier.svelte.ts	lint.txt
 
 === 533 packages/rapier/src/routes/+page.svelte	lint.txt
 1:1 35:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -7916,6 +8310,8 @@ Rule: "svelte/indent"
 203:9 205:11 svelte/sort-attributes "Attribute 'cc' should go before 'initialPosition'."
 211:7 211:36 svelte/sort-attributes "Attribute 'is' should go before 'zoom'."
 220:9 222:11 svelte/sort-attributes "Attribute 'cc' should go before 'initialPosition'."
+
+=== 0 packages/studio/src/lib/extensions/editor-camera/useEditorCamera.svelte.ts	lint.txt
 
 === 1813 packages/studio/src/lib/extensions/grid/Grid.svelte	lint.txt
 1:1 67:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -8325,6 +8721,8 @@ Rule: "svelte/indent"
 71:5 71:52 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
 72:5 72:47 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
 
+=== 0 packages/studio/src/lib/extensions/object-selection/useObjectSelection.svelte.ts	lint.txt
+
 === 747 packages/studio/src/lib/extensions/render-modes/RenderModes.svelte	lint.txt
 1:1 103:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 38:1 38:15 svelte/indent "Expected indentation of 12 spaces but found 14 spaces."
@@ -8357,6 +8755,8 @@ Rule: "svelte/indent"
 61:7 61:40 svelte/sort-attributes "Attribute 'onclick' should go before 'tooltip'."
 76:9 76:32 svelte/sort-attributes "Attribute 'format' should go before 'label'."
 
+=== 0 packages/studio/src/lib/extensions/snapping/useSnapping.svelte.ts	lint.txt
+
 === 256 packages/studio/src/lib/extensions/space/Space.svelte	lint.txt
 1:1 34:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 43:7 45:9 svelte/sort-attributes "Attribute 'onclick' should go before 'tooltip'."
@@ -8382,8 +8782,35 @@ Rule: "svelte/indent"
 === 90 packages/studio/src/lib/extensions/studio-objects-registry/StudioObjectsRegistry.svelte	lint.txt
 1:1 35:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
+=== 361 packages/studio/src/lib/extensions/studio-objects-registry/useStudioObjectsRegistry.svelte.ts	lint.txt
+17:55 17:74 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+40:7 40:23 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+46:7 46:23 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
 === 90 packages/studio/src/lib/extensions/transactions/Changes.svelte	lint.txt
 1:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+
+=== 1592 packages/studio/src/lib/extensions/transactions/TransactionQueue/TransactionQueue.svelte.ts	lint.txt
+1:1 - - "Unused eslint-disable directive (no problems were reported from 'max-classes-per-file')."
+19:31 19:41 no-unused-vars "'value' is defined but never used."
+33:11 33:18 no-unused-vars "'root' is defined but never used."
+33:20 33:27 no-unused-vars "'data' is defined but never used."
+40:14 40:21 no-unused-vars "'root' is defined but never used."
+109:42 109:52 no-undef "'setTimeout' is not defined."
+112:31 112:89 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+112:40 112:77 no-unused-vars "'transactions' is defined but never used."
+113:30 113:67 no-unused-vars "'transactions' is defined but never used."
+120:29 120:87 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+120:38 120:75 no-unused-vars "'transactions' is defined but never used."
+121:28 121:65 no-unused-vars "'transactions' is defined but never used."
+128:29 128:87 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+128:38 128:75 no-unused-vars "'transactions' is defined but never used."
+129:28 129:65 no-unused-vars "'transactions' is defined but never used."
+137:36 137:94 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+137:45 137:82 no-unused-vars "'transactions' is defined but never used."
+138:35 138:72 no-unused-vars "'transactions' is defined but never used."
+261:27 261:39 no-undef "'clearTimeout' is not defined."
+262:24 262:34 no-undef "'setTimeout' is not defined."
 
 === 1067 packages/studio/src/lib/extensions/transactions/Transactions.svelte	lint.txt
 1:1 151:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -8442,6 +8869,12 @@ Rule: "svelte/indent"
 118:7 118:28 svelte/sort-attributes "Attribute 'icon' should go before 'onclick'."
 132:9 132:24 svelte/sort-attributes "Attribute 'label' should go before 'value'."
 
+=== 236 packages/studio/src/lib/internal/state.svelte.ts	lint.txt
+40:19 40:56 no-unused-vars "'args' is defined but never used."
+40:40 40:48 no-unused-vars "'value' is defined but never used."
+52:29 52:41 no-undef "'localStorage' is not defined."
+109:9 109:21 no-undef "'localStorage' is not defined."
+
 === 89 packages/studio/src/routes/+page.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
@@ -8454,6 +8887,8 @@ Rule: "svelte/indent"
 55:7 55:22 svelte/sort-attributes "Attribute 'alphaToCoverage' should go before 'color'."
 58:40 58:41 no-unused-vars "'_' is defined but never used."
 59:42 59:43 no-unused-vars "'_' is defined but never used."
+
+=== 0 packages/studio/src/routes/config.svelte.ts	lint.txt
 
 === 1081 packages/theatre/src/lib/project/Project.svelte	lint.txt
 1:1 35:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -8675,6 +9110,71 @@ Rule: "svelte/indent"
 15:1 87:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 94:5 94:19 svelte/sort-attributes "Attribute 'attach' should go before 'is'."
 96:5 96:23 svelte/sort-attributes "Attribute 'position.z' should go before 'visible'."
+
+=== 0 packages/xr/src/lib/hooks/currentReadable.svelte.ts	lint.txt
+
+=== 54 packages/xr/src/lib/hooks/useController.svelte.ts	lint.txt
+46:15 46:27 no-undef "'XRHandedness' is not defined."
+
+=== 0 packages/xr/src/lib/hooks/useHand.svelte.ts	lint.txt
+
+=== 0 packages/xr/src/lib/hooks/useHandJoint.svelte.ts	lint.txt
+
+=== 450 packages/xr/src/lib/hooks/useHitTest.svelte.ts	lint.txt
+8:32 8:50 no-unused-vars "'hitMatrix' is defined but never used."
+8:52 8:84 no-unused-vars "'hit' is defined but never used."
+8:57 8:72 no-undef "'XRHitTestResult' is not defined."
+39:34 39:49 no-undef "'XRHitTestSource' is not defined."
+47:20 47:35 no-undef "'XRHitTestSource' is not defined."
+60:16 60:23 no-undef "'console' is not defined."
+77:20 77:35 no-undef "'XRHitTestSource' is not defined."
+89:16 89:23 no-undef "'console' is not defined."
+
+=== 0 packages/xr/src/lib/hooks/useXROrigin.svelte.ts	lint.txt
+
+=== 675 packages/xr/src/lib/internal/inputSources.svelte.ts	lint.txt
+6:33 6:46 no-undef "'XRInputSource' is not defined."
+6:57 6:63 no-undef "'XRHand' is not defined."
+10:16 10:29 no-undef "'XRInputSource' is not defined."
+11:15 11:27 no-undef "'XRHandedness' is not defined."
+48:15 48:27 no-undef "'XRHandedness' is not defined."
+60:21 60:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+88:51 88:61 no-unused-vars "'e' is defined but never used."
+152:50 152:63 no-undef "'XRInputSource' is not defined."
+162:48 162:60 no-undef "'XRHandedness' is not defined."
+178:16 178:29 no-undef "'XRInputSource' is not defined."
+187:51 187:69 no-undef "'XRInputSourceEvent' is not defined."
+
+=== 0 packages/xr/src/lib/internal/setupHeadset.svelte.ts	lint.txt
+
+=== 64 packages/xr/src/lib/internal/setupRaf.svelte.ts	lint.txt
+16:21 16:43 no-undef "'XRFrameRequestCallback' is not defined."
+
+=== 272 packages/xr/src/lib/internal/state.svelte.ts	lint.txt
+15:24 15:33 no-undef "'XRSession' is not defined."
+19:24 19:44 no-undef "'XRReferenceSpaceType' is not defined."
+27:21 27:34 no-undef "'XRSessionMode' is not defined."
+28:28 28:41 no-undef "'XRSessionInit' is not defined."
+28:67 28:74 no-undef "'Element' is not defined."
+
+=== 0 packages/xr/src/lib/plugins/pointerControls/plugin.svelte.ts	lint.txt
+
+=== 488 packages/xr/src/lib/plugins/pointerControls/setup.svelte.ts	lint.txt
+77:24 77:41 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+77:24 77:41 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+115:18 115:35 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+115:18 115:35 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
+=== 0 packages/xr/src/lib/plugins/teleportControls/plugin.svelte.ts	lint.txt
+
+=== 0 packages/xr/src/lib/plugins/teleportControls/setup.svelte.ts	lint.txt
+
+=== 0 packages/xr/src/lib/plugins/touchControls/plugin.svelte.ts	lint.txt
+
+=== 369 packages/xr/src/lib/plugins/touchControls/setup.svelte.ts	lint.txt
+112:24 112:41 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+112:24 112:41 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+153:18 153:35 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
 
 === 139 packages/xr/src/routes/+page.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

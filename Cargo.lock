@@ -1190,6 +1190,7 @@ dependencies = [
  "rsvelte_vue_lint",
  "rsvelte_vue_semantic",
  "rsvelte_vue_to_svelte",
+ "serde",
  "serde_json",
 ]
 

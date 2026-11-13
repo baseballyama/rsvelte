@@ -35677,6 +35677,25 @@
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 1216 src/lib/components/ui/data-table/data-table.svelte.ts	lint.txt
+57:5 57:67 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+83:33 83:42 no-unused-vars "'source' is defined but never used."
+84:17 84:29 no-redeclare "'mergeObjects' is already defined."
+84:36 84:45 no-unused-vars "'source' is defined but never used."
+84:47 84:57 no-unused-vars "'source1' is defined but never used."
+85:17 85:29 no-redeclare "'mergeObjects' is already defined."
+85:39 85:48 no-unused-vars "'source' is defined but never used."
+85:50 85:60 no-unused-vars "'source1' is defined but never used."
+85:62 85:72 no-unused-vars "'source2' is defined but never used."
+86:17 86:29 no-redeclare "'mergeObjects' is already defined."
+87:2 87:11 no-unused-vars "'source' is defined but never used."
+88:2 88:12 no-unused-vars "'source1' is defined but never used."
+89:2 89:12 no-unused-vars "'source2' is defined but never used."
+90:2 90:12 no-unused-vars "'source3' is defined but never used."
+92:1 92:63 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+93:17 93:29 no-redeclare "'mergeObjects' is already defined."
+104:6 104:9 getter-return "Expected method 'get' to always return a value."
+
 === 3147 src/lib/components/ui/data-table/flex-render.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -37364,6 +37383,9 @@
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 61 src/lib/components/ui/timeline/timeline-context.svelte.ts	lint.txt
+5:18 5:30 no-unused-vars "'step' is defined but never used."
+
 === 2042 src/lib/components/ui/timeline/timeline-date.svelte	lint.txt
 1:1 23:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -38014,6 +38036,8 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 src/lib/demo/component-preview/component-dialog-context.svelte.ts	lint.txt
 
 === 6259 src/lib/demo/component-preview/component-dialog.svelte	lint.txt
 1:1 39:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -39654,6 +39678,62 @@
 36:1 36:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 37:1 37:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 38:1 38:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 src/lib/hooks/use-character-limit.svelte.ts	lint.txt
+
+=== 886 src/lib/hooks/use-currency-input.svelte.ts	lint.txt
+8:14 8:25 no-unused-vars "'val' is defined but never used."
+15:14 15:25 no-unused-vars "'val' is defined but never used."
+50:23 50:36 no-undef "'KeyboardEvent' is not defined."
+50:39 50:49 no-undef "'MouseEvent' is not defined."
+55:23 55:36 no-undef "'KeyboardEvent' is not defined."
+55:39 55:49 no-undef "'MouseEvent' is not defined."
+64:24 64:34 no-undef "'FocusEvent' is not defined."
+64:54 64:70 no-undef "'HTMLInputElement' is not defined."
+71:25 71:35 no-undef "'FocusEvent' is not defined."
+71:55 71:71 no-undef "'HTMLInputElement' is not defined."
+81:25 81:30 no-undef "'Event' is not defined."
+81:50 81:66 no-undef "'HTMLInputElement' is not defined."
+103:27 103:40 no-undef "'KeyboardEvent' is not defined."
+103:60 103:76 no-undef "'HTMLInputElement' is not defined."
+181:17 181:27 no-undef "'MouseEvent' is not defined."
+193:17 193:27 no-undef "'MouseEvent' is not defined."
+
+=== 568 src/lib/hooks/use-image-upload.svelte.ts	lint.txt
+4:22 4:38 no-undef "'HTMLInputElement' is not defined."
+5:18 5:26 no-undef "'FileList' is not defined."
+6:15 6:26 no-unused-vars "'url' is defined but never used."
+8:60 8:71 no-unused-vars "'url' is defined but never used."
+27:23 27:39 no-undef "'HTMLInputElement' is not defined."
+35:19 35:27 no-undef "'FileList' is not defined."
+40:16 40:19 no-undef "'URL' is not defined."
+42:5 42:8 no-undef "'URL' is not defined."
+55:4 55:7 no-undef "'URL' is not defined."
+67:4 67:7 no-undef "'URL' is not defined."
+74:14 74:25 no-unused-vars "'url' is defined but never used."
+
+=== 579 src/lib/hooks/use-local-storage.svelte.ts	lint.txt
+10:13 10:19 no-undef "'window' is not defined."
+11:26 11:38 no-undef "'localStorage' is not defined."
+22:8 22:20 no-undef "'localStorage' is not defined."
+23:5 23:17 no-undef "'localStorage' is not defined."
+29:8 29:18 svelte/no-ignored-unsubscribe "Ignoring returned value of the subscribe method is forbidden."
+33:19 33:31 no-undef "'localStorage' is not defined."
+48:12 48:22 svelte/no-ignored-unsubscribe "Ignoring returned value of the subscribe method is forbidden."
+55:8 55:20 no-undef "'localStorage' is not defined."
+74:4 74:16 no-undef "'localStorage' is not defined."
+
+=== 102 src/lib/hooks/use-locale.svelte.ts	lint.txt
+38:42 38:51 no-undef "'navigator' is not defined."
+39:10 39:19 no-undef "'navigator' is not defined."
+
+=== 0 src/lib/hooks/use-pagination.svelte.ts	lint.txt
+
+=== 0 src/lib/hooks/use-password-strength.svelte.ts	lint.txt
+
+=== 105 src/lib/hooks/use-slider-with-input.svelte.ts	lint.txt
+69:26 69:31 no-undef "'Event' is not defined."
+70:30 70:46 no-undef "'HTMLInputElement' is not defined."
 
 === 1053 src/routes/(components)/+layout.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

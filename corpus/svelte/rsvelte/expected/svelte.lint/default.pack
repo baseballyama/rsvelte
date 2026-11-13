@@ -65,6 +65,8 @@
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 check/js-rune-module-without-allow-js-loose/project/src/lib/counter.svelte.js	lint.txt
+
 === 170 check/kit-hooks-arrow-ts/project/src/routes/+page.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -218,6 +220,16 @@
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 check/ts-aliased-rune-module-nodenext/project/pkg-a/src/lib/anatomy/widget.svelte.ts	lint.txt
+
+=== 0 check/ts-aliased-rune-module-nodenext/project/pkg-a/src/lib/modules/provider.svelte.ts	lint.txt
+
+=== 0 check/ts-aliased-rune-module-nodenext/project/pkg-a/src/lib/modules/theme.svelte.ts	lint.txt
+
+=== 0 check/ts-aliased-rune-module-nodenext/project/pkg-libs/modules/state.svelte.ts	lint.txt
+
+=== 0 check/ts-companion-named-import-bundler/project/src/lib/widget.svelte.ts	lint.txt
+
 === 251 check/ts-companion-named-import/project/src/companion-user.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -342,6 +354,21 @@
 22:1 22:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 23:1 23:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 24:1 24:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+
+=== 0 crates/rsvelte_core/fixtures_runed/animation-frames.svelte.js	lint.txt
+
+=== 0 crates/rsvelte_core/fixtures_runed/debounced.svelte.js	lint.txt
+
+=== 0 crates/rsvelte_core/fixtures_runed/element-rect.svelte.js	lint.txt
+
+=== 102 crates/rsvelte_core/fixtures_runed/persisted-state.svelte.js	lint.txt
+111:13 111:20 no-undef "'console' is not defined."
+127:13 127:20 no-undef "'console' is not defined."
+
+=== 136 crates/rsvelte_core/fixtures_runed/previous.svelte.js	lint.txt
+8:17 8:60 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 0 crates/rsvelte_core/fixtures_runed/throttled.svelte.js	lint.txt
 
 === 1017 crates/rsvelte_core/fixtures_utf8_boundary/sourcemap_column.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1004,6 +1031,10 @@
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 170 lint/derived-has-same-inputs-outputs/10-module-file.svelte.js	lint.txt
+4:18 4:46 svelte/require-stores-init "Always set a default value for svelte stores."
+4:30 4:33 svelte/derived-has-same-inputs-outputs "The argument name should be '$a'."
+
 === 568 lint/derived-has-same-inputs-outputs/11-decoy-local.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1182,6 +1213,8 @@
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:7 5:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 0 lint/experimental-require-slot-types/12-module-slot-decoy.svelte.ts	lint.txt
 
 === 245 lint/experimental-require-slot-types/13-options-runes-false.svelte	lint.txt
 3:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -2244,6 +2277,9 @@
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 59 lint/infinite-reactive-loop/12-module-reactive-loop.svelte.js	lint.txt
+4:1 4:2 no-unused-labels "'$:' is defined but never used."
+
 === 487 lint/infinite-reactive-loop/13-rune-decoy-suppresses.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3065,6 +3101,12 @@
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:3 8:45 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 352 lint/no-add-event-listener/09-module-surface.svelte.ts	lint.txt
+1:32 1:43 no-undef "'EventTarget' is not defined."
+2:2 2:45 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+6:2 6:39 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+6:2 6:18 no-undef "'addEventListener' is not defined."
 
 === 414 lint/no-add-event-listener/10-multibyte.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5282,6 +5324,10 @@
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 160 lint/no-extra-reactive-curlies/10-module-reactive-curlies.svelte.js	lint.txt
+1:5 1:10 no-useless-assignment "The value assigned to 'value' is not used in subsequent statements."
+2:1 2:2 no-unused-labels "'$:' is defined but never used."
+
 === 568 lint/no-extra-reactive-curlies/11-rune-key-decoy-suppresses.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5649,6 +5695,8 @@
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 lint/no-goto-without-base/21-module-goto.svelte.js	lint.txt
+
 === 817 lint/no-goto-without-base/22-non-kit-goto.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5758,6 +5806,12 @@
 6:24 6:38 no-unused-vars "'fn' is defined but never used."
 6:57 6:66 svelte/no-ignored-unsubscribe "Ignoring returned value of the subscribe method is forbidden."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 323 lint/no-ignored-unsubscribe/09-module-surface.svelte.ts	lint.txt
+4:7 4:16 svelte/no-ignored-unsubscribe "Ignoring returned value of the subscribe method is forbidden."
+6:43 6:66 no-unused-vars "'fn' is defined but never used."
+6:48 6:57 no-unused-vars "'v' is defined but never used."
+7:8 7:17 svelte/no-ignored-unsubscribe "Ignoring returned value of the subscribe method is forbidden."
 
 === 347 lint/no-ignored-unsubscribe/10-multibyte.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5977,6 +6031,10 @@
 === 127 lint/no-immutable-reactive-statements/13-console-only.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:5 2:12 no-undef "'console' is not defined."
+
+=== 162 lint/no-immutable-reactive-statements/14-module-reactive-label.svelte.js	lint.txt
+2:5 2:12 no-useless-assignment "The value assigned to 'doubled' is not used in subsequent statements."
+3:1 3:2 no-unused-labels "'$:' is defined but never used."
 
 === 413 lint/no-immutable-reactive-statements/15-ts-const-assertion.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -6300,6 +6358,9 @@
 7:3 7:16 svelte/no-inner-declarations "Move variable declaration to program root."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 83 lint/no-inner-declarations/11-module-file.svelte.js	lint.txt
+4:2 4:17 svelte/no-inner-declarations "Move variable declaration to program root."
+
 === 1329 lint/no-inner-declarations/12-method-bodies.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6409,6 +6470,9 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:22 3:30 svelte/no-inspect "Do not use $inspect directive"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 59 lint/no-inspect/07-module.svelte.js	lint.txt
+2:2 2:10 svelte/no-inspect "Do not use $inspect directive"
 
 === 547 lint/no-inspect/08-legacy.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6553,6 +6617,13 @@
 6:12 6:28 svelte/valid-compile "Cannot access a computed property of a rune\nhttps://svelte.dev/e/rune_invalid_computed_property(rune_invalid_computed_property)"
 6:19 6:27 svelte/no-inspect "Do not use $inspect directive"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 299 lint/no-inspect/20-module-ts.svelte.ts	lint.txt
+1:13 1:21 svelte/no-inspect "Do not use $inspect directive"
+3:30 3:38 svelte/no-inspect "Do not use $inspect directive"
+3:41 3:49 svelte/no-inspect "Do not use $inspect directive"
+4:2 4:10 svelte/no-inspect "Do not use $inspect directive"
+5:25 5:33 svelte/no-inspect "Do not use $inspect directive"
 
 === 2654 lint/no-inspect/21-ts-declaration-surfaces.svelte	lint.txt
 1:1 19:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -6714,6 +6785,8 @@
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 lint/no-navigation-without-base/12-module-file.svelte.ts	lint.txt
 
 === 651 lint/no-navigation-without-base/opt-key-ignore-goto.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -7337,6 +7410,10 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 161 lint/no-reactive-functions/18-module-reactive-function.svelte.js	lint.txt
+1:5 1:11 no-useless-assignment "The value assigned to 'render' is not used in subsequent statements."
+2:1 2:2 no-unused-labels "'$:' is defined but never used."
+
 === 405 lint/no-reactive-functions/19-rune-decoy-suppresses.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -7492,6 +7569,10 @@
 === 162 lint/no-reactive-literals/11-crlf-unicode.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 163 lint/no-reactive-literals/12-module-reactive-literal.svelte.js	lint.txt
+1:5 1:13 no-useless-assignment "The value assigned to 'greeting' is not used in subsequent statements."
+2:1 2:2 no-unused-labels "'$:' is defined but never used."
 
 === 405 lint/no-reactive-literals/13-rune-decoy-suppresses.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -7676,6 +7757,10 @@
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:26 svelte/button-has-type "Missing an explicit type attribute for button."
+
+=== 117 lint/no-reactive-reassign/15-module-reactive-reassign.svelte.js	lint.txt
+2:1 2:2 no-unused-labels "'$:' is defined but never used."
+5:10 5:15 no-self-assign "'items' is assigned to itself."
 
 === 650 lint/no-reactive-reassign/opt-key-props-true-explicit.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -8165,6 +8250,10 @@
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 165 lint/no-store-async/07-module-surface.svelte.js	lint.txt
+3:29 3:34 svelte/no-store-async "Do not pass async functions to svelte stores."
+7:24 7:68 svelte/require-stores-init "Always set a default value for svelte stores."
+
 === 488 lint/no-store-async/08-two-scripts.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -8363,6 +8452,10 @@
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 216 lint/no-svelte-internal/07-module.svelte.js	lint.txt
+1:1 1:40 svelte/no-svelte-internal "Using svelte/internal is prohibited. This will be removed in Svelte 6."
+4:9 4:41 svelte/no-svelte-internal "Using svelte/internal is prohibited. This will be removed in Svelte 6."
+
 === 325 lint/no-svelte-internal/08-template-literal-import.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -8474,6 +8567,13 @@
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 498 lint/no-svelte-internal/19-module-ts.svelte.ts	lint.txt
+1:1 1:50 svelte/no-svelte-internal "Using svelte/internal is prohibited. This will be removed in Svelte 6."
+1:15 1:24 no-unused-vars "'Component' is defined but never used."
+3:1 3:63 svelte/no-svelte-internal "Using svelte/internal is prohibited. This will be removed in Svelte 6."
+4:1 4:40 svelte/no-svelte-internal "Using svelte/internal is prohibited. This will be removed in Svelte 6."
+7:9 7:47 svelte/no-svelte-internal "Using svelte/internal is prohibited. This will be removed in Svelte 6."
 
 === 461 lint/no-svelte-internal/20-emoji-columns.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -8782,12 +8882,22 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:18 5:26 no-undef "'document' is not defined."
 
+=== 139 lint/no-top-level-browser-globals/12-module.svelte.js	lint.txt
+1:22 1:28 no-undef "'window' is not defined."
+4:9 4:17 no-undef "'document' is not defined."
+7:53 7:59 no-undef "'window' is not defined."
+
 === 335 lint/no-top-level-browser-globals/13-logical-guards.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:45 2:51 no-undef "'window' is not defined."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:45 3:51 no-undef "'window' is not defined."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 141 lint/no-top-level-browser-globals/14-module-guarded.svelte.js	lint.txt
+3:15 3:23 no-undef "'document' is not defined."
+4:25 4:31 no-undef "'window' is not defined."
+6:9 6:17 no-undef "'document' is not defined."
 
 === 553 lint/no-trailing-spaces/01-basic.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -8879,6 +8989,18 @@
 5:13 5:14 svelte/no-trailing-spaces "Trailing spaces not allowed."
 6:13 6:14 no-irregular-whitespace "Irregular whitespace not allowed."
 6:13 6:14 svelte/no-trailing-spaces "Trailing spaces not allowed."
+
+=== 132 lint/no-trailing-spaces/15-module-basic.svelte.js	lint.txt
+1:13 1:14 svelte/no-trailing-spaces "Trailing spaces not allowed."
+2:1 2:4 svelte/no-trailing-spaces "Trailing spaces not allowed."
+
+=== 67 lint/no-trailing-spaces/16-module-skip-blank.svelte.js	lint.txt
+2:13 2:14 svelte/no-trailing-spaces "Trailing spaces not allowed."
+
+=== 201 lint/no-trailing-spaces/17-module-ignore-comments.svelte.js	lint.txt
+5:10 5:11 svelte/no-trailing-spaces "Trailing spaces not allowed."
+8:20 8:21 svelte/no-trailing-spaces "Trailing spaces not allowed."
+9:13 9:14 svelte/no-trailing-spaces "Trailing spaces not allowed."
 
 === 157 lint/no-trailing-spaces/18-bom-blank-first-line.svelte	lint.txt
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9154,6 +9276,14 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 184 lint/no-unnecessary-state-wrap/14-module-file.svelte.js	lint.txt
+4:6 4:7 svelte/prefer-const "'s' is never reassigned. Use 'const' instead."
+4:17 4:32 svelte/no-unnecessary-state-wrap "SvelteSet is already reactive, $state wrapping is unnecessary."
+
+=== 187 lint/no-unnecessary-state-wrap/15-module-allow-reassign.svelte.js	lint.txt
+4:5 4:9 svelte/prefer-const "'kept' is never reassigned. Use 'const' instead."
+4:19 4:34 svelte/no-unnecessary-state-wrap "SvelteSet is already reactive, $state wrapping is unnecessary."
 
 === 606 lint/no-unnecessary-state-wrap/opt-key-additional-regex.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -10395,6 +10525,20 @@
 5:6 5:14 svelte/prefer-const "'internal' is never reassigned. Use 'const' instead."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 331 lint/prefer-const/19-export-specifier-module-file.svelte.ts	lint.txt
+1:5 1:13 svelte/prefer-const "'exported' is never reassigned. Use 'const' instead."
+3:12 3:17 svelte/prefer-const "'named' is never reassigned. Use 'const' instead."
+4:5 4:13 svelte/prefer-const "'internal' is never reassigned. Use 'const' instead."
+8:11 8:15 svelte/prefer-const "'item' is never reassigned. Use 'const' instead."
+
+=== 163 lint/prefer-const/20-module-read-before-assign.svelte.js	lint.txt
+6:1 6:7 svelte/prefer-const "'normal' is never reassigned. Use 'const' instead."
+7:5 7:11 svelte/prefer-const "'inited' is never reassigned. Use 'const' instead."
+
+=== 152 lint/prefer-const/21-module-markup-in-string.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+2:5 2:6 svelte/prefer-const "'w' is never reassigned. Use 'const' instead."
+
 === 1696 lint/prefer-const/22-decorated-class-method.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -10518,6 +10662,10 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 217 lint/prefer-derived-over-derived-by/11-module-ts.svelte.ts	lint.txt
+1:5 1:10 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
+2:16 2:44 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
 === 374 lint/prefer-derived-over-derived-by/12-options-runes-false.svelte	lint.txt
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:6 4:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
@@ -10634,6 +10782,12 @@
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:10 8:34 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 487 lint/prefer-derived-over-derived-by/21-module-js.svelte.js	lint.txt
+1:5 1:10 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
+3:22 3:50 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+4:24 6:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+7:21 9:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
 === 1753 lint/prefer-derived-over-derived-by/22-directive-prologue.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -10862,6 +11016,13 @@
 32:4 32:4 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 32:14 33:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 37:1 37:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 504 lint/prefer-destructured-store-props/20-module-surface.svelte.js	lint.txt
+10:23 10:31 svelte/prefer-destructured-store-props "Destructure bar from $foo for better change tracking & fewer redraws"
+13:1 13:2 no-unused-labels "'$:' is defined but never used."
+13:4 13:9 no-unused-vars "'alias' is assigned a value but never used."
+13:12 13:20 svelte/prefer-destructured-store-props "Destructure baz from $foo for better change tracking & fewer redraws"
+19:28 19:43 svelte/prefer-destructured-store-props "Destructure `k${key}` from $foo for better change tracking & fewer redraws"
 
 === 738 lint/prefer-destructured-store-props/22-rune-named-store-legacy.svelte	lint.txt
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11283,6 +11444,17 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 359 lint/prefer-svelte-reactivity/07-exported-module.svelte.js	lint.txt
+1:22 1:31 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+3:16 3:26 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+5:18 5:27 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
+=== 367 lint/prefer-svelte-reactivity/08-export-specifier.svelte.ts	lint.txt
+1:18 1:35 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+2:5 2:13 svelte/prefer-const "'lastSeen' is never reassigned. Use 'const' instead."
+2:16 2:26 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+6:20 6:23 no-undef "'URL' is not defined."
+
 === 281 lint/prefer-svelte-reactivity/09-cross-script.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:26 2:35 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
@@ -11411,6 +11583,16 @@
 15:18 15:21 no-undef "'URL' is not defined."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 844 lint/prefer-svelte-reactivity/20-cross-module-surface.svelte.ts	lint.txt
+4:22 4:47 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+4:22 4:47 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+5:23 5:40 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+5:23 5:40 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+9:22 9:29 svelte/require-stores-init "Always set a default value for svelte stores."
+10:24 10:54 svelte/require-stores-init "Always set a default value for svelte stores."
+10:46 10:47 svelte/derived-has-same-inputs-outputs "The argument name should be '$count'."
+15:8 15:17 svelte/no-ignored-unsubscribe "Ignoring returned value of the subscribe method is forbidden."
+
 === 1772 lint/prefer-svelte-reactivity/21-global-object-and-scoped-shadow.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:16 2:22 no-undef "'window' is not defined."
@@ -11433,6 +11615,15 @@
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 721 lint/prefer-svelte-reactivity/22-exported-mutated-elsewhere.svelte.js	lint.txt
+1:22 1:31 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+1:22 1:31 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+2:16 2:25 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+2:16 2:25 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+4:1 4:6 svelte/prefer-const "'later' is never reassigned. Use 'const' instead."
+4:9 4:19 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+14:25 14:28 no-undef "'URL' is not defined."
 
 === 585 lint/prefer-writable-derived/01-basic.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11719,6 +11910,10 @@
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 181 lint/prefer-writable-derived/22-module-writable-derived.svelte.js	lint.txt
+1:5 1:8 svelte/prefer-const "'src' is never reassigned. Use 'const' instead."
+2:5 2:21 svelte/prefer-writable-derived "Prefer using writable $derived instead of $state and $effect"
 
 === 2492 lint/prefer-writable-derived/23-destructured-shapes.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12195,6 +12390,11 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:32 7:61 svelte/require-store-callbacks-use-set-param "Store callbacks must use `set` param."
+
+=== 198 lint/require-store-callbacks-use-set-param/07-module-surface.svelte.js	lint.txt
+3:39 6:2 svelte/require-store-callbacks-use-set-param "Store callbacks must use `set` param."
+4:13 4:24 no-undef "'setInterval' is not defined."
+5:15 5:28 no-undef "'clearInterval' is not defined."
 
 === 405 lint/require-store-callbacks-use-set-param/08-arg-shapes.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12688,6 +12888,10 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 170 lint/require-stores-init/05-module-ts.svelte.ts	lint.txt
+3:18 3:36 svelte/require-stores-init "Always set a default value for svelte stores."
+4:36 4:62 svelte/require-stores-init "Always set a default value for svelte stores."
 
 === 246 lint/require-stores-init/06-template.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -19474,6 +19678,10 @@
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:23 15:30 svelte/max-attributes-per-line "'depth' should be on a new line."
 
+=== 0 pattern/adversarial/modules/class-rune-field-surface.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/export-forms.svelte.js	lint.txt
+
 === 488 pattern/adversarial/modules/getcontext-module-pair.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -19501,6 +19709,70 @@
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 pattern/adversarial/modules/module-arrow-body-layouts.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-async-and-top-level-await.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-async-iteration.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-class-accessor-pairs.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-class-expression-forms.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-class-expressions.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-class-inheritance-chain.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-class-nested-in-function.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-class-static-shapes.svelte.js	lint.txt
+
+=== 119 pattern/adversarial/modules/module-class-with-static-and-accessors.svelte.js	lint.txt
+3:21 3:30 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 81 pattern/adversarial/modules/module-comment-placement.svelte.js	lint.txt
+4:5 4:10 svelte/prefer-const "'value' is never reassigned. Use 'const' instead."
+
+=== 0 pattern/adversarial/modules/module-conditional-and-loop-exports.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-default-class-tail.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-derived-chains.svelte.js	lint.txt
+
+=== 136 pattern/adversarial/modules/module-derived-in-class-and-object.svelte.js	lint.txt
+7:10 7:58 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 160 pattern/adversarial/modules/module-destructuring-forms.svelte.js	lint.txt
+5:8 5:9 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+8:17 8:24 svelte/prefer-const "'restOfD' is never reassigned. Use 'const' instead."
+
+=== 363 pattern/adversarial/modules/module-effects-functions.svelte.js	lint.txt
+20:15 20:32 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+20:15 20:32 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+33:13 33:22 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 0 pattern/adversarial/modules/module-error-shapes.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-export-const-and-let.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-exports-shapes.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-generators-and-async.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-generators-labels.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-getter-object-literals.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-getter-only-and-frozen.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-getter-setter-exports.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-getters-setters.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-iife-and-hoisting.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-import-forms.svelte.js	lint.txt
+
 === 952 pattern/adversarial/modules/module-instance-interplay.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -19512,6 +19784,41 @@
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:43 svelte/button-has-type "Missing an explicit type attribute for button."
+
+=== 0 pattern/adversarial/modules/module-labelled-and-nested-blocks.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-labels-and-loops.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-multiline-fields.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-nested-closures.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-numeric-literals.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-optional-and-nullish.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-paren-wrapped-classes.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-private-methods-and-fields.svelte.js	lint.txt
+
+=== 238 pattern/adversarial/modules/module-reexport-and-side-effects.svelte.js	lint.txt
+3:18 3:27 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+3:18 3:27 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 0 pattern/adversarial/modules/module-regex-and-strings.svelte.js	lint.txt
+
+=== 367 pattern/adversarial/modules/module-rune-in-every-declarator-slot.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+2:3 2:4 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+3:3 3:8 svelte/prefer-const "'plain' is never reassigned. Use 'const' instead."
+6:7 6:31 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 257 pattern/adversarial/modules/module-rune-zoo.svelte.js	lint.txt
+4:17 4:57 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+18:18 18:27 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 81 pattern/adversarial/modules/module-scope-shadowing.svelte.js	lint.txt
+1:5 1:10 svelte/prefer-const "'value' is never reassigned. Use 'const' instead."
 
 === 304 pattern/adversarial/modules/module-script-and-instance-interplay.svelte	lint.txt
 17:22 17:26 svelte/valid-compile "This reference only captures the initial value of `seed`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
@@ -19532,6 +19839,60 @@
 20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 24:1 24:23 svelte/button-has-type "Missing an explicit type attribute for button."
+
+=== 238 pattern/adversarial/modules/module-state-collections.svelte.js	lint.txt
+2:27 2:46 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+3:27 3:39 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
+=== 0 pattern/adversarial/modules/module-static-and-private-statics.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-static-blocks.svelte.js	lint.txt
+
+=== 119 pattern/adversarial/modules/module-store-contract.svelte.js	lint.txt
+3:21 3:30 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
+=== 0 pattern/adversarial/modules/module-string-escape-forms.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-symbol-and-wellknown.svelte.js	lint.txt
+
+=== 79 pattern/adversarial/modules/module-template-literal-nesting.svelte.js	lint.txt
+1:5 1:9 svelte/prefer-const "'name' is never reassigned. Use 'const' instead."
+
+=== 0 pattern/adversarial/modules/module-top-level-control-flow.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/module-try-catch-finally.svelte.js	lint.txt
+
+=== 121 pattern/adversarial/modules/module-ts-runes.svelte.ts	lint.txt
+14:25 14:45 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 136 pattern/adversarial/modules/module-with-only-runes.svelte.js	lint.txt
+5:11 5:47 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 0 pattern/adversarial/modules/object-accessor-and-iterator.svelte.js	lint.txt
+
+=== 136 pattern/adversarial/modules/opaque-rune-member-tokens.svelte.js	lint.txt
+2:15 2:42 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 380 pattern/adversarial/modules/rune-arguments-with-delimiters.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+2:5 2:6 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+3:5 3:6 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+4:5 4:6 svelte/prefer-const "'d' is never reassigned. Use 'const' instead."
+5:5 5:6 svelte/prefer-const "'e' is never reassigned. Use 'const' instead."
+
+=== 0 pattern/adversarial/modules/runes-in-every-syntactic-position.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/svelte-motion-and-events.svelte.js	lint.txt
+
+=== 0 pattern/adversarial/modules/svelte-reactivity-surface.svelte.js	lint.txt
+
+=== 354 pattern/adversarial/modules/svelte-store-surface.svelte.js	lint.txt
+9:24 9:62 svelte/require-stores-init "Always set a default value for svelte stores."
+10:21 10:63 svelte/require-stores-init "Always set a default value for svelte stores."
+10:47 10:48 svelte/derived-has-same-inputs-outputs "The argument name should be '$count'."
+10:50 10:51 svelte/derived-has-same-inputs-outputs "The argument name should be '$ticks'."
+
+=== 0 pattern/adversarial/modules/top-level-await-and-dynamic-import.svelte.js	lint.txt
 
 === 579 pattern/adversarial/opaque-tokens/directive-lookalike-strings.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -19625,6 +19986,12 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:10 svelte/prefer-const "'note' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 79 pattern/adversarial/opaque-tokens/opaque-tokens-in-module.svelte.js	lint.txt
+7:5 7:9 svelte/prefer-const "'real' is never reassigned. Use 'const' instead."
+
+=== 79 pattern/adversarial/opaque-tokens/rune-names-in-nested-opaque-regions.svelte.js	lint.txt
+9:5 9:9 svelte/prefer-const "'real' is never reassigned. Use 'const' instead."
 
 === 184 pattern/adversarial/opaque-tokens/rune-tokens-in-opaque-regions.svelte	lint.txt
 8:7 8:11 svelte/prefer-const "'real' is never reassigned. Use 'const' instead."
@@ -21640,6 +22007,8 @@
 14:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 20:1 20:32 svelte/button-has-type "Missing an explicit type attribute for button."
 
+=== 0 pattern/adversarial/typescript/ts-module-runes.svelte.ts	lint.txt
+
 === 648 pattern/adversarial/typescript/ts-non-null-and-optional-chains.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -21702,9 +22071,6 @@
 === 225 pattern/css/empty-declaration.svelte	lint.txt
 4:2 4:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
 5:3 5:9 svelte/valid-compile "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration(css_empty_declaration)"
-
-=== 134 pattern/css/html-comment-in-a-sheet.svelte	lint.txt
-9:0 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
 
 === 161 pattern/css/value-ends-outside-strings-and-urls.svelte	lint.txt
 3:1 11:9 svelte/valid-style-parse "Error parsing style element. Error message: \"pattern/css/value-ends-outside-strings-and-urls.svelte:3:6: Unclosed bracket\""
@@ -22002,6 +22368,8 @@
 13:42 13:67 svelte/max-attributes-per-line "'onchange' should be on a new line."
 13:42 13:67 svelte/sort-attributes "Attribute 'onchange' should go before 'bind:value'."
 
+=== 0 pattern/issues/2467-nonthis-private-state-write.svelte.js	lint.txt
+
 === 1305 pattern/issues/2523-dynamic-element-a11y-skipped.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:9 svelte/prefer-const "'tag' is never reassigned. Use 'const' instead."
@@ -22091,6 +22459,9 @@
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
 === 0 pattern/issues/2556-public-rune-field-block-comment.svelte	lint.txt
+
+=== 74 pattern/issues/2573-ctor-private-derived-write.svelte.js	lint.txt
+3:2 3:4 no-unused-private-class-members "'#d' is defined but never used."
 
 === 325 pattern/issues/2590-export-let-arrow-line-break.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -22333,6 +22704,18 @@
 === 81 pattern/issues/2726-nested-async-derived.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 177 pattern/issues/2929-multiline-class-field-conditional.svelte.js	lint.txt
+2:3 2:11 no-unused-private-class-members "'#current' is defined but never used."
+4:45 4:51 no-undef "'window' is not defined."
+5:13 5:23 no-undef "'MediaQuery' is not defined."
+
+=== 0 pattern/issues/2986-opaque-class-keyword-factory.svelte.js	lint.txt
+
+=== 70 pattern/issues/2987-opaque-derived-text-blocks-lowering.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'label' is assigned a value but never used."
+
+=== 0 pattern/issues/2988-rune-call-text-in-a-regex.svelte.js	lint.txt
+
 === 644 pattern/issues/3026-template-arrow-bindable-member-assign.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 8:5 svelte/button-has-type "Missing an explicit type attribute for button."
@@ -22372,6 +22755,9 @@
 === 162 pattern/issues/3027-nullish-ternary-derived.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 136 pattern/issues/3030-module-multiline-state-comma.svelte.js	lint.txt
+9:10 11:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
 === 243 pattern/issues/3031-legacy-reactive-sequence.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -22605,6 +22991,8 @@
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:6 13:13 svelte/prefer-const "'chained' is never reassigned. Use 'const' instead."
 
+=== 0 pattern/issues/3069-export-default-class-semicolon.svelte.js	lint.txt
+
 === 624 pattern/issues/3070-server-own-line-rune-comment.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 no-unused-vars "'d' is assigned a value but never used."
@@ -22615,6 +23003,8 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 pattern/issues/3071-rune-argument-class-expression.svelte.js	lint.txt
+
 === 489 pattern/issues/3071-rune-argument-class-in-component.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -22622,6 +23012,20 @@
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 pattern/issues/3071-rune-argument-class-in-derived.svelte.js	lint.txt
+
+=== 0 pattern/issues/3071-rune-argument-new-class-expression.svelte.js	lint.txt
+
+=== 0 pattern/issues/3072-extends-inline-class-plain-subclass.svelte.js	lint.txt
+
+=== 0 pattern/issues/3072-extends-inline-class.svelte.js	lint.txt
+
+=== 0 pattern/issues/3072-extends-nested-twice.svelte.js	lint.txt
+
+=== 0 pattern/issues/3072-extends-parenthesised-class.svelte.js	lint.txt
+
+=== 0 pattern/issues/3072-extends-shapes-legal.svelte.js	lint.txt
 
 === 1082 pattern/issues/3074-paren-wrapped-nested-class.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -23337,6 +23741,18 @@
 12:71 12:89 svelte/html-self-closing "Require self-closing on Svelte special elements."
 13:27 13:45 svelte/max-attributes-per-line "'bind:innerHTML' should be on a new line."
 
+=== 858 pattern/issues/3169-module-rune-destructuring.svelte.js	lint.txt
+1:5 1:11 svelte/prefer-const "'source' is never reassigned. Use 'const' instead."
+2:5 2:9 svelte/prefer-const "'seed' is never reassigned. Use 'const' instead."
+5:7 5:8 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+5:10 5:11 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+5:24 5:26 svelte/prefer-const "'cd' is never reassigned. Use 'const' instead."
+5:31 5:35 svelte/prefer-const "'rest' is never reassigned. Use 'const' instead."
+7:6 7:11 svelte/prefer-const "'first' is never reassigned. Use 'const' instead."
+7:13 7:19 svelte/prefer-const "'second' is never reassigned. Use 'const' instead."
+13:16 13:39 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+15:10 15:12 svelte/prefer-const "'a2' is never reassigned. Use 'const' instead."
+
 === 1593 pattern/issues/3169-script-module-rune-destructuring.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:12 svelte/prefer-const "'source' is never reassigned. Use 'const' instead."
@@ -23379,6 +23795,9 @@
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 76 pattern/issues/3173-module-eager-runes.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 
 === 885 pattern/issues/3175-legacy-derived-server-fold.svelte	lint.txt
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -23458,6 +23877,12 @@
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 28:1 28:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 29:1 29:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 316 pattern/issues/3180-snapshot-position.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+5:5 5:11 svelte/prefer-const "'single' is never reassigned. Use 'const' instead."
+6:5 6:6 svelte/prefer-const "'y' is never reassigned. Use 'const' instead."
+6:12 6:17 svelte/prefer-const "'later' is never reassigned. Use 'const' instead."
 
 === 291 pattern/issues/3181-props-id-in-module-script.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -24081,6 +24506,10 @@
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:14 12:22 svelte/no-inspect "Do not use $inspect directive"
 
+=== 121 pattern/issues/3235-rune-name-member-property.svelte.js	lint.txt
+5:2 5:10 svelte/no-inspect "Do not use $inspect directive"
+12:20 12:28 svelte/no-inspect "Do not use $inspect directive"
+
 === 1177 pattern/issues/3237-nested-rune-named-declaration.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -24506,6 +24935,10 @@
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 92 pattern/issues/3336-parenthesised-effect.svelte.js	lint.txt
+3:3 3:10 no-undef "'console' is not defined."
+6:3 6:10 no-undef "'console' is not defined."
+
 === 39 pattern/issues/3337-uppercase-hex-charref.svelte	lint.txt
 4:2 4:3 no-undef "'C' is not defined."
 
@@ -24814,6 +25247,10 @@
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 136 pattern/issues/3490-module-class-rune-separators.svelte.js	lint.txt
+7:8 7:9 no-irregular-whitespace "Irregular whitespace not allowed."
+8:7 8:8 no-irregular-whitespace "Irregular whitespace not allowed."
+
 === 1882 pattern/issues/3498-class-rune-linebreak-separators.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -24916,6 +25353,16 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 502 pattern/issues/3561-module-inspect-trace.svelte.js	lint.txt
+1:5 1:9 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
+4:2 4:10 svelte/no-inspect "Do not use $inspect directive"
+9:2 9:10 svelte/no-inspect "Do not use $inspect directive"
+14:2 14:10 svelte/no-inspect "Do not use $inspect directive"
+19:2 19:10 svelte/no-inspect "Do not use $inspect directive"
+24:2 24:10 svelte/no-inspect "Do not use $inspect directive"
+30:3 30:11 svelte/no-inspect "Do not use $inspect directive"
+37:3 37:11 svelte/no-inspect "Do not use $inspect directive"
+
 === 629 pattern/issues/3566-export-type-only-declaration.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -24988,6 +25435,10 @@
 === 297 pattern/issues/3590-computed-pattern-key-reference.svelte	lint.txt
 2:7 2:10 svelte/prefer-const "'key' is never reassigned. Use 'const' instead."
 3:12 3:15 svelte/valid-compile "This reference only captures the initial value of `key`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+
+=== 0 pattern/issues/3592-backtick-inside-substitution.svelte.js	lint.txt
+
+=== 0 pattern/issues/3592-nested-template-rune-text.svelte.js	lint.txt
 
 === 319 pattern/issues/3599-title-known-defined.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -25092,6 +25543,15 @@
 66:1 66:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 67:1 67:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 68:1 68:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 417 pattern/issues/3611-module-inspect-slot.svelte.js	lint.txt
+1:5 1:6 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+4:1 4:9 svelte/no-inspect "Do not use $inspect directive"
+5:1 5:9 svelte/no-inspect "Do not use $inspect directive"
+6:1 6:9 svelte/no-inspect "Do not use $inspect directive"
+6:18 6:25 no-undef "'console' is not defined."
+9:2 9:10 svelte/no-inspect "Do not use $inspect directive"
+15:3 15:11 svelte/no-inspect "Do not use $inspect directive"
 
 === 648 pattern/issues/3617-globals-table-arity.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -25599,8 +26059,29 @@
 21:3 21:15 svelte/consistent-selector-style "Selector should select by element type instead of class"
 26:2 26:8 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
+=== 1091 pattern/issues/4060-logical-assign-private-state-jsdoc-members.svelte.js	lint.txt
+9:2 9:10 no-unused-private-class-members "'#current' is defined but never used."
+11:10 16:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+12:11 12:18 no-unused-vars "'resolve' is defined but never used."
+12:20 12:26 no-unused-vars "'reject' is defined but never used."
+13:10 13:16 no-unused-vars "'result' is assigned a value but never used."
+21:12 22:5 no-empty "Empty block statement."
+25:2 25:14 no-unused-private-class-members "'#get_promise' is defined but never used."
+28:2 28:9 no-unused-private-class-members "'#get_or' is defined but never used."
+31:2 31:10 no-unused-private-class-members "'#get_and' is defined but never used."
+40:37 40:42 no-unused-vars "'value' is defined but never used."
+48:30 48:36 no-unused-vars "'reject' is defined but never used."
+52:30 52:32 no-unused-vars "'fn' is defined but never used."
+54:6 54:11 no-unused-vars "'value' is defined but never used."
+62:9 62:16 no-unused-vars "'release' is assigned a value but never used."
+64:20 65:6 no-empty "Empty block statement."
+
 === 89 pattern/issues/4072-bind-value-multibyte-boundary.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+
+=== 214 pattern/issues/4079-annotated-private-read-comment-placement.svelte.js	lint.txt
+3:2 3:8 no-unused-private-class-members "'#items' is defined but never used."
+4:13 4:33 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
 === 768 pattern/issues/4082-global-parent-ancestor-walk.svelte	lint.txt
 1:1 1:18 svelte/no-unused-class-name "Unused class \"q\"."
@@ -25787,6 +26268,30 @@
 32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 34:1 34:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 1991 pattern/issues/4212-module-proxy-deny-list.svelte.js	lint.txt
+4:7 4:15 svelte/prefer-const "'sequence' is never reassigned. Use 'const' instead."
+5:7 5:13 svelte/prefer-const "'tagged' is never reassigned. Use 'const' instead."
+6:7 6:20 svelte/prefer-const "'parenthesised' is never reassigned. Use 'const' instead."
+7:7 7:14 svelte/prefer-const "'awaited' is never reassigned. Use 'const' instead."
+8:7 8:15 svelte/prefer-const "'equality' is never reassigned. Use 'const' instead."
+10:7 10:12 no-useless-assignment "The value assigned to 'store' is not used in subsequent statements."
+12:3 12:8 no-useless-assignment "The value assigned to 'store' is not used in subsequent statements."
+13:3 13:8 no-useless-assignment "The value assigned to 'store' is not used in subsequent statements."
+23:7 23:16 svelte/prefer-const "'primitive' is never reassigned. Use 'const' instead."
+24:7 24:11 svelte/prefer-const "'text' is never reassigned. Use 'const' instead."
+25:7 25:19 svelte/prefer-const "'interpolated' is never reassigned. Use 'const' instead."
+26:7 26:14 svelte/prefer-const "'negated' is never reassigned. Use 'const' instead."
+27:7 27:10 svelte/prefer-const "'sum' is never reassigned. Use 'const' instead."
+28:7 28:15 svelte/prefer-const "'callback' is never reassigned. Use 'const' instead."
+29:7 29:14 svelte/prefer-const "'missing' is never reassigned. Use 'const' instead."
+30:7 30:13 svelte/prefer-const "'object' is never reassigned. Use 'const' instead."
+31:7 31:14 svelte/prefer-const "'created' is never reassigned. Use 'const' instead."
+31:24 31:33 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+32:7 32:13 svelte/prefer-const "'branch' is never reassigned. Use 'const' instead."
+33:7 33:14 svelte/prefer-const "'chained' is never reassigned. Use 'const' instead."
+35:7 35:13 no-useless-assignment "The value assigned to 'target' is not used in subsequent statements."
+37:3 37:9 no-useless-assignment "The value assigned to 'target' is not used in subsequent statements."
+
 === 328 pattern/issues/4244-erased-annotation-comment.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -25908,6 +26413,12 @@
 7:6 7:8 no-empty-pattern "Unexpected empty object pattern."
 10:1 10:58 svelte/button-has-type "Missing an explicit type attribute for button."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 295 pattern/issues/4903-module-destructured-state-uses.svelte.js	lint.txt
+1:6 1:7 no-unused-vars "'x' is assigned a value but never used."
+1:6 1:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
+3:6 3:7 svelte/prefer-const "'p' is never reassigned. Use 'const' instead."
+15:8 15:9 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
 
 === 2628 pattern/issues/a-block-declaration-shadows-above-itself.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -26421,6 +26932,15 @@ Rule: "no-unused-vars"
 24:1 24:66 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
 24:24 24:31 no-undef "'console' is not defined."
 
+=== 85 pattern/issues/class-block-comment-splits-members.svelte.js	lint.txt
+8:2 8:14 no-unused-private-class-members "'#get_promise' is defined but never used."
+
+=== 91 pattern/issues/class-field-comment-lookahead.svelte.js	lint.txt
+3:29 3:35 no-undef "'crypto' is not defined."
+5:6 5:12 no-undef "'crypto' is not defined."
+
+=== 0 pattern/issues/class-field-continued-after-a-binary-operator.svelte.js	lint.txt
+
 === 2270 pattern/issues/class-member-modifier-field-set.svelte	lint.txt
 1:1 25:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -26443,6 +26963,9 @@ Rule: "no-unused-vars"
 21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 85 pattern/issues/class-multiline-template-member.svelte.js	lint.txt
+4:2 4:14 no-unused-private-class-members "'#get_promise' is defined but never used."
 
 === 385 pattern/issues/class-value-kinds-upstream-deopts-on.svelte	lint.txt
 1:12 1:30 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
@@ -27356,6 +27879,10 @@ Rule: "no-unused-vars"
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:27 10:63 svelte/max-attributes-per-line "'content' should be on a new line."
 
+=== 181 pattern/issues/module-derived-destructure-block-body.svelte.js	lint.txt
+2:23 2:55 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+3:2 3:9 no-undef "'console' is not defined."
+
 === 1145 pattern/issues/named-function-expression-reserves-its-own-name.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:13 no-unused-vars "'handled' is assigned a value but never used."
@@ -27493,6 +28020,8 @@ Rule: "no-unused-vars"
 65:2 65:4 svelte/consistent-selector-style "Selector should select by ID instead of class"
 67:4 67:11 svelte/valid-compile "Unused CSS selector \"& + .zz\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 67:8 67:11 svelte/consistent-selector-style "Selector should select by element type instead of class"
+
+=== 0 pattern/issues/paren-invisible-comment-bounds.svelte.js	lint.txt
 
 === 1398 pattern/issues/pattern-default-declares-and-references.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -27899,6 +28428,9 @@ Rule: "no-unused-vars"
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 48 pattern/issues/removed-effect-keeps-its-semicolon-in-a-switch-case.svelte.js	lint.txt
+14:7 14:14 no-undef "'console' is not defined."
 
 === 804 pattern/issues/removed-export-leading-comment.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -29104,6 +29636,8 @@ Rule: "no-unused-vars"
 9:21 9:29 svelte/valid-compile "This reference only captures the initial value of `Material`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:21 10:30 svelte/valid-compile "This reference only captures the initial value of `materials`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+
+=== 0 pattern/return-jsdoc-cast.svelte.js	lint.txt
 
 === 674 pattern/state-wrapped-store-reference.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

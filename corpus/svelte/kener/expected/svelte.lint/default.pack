@@ -3667,6 +3667,12 @@
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 7:32 7:46 svelte/max-attributes-per-line "'{...restProps}' should be on a new line."
 
+=== 394 src/lib/components/ui/sidebar/context.svelte.ts	lint.txt
+20:13 20:26 no-unused-vars "'open' is defined but never used."
+25:10 25:46 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+29:11 29:68 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+44:31 44:44 no-undef "'KeyboardEvent' is not defined."
+
 === 317 src/lib/components/ui/sidebar/sidebar-content.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 10:36 10:47 no-undef "'HTMLElement' is not defined."
@@ -4112,6 +4118,15 @@
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 7:34 7:48 svelte/max-attributes-per-line "'{...restProps}' should be on a new line."
 
+=== 0 src/lib/hooks/is-mobile.svelte.ts	lint.txt
+
+=== 260 src/lib/hooks/use-clipboard.svelte.ts	lint.txt
+34:30 34:40 no-undef "'setTimeout' is not defined."
+55:7 55:19 no-undef "'clearTimeout' is not defined."
+59:13 59:22 no-undef "'navigator' is not defined."
+65:24 65:34 no-undef "'setTimeout' is not defined."
+74:24 74:34 no-undef "'setTimeout' is not defined."
+
 === 608 src/routes/(account)/+layout.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 17:23 17:50 svelte/max-attributes-per-line "'content' should be on a new line."
@@ -4361,16 +4376,10 @@
 57:5 57:71 svelte/no-unused-class-name "Unused class \"lg:p-8\"."
 57:5 57:71 svelte/no-unused-class-name "Unused class \"lg:px-8\"."
 
-=== 62 src/routes/(docs)/docs/(with-sidebar)/[...slug]/+page.svelte	lint.txt
-164:45 - - "Parsing error: Unexpected keyword or identifier."
-
 === 245 src/routes/(docs)/docs/+layout.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:17 13:102 svelte/max-attributes-per-line "'src' should be on a new line."
 17:1 17:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
-
-=== 62 src/routes/(docs)/docs/+page.svelte	lint.txt
-255:45 - - "Parsing error: Unexpected keyword or identifier."
 
 === 12749 src/routes/(docs)/docs/DocsNavbar.svelte	lint.txt
 1:1 115:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

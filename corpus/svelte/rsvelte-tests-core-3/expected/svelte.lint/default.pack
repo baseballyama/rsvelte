@@ -1055,6 +1055,20 @@
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 removed_effect_empty_statement_slot/a_removed_effect_leaves_no_semicolon_inside_a_body_sequence/266025e1e5c6a0a2.svelte.js	lint.txt
+
+=== 0 removed_effect_empty_statement_slot/a_removed_effect_leaves_no_semicolon_inside_a_body_sequence/54781bbc9d952b16.svelte.js	lint.txt
+
+=== 45 removed_effect_empty_statement_slot/a_removed_effect_leaves_no_semicolon_inside_a_body_sequence/81e34229cfca1124.svelte.js	lint.txt
+3:2 3:9 no-undef "'console' is not defined."
+
+=== 0 removed_effect_empty_statement_slot/a_removed_effect_prints_its_semicolon_outside_a_body_sequence/488563cb32495c43.svelte.js	lint.txt
+
+=== 0 removed_effect_empty_statement_slot/a_removed_effect_prints_its_semicolon_outside_a_body_sequence/e31d31e62b41ea97.svelte.js	lint.txt
+
+=== 61 removed_effect_empty_statement_slot/a_removed_effect_prints_its_semicolon_outside_a_body_sequence/f1342637571a3006.svelte.js	lint.txt
+2:2 2:5 no-unused-labels "'lab:' is defined but never used."
+
 === 636 removed_export_leading_comment/a_comment_before_a_removed_export_reaches_the_next_declaration/9b5a1a904eef06df.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:10 2:12 no-unused-vars "'p2' is defined but never used."
@@ -1760,6 +1774,24 @@
 === 245 rune_argument_await_comment_splice/every_rune_argument_await_comment_shape_parses/de1574cf67855729.svelte	lint.txt
 3:21 3:33 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
 
+=== 76 rune_argument_trailing_comment_2601/a_derived_without_a_trailing_comment_is_byte_for_byte_unchanged/fa00413458266714.svelte.js	lint.txt
+2:7 2:8 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
+
+=== 39 rune_argument_trailing_comment_2601/a_trailing_line_comment_does_not_swallow_the_derived_closing_paren/b0884b6d59e64995.svelte.js	lint.txt
+5:7 5:8 no-undef "'f' is not defined."
+
+=== 76 rune_argument_trailing_comment_2601/a_trailing_line_comment_survives_a_plain_derived_declaration/f0edc700f82bae0e.svelte.js	lint.txt
+2:7 2:8 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
+
+=== 0 rune_argument_trailing_comment_2601/a_trailing_line_comment_survives_an_object_literal_argument/6b09308e9bb25256.svelte.js	lint.txt
+
+=== 211 rune_argument_trailing_comment_2601/a_trailing_line_comment_survives_derived_by/21fc8d39af4df733.svelte.js	lint.txt
+2:7 2:8 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
+3:11 6:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
+=== 39 rune_argument_trailing_comment_2601/the_delimiter_carrying_variant_still_works/37234033746d2fcb.svelte.js	lint.txt
+5:7 5:8 no-undef "'f' is not defined."
+
 === 162 rune_declarator_leading_comment_3070/a_comment_before_the_binding_name_does_not_move/b9a0cccb42092766.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:29 svelte/button-has-type "Missing an explicit type attribute for button."
@@ -1814,9 +1846,40 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:29 svelte/button-has-type "Missing an explicit type attribute for button."
 
+=== 61 rune_member_error_spans/invalid_rune_name_span_includes_the_call_parent/8babb50a022e506f.svelte.js	lint.txt
+1:7 1:12 no-unused-vars "'State' is defined but never used."
+
+=== 0 rune_member_error_spans/renamed_and_removed_rune_spans_include_parentheses/12ed71322c8aa497.svelte.js	lint.txt
+
+=== 0 rune_member_error_spans/renamed_and_removed_rune_spans_include_parentheses/574a8c25b5c61319.svelte.js	lint.txt
+
+=== 0 rune_member_property_3235/a_method_named_like_a_rune_keeps_its_declaration/050af5b0115f316a.svelte.js	lint.txt
+
+=== 119 rune_member_property_3235/a_method_named_like_a_rune_keeps_its_declaration/2780a6aed901a03e.svelte.js	lint.txt
+2:2 2:10 svelte/no-inspect "Do not use $inspect directive"
+3:20 3:28 svelte/no-inspect "Do not use $inspect directive"
+
+=== 0 rune_member_property_3235/a_method_named_like_a_rune_keeps_its_declaration/84d363b2b6e2de0b.svelte.js	lint.txt
+
+=== 0 rune_member_property_3235/a_method_named_like_a_rune_keeps_its_declaration/ce09bce8a51d9312.svelte.js	lint.txt
+
+=== 0 rune_member_property_3235/a_method_named_like_a_rune_keeps_its_declaration/db024121d2d6c503.svelte.js	lint.txt
+
+=== 137 rune_member_property_3235/a_real_rune_still_lowers_next_to_a_property_of_the_same_name/f1abf07af9dadaef.svelte.js	lint.txt
+2:7 2:14 no-unused-vars "'ignored' is assigned a value but never used."
+3:5 3:6 no-unused-vars "'a' is assigned a value but never used."
+
+=== 0 rune_member_property_3235/a_rune_name_after_a_member_access_is_left_alone/30ca3e46fc3e01ee.svelte.js	lint.txt
+
 === 162 rune_member_property_3235/a_rune_name_after_a_member_access_is_left_alone/923d0b0c5910a236.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 rune_member_property_3235/a_rune_name_after_a_member_access_is_left_alone/97990aca665d89a9.svelte.js	lint.txt
+
+=== 0 rune_member_property_3235/a_rune_name_after_a_member_access_is_left_alone/accbce811d8d2826.svelte.js	lint.txt
+
+=== 0 rune_member_property_3235/a_rune_name_after_a_member_access_is_left_alone/af6849d807989368.svelte.js	lint.txt
 
 === 162 rune_member_property_3235/a_rune_name_after_a_member_access_is_left_alone/bc57becd10fa47e8.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1833,13 +1896,23 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
 
+=== 120 rune_member_property_3235/a_rune_name_after_a_member_access_is_left_alone/d21c871bbf46711a.svelte.js	lint.txt
+1:13 1:21 svelte/no-inspect "Do not use $inspect directive"
+2:20 2:28 svelte/no-inspect "Do not use $inspect directive"
+
 === 162 rune_member_property_3235/a_rune_name_after_a_member_access_is_left_alone/e5c93776b898e731.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 rune_member_property_3235/a_rune_name_after_a_member_access_is_left_alone/e7ed0d05580a5f31.svelte.js	lint.txt
+
 === 162 rune_member_property_3235/a_rune_name_after_a_member_access_is_left_alone/fe79139dea4429fb.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 rune_member_property_3235/a_rune_name_at_the_tail_of_an_identifier_is_left_alone/b2534aa94c528d61.svelte.js	lint.txt
+
+=== 0 rune_member_property_3235/a_spread_operand_still_lowers/23a5fa839bd73e8c.svelte.js	lint.txt
 
 === 384 rune_name_binding_mode_3238/a_nested_rune_spelled_const_compiles_in_legacy_mode/f4db08e4bbf6b3f1.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2083,6 +2156,11 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
 
+=== 78 rune_unicode_escape_3236/a_braced_escape_lowers_too/5e9c525c48d30f6e.svelte.js	lint.txt
+1:12 1:13 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+
+=== 0 rune_unicode_escape_3236/a_plain_identifier_escape_is_untouched_and_still_prints_cooked/5f57bdf4e25e9eef.svelte.js	lint.txt
+
 === 222 rune_unicode_escape_3236/an_escape_inside_the_name_is_still_the_rune/914e57265c009ce5.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 no-unused-vars "'a' is assigned a value but never used."
@@ -2092,6 +2170,21 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 no-unused-vars "'a' is assigned a value but never used."
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+
+=== 0 rune_unicode_escape_3236/an_escape_that_is_not_a_rune_reference_is_left_alone/28493aed7c27e076.svelte.js	lint.txt
+
+=== 0 rune_unicode_escape_3236/an_escape_that_is_not_a_rune_reference_is_left_alone/633f7a0fd5d3d66c.svelte.js	lint.txt
+
+=== 0 rune_unicode_escape_3236/an_escape_that_is_not_a_rune_reference_is_left_alone/816a839012893c61.svelte.js	lint.txt
+
+=== 63 rune_unicode_escape_3236/an_escaped_declaration_gets_the_same_verdict_as_the_plain_one/28f69753044b2e39.svelte.js	lint.txt
+1:10 1:16 no-unused-vars "'$state' is defined but never used."
+
+=== 63 rune_unicode_escape_3236/an_escaped_declaration_gets_the_same_verdict_as_the_plain_one/2b5e17961a6498bb.svelte.js	lint.txt
+1:10 1:21 no-unused-vars "'$state' is defined but never used."
+
+=== 78 rune_unicode_escape_3236/an_escaped_dollar_lowers_in_a_module/835ab2c60a784669.svelte.js	lint.txt
+1:12 1:13 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 
 === 146 rune_unicode_escape_3236/an_escaped_props_turns_on_runes_mode/19cd69af3ecbc567.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3406,6 +3499,21 @@
 2:6 2:7 no-unused-vars "'v' is assigned a value but never used."
 2:6 2:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
 
+=== 0 server_effect_strip_comment_delimiter/a_close_paren_in_a_block_comment_does_not_end_the_effect/d9848447bfc05812.svelte.js	lint.txt
+
+=== 0 server_effect_strip_comment_delimiter/a_close_paren_in_a_line_comment_does_not_end_the_effect/9b90b21e8bae88d4.svelte.js	lint.txt
+
+=== 41 server_effect_strip_comment_delimiter/a_close_paren_in_a_string_does_not_end_the_effect/aedfe8e6c70e16a5.svelte.js	lint.txt
+4:5 4:8 no-undef "'log' is not defined."
+
+=== 0 server_effect_strip_comment_delimiter/a_plain_comment_in_the_effect_body_still_deletes_exactly_the_effect/b0eb62b16c248ff9.svelte.js	lint.txt
+
+=== 0 server_effect_strip_comment_delimiter/effect_pre_and_root_are_covered_too/b5ad1216c95f832b.svelte.js	lint.txt
+
+=== 0 server_effect_strip_comment_delimiter/effect_pre_and_root_are_covered_too/de71b1092cdbbcc6.svelte.js	lint.txt
+
+=== 0 server_effect_strip_comment_delimiter/the_statement_after_the_effect_survives_a_delimiter_comment/4a1745c25e7fba14.svelte.js	lint.txt
+
 === 102 server_empty_class_expression_4059/a_non_class_attribute_is_unaffected/0ad7539645dcf3b6.svelte	lint.txt
 1:9 1:13 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
 
@@ -3798,6 +3906,15 @@
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 server_module_effect_strip/effect_text_in_comment_is_preserved/c44b7018342c16c5.svelte.js	lint.txt
+
+=== 0 server_module_effect_strip/effect_text_in_string_is_preserved/38b9d4df28dbf889.svelte.js	lint.txt
+
+=== 0 server_module_effect_strip/effect_text_in_template_is_preserved/e6fca5e059543f4f.svelte.js	lint.txt
+
+=== 41 server_module_effect_strip/real_effect_call_is_still_stripped/63c16a0e541b9f90.svelte.js	lint.txt
+1:43 1:44 no-undef "'g' is not defined."
+
 === 227 server_prop_trailing_comment/a_comment_preceding_the_declaration_keeps_the_trailing_carry/07120031c161b82e.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:8 2:9 no-unused-vars "'q' is assigned a value but never used."
@@ -4071,6 +4188,13 @@
 5:2 5:10 svelte/no-inspect "Do not use $inspect directive"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:2 7:9 no-undef "'console' is not defined."
+
+=== 91 server_removed_statement_comments_2567/module_effect_keeps_the_leading_and_interior_comments/2528ab60b6f917ec.svelte.js	lint.txt
+5:3 5:10 no-undef "'console' is not defined."
+8:2 8:9 no-undef "'console' is not defined."
+
+=== 46 server_removed_statement_comments_2567/module_effect_with_no_successor_keeps_both_comments/4efc8a71ad2f7607.svelte.js	lint.txt
+5:3 5:10 no-undef "'console' is not defined."
 
 === 323 server_select_get_set_3335/a_select_get_set_bind_renders_the_getters_result/01c3a477a8870563.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6207,6 +6331,449 @@
 2:8 2:9 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 2:14 2:15 svelte/prefer-const "'r' is never reassigned. Use 'const' instead."
 
+=== 886 state_proxy_expression_shapes/a_call_or_member_on_a_parenthesized_base_is_still_proxied/2d07660d7baea45c.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 886 state_proxy_expression_shapes/a_call_or_member_on_a_parenthesized_base_is_still_proxied/41023c43581dc729.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 953 state_proxy_expression_shapes/a_call_or_member_on_a_parenthesized_base_is_still_proxied/4c4671414d5c87f5.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 886 state_proxy_expression_shapes/a_call_or_member_on_a_parenthesized_base_is_still_proxied/66a7daadcc0984cc.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 880 state_proxy_expression_shapes/a_call_or_member_on_a_parenthesized_base_is_still_proxied/88072bd4694689db.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 880 state_proxy_expression_shapes/a_call_or_member_on_a_parenthesized_base_is_still_proxied/9d80b73d9ebaf131.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 886 state_proxy_expression_shapes/a_call_or_member_on_a_parenthesized_base_is_still_proxied/ba8ae9b08a03fffb.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 953 state_proxy_expression_shapes/a_call_or_member_on_a_parenthesized_base_is_still_proxied/d1f10c2bf3260347.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 752 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/0ed012e03e06eb78.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 819 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/1a9971db1b41d6e0.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 1071 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/1e3fd5e0faf81bac.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+4:7 4:16 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 883 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/232e20bf0533bfaf.svelte.js	lint.txt
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 953 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/2800f1a13bf8c364.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 953 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/38534e7697c9ee5c.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 819 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/55611ad712cda89a.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 953 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/55fd494b3ce568ed.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 953 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/5a5f38852e2638fd.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 953 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/6ee46ed3b0a225b2.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 880 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/76c20a2385b09239.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 953 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/8035b2b4290a4da3.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 953 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/9726f9b3449d993b.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 953 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/9734652971116719.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 886 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/9c844f2185bff232.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 886 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/a8aeade3bca18c4e.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 no-unused-vars "'backend' is assigned a value but never used."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 880 state_proxy_expression_shapes/a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold/bcd39308706a7a8e.svelte.js	lint.txt
+1:5 1:10 no-unused-vars "'other' is assigned a value but never used."
+1:5 1:10 svelte/prefer-const "'other' is never reassigned. Use 'const' instead."
+1:17 1:18 no-unused-vars "'o' is assigned a value but never used."
+1:17 1:18 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+1:31 1:32 no-unused-vars "'c' is assigned a value but never used."
+1:31 1:32 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+1:41 1:42 no-unused-vars "'a' is assigned a value but never used."
+1:41 1:42 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+1:48 1:49 no-unused-vars "'b' is assigned a value but never used."
+1:48 1:49 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+1:55 1:62 svelte/prefer-const "'backend' is never reassigned. Use 'const' instead."
+2:5 2:6 no-unused-vars "'v' is assigned a value but never used."
+
+=== 58 state_proxy_expression_shapes/a_ternary_spelled_with_a_leading_dot_number_keeps_its_value/041a8e0f65337b27.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 58 state_proxy_expression_shapes/a_ternary_spelled_with_a_leading_dot_number_keeps_its_value/bee173c59e60afc4.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 58 state_proxy_expression_shapes/a_ternary_spelled_with_a_leading_dot_number_keeps_its_value/e61f95c573ceee5a.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 0 state_proxy_expression_shapes/a_trailing_comma_is_not_a_sequence_expression/2c1f083415c5e017.svelte.js	lint.txt
+
+=== 0 state_proxy_expression_shapes/a_trailing_comma_is_not_a_sequence_expression/5137f2f7a8816f7e.svelte.js	lint.txt
+
+=== 78 state_proxy_expression_shapes/a_trailing_comma_is_not_a_sequence_expression/7afe9c9fd06fdfe3.svelte.js	lint.txt
+3:4 3:5 no-undef "'a' is not defined."
+3:7 3:8 no-undef "'o' is not defined."
+
+=== 0 state_proxy_expression_shapes/a_trailing_comma_is_not_a_sequence_expression/b38c8fee6566be38.svelte.js	lint.txt
+
+=== 58 state_proxy_expression_shapes/an_optional_chain_is_proxied_like_the_plain_chain_it_mirrors/2fe80ba2ce8a62c2.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 58 state_proxy_expression_shapes/an_optional_chain_is_proxied_like_the_plain_chain_it_mirrors/3a6f754e1dc1997f.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 58 state_proxy_expression_shapes/an_optional_chain_is_proxied_like_the_plain_chain_it_mirrors/4a4102d3151d38c3.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 58 state_proxy_expression_shapes/an_optional_chain_is_proxied_like_the_plain_chain_it_mirrors/4f8d3c93a78f6800.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 58 state_proxy_expression_shapes/an_optional_chain_is_proxied_like_the_plain_chain_it_mirrors/9e588b909797d68d.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 58 state_proxy_expression_shapes/an_optional_chain_is_proxied_like_the_plain_chain_it_mirrors/ad93d5125d86cd27.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 58 state_proxy_expression_shapes/an_optional_chain_is_proxied_like_the_plain_chain_it_mirrors/aeac2bd8aa6cb878.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 58 state_proxy_expression_shapes/an_optional_chain_is_proxied_like_the_plain_chain_it_mirrors/cbbda8fc9994f101.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 58 state_proxy_expression_shapes/an_optional_chain_is_proxied_like_the_plain_chain_it_mirrors/f5b4f8b71b9f5b3e.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 58 state_proxy_expression_shapes/an_optional_chain_is_proxied_like_the_plain_chain_it_mirrors/f75aba1433b9bda7.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 58 state_proxy_expression_shapes/the_shapes_that_already_proxied_still_proxy/3a9e325037a77b31.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 116 state_proxy_expression_shapes/the_shapes_that_already_proxied_still_proxy/4cf7ec44e11f81e5.svelte.js	lint.txt
+3:15 3:16 no-unused-vars "'p' is defined but never used."
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 58 state_proxy_expression_shapes/the_shapes_that_already_proxied_still_proxy/59271b6920f10905.svelte.js	lint.txt
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 116 state_proxy_expression_shapes/the_shapes_that_already_proxied_still_proxy/6250695e3d807202.svelte.js	lint.txt
+3:15 3:16 no-unused-vars "'p' is defined but never used."
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 0 state_proxy_expression_shapes/the_shapes_that_already_proxied_still_proxy/9f37f3c5f41bb299.svelte.js	lint.txt
+
+=== 116 state_proxy_expression_shapes/the_shapes_upstream_refuses_to_proxy_stay_unproxied/485bac204d862dcf.svelte.js	lint.txt
+3:15 3:16 no-unused-vars "'p' is defined but never used."
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 116 state_proxy_expression_shapes/the_shapes_upstream_refuses_to_proxy_stay_unproxied/90b3285519ad672d.svelte.js	lint.txt
+3:15 3:16 no-unused-vars "'p' is defined but never used."
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 116 state_proxy_expression_shapes/the_shapes_upstream_refuses_to_proxy_stay_unproxied/91f483d0286af803.svelte.js	lint.txt
+3:15 3:16 no-unused-vars "'p' is defined but never used."
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 116 state_proxy_expression_shapes/the_shapes_upstream_refuses_to_proxy_stay_unproxied/96e68c082724b0ac.svelte.js	lint.txt
+3:15 3:16 no-unused-vars "'p' is defined but never used."
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
+=== 116 state_proxy_expression_shapes/the_shapes_upstream_refuses_to_proxy_stay_unproxied/f1a26047e8823a9a.svelte.js	lint.txt
+3:15 3:16 no-unused-vars "'p' is defined but never used."
+3:18 3:19 no-unused-vars "'f' is defined but never used."
+
 === 384 state_proxy_module_host/a_module_state_takes_the_same_proxy_decision_at_both_sites/419ecf5ac3a3d306.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
@@ -6376,6 +6943,18 @@
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 81 state_raw_module_local_never_reassigned/non_reassigned_plain_state_in_nested_function_is_proxied_not_sourced/220231d1b0d3858c.svelte.js	lint.txt
+2:7 2:12 svelte/prefer-const "'items' is never reassigned. Use 'const' instead."
+
+=== 81 state_raw_module_local_never_reassigned/non_reassigned_raw_state_at_module_top_level_is_plain_value/2885544a88b83d86.svelte.js	lint.txt
+1:5 1:10 svelte/prefer-const "'items' is never reassigned. Use 'const' instead."
+
+=== 81 state_raw_module_local_never_reassigned/non_reassigned_raw_state_in_nested_function_is_plain_value/42a78f7842498618.svelte.js	lint.txt
+2:7 2:12 svelte/prefer-const "'items' is never reassigned. Use 'const' instead."
+
+=== 101 state_raw_module_local_never_reassigned/reassigned_raw_state_in_nested_function_still_reactive/67a3c34905e20a60.svelte.js	lint.txt
+2:7 2:12 no-useless-assignment "The value assigned to 'items' is not used in subsequent statements."
 
 === 589 state_referenced_locally_declaration_tag/matches_the_official_compiler/09fa7398a9c9a578.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6713,6 +7292,107 @@
 6:1 6:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
 6:9 6:10 svelte/valid-compile "This reference only captures the initial value of `v`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 7:1 7:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+
+=== 218 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/0240b6b03eb279db.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 276 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/0768bef6975ddd7c.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+3:19 3:20 no-unused-vars "'x' is defined but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 276 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/3b2bb4b8e95f9112.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+3:19 3:20 no-unused-vars "'x' is defined but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 218 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/3e63516db3cb86c7.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 204 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/4c89641891019278.svelte.js	lint.txt
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+3:19 3:20 no-unused-vars "'x' is defined but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 218 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/4e67b2a8717f3202.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 218 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/566fedbd1d62fff4.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 276 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/69399ba9614c745d.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+3:19 3:20 no-unused-vars "'x' is defined but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 276 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/6ad33f8e13be2424.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+3:19 3:20 no-unused-vars "'x' is defined but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 276 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/8e08e262c2ad2c65.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+3:19 3:20 no-unused-vars "'x' is defined but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 395 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/92541e065425678c.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+3:19 3:20 no-unused-vars "'x' is defined but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+4:17 4:26 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 276 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/92956c3d33ec047d.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+3:19 3:20 no-unused-vars "'x' is defined but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 206 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/bb1dfeeae342b747.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+3:19 3:20 no-unused-vars "'x' is defined but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 218 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/bbee50af7f423db9.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 276 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/cf040f0948fe1e51.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+3:19 3:20 no-unused-vars "'x' is defined but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 276 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/d54e0803ac32c24d.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+3:19 3:20 no-unused-vars "'x' is defined but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 218 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/d90558a3272a5671.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+
+=== 276 state_referenced_locally_deny_list_4212/a_module_matches_upstreams_deny_list/fc92ab3d6058585c.svelte.js	lint.txt
+1:7 1:14 no-unused-vars "'literal' is assigned a value but never used."
+2:7 2:12 no-unused-vars "'undef' is assigned a value but never used."
+3:19 3:20 no-unused-vars "'x' is defined but never used."
+4:6 4:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
 
 === 446 state_referenced_locally_should_proxy/binary_state_initializer_remains_non_proxyable/3c2630825351b763.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -7114,6 +7794,11 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:24 5:54 svelte/max-attributes-per-line "'bind:checked' should be on a new line."
 
+=== 153 store_subscription_error_spans/module_file_store_subscription_points_at_the_first_reference/6a350191cf68846f.svelte.js	lint.txt
+1:10 1:15 no-unused-vars "'store' is defined but never used."
+3:1 3:8 no-undef "'console' is not defined."
+3:13 3:19 no-undef "'$store' is not defined."
+
 === 397 store_subscription_error_spans/module_script_store_subscription_points_at_the_reference/59f9fa74f1b3c810.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -7127,6 +7812,19 @@
 
 === 78 store_subscription_pin/store_in_template_subscribes/69b67365a0d1939c.svelte	lint.txt
 1:54 1:55 svelte/prefer-const "'w' is never reassigned. Use 'const' instead."
+
+=== 0 strict_equals_member_after_call/call_left_operand_still_works/9bfbd8af0a6b0102.svelte.js	lint.txt
+
+=== 101 strict_equals_member_after_call/eq_after_member_on_tagged_state_call_chain/92326b95d84d2c0c.svelte.js	lint.txt
+2:7 2:12 no-useless-assignment "The value assigned to 'items' is not used in subsequent statements."
+
+=== 99 strict_equals_member_after_call/neq_after_bracket_index_chain/400b3066b2661059.svelte.js	lint.txt
+2:7 2:10 no-useless-assignment "The value assigned to 'arr' is not used in subsequent statements."
+
+=== 101 strict_equals_member_after_call/neq_after_member_on_tagged_state_call_chain/a9bbc6dcb0200389.svelte.js	lint.txt
+2:7 2:12 no-useless-assignment "The value assigned to 'items' is not used in subsequent statements."
+
+=== 0 strict_equals_member_after_call/plain_identifier_neq_still_works/dc27bde307d4ab0f.svelte.js	lint.txt
 
 === 238 string_line_continuation_2652/double_quoted_continuation_is_not_indented/0b9e8dbae6f7600e.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -7169,30 +7867,6 @@
 1:6 1:31 svelte/no-inline-styles "Found disallowed style attribute."
 1:12 1:31 svelte/require-optimized-style-attribute "It cannot be optimized because too complex."
 
-=== 135 style_close_tag_scan_3281/a_closing_tag_inside_a_double_quoted_value_is_content/16a88fbeb58ec9c8.svelte	lint.txt
-2:35 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
-
-=== 80 style_close_tag_scan_3281/a_closing_tag_inside_a_leading_comment_is_content/f9a9ddcdcef60879.svelte	lint.txt
-2:32 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
-
-=== 135 style_close_tag_scan_3281/a_closing_tag_inside_a_quoted_url_is_content/b386532cbe9926f3.svelte	lint.txt
-2:41 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
-
-=== 135 style_close_tag_scan_3281/a_closing_tag_inside_a_single_quoted_value_is_content/2ffafb2f266c9dd0.svelte	lint.txt
-2:35 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
-
-=== 135 style_close_tag_scan_3281/a_closing_tag_inside_a_trailing_comment_is_content/b799d45c01a456cc.svelte	lint.txt
-2:39 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
-
-=== 80 style_close_tag_scan_3281/a_closing_tag_inside_an_attribute_selector_value_is_content/e1d926c94d7529d3.svelte	lint.txt
-2:36 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
-
-=== 80 style_close_tag_scan_3281/a_closing_tag_inside_an_html_comment_is_content/37e835c52cab486b.svelte	lint.txt
-2:35 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
-
-=== 135 style_close_tag_scan_3281/a_closing_tag_inside_an_unquoted_url_is_content/e40e97f4d6a6be6c.svelte	lint.txt
-2:39 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
-
 === 100 style_close_tag_scan_3281/a_closing_tag_with_a_space_before_the_bracket_is_content/5c2c2e9d9a7148a8.svelte	lint.txt
 2:8 2:10 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
@@ -7210,9 +7884,6 @@
 === 186 style_close_tag_scan_3281/an_apostrophe_in_an_scss_line_comment_does_not_hide_the_css_error/94b995e04075acf2.svelte	lint.txt
 1:1 4:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 3:1 3:3 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
-=== 135 style_close_tag_scan_3281/an_escaped_quote_does_not_reopen_the_string/dd4791d121b63c3e.svelte	lint.txt
-2:37 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
 
 === 301 style_close_tag_scan_3281/an_unclosed_paren_in_a_value_does_not_hide_the_closing_tag/8e5b133ba891ac79.svelte	lint.txt
 3:1 8:9 svelte/valid-style-parse "Error parsing style element. Error message: \"style_close_tag_scan_3281/an_unclosed_paren_in_a_value_does_not_hide_the_closing_tag/8e5b133ba891ac79.svelte:3:6: Unclosed bracket\""
@@ -7361,33 +8032,6 @@
 
 === 134 style_terminator_3593/a_bare_terminator_inside_a_rule_is_a_css_error/ff8caef21871e90a.svelte	lint.txt
 5:0 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
-
-=== 80 style_terminator_3593/a_terminator_inside_a_comment_is_a_comment/4af889e4d7e202d4.svelte	lint.txt
-5:14 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
-
-=== 134 style_terminator_3593/a_terminator_inside_a_nested_at_rule_is_still_a_value/2fc806a64ddbf495.svelte	lint.txt
-5:0 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
-
-=== 134 style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/01726ffa6744c30a.svelte	lint.txt
-5:0 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
-
-=== 134 style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/4a4f09bc123bb7cb.svelte	lint.txt
-5:0 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
-
-=== 134 style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/5012ab13505d74b5.svelte	lint.txt
-5:0 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
-
-=== 92 style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/7881f7b8d8d61218.svelte	lint.txt
-4:38 - - "Parsing error: Unterminated string constant\nhttps://svelte.dev/e/js_parse_error"
-
-=== 134 style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/8a2c6ab63566f277.svelte	lint.txt
-5:0 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
-
-=== 134 style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/fe62b93807b9d785.svelte	lint.txt
-5:0 - - "Parsing error: `</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
-
-=== 80 style_terminator_3593/a_terminator_inside_an_unquoted_url_is_a_declaration_value/88036cc31fc233f5.svelte	lint.txt
-5:19 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
 
 === 306 style_terminator_3593/an_unterminated_string_is_still_unexpected_eof/126ce10a84e6b1a7.svelte	lint.txt
 3:1 5:9 svelte/valid-style-parse "Error parsing style element. Error message: \"style_terminator_3593/an_unterminated_string_is_still_unexpected_eof/126ce10a84e6b1a7.svelte:2:19: Unclosed string\""
@@ -9455,6 +10099,21 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 
 === 40 tag_expression_parse_errors_3202/valid_tags_still_compile/d3441db309c4a6fb.svelte	lint.txt
 1:9 1:10 no-undef "'p' is not defined."
+
+=== 74 tag_reflow_comment_2495/a_comment_above_a_private_field_does_not_reflow/7d0570de2893b405.svelte.js	lint.txt
+3:2 3:4 no-unused-private-class-members "'#p' is defined but never used."
+
+=== 0 tag_reflow_comment_2495/a_field_without_a_comment_stays_on_one_line/4a5ca9af0da698c7.svelte.js	lint.txt
+
+=== 74 tag_reflow_comment_2495/a_this_assignment_with_a_comment_after_the_equals_reflows/a15454f8f8076145.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#n' is defined but never used."
+
+=== 74 tag_reflow_comment_2495/private_field_with_a_comment_after_the_equals_reflows/af2b5328ebbd0bbe.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#n' is defined but never used."
+
+=== 0 tag_reflow_comment_2495/raw_and_proxied_values_reflow_too/2598971e37108ab7.svelte.js	lint.txt
+
+=== 0 tag_reflow_comment_2495/raw_and_proxied_values_reflow_too/326af435eda73a9a.svelte.js	lint.txt
 
 === 0 tag_scanning_3393_3395_3450/a_closing_tag_still_takes_whitespace_and_a_component_name/3769cf300c2af268.svelte	lint.txt
 
@@ -20739,6 +21398,8 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/062bffbc050c12a5.svelte.js	lint.txt
+
 === 428 ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/25d7441f8842f387.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -20746,12 +21407,16 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/57185b6704ef8913.svelte.js	lint.txt
+
 === 428 ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/74a834cb32943e06.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 3:12 3:12 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/752f063aec2fd0e6.svelte.js	lint.txt
 
 === 428 ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/79816222b1e87b7d.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -20788,6 +21453,8 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/e5c684ed751a28c5.svelte.js	lint.txt
+
 === 325 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/01580b13f4e7f020.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -20806,6 +21473,10 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/333328d5e01893f9.svelte.js	lint.txt
+
+=== 0 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/340b4fad98e5624e.svelte.js	lint.txt
+
 === 325 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/35b40f6c3218fea5.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -20817,6 +21488,13 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 74 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/46f027df3c639d22.svelte.js	lint.txt
+2:2 2:4 no-unused-private-class-members "'#a' is defined but never used."
+
+=== 0 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/46f92334c70d5d58.svelte.js	lint.txt
+
+=== 0 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/4b682eda27ad28f9.svelte.js	lint.txt
 
 === 325 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/52532febdda846a8.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -20842,6 +21520,8 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/74d6ab765f83f4f0.svelte.js	lint.txt
+
 === 325 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/7b9e837c560a9a8d.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -20861,11 +21541,15 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/885695b336683bd3.svelte.js	lint.txt
+
 === 325 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/9626323e1a53a015.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/98853f4f07d633ac.svelte.js	lint.txt
 
 === 325 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/9cb03273640358ad.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -20892,11 +21576,15 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/aa0fc6075d50bf4c.svelte.js	lint.txt
+
 === 325 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/aa46fcf703140660.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/b264c61681e30538.svelte.js	lint.txt
 
 === 325 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/c183ec8e0fea0675.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -20929,6 +21617,10 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/de61169fb41db97f.svelte.js	lint.txt
+
+=== 0 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/e4890fba23b60d4f.svelte.js	lint.txt
+
 === 407 ts_class_modifiers_3100_3203/a_modifier_keyword_used_as_a_name_still_compiles/e990443a308a62f5.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -20936,12 +21628,16 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/014a524f474f7dae.svelte.js	lint.txt
+
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/02f6b7d74e8c76bc.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 3:11 3:11 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/05b53ee7d4abb227.svelte.js	lint.txt
 
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/06f8d57ebb3f733c.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -20957,12 +21653,16 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/0b2f5339663a5e5a.svelte.js	lint.txt
+
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/1eba1b4c739b2d56.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 3:10 3:10 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/2320bc3b60d8f6b8.svelte.js	lint.txt
 
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/235985725da15f4a.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -20984,6 +21684,8 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 3:11 3:11 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/2b257697e1828b34.svelte.js	lint.txt
 
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/33d4bd944ab1bc70.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -21014,6 +21716,8 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/37e5869012dc4e73.svelte.js	lint.txt
+
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/383922b419381390.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -21028,6 +21732,10 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/3dfe7064fdb9f6a9.svelte.js	lint.txt
+
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/3f3dff2bbeef7474.svelte.js	lint.txt
+
 === 504 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/40ce1b77ecc48814.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -21035,6 +21743,9 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 3:11 3:11 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 76 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/41cc6dc062b98a2a.svelte.js	lint.txt
+2:10 2:12 no-unused-private-class-members "'#a' is defined but never used."
 
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/47116059ab0047cf.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -21057,6 +21768,8 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/5eabe413049b6f34.svelte.js	lint.txt
+
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/615e91cd87024036.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -21064,12 +21777,16 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/6440d7d3651fd739.svelte.js	lint.txt
+
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/64a3bb435fe4cf54.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 3:12 3:12 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/6571fbafbed93cf5.svelte.js	lint.txt
 
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/702938e3d5c4c3e5.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -21105,6 +21822,8 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 3:12 3:12 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/9ac23dc63064c66c.svelte.js	lint.txt
 
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/9ff2204752c37c39.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -21176,6 +21895,14 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/cacfb663da255571.svelte.js	lint.txt
+
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/d347fd8231c62707.svelte.js	lint.txt
+
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/d3b89cff8b72d0ec.svelte.js	lint.txt
+
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/d6487ff252c6dc9b.svelte.js	lint.txt
+
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/d9cb9890e7339a8c.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -21190,6 +21917,8 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/da6c17de93ce18c2.svelte.js	lint.txt
+
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/dac22a9e3f204400.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -21197,12 +21926,16 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/dfd110da8c746927.svelte.js	lint.txt
+
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/e1c0e1a16b4dcef3.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 3:11 3:11 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/e6b477713417db7c.svelte.js	lint.txt
 
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/e7bc34e18c616de9.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -21217,6 +21950,8 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 3:11 3:11 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/ee1280d761bf26db.svelte.js	lint.txt
 
 === 428 ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/f83490675e1b705a.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -23296,6 +24031,57 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 2:1 2:33 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
 2:8 2:9 no-unused-vars "'M' is defined but never used."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+
+=== 58 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/0bb17b52cf0a0a36.svelte.js	lint.txt
+1:11 1:12 no-unused-vars "'N' is defined but never used."
+
+=== 116 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/0d0e12462432b908.svelte.js	lint.txt
+1:11 1:12 no-unused-vars "'N' is defined but never used."
+1:25 1:26 no-unused-vars "'I' is defined but never used."
+
+=== 116 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/1dfc2c24b2bcaae5.svelte.js	lint.txt
+1:11 1:12 no-unused-vars "'N' is defined but never used."
+1:20 1:21 no-unused-vars "'T' is defined but never used."
+
+=== 58 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/33b78658c1919c4d.svelte.js	lint.txt
+1:11 1:12 no-unused-vars "'N' is defined but never used."
+
+=== 58 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/372c2b554554858a.svelte.js	lint.txt
+1:11 1:12 no-unused-vars "'N' is defined but never used."
+
+=== 0 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/43697b1f86288baf.svelte.js	lint.txt
+
+=== 0 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/5858eff7c4314467.svelte.js	lint.txt
+
+=== 58 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/6998016ebab04833.svelte.js	lint.txt
+1:11 1:12 no-unused-vars "'N' is defined but never used."
+
+=== 0 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/83a6e65d3a716b19.svelte.js	lint.txt
+
+=== 116 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/844810e86b54c798.svelte.js	lint.txt
+1:11 1:12 no-unused-vars "'N' is defined but never used."
+1:25 1:26 no-unused-vars "'M' is defined but never used."
+
+=== 58 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/8ecf589455966270.svelte.js	lint.txt
+1:24 1:33 no-unused-vars "'g' is defined but never used."
+
+=== 0 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/915039048480fdef.svelte.js	lint.txt
+
+=== 116 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/9223ccc2db17f38c.svelte.js	lint.txt
+1:19 1:20 no-unused-vars "'N' is defined but never used."
+1:29 1:38 no-unused-vars "'a' is defined but never used."
+
+=== 116 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/93c39a14458729d1.svelte.js	lint.txt
+1:11 1:12 no-unused-vars "'N' is defined but never used."
+1:29 1:38 no-unused-vars "'a' is defined but never used."
+
+=== 58 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/a741abe5fab89b04.svelte.js	lint.txt
+1:32 1:33 no-unused-vars "'I' is defined but never used."
+
+=== 56 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/e2a752406ba26629.svelte.js	lint.txt
+1:8 1:9 no-unused-vars "'M' is defined but never used."
+
+=== 0 ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/fb9aac17933af83e.svelte.js	lint.txt
 
 === 243 ts_namespace_3244/the_erasable_neighbours_still_compile/0593f56ecb59b55b.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -25521,6 +26307,11 @@ Rule: "svelte/indent"
 2:3 2:3 svelte/valid-compile "'with' in strict mode\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 2:9 2:10 no-undef "'x' is not defined."
 2:12 2:14 no-empty "Empty block statement."
+
+=== 137 with_statement_strict_mode/with_statement_in_svelte_js_module_is_rejected/bceff6930784d387.svelte.js	lint.txt
+1:1 1:5 no-with "Unexpected use of 'with' statement."
+1:7 1:8 no-undef "'x' is not defined."
+1:10 1:12 no-empty "Empty block statement."
 
 === 333 with_statement_strict_mode/with_statement_in_typescript_script_is_rejected/82c283be6466c763.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
