@@ -12,7 +12,7 @@ use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
-use crate::acorn_grammar::Unsupported;
+use crate::acorn_grammar::{Rejection, Unsupported};
 use crate::syntax_error::{Locator, SyntaxError, acorn, syntax_error};
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
@@ -42,7 +42,7 @@ pub struct Builder<'a> {
     wrapped: String,
     unchecked: &'static [&'static str],
     as_acorn: bool,
-    acorn_rejection: Option<u32>,
+    acorn_rejection: Option<(u32, Rejection)>,
 }
 
 /// The tree of a part the builder just read.
@@ -131,7 +131,7 @@ impl<'a> Builder<'a> {
         if self.as_acorn && self.acorn_rejection.is_none() {
             let mut unsupported = Unsupported::new(source_type.is_typescript(), tokens);
             part.walk(&mut unsupported);
-            self.acorn_rejection = unsupported.first.map(|at| at + shift);
+            self.acorn_rejection = unsupported.first.map(|(at, why)| (at + shift, why));
         }
         Ok(())
     }

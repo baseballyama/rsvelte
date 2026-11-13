@@ -2,7 +2,8 @@
 
 	import { type Snippet as File } from 'svelte';
 
-	let { header }: { header?: File } = $props();
+	type $$ComponentProps = { header?: File };
+let { header }: $$ComponentProps = $props();
 
 ;
 
@@ -12,6 +13,6 @@ async () => {
     (header ? 'with header' : 'no header');
   }
 };
-const File__SvelteComponent_ = __rsvelte_export_component<{ header?: File }, {}, "">();
+const File__SvelteComponent_ = __rsvelte_export_component<$$ComponentProps, {}, "">();
 type File__SvelteComponent_ = ReturnType<typeof File__SvelteComponent_>;
 export default File__SvelteComponent_;

@@ -4,14 +4,19 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
 
 use super::Printer;
-use crate::syntax_tree::Node;
+use crate::syntax_tree::{Node, NodeIdentifier, TypeParameters};
 
 impl Printer<'_> {
     /// svelte2tsx's `__sveltets_Render` and `$$IsomorphicComponent`: the component of the render
     /// function's contract for each instantiation.
-    pub(super) fn generic_export(&mut self, type_parameters: Span, names: Range, declared: Range) {
+    pub(super) fn generic_export(
+        &mut self,
+        type_parameters: TypeParameters,
+        names: Range,
+        declared: Range,
+    ) {
         // The ignore comments cover one line each.
-        let parameters = type_parameters.text(self.source).replace(['\r', '\n'], " ");
+        let parameters = self.type_parameters(type_parameters);
         let parameters = parameters.as_str();
         let arguments = self.joined(names);
         let arguments = arguments.as_str();
@@ -62,10 +67,32 @@ impl Printer<'_> {
             if i > 0 {
                 joined.push_str(", ");
             }
-            if let Node::UnmappedSource(text) = self.tree.node(part) {
-                joined.push_str(&text.text(self.source).replace(['\r', '\n'], " "));
-            }
+            self.unmapped(part, &mut joined);
         }
         joined
+    }
+
+    /// An unmapped part's text on one line.
+    pub(super) fn unmapped(&self, part: NodeIdentifier, out: &mut String) {
+        let line = |text: Span| text.text(self.source).replace(['\r', '\n'], " ");
+        match self.tree.node(part) {
+            Node::UnmappedSource(text) => out.push_str(&line(text)),
+            Node::TypeParameter { name, constraint } => {
+                out.push_str(&line(name));
+                if let Some(constraint) = constraint {
+                    out.push_str(" extends ");
+                    out.push_str(&line(constraint));
+                }
+            }
+            _ => unreachable!("only unmapped parts are joined"),
+        }
+    }
+
+    /// The type parameters on one line.
+    pub(super) fn type_parameters(&self, type_parameters: TypeParameters) -> String {
+        match type_parameters {
+            TypeParameters::Attribute(span) => span.text(self.source).replace(['\r', '\n'], " "),
+            TypeParameters::Declared(parts) => self.joined(parts),
+        }
     }
 }

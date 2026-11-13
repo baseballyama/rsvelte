@@ -9,7 +9,11 @@ use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_svelte_semantic::Resolved;
 use rsvelte_svelte_syntax::Parsed;
 
+use crate::Refusal;
 use crate::syntax_tree::SyntaxTree;
+
+/// The code of a [`Printed`] error that svelte2tsx throws, which svelte-check reports as it is.
+pub const THROWN: &str = "check_projection_thrown";
 
 #[derive(Debug)]
 pub struct Projected;
@@ -24,15 +28,17 @@ impl Artifact for Projected {
         // svelte2tsx.
         let component = context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
         let resolution = || context.get::<Resolved>().as_ref();
-        crate::lower(component, context.source_text(), &resolution).map_err(|unsupported| {
-            Diagnostic::error(
+        crate::lower(component, context.source_text(), &resolution).map_err(|refusal| match refusal
+        {
+            Refusal::Unsupported(unsupported) => Diagnostic::error(
                 "check_unsupported",
                 format!(
                     "not supported by the type-check projection yet: {}",
                     unsupported.what
                 ),
                 unsupported.span(),
-            )
+            ),
+            Refusal::Thrown { message, span } => Diagnostic::error(THROWN, message, span),
         })
     }
 }

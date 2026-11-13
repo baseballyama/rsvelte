@@ -148,5 +148,6 @@ impl Drop for Semantic {
     }
 }
 
+mod acorn_scope;
 #[cfg(test)]
 mod tests;

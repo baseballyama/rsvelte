@@ -1,6 +1,7 @@
 ;
 
-	let { items }: { items: string[] } = $props();
+	type $$ComponentProps = { items: string[] };
+let { items }: $$ComponentProps = $props();
 
 ;
 
@@ -15,6 +16,6 @@ async () => {
     }
   }
 };
-const EachTs__SvelteComponent_ = __rsvelte_export_component<{ items: string[] }, {}, "">();
+const EachTs__SvelteComponent_ = __rsvelte_export_component<$$ComponentProps, {}, "">();
 type EachTs__SvelteComponent_ = ReturnType<typeof EachTs__SvelteComponent_>;
 export default EachTs__SvelteComponent_;
