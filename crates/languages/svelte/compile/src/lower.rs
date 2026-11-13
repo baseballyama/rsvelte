@@ -46,6 +46,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 pub(crate) use rsvelte_svelte_semantic::template::{cannot_be_set_statically, needs_clsx};
+use rsvelte_typescript_tree::{Acorn, SyntaxError};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub use crate::input::{CompileInput, Target};
@@ -215,6 +216,21 @@ pub(crate) enum Unit {
     Module,
 }
 
+/// The first error acorn throws while upstream parses the scripts: where it stops in syntax oxc
+/// parsed, or what oxc's checker rejects after the parser, whichever comes first.
+pub(crate) fn javascript_error(res: &Resolution) -> Option<SyntaxError> {
+    let at = |error: &SyntaxError| match error.acorn {
+        Some(Acorn::Stops(at) | Acorn::Fails { at, .. }) => at,
+        None => error.diagnostic.span.start_offset,
+    };
+    let checked = res.javascript_syntax_error().cloned();
+    match (res.tree().acorn_rejection(), checked) {
+        (Some(rejected), Some(checked)) if at(&checked) < at(&rejected) => Some(checked),
+        (Some(rejected), _) => Some(rejected),
+        (None, checked) => checked,
+    }
+}
+
 pub(crate) fn validate_unit(
     input: &CompileInput<'_>,
     res: &Resolution,
@@ -222,12 +238,10 @@ pub(crate) fn validate_unit(
 ) -> Result<ValidatedOptions, Diagnostic> {
     // Acorn rejects at parse time what oxc's semantic checker finds after the parser.
     // A name the template declares twice is upstream's `declaration_duplicate`, raised later.
-    if let Some(error) = res.javascript_syntax_error()
+    if let Some(error) = javascript_error(res)
         && !validation::redeclares_in_template(input, &error.diagnostic)
     {
-        return Err(rsvelte_svelte_syntax::parse::javascript_failure(
-            error.clone(),
-        ));
+        return Err(rsvelte_svelte_syntax::parse::javascript_failure(error));
     }
     let special::SvelteOptions {
         custom_element,
