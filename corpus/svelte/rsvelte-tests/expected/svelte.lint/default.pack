@@ -101,6 +101,8 @@
 
 === 0 rsvelte_capi/callbacks/css_hash_callback_class_appears_in_css/6e9080fb982e61e3.svelte	lint.txt
 
+=== 0 rsvelte_capi/callbacks/module_warning_filter_is_applied/71d734d7d2a6cb02.svelte.js	lint.txt
+
 === 227 rsvelte_capi/callbacks/warning_filter_drops_warnings_when_false/3b9bae345f47f43a.svelte	lint.txt
 2:8 2:15 svelte/consistent-selector-style "Selector should select by element type instead of class"
 2:8 2:15 svelte/valid-compile "Unused CSS selector \".unused\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
@@ -116,6 +118,10 @@
 
 === 43 rsvelte_capi/memory/repeated_compile_does_not_panic/6ede251725dab9bf.svelte	lint.txt
 1:9 1:13 no-undef "'name' is not defined."
+
+=== 0 rsvelte_capi/module/module_compile_emits_js_object/5d5aac252cc9d5eb.svelte.js	lint.txt
+
+=== 0 rsvelte_capi/module/module_compile_rejects_unknown_but_ignores_component_only_options/17031b630c75e159.svelte.js	lint.txt
 
 === 0 rsvelte_capi/options_coverage/accessors_and_immutable_deprecations_warn_once_per_process/a96d908dfc6f7ea0.svelte	lint.txt
 
@@ -4595,6 +4601,10 @@
 2:10 2:19 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
 2:17 2:18 no-undef "'x' is not defined."
 3:8 3:9 svelte/html-quotes "Expected to be enclosed by double quotes."
+
+=== 0 rsvelte_lint/navigation_resolve_module_surface/a_module_file_is_linted/6bb51ca286621587.svelte.js	lint.txt
+
+=== 0 rsvelte_lint/navigation_resolve_module_surface/a_resolved_url_in_a_module_is_allowed/a14d049e19c73f88.svelte.js	lint.txt
 
 === 312 rsvelte_lint/navigation_resolve_module_surface/the_same_body_in_a_component_is_reported_once/2cf4e87829d63015.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."

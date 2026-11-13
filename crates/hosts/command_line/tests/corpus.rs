@@ -150,7 +150,32 @@ fn main() -> ExitCode {
     let mut registry = Registry::new();
     rsvelte_svelte_compile::register(&mut registry);
     rsvelte_svelte_format::register(&mut registry);
-    rsvelte_svelte_lint::register(&mut registry);
+    rsvelte_svelte_lint::register_with_configuration(&mut registry, oracle_lint_configuration());
+    // The oracle lints each unit outside any SvelteKit project, with a `svelte.config.js` of
+    // `compilerOptions: { runes: true }`.
+    registry.provide::<rsvelte_svelte_lint::computation::SvelteConfiguration>(
+        "svelte",
+        |_| true,
+        |_| {
+            Ok(rsvelte_svelte_lint::SvelteConfig {
+                runes: Some(true),
+                ..rsvelte_svelte_lint::SvelteConfig::default()
+            })
+        },
+    );
+    registry.provide::<rsvelte_svelte_lint::computation::SvelteKit>(
+        "svelte",
+        |_| true,
+        |_| rsvelte_svelte_lint::project::SvelteKitProject {
+            version: None,
+            location: rsvelte_svelte_lint::project::Location::NoProject,
+        },
+    );
+    registry.provide::<rsvelte_svelte_lint::computation::SameNamedFile>(
+        "svelte",
+        |_| true,
+        |_| None,
+    );
     rsvelte_svelte_typescript_projection::register(&mut registry);
     rsvelte_svelte_check::register(&mut registry, &typecheck);
     registry.task(CountCoverage(Arc::clone(&coverage)));
@@ -194,4 +219,33 @@ fn main() -> ExitCode {
     } else {
         ExitCode::FAILURE
     }
+}
+
+/// The rules the oracle's lint runs (`corpus/_registry/oracles.json`) that this crate implements,
+/// with their default options, so the corpus compares every one of them.
+fn oracle_lint_configuration() -> rsvelte_svelte_lint::Configuration {
+    #[derive(serde::Deserialize)]
+    struct Oracles {
+        #[serde(rename = "svelte.lint")]
+        lint: Oracle,
+    }
+    #[derive(serde::Deserialize)]
+    struct Oracle {
+        rules: Vec<String>,
+    }
+    let oracles: Oracles = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../corpus/_registry/oracles.json"
+    )))
+    .expect("oracles.json lists the lint oracle's rules");
+    let mut configuration =
+        rsvelte_svelte_lint::Configuration::new(rsvelte_svelte_lint::LintSettings::default());
+    for name in &oracles.lint.rules {
+        if rsvelte_svelte_lint::definition(name, &[]).is_some() {
+            configuration
+                .rule(name, rsvelte_kernel::diagnostics::Severity::Error, &[], &[])
+                .unwrap_or_else(|e| panic!("{e}"));
+        }
+    }
+    configuration
 }

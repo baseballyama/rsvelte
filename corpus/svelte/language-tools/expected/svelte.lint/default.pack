@@ -849,6 +849,12 @@
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
+=== 0 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/b.svelte.ts	lint.txt
+
+=== 0 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/c.d.svelte.ts	lint.txt
+
+=== 0 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/d.svelte.js	lint.txt
+
 === 864 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/input.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -916,17 +922,6 @@
 11:45 11:74 svelte/max-attributes-per-line "'untyped' should be on a new line."
 12:47 12:78 svelte/max-attributes-per-line "'untyped' should be on a new line."
 13:47 13:78 svelte/max-attributes-per-line "'untyped' should be on a new line."
-
-=== 621 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	lint.txt
-1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:4 svelte/indent "Expected indentation of 2 spaces but found 3 spaces."
-2:11 2:14 no-unused-vars "'Foo' is defined but never used."
-3:1 3:4 svelte/indent "Expected indentation of 2 spaces but found 3 spaces."
-3:13 3:14 no-unused-vars "'A' is defined but never used."
-3:16 3:17 no-unused-vars "'B' is defined but never used."
-3:19 3:20 no-unused-vars "'C' is defined but never used."
-5:1 5:4 svelte/indent "Expected indentation of 2 spaces but found 3 spaces."
-5:10 5:28 no-unused-vars "'a' is assigned a value but never used."
 
 === 105 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte	lint.txt
 3:5 3:6 no-unused-labels "'x:' is defined but never used."
@@ -1067,6 +1062,8 @@
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 12:9 12:24 svelte/prefer-const "'message' is never reassigned. Use 'const' instead."
 12:9 12:24 no-useless-assignment "The value assigned to 'message' is not used in subsequent statements."
+
+=== 0 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-ts-file/foo.svelte.ts	lint.txt
 
 === 89 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-ts-file/input.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1477,9 +1474,6 @@
 3:1 3:3 svelte/indent "Expected indentation of 0 spaces but found 2 spaces."
 6:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 7:10 7:11 no-unused-vars "'B' is defined but never used."
-
-=== 40 packages/language-server/test/plugins/typescript/testfiles/code-actions/remove-imports-inline.svelte	lint.txt
-2:55 - - "Parsing error: ';' expected."
 
 === 164 packages/language-server/test/plugins/typescript/testfiles/codelens/importing.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -2312,6 +2306,11 @@
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:11 2:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
+=== 65 packages/svelte2tsx/test/emitDts/samples/typescript-custom-tsconfig/src/runes.svelte.ts	lint.txt
+6:1 6:2 svelte/no-trailing-spaces "Trailing spaces not allowed."
+
+=== 0 packages/svelte2tsx/test/emitDts/samples/typescript-declarationMap/src/testSvelteTs.svelte.ts	lint.txt
+
 === 320 packages/svelte2tsx/test/emitDts/samples/typescript-imports-outside-lib-root.v5/src/Component.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -2749,20 +2748,6 @@
 2:2 2:8 no-undef "'Dotted' is not defined."
 2:22 2:46 svelte/html-self-closing "Require self-closing on Svelte custom components."
 
-=== 841 packages/svelte2tsx/test/htmlx2jsx/samples/component-named-slot/input.svelte	lint.txt
-1:2 1:8 no-undef "'Parent' is not defined."
-1:17 1:30 svelte/max-attributes-per-line "'let:bar' should be on a new line."
-1:17 1:30 svelte/sort-attributes "Attribute 'let:bar' should go before 'let:foo'."
-2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-2:6 2:15 no-undef "'Component' is not defined."
-2:29 2:36 svelte/max-attributes-per-line "'let:bla' should be on a new line."
-3:1 3:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-5:6 5:15 no-undef "'Component' is not defined."
-6:1 6:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-
 === 273 packages/svelte2tsx/test/htmlx2jsx/samples/component-no-slots/input.svelte	lint.txt
 1:2 1:11 no-undef "'Component' is not defined."
 1:27 1:40 svelte/html-self-closing "Require self-closing on Svelte custom components."
@@ -2806,49 +2791,6 @@
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 6:1 6:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-
-=== 2968 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-shadowed-prop/input.svelte	lint.txt
-1:2 1:11 no-undef "'Component' is not defined."
-2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-2:6 2:17 no-undef "'unshadowed1' is not defined."
-3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-3:5 3:22 svelte/sort-attributes "Attribute 'foo' should go before 'unshadowed1'."
-3:10 3:21 no-undef "'unshadowed2' is not defined."
-4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-4:5 4:15 svelte/sort-attributes "Attribute 'subthing' should go before 'unshadowed1'."
-5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-5:5 5:16 svelte/sort-attributes "Attribute 'shadowed1' should go before 'unshadowed1'."
-6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-6:5 6:27 svelte/sort-attributes "Attribute 'shadowed-2' should go before 'unshadowed1'."
-7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-7:5 7:33 svelte/sort-attributes "Attribute 'templateString' should go before 'unshadowed1'."
-7:23 7:30 no-undef "'complex' is not defined."
-8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-8:5 8:26 svelte/sort-attributes "Attribute 'complex' should go before 'unshadowed1'."
-8:13 8:26 svelte/html-quotes "Unexpected to be enclosed by any quotes."
-8:16 8:23 no-undef "'complex' is not defined."
-9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-9:15 9:16 no-unused-vars "'n' is defined but never used."
-10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-14:20 14:32 svelte/max-attributes-per-line "'let:subthing' should be on a new line."
-14:34 14:39 no-undef "'thing' is not defined."
-15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-16:6 16:9 no-undef "'Sub' is not defined."
-16:22 16:32 svelte/max-attributes-per-line "'subthing' should be on a new line."
-16:46 16:63 svelte/sort-attributes "Attribute 'let:othersubthing' should go before 'let:subthing'."
-16:50 16:63 no-unused-vars "'othersubthing' is defined but never used."
-16:65 16:70 no-undef "'thing' is not defined."
-17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-18:6 18:9 no-undef "'Sub' is not defined."
-18:21 18:33 svelte/max-attributes-per-line "'let:subthing' should be on a new line."
-18:34 18:51 svelte/sort-attributes "Attribute 'let:othersubthing' should go before 'let:subthing'."
-18:38 18:51 no-unused-vars "'othersubthing' is defined but never used."
-18:53 18:58 no-undef "'thing' is not defined."
 
 === 511 packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-attribute/input.svelte	lint.txt
 1:1 1:90 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<custom-element ...></custom-element>` rather than `<custom-element ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
@@ -4559,17 +4501,11 @@
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:9 5:10 no-unused-vars "'y' is assigned a value but never used."
 
-=== 60 packages/svelte2tsx/test/svelte2tsx/samples/script-in-rawhtml/input.svelte	lint.txt
-7:43 - - "Parsing error: Unexpected keyword or identifier."
-
 === 296 packages/svelte2tsx/test/svelte2tsx/samples/script-inside-head-after-toplevel-script/input.svelte	lint.txt
 6:7 6:8 no-unused-vars "'b' is assigned a value but never used."
 6:7 6:8 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 10:26 10:58 svelte/max-attributes-per-line "'href' should be on a new line."
 10:26 10:58 svelte/sort-attributes "Attribute 'href' should go before 'rel'."
-
-=== 40 packages/svelte2tsx/test/svelte2tsx/samples/script-style-like-component/input.svelte	lint.txt
-6:8 - - "Parsing error: Type expected."
 
 === 311 packages/svelte2tsx/test/svelte2tsx/samples/script-tag-in-style-comment-with-real-script/input.svelte	lint.txt
 5:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

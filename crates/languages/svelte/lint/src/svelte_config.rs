@@ -1,7 +1,8 @@
 //! What `svelte-eslint-parser` reads from a `svelte.config.js` without running it (`parseConfig`):
 //! the default export, evaluated through object literals, literals and `const` variables only.
 //!
-//! Of the result, rules read `kit.files`, which is kept only when every property of it is static.
+//! Of the result, rules read `compilerOptions.runes` and `kit.files`, which is kept only when every
+//! property of it is static.
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
@@ -64,6 +65,18 @@ enum Step<'a> {
     Default(&'a Expression<'a>),
 }
 
+/// `Boolean(value)` of a static value other than `undefined` and `null`, which mean unset. A
+/// regular expression is truthy; a big integer is too unless it is `0n`, which `Other` loses.
+fn truthy(value: Static) -> Option<bool> {
+    Some(match value {
+        Static::Undefined | Static::Null => return None,
+        Static::Boolean(value) => value,
+        Static::Number(value) => value != 0.0 && !value.is_nan(),
+        Static::String(value) => !value.is_empty(),
+        Static::Other | Static::Object(_) => true,
+    })
+}
+
 /// How deep evaluation may nest; a deeper configuration names itself (`const a = b, b = a`).
 const MAX_DEPTH: usize = 64;
 
@@ -82,13 +95,33 @@ impl<'a> Evaluator<'a> {
         let Some(Evaluated::Object(config)) = self.expression(declaration, 0) else {
             return SvelteConfig::default();
         };
-        let Some(Evaluated::Object(kit)) = self.property(config, "kit", 0) else {
-            return SvelteConfig::default();
+        let runes = match self.property(config, "compilerOptions", 0) {
+            Some(Evaluated::Object(options)) => self
+                .property(options, "runes", 0)
+                .and_then(|runes| self.to_static(&runes, 0))
+                .and_then(truthy),
+            _ => None,
         };
+        let kit = match self.property(config, "kit", 0) {
+            Some(Evaluated::Object(kit)) => Some(Kit {
+                files: KitFiles {
+                    routes: self.routes(kit),
+                },
+            }),
+            _ => None,
+        };
+        SvelteConfig {
+            runes,
+            kit,
+            ..SvelteConfig::default()
+        }
+    }
+
+    fn routes(&self, kit: &'a ObjectExpression<'a>) -> Option<String> {
         let files = self
             .property(kit, "files", 0)
             .and_then(|files| self.to_static(&files, 0));
-        let routes = match files {
+        match files {
             Some(Static::Object(properties)) => properties
                 .into_iter()
                 .rev()
@@ -98,12 +131,6 @@ impl<'a> Evaluator<'a> {
                     _ => None,
                 }),
             _ => None,
-        };
-        SvelteConfig {
-            kit: Some(Kit {
-                files: KitFiles { routes },
-            }),
-            ..SvelteConfig::default()
         }
     }
 

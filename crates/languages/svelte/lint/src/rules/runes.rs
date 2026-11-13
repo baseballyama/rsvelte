@@ -11,14 +11,23 @@ use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, TemplateNode,
 };
 
+use crate::SvelteConfig;
 use crate::rule::File;
 
 /// svelte-eslint-parser's runes mode of a component: a boolean `<svelte:options runes>` decides,
-/// or else whether an identifier in a script or the template names a rune (`hasRunesSymbol`,
-/// whose `runeSymbols` are [`RUNE_ROOTS`]).
-pub(super) fn runes_mode(component: &Component, source: &str) -> bool {
+/// then a static `compilerOptions.runes` of `svelte.config.js`, or else whether an identifier in a
+/// script or the template names a rune (`hasRunesSymbol`, whose `runeSymbols` are
+/// [`RUNE_ROOTS`]).
+pub(super) fn runes_mode(file: &File<'_>, component: &Component) -> bool {
+    let source = file.source();
     if let Some(runes) = svelte_options_runes(component, source) {
         return runes;
+    }
+    if let Some(Ok(SvelteConfig {
+        runes: Some(runes), ..
+    })) = file.svelte_config()
+    {
+        return *runes;
     }
     let tree = &component.javascript;
     let mut finder = RuneName(false);
@@ -120,7 +129,7 @@ fn svelte_options_runes(component: &Component, source: &str) -> Option<bool> {
 pub(super) fn runes(file: &File<'_>) -> Option<bool> {
     file.component().map_or_else(
         || is_svelte_file(file).then_some(true),
-        |component| Some(runes_mode(component, file.source())),
+        |component| Some(runes_mode(file, component)),
     )
 }
 

@@ -269,6 +269,32 @@ impl<'s> Facts<'s> {
     }
 }
 
+/// typescript-eslint's range for a declared name covers its `?` and its type annotation.
+fn identifier_range(f: &Facts<'_>, symbol: SymbolId, at: oxc_span::Span) -> Span {
+    let mut end = at.end;
+    if at == f.scoping.symbol_span(symbol) {
+        let annotation = match f.kind(f.declaration(symbol)) {
+            AstKind::FormalParameter(p) if p.pattern.get_binding_identifier().is_some() => {
+                if p.optional {
+                    end += 1;
+                }
+                p.type_annotation.as_ref().map(|a| a.span())
+            }
+            AstKind::VariableDeclarator(d) if d.id.get_binding_identifier().is_some() => {
+                d.type_annotation.as_ref().map(|a| a.span())
+            }
+            AstKind::CatchParameter(c) if c.pattern.get_binding_identifier().is_some() => {
+                c.type_annotation.as_ref().map(|a| a.span())
+            }
+            _ => None,
+        };
+        if let Some(annotation) = annotation {
+            end = end.max(annotation.end);
+        }
+    }
+    span(oxc_span::Span::new(at.start, end))
+}
+
 const fn span(span: oxc_span::Span) -> Span {
     Span {
         start_offset: span.start,

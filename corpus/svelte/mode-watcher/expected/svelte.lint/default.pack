@@ -313,6 +313,22 @@
 103:31 103:43 svelte/sort-attributes "Attribute 'initConfig' should go before 'trueNonce'."
 103:44 103:77 svelte/sort-attributes "Attribute 'themeColors' should go before 'trueNonce'."
 
+=== 155 packages/mode-watcher/src/lib/mode-states.svelte.ts	lint.txt
+10:25 10:37 no-undef "'localStorage' is not defined."
+35:7 35:19 no-undef "'localStorage' is not defined."
+58:43 58:49 no-undef "'window' is not defined."
+
+=== 150 packages/mode-watcher/src/lib/states.svelte.ts	lint.txt
+47:19 47:27 no-undef "'document' is not defined."
+48:25 48:33 no-undef "'document' is not defined."
+92:19 92:27 no-undef "'document' is not defined."
+
+=== 0 packages/mode-watcher/src/lib/storage-keys.svelte.ts	lint.txt
+
+=== 105 packages/mode-watcher/src/lib/theme-state.svelte.ts	lint.txt
+6:25 6:37 no-undef "'localStorage' is not defined."
+32:7 32:19 no-undef "'localStorage' is not defined."
+
 === 519 packages/mode-watcher/src/routes/+layout.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
