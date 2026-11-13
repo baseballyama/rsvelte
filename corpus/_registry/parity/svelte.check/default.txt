@@ -1,4 +1,4 @@
-# svelte.check/default: 35724 match
+# svelte.check/default: 35751 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/lib/components/code.svelte	mismatch
@@ -329,7 +329,6 @@ svelte/rsvelte-tests-core-3/ts_svelte_ignore_suppression/ts_component_script_sve
 svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/0681114feeabb165.svelte	refused
 svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/1062231930baa241.svelte	mismatch
 svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/6e2e0a940efeafff.svelte	refused
-svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/e6d9541e6fae5d88.svelte	mismatch
 svelte/rsvelte-tests-core-3/typescript_strip_recoverable_parse_error/a_different_oxc_only_diagnostic_also_strips/81f7ffa8f83a35fb.svelte	refused
 svelte/rsvelte-tests-core-3/typescript_strip_recoverable_parse_error/client_strips_the_annotations/20ba2f69db87b15f.svelte	refused
 svelte/rsvelte-tests-core-3/with_statement_strict_mode/with_statement_in_instance_script_is_rejected/d3aec6e2c66c6e6a.svelte	mismatch
@@ -430,7 +429,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/dollar_generic_alias_is_a_generic_in_scope_on_render/efd2209a7033600b.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/dollar_generic_referenced_ranges_keep_candidate_source_order/cfce5f2fcc3a189d.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/module_shadow_blocks_type_and_dependent_props/c79250a91f4d81d6.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/props_rune/tests/test_component_props_ts_indexed_access_type/b69e126d2c44581e.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/props_rune/tests/test_component_props_ts_inline_object_type/c89bc9e87ec05791.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/instance_script_dollar_slots_dollar_props_dollar_events_unaffected/bf518e1962ff1a4a.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_exported_interface_dollar_props_throws/6f1a3ee68490bdbe.svelte	mismatch
@@ -845,38 +843,13 @@ svelte/svelte-maplibre/src/lib/LineLayer.svelte	mismatch
 svelte/svelte-maplibre/src/lib/MarkerLayer.svelte	mismatch
 svelte/svelte-maplibre/src/lib/RasterLayer.svelte	mismatch
 svelte/svelte-maplibre/src/lib/SymbolLayer.svelte	mismatch
-svelte/svelte-material-ui/packages/autocomplete/src/Autocomplete.svelte	mismatch
-svelte/svelte-material-ui/packages/banner/src/Banner.svelte	mismatch
-svelte/svelte-material-ui/packages/checkbox/src/Checkbox.svelte	mismatch
-svelte/svelte-material-ui/packages/chip-input/src/ChipInput.svelte	mismatch
-svelte/svelte-material-ui/packages/chips/src/Text.svelte	mismatch
-svelte/svelte-material-ui/packages/chips/src/TrailingAction.svelte	mismatch
-svelte/svelte-material-ui/packages/data-table/src/DataTable.svelte	mismatch
-svelte/svelte-material-ui/packages/data-table/src/Pagination.svelte	mismatch
-svelte/svelte-material-ui/packages/dialog/src/Dialog.svelte	mismatch
-svelte/svelte-material-ui/packages/form-field/src/FormField.svelte	mismatch
-svelte/svelte-material-ui/packages/layout-grid/src/LayoutGrid.svelte	mismatch
-svelte/svelte-material-ui/packages/menu/src/SelectionGroup.svelte	mismatch
-svelte/svelte-material-ui/packages/radio/src/Radio.svelte	mismatch
-svelte/svelte-material-ui/packages/select/src/Select.svelte	mismatch
 svelte/svelte-material-ui/packages/site/src/routes/demo/bottom-app-bar/+page.svelte	mismatch
 svelte/svelte-material-ui/packages/site/src/routes/demo/data-table/+page.svelte	mismatch
 svelte/svelte-material-ui/packages/site/src/routes/demo/elevation/+page.svelte	mismatch
 svelte/svelte-material-ui/packages/site/src/routes/demo/top-app-bar/+page.svelte	mismatch
 svelte/svelte-material-ui/packages/site/src/routes/demo/typography/+page.svelte	mismatch
-svelte/svelte-material-ui/packages/slider/src/Slider.svelte	mismatch
-svelte/svelte-material-ui/packages/snackbar/src/Snackbar.svelte	mismatch
-svelte/svelte-material-ui/packages/snackbar/src/kitchen/Kitchen.svelte	mismatch
-svelte/svelte-material-ui/packages/switch/src/Switch.svelte	mismatch
-svelte/svelte-material-ui/packages/tab-bar/src/TabBar.svelte	mismatch
-svelte/svelte-material-ui/packages/tab-indicator/src/TabIndicator.svelte	mismatch
-svelte/svelte-material-ui/packages/tab-scroller/src/TabScroller.svelte	mismatch
-svelte/svelte-material-ui/packages/tab/src/Tab.svelte	mismatch
-svelte/svelte-material-ui/packages/textfield/src/Textfield.svelte	mismatch
-svelte/svelte-material-ui/packages/tooltip/src/Tooltip.svelte	mismatch
 svelte/svelte-pivottable/src/lib/PivotTableUI.svelte	mismatch
 svelte/svelte-pivottable/src/lib/UI/Aggregators.svelte	mismatch
-svelte/svelte-put/sites/docs/src/lib/components/status-badge/StatusBadge.svelte	mismatch
 svelte/svelte-put/sites/docs/src/lib/notifications/components/Svelte5.svelte	mismatch
 svelte/svelte-sonner/src/components/Types.svelte	mismatch
 svelte/svelte-sonner/src/lib/Toaster.svelte	mismatch

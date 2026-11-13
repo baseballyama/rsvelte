@@ -281,13 +281,8 @@ impl Printer<'_> {
                 self.node(value);
                 self.output.push(",\n");
             }
-            Node::Const { name, value } => {
-                self.output.push("const ");
-                self.node(name);
-                self.output.push(" = ");
-                self.node(value);
-                self.output.push(";\n");
-            }
+            Node::Const { name, value } => self.declaration("const ", name, value),
+            Node::TypeAlias { name, value } => self.declaration("type ", name, value),
             Node::Render {
                 type_parameters,
                 body,
@@ -325,6 +320,15 @@ impl Printer<'_> {
             }
             _ => unreachable!("ordinary nodes are printed by node"),
         }
+    }
+
+    /// `const name = value;` or `type name = value;`.
+    fn declaration(&mut self, keyword: &str, name: NodeIdentifier, value: NodeIdentifier) {
+        self.output.push(keyword);
+        self.node(name);
+        self.output.push(" = ");
+        self.node(value);
+        self.output.push(";\n");
     }
 
     fn component_name(&mut self) {

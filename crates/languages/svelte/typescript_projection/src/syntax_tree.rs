@@ -43,6 +43,10 @@ pub enum Node {
         name: NodeIdentifier,
         value: NodeIdentifier,
     },
+    TypeAlias {
+        name: NodeIdentifier,
+        value: NodeIdentifier,
+    },
     ExportDefault(NodeIdentifier),
     /// svelte2tsx's `$$render` of a generic component: the instance script and the template in a
     /// function of the type parameters, which returns the contract.
