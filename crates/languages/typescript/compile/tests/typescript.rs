@@ -5,7 +5,9 @@ use oxc_allocator::{Allocator, CloneIn};
 use oxc_ast_visit::VisitMut;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
-use rsvelte_typescript_compile::features::{Feature, first_runtime_feature};
+use rsvelte_typescript_compile::features::{
+    Feature, first_runtime_feature, first_svelte_runtime_feature,
+};
 use rsvelte_typescript_compile::print::print;
 use rsvelte_typescript_compile::strip::Strip;
 
@@ -28,9 +30,20 @@ fn javascript(source_text: &str) -> String {
 }
 
 fn feature(source_text: &str) -> Option<(Feature, String)> {
+    found(source_text, first_runtime_feature)
+}
+
+fn svelte_feature(source_text: &str) -> Option<(Feature, String)> {
+    found(source_text, first_svelte_runtime_feature)
+}
+
+fn found(
+    source_text: &str,
+    find: fn(&oxc_ast::ast::Program<'_>) -> Option<(Feature, oxc_span::Span)>,
+) -> Option<(Feature, String)> {
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, source_text, SourceType::ts()).parse();
-    first_runtime_feature(&parsed.program).map(|(feature, span)| {
+    find(&parsed.program).map(|(feature, span)| {
         (
             feature,
             source_text[span.start as usize..span.end as usize].to_owned(),
@@ -137,5 +150,29 @@ fn constructs_with_a_runtime_value_are_found() {
     assert_eq!(
         feature("import a = require('a');"),
         Some((Feature::ImportEquals, "import a = require('a');".to_owned()))
+    );
+}
+
+#[test]
+fn svelte_checks_an_ambient_body_and_refuses_the_namespace_around_an_import_equals() {
+    for source_text in [
+        "declare namespace N { const a: number; }",
+        "declare module 'm' { export const a: number; }",
+        "declare global { const a: number; }",
+        "namespace N { import A = require('m'); }",
+    ] {
+        assert_eq!(
+            svelte_feature(source_text),
+            Some((Feature::NamespaceWithValues, source_text.to_owned())),
+            "{source_text}"
+        );
+        // A TypeScript file declares them without a value.
+        if source_text.starts_with("declare") {
+            assert_eq!(feature(source_text), None, "{source_text}");
+        }
+    }
+    assert_eq!(
+        svelte_feature("declare namespace N { interface A {} }"),
+        None
     );
 }

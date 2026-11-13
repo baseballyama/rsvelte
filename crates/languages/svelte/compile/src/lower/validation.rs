@@ -1,7 +1,7 @@
 use oxc_semantic::ReferenceId;
 use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
-use rsvelte_typescript_compile::features::{Feature, first_runtime_feature};
+use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature};
 
 mod declarations;
 pub(super) mod markup;
@@ -187,7 +187,7 @@ pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnosti
         .collect();
     // The parser met the scripts in document order.
     programs.sort_by_key(|p| p.span.start);
-    match programs.into_iter().find_map(first_runtime_feature) {
+    match programs.into_iter().find_map(first_svelte_runtime_feature) {
         Some((feature, span)) => Err(typescript_invalid_feature(
             feature,
             Span::new(span.start, span.end),
