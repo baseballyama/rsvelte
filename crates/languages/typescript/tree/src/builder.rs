@@ -12,7 +12,7 @@ use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
-use crate::syntax_error::{Operand, SyntaxError, acorn, syntax_error};
+use crate::syntax_error::{Locator, SyntaxError, acorn, syntax_error};
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, Trees, TypeParametersIdentifier,
@@ -82,7 +82,7 @@ impl<'a> Builder<'a> {
         diagnostics: Diagnostics,
         (text, fallback, shift): (&str, u32, u32),
         tokens: &[Token],
-        visit: impl FnOnce(&mut Operand),
+        visit: impl FnOnce(&mut Locator),
     ) -> Result<(), SyntaxError> {
         let reported = |d: &OxcDiagnostic| {
             d.code.scope.as_deref() != Some("TS")
@@ -174,7 +174,7 @@ impl<'a> Builder<'a> {
             return Err(error);
         }
         let program = &parsed.program;
-        let visit = |operand: &mut Operand| operand.visit_program(program);
+        let visit = |locator: &mut Locator| locator.visit_program(program);
         self.check(parsed.diagnostics, (text, start, 0), &parsed.tokens, visit)?;
         self.record(&parsed.tokens, &parsed.program.comments, 0);
         let mut program = parsed.program;
@@ -230,7 +230,7 @@ impl<'a> Builder<'a> {
             .parse_expression_at(start)
             .map_err(|errors| syntax_error(errors, text, start, 0))?;
         let expression = &parsed.expression;
-        let visit = |operand: &mut Operand| operand.visit_expression(expression);
+        let visit = |locator: &mut Locator| locator.visit_expression(expression);
         self.check(parsed.diagnostics, (text, start, 0), &parsed.tokens, visit)?;
         self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
@@ -265,7 +265,7 @@ impl<'a> Builder<'a> {
             .parse_statement_at(start)
             .map_err(|errors| syntax_error(errors, self.source_text, start, 0))?;
         let statement = &parsed.statement;
-        let visit = |operand: &mut Operand| operand.visit_statement(statement);
+        let visit = |locator: &mut Locator| locator.visit_statement(statement);
         self.check(
             parsed.diagnostics,
             (self.source_text, start, 0),
@@ -413,7 +413,7 @@ impl<'a> Builder<'a> {
             .parse_expression_at(0)
             .map_err(|errors| syntax_error(errors, text, 0, shift))?;
         let expression = &parsed.expression;
-        let visit = |operand: &mut Operand| operand.visit_expression(expression);
+        let visit = |locator: &mut Locator| locator.visit_expression(expression);
         self.check(parsed.diagnostics, (text, 0, shift), &parsed.tokens, visit)?;
         if !wrapper(&parsed.expression) {
             return Err(refused(expected, range));
