@@ -20,14 +20,23 @@ fn redeclared_at(text: &str) -> Option<u32> {
 
 #[test]
 fn a_type_only_import_is_a_value_to_acorn() {
-    assert_eq!(redeclared_at("import type { X } from 'x'; let X;"), Some(32));
-    assert_eq!(redeclared_at("var X; import { type X } from 'x';"), Some(21));
+    assert_eq!(
+        redeclared_at("import type { X } from 'x'; let X;"),
+        Some(32)
+    );
+    assert_eq!(
+        redeclared_at("var X; import { type X } from 'x';"),
+        Some(21)
+    );
 }
 
 #[test]
 fn a_second_implementation_is_lexical_in_a_module() {
     assert_eq!(redeclared_at("function f() {} function f() {}"), Some(25));
-    assert_eq!(redeclared_at("{ function f() {} function f() {} }"), Some(27));
+    assert_eq!(
+        redeclared_at("{ function f() {} function f() {} }"),
+        Some(27)
+    );
 }
 
 #[test]
