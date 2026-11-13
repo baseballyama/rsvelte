@@ -42,7 +42,8 @@
 		Svelte プラグインのルールが受け取るのは、文書の計算結果を読む <code>File</code>
 		一つです。設定は <code>ConfiguredRule</code> の並びです。<code>ConfiguredRule</code>
 		は、ルールの名前と重大度と、オプションを読んで作ったルール（<code>dyn SvelteRule</code
-		>）を持ちます。<code>Rule&lt;File&gt;</code> を実装するのは <code>ConfiguredRule</code>
+		>）を持ちます。<code>Rule&lt;File&gt;</code> を実装するのは、<code>ConfiguredRule</code>
+		を包む <code>Running</code>
 		です。各ルールは、自分の問いに答える層をその場で求めます。層は元の構文木、名前解決、コンパイル用に整理した構文木です（<a
 			href="/learn/kernel/layers#lint">05 章</a
 		>）。ルールは設定の順に走り、出した指摘には設定の重大度（<code>severity</code>）が付きます。
@@ -80,7 +81,7 @@
 	item={data.code.run}
 	mark={[
 		'measurement::phase(rule.identifier())',
-		'Reporter::new(rule, &mut self.out, &mut self.failure)',
+		'Reporter::new(&rule, &mut self.out, &mut self.failure)',
 		'sort_by_key',
 	]}
 />
