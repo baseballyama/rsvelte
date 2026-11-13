@@ -90,3 +90,43 @@ fn a_scripts_error_comes_before_a_refusal_on_both_targets() {
         }
     }
 }
+
+#[test]
+fn svelte_4_syntax_in_runes_mode_raises_upstreams_first_error_on_both_targets() {
+    // From svelte 5.57.3, compiled with `runes: true`.
+    for (source, expected) in [
+        (
+            "<script>export let p = 1; function f() { const $state = 1; return $state; }</script>",
+            ("legacy_export_invalid", (8, 25)),
+        ),
+        (
+            "<script>function f() { const $state = 1; return $state; } export let p = 1;</script>",
+            ("dollar_prefix_invalid", (29, 35)),
+        ),
+        (
+            "<script>const $x = 1; export let p = 1;</script>",
+            ("dollar_prefix_invalid", (14, 16)),
+        ),
+        (
+            "<b>{$$restProps}</b><script>let x = $$props;</script>",
+            ("legacy_props_invalid", (36, 43)),
+        ),
+        (
+            "<div {...$$restProps}>{$$props.a}</div>",
+            ("legacy_props_invalid", (23, 30)),
+        ),
+        (
+            "<script>let a = $$restProps;</script><p>{$$props}</p>",
+            ("legacy_props_invalid", (41, 48)),
+        ),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            let expected = Some((expected.0.to_owned(), expected.1));
+            assert_eq!(
+                compile_at(source, target).err(),
+                expected,
+                "{source} on {target:?}"
+            );
+        }
+    }
+}

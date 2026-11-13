@@ -1,7 +1,7 @@
 use rustc_hash::FxHashMap;
 
 use super::super::is_dom;
-use super::{Edge, Flow, FlowIdentifier, SnippetFlow, Topology};
+use super::{Edge, Flow, FlowIdentifier, Rendered, SnippetFlow, Topology};
 use crate::compiler_syntax_tree::{
     AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, ElementKind, MetadataTag,
     NodeKind,
@@ -59,6 +59,18 @@ impl Topology<'_> {
         self.links[parent].first.get_or_insert(child);
     }
 
+    /// The snippets a renderer may render, in source order.
+    fn rendered_snippets(&self, id: CompilerNodeIdentifier) -> Vec<SnippetFlow> {
+        let mut snippets: Vec<_> = match self.rendered.get(&id) {
+            Some(Rendered::Snippets(snippets)) => snippets.to_vec(),
+            Some(Rendered::Every) => self.snippet_nodes.values().copied().collect(),
+            None => Vec::new(),
+        };
+        snippets.sort_by_key(|snippet| snippet.node);
+        snippets.dedup_by_key(|snippet| snippet.node);
+        snippets
+    }
+
     fn invoke(
         &mut self,
         snippet: SnippetFlow,
@@ -92,15 +104,15 @@ impl Topology<'_> {
     fn component(
         &mut self,
         tree: &CompilerSyntaxTree,
+        id: CompilerNodeIdentifier,
         children: Children,
         parent: Option<CompilerNodeIdentifier>,
         before: FlowIdentifier,
     ) -> FlowIdentifier {
         let mut groups = FxHashMap::<&str, Vec<CompilerNodeIdentifier>>::default();
-        let mut supplied_snippets = Vec::new();
+        let supplied_snippets = self.rendered_snippets(id);
         for &child in tree.children(children) {
-            if let Some(snippet) = self.snippet_nodes.get(&child).copied() {
-                supplied_snippets.push(snippet);
+            if self.snippet_nodes.contains_key(&child) {
                 continue;
             }
             let name = match &tree.node(child).kind {
@@ -175,8 +187,8 @@ impl Topology<'_> {
                 NodeKind::Element(element) if is_dom(element) => {
                     before = self.dom_element(tree, id, element, parent, before);
                 }
-                NodeKind::Element(element) if element.kind == ElementKind::Component => {
-                    before = self.component(tree, element.children, parent, before);
+                NodeKind::Element(element) if element.kind.renders_component() => {
+                    before = self.component(tree, id, element.children, parent, before);
                 }
                 NodeKind::Element(element) if element.kind == ElementKind::Slot => {
                     let opaque = self.flow(None);
@@ -243,18 +255,23 @@ impl Topology<'_> {
                     }
                 }
                 NodeKind::Render { .. } => {
-                    if let Some(snippet) = self
-                        .renders
-                        .get(&id)
-                        .and_then(|binding| self.snippets.get(binding))
-                        .copied()
+                    let every = matches!(self.rendered.get(&id), Some(Rendered::Every));
+                    let snippets = self.rendered_snippets(id);
+                    if let [snippet] = snippets[..]
+                        && !every
                     {
                         before = self.invoke(snippet, parent, before);
                     } else {
                         let opaque = self.flow(None);
                         self.flows[opaque].opaque = true;
                         self.edge(opaque, before);
-                        before = opaque;
+                        let merge = self.flow(None);
+                        self.edge(merge, opaque);
+                        for snippet in snippets {
+                            let end = self.invoke(snippet, parent, before);
+                            self.edge(merge, end);
+                        }
+                        before = merge;
                     }
                 }
                 _ => {}

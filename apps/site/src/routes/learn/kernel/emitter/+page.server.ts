@@ -18,6 +18,6 @@ export const load = () => ({
 		applyIn: 'kernel/output/edits/TextEdits::apply_in',
 		lookupOverlap: 'kernel/output/emitter/Emitter::lookup_overlap',
 		mapBack: 'typescript/check/check/MapBack',
-		writeFindings: 'typescript/check/check/write_findings',
+		writeFindings: 'typescript/check/check/findings/write_findings',
 	}),
 });

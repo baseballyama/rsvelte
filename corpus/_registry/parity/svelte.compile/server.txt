@@ -1,4 +1,4 @@
-# svelte.compile/server: 36063 match
+# svelte.compile/server: 36086 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -50,7 +50,6 @@ svelte/rsvelte-tests-core-1/class_field_super_4549/super_is_legal_exactly_where_
 svelte/rsvelte-tests-core-1/class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/6e4ac838e930dea5.svelte	mismatch
 svelte/rsvelte-tests-core-1/class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/9f33b40fde461238.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase2_analyze/store_subscriptions/tests/dollar_named_parameters_are_not_outer_store_subscriptions/620841e8ef148b9f.svelte	mismatch
-svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/tests/reactive_iife_local_store_spelling_is_not_rewritten/f5bc6b420bfc7d93.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/1bc072884a4f64e9.svelte	refused
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/3d23525a1ea60c3b.svelte	refused
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/84c042fec75b88ba.svelte	refused
@@ -65,8 +64,6 @@ svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_neighbouring_pos
 svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_whole_key_subtree_moves_with_it/4f67cefb5b0ba2e9.svelte	unexpected
 svelte/rsvelte-tests-core-1/const_tag_parse_error_3691/an_unparseable_initializer_is_rejected/5be5d4786e84cdc5.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_chain_ancestry_guard_1735/global_inner_chain_with_snippet_kept/d07f3897607656c6.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_global_block_body_uses_the_rule_visitor/an_empty_rule_inside_a_global_block_is_commented_out/9bdbf37610533fbb.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_global_block_body_uses_the_rule_visitor/an_empty_rule_inside_a_global_block_is_commented_out/f0dbcdc7fb242a14.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_global_parent_implicit_nesting_4059/a_fully_global_parent_scopes_the_ancestors_of_an_implicitly_nested_child/131bedeeaf159d0b.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_global_parent_implicit_nesting_4059/a_fully_global_parent_scopes_the_ancestors_of_an_implicitly_nested_child/5a78fa9e434f3e48.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_global_parent_implicit_nesting_4059/a_fully_global_parent_scopes_the_ancestors_of_an_implicitly_nested_child/c46e802a9f112388.svelte	mismatch
@@ -81,8 +78,6 @@ svelte/rsvelte-tests-core-1/css_is_where_branch/is_descendant_no_match_reports_w
 svelte/rsvelte-tests-core-1/css_nested_specificity_global_ancestor/a_global_ancestor_with_a_local_selector_still_bumps/ef2faacd70ba2d42.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/6e19c2606f952300.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/d194f58883e60cf4.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_snippet_render_site_scope_4113/a_snippet_reached_only_through_a_component_prop_is_scoped_from_that_component/0e8c2a3cb5af6185.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_snippet_render_site_scope_4113/a_snippet_reached_only_through_a_component_prop_is_scoped_from_that_component/5c6b9df354927381.svelte	mismatch
 svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/a_type_alias_is_a_declaration_only_in_typescript/31d56272e52457e9.svelte	mismatch
 svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/a_type_alias_is_a_declaration_only_in_typescript/b275deab1b0ff83c.svelte	mismatch
 svelte/rsvelte-tests-core-2/declaration_tag_missing_initializer_3705/neighbouring_declaration_shapes_keep_their_existing_outcomes/79df455b3881d80f.svelte	mismatch
@@ -213,13 +208,6 @@ svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/af2787da59b35a7f.svelte	mismatch
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/fd297002503b61c4.svelte	mismatch
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_not_check_are_not_parse_errors/3fbf11608512c3ee.svelte	refused
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/00a95b48d87ea1d6.svelte	mismatch
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/096478813eefb2b1.svelte	mismatch
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/34652cc4f04dfe3a.svelte	mismatch
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/5f39cdabe2dd3d81.svelte	mismatch
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/cab4bf411a9b74d7.svelte	mismatch
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/e3395915c6dd6a7a.svelte	mismatch
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/f7ddfeb26dda0ec0.svelte	mismatch
 svelte/rsvelte-tests-core-3/server_fragment_init_order/title_keeps_source_order_among_hoisted_nodes/4ff65b3fab5a4745.svelte	mismatch
 svelte/rsvelte-tests-core-3/server_fragment_init_order/title_precedes_a_bind_pushed_by_a_later_sibling/15dd611416a9eecf.svelte	mismatch
 svelte/rsvelte-tests-core-3/slot_host_3598/a_component_owner_still_requires_a_direct_child/17e94a3c29a54029.svelte	mismatch
@@ -256,9 +244,7 @@ svelte/rsvelte-tests-core-3/slot_host_3598/svelte_self_is_a_slot_host/265160175d
 svelte/rsvelte-tests-core-3/slot_host_3598/svelte_self_is_a_slot_host/7b1afc293466c4b0.svelte	refused
 svelte/rsvelte-tests-core-3/slot_host_3598/svelte_self_is_a_slot_host/874b58934488e183.svelte	refused
 svelte/rsvelte-tests-core-3/snippet_param_default_parens_4384/the_client_matches_the_official_compiler/c24a069de8126c33.svelte	mismatch
-svelte/rsvelte-tests-core-3/snippet_render_site_scoping_4115/a_component_handed_a_snippet_by_attribute_is_a_render_site/e3630ce55c7c7f37.svelte	mismatch
 svelte/rsvelte-tests-core-3/snippet_render_site_scoping_4115/a_renderer_written_inside_a_snippet_inherits_that_snippets_own_sites/fdf5afa09809a172.svelte	mismatch
-svelte/rsvelte-tests-core-3/snippet_render_sites_4115/an_unresolved_renderer_is_a_site_of_every_snippet/1f8e004f9d9db58b.svelte	mismatch
 svelte/rsvelte-tests-core-3/state_destructure_default_2002/a_default_is_visited_after_every_array_is_named/7fffa763303d97fe.svelte	mismatch
 svelte/rsvelte-tests-core-3/store_rune_conflict_3597/another_rune_reference_still_enables_runes_mode/85dae5221dd8bfac.svelte	mismatch
 svelte/rsvelte-tests-core-3/svelte_options_deprecations/accessors_silent_in_legacy_mode/b831a5b1000daa5d.svelte	refused
@@ -381,7 +367,6 @@ svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/non_css_st
 svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/plain_css_unused_ignore_is_still_reported/964da7c6a5553df3.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/transformed_scss_unused_ignore_is_reported/e19fecebd6a045c3.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_lint/runes_mode/tests/svelte_options_overrides_in_both_directions/dbff959d7828964d.svelte	refused
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/runes/tests/nested_rune_named_declarations_do_not_enable_runes_mode/85e558f111401356.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/stores/tests/props_id_rune_next_to_props_declaration_is_not_a_store/c1144c764992de79.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/stores/tests/state_snapshot_member_access_still_subscribes/94c15692a417ad7d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/stores/tests/test_store_multiple_variable_declaration/96fdd399e370c7c0.svelte	mismatch
@@ -475,7 +460,6 @@ svelte/rsvelte/lint/runes-mode/06-template-only-rune-rule-in-legacy.svelte	refus
 svelte/rsvelte/lint/shorthand-directive/opt-key-prefer-always-explicit.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/components/svelte-component-dynamic.svelte	refused
 svelte/rsvelte/pattern/adversarial/events-actions-transitions/rejected-event-and-element.svelte	mismatch
-svelte/rsvelte/pattern/adversarial/legacy/legacy-accessors-and-restprops.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/legacy/legacy-before-after-update.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-component-events.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-context-module-exports.svelte	refused
@@ -484,7 +468,6 @@ svelte/rsvelte/pattern/adversarial/legacy/legacy-each-and-store-interplay.svelte
 svelte/rsvelte/pattern/adversarial/legacy/legacy-event-modifier-matrix.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-immutable-and-accessors.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-lifecycle-and-dispatch.svelte	refused
-svelte/rsvelte/pattern/adversarial/legacy/legacy-module-and-dollar-dollar.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/legacy/legacy-options-accessors-immutable.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-props-and-restprops.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-reactive-order-and-cycles.svelte	refused
@@ -499,8 +482,6 @@ svelte/rsvelte/pattern/adversarial/legacy/legacy-store-autosubscription.svelte	r
 svelte/rsvelte/pattern/adversarial/legacy/legacy-store-in-each-and-blocks.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-store-in-every-position.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-store-shapes.svelte	refused
-svelte/rsvelte/pattern/adversarial/legacy/restprops-legacy.svelte	mismatch
-svelte/rsvelte/pattern/adversarial/legacy/restprops-spread-forwarding.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/legacy/svelte-legacy-imports.svelte	refused
 svelte/rsvelte/pattern/adversarial/runes/inspect-with-and-snapshot-nesting.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelte	mismatch
@@ -513,7 +494,6 @@ svelte/rsvelte/pattern/issues/3141-const-in-svelte-self.svelte	unexpected
 svelte/rsvelte/pattern/issues/3175-legacy-derived-server-fold.svelte	refused
 svelte/rsvelte/pattern/issues/3177-module-multi-declarator.svelte	mismatch
 svelte/rsvelte/pattern/issues/3180-snapshot-position.svelte	mismatch
-svelte/rsvelte/pattern/issues/3190-runes-legacy-props.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-bind-eval.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-delete-local.svelte	mismatch
@@ -535,14 +515,11 @@ svelte/rsvelte/pattern/issues/3201-template-fast-path-escape.svelte	mismatch
 svelte/rsvelte/pattern/issues/3201-template-fast-path-octal.svelte	mismatch
 svelte/rsvelte/pattern/issues/3201-template-strict-param-clash.svelte	mismatch
 svelte/rsvelte/pattern/issues/3201-template-strict-proto.svelte	mismatch
-svelte/rsvelte/pattern/issues/3237-nested-rune-named-declaration.svelte	mismatch
 svelte/rsvelte/pattern/issues/3296-template-scope-shadow-write.svelte	refused
-svelte/rsvelte/pattern/issues/4115-unresolved-renderer-renders-every-snippet.svelte	mismatch
 svelte/rsvelte/pattern/issues/acorn-reserved-word-opens-an-earlier-statement.svelte	mismatch
 svelte/rsvelte/pattern/issues/deferred-script-error-before-unclosed-block.svelte	mismatch
 svelte/rsvelte/pattern/issues/dollar-function-parameter.svelte	mismatch
 svelte/rsvelte/pattern/issues/global-block-body-is-not-pruned.svelte	mismatch
-svelte/rsvelte/pattern/issues/global-block-body-uses-the-rule-visitor.svelte	mismatch
 svelte/rsvelte/pattern/issues/is-branch-unused-warning-position.svelte	mismatch
 svelte/rsvelte/pattern/issues/legacy-title-store-call.svelte	refused
 svelte/rsvelte/pattern/issues/script-lang-after-quoted-gt.svelte	refused

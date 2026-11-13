@@ -2,6 +2,7 @@
 
 use oxc_ast::ast::Expression;
 use oxc_ast_visit::Visit;
+use oxc_parser::Kind;
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::tokens::{Token, TokenKind};
 use rsvelte_typescript_tree::{DeclarationIdentifier, ExpressionIdentifier};
@@ -130,19 +131,36 @@ impl Printer<'_, '_, '_> {
     }
 
     /// The plugin's `getText` of a template expression: from its first leading comment to its
-    /// end. The comments after it are in no text the plugin prints.
+    /// end. The comments after it, and those outside its parentheses, which Svelte attaches to no
+    /// node, are in no text the plugin prints: it deletes them, so they are refused.
     fn with_leading_comments(&mut self, expression: Span) -> Span {
-        let tokens = &self.c.tokens;
+        let c = self.c;
         let comment = |t: &&Token<TokenType>| t.kind == TokenType::JavaScriptComment;
-        let first = (tokens.until_offset(expression.start_offset).iter().rev())
-            .take_while(|t| t.kind.is_trivia())
+        let mut before = (c.tokens.until_offset(expression.start_offset).iter().rev())
+            .take_while(|t| t.kind.is_trivia() || t.kind == TokenType::JavaScript(Kind::LParen))
+            .peekable();
+        let mut first = expression.start_offset;
+        while let Some(t) = before.next_if(|t| t.kind.is_trivia()) {
+            if t.kind == TokenType::JavaScriptComment {
+                first = t.span.start_offset;
+            }
+        }
+        let outside = before.filter(comment).map(|t| {
+            (
+                t.span,
+                "a comment outside a template expression's parentheses, which the plugin deletes",
+            )
+        });
+        self.embedder.dropped.extend(outside);
+        let trailing = (c.tokens.from_offset(expression.end_offset).iter())
+            .take_while(|t| t.kind.is_trivia() || t.kind == TokenType::JavaScript(Kind::RParen))
             .filter(comment)
-            .last()
-            .map_or(expression.start_offset, |t| t.span.start_offset);
-        let trailing = (tokens.from_offset(expression.end_offset).iter())
-            .take_while(|t| t.kind.is_trivia())
-            .filter(comment)
-            .map(|t| t.span);
+            .map(|t| {
+                (
+                    t.span,
+                    "a comment after a template expression, which the plugin deletes",
+                )
+            });
         self.embedder.dropped.extend(trailing);
         Span::new(first, expression.end_offset)
     }

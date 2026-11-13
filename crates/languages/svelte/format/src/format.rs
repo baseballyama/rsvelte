@@ -309,25 +309,25 @@ fn has_pragma(text: &str) -> bool {
 /// A JavaScript comment outside the code the output keeps as text, which the template printer
 /// does not place: around an expression (`{/* a */ b}`) or between a tag's attributes
 /// (`<A // b={1}>`, only a token), it would be lost.
-fn refuse_lost_comments(c: &Component, kept: &[Span], dropped: &[Span]) -> R<()> {
-    let mut comments = c
-        .tokens
-        .iter()
+fn refuse_lost_comments(c: &Component, kept: &[Span], dropped: &[(Span, &'static str)]) -> R<()> {
+    for comment in (c.tokens.iter())
         .filter(|t| t.kind == TokenType::JavaScriptComment)
         .map(|t| t.span)
-        .filter(|comment| !dropped.contains(comment));
-    comments
-        .find(|comment| {
-            !kept.iter().any(|s| {
-                s.start_offset <= comment.start_offset && comment.end_offset <= s.end_offset
-            })
-        })
-        .map_or(Ok(()), |comment| {
-            Err(Unsupported::at(
+    {
+        if let Some(&(_, why)) = dropped.iter().find(|(d, _)| *d == comment) {
+            return Err(Unsupported::at(why, comment));
+        }
+        let printed = kept
+            .iter()
+            .any(|s| s.start_offset <= comment.start_offset && comment.end_offset <= s.end_offset);
+        if !printed {
+            return Err(Unsupported::at(
                 "comments in the template's JavaScript",
                 comment,
-            ))
-        })
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// The first option whose value this port does not print yet. The pattern names every field, so
