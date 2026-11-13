@@ -1,4 +1,4 @@
-# svelte.lint/default: 36809 match
+# svelte.lint/default: 36810 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/lib/components/paginator.svelte	mismatch
@@ -1104,7 +1104,6 @@ svelte/rsvelte-tests-core-3/snippet_header_typescript_guard/the_same_header_comp
 svelte/rsvelte-tests-core-3/snippet_header_typescript_guard/the_same_header_compiles_with_lang_ts/9ef6dba7233a425d.svelte	mismatch
 svelte/rsvelte-tests-core-3/snippet_header_typescript_guard/the_same_header_compiles_with_lang_ts/fe46db0dd2e2122b.svelte	mismatch
 svelte/rsvelte-tests-core-3/snippet_param_default_parens_4384/the_client_matches_the_official_compiler/4a893afa07686248.svelte	mismatch
-svelte/rsvelte-tests-core-3/snippet_render_site_scoping_4115/a_renderer_written_inside_a_snippet_inherits_that_snippets_own_sites/fdf5afa09809a172.svelte	mismatch
 svelte/rsvelte-tests-core-3/snippet_template_errors/a_snippet_body_cannot_redeclare_a_parameter/3cd9baabbe54a63d.svelte	mismatch
 svelte/rsvelte-tests-core-3/snippet_template_errors/a_snippet_body_cannot_redeclare_a_parameter/54b8f067a518c558.svelte	mismatch
 svelte/rsvelte-tests-core-3/snippet_template_errors/a_snippet_body_cannot_redeclare_a_parameter/8296da1ddf6da7b7.svelte	mismatch
