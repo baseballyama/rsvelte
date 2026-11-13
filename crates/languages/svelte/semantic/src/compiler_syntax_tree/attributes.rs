@@ -124,9 +124,17 @@ impl Modifiers {
     pub const GLOBAL: Self = Self(1 << 9);
     pub const IMPORTANT: Self = Self(1 << 11);
     pub(crate) const LOCAL: Self = Self(1 << 10);
+    /// More than one modifier is written, which upstream refuses on a component.
+    pub const MANY: Self = Self(1 << 13);
     pub const NONPASSIVE: Self = Self(1 << 6);
+    /// Upstream's in-order walk of an element's `on:` modifiers first meets one it does not take.
+    pub const NOT_AN_EVENT_MODIFIER: Self = Self(1 << 14);
     pub const ONCE: Self = Self(1 << 4);
     pub const PASSIVE: Self = Self(1 << 5);
+    /// That walk first meets `passive` together with `nonpassive`.
+    pub const PASSIVE_AND_NONPASSIVE: Self = Self(1 << 15);
+    /// That walk first meets `passive` together with `preventDefault`.
+    pub const PASSIVE_AND_PREVENT_DEFAULT: Self = Self(1 << 16);
     pub const PREVENT_DEFAULT: Self = Self(1);
     pub const SELF: Self = Self(1 << 7);
     pub const STOP_IMMEDIATE_PROPAGATION: Self = Self(1 << 2);
@@ -134,14 +142,6 @@ impl Modifiers {
     pub const TRUSTED: Self = Self(1 << 8);
     /// A name no modifier stands for, or one given twice: upstream rejects it where it checks.
     pub const UNKNOWN: Self = Self(1 << 12);
-    /// More than one modifier is written, which upstream refuses on a component.
-    pub const MANY: Self = Self(1 << 13);
-    /// Upstream's in-order walk of an element's `on:` modifiers first meets one it does not take.
-    pub const NOT_AN_EVENT_MODIFIER: Self = Self(1 << 14);
-    /// That walk first meets `passive` together with `nonpassive`.
-    pub const PASSIVE_AND_NONPASSIVE: Self = Self(1 << 15);
-    /// That walk first meets `passive` together with `preventDefault`.
-    pub const PASSIVE_AND_PREVENT_DEFAULT: Self = Self(1 << 16);
 
     /// The modifier a name stands for, if any.
     #[must_use]

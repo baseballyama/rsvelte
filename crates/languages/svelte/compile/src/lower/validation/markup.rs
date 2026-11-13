@@ -14,6 +14,7 @@ mod placement;
 mod slots;
 
 use placement::Ancestors;
+use rsvelte_svelte_semantic::warnings::slot_name_error;
 
 use super::super::special::invalid;
 use super::super::{
@@ -21,7 +22,6 @@ use super::super::{
     is_custom_element_node, is_directive,
 };
 use crate::render_plan::is_template_whitespace;
-use rsvelte_svelte_semantic::warnings::slot_name_error;
 
 /// The nearest component, `<svelte:element>` or custom element above a node, which decides where a
 /// `slot` attribute may go.
