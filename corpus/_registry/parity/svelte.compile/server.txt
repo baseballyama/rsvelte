@@ -1,4 +1,4 @@
-# svelte.compile/server: 36063 match
+# svelte.compile/server: 36078 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -50,7 +50,6 @@ svelte/rsvelte-tests-core-1/class_field_super_4549/super_is_legal_exactly_where_
 svelte/rsvelte-tests-core-1/class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/6e4ac838e930dea5.svelte	mismatch
 svelte/rsvelte-tests-core-1/class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/9f33b40fde461238.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase2_analyze/store_subscriptions/tests/dollar_named_parameters_are_not_outer_store_subscriptions/620841e8ef148b9f.svelte	mismatch
-svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/tests/reactive_iife_local_store_spelling_is_not_rewritten/f5bc6b420bfc7d93.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/1bc072884a4f64e9.svelte	refused
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/3d23525a1ea60c3b.svelte	refused
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/84c042fec75b88ba.svelte	refused
@@ -221,13 +220,6 @@ svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/af2787da59b35a7f.svelte	mismatch
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/fd297002503b61c4.svelte	mismatch
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_not_check_are_not_parse_errors/3fbf11608512c3ee.svelte	refused
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/00a95b48d87ea1d6.svelte	mismatch
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/096478813eefb2b1.svelte	mismatch
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/34652cc4f04dfe3a.svelte	mismatch
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/5f39cdabe2dd3d81.svelte	mismatch
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/cab4bf411a9b74d7.svelte	mismatch
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/e3395915c6dd6a7a.svelte	mismatch
-svelte/rsvelte-tests-core-3/rune_name_binding_mode_3238/a_rune_spelled_binding_leaves_a_legacy_component_in_legacy_mode/f7ddfeb26dda0ec0.svelte	mismatch
 svelte/rsvelte-tests-core-3/server_fragment_init_order/title_keeps_source_order_among_hoisted_nodes/4ff65b3fab5a4745.svelte	mismatch
 svelte/rsvelte-tests-core-3/server_fragment_init_order/title_precedes_a_bind_pushed_by_a_later_sibling/15dd611416a9eecf.svelte	mismatch
 svelte/rsvelte-tests-core-3/slot_host_3598/a_component_owner_still_requires_a_direct_child/17e94a3c29a54029.svelte	mismatch
@@ -405,7 +397,6 @@ svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/non_css_st
 svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/plain_css_unused_ignore_is_still_reported/964da7c6a5553df3.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/transformed_scss_unused_ignore_is_reported/e19fecebd6a045c3.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_lint/runes_mode/tests/svelte_options_overrides_in_both_directions/dbff959d7828964d.svelte	refused
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/runes/tests/nested_rune_named_declarations_do_not_enable_runes_mode/85e558f111401356.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/stores/tests/props_id_rune_next_to_props_declaration_is_not_a_store/c1144c764992de79.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/stores/tests/state_snapshot_member_access_still_subscribes/94c15692a417ad7d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/stores/tests/test_store_multiple_variable_declaration/96fdd399e370c7c0.svelte	mismatch
@@ -502,7 +493,6 @@ svelte/rsvelte/lint/runes-mode/06-template-only-rune-rule-in-legacy.svelte	refus
 svelte/rsvelte/lint/shorthand-directive/opt-key-prefer-always-explicit.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/components/svelte-component-dynamic.svelte	refused
 svelte/rsvelte/pattern/adversarial/events-actions-transitions/rejected-event-and-element.svelte	mismatch
-svelte/rsvelte/pattern/adversarial/legacy/legacy-accessors-and-restprops.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/legacy/legacy-before-after-update.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-component-events.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-context-module-exports.svelte	refused
@@ -511,7 +501,6 @@ svelte/rsvelte/pattern/adversarial/legacy/legacy-each-and-store-interplay.svelte
 svelte/rsvelte/pattern/adversarial/legacy/legacy-event-modifier-matrix.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-immutable-and-accessors.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-lifecycle-and-dispatch.svelte	refused
-svelte/rsvelte/pattern/adversarial/legacy/legacy-module-and-dollar-dollar.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/legacy/legacy-options-accessors-immutable.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-props-and-restprops.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-reactive-order-and-cycles.svelte	refused
@@ -526,8 +515,6 @@ svelte/rsvelte/pattern/adversarial/legacy/legacy-store-autosubscription.svelte	r
 svelte/rsvelte/pattern/adversarial/legacy/legacy-store-in-each-and-blocks.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-store-in-every-position.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/legacy-store-shapes.svelte	refused
-svelte/rsvelte/pattern/adversarial/legacy/restprops-legacy.svelte	mismatch
-svelte/rsvelte/pattern/adversarial/legacy/restprops-spread-forwarding.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/legacy/svelte-legacy-imports.svelte	refused
 svelte/rsvelte/pattern/adversarial/runes/inspect-with-and-snapshot-nesting.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelte	mismatch
@@ -540,7 +527,6 @@ svelte/rsvelte/pattern/issues/3141-const-in-svelte-self.svelte	unexpected
 svelte/rsvelte/pattern/issues/3175-legacy-derived-server-fold.svelte	refused
 svelte/rsvelte/pattern/issues/3177-module-multi-declarator.svelte	mismatch
 svelte/rsvelte/pattern/issues/3180-snapshot-position.svelte	mismatch
-svelte/rsvelte/pattern/issues/3190-runes-legacy-props.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-bind-eval.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-delete-local.svelte	mismatch
@@ -562,7 +548,6 @@ svelte/rsvelte/pattern/issues/3201-template-fast-path-escape.svelte	mismatch
 svelte/rsvelte/pattern/issues/3201-template-fast-path-octal.svelte	mismatch
 svelte/rsvelte/pattern/issues/3201-template-strict-param-clash.svelte	mismatch
 svelte/rsvelte/pattern/issues/3201-template-strict-proto.svelte	mismatch
-svelte/rsvelte/pattern/issues/3237-nested-rune-named-declaration.svelte	mismatch
 svelte/rsvelte/pattern/issues/3296-template-scope-shadow-write.svelte	refused
 svelte/rsvelte/pattern/issues/acorn-reserved-word-opens-an-earlier-statement.svelte	mismatch
 svelte/rsvelte/pattern/issues/deferred-script-error-before-unclosed-block.svelte	mismatch
