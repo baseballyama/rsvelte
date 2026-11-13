@@ -1,4 +1,4 @@
-# svelte.compile/client: 36150 match
+# svelte.compile/client: 36151 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -421,7 +421,6 @@ svelte/rsvelte/pattern/issues/acorn-reserved-word-opens-an-earlier-statement.sve
 svelte/rsvelte/pattern/issues/deferred-script-error-before-unclosed-block.svelte	mismatch
 svelte/rsvelte/pattern/issues/destructure-in-a-statement-head-is-standalone.svelte	mismatch
 svelte/rsvelte/pattern/issues/legacy-title-store-call.svelte	refused
-svelte/rsvelte/pattern/issues/script-lang-after-quoted-gt.svelte	refused
 svelte/rsvelte/pattern/issues/server-bind-get-after-const.svelte	mismatch
 svelte/rsvelte/pattern/issues/snippet-parameter-default-parentheses.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/svelte-options/svelte-options02-input.svelte	refused

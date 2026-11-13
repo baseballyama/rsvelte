@@ -1,4 +1,4 @@
-# svelte.format/default: 35789 match
+# svelte.format/default: 35790 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -855,7 +855,6 @@ svelte/rsvelte/pattern/issues/4046-scss-line-comment-before-unclosed-atrule.svel
 svelte/rsvelte/pattern/issues/acorn-reserved-word-opens-an-earlier-statement.svelte	refused
 svelte/rsvelte/pattern/issues/acorn-unchecked-ts-grammar-rule-in-a-template.svelte	refused
 svelte/rsvelte/pattern/issues/css-interpolation-empty-declaration-end.svelte	refused
-svelte/rsvelte/pattern/issues/script-lang-after-quoted-gt.svelte	refused
 svelte/rsvelte/pattern/issues/scss-line-comment-brace-drift.svelte	mismatch
 svelte/runed/sites/docs/src/lib/components/blueprint.svelte	mismatch
 svelte/shadcn-svelte-extras/src/lib/components/docs/installation-setup-tabs.svelte	mismatch

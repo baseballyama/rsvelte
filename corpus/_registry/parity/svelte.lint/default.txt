@@ -1,4 +1,4 @@
-# svelte.lint/default: 36810 match
+# svelte.lint/default: 36811 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/lib/components/paginator.svelte	mismatch
@@ -2371,7 +2371,6 @@ svelte/rsvelte/pattern/issues/an-enum-declaration-carries-its-members.svelte	une
 svelte/rsvelte/pattern/issues/bind-this-host-that-bypasses-the-bind-directive-visitor.svelte	mismatch
 svelte/rsvelte/pattern/issues/class-member-modifier-field-set.svelte	mismatch
 svelte/rsvelte/pattern/issues/deferred-script-error-before-unclosed-block.svelte	refused
-svelte/rsvelte/pattern/issues/script-lang-after-quoted-gt.svelte	refused
 svelte/rsvelte/pattern/issues/scss-comma-atrule-interpolation.svelte	mismatch
 svelte/rsvelte/pattern/issues/scss-line-comment-apostrophe.svelte	mismatch
 svelte/rsvelte/pattern/issues/scss-line-comment-brace-drift.svelte	mismatch
