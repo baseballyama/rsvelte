@@ -217,18 +217,21 @@ pub(crate) enum Unit {
 }
 
 /// The first error acorn throws while upstream parses the scripts: where it stops in syntax oxc
-/// parsed, or what oxc's checker rejects after the parser, whichever comes first.
+/// parsed, a name it declares twice that oxc lets TypeScript declare again, or what oxc's checker
+/// rejects after the parser, whichever comes first.
 pub(crate) fn javascript_error(res: &Resolution) -> Option<SyntaxError> {
     let at = |error: &SyntaxError| match error.acorn {
         Some(Acorn::Stops(at) | Acorn::Fails { at, .. }) => at,
         None => error.diagnostic.span.start_offset,
     };
-    let checked = res.javascript_syntax_error().cloned();
-    match (res.tree().acorn_rejection(), checked) {
-        (Some(rejected), Some(checked)) if at(&checked) < at(&rejected) => Some(checked),
-        (Some(rejected), _) => Some(rejected),
-        (None, checked) => checked,
-    }
+    [
+        res.javascript_syntax_error().cloned(),
+        res.tree().acorn_rejection(),
+        res.semantic().acorn_redeclaration(),
+    ]
+    .into_iter()
+    .flatten()
+    .min_by_key(at)
 }
 
 pub(crate) fn validate_unit(
