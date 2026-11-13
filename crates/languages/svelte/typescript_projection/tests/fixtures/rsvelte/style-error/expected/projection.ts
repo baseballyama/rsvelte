@@ -1,8 +1,8 @@
 ;
 
 	let count: number = 'zero';
-	type __rsvelte_props_type0 = { title: string };
-let { title }: __rsvelte_props_type0 = $props();
+	type $$ComponentProps = { title: string };
+let { title }: $$ComponentProps = $props();
 
 ;
 
@@ -12,6 +12,6 @@ async () => {
     (title.toFixed());
   }
 };
-const StyleError__SvelteComponent_ = __rsvelte_export_component<__rsvelte_props_type0, {}, "">();
+const StyleError__SvelteComponent_ = __rsvelte_export_component<$$ComponentProps, {}, "">();
 type StyleError__SvelteComponent_ = ReturnType<typeof StyleError__SvelteComponent_>;
 export default StyleError__SvelteComponent_;

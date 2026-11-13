@@ -1,8 +1,8 @@
 ;
 
 	let n: number = 'x';
-	type __rsvelte_props_type0 = { label: string };
-let { label }: __rsvelte_props_type0 = $props();
+	type $$ComponentProps = { label: string };
+let { label }: $$ComponentProps = $props();
 	let count = $state(0);
 	let maybe: string | undefined = $state();
 
@@ -34,6 +34,6 @@ async () => {
     (label.baz);
   }
 };
-const CheckCases__SvelteComponent_ = __rsvelte_export_component<__rsvelte_props_type0, {}, "">();
+const CheckCases__SvelteComponent_ = __rsvelte_export_component<$$ComponentProps, {}, "">();
 type CheckCases__SvelteComponent_ = ReturnType<typeof CheckCases__SvelteComponent_>;
 export default CheckCases__SvelteComponent_;

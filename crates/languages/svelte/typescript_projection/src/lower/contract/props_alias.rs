@@ -6,14 +6,21 @@ use super::Edit;
 
 impl Builder<'_> {
     /// Names the annotation at `annotation` in an alias before the statement at `statement`, the
-    /// one copy TypeScript checks, and returns the name for the contract.
+    /// one copy TypeScript checks, and returns the name for the contract. svelte2tsx names an
+    /// annotation that is not a type reference `$$ComponentProps`, which messages then print;
+    /// they print a referenced type by its own name.
     pub(super) fn props_alias(
         &mut self,
         annotation: Span,
+        reference: bool,
         statement: u32,
         edits: &mut Buffer<Edit>,
     ) -> NodeIdentifier {
-        let name = self.unused_name("__rsvelte_props_type");
+        let name = if reference {
+            self.unused_name("__rsvelte_props_type")
+        } else {
+            self.tree.push(Node::Identifier("$$ComponentProps"))
+        };
         let value = self.tree.push(Node::SourceCopy { span: annotation });
         let alias = self.tree.push(Node::TypeAlias { name, value });
         edits.push(Edit {

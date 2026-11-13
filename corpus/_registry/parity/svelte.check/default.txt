@@ -1,4 +1,4 @@
-# svelte.check/default: 35751 match
+# svelte.check/default: 35752 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/lib/components/code.svelte	mismatch
@@ -391,7 +391,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/dollar_generic_alias_is_a_generic_in_scope_on_render/efd2209a7033600b.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/dollar_generic_referenced_ranges_keep_candidate_source_order/cfce5f2fcc3a189d.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/module_shadow_blocks_type_and_dependent_props/c79250a91f4d81d6.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/props_rune/tests/test_component_props_ts_inline_object_type/c89bc9e87ec05791.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/instance_script_dollar_slots_dollar_props_dollar_events_unaffected/bf518e1962ff1a4a.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_exported_interface_dollar_props_throws/6f1a3ee68490bdbe.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_interface_dollar_events_throws/7912b9ac275589fe.svelte	mismatch

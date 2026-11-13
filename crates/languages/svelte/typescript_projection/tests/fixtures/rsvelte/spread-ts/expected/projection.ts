@@ -1,7 +1,7 @@
 ;
 
-	type __rsvelte_props_type0 = { href?: string; tabindex?: number };
-let { href, ...rest }: __rsvelte_props_type0 = $props();
+	type $$ComponentProps = { href?: string; tabindex?: number };
+let { href, ...rest }: $$ComponentProps = $props();
 	const wrong = { tabindex: 'first' };
 
 ;
@@ -19,6 +19,6 @@ async () => {
     });
   }
 };
-const SpreadTs__SvelteComponent_ = __rsvelte_export_component<__rsvelte_props_type0, {}, "">();
+const SpreadTs__SvelteComponent_ = __rsvelte_export_component<$$ComponentProps, {}, "">();
 type SpreadTs__SvelteComponent_ = ReturnType<typeof SpreadTs__SvelteComponent_>;
 export default SpreadTs__SvelteComponent_;
