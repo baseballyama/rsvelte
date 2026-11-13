@@ -158,24 +158,53 @@ impl Topology<'_> {
             crate::compiler_syntax_tree::Children,
         )],
     ) {
-        let direct: FxHashMap<_, _> = bodies
+        let index: FxHashMap<_, _> = bodies
             .iter()
-            .map(|&(id, body)| (id, build::snippet_roots(tree, body)))
+            .enumerate()
+            .map(|(at, &(id, _))| (id, at))
             .collect();
-        for &(id, _) in bodies {
+        let direct: Vec<_> = bodies
+            .iter()
+            .map(|&(_, body)| build::snippet_roots(tree, body))
+            .collect();
+        let mut reached = Vec::new();
+        let mut seen = vec![false; bodies.len()];
+        let mut pending = Vec::new();
+        for (at, (_, renderers)) in direct.iter().enumerate() {
+            if renderers.is_empty() {
+                continue;
+            }
             let mut roots = Vec::new();
-            let mut seen = rustc_hash::FxHashSet::default();
-            let mut pending = vec![id];
+            let mut every = false;
+            seen.fill(false);
+            pending.push(at);
             while let Some(snippet) = pending.pop() {
-                if !seen.insert(snippet) {
+                if std::mem::replace(&mut seen[snippet], true) {
                     continue;
                 }
-                let (own, renderers) = &direct[&snippet];
+                let (own, renderers) = &direct[snippet];
                 roots.extend_from_slice(own);
-                for &renderer in renderers {
-                    pending.extend(self.rendered_snippets(renderer).iter().map(|s| s.node));
+                for renderer in renderers {
+                    match self.rendered.get(renderer) {
+                        Some(Rendered::Snippets(snippets)) => {
+                            pending.extend(snippets.iter().map(|snippet| index[&snippet.node]));
+                        }
+                        // Once every snippet is pending, another such renderer adds none.
+                        Some(Rendered::Every) if !every => {
+                            every = true;
+                            pending.extend(0..bodies.len());
+                        }
+                        Some(Rendered::Every) | None => {}
+                    }
                 }
             }
+            reached.push((at, roots));
+        }
+        let mut roots: Vec<_> = direct.into_iter().map(|(own, _)| own).collect();
+        for (at, closed) in reached {
+            roots[at] = closed;
+        }
+        for (&(id, _), roots) in bodies.iter().zip(roots) {
             self.roots.insert(id, roots.into_boxed_slice());
         }
     }
