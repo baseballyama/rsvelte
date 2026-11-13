@@ -4,11 +4,10 @@ use oxc_ast::ast::{
 };
 use oxc_semantic::{NodeId, ReferenceId, ScopeId, SymbolId};
 use oxc_span::GetSpan;
-use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_typescript_semantic::semantic::Semantic;
 
-use super::{Facts, Use, span};
+use super::{Facts, Use, identifier_range, span};
 
 /// `ESLint`'s `no-unused-vars` with its default options (`vars: all`, `args: after-used`,
 /// `caughtErrors: all`, no ignore patterns, `ignoreRestSiblings: false`).
@@ -118,32 +117,6 @@ fn any_parameter_used(f: &Facts<'_>, parameters: &FormalParameters<'_>) -> bool 
         }
     }
     used
-}
-
-/// typescript-eslint's range for a declared name covers its `?` and its type annotation.
-fn identifier_range(f: &Facts<'_>, symbol: SymbolId, at: oxc_span::Span) -> Span {
-    let mut end = at.end;
-    if at == f.scoping.symbol_span(symbol) {
-        let annotation = match f.kind(f.declaration(symbol)) {
-            AstKind::FormalParameter(p) if p.pattern.get_binding_identifier().is_some() => {
-                if p.optional {
-                    end += 1;
-                }
-                p.type_annotation.as_ref().map(|a| a.span())
-            }
-            AstKind::VariableDeclarator(d) if d.id.get_binding_identifier().is_some() => {
-                d.type_annotation.as_ref().map(|a| a.span())
-            }
-            AstKind::CatchParameter(c) if c.pattern.get_binding_identifier().is_some() => {
-                c.type_annotation.as_ref().map(|a| a.span())
-            }
-            _ => None,
-        };
-        if let Some(annotation) = annotation {
-            end = end.max(annotation.end);
-        }
-    }
-    span(oxc_span::Span::new(at.start, end))
 }
 
 /// The function a parameter belongs to, through its parameter list.
