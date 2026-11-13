@@ -64,10 +64,8 @@ pub(super) fn check_analysis(
             .filter_map(Result::err)
             .map(|e| walk(Section::Template, e)),
     );
-    // Only a template error needs the scripts' first, which the later rune checks raise anyway.
-    if errors
-        .iter()
-        .any(|(raised, _)| raised.section == Section::Template)
+    // A walk error waits for the scripts' first, which the later rune checks raise anyway.
+    if errors.iter().any(|(raised, _)| raised.phase == Phase::Walk)
         && let Some((module, error)) = script_error(input, res, custom_element)
     {
         let section = if module {
@@ -83,25 +81,43 @@ pub(super) fn check_analysis(
         return Err(error);
     }
     names.check(input, res)?;
-    check_legacy_props(res)?;
+    check_legacy_props(input, res)?;
     errors.next().map_or(Ok(()), |(_, error)| Err(error))
 }
 
 /// Upstream `legacy_props_invalid` and `legacy_rest_props_invalid` at a name no script declares.
-fn check_legacy_props(res: &Resolution) -> Result<(), Diagnostic> {
-    let first = first_unresolved(res, |name| matches!(name, "$$props" | "$$restProps"));
-    let Some((name, span)) = first else {
-        return Ok(());
+fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
+    // Upstream reads `$$props` first, and meets the scripts' references before the template's.
+    let javascript = input.component.javascript;
+    let scripted = |offset: u32| {
+        [input.component.module, input.component.instance]
+            .into_iter()
+            .flatten()
+            .any(|p| {
+                let span = javascript.get_program(p).span;
+                span.start <= offset && offset < span.end
+            })
     };
-    let (code, message) = if name == "$$props" {
-        ("legacy_props_invalid", "Cannot use `$$props` in runes mode")
-    } else {
+    for (name, code, message) in [
         (
+            "$$props",
+            "legacy_props_invalid",
+            "Cannot use `$$props` in runes mode",
+        ),
+        (
+            "$$restProps",
             "legacy_rest_props_invalid",
             "Cannot use `$$restProps` in runes mode",
-        )
-    };
-    super::special::invalid(code, message, span)
+        ),
+    ] {
+        let first = unbound(res, |n| n == name)
+            .flat_map(|(_, references)| references.into_iter().map(|r| res.reference_span(r)))
+            .min_by_key(|span| (!scripted(span.start), span.start));
+        if let Some(span) = first {
+            return super::special::invalid(code, message, Span::new(span.start, span.end));
+        }
+    }
+    Ok(())
 }
 
 /// The first value reference, in document order, to a name no binding declares that `wanted`
