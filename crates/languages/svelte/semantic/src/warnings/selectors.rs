@@ -38,12 +38,7 @@ pub(super) fn unused_selectors(rules: &[Rule], analysis: &Analysis, source: &str
                 for selector in selectors {
                     unused_selector(selector, None, analysis, source, out);
                 }
-                let global_block = selectors.iter().any(|selector| {
-                    selector
-                        .parts
-                        .iter()
-                        .any(|part| part.simple.iter().any(|s| s.is_global_block(source)))
-                });
+                let global_block = selectors.iter().any(|s| s.opens_global_block(source));
                 if !global_block {
                     unused_selectors(&rule.children, analysis, source, out);
                 }

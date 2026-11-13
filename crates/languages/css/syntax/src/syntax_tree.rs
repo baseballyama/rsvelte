@@ -95,6 +95,17 @@ pub struct ComplexSelector {
     pub parts: Box<[RelativeSelector]>,
 }
 
+impl ComplexSelector {
+    /// Svelte's `is_global_block`: a compound of the selector starts with a bare `:global`, so
+    /// the body of its rule is global.
+    #[must_use]
+    pub fn opens_global_block(&self, source: &str) -> bool {
+        self.parts
+            .iter()
+            .any(|part| part.simple.first().is_global_block(source))
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Combinator {
     Descendant,

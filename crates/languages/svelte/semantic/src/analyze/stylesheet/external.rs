@@ -60,13 +60,7 @@ pub(super) fn in_global_blocks(source: &str, rules: &[Rule], count: usize) -> Ve
                 for selector in selectors {
                     out[selector.id as usize] = inside;
                 }
-                selectors.iter().any(|selector| {
-                    selector
-                        .parts
-                        .last()
-                        .and_then(|part| part.simple.iter().next_back())
-                        .is_some_and(|simple| simple.is_global_block(source))
-                })
+                selectors.iter().any(|s| s.opens_global_block(source))
             } else {
                 false
             };

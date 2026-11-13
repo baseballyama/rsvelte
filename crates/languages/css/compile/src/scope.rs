@@ -114,13 +114,7 @@ impl Renderer<'_> {
 
     /// Whether a rule is a `:global { ... }` block, whose body Svelte leaves unscoped.
     fn global_block(&self, selectors: &[ComplexSelector]) -> bool {
-        selectors.iter().any(|s| {
-            s.parts.iter().any(|p| {
-                p.simple
-                    .iter()
-                    .any(|simple| simple.is_global_block(self.source))
-            })
-        })
+        selectors.iter().any(|s| s.opens_global_block(self.source))
     }
 
     fn empty(&self, rule: &Rule, global: bool) -> bool {

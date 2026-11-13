@@ -1,4 +1,4 @@
-# svelte.compile/client: 36049 match
+# svelte.compile/client: 36053 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -132,9 +132,6 @@ svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/host_attribute_prec
 svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/host_attribute_precedence_matches_official/cab940294d6b2a6a.svelte	mismatch
 svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/host_attribute_precedence_matches_official/e41c7427c5587e76.svelte	mismatch
 svelte/rsvelte-tests-core-2/export_specifier_error_spans/export_undefined_points_at_the_whole_export_specifier/b9cd0b02029ce8d3.svelte	mismatch
-svelte/rsvelte-tests-core-2/global_block_body_not_pruned_4089/a_global_block_opened_by_a_modifier_start_is_one_too/0bcbe85ea658b77a.svelte	mismatch
-svelte/rsvelte-tests-core-2/global_block_body_not_pruned_4089/a_global_block_opened_by_a_modifier_start_is_one_too/882cc72dc283d5e0.svelte	mismatch
-svelte/rsvelte-tests-core-2/global_block_body_not_pruned_4089/a_global_block_opened_by_a_modifier_start_is_one_too/cf3fb0930976baa6.svelte	mismatch
 svelte/rsvelte-tests-core-2/global_block_body_not_pruned_4089/a_global_block_scopes_only_what_its_prelude_matches/8e4c52bd0555fd5c.svelte	mismatch
 svelte/rsvelte-tests-core-2/html_tag_opening_validation/legacy_html_tag_allows_whitespace_after_opening_bracket/dd685fe951100624.svelte	unexpected
 svelte/rsvelte-tests-core-2/html_tag_opening_validation/runes_html_tag_requires_at_sign_immediately_after_opening_bracket/eae9a644352dd32a.svelte	unexpected
@@ -567,7 +564,6 @@ svelte/rsvelte/pattern/issues/3296-template-scope-shadow-write.svelte	refused
 svelte/rsvelte/pattern/issues/acorn-reserved-word-opens-an-earlier-statement.svelte	mismatch
 svelte/rsvelte/pattern/issues/deferred-script-error-before-unclosed-block.svelte	mismatch
 svelte/rsvelte/pattern/issues/destructure-in-a-statement-head-is-standalone.svelte	mismatch
-svelte/rsvelte/pattern/issues/global-block-body-is-not-pruned.svelte	mismatch
 svelte/rsvelte/pattern/issues/is-branch-unused-warning-position.svelte	mismatch
 svelte/rsvelte/pattern/issues/legacy-title-store-call.svelte	refused
 svelte/rsvelte/pattern/issues/script-lang-after-quoted-gt.svelte	refused
