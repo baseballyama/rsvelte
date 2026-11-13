@@ -2975,3 +2975,27 @@
 
 ["svelte/svelte-maplibre/src/lib/SymbolLayer.svelte".skip]
 "svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/appwrite-console/src/lib/components/code.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/style-directive/input.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/string-completion.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/primo/src/lib/builder/components/ComponentPreview.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/primo/src/lib/builder/field-types/RepeaterField.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/primo/src/lib/components/SitePreview.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/5f3e477248e3f847.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/rsvelte/pattern/adversarial/typescript/ts-type-only-forms.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"

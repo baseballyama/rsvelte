@@ -1,7 +1,6 @@
 # svelte.check/default: 35768 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
-svelte/appwrite-console/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/roles/default.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/save.svelte	mismatch
@@ -56,7 +55,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-js.v5/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/input.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/style-directive/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/transition-options/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ts-ignore-attribute.v5/input.svelte	mismatch
@@ -66,7 +64,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-checkJs-module.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/component-props-completion-rune.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/string-completion.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent2.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/svelte-self-forward-event/input.svelte	refused
@@ -79,13 +76,11 @@ svelte/layerchart/packages/layerchart/src/lib/components/geo/GeoRaster/GeoRaster
 svelte/melt-ui/docs/src/components/motion.svelte	mismatch
 svelte/melt-ui/packages/melt/src/lib/builders/tests/SpatialMenuDisabledTest.svelte	mismatch
 svelte/primo/src/lib/builder/Primo.svelte	mismatch
-svelte/primo/src/lib/builder/components/ComponentPreview.svelte	mismatch
 svelte/primo/src/lib/builder/components/Fields/FieldItem.svelte	mismatch
 svelte/primo/src/lib/builder/components/Fields/SelectField.svelte	mismatch
 svelte/primo/src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte	mismatch
 svelte/primo/src/lib/builder/field-types/IconField.svelte	mismatch
 svelte/primo/src/lib/builder/field-types/ImageField.svelte	mismatch
-svelte/primo/src/lib/builder/field-types/RepeaterField.svelte	mismatch
 svelte/primo/src/lib/builder/field-types/TextField.svelte	mismatch
 svelte/primo/src/lib/builder/views/editor/Page.svelte	mismatch
 svelte/primo/src/lib/builder/views/editor/PageType.svelte	mismatch
@@ -94,7 +89,6 @@ svelte/primo/src/lib/builder/views/modal/BlockEditor.svelte	mismatch
 svelte/primo/src/lib/builder/views/modal/PageTypeModal/PageTypeForm.svelte	mismatch
 svelte/primo/src/lib/builder/views/modal/SectionEditor/SectionEditor.svelte	mismatch
 svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte	mismatch
-svelte/primo/src/lib/components/SitePreview.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	mismatch
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/await_in_a_parameter_default_is_rejected_in_every_function_form/640c425dcf84793e.svelte	mismatch
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/await_is_rejected_wherever_it_sits_in_the_parameter_list/9611a290fa8836c5.svelte	mismatch
@@ -269,7 +263,6 @@ svelte/rsvelte-tests-core-3/template_keyword_head_3652/new_target_in_a_template_
 svelte/rsvelte-tests-core-3/template_literal_sanitize/attribute_value_backtick_is_escaped/7eea982d5e7b34c7.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_typescript_mode_3261/snippet_default_parameter_agrees_in_both_modes/a526d5cf3c0d783c.svelte	mismatch
 svelte/rsvelte-tests-core-3/template_typescript_mode_3261/snippet_default_parameter_agrees_in_both_modes/a76f0194615b53fd.svelte	mismatch
-svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/5f3e477248e3f847.svelte	mismatch
 svelte/rsvelte-tests-core-3/ts_decorators_2597/a_decorator_under_a_default_export_is_not_the_reported_error/b0a7ed534e86235c.svelte	refused
 svelte/rsvelte-tests-core-3/ts_decorators_2597/a_decorator_under_a_default_export_is_not_the_reported_error/f758f4def7740efe.svelte	refused
 svelte/rsvelte-tests-core-3/ts_duplicate_function_3484/duplicate_snippets_still_report_exactly_once/318a7f69e489f5a0.svelte	mismatch
@@ -716,7 +709,6 @@ svelte/rsvelte/lint/no-svelte-internal/16-export-without-source.svelte	mismatch
 svelte/rsvelte/lint/no-useless-children-snippet/06-boundary-and-self.svelte	mismatch
 svelte/rsvelte/lint/no-useless-children-snippet/17-ts-typed-params.svelte	mismatch
 svelte/rsvelte/lint/require-each-key/13-key-expression-forms.svelte	mismatch
-svelte/rsvelte/pattern/adversarial/typescript/ts-type-only-forms.svelte	mismatch
 svelte/rsvelte/pattern/issues/2596-ts-required-after-optional.svelte	refused
 svelte/rsvelte/pattern/issues/3125-let-directive-paren-default.svelte	mismatch
 svelte/rsvelte/pattern/issues/3164-on-directive-inner-init.svelte	mismatch
