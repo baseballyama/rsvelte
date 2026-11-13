@@ -211,7 +211,7 @@ fn validate_globals(
         if let AttributeValue::Bind(_) = attribute.value
             && global_binding(tag, attribute.name.text(source)).is_none()
         {
-            super::bindings::check_target(source, host, attributes, attribute)?;
+            super::bindings::check_binding(source, host, attributes, attribute)?;
             return unsupported("this global binding", attribute.span);
         }
     }

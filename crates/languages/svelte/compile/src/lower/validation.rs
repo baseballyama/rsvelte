@@ -23,7 +23,7 @@ pub(super) fn redeclares_in_template(input: &CompileInput<'_>, error: &Diagnosti
         .any(|span| span.start <= start && start < span.end)
 }
 
-use super::{CompileInput, Diagnostic, Resolution, Span};
+use super::{CompileInput, Diagnostic, Resolution, Span, Target};
 
 /// Upstream's analysis errors in its order: the first it raises as it builds the scopes, then
 /// `$$props` and `$$restProps`, then the first its walk meets. `template` holds those of the
@@ -57,25 +57,42 @@ pub(super) fn check_analysis(
         };
         (raised, error)
     };
-    let template = [super::special::analysis(input), markup::check(input)];
+    let template = [
+        super::special::analysis(input).map_err(|e| (e.span.start_offset, e)),
+        markup::check(input),
+    ];
     errors.extend(
         template
             .into_iter()
             .filter_map(Result::err)
-            .map(|e| walk(Section::Template, e)),
+            .map(|(at, error)| {
+                let raised = Raised {
+                    phase: Phase::Walk,
+                    section: Section::Template,
+                    at,
+                };
+                (raised, error)
+            }),
     );
-    // Only a template error needs the scripts' first, which the later rune checks raise anyway.
+    // Only a template error needs the scripts' first and the rune walk's in the template, which
+    // the later rune checks raise anyway: upstream meets them all in one walk.
     if errors
         .iter()
         .any(|(raised, _)| raised.section == Section::Template)
-        && let Some((module, error)) = script_error(input, res, custom_element)
     {
-        let section = if module {
-            Section::Module
-        } else {
-            Section::Instance
-        };
-        errors.push(walk(section, error));
+        if let Some((module, error)) = script_error(input, res, custom_element) {
+            let section = if module {
+                Section::Module
+            } else {
+                Section::Instance
+            };
+            errors.push(walk(section, error));
+        }
+        if let Err(error) = check_runes(input, res, Target::Client, custom_element)
+            && error.code != "unsupported"
+        {
+            errors.push(walk(Section::Template, error));
+        }
     }
     errors.sort_by_key(|&(raised, _)| raised);
     let mut errors = errors.into_iter().peekable();

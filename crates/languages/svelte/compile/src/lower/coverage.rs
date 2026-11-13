@@ -314,7 +314,7 @@ fn supported_binding(
     let Some(p) = property_of(property) else {
         return false;
     };
-    if bindings::check_target(source_text, tag, attributes, a).is_err() {
+    if bindings::check_binding(source_text, tag, attributes, a).is_err() {
         return false;
     }
     // Upstream's `attribute_invalid_type`: only `bind:value` beside a `type` not written as text.

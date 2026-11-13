@@ -21,6 +21,7 @@ impl<'s> CompilerSyntaxTreeBuilder<'s> {
                 debug_identifiers: Vec::new(),
                 component_references: Vec::new(),
                 static_slots: Vec::new(),
+                parenthesized_binds: Vec::new(),
                 root: Children::default(),
             },
         }
@@ -112,6 +113,11 @@ impl<'s> CompilerSyntaxTreeBuilder<'s> {
             panic!("{identifier:?} is not an element")
         };
         el.children = children;
+    }
+
+    /// Records the `bind:` expressions written inside parentheses.
+    pub fn parenthesized_binds(&mut self, binds: &[ExpressionIdentifier]) {
+        self.compiler_syntax_tree.parenthesized_binds.extend(binds);
     }
 
     #[must_use]

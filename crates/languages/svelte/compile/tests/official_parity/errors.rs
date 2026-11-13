@@ -179,7 +179,7 @@ fn assignment_errors_come_in_document_order_after_the_binding_checks() {
             "</script><button onclick={() => s++}>x</button><C bind:value={s} />",
             "constant_assignment",
         ),
-        ("</script><div bind:foo={s}></div>", "unsupported"),
+        ("</script><div bind:foo={s}></div>", "bind_invalid_name"),
         (
             "</script><input bind:value={s} /><C bind:value={nope} />",
             "constant_binding",
@@ -379,7 +379,7 @@ fn a_binding_upstream_rejects_on_its_element_is_refused_on_both_targets() {
             "unsupported",
         ),
         ("<svg bind:offsetWidth={x}></svg>", "bind_invalid_target"),
-        ("<div bind:nope={x}></div>", "unsupported"),
+        ("<div bind:nope={x}></div>", "bind_invalid_name"),
         (
             "{#snippet s(y)}<input type=\"radio\" bind:group={y} />{/snippet}",
             "unsupported",

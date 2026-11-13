@@ -1,6 +1,8 @@
 //! Upstream's `binding_properties` for elements: where each `bind:` property is valid, and the
 //! runtime call that keeps it in sync.
 
+mod fuzzymatch;
+
 use rsvelte_kernel::diagnostics::Diagnostic;
 
 use super::special::invalid;
@@ -43,74 +45,196 @@ const fn property(lowering: Lowering, bidirectional: bool, client_only: bool) ->
     }
 }
 
-/// Upstream's `valid_elements` for the binding `name`, as tag names: `None` when any element
-/// takes it or no element does.
-pub(super) fn valid_hosts(name: &str) -> Option<&'static [&'static str]> {
-    Some(match name {
-        "currentTime" | "duration" | "paused" | "buffered" | "seekable" | "played" | "volume"
-        | "muted" | "playbackRate" | "seeking" | "ended" | "readyState" => MEDIA,
-        "videoHeight" | "videoWidth" => &["video"],
-        "naturalWidth" | "naturalHeight" => &["img"],
-        "activeElement" | "fullscreenElement" | "pointerLockElement" | "visibilityState" => {
-            &["svelte:document"]
-        }
-        "innerWidth" | "innerHeight" | "outerWidth" | "outerHeight" | "scrollX" | "scrollY"
-        | "online" | "devicePixelRatio" => &["svelte:window"],
-        "indeterminate" | "checked" | "group" | "files" => INPUT,
-        "open" => &["details"],
-        "value" => &["input", "textarea", "select"],
-        _ => return None,
-    })
+/// Where a binding is valid: upstream's `valid_elements` and `invalid_elements`.
+#[derive(Clone, Copy)]
+enum Hosts {
+    Any,
+    Only(&'static [&'static str]),
+    Not(&'static [&'static str]),
 }
 
-/// Upstream's `bind_invalid_target` for the binding `a` on `host`, the tag name as written.
+impl Hosts {
+    fn take(self, host: &str) -> bool {
+        match self {
+            Self::Any => true,
+            Self::Only(hosts) => hosts.contains(&host),
+            Self::Not(hosts) => !hosts.contains(&host),
+        }
+    }
+}
+
+const GLOBALS: &[&str] = &["svelte:window", "svelte:document"];
+
+/// Upstream's `binding_properties` in its order, which its suggestions and lists follow.
+const BINDINGS: &[(&str, Hosts)] = {
+    use Hosts::{Any, Not, Only};
+    const WINDOW: Hosts = Only(&["svelte:window"]);
+    const DOCUMENT: Hosts = Only(&["svelte:document"]);
+    &[
+        ("currentTime", Only(MEDIA)),
+        ("duration", Only(MEDIA)),
+        ("focused", Any),
+        ("paused", Only(MEDIA)),
+        ("buffered", Only(MEDIA)),
+        ("seekable", Only(MEDIA)),
+        ("played", Only(MEDIA)),
+        ("volume", Only(MEDIA)),
+        ("muted", Only(MEDIA)),
+        ("playbackRate", Only(MEDIA)),
+        ("seeking", Only(MEDIA)),
+        ("ended", Only(MEDIA)),
+        ("readyState", Only(MEDIA)),
+        ("videoHeight", Only(&["video"])),
+        ("videoWidth", Only(&["video"])),
+        ("naturalWidth", Only(&["img"])),
+        ("naturalHeight", Only(&["img"])),
+        ("activeElement", DOCUMENT),
+        ("fullscreenElement", DOCUMENT),
+        ("pointerLockElement", DOCUMENT),
+        ("visibilityState", DOCUMENT),
+        ("innerWidth", WINDOW),
+        ("innerHeight", WINDOW),
+        ("outerWidth", WINDOW),
+        ("outerHeight", WINDOW),
+        ("scrollX", WINDOW),
+        ("scrollY", WINDOW),
+        ("online", WINDOW),
+        ("devicePixelRatio", WINDOW),
+        ("clientWidth", Not(GLOBALS)),
+        ("clientHeight", Not(GLOBALS)),
+        ("offsetWidth", Not(GLOBALS)),
+        ("offsetHeight", Not(GLOBALS)),
+        ("contentRect", Not(GLOBALS)),
+        ("contentBoxSize", Not(GLOBALS)),
+        ("borderBoxSize", Not(GLOBALS)),
+        ("devicePixelContentBoxSize", Not(GLOBALS)),
+        ("indeterminate", Only(INPUT)),
+        ("checked", Only(INPUT)),
+        ("group", Only(INPUT)),
+        ("this", Any),
+        ("innerText", Not(GLOBALS)),
+        ("innerHTML", Not(GLOBALS)),
+        ("textContent", Not(GLOBALS)),
+        ("open", Only(&["details"])),
+        ("value", Only(&["input", "textarea", "select"])),
+        ("files", Only(INPUT)),
+    ]
+};
+
+/// The names JavaScript's `in` finds on every object, which upstream takes for bindings.
+const INHERITED: &[&str] = &[
+    "constructor",
+    "hasOwnProperty",
+    "isPrototypeOf",
+    "propertyIsEnumerable",
+    "toLocaleString",
+    "toString",
+    "valueOf",
+    "__proto__",
+    "__defineGetter__",
+    "__defineSetter__",
+    "__lookupGetter__",
+    "__lookupSetter__",
+];
+
+/// Upstream `BindDirective`'s checks of the binding `a` against `host`, the tag as written.
 ///
 /// # Errors
 ///
-/// `bind_invalid_target` when `host` cannot take the binding.
-pub(super) fn check_target(
+/// `bind_invalid_name` for a name no binding has or one `host` does not take, and
+/// `bind_invalid_target` for an element the binding does not fit.
+pub(super) fn check_binding(
     source_text: &str,
     host: &str,
     attributes: &[Attribute],
     a: &Attribute,
 ) -> Result<(), Diagnostic> {
     let name = a.name.text(source_text);
-    let target = |elements: &str| {
-        invalid(
-            "bind_invalid_target",
-            &format!("`bind:{name}` can only be used with {elements}"),
-            a.span,
-        )
+    let invalid_name = |explanation: &str| {
+        let message = format!("`bind:{name}` is not a valid binding{explanation}");
+        invalid("bind_invalid_name", &message, a.span)
     };
-    if let Some(hosts) = valid_hosts(name)
-        && !hosts.contains(&host)
+    let Some(&(_, hosts)) = BINDINGS.iter().find(|&&(n, _)| n == name) else {
+        if INHERITED.contains(&name) {
+            return Ok(());
+        }
+        let names: Vec<&str> = BINDINGS.iter().map(|&(n, _)| n).collect();
+        if let Some(near) = fuzzymatch::fuzzymatch(name, &names)
+            && BINDINGS.iter().any(|&(n, h)| {
+                n == near && !matches!(h, Hosts::Only(only) if !only.contains(&host))
+            })
+        {
+            return invalid_name(&format!(". Did you mean '{near}'?"));
+        }
+        return invalid_name("");
+    };
+    if let Hosts::Only(only) = hosts
+        && !only.contains(&host)
     {
-        let hosts: Vec<String> = hosts.iter().map(|h| format!("`<{h}>`")).collect();
-        return target(&hosts.join(", "));
+        let only: Vec<String> = only.iter().map(|h| format!("`<{h}>`")).collect();
+        return invalid_target(name, &only.join(", "), a);
     }
-    if host == "input" && matches!(name, "checked" | "files") {
-        // A `type` not written as text is upstream's `attribute_invalid_type` instead.
-        let ty = match attribute_value(source_text, attributes, "type") {
-            None => None,
-            Some(AttributeValue::Static(ty)) => Some(&**ty),
-            Some(_) => return Ok(()),
-        };
-        if name == "checked" && ty != Some("checkbox") {
-            let radio = if ty == Some("radio") {
-                " \u{2014} for `<input type=\"radio\">`, use `bind:group`"
-            } else {
-                ""
-            };
-            return target(&format!("`<input type=\"checkbox\">`{radio}"));
-        }
-        if name == "files" && ty != Some("file") {
-            return target("`<input type=\"file\">`");
-        }
+    if let Hosts::Not(not) = hosts
+        && not.contains(&host)
+    {
+        let mut valid: Vec<&str> = (BINDINGS.iter())
+            .filter(|&&(_, h)| h.take(host))
+            .map(|&(n, _)| n)
+            .collect();
+        valid.sort_unstable();
+        return invalid_name(&format!(
+            ". Possible bindings for <{host}> are {}",
+            valid.join(", ")
+        ));
     }
+    check_input(source_text, host, attributes, a, name)?;
     if name == "offsetWidth" && rsvelte_svelte_syntax::names::is_svg(host) {
-        return target("non-`<svg>` elements. Use `bind:clientWidth` for `<svg>` instead");
+        return invalid_target(
+            name,
+            "non-`<svg>` elements. Use `bind:clientWidth` for `<svg>` instead",
+            a,
+        );
     }
     Ok(())
+}
+
+/// Upstream's `bind_invalid_target` for `bind:checked` and `bind:files` on an `<input>` whose
+/// `type` is text; a `type` not written as text is `attribute_invalid_type` instead.
+fn check_input(
+    source_text: &str,
+    host: &str,
+    attributes: &[Attribute],
+    a: &Attribute,
+    name: &str,
+) -> Result<(), Diagnostic> {
+    if host != "input" || !matches!(name, "checked" | "files") {
+        return Ok(());
+    }
+    let ty = match attribute_value(source_text, attributes, "type") {
+        None => None,
+        Some(AttributeValue::Static(ty)) => Some(&**ty),
+        Some(_) => return Ok(()),
+    };
+    if name == "checked" && ty != Some("checkbox") {
+        let radio = if ty == Some("radio") {
+            " \u{2014} for `<input type=\"radio\">`, use `bind:group`"
+        } else {
+            ""
+        };
+        return invalid_target(name, &format!("`<input type=\"checkbox\">`{radio}"), a);
+    }
+    if name == "files" && ty != Some("file") {
+        return invalid_target(name, "`<input type=\"file\">`", a);
+    }
+    Ok(())
+}
+
+fn invalid_target(name: &str, elements: &str, a: &Attribute) -> Result<(), Diagnostic> {
+    invalid(
+        "bind_invalid_target",
+        &format!("`bind:{name}` can only be used with {elements}"),
+        a.span,
+    )
 }
 
 /// The element property `name`, or `None` when no element takes it.
