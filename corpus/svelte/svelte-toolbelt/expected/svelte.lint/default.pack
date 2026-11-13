@@ -1,4 +1,120 @@
 # rsvelte pack 1
+=== 1525 src/lib/box/box-extras.svelte.ts	lint.txt
+26:21 26:36 no-unused-vars "'getter' is defined but never used."
+37:10 37:17 no-redeclare "'boxWith' is already defined."
+37:21 37:36 no-unused-vars "'getter' is defined but never used."
+37:38 37:60 no-unused-vars "'setter' is defined but never used."
+37:47 37:51 no-unused-vars "'v' is defined but never used."
+38:10 38:17 no-redeclare "'boxWith' is already defined."
+38:48 38:52 no-unused-vars "'v' is defined but never used."
+87:21 87:46 no-unused-vars "'value' is defined but never used."
+88:10 88:17 no-redeclare "'boxFrom' is already defined."
+88:21 88:42 no-unused-vars "'value' is defined but never used."
+89:10 89:17 no-redeclare "'boxFrom' is already defined."
+89:21 89:37 no-unused-vars "'value' is defined but never used."
+90:10 90:17 no-redeclare "'boxFrom' is already defined."
+90:21 90:47 no-unused-vars "'value' is defined but never used."
+91:10 91:17 no-redeclare "'boxFrom' is already defined."
+91:21 91:29 no-unused-vars "'value' is defined but never used."
+92:10 92:17 no-redeclare "'boxFrom' is already defined."
+103:54 103:60 no-undef "'Expand' is not defined."
+112:61 112:62 no-unused-vars "'_' is defined but never used."
+123:51 123:52 no-unused-vars "'_' is defined but never used."
+149:5 149:67 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+204:10 204:19 no-redeclare "'simpleBox' is already defined."
+204:23 204:38 no-unused-vars "'initialValue' is defined but never used."
+205:10 205:19 no-redeclare "'simpleBox' is already defined."
+
+=== 177 src/lib/box/box.svelte.ts	lint.txt
+31:17 31:20 no-redeclare "'box' is already defined."
+31:24 31:39 no-unused-vars "'initialValue' is defined but never used."
+32:17 32:20 no-redeclare "'box' is already defined."
+
+=== 122 src/lib/box/box.test.svelte.ts	lint.txt
+126:4 126:66 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+
+=== 0 src/lib/unbox/unbox.svelte.ts	lint.txt
+
+=== 759 src/lib/utils/dom-context.svelte.ts	lint.txt
+5:28 5:39 no-undef "'HTMLElement' is not defined."
+8:24 8:35 no-undef "'HTMLElement' is not defined."
+9:17 9:25 no-undef "'Document' is not defined."
+9:28 9:38 no-undef "'ShadowRoot' is not defined."
+10:37 10:45 no-undef "'document' is not defined."
+11:58 11:66 no-undef "'document' is not defined."
+12:22 12:30 no-undef "'Document' is not defined."
+12:33 12:43 no-undef "'ShadowRoot' is not defined."
+15:27 15:38 no-undef "'HTMLElement' is not defined."
+28:44 28:50 no-undef "'window' is not defined."
+35:27 35:38 no-undef "'HTMLElement' is not defined."
+39:27 39:34 no-undef "'Element' is not defined."
+39:37 39:48 no-undef "'HTMLElement' is not defined."
+49:43 49:53 no-undef "'NodeListOf' is not defined."
+49:54 49:61 no-undef "'Element' is not defined."
+
+=== 2181 src/lib/utils/dom-context.test.svelte.ts	lint.txt
+6:17 6:28 no-undef "'HTMLElement' is not defined."
+7:18 7:29 no-undef "'HTMLElement' is not defined."
+8:18 8:28 no-undef "'ShadowRoot' is not defined."
+12:3 12:11 no-undef "'document' is not defined."
+15:15 15:23 no-undef "'document' is not defined."
+17:3 17:11 no-undef "'document' is not defined."
+20:16 20:24 no-undef "'document' is not defined."
+33:3 33:11 no-undef "'document' is not defined."
+38:20 38:28 no-undef "'document' is not defined."
+46:20 46:28 no-undef "'document' is not defined."
+68:30 68:38 no-undef "'document' is not defined."
+72:20 72:28 no-undef "'document' is not defined."
+73:4 73:12 no-undef "'document' is not defined."
+76:30 76:38 no-undef "'document' is not defined."
+88:23 88:31 no-undef "'document' is not defined."
+102:20 102:28 no-undef "'document' is not defined."
+105:39 105:47 no-undef "'document' is not defined."
+112:39 112:47 no-undef "'document' is not defined."
+117:39 117:47 no-undef "'document' is not defined."
+123:20 123:28 no-undef "'document' is not defined."
+126:37 126:43 no-undef "'window' is not defined."
+133:37 133:43 no-undef "'window' is not defined."
+138:37 138:43 no-undef "'window' is not defined."
+144:19 144:27 no-undef "'document' is not defined."
+153:71 153:88 no-undef "'HTMLButtonElement' is not defined."
+169:19 169:27 no-undef "'document' is not defined."
+178:20 178:28 no-undef "'document' is not defined."
+179:20 179:28 no-undef "'document' is not defined."
+194:71 194:88 no-undef "'HTMLButtonElement' is not defined."
+204:20 204:28 no-undef "'document' is not defined."
+230:18 230:26 no-undef "'document' is not defined."
+235:46 235:62 no-undef "'HTMLInputElement' is not defined."
+243:20 243:28 no-undef "'document' is not defined."
+278:17 278:25 no-undef "'document' is not defined."
+279:17 279:25 no-undef "'document' is not defined."
+294:24 294:32 no-undef "'document' is not defined."
+329:27 329:38 no-undef "'HTMLElement' is not defined."
+333:30 333:38 no-undef "'document' is not defined."
+344:27 344:38 no-undef "'HTMLElement' is not defined."
+347:30 347:38 no-undef "'document' is not defined."
+353:30 353:38 no-undef "'document' is not defined."
+357:27 357:38 no-undef "'HTMLElement' is not defined."
+
+=== 0 src/lib/utils/on-destroy-effect.svelte.ts	lint.txt
+
+=== 0 src/lib/utils/on-mount-effect.svelte.ts	lint.txt
+
+=== 64 src/lib/utils/use-on-change.svelte.ts	lint.txt
+14:62 14:70 no-unused-vars "'value' is defined but never used."
+
+=== 321 src/lib/utils/use-ref-by-id.svelte.ts	lint.txt
+15:19 15:30 no-undef "'HTMLElement' is not defined."
+25:17 25:41 no-unused-vars "'node' is defined but never used."
+25:23 25:34 no-undef "'HTMLElement' is not defined."
+31:23 31:31 no-undef "'Document' is not defined."
+31:34 31:44 no-undef "'ShadowRoot' is not defined."
+47:39 47:47 no-undef "'document' is not defined."
+
+=== 118 src/lib/watch/watch.svelte.ts	lint.txt
+5:2 5:9 no-unused-vars "'curr' is defined but never used."
+6:2 6:9 no-unused-vars "'prev' is defined but never used."
+
 === 1002 src/routes/+page.svelte	lint.txt
 1:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

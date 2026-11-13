@@ -519,6 +519,16 @@
 19:34 19:41 svelte/valid-compile "This reference only captures the initial value of `minzoom`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 19:43 19:50 svelte/valid-compile "This reference only captures the initial value of `maxzoom`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 
+=== 638 src/lib/context.svelte.ts	lint.txt
+37:15 37:43 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+39:38 39:43 no-undef "'Event' is not defined."
+41:9 41:11 svelte/prefer-const "'id' is never reassigned. Use 'const' instead."
+46:9 46:17 svelte/prefer-const "'features' is never reassigned. Use 'const' instead."
+47:9 47:14 svelte/prefer-const "'topId' is never reassigned. Use 'const' instead."
+54:18 54:38 no-unused-vars "'event' is defined but never used."
+226:7 226:18 svelte/prefer-const "'currentZoom' is never reassigned. Use 'const' instead."
+246:29 246:51 no-unused-vars "'event' is defined but never used."
+
 === 2187 src/routes/+layout.svelte	lint.txt
 1:1 22:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 24:1 24:72 svelte/no-unused-class-name "Unused class \"bg-background\"."

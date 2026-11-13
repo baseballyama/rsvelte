@@ -11749,9 +11749,6 @@
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:27 13:78 svelte/max-attributes-per-line "'image' should be on a new line."
 
-=== 61 src/lib/components/seo/structured-data.svelte	lint.txt
-18:45 - - "Parsing error: Unexpected keyword or identifier."
-
 === 628 src/lib/components/ui/alert/alert-description.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14003,6 +14000,12 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:32 8:94 svelte/max-attributes-per-line "'class' should be on a new line."
 8:32 8:94 svelte/sort-attributes "Attribute 'class' should go before 'bind:ref'."
+
+=== 393 src/lib/components/ui/sidebar/context.svelte.ts	lint.txt
+20:12 20:25 no-unused-vars "'open' is defined but never used."
+25:9 25:45 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+29:10 29:67 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+44:30 44:43 no-undef "'KeyboardEvent' is not defined."
 
 === 969 src/lib/components/ui/sidebar/sidebar-content.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -16629,6 +16632,14 @@
 29:17 30:3 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 30:1 30:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 31:1 31:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 221 src/lib/core/hooks/is-mobile.svelte.ts	lint.txt
+11:17 11:23 no-undef "'window' is not defined."
+13:22 13:28 no-undef "'window' is not defined."
+15:5 15:45 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+
+=== 48 src/lib/core/stores/collection.svelte.ts	lint.txt
+25:7 25:14 no-undef "'console' is not defined."
 
 === 1804 src/lib/theme/ThemeSections.svelte	lint.txt
 1:1 24:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

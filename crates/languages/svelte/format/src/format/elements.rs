@@ -72,26 +72,34 @@ impl Printer<'_, '_, '_> {
             let document = self.this_binding(&attributes[i], name == "svelte:element")?;
             attribute_docs.push(self.cat(&[line, document]));
         }
-        let listed: Vec<&Attribute> = (attributes.iter().enumerate())
-            .filter(|&(i, _)| Some(i) != this)
-            .map(|(_, a)| a)
-            .collect();
-        let comments =
-            self.attribute_comments(self.c.node(identifier).span().start_offset, &listed)?;
-        // Where the attributes' group ends in a line break.
-        let ends_line = !self.options.bracket_same_line
-            && if self_closing {
-                !is_doctype
-            } else {
-                (is_empty || !self.should_hug(identifier, children, true)) && !in_pre
-            };
+        let tag = self.c.node(identifier).span();
+        // Most tags hold no comment, and their attributes print without the search.
+        let comments = if self.holds_comment(tag) {
+            let listed: Vec<&Attribute> = (attributes.iter().enumerate())
+                .filter(|&(i, _)| Some(i) != this)
+                .map(|(_, a)| a)
+                .collect();
+            let comments = self.attribute_comments(tag.start_offset, &listed)?;
+            // Where the attributes' group ends in a line break.
+            let ends_line = !self.options.bracket_same_line
+                && if self_closing {
+                    !is_doctype
+                } else {
+                    (is_empty || !self.should_hug(identifier, children, true)) && !in_pre
+                };
+            Some((comments, ends_line))
+        } else {
+            None
+        };
         // The plugin's `isPreTagContent` counts the `<pre>` itself, attributes included.
         self.in_pre = in_pre;
-        for (a, comments) in listed.iter().zip(&comments) {
+        let listed = (attributes.iter().enumerate()).filter(|&(i, _)| Some(i) != this);
+        for (j, (_, a)) in listed.enumerate() {
             let line = self.attribute_line(many);
-            let document = self
-                .attribute(a, kind)
-                .and_then(|d| self.commented(comments, d, ends_line));
+            let document = self.attribute(a, kind).and_then(|d| match &comments {
+                Some((comments, ends_line)) => self.commented(&comments[j], d, *ends_line),
+                None => Ok(d),
+            });
             let document = match document {
                 Ok(d) => d,
                 Err(e) => {

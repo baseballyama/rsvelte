@@ -163,6 +163,10 @@ const artifactLabels: Record<string, { name: string; description: string }> = {
 		name: 'JavaScript の親要素の表',
 		description: 'コード検査のために、スクリプトの各要素の親を引ける表を作ります。',
 	},
+	'svelte.lint.svelte_config': {
+		name: 'svelte.config.js の設定',
+		description: 'コード検査のために、コンポーネントが属する svelte.config.js を読みます。',
+	},
 };
 
 export function artifactLabel(id: string) {

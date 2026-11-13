@@ -2614,6 +2614,10 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:34 7:48 svelte/max-attributes-per-line "'{...restProps}' should be on a new line."
 
+=== 107 src/lib/edra/docs/packageManager.svelte.ts	lint.txt
+10:19 10:31 no-undef "'localStorage' is not defined."
+20:4 20:16 no-undef "'localStorage' is not defined."
+
 === 4538 src/lib/edra/headless/components/Callout.svelte	lint.txt
 1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -10875,6 +10879,23 @@
 81:1 81:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 84:25 84:42 svelte/max-attributes-per-line "'class' should be on a new line."
 85:1 85:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 53 src/lib/edra/tiptap/hooks/useEditor.svelte.ts	lint.txt
+17:45 17:56 no-undef "'HTMLElement' is not defined."
+
+=== 62 src/lib/edra/tiptap/hooks/useEditorState.svelte.ts	lint.txt
+30:13 30:37 no-unused-vars "'ctx' is defined but never used."
+
+=== 0 src/lib/edra/tiptap/hooks/useEditorTransaction.svelte.ts	lint.txt
+
+=== 483 src/lib/edra/tiptap/renderers/SvelteRenderer.svelte.ts	lint.txt
+8:21 8:28 no-undef "'Element' is not defined."
+12:2 12:64 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+19:6 19:13 no-undef "'Element' is not defined."
+21:2 21:64 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+24:20 24:28 no-undef "'document' is not defined."
+29:17 29:24 no-undef "'Element' is not defined."
+51:49 51:56 no-undef "'Element' is not defined."
 
 === 162 src/lib/vitest-examples/Welcome.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

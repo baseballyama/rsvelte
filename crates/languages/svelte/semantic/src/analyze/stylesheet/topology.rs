@@ -83,6 +83,7 @@ impl<'a> Topology<'a> {
             roots: FxHashMap::default(),
             rendered: FxHashMap::default(),
         };
+        let mut bodies = Vec::new();
         for (id, node) in tree.nodes.iter_enumerated() {
             if let NodeKind::Snippet(snippet) = &node.kind
                 && let Some(binding) = resolution.snippet(id)
@@ -96,10 +97,7 @@ impl<'a> Topology<'a> {
                 };
                 topology.snippets.insert(binding, flow);
                 topology.snippet_nodes.insert(id, flow);
-                topology.roots.insert(
-                    id,
-                    build::snippet_roots(tree, snippet.body).into_boxed_slice(),
-                );
+                bodies.push((id, snippet.body));
             }
         }
         for (id, node) in tree.nodes.iter_enumerated() {
@@ -119,6 +117,7 @@ impl<'a> Topology<'a> {
             };
             topology.rendered.insert(id, rendered);
         }
+        topology.snippet_roots(tree, &bodies);
         topology.linear &= topology.snippet_nodes.is_empty();
         let mut snippets: Vec<_> = topology.snippet_nodes.values().copied().collect();
         snippets.sort_by_key(|snippet| snippet.node);
@@ -137,6 +136,79 @@ impl<'a> Topology<'a> {
 }
 
 impl Topology<'_> {
+    /// The snippets a renderer may render, in source order.
+    fn rendered_snippets(&self, id: CompilerNodeIdentifier) -> Vec<SnippetFlow> {
+        let mut snippets: Vec<_> = match self.rendered.get(&id) {
+            Some(Rendered::Snippets(snippets)) => snippets.to_vec(),
+            Some(Rendered::Every) => self.snippet_nodes.values().copied().collect(),
+            None => Vec::new(),
+        };
+        snippets.sort_by_key(|snippet| snippet.node);
+        snippets.dedup_by_key(|snippet| snippet.node);
+        snippets
+    }
+
+    /// Each snippet's top elements, with those of the snippets it renders at its top: Svelte
+    /// gives them the ancestors of every site that renders the snippet.
+    fn snippet_roots(
+        &mut self,
+        tree: &crate::compiler_syntax_tree::CompilerSyntaxTree,
+        bodies: &[(
+            CompilerNodeIdentifier,
+            crate::compiler_syntax_tree::Children,
+        )],
+    ) {
+        let index: FxHashMap<_, _> = bodies
+            .iter()
+            .enumerate()
+            .map(|(at, &(id, _))| (id, at))
+            .collect();
+        let direct: Vec<_> = bodies
+            .iter()
+            .map(|&(_, body)| build::snippet_roots(tree, body))
+            .collect();
+        let mut reached = Vec::new();
+        let mut seen = vec![false; bodies.len()];
+        let mut pending = Vec::new();
+        for (at, (_, renderers)) in direct.iter().enumerate() {
+            if renderers.is_empty() {
+                continue;
+            }
+            let mut roots = Vec::new();
+            let mut every = false;
+            seen.fill(false);
+            pending.push(at);
+            while let Some(snippet) = pending.pop() {
+                if std::mem::replace(&mut seen[snippet], true) {
+                    continue;
+                }
+                let (own, renderers) = &direct[snippet];
+                roots.extend_from_slice(own);
+                for renderer in renderers {
+                    match self.rendered.get(renderer) {
+                        Some(Rendered::Snippets(snippets)) => {
+                            pending.extend(snippets.iter().map(|snippet| index[&snippet.node]));
+                        }
+                        // Once every snippet is pending, another such renderer adds none.
+                        Some(Rendered::Every) if !every => {
+                            every = true;
+                            pending.extend(0..bodies.len());
+                        }
+                        Some(Rendered::Every) | None => {}
+                    }
+                }
+            }
+            reached.push((at, roots));
+        }
+        let mut roots: Vec<_> = direct.into_iter().map(|(own, _)| own).collect();
+        for (at, closed) in reached {
+            roots[at] = closed;
+        }
+        for (&(id, _), roots) in bodies.iter().zip(roots) {
+            self.roots.insert(id, roots.into_boxed_slice());
+        }
+    }
+
     /// Svelte's `is_resolved_snippet`: the local snippet `symbol` names, none for a global, an
     /// import or a prop, and every snippet for a name that may hold any of them.
     fn resolved_snippet(
