@@ -441,3 +441,15 @@ fn a_typescript_feature_is_refused_before_the_template_is_analyzed() {
         Some(("typescript_invalid_feature".to_owned(), (18, 30)))
     );
 }
+
+#[test]
+fn a_default_export_is_refused_before_the_typescript_it_holds() {
+    assert_eq!(
+        compile_at(
+            "<script lang=\"ts\">export default class { @dec m() {} };</script>",
+            Target::Client
+        )
+        .err(),
+        Some(("module_illegal_default_export".to_owned(), (18, 54)))
+    );
+}
