@@ -1,4 +1,4 @@
-# svelte.compile/client: 36080 match
+# svelte.compile/client: 36081 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -445,7 +445,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_asy
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/fdeeca859b2c2d5a.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/fe4798f5a87b6972.svelte	mismatch
 svelte/rsvelte/lint/block-lang/05-case-insensitive.svelte	mismatch
-svelte/rsvelte/lint/consistent-selector-style/21-affix-shapes.svelte	mismatch
 svelte/rsvelte/lint/experimental-require-slot-types/13-options-runes-false.svelte	refused
 svelte/rsvelte/lint/infinite-reactive-loop/14-options-runes-false.svelte	refused
 svelte/rsvelte/lint/mustache-spacing/06-tags-options.svelte	unexpected
