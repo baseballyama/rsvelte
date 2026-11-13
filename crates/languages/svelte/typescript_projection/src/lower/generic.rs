@@ -163,7 +163,16 @@ impl Builder<'_> {
                 _ => {}
             }
         }
-        for &(declaration, name) in &aliases.named {
+        let constrained = aliases
+            .found
+            .iter()
+            .any(|alias| !alias.arguments.is_empty());
+        let named = if constrained {
+            DollarGenerics::named_in(program).named
+        } else {
+            Vec::new()
+        };
+        for &(declaration, name) in &named {
             let name = name.text(self.source);
             let constrains = aliases
                 .found
@@ -235,8 +244,10 @@ struct DollarGeneric {
 #[derive(Default)]
 struct DollarGenerics {
     found: Vec<DollarGeneric>,
-    /// Every interface and type alias, with its name, which a constraint may name.
+    /// Every interface and type alias, with its name, which a constraint may name; collected
+    /// only when one does.
     named: Vec<(Span, Span)>,
+    collect_named: bool,
     /// The `export` around the declaration being visited.
     export: Option<Span>,
 }
@@ -246,6 +257,21 @@ impl DollarGenerics {
         let mut found = Self::default();
         found.visit_program(program);
         found
+    }
+
+    fn named_in(program: &Program<'_>) -> Self {
+        let mut found = Self {
+            collect_named: true,
+            ..Self::default()
+        };
+        found.visit_program(program);
+        found
+    }
+
+    fn name(&mut self, declared: Span, name: oxc_span::Span) {
+        if self.collect_named {
+            self.named.push((declared, span(name)));
+        }
     }
 
     /// The declaration's span with its `export`, which svelte2tsx's node starts at.
@@ -270,7 +296,7 @@ impl<'a> Visit<'a> for DollarGenerics {
     fn visit_ts_type_alias_declaration(&mut self, it: &TSTypeAliasDeclaration<'a>) {
         let declared = self.declared(it.span);
         self.export = None;
-        self.named.push((declared, span(it.id.span)));
+        self.name(declared, it.id.span);
         if let TSType::TSTypeReference(reference) = &it.type_annotation
             && let TSTypeName::IdentifierReference(name) = &reference.type_name
             && name.name == "$$Generic"
@@ -292,7 +318,7 @@ impl<'a> Visit<'a> for DollarGenerics {
     fn visit_ts_interface_declaration(&mut self, it: &TSInterfaceDeclaration<'a>) {
         let declared = self.declared(it.span);
         self.export = None;
-        self.named.push((declared, span(it.id.span)));
+        self.name(declared, it.id.span);
         walk::walk_ts_interface_declaration(self, it);
     }
 }
