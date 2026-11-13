@@ -113,8 +113,11 @@ fn typescript_view(
     // svelte-check type-checks a component whose style sheet does not parse.
     let component = match context.get::<Parsed>() {
         Ok(component) => component,
-        // svelte2tsx throws Svelte's parse error, which svelte-check reports as it is.
         Err(error) => {
+            if let Some(document) = script_syntax::view(&context.document.text, || env_of(env)) {
+                return document;
+            }
+            // svelte2tsx throws Svelte's parse error, which svelte-check reports as it is.
             return Ok(TypeScriptDocument::Rejected {
                 message: error.message.clone(),
                 span: if error.has_end {
@@ -134,10 +137,7 @@ fn typescript_view(
         return Ok(TypeScriptDocument::Unchecked);
     }
     let projection = context.get::<Printed>().as_ref().map_err(Clone::clone)?;
-    let env = env
-        .ok_or("svelte.check needs the svelte package")
-        .and_then(|env| env.as_ref().map_err(String::as_str))
-        .map_err(|why| Diagnostic::error("check_unconfigured", why, Span::new(0, 0)))?;
+    let env = env_of(env)?;
     Ok(TypeScriptDocument::Checked {
         projection: Emitter {
             out: projection.out.clone(),
@@ -147,10 +147,20 @@ fn typescript_view(
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
         placement: placement::instance(component),
+        extension: ".ts",
     })
 }
 
+fn env_of(
+    env: Option<&Result<Arc<TypeScriptEnv>, String>>,
+) -> Result<&Arc<TypeScriptEnv>, Diagnostic> {
+    env.ok_or("svelte.check needs the svelte package")
+        .and_then(|env| env.as_ref().map_err(String::as_str))
+        .map_err(|why| Diagnostic::error("check_unconfigured", why, Span::new(0, 0)))
+}
+
 mod placement;
+mod script_syntax;
 
 #[cfg(test)]
 mod tests;

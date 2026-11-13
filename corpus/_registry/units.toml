@@ -2010,6 +2010,33 @@
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
+["svelte/rsvelte-tests-core-2/directive_await_host_product_3318/directive_await_matches_official_on_every_host/437af6754b817682.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `use:` on a component (\"element.addAction is not a function\"), so svelte-check reports that instead of the compiler's error"
+
+["svelte/rsvelte-tests-core-2/directive_await_host_product_3318/directive_await_matches_official_on_every_host/51a3412cdd61c59f.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `use:` on a component (\"element.addAction is not a function\"), so svelte-check reports that instead of the compiler's error"
+
+["svelte/rsvelte-tests-core-2/directive_await_host_product_3318/directive_await_matches_official_on_every_host/5a27b941a0ec2df7.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `use:` on a component (\"element.addAction is not a function\"), so svelte-check reports that instead of the compiler's error"
+
+["svelte/rsvelte-tests-core-3/svelte_component_validation/h047_use_directive_errors/0748a23f377dd6d8.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `use:` on a component (\"element.addAction is not a function\"), so svelte-check reports that instead of the compiler's error"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_validation_walk_gates/validation_markers_preserve_component_action_errors/9325073e6ba7de20.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `use:` on a component (\"element.addAction is not a function\"), so svelte-check reports that instead of the compiler's error"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_validation_walk_gates/validation_markers_preserve_component_action_errors/bf168dbaca94a1f4.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `use:` on a component (\"element.addAction is not a function\"), so svelte-check reports that instead of the compiler's error"
+
+["svelte/rsvelte-tests-formatter/await_clauses/shorthand_headers_with_empty_bodies_lose_their_clause/326b22512122face.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on an `{#await}` whose `then` body is empty (magic-string's \"Cannot overwrite across a split point\"), so svelte-check reports that instead of type findings"
+
+["svelte/svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on an `{#await}` whose `then` body is empty (magic-string's \"Cannot overwrite across a split point\"), so svelte-check reports that instead of type findings"
+
+["svelte/rsvelte/lint/no-svelte-internal/20-emoji-columns.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx throws on `export * from` in the instance script (\"Cannot read properties of undefined (reading 'kind')\"), so svelte-check reports that instead of type findings"
+
 ["svelte/rsvelte-tests-core-1/css_empty_declaration_error_span/consecutive_semicolons_span_to_the_following_block_close/6ab50de7e6515fdc.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads the empty declaration between two semicolons, which CSS allows, as css_empty_declaration"
 
@@ -2039,3 +2066,541 @@
 
 ["svelte/rsvelte/pattern/issues/3129-comment-between-compounds.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/070bec3752f0534a.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/10142769056c4df0.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/1237e93118c4d573.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/2328b6723dc2bdcc.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/5763dd05fa97aab0.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/61b6af671786d9b6.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/64ff442ba3ca2771.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/674835c11438dabe.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/77ab9f4c49216698.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/83ed77bf912e01eb.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/8507b9445ef65556.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/8c8cf039aa8dfee5.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/9075d4944bb14429.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ae48ee57e39caefc.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/bf7ad667d5590c74.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/c2d8ed67fff164c2.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/cb99ee0c2bef4398.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/d55ee7f37b869a7f.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/da61fce49d633b12.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/e19d26e1a7fa87b4.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/e709c5ac7f40094e.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ec117fdddce0c546.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/f7dc731131273e6a.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/plain_javascript_is_unaffected/50ac15bc0e0a95bc.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/plain_javascript_is_unaffected/cd90fff9c646235a.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/plain_javascript_is_unaffected/e5c9cc8e21d67c29.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/snippet_default_parameter_agrees_in_both_modes/37756842c2fac34f.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/00881b5fd646e06c.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/03245b26170cd9ce.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/074b48fe9551f5dd.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/08847f6fcff8d82e.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/0a19858f735db89f.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1353e0f4d92b2daa.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1389a0353fcb487d.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/13bbf6c3407680a3.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1a35faa641b35627.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1af3d9545ee0fb38.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/1cbaf5d768188050.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/27398d37d132f1c9.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2a2f83a81ea569f7.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2a3e9e9dc2cc6725.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/2d1b086d680a0e9e.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/35362742f41afc7c.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/357f2d9aeb00fdee.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/38a9353f86c2aaed.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/440dfaa7b6c4dfbd.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/4edf8a5d430f0c83.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/4f5627dc39a259a4.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/50a302ea4939faa2.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/543b75fbf21c7ff2.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/54ac25511e80d300.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/56bee1cbef3350f8.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/604dd53f4df1bf71.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/60671a81a994e181.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6180063030c6a92c.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/61c9f49a592c50d2.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6686a2f752dbbdad.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6aa74d4657b5ce2e.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6acdc8657e099ffe.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6f86069336ffe18a.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/6fa3367e9ae4a37f.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/706d73a09fa0d4aa.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7220b5cddaf5f631.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/72dbb6991a187140.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7400f03639951ac0.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/74e5be37e7cdf8f1.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7525749f7a059acf.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7ae4e14ff36845ff.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/7e2fb65a516823d8.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/8048e84a70b1060b.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/8177ec9fa4d006cd.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/81ec0b0a6f98ca43.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/827912c6eec0a261.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/83223bf688e072c1.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/83afca4d5b4edaad.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/8501dbd3fdfa3b01.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/86ae5faf147f2117.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/8ed224fa0b8de0fd.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/94db8290bc551938.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/95a9a415c5ea9c55.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/976344a6e4a32d23.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/9f14f48d1f9944ed.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a08a919774c67131.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a1a501b14c70bf27.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a46864f54f45dd3b.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/a4e1bdf07bb083e6.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/ababb42dd27c272c.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/acd2a29594465660.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/ae0f34be4faf9fbb.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b195cdcf4a286295.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b211972b0fd0fb7b.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b3cc270a37271cd6.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b56c2a47bc15bb0c.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b71eb10092eaabb9.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b7a112ca1a1d57a9.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/b870153c8bd127a4.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/c6a33d8251f90e50.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/c6b1e2880866dbaa.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/ce642191af3e7abd.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/cf9fec03a83a7892.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/d0f24c7315a90a1c.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/d42b32c3049f88f2.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/d717e44cd322cd73.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/da1ce6f5ad24aa4e.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/dcf6a10dd6726530.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/e6af1fd9c3729757.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/e779d7ebad51ba3c.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/f605250d93c10f34.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/fe5b57a8847163cc.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/fec25aeeddc26f64.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/ebed4d1b2bd8825d.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads a `let:` on a `<slot>` outside a component's content from `$$slotProps` on the client and from no binding on the server, neither of which exists there"
+
+["svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/f864cc9d8fba5124.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 reads a `let:` on a `<slot>` outside a component's content from `$$slotProps` on the client and from no binding on the server, neither of which exists there"
+
+["svelte/rsvelte-tests-core-1/const_tag_cycle_error_span/const_tag_cycle_points_at_the_first_declaration_in_the_cycle/0be01fe38154ef62.svelte".skip]
+"svelte.compile" = "upstream bug: runes mode does not report `const_tag_cycle`: the client reads `b` in `a`'s derived before `b` is declared, and the server emits `const a = b; const b = a;`, which throws"
+
+["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/expression_then_text_keeps_the_whole_value/c9f317fe9e598e4e.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
+
+["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
+
+["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
+
+["svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/input.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
+
+["svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/output.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
+
+["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+
+["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/4809229d13f750f6.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+
+["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/7e0bf9a55c019a47.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+
+["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/af4e901d46ddc2c3.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+
+["svelte/rsvelte-tests-core-1/block_header_pattern_validation/legal_neighbours_still_compile/8a80c229fe285e83.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block's pattern from its nodes (expandNode), so it deletes a comment in it"
+
+["svelte/rsvelte-tests-core-1/block_header_pattern_validation/legal_neighbours_still_compile/f4a2e74dbb010935.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-1/client_attribute_expression_comments_3214/a_comment_on_the_tag_name_line_is_the_first_arguments_trailing_comment/0513ceac25c38cb6.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-1/comment_cursor_3603_await_snippet/client_await_header_comments_stay_with_the_promise_expression/7c2ca4397a1154e9.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-1/compile_result_legacy_ast_3295/compilation_rebuilds_legacy_comment_locations_at_the_json_boundary/3e5801f545086334.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 attaches a comment in a tag only to an attribute, so it deletes one in a tag without attributes"
+
+["svelte/rsvelte-tests-core-2/each_header_comments/legal_forms_still_parse/5b30638cd1c613fd.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-2/each_header_comments/legal_forms_still_parse/fec09272c8956d4f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block's pattern from its nodes (expandNode), so it deletes a comment in it"
+
+["svelte/rsvelte-tests-core-2/parse_ast_comment_attachment_4133/a_comment_before_a_parenthesized_template_expression_is_dropped_with_the_parens/29a76cd13f320fec.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 deletes a comment outside a template expression's parentheses, which Svelte attaches to no node"
+
+["svelte/rsvelte-tests-core-2/parse_ast_comment_attachment_4133/comments_inside_or_after_parens_still_reach_the_expression/9f102071b2d1f718.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/special_tag_bracket_scan/debug_tag_comment_with_brace/55705dc7a048ab7a.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints only the names in {@debug}, so it deletes a comment in it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/controls_still_compile/92d5f5e4654c0d78.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/10e19b15170f3a84.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/19b64d511d2a58f9.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/27c87aa51582232b.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/2e3ad48ee43c8bdc.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/357dfc3d4748dea5.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/7774b278d017cb9c.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/9b7916838f5442fb.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/9e6bf0cb719e5b0d.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/dcc440a866db1d34.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/e25c21d94a883fc2.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expression_comment_3112/client_flushes_a_folded_tags_comment_onto_the_next_located_node/4608f068c893d659.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expression_comments_3112_3214/a_component_with_no_instance_script_drops_the_comment/27a6648756f94a5a.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expression_comments_3112_3214/a_component_with_no_instance_script_drops_the_comment/e7d549d35aaad31b.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expression_comments_3112_3214/a_folded_expression_hands_its_comment_to_the_next_one/74399290a1000cda.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expression_comments_3112_3214/a_folded_expression_with_no_successor_drops_its_comment/d001ee7ad70af135.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_expression_comments_3112_3214/the_carried_comment_keeps_its_source_line_distance/8f4164f9f70311b4.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/85602f44f89a6d2f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/c12f26de3001c722.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/await_head_expression_survives/cbb6b349ed958d11.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/2954fb9e5fcf630f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/295f6086c1ed3366.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/2ccd099fc932f111.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/44f1ee907b033ac7.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/5b33fa9fbc93a011.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/7f6f89d2d564d872.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/c388dd61e1e7a2bd.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-formatter/markup_expressions/trailing_comment_keeps_the_tag_an_expression/b287a9cb4387e49f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/5b48c20575ee097e.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/6c31a27208d4d289.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/d15dae7c28fa60c3.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/d9b6042991557371.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/e89d92737973b5ce.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/60de768276a5f99c.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/7af5e2327e6495e1.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/848de04f89c4c556.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/c3bb76f94f2a54ad.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/e930c16638623224.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/ece574aedc893546.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/f8c02f47bdc31d8c.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_source_range/a_comment_between_the_braces_is_kept/102a23729bba7ddb.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte/lint/no-useless-mustaches/05-comments-option.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte/lint/no-useless-mustaches/06-comments-default.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte/lint/prefer-attribute-interpolation/05-comment-outside-template.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte/lint/valid-each-key/06-comment-decoy.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/svelte/packages/svelte/tests/parser-legacy/samples/javascript-comments/input.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"

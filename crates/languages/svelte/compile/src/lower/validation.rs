@@ -3,10 +3,25 @@ use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
 use rsvelte_typescript_compile::features::{Feature, first_runtime_feature};
 
+mod declarations;
 pub(super) mod markup;
 mod runes;
 
-pub(super) use runes::{check_runes, rejects_binding};
+pub(super) use runes::{check_runes, rejects_binding, script_error};
+
+/// Whether oxc's `error` is a name declared again outside the scripts.
+pub(super) fn redeclares_in_template(input: &CompileInput<'_>, error: &Diagnostic) -> bool {
+    let javascript = input.component.javascript;
+    let start = error.span.start_offset;
+    error.message.ends_with("has already been declared")
+        && !(input
+            .component
+            .module
+            .into_iter()
+            .chain(input.component.instance))
+        .map(|program| javascript.get_program(program).span)
+        .any(|span| span.start <= start && start < span.end)
+}
 
 use super::{CompileInput, Diagnostic, Resolution, Span};
 
@@ -22,8 +37,10 @@ pub(super) fn check_analysis(
     res: &Resolution,
     names: &super::stores::Names<'_>,
     mut errors: Vec<(Raised, Diagnostic)>,
+    custom_element: bool,
 ) -> Result<(), Diagnostic> {
     let component = input.component;
+    errors.extend(declarations::duplicates(input, res));
     errors.extend(dollar_name_errors(
         component.javascript,
         component.instance,
@@ -31,14 +48,34 @@ pub(super) fn check_analysis(
         res,
         true,
     ));
-    if let Err(error) = markup::check(input) {
+    let walk = |section, error: Diagnostic| {
         let at = error.span.start_offset;
         let raised = Raised {
             phase: Phase::Walk,
-            section: Section::Template,
+            section,
             at,
         };
-        errors.push((raised, error));
+        (raised, error)
+    };
+    let template = [super::special::analysis(input), markup::check(input)];
+    errors.extend(
+        template
+            .into_iter()
+            .filter_map(Result::err)
+            .map(|e| walk(Section::Template, e)),
+    );
+    // Only a template error needs the scripts' first, which the later rune checks raise anyway.
+    if errors
+        .iter()
+        .any(|(raised, _)| raised.section == Section::Template)
+        && let Some((module, error)) = script_error(input, res, custom_element)
+    {
+        let section = if module {
+            Section::Module
+        } else {
+            Section::Instance
+        };
+        errors.push(walk(section, error));
     }
     errors.sort_by_key(|&(raised, _)| raised);
     let mut errors = errors.into_iter().peekable();

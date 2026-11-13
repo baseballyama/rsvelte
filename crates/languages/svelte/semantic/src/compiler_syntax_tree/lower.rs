@@ -321,9 +321,8 @@ fn modifiers(c: &Component, source_text: &str, a: &syntax_tree::Attribute) -> Mo
         .iter()
         .fold(Modifiers::default(), |all, m| {
             match Modifiers::parse(m.text(source_text)) {
-                Some(m) if all.contains(m) => all.with(Modifiers::REPEATED),
-                Some(m) => all.with(m),
-                None => all.with(Modifiers::UNKNOWN),
+                Some(one) if !all.contains(one) => all.with(one),
+                _ => all.with(Modifiers::UNKNOWN),
             }
         })
 }

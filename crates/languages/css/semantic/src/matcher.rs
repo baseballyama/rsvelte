@@ -107,46 +107,101 @@ pub trait Element: Copy {
     }
 }
 
-/// `:global(...)` or `:global` as the whole compound.
+/// Whether a compound leaves every element it selects unscoped: Svelte's `is_global` or
+/// `is_global_like`, or a compound after a `:global` block in its chain.
 #[must_use]
 pub fn is_global(source_text: &str, rel: &RelativeSelector) -> bool {
-    if rel.global {
-        return true;
-    }
-    if let Simple::PseudoElement { name, .. } = rel.simple.first()
-        && name.text(source_text).starts_with("view-transition")
-    {
-        return true;
-    }
-    (rel.simple
-        .first()
-        .is_pseudo(source_text, &["global", "host"])
-        || rel
+    rel.global || is_explicitly_global(source_text, rel) || is_global_like(source_text, rel)
+}
+
+/// Svelte's `is_global`: `:global`, or a `:global(...)` that every other selector of its compound
+/// leaves unscoped, as `.x` in `:global(button).x` does not.
+#[must_use]
+pub fn is_explicitly_global(source_text: &str, rel: &RelativeSelector) -> bool {
+    let first = rel.simple.first();
+    first.is_pseudo(source_text, &["global"])
+        && (matches!(
+            first,
+            Simple::PseudoClass {
+                arguments: None,
+                ..
+            }
+        ) || rel.simple.iter().all(|simple| {
+            matches!(simple, Simple::PseudoElement { .. })
+                || is_unscoped_pseudo_class(source_text, simple)
+        }))
+}
+
+/// Svelte's `is_outer_global`: `:global`, or a `:global(...)` whose compound holds only
+/// pseudo-classes and pseudo-elements, which may still scope what their arguments hold.
+fn is_outer_global(source_text: &str, rel: &RelativeSelector) -> bool {
+    let first = rel.simple.first();
+    first.is_pseudo(source_text, &["global"])
+        && (matches!(
+            first,
+            Simple::PseudoClass {
+                arguments: None,
+                ..
+            }
+        ) || rel.simple.iter().all(|simple| {
+            matches!(
+                simple,
+                Simple::PseudoClass { .. } | Simple::PseudoElement { .. }
+            )
+        }))
+}
+
+/// Svelte's `is_unscoped_pseudo_class`: a pseudo-class that does not scope its compound.
+#[must_use]
+pub fn is_unscoped_pseudo_class(source_text: &str, simple: &Simple) -> bool {
+    let Simple::PseudoClass {
+        arguments,
+        selectors,
+        ..
+    } = simple
+    else {
+        return false;
+    };
+    let scoping = simple.is_pseudo(source_text, &["has", "is", "where"])
+        || (simple.is_pseudo(source_text, &["not"])
+            && arguments.is_some()
+            && !selectors.iter().all(|s| s.parts.len() == 1));
+    !scoping
+        || arguments.is_none()
+        || selectors.iter().all(|s| {
+            s.parts
+                .iter()
+                .all(|part| is_explicitly_global(source_text, part))
+        })
+}
+
+/// Svelte's `is_global_like`, without the compounds after a `:global` block.
+fn is_global_like(source_text: &str, rel: &RelativeSelector) -> bool {
+    let pseudo_only = rel.simple.iter().all(|simple| {
+        matches!(
+            simple,
+            Simple::PseudoClass { .. } | Simple::PseudoElement { .. }
+        )
+    });
+    let first = rel.simple.first();
+    let unscoped_first = first.is_pseudo(source_text, &["host"])
+        || matches!(first, Simple::PseudoElement { name, .. } if matches!(
+            name.text(source_text),
+            "view-transition"
+                | "view-transition-group"
+                | "view-transition-old"
+                | "view-transition-new"
+                | "view-transition-image-pair"
+        ));
+    (pseudo_only && unscoped_first)
+        || (rel
             .simple
             .iter()
-            .any(|simple| simple.is_pseudo(source_text, &["root"])))
-        && !rel.simple.iter().any(|simple| {
-            if simple.is_pseudo(source_text, &["is", "where", "has"]) {
-                return true;
-            }
-            match simple {
-                Simple::PseudoClass { selectors, .. }
-                    if simple.is_pseudo(source_text, &["not"]) =>
-                {
-                    selectors.iter().any(|selector| {
-                        selector.parts.iter().any(|part| {
-                            part.simple.iter().any(|argument| {
-                                !matches!(
-                                    argument,
-                                    Simple::PseudoClass { .. } | Simple::PseudoElement { .. }
-                                )
-                            })
-                        })
-                    })
-                }
-                _ => false,
-            }
-        })
+            .any(|s| s.is_pseudo(source_text, &["root"]))
+            && !rel
+                .simple
+                .iter()
+                .any(|s| s.is_pseudo(source_text, &["has"])))
 }
 
 /// Whether `selector` can select `el` (a [`Match::Maybe`] anywhere counts as yes).
@@ -318,9 +373,24 @@ fn matches_parent<E: Element>(
     }
 }
 
+/// The selectors of a compound that Svelte tests against an element: only the `:has(...)` of a
+/// compound that holds `:root`.
+pub fn tested<'a>(
+    source_text: &'a str,
+    rel: &'a RelativeSelector,
+) -> impl Iterator<Item = &'a Simple> {
+    let root = rel
+        .simple
+        .iter()
+        .any(|s| s.is_pseudo(source_text, &["root"]));
+    rel.simple
+        .iter()
+        .filter(move |s| !root || s.is_pseudo(source_text, &["has"]))
+}
+
 fn compound<E: Element>(source_text: &str, rel: &RelativeSelector, el: E) -> Match {
     let mut result = Match::Yes;
-    for s in &rel.simple {
+    for s in tested(source_text, rel) {
         let m = match s {
             Simple::NamespacedType { name, .. } if el.text(source_text, *name) == "*" => Match::Yes,
             Simple::Type(name) | Simple::NamespacedType { name, .. } => match el.tag_name() {
@@ -328,7 +398,7 @@ fn compound<E: Element>(source_text: &str, rel: &RelativeSelector, el: E) -> Mat
                 Some(_) => Match::No,
                 None => Match::Maybe,
             },
-            Simple::Universal(_) => Match::Yes,
+            Simple::Universal(_) | Simple::Nth(_) => Match::Yes,
             Simple::Nesting(_) => rel
                 .parent_rule
                 .map_or(Match::Maybe, |rule| el.nesting(rule)),
@@ -379,6 +449,8 @@ fn compound<E: Element>(source_text: &str, rel: &RelativeSelector, el: E) -> Mat
                     Match::No
                 }
             }
+            // No element of a component is the shadow host.
+            Simple::PseudoClass { name, .. } if el.text(source_text, *name) == "host" => Match::No,
             Simple::PseudoClass { .. } | Simple::PseudoElement { .. } => Match::Maybe,
         };
         match m {
@@ -397,11 +469,7 @@ fn mark<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32) + ?Si
     scoped: &mut S,
     used: &mut U,
 ) {
-    if !relative
-        .simple
-        .first()
-        .is_pseudo(source, &["global", "root", "host"])
-    {
+    if !is_outer_global(source, relative) {
         scoped(element, relative);
     }
     for simple in &relative.simple {
@@ -422,9 +490,25 @@ fn mark<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32) + ?Si
                         }
                     }
                 }
+                // Svelte cannot tell whether a `:not` of more than one compound matches, so it
+                // scopes the compounds before its trailing `:global`s, the element and each
+                // element around it.
                 "not" => {
                     for selector in selectors.iter().filter(|s| s.parts.len() > 1) {
-                        matches_with(source, selector, element, scoped, used);
+                        used(selector.id);
+                        let kept = selector
+                            .parts
+                            .iter()
+                            .rposition(|part| {
+                                !is_global(source, part)
+                                    && !part.simple.first().is_global_block(source)
+                            })
+                            .map_or(0, |last| last + 1);
+                        for part in &selector.parts[..kept] {
+                            for at in std::iter::successors(Some(element), E::parent) {
+                                scoped(at, part);
+                            }
+                        }
                     }
                 }
                 "has" => {

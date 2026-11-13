@@ -183,29 +183,6 @@ fn a_doctype_and_empty_inline_elements_print_as_the_plugin_prints_them() {
 }
 
 #[test]
-fn what_the_template_printer_cannot_place_yet_is_refused() {
-    assert_eq!(
-        refusal("<svelte:element this={/* a */ t}></svelte:element>\n"),
-        ("comments in the template's JavaScript", Some("/* a */"))
-    );
-}
-
-#[test]
-fn a_template_expression_keeps_the_comments_before_it_and_drops_those_after() {
-    // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
-    assert_eq!(formatted("<p>{/* a */ x}</p>\n"), "<p>{/* a */ x}</p>\n");
-    assert_eq!(formatted("<p>{x /* a */}</p>\n"), "<p>{x}</p>\n");
-    assert_eq!(
-        formatted("<p title={// a\nx}></p>\n"),
-        "<p\n  title={// a\n  x}\n></p>\n"
-    );
-    assert_eq!(
-        formatted("{#if /* a */ x /* b */}<p></p>{/if}\n"),
-        "{#if /* a */ x}<p></p>{/if}\n"
-    );
-}
-
-#[test]
 fn a_root_assignment_or_sequence_keeps_the_parentheses_the_plugin_wraps_it_in() {
     // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
     assert_eq!(formatted("<b>{a = b}</b>\n"), "<b>{(a = b)}</b>\n");
@@ -374,7 +351,7 @@ fn what_svelte_rejects_is_refused() {
     );
     assert_eq!(
         refusal("<svelte:options runes>\n</svelte:options>\n").0,
-        "`<svelte:options>` with children"
+        "a syntax error"
     );
     for source_text in [
         "<svelte:options runes=\"true\" />\n",
@@ -393,11 +370,7 @@ fn what_svelte_rejects_is_refused() {
         "<svelte:options customElement={x} />\n",
         "<svelte:options customElement />\n",
     ] {
-        assert_eq!(
-            refusal(source_text).0,
-            "a `<svelte:options>` attribute Svelte may reject",
-            "{source_text}"
-        );
+        assert_eq!(refusal(source_text).0, "a syntax error", "{source_text}");
     }
     for source_text in [
         "<svelte:options runes={false} immutable accessors={true} preserveWhitespace />\n",
@@ -412,6 +385,7 @@ fn what_svelte_rejects_is_refused() {
 
 /// The `<title>` group fits only because the binary expression after it would break, a layout
 /// the expression printer does not build: Prettier prints `<title>x</title>{a +\n  b}`.
+mod comments;
 mod review;
 
 #[test]
@@ -512,4 +486,67 @@ fn a_lone_carriage_return_is_a_line_break_as_prettier_reads_it() {
         formatted_with("<p>a</p>\r\n<p>b</p>\r<i>c</i>\n", &auto),
         "<p>a</p>\r\n<p>b</p>\r\n<i>c</i>\r\n"
     );
+}
+
+#[test]
+fn a_custom_element_name_svelte_accepts_is_formatted() {
+    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    for (source_text, expected) in [
+        (
+            "<svelte:options customElement=\"\" />\n<div>x</div>",
+            "<svelte:options customElement=\"\" />\n\n<div>x</div>\n",
+        ),
+        (
+            "<svelte:options customElement={{ tag: '' }} />\n<div>x</div>",
+            "<svelte:options customElement={{ tag: \"\" }} />\n\n<div>x</div>\n",
+        ),
+        (
+            "<svelte:options customElement=\"my-\u{b7}el\" />\n<p>x</p>",
+            "<svelte:options customElement=\"my-\u{b7}el\" />\n\n<p>x</p>\n",
+        ),
+        (
+            "<svelte:options customElement=\"emotion-\u{1f60d}\" />\n",
+            "<svelte:options customElement=\"emotion-\u{1f60d}\" />\n",
+        ),
+    ] {
+        assert_eq!(formatted(source_text), expected, "{source_text}");
+    }
+}
+
+#[test]
+fn a_script_of_another_language_goes_to_babel_as_the_plugin_sends_it() {
+    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    for (source_text, expected) in [
+        (
+            "<script lang=\"TS\">let a = 1</script>",
+            "<script lang=\"TS\">\n  let a = 1;\n</script>\n",
+        ),
+        (
+            "<script lang=\"scss\"></script>\n\n<style></style>\n",
+            "<script lang=\"scss\"></script>\n\n<style></style>\n",
+        ),
+        (
+            "<svelte:head>\n\t<script type=\"application/ld+json\"></script>\n</svelte:head>\n",
+            "<svelte:head>\n  <script type=\"application/ld+json\"></script>\n</svelte:head>\n",
+        ),
+    ] {
+        assert_eq!(formatted(source_text), expected, "{source_text}");
+    }
+}
+
+#[test]
+fn a_pug_template_keeps_its_body() {
+    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
+    for (source_text, expected) in [
+        (
+            "<template lang=\"pug\">p image</template>",
+            "<template lang=\"pug\">\np image\n</template>\n",
+        ),
+        (
+            "<template lang=\"pug\">\n    ul\n</template>\n",
+            "<template lang=\"pug\">\n    ul\n</template>\n",
+        ),
+    ] {
+        assert_eq!(formatted(source_text), expected, "{source_text}");
+    }
 }

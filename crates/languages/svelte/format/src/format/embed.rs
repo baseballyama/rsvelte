@@ -33,7 +33,7 @@ impl Printer<'_, '_, '_> {
             {
                 self.preformatted(script.content)
             } else {
-                self.refuse_script_language(&script.attributes)?;
+                self.refuse_script_language(&script.attributes, script.content, true)?;
                 self.script_body(script.content)?
             };
             let attributes = self.tag_attributes(&script.attributes);
@@ -163,25 +163,12 @@ impl Printer<'_, '_, '_> {
         identifier: TemplateNodeIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
         let c = self.c;
-        let TemplateNode::Element {
-            attributes, span, ..
-        } = *c.node(identifier)
-        else {
+        let TemplateNode::Element { attributes, .. } = *c.node(identifier) else {
             unreachable!("an element")
         };
-        // Svelte rejects any child, and the plugin throws on a blank one.
-        if !self.children(identifier).is_empty() {
-            return Err(Unsupported::at("`<svelte:options>` with children", span));
-        }
         let mut inner = Vec::new();
         let attributes = attributes.get(&c.attributes);
         for a in attributes {
-            if !self.is_valid_option(a) {
-                return Err(Unsupported::at(
-                    "a `<svelte:options>` attribute Svelte may reject",
-                    a.span,
-                ));
-            }
             let line = self.attribute_line(attributes.len() > 1);
             let document = self.attribute(a, ElementKind::Other)?;
             inner.push(self.cat(&[line, document]));
@@ -518,4 +505,3 @@ impl Printer<'_, '_, '_> {
 
 mod language;
 mod nested;
-mod options;

@@ -1,5 +1,6 @@
 use rsvelte_kernel::output::edits::BorrowedEdits as Edits;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_stylesheet_syntax::properties::{names_keyframes, without_browser_prefix};
 use rsvelte_stylesheet_syntax::syntax_tree::{Declaration, Rule, RuleKind, StyleSheet};
 use rustc_hash::FxHashSet;
 
@@ -28,7 +29,7 @@ impl<'a> Names<'a> {
                     });
                 }
                 if let RuleKind::At { name, prelude, .. } = rule.kind
-                    && name.text(source).ends_with("keyframes")
+                    && without_browser_prefix(name.text(source)) == "keyframes"
                     && !global
                     && !prelude.text(source).starts_with("-global-")
                 {
@@ -65,15 +66,7 @@ impl<'a> Names<'a> {
         if self.local.is_empty() {
             return;
         }
-        let property = declaration.property.text(self.source);
-        let property = property
-            .strip_prefix("-webkit-")
-            .or_else(|| property.strip_prefix("-moz-"))
-            .or_else(|| property.strip_prefix("-o-"))
-            .unwrap_or(property);
-        if property.eq_ignore_ascii_case("animation")
-            || property.eq_ignore_ascii_case("animation-name")
-        {
+        if names_keyframes(declaration.property.text(self.source)) {
             for token in
                 &self.tokens[declaration.tokens.start as usize..declaration.tokens.end as usize]
             {

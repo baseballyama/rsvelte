@@ -63,7 +63,10 @@ impl Builder<'_> {
                     let event = self.component_event(attribute)?;
                     directives.events.push(event);
                 }
-                AttributeKind::Let if self.has_slot(attributes) => {
+                AttributeKind::Let
+                    if self.has_slot(attributes)
+                        || (host.intrinsic() && self.slot_parent.is_some()) =>
+                {
                     let property = self.component_let(attribute)?;
                     directives.slot_lets.push(property);
                 }
@@ -88,7 +91,7 @@ impl Builder<'_> {
                     return Err(Unsupported::at("directives", attribute.span));
                 }
                 AttributeKind::Class if !host.is_component() => {}
-                AttributeKind::Class | AttributeKind::Attach if host.is_component() => {
+                AttributeKind::Class if host.is_component() => {
                     return Err(Unsupported::at("component directives", attribute.span));
                 }
                 // svelte2tsx passes a slot's name, and a dynamic component, outside the props.

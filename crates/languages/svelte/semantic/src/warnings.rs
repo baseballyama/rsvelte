@@ -27,6 +27,7 @@ mod runes;
 mod script;
 mod selectors;
 mod setup;
+mod stylesheet_analysis;
 mod template;
 #[cfg(test)]
 mod tests;
@@ -67,6 +68,8 @@ pub enum Phase {
     Parse,
     Scopes,
     Walk,
+    /// The compiler analyzes the style sheet after it walks every tree.
+    Stylesheet,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -353,6 +356,16 @@ pub fn warnings(
         updates::non_reactive_updates(component, resolution, &bind_this, exported, &mut found);
     } else {
         unused_exports(component, resolution, source, &mut found);
+    }
+    if let Some(Ok(sheet)) = component.style.as_ref().map(|s| &s.sheet)
+        && let Some(found) = stylesheet_analysis::first_error(&sheet.rules, source)
+    {
+        let raised = Raised {
+            phase: Phase::Stylesheet,
+            section: Section::Template,
+            at: found.span.start_offset,
+        };
+        out.errors.push((raised, found));
     }
     if let (Some(Ok(sheet)), Some(analysis)) =
         (component.style.as_ref().map(|s| &s.sheet), analysis)

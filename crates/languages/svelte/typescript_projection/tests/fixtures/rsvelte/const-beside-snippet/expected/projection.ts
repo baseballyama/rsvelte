@@ -34,7 +34,9 @@ async () => {
         },
       });
       const { prop } = __rsvelte_component_props(__rsvelte_component_0);
+      Component;
     }
+    Component;
   }
 };
 const ConstBesideSnippet__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();

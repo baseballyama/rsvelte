@@ -3,10 +3,13 @@
 
 use oxc_ast::ast::Expression;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{Each, ElementKind, MetadataTag};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    Attribute, Each, ElementKind, MetadataTag, Modifiers,
+};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::FxHashSet;
 
+mod lets;
 mod placement;
 mod slots;
 
@@ -41,8 +44,8 @@ struct Placement<'a> {
 /// # Errors
 ///
 /// `svelte_fragment_invalid_placement`, `slot_attribute_invalid_placement`,
-/// `node_invalid_placement`, `bind_invalid_target` or `bind_invalid_expression`, at the first node
-/// in document order that has one.
+/// `node_invalid_placement` or `bind_invalid_expression`, at the first node in document order
+/// that has one.
 pub(in crate::lower) fn check(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
     walk(
         input,
@@ -182,6 +185,8 @@ fn element<'a>(
             node.span,
         );
     }
+    lets::fragment(el, attributes)?;
+    event_handlers(source, el, attributes)?;
     let slot = attributes
         .iter()
         .find(|a| !is_directive(&a.value) && a.name.text(source) == "slot");
@@ -216,6 +221,12 @@ fn element<'a>(
     {
         slots::check(input, slot, node.parent.filter(|_| fills), slots)?;
     }
+    if matches!(
+        el.kind,
+        ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element))
+    ) {
+        animation(input, parent, attributes)?;
+    }
     // The parser has moved content but one text into a `value` after the element's own.
     let values = (attributes.iter())
         .filter(|a| !is_directive(&a.value) && a.name.text(source) == "value")
@@ -232,37 +243,8 @@ fn element<'a>(
         );
     }
     let placement = element_placement(input, identifier, el, placement)?;
-    // Upstream's `BindDirective` reads `parent.name`, which is the tag as written.
-    let host = match el.kind {
-        ElementKind::Regular => Some(el.name.text(source)),
-        ElementKind::Metadata(Some(MetadataTag::Element)) => Some("svelte:element"),
-        _ => None,
-    };
-    // Upstream's directive visitors, in attribute order.
-    for a in attributes {
-        match &a.value {
-            AttributeValue::Bind(target) => {
-                if let Some(host) = host {
-                    super::super::bindings::check_target(source, host, attributes, a)?;
-                }
-                if !binds_a_name(input.component.javascript, *target) {
-                    return invalid(
-                        "bind_invalid_expression",
-                        "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair",
-                        a.span,
-                    );
-                }
-            }
-            AttributeValue::Style { modifiers, .. } if !modifiers.fit_a_style() => {
-                return invalid(
-                    "style_directive_invalid_modifier",
-                    "`style:` directive can only use the `important` modifier",
-                    a.span,
-                );
-            }
-            _ => {}
-        }
-    }
+    directives(input, el, attributes)?;
+    lets::snippet_conflict(input, el, attributes)?;
     let owner = match el.kind {
         kind if kind.renders_component() => Some(Owner::Component(identifier)),
         ElementKind::Metadata(Some(MetadataTag::Element)) => Some(Owner::Element),
@@ -270,6 +252,136 @@ fn element<'a>(
         _ => owner,
     };
     Ok((owner, placement))
+}
+
+/// Upstream's `animate:` checks: the element is the one child of a keyed `{#each}`, with one
+/// such directive.
+fn animation(
+    input: &CompileInput<'_>,
+    parent: Option<&NodeKind>,
+    attributes: &[Attribute],
+) -> Result<(), Diagnostic> {
+    const PLACEMENT: &str = "An element that uses the `animate:` directive must be the only child \
+        of a keyed `{#each ...}` block";
+    let tree = input.component.compiler_syntax_tree;
+    let source = input.component.source_text;
+    let mut animated = false;
+    for a in attributes
+        .iter()
+        .filter(|a| matches!(a.value, AttributeValue::Animate { .. }))
+    {
+        let Some(NodeKind::Each(each)) = parent else {
+            return invalid("animation_invalid_placement", PLACEMENT, a.span);
+        };
+        if each.key.is_none() {
+            return invalid(
+                "animation_missing_key",
+                &format!("{PLACEMENT}. Did you forget to add a key to your each block?"),
+                a.span,
+            );
+        }
+        let children = (tree.children(each.body).iter())
+            .map(|&child| &tree.node(child).kind)
+            .filter(|kind| {
+                !matches!(
+                    kind,
+                    NodeKind::Comment { .. }
+                        | NodeKind::Const { .. }
+                        | NodeKind::Declaration { .. }
+                ) && !kind.is_blank_text(source)
+            })
+            .count();
+        if children > 1 {
+            return invalid("animation_invalid_placement", PLACEMENT, a.span);
+        }
+        if animated {
+            return invalid(
+                "animation_duplicate",
+                "An element can only have one 'animate' directive",
+                a.span,
+            );
+        }
+        animated = true;
+    }
+    Ok(())
+}
+
+/// Upstream's `attribute_invalid_event_handler`: an `on…` attribute of an element is an
+/// expression.
+fn event_handlers(source: &str, el: &Element, attributes: &[Attribute]) -> Result<(), Diagnostic> {
+    if matches!(
+        el.kind,
+        ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element))
+    ) && let Some(handler) = attributes.iter().find(|a| {
+        let name = a.name.text(source);
+        name.len() > 2
+            && name.starts_with("on")
+            && matches!(
+                a.value,
+                AttributeValue::Boolean
+                    | AttributeValue::Static(_)
+                    | AttributeValue::Interpolated(_)
+            )
+    }) {
+        return invalid(
+            "attribute_invalid_event_handler",
+            "Event attribute must be a JavaScript expression, not a string",
+            handler.span,
+        );
+    }
+    Ok(())
+}
+
+/// The directives' own checks, which upstream makes after the element's.
+fn directives(
+    input: &CompileInput<'_>,
+    el: &Element,
+    attributes: &[Attribute],
+) -> Result<(), Diagnostic> {
+    let source = input.component.source_text;
+    // Upstream's `BindDirective` reads `parent.name`, which is the tag as written.
+    let host = match el.kind {
+        ElementKind::Regular => Some(el.name.text(source)),
+        ElementKind::Metadata(Some(MetadataTag::Element)) => Some("svelte:element"),
+        _ => None,
+    };
+    for a in attributes {
+        if let (AttributeValue::Bind(_), Some(host)) = (&a.value, host) {
+            super::super::bindings::check_target(source, host, attributes, a)?;
+        }
+        if let AttributeValue::Style { modifiers, .. } = &a.value
+            && ![Modifiers::default(), Modifiers::IMPORTANT].contains(modifiers)
+        {
+            return invalid(
+                "style_directive_invalid_modifier",
+                "`style:` directive can only use the `important` modifier",
+                a.span,
+            );
+        }
+        if let AttributeValue::Bind(target) = a.value
+            && a.name.text(source) == "group"
+            && matches!(
+                input.component.javascript.get_expression(target),
+                Expression::SequenceExpression(_)
+            )
+        {
+            return invalid(
+                "bind_group_invalid_expression",
+                "`bind:group` can only bind to an Identifier or MemberExpression",
+                a.span,
+            );
+        }
+        if let AttributeValue::Bind(target) = a.value
+            && !binds_a_name(input.component.javascript, target)
+        {
+            return invalid(
+                "bind_invalid_expression",
+                "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair",
+                a.span,
+            );
+        }
+    }
+    Ok(())
 }
 
 /// Upstream's `bind_invalid_expression` test: a `{get, set}` pair, or a member chain that starts

@@ -3,9 +3,11 @@ use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use super::expressions::Comments;
 use super::{
     Attribute, AttributeKind, AttributeValue, ElementKind, LayoutInstructionIdentifier, Part,
-    Printer, R, TemplateNode, TemplateNodeIdentifier, Unsupported, is_collapse_ws,
+    Printer, R, TemplateNode, TemplateNodeIdentifier, TokenType, Unsupported, is_collapse_ws,
 };
 use crate::options::WhitespaceSensitivity;
+
+mod comments;
 
 impl Printer<'_, '_, '_> {
     #[expect(
@@ -19,7 +21,6 @@ impl Printer<'_, '_, '_> {
         let TemplateNode::Element {
             name,
             attributes,
-            span,
             self_closing: did_self_close,
             ..
         } = *self.c.node(identifier)
@@ -36,13 +37,8 @@ impl Printer<'_, '_, '_> {
             "style" => return self.nested_tag(identifier, "style"),
             _ => {}
         }
-        if name == "template"
-            && attributes
-                .get(&self.c.attributes)
-                .iter()
-                .any(|a| matches!(a.name.text(self.source_text), "lang" | "type"))
-        {
-            return Err(Unsupported::at("<template> with a language", span));
+        if name == "template" && self.is_pug(attributes.get(&self.c.attributes)) {
+            return self.nested_tag(identifier, "template");
         }
         let children = self.children(identifier);
         let is_empty = children.iter().all(|&c| self.is_empty_text(c));
@@ -76,14 +72,26 @@ impl Printer<'_, '_, '_> {
             let document = self.this_binding(&attributes[i], name == "svelte:element")?;
             attribute_docs.push(self.cat(&[line, document]));
         }
+        let listed: Vec<&Attribute> = (attributes.iter().enumerate())
+            .filter(|&(i, _)| Some(i) != this)
+            .map(|(_, a)| a)
+            .collect();
+        let comments =
+            self.attribute_comments(self.c.node(identifier).span().start_offset, &listed)?;
+        // Where the attributes' group ends in a line break.
+        let ends_line = !self.options.bracket_same_line
+            && if self_closing {
+                !is_doctype
+            } else {
+                (is_empty || !self.should_hug(identifier, children, true)) && !in_pre
+            };
         // The plugin's `isPreTagContent` counts the `<pre>` itself, attributes included.
         self.in_pre = in_pre;
-        for (i, a) in attributes.iter().enumerate() {
-            if Some(i) == this {
-                continue;
-            }
+        for (a, comments) in listed.iter().zip(&comments) {
             let line = self.attribute_line(many);
-            let document = self.attribute(a, kind);
+            let document = self
+                .attribute(a, kind)
+                .and_then(|d| self.commented(comments, d, ends_line));
             let document = match document {
                 Ok(d) => d,
                 Err(e) => {
@@ -382,9 +390,17 @@ impl Printer<'_, '_, '_> {
                         oxc_ast::ast::Expression::StringLiteral(_)
                     );
                 if !literal {
+                    // Svelte takes `this` out of the attributes, so the plugin attaches its
+                    // comment to an attribute too and prints it twice, once more on each run.
+                    if let Some(comment) = (c.tokens.within(a.span).iter())
+                        .find(|t| t.kind == TokenType::JavaScriptComment)
+                    {
+                        return Err(Unsupported::at(
+                            "a comment in `this`, which the plugin prints twice",
+                            comment.span,
+                        ));
+                    }
                     let open = self.lit("this={");
-                    // The plugin also prints a comment here among the attributes, which this does
-                    // not yet.
                     let e =
                         self.expression_with(expression, false, false, false, Comments::Refused)?;
                     let close = self.lit("}");

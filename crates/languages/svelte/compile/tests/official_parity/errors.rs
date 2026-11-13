@@ -4,6 +4,12 @@ use rsvelte_svelte_compile::Target;
 
 use super::{compile, compile_at};
 
+#[path = "errors/declarations.rs"]
+mod declarations;
+#[path = "errors/directives.rs"]
+mod directives;
+#[path = "errors/options.rs"]
+mod options;
 #[path = "errors/snippets.rs"]
 mod snippets;
 
@@ -352,26 +358,38 @@ fn a_store_subscription_raises_upstreams_error_where_upstream_does() {
 
 #[test]
 fn a_binding_upstream_rejects_on_its_element_is_refused_on_both_targets() {
-    for element in [
-        "<input bind:checked={x} />",
-        "<input type=\"radio\" bind:checked={x} />",
-        "<input type={t} bind:checked={x} />",
-        "<input type bind:value={x} />",
-        "<input bind:files={x} />",
-        "<div bind:value={x}></div>",
-        "<div bind:innerHTML={x}></div>",
-        "<div contenteditable={t} bind:textContent={x}></div>",
-        "<select multiple={t} bind:value={x}></select>",
-        "<svg bind:offsetWidth={x}></svg>",
-        "<div bind:nope={x}></div>",
-        "<input type=\"radio\" bind:group={() => x, (v) => (x = v)} />",
-        "{#snippet s(y)}<input type=\"radio\" bind:group={y} />{/snippet}",
+    // Upstream's code for each, where this port raises it, and `unsupported` where it does not.
+    for (element, code) in [
+        ("<input bind:checked={x} />", "bind_invalid_target"),
+        (
+            "<input type=\"radio\" bind:checked={x} />",
+            "bind_invalid_target",
+        ),
+        ("<input type={t} bind:checked={x} />", "unsupported"),
+        ("<input type bind:value={x} />", "unsupported"),
+        ("<input bind:files={x} />", "bind_invalid_target"),
+        ("<div bind:value={x}></div>", "bind_invalid_target"),
+        ("<div bind:innerHTML={x}></div>", "unsupported"),
+        (
+            "<div contenteditable={t} bind:textContent={x}></div>",
+            "unsupported",
+        ),
+        (
+            "<select multiple={t} bind:value={x}></select>",
+            "unsupported",
+        ),
+        ("<svg bind:offsetWidth={x}></svg>", "bind_invalid_target"),
+        ("<div bind:nope={x}></div>", "unsupported"),
+        (
+            "{#snippet s(y)}<input type=\"radio\" bind:group={y} />{/snippet}",
+            "unsupported",
+        ),
     ] {
         let source = format!("<script>let x = $state(); let t = $state();</script>{element}");
         for target in [Target::Client, Target::Server] {
             assert_eq!(
                 compile(&source, target),
-                Err("unsupported".to_owned()),
+                Err(code.to_owned()),
                 "{source} on {target:?}"
             );
         }

@@ -27,6 +27,7 @@ async () => {
       },
     });
     const { item, children } = __rsvelte_component_props(__rsvelte_component_0);
+    List;
   }
   {
     const __rsvelte_component_0 = __rsvelte_component(List);
@@ -45,6 +46,7 @@ async () => {
     {
       svelteHTML.createElement("p", {});
     }
+    List;
   }
 };
 const SnippetComponentProps__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();

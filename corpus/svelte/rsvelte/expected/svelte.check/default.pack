@@ -781,310 +781,6 @@
 	}
 ]
 
-=== 4590 crates/rsvelte_core/fixtures_utf8_boundary/svelte_ignore_scan.svelte	json
-[
-	{
-		"code": 2307,
-		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
-		"start": {
-			"line": 2,
-			"character": 7
-		},
-		"end": {
-			"line": 2,
-			"character": 29
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'contentFilter'.",
-		"start": {
-			"line": 4,
-			"character": 1
-		},
-		"end": {
-			"line": 4,
-			"character": 14
-		}
-	},
-	{
-		"code": 7006,
-		"message": "Parameter 'preset' implicitly has an 'any' type.",
-		"start": {
-			"line": 4,
-			"character": 28
-		},
-		"end": {
-			"line": 4,
-			"character": 34
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'importButtonElement'.",
-		"start": {
-			"line": 11,
-			"character": 3
-		},
-		"end": {
-			"line": 11,
-			"character": 22
-		}
-	},
-	{
-		"code": 18048,
-		"message": "'event' is possibly 'undefined'.",
-		"start": {
-			"line": 11,
-			"character": 32
-		},
-		"end": {
-			"line": 11,
-			"character": 37
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'confirmEl'.",
-		"start": {
-			"line": 13,
-			"character": 6
-		},
-		"end": {
-			"line": 13,
-			"character": 15
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'confirmEl'.",
-		"start": {
-			"line": 13,
-			"character": 20
-		},
-		"end": {
-			"line": 13,
-			"character": 29
-		}
-	},
-	{
-		"code": 18048,
-		"message": "'event' is possibly 'undefined'.",
-		"start": {
-			"line": 13,
-			"character": 39
-		},
-		"end": {
-			"line": 13,
-			"character": 44
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'contentFilter'.",
-		"start": {
-			"line": 23,
-			"character": 7
-		},
-		"end": {
-			"line": 23,
-			"character": 20
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'contentFilter'.",
-		"start": {
-			"line": 25,
-			"character": 13
-		},
-		"end": {
-			"line": 25,
-			"character": 26
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'preset'.",
-		"start": {
-			"line": 26,
-			"character": 13
-		},
-		"end": {
-			"line": 26,
-			"character": 19
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'getPresetKeywords'.",
-		"start": {
-			"line": 29,
-			"character": 21
-		},
-		"end": {
-			"line": 29,
-			"character": 38
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'preset'.",
-		"start": {
-			"line": 29,
-			"character": 39
-		},
-		"end": {
-			"line": 29,
-			"character": 45
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'customKeywords'.",
-		"start": {
-			"line": 38,
-			"character": 11
-		},
-		"end": {
-			"line": 38,
-			"character": 25
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'customKeywords'.",
-		"start": {
-			"line": 41,
-			"character": 19
-		},
-		"end": {
-			"line": 41,
-			"character": 33
-		}
-	},
-	{
-		"code": 2353,
-		"message": "Object literal may only specify known properties, and '\"<p\"' does not exist in type 'HTMLProps<\"button\", HTMLAttributes<any>>'.",
-		"start": {
-			"line": 55,
-			"character": 4
-		},
-		"end": {
-			"line": 55,
-			"character": 6
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'showImportConfirm'.",
-		"start": {
-			"line": 57,
-			"character": 11
-		},
-		"end": {
-			"line": 57,
-			"character": 28
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'importWarning'.",
-		"start": {
-			"line": 62,
-			"character": 17
-		},
-		"end": {
-			"line": 62,
-			"character": 30
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'importWarning'.",
-		"start": {
-			"line": 66,
-			"character": 22
-		},
-		"end": {
-			"line": 66,
-			"character": 35
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 's'.",
-		"start": {
-			"line": 71,
-			"character": 15
-		},
-		"end": {
-			"line": 71,
-			"character": 16
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'showImportConfirm'.",
-		"start": {
-			"line": 77,
-			"character": 18
-		},
-		"end": {
-			"line": 77,
-			"character": 35
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'fileInputElement'.",
-		"start": {
-			"line": 78,
-			"character": 22
-		},
-		"end": {
-			"line": 78,
-			"character": 38
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'fileInputElement'.",
-		"start": {
-			"line": 78,
-			"character": 40
-		},
-		"end": {
-			"line": 78,
-			"character": 56
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'showResetConfirm'.",
-		"start": {
-			"line": 86,
-			"character": 9
-		},
-		"end": {
-			"line": 86,
-			"character": 25
-		}
-	},
-	{
-		"code": 2353,
-		"message": "Object literal may only specify known properties, and '\"<p\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
-		"start": {
-			"line": 90,
-			"character": 10
-		},
-		"end": {
-			"line": 90,
-			"character": 12
-		}
-	}
-]
-
 === 3 lint-env/no-sveltekit/src/nav.svelte	json
 []
 
@@ -2824,22 +2520,6 @@
 === 3 lint/no-dynamic-slot-name/01-basic.svelte	json
 []
 
-=== 189 lint/no-dynamic-slot-name/02-require-value.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Cannot read properties of undefined (reading 'raw')",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
 === 3 lint/no-dynamic-slot-name/03-uppercase-name.svelte	json
 []
 
@@ -4067,22 +3747,6 @@
 === 3 lint/no-store-async/18-cross-store-rules.svelte	json
 []
 
-=== 190 lint/no-svelte-internal/01-basic.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Cannot read properties of undefined (reading 'kind')",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
-
 === 3 lint/no-svelte-internal/02-decoys.svelte	json
 []
 
@@ -4143,22 +3807,6 @@
 
 === 3 lint/no-svelte-internal/18-multiline-specifier.svelte	json
 []
-
-=== 190 lint/no-svelte-internal/20-emoji-columns.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Cannot read properties of undefined (reading 'kind')",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
 
 === 3 lint/no-svelte-internal/21-dynamic-import-lookalikes.svelte	json
 []
@@ -7956,22 +7604,6 @@
 === 3 pattern/css/empty-declaration.svelte	json
 []
 
-=== 246 pattern/css/html-comment-in-a-sheet.svelte	json
-[
-	{
-		"code": -1,
-		"message": "`</style>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-		"start": {
-			"line": 8,
-			"character": 0
-		},
-		"end": {
-			"line": 8,
-			"character": 0
-		}
-	}
-]
-
 === 3 pattern/css/value-ends-outside-strings-and-urls.svelte	json
 []
 
@@ -10387,6 +10019,9 @@
 []
 
 === 3 pattern/issues/a-dynamic-id-matches-any-id-selector.svelte	json
+[]
+
+=== 3 pattern/issues/a-global-compound-with-a-class-is-still-scoped.svelte	json
 []
 
 === 3 pattern/issues/a-has-argument-absent-from-the-component-is-unused.svelte	json

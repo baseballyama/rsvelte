@@ -92,13 +92,14 @@ impl Builder<'_> {
         })
     }
 
-    /// Whether a child fills a named slot with `let:`, which reads the component's slots.
+    /// Whether a child fills a slot with `let:`, which reads the component's slots: an element
+    /// with `slot`, or any element, which fills the default slot.
     pub(super) fn fills_slot_with_lets(&self, children: Range) -> bool {
         self.component.children(children).iter().any(|&child| {
             matches!(
                 *self.component.node(child),
-                TemplateNode::Element { attributes, .. }
-                    if self.has_slot(attributes)
+                TemplateNode::Element { attributes, component, .. }
+                    if (component.is_none() || self.has_slot(attributes))
                         && self
                             .component
                             .attributes(attributes)

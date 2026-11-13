@@ -1,6 +1,7 @@
 use rsvelte_kernel::output::edits::BorrowedEdits as Edits;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_stylesheet_semantic::matcher::is_global;
+use rsvelte_stylesheet_semantic::matcher::{is_explicitly_global, is_global};
+use rsvelte_stylesheet_syntax::properties::{names_keyframes, without_browser_prefix};
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 
 mod keyframes;
@@ -86,12 +87,7 @@ impl Renderer<'_> {
         declaration: &rsvelte_stylesheet_syntax::syntax_tree::Declaration,
     ) {
         let property = declaration.property.text(self.source);
-        let name = property
-            .strip_prefix("-webkit-")
-            .or_else(|| property.strip_prefix("-moz-"))
-            .or_else(|| property.strip_prefix("-o-"))
-            .unwrap_or(property);
-        if name.eq_ignore_ascii_case("animation") || name.eq_ignore_ascii_case("animation-name") {
+        if names_keyframes(property) {
             return;
         }
         self.trim_before(declaration.span.start_offset);
@@ -116,7 +112,24 @@ impl Renderer<'_> {
         self.used[selector.id as usize] || selector.parts.iter().all(|p| is_global(self.source, p))
     }
 
+    /// Whether a rule is a `:global { ... }` block, whose body Svelte leaves unscoped.
+    fn global_block(&self, selectors: &[ComplexSelector]) -> bool {
+        selectors.iter().any(|s| {
+            s.parts.iter().any(|p| {
+                p.simple
+                    .iter()
+                    .any(|simple| simple.is_global_block(self.source))
+            })
+        })
+    }
+
     fn empty(&self, rule: &Rule, global: bool) -> bool {
+        // Svelte keeps a `:global` block whose body holds anything, and judges what it holds.
+        if let RuleKind::Style { selectors, .. } = &rule.kind
+            && self.global_block(selectors)
+        {
+            return rule.declarations.is_empty() && rule.children.is_empty();
+        }
         rule.declarations.is_empty()
             && rule.children.iter().all(|child| match &child.kind {
                 RuleKind::At { block, .. } => {
@@ -124,14 +137,7 @@ impl Renderer<'_> {
                 }
                 RuleKind::Keyframe { .. } => false,
                 RuleKind::Style { selectors, .. } => {
-                    let child_global = global
-                        || selectors.iter().any(|s| {
-                            s.parts.iter().any(|p| {
-                                p.simple
-                                    .iter()
-                                    .any(|simple| simple.is_global_block(self.source))
-                            })
-                        });
+                    let child_global = global || self.global_block(selectors);
                     (!child_global && !selectors.iter().any(|s| self.used(s)))
                         || self.empty(child, child_global)
                 }
@@ -171,13 +177,7 @@ impl Renderer<'_> {
                 if self.mode == RenderMode::Minify {
                     self.trim_before(rule.span.start_offset);
                 }
-                let global_block = selectors.iter().any(|s| {
-                    s.parts.iter().any(|p| {
-                        p.simple
-                            .iter()
-                            .any(|simple| simple.is_global_block(self.source))
-                    })
-                });
+                let global_block = self.global_block(selectors);
                 child_global |= global_block;
                 if self.empty(rule, child_global) {
                     if self.mode == RenderMode::Minify {
@@ -236,7 +236,9 @@ impl Renderer<'_> {
                     });
                 }
             }
-            RuleKind::At { name, prelude, .. } if name.text(self.source).ends_with("keyframes") => {
+            RuleKind::At { name, prelude, .. }
+                if without_browser_prefix(name.text(self.source)) == "keyframes" =>
+            {
                 self.keyframes.rename(*prelude, global, &mut self.edits);
                 return;
             }
@@ -296,16 +298,7 @@ impl Renderer<'_> {
 
     fn selector(&mut self, selector: &ComplexSelector, mut bumped: bool, prune: bool) {
         for relative in &selector.parts {
-            let outer_global = relative.global
-                || relative
-                    .simple
-                    .first()
-                    .is_pseudo(self.source, &["global", "root", "host"]);
-            bumped |= relative.simple.first().is_pseudo(self.source, &["root"])
-                && relative
-                    .simple
-                    .iter()
-                    .any(|s| s.is_pseudo(self.source, &["has"]));
+            let outer_global = relative.global || is_explicitly_global(self.source, relative);
             let standalone_function = relative.simple.len() == 1
                 && relative.simple[0].is_pseudo(self.source, &["is", "where"]);
             let nesting = relative
@@ -318,23 +311,23 @@ impl Renderer<'_> {
                 && !outer_global
             {
                 let modifier = if bumped { self.repeated } else { self.modifier };
+                // Svelte bumps the specificity once per scoped compound, even one it writes nothing
+                // into, such as `:root:has(...)`.
+                bumped = true;
                 for (i, simple) in relative.simple.iter().enumerate().rev() {
                     match simple {
                         Simple::PseudoClass { span, name, .. }
                         | Simple::PseudoElement { span, name, .. } => {
                             if i == 0 && !matches!(name.text(self.source), "root" | "host") {
                                 self.edits.insert(span.start_offset, modifier);
-                                bumped = true;
                             }
                         }
                         Simple::Universal(span) => {
                             self.edits.replace(*span, modifier);
-                            bumped = true;
                             break;
                         }
                         _ => {
                             self.edits.insert(simple.span().end_offset, modifier);
-                            bumped = true;
                             break;
                         }
                     }
