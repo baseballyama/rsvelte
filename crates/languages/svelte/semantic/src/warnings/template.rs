@@ -155,6 +155,10 @@ impl<'a> Template<'a> {
     fn text(&mut self, span: Span, before: &[u32], attribute: bool) {
         let source = self.context.source;
         let raw = span.text(source);
+        // Each control character's UTF-8 starts with 0xE2; most text has none, and skips decoding.
+        if !raw.as_bytes().contains(&0xE2) {
+            return;
+        }
         let text = if attribute {
             decode_attribute(raw)
         } else {
