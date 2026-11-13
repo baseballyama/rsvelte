@@ -2,7 +2,8 @@ use oxc_parser::Kind;
 use rsvelte_kernel::source::positions::Span;
 
 use super::identifier::match_bracket;
-use super::{End, ParseResult, Parser, javascript_error};
+use super::javascript::javascript_failure;
+use super::{End, ParseResult, Parser};
 use crate::syntax_tree::{TemplateNode, TemplateNodeIdentifier, TokenType};
 
 impl Parser<'_, '_> {
@@ -52,7 +53,7 @@ impl Parser<'_, '_> {
         let parameters = Some(
             self.builder
                 .parameters(span, source_type)
-                .map_err(javascript_error)?,
+                .map_err(javascript_failure)?,
         );
         self.javascript_region(span.start_offset, span.end_offset);
         self.position = i;
