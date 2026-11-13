@@ -16,6 +16,7 @@ use super::{Phase, Raised, Section, a11y, error, slot_name_error, warning};
 use crate::resolve::Resolution;
 
 mod element;
+mod opening;
 mod placement;
 
 /// What the walk of the template reads besides the tree.
@@ -278,6 +279,7 @@ impl<'a> Template<'a> {
         let component = self.context.component;
         let node = component.node(child);
         let at = node.span().start_offset;
+        self.opening_tag(node);
         match *node {
             TemplateNode::Element { .. } => self.element(child, next, parent),
             TemplateNode::If {

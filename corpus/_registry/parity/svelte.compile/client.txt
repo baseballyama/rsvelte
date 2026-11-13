@@ -1,4 +1,4 @@
-# svelte.compile/client: 36040 match
+# svelte.compile/client: 36048 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -140,17 +140,12 @@ svelte/rsvelte-tests-core-2/global_block_body_not_pruned_4089/a_global_block_ope
 svelte/rsvelte-tests-core-2/global_block_body_not_pruned_4089/a_global_block_opened_by_a_modifier_start_is_one_too/882cc72dc283d5e0.svelte	mismatch
 svelte/rsvelte-tests-core-2/global_block_body_not_pruned_4089/a_global_block_opened_by_a_modifier_start_is_one_too/cf3fb0930976baa6.svelte	mismatch
 svelte/rsvelte-tests-core-2/global_block_body_not_pruned_4089/a_global_block_scopes_only_what_its_prelude_matches/8e4c52bd0555fd5c.svelte	mismatch
-svelte/rsvelte-tests-core-2/html_tag_opening_validation/legacy_html_tag_allows_whitespace_after_opening_bracket/dd685fe951100624.svelte	unexpected
-svelte/rsvelte-tests-core-2/html_tag_opening_validation/runes_html_tag_requires_at_sign_immediately_after_opening_bracket/eae9a644352dd32a.svelte	unexpected
 svelte/rsvelte-tests-core-2/import_assert_newline_3198/javascript_rejects_at_the_brace/404dfd40b20e4bfc.svelte	mismatch
 svelte/rsvelte-tests-core-2/import_assert_newline_3198/javascript_rejects_at_the_brace/f4319458422084af.svelte	mismatch
 svelte/rsvelte-tests-core-2/import_assert_newline_3198/same_line_assert_is_unchanged/5b4535faac199c0d.svelte	unexpected
 svelte/rsvelte-tests-core-2/import_assert_newline_3198/typescript_newline_assert_compiles_and_keeps_the_clause/76ce4ca3fb098a26.svelte	refused
 svelte/rsvelte-tests-core-2/import_assert_newline_3198/typescript_newline_assert_compiles_and_keeps_the_clause/f05849b6cba14213.svelte	refused
 svelte/rsvelte-tests-core-2/inspect_operand_slot_3441/a_with_inspect_initializer_on_server_dev/c295403bf92ffd40.svelte	refused
-svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_accept_js_whitespace/2e13274272c7f4f6.svelte	unexpected
-svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_accept_js_whitespace/c2ae954870a8aeef.svelte	unexpected
-svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_accept_js_whitespace/f2d5ea78a7be1c90.svelte	unexpected
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_reject_a_nel/d17180b037ec6515.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/262e9f3f9f72d2a6.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/4e9145d6de0541b6.svelte	mismatch
@@ -481,10 +476,7 @@ svelte/rsvelte/lint/button-has-type/03-bind-before-attr.svelte	mismatch
 svelte/rsvelte/lint/consistent-selector-style/21-affix-shapes.svelte	mismatch
 svelte/rsvelte/lint/experimental-require-slot-types/13-options-runes-false.svelte	refused
 svelte/rsvelte/lint/infinite-reactive-loop/14-options-runes-false.svelte	refused
-svelte/rsvelte/lint/mustache-spacing/06-tags-options.svelte	unexpected
-svelte/rsvelte/lint/mustache-spacing/09-at-tags.svelte	unexpected
 svelte/rsvelte/lint/no-at-const-tags/06-options-runes-false.svelte	refused
-svelte/rsvelte/lint/no-at-debug-tags/13-spaced-tag.svelte	unexpected
 svelte/rsvelte/lint/no-at-debug-tags/15-many-identifiers.svelte	mismatch
 svelte/rsvelte/lint/no-bind-value-on-checkable-inputs/06-name-case.svelte	mismatch
 svelte/rsvelte/lint/no-bind-value-on-checkable-inputs/11-component-and-special-hosts.svelte	mismatch
