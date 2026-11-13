@@ -152,6 +152,16 @@ pub(crate) fn acorn(
         }),
         "1101" => Some(fails("'with' in strict mode", start)),
         "2660" => Some(fails("'super' keyword outside a method", start)),
+        // `super()` where it is not allowed: acorn first asks whether `super` is allowed at all.
+        "2337" | "2335" => match locate(start, end, Find::SuperHome, visit) {
+            None | Some((_, AstType::Function)) => {
+                Some(fails("'super' keyword outside a method", start))
+            }
+            Some(_) => Some(fails(
+                "super() call outside constructor of a subclass",
+                start,
+            )),
+        },
         // The lexer's errors: acorn reads a template's body and a regular expression's from the
         // byte after the opening, and a shorthand's initializer from its `=`.
         "1002" => Some(fails("Unterminated string constant", start)),
@@ -234,6 +244,19 @@ fn early_error(
             (at, AstType::BreakStatement) => Some(fails("Unsyntactic break", at)),
             (at, _) => Some(fails("Unsyntactic continue", at)),
         },
+        // A legacy octal: acorn reports a number at its start, and an escape at its backslash or
+        // at the digit after it.
+        "1121" | "1489" => Some(fails("Invalid number", start)),
+        "1487" => Some(fails("Octal literal in strict mode", start)),
+        "1488" => Some(fails("Invalid escape sequence", start + 1)),
+        "1102" => Some(fails(
+            "Deleting local variable in strict mode",
+            locate(start, end, Find::Unary, visit)?.0,
+        )),
+        "18011" => Some(fails(
+            "Private fields can not be deleted",
+            locate(start, end, Find::Unary, visit)?.0,
+        )),
         _ => None,
     }
 }
@@ -265,6 +288,11 @@ enum Find {
     Rest,
     /// The `break` or `continue` statement around the label.
     Jump,
+    /// The `delete` around the label.
+    Unary,
+    /// The innermost method, class field, static block or other function around the label, which
+    /// decides whether acorn allows `super` there.
+    SuperHome,
 }
 
 impl Locator {
@@ -272,6 +300,13 @@ impl Locator {
     pub fn enter(&mut self, kind: AstKind<'_>) {
         let around = kind.span().contains_inclusive(self.label);
         let found = match (self.find, kind) {
+            // A method's function is the method, which comes first in the walk.
+            (Find::SuperHome, AstKind::MethodDefinition(it)) if around => it.value.span.start,
+            (Find::SuperHome, AstKind::Function(it))
+                if around && self.found != Some((it.span.start, AstType::MethodDefinition)) =>
+            {
+                it.span.start
+            }
             (Find::OperandEnd, AstKind::TSAsExpression(it)) if it.span == self.label => {
                 it.expression.span().end
             }
@@ -287,10 +322,13 @@ impl Locator {
             )
             | (Find::Rest, AstKind::FormalParameterRest(_))
             | (Find::Jump, AstKind::BreakStatement(_) | AstKind::ContinueStatement(_))
-                if around =>
-            {
-                kind.span().start
-            }
+            | (Find::Unary, AstKind::UnaryExpression(_))
+            | (
+                Find::SuperHome,
+                AstKind::PropertyDefinition(_)
+                | AstKind::AccessorProperty(_)
+                | AstKind::StaticBlock(_),
+            ) if around => kind.span().start,
             _ => return,
         };
         self.found = Some((found, kind.ty()));
