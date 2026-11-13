@@ -76,7 +76,7 @@ struct Trees<'a> {
     type_parameters: Vec<TSTypeParameterDeclaration<'a>>,
     /// The comments of every part but the programs, which keep their own, in document order.
     comments: Vec<Comment>,
-    acorn_rejection: Option<u32>,
+    acorn_rejection: Option<(u32, acorn_grammar::Rejection)>,
 }
 
 /// The trees parsed from one document, and the arena that holds them.

@@ -2,8 +2,9 @@
 
 use oxc_ast::ast::{
     AccessorProperty, Decorator, ExportDeclaration, MethodDefinition, MethodDefinitionKind,
-    Program, Statement, TSEnumDeclaration, TSExportAssignment, TSImportEqualsDeclaration,
-    TSNamespaceDeclaration, TSNamespaceDeclarationBody,
+    Program, Statement, TSEnumDeclaration, TSExportAssignment, TSExternalModuleDeclaration,
+    TSGlobalDeclaration, TSImportEqualsDeclaration, TSModuleBlock, TSNamespaceDeclaration,
+    TSNamespaceDeclarationBody,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::Span;
@@ -23,22 +24,49 @@ pub enum Feature {
 /// `remove_typescript_nodes` meets them: a namespace's body before the namespace.
 #[must_use]
 pub fn first_runtime_feature(program: &Program<'_>) -> Option<(Feature, Span)> {
-    let mut finder = Finder(None);
-    finder.visit_program(program);
-    finder.0
+    find(program, false)
 }
 
-struct Finder(Option<(Feature, Span)>);
+/// [`first_runtime_feature`] as Svelte's `remove_typescript_nodes` sees it: it checks the body of
+/// a `declare` namespace, `declare module` or `declare global` too, so a `const` there is a value.
+#[must_use]
+pub fn first_svelte_runtime_feature(program: &Program<'_>) -> Option<(Feature, Span)> {
+    find(program, true)
+}
+
+fn find(program: &Program<'_>, ambient_bodies: bool) -> Option<(Feature, Span)> {
+    let mut finder = Finder {
+        found: None,
+        ambient_bodies,
+        namespaces: 0,
+    };
+    finder.visit_program(program);
+    finder.found
+}
+
+struct Finder {
+    found: Option<(Feature, Span)>,
+    ambient_bodies: bool,
+    /// How many namespace bodies the walk is in.
+    namespaces: u32,
+}
 
 impl Finder {
     fn found(&mut self, feature: Feature, span: Span) {
-        self.0.get_or_insert((feature, span));
+        self.found.get_or_insert((feature, span));
+    }
+
+    /// A module block the walk has entered, refused once its statements are walked.
+    fn module_block(&mut self, block: &TSModuleBlock<'_>, span: Span) {
+        if block.body.iter().any(|s| !crate::strip::is_type_only(s)) {
+            self.found(Feature::NamespaceWithValues, span);
+        }
     }
 }
 
 impl<'a> Visit<'a> for Finder {
     fn visit_statement(&mut self, it: &Statement<'a>) {
-        if self.0.is_none() {
+        if self.found.is_none() {
             walk::walk_statement(self, it);
         }
     }
@@ -55,13 +83,37 @@ impl<'a> Visit<'a> for Finder {
     }
 
     fn visit_ts_namespace_declaration(&mut self, it: &TSNamespaceDeclaration<'a>) {
-        if it.declare {
+        if it.declare && !self.ambient_bodies {
             return;
         }
+        self.namespaces += 1;
         walk::walk_ts_namespace_declaration(self, it);
-        if has_values(&it.body) {
-            self.found(Feature::NamespaceWithValues, it.span);
+        self.namespaces -= 1;
+        if let TSNamespaceDeclarationBody::TSModuleBlock(block) = &it.body {
+            self.module_block(block, it.span);
         }
+    }
+
+    fn visit_ts_external_module_declaration(&mut self, it: &TSExternalModuleDeclaration<'a>) {
+        if !self.ambient_bodies {
+            return;
+        }
+        self.namespaces += 1;
+        walk::walk_ts_external_module_declaration(self, it);
+        self.namespaces -= 1;
+        if let Some(block) = &it.body {
+            self.module_block(block, it.span);
+        }
+    }
+
+    fn visit_ts_global_declaration(&mut self, it: &TSGlobalDeclaration<'a>) {
+        if !self.ambient_bodies {
+            return;
+        }
+        self.namespaces += 1;
+        walk::walk_ts_global_declaration(self, it);
+        self.namespaces -= 1;
+        self.module_block(&it.body, it.span);
     }
 
     fn visit_decorator(&mut self, it: &Decorator<'a>) {
@@ -83,21 +135,14 @@ impl<'a> Visit<'a> for Finder {
     }
 
     fn visit_ts_import_equals_declaration(&mut self, it: &TSImportEqualsDeclaration<'a>) {
+        // Svelte keeps it as a value, so the namespace around it is what it refuses.
+        if self.ambient_bodies && self.namespaces > 0 {
+            return;
+        }
         self.found(Feature::ImportEquals, it.span);
     }
 
     fn visit_ts_export_assignment(&mut self, it: &TSExportAssignment<'a>) {
         self.found(Feature::ExportAssignment, it.span);
-    }
-}
-
-/// Whether a namespace keeps a statement once its types are erased.
-fn has_values(body: &TSNamespaceDeclarationBody<'_>) -> bool {
-    match body {
-        // A nested namespace with values was refused when the walk met it.
-        TSNamespaceDeclarationBody::TSNamespaceDeclaration(_) => false,
-        TSNamespaceDeclarationBody::TSModuleBlock(block) => {
-            block.body.iter().any(|s| !crate::strip::is_type_only(s))
-        }
     }
 }

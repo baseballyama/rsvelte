@@ -252,3 +252,87 @@ fn a_group_binding_takes_no_pair() {
         Some(("bind_group_invalid_expression", (7, 45))),
     )]);
 }
+
+#[test]
+fn an_event_handler_takes_the_modifiers_its_host_allows() {
+    assert_outcomes(&[
+        ("<div on:click|once|once></div>", None),
+        ("<svelte:window on:click|foo />", None),
+        ("<C on:click|once />", None),
+        (
+            "<div on:click| />",
+            Some(("event_handler_invalid_modifier", (5, 14))),
+        ),
+        (
+            "<div on:click|stopPropagation| />",
+            Some(("event_handler_invalid_modifier", (5, 30))),
+        ),
+        (
+            "<div on:click|global />",
+            Some(("event_handler_invalid_modifier", (5, 20))),
+        ),
+        (
+            "<div on:click|passive|preventDefault />",
+            Some(("event_handler_invalid_modifier_combination", (5, 36))),
+        ),
+        (
+            "<div on:click|foo|passive|preventDefault />",
+            Some(("event_handler_invalid_modifier", (5, 40))),
+        ),
+        (
+            "<div on:click|preventDefault|nonpassive|passive />",
+            Some(("event_handler_invalid_modifier_combination", (5, 47))),
+        ),
+        (
+            "<svelte:element this={\"a\"} on:click|foo />",
+            Some(("event_handler_invalid_modifier", (27, 39))),
+        ),
+        (
+            "<C on:click|once|once />",
+            Some(("event_handler_invalid_component_modifier", (3, 21))),
+        ),
+        (
+            "<C on:click| />",
+            Some(("event_handler_invalid_component_modifier", (3, 12))),
+        ),
+        (
+            "<svelte:component this={C} on:click|self />",
+            Some(("event_handler_invalid_component_modifier", (27, 40))),
+        ),
+        (
+            "<C use:a on:click|self />",
+            Some(("component_invalid_directive", (3, 8))),
+        ),
+    ]);
+}
+
+#[test]
+fn a_slot_takes_attributes_spreads_and_lets() {
+    assert_outcomes(&[
+        ("<slot {...p} />", None),
+        (
+            "<slot on:click={h} />",
+            Some(("slot_element_invalid_attribute", (6, 18))),
+        ),
+        (
+            "<slot {@attach a} />",
+            Some(("slot_element_invalid_attribute", (6, 17))),
+        ),
+        (
+            "<slot class:x />",
+            Some(("slot_element_invalid_attribute", (6, 13))),
+        ),
+        (
+            "<slot name={d} />",
+            Some(("slot_element_invalid_name", (6, 14))),
+        ),
+        (
+            "<slot name />",
+            Some(("slot_element_invalid_name", (6, 10))),
+        ),
+        (
+            "<slot name=\"default\" />",
+            Some(("slot_element_invalid_name_default", (6, 20))),
+        ),
+    ]);
+}
