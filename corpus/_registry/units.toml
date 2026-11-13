@@ -2436,3 +2436,128 @@
 ["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/af4e901d46ddc2c3.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+
+["svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/0d00c068ccca4cea.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/148e1f2f7435ded8.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/73a10a2fef873026.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/9f5cf48cdd4d0a71.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/02b8bd4a8ab920ef.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/08ce42869b21def9.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/107eb7ce6783b87f.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/234dc959b53ad977.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/3cf7b596d370436e.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/41672ad9acf8d9aa.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/44bd7f37829919f3.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/4a73a43dffe334eb.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5002f20344e50a2e.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5278cf1d23460451.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/55601ae2614c6b53.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5f9f85a4472d151b.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/7f2e247324af9c81.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/8bae3f89d57dd71c.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/9d297f9dc6127645.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/cb80ba7928fe889b.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/cc78e710c686d5e0.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/e38cd649906cd769.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-1/custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/3ba1c33cb1ffa0f4.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-1/custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/871423b006a5dcd9.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-1/custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/e0eea289ca0c9bbf.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
