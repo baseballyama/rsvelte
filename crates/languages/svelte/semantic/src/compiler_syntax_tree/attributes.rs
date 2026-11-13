@@ -117,7 +117,7 @@ pub enum StyleValue {
 
 /// A directive's `|modifier`s, one bit each.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Modifiers(u16);
+pub struct Modifiers(u32);
 
 impl Modifiers {
     pub const CAPTURE: Self = Self(1 << 3);
@@ -134,6 +134,14 @@ impl Modifiers {
     pub const TRUSTED: Self = Self(1 << 8);
     /// A name no modifier stands for, or one given twice: upstream rejects it where it checks.
     pub const UNKNOWN: Self = Self(1 << 12);
+    /// More than one modifier is written, which upstream refuses on a component.
+    pub const MANY: Self = Self(1 << 13);
+    /// Upstream's in-order walk of an element's `on:` modifiers first meets one it does not take.
+    pub const NOT_AN_EVENT_MODIFIER: Self = Self(1 << 14);
+    /// That walk first meets `passive` together with `nonpassive`.
+    pub const PASSIVE_AND_NONPASSIVE: Self = Self(1 << 15);
+    /// That walk first meets `passive` together with `preventDefault`.
+    pub const PASSIVE_AND_PREVENT_DEFAULT: Self = Self(1 << 16);
 
     /// The modifier a name stands for, if any.
     #[must_use]
@@ -153,6 +161,11 @@ impl Modifiers {
             "important" => Self::IMPORTANT,
             _ => return None,
         })
+    }
+
+    /// One of upstream's `EVENT_MODIFIERS`.
+    pub(crate) const fn is_event(self) -> bool {
+        self.0 & 0x1FF == self.0
     }
 
     #[must_use]

@@ -100,15 +100,6 @@ fn check_element(
 ) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
-    // Upstream's `slot_element_invalid_attribute`.
-    if el.kind == ElementKind::Slot
-        && let Some(a) = tree.attributes(el.attributes).iter().find(|a| {
-            super::is_directive(&a.value)
-                && !matches!(a.value, AttributeValue::Spread(_) | AttributeValue::Let(_))
-        })
-    {
-        return unsupported("a directive on `<slot>`", a.span);
-    }
     let component = el.kind.renders_component();
     // Upstream checks the element's name as written.
     let tag = match el.kind {
@@ -123,9 +114,6 @@ fn check_element(
             && !(tag == "svelte:element" && name == "this")
         {
             check_element_binding(input, res, tag, attributes, a, target)?;
-        }
-        if component {
-            check_component_attribute(a)?;
         }
         let what = match a.value {
             AttributeValue::On { .. }
@@ -227,22 +215,6 @@ fn check_target(
         );
     }
     Ok(())
-}
-
-/// Upstream's `component_invalid_directive`, which the refusals below would hide.
-fn check_component_attribute(a: &Attribute) -> Result<(), Diagnostic> {
-    match a.value {
-        AttributeValue::Use { .. }
-        | AttributeValue::Transition { .. }
-        | AttributeValue::Animate { .. }
-        | AttributeValue::Style { .. }
-        | AttributeValue::Class(_) => super::special::invalid(
-            "component_invalid_directive",
-            "This type of directive is not valid on components",
-            a.span,
-        ),
-        _ => Ok(()),
-    }
 }
 
 /// A binding upstream rejects, whose error the rune walk raises.
