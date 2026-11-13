@@ -8,7 +8,7 @@ pass	printer/attachment.html
 pass	printer/attribute-bracket-new-line.html
 pass	printer/attribute-bracket-no-new-line.html
 pass	printer/attribute-bracket-same-line.html
-refused	printer/attribute-comment.html	comments in the template's JavaScript
+pass	printer/attribute-comment.html
 pass	printer/attribute-dynamic.html
 pass	printer/attribute-multiple.html
 pass	printer/attribute-several-bracket-new-line.html
