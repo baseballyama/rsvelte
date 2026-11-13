@@ -786,16 +786,6 @@ svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/reference/panel/Pan
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/richtext/ToolbarRichText.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/DropDownAlign.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte	mismatch
-svelte/svelte-maplibre/src/lib/BackgroundLayer.svelte	mismatch
-svelte/svelte-maplibre/src/lib/CircleLayer.svelte	mismatch
-svelte/svelte-maplibre/src/lib/FillExtrusionLayer.svelte	mismatch
-svelte/svelte-maplibre/src/lib/FillLayer.svelte	mismatch
-svelte/svelte-maplibre/src/lib/HeatmapLayer.svelte	mismatch
-svelte/svelte-maplibre/src/lib/HillshadeLayer.svelte	mismatch
-svelte/svelte-maplibre/src/lib/LineLayer.svelte	mismatch
-svelte/svelte-maplibre/src/lib/MarkerLayer.svelte	mismatch
-svelte/svelte-maplibre/src/lib/RasterLayer.svelte	mismatch
-svelte/svelte-maplibre/src/lib/SymbolLayer.svelte	mismatch
 svelte/svelte-material-ui/packages/site/src/routes/demo/bottom-app-bar/+page.svelte	mismatch
 svelte/svelte-material-ui/packages/site/src/routes/demo/data-table/+page.svelte	mismatch
 svelte/svelte-material-ui/packages/site/src/routes/demo/elevation/+page.svelte	mismatch
