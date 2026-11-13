@@ -7,12 +7,13 @@ pub fn write_transform(source: &str, output: &mut StructuredDataWriter) {
         .and_then(|component| {
             crate::lower_alone(&component, source)
                 .map(|tree| crate::emit(&tree, source))
-                .map_err(|error| {
-                    (
+                .map_err(|error| match error {
+                    crate::Refusal::Unsupported(unsupported) => (
                         2,
-                        format!("unsupported projection: {}", error.what),
-                        error.span(),
-                    )
+                        format!("unsupported projection: {}", unsupported.what),
+                        unsupported.span(),
+                    ),
+                    crate::Refusal::Thrown { message, span } => (2, message.to_owned(), span),
                 })
         });
     output.begin_object().key("extension").write_string(".ts");

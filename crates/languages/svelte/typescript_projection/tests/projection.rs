@@ -520,5 +520,24 @@ fn a_binding_typescript_cannot_assign_is_unsupported() {
     let Err(error) = rsvelte_svelte_typescript_projection::lower_alone(&component, source) else {
         panic!("an optional chain is not an assignment target");
     };
-    assert_eq!(error.what, "bind: directives");
+    assert_eq!(error.what(), "bind: directives");
+}
+
+#[test]
+fn a_type_a_dollar_generic_constraint_names_moves_before_the_render_function() {
+    let source = concat!(
+        "<script lang=\"ts\">\n\tinterface Foo { a: 1 }\n\ttype T = $$Generic<Foo>;\n",
+        "\tlet { a }: { a: T } = $props();\n</script>\n",
+    );
+    let (_, output) = project(source);
+    let interface = output
+        .out
+        .find("interface Foo")
+        .expect("the interface is kept");
+    let render = output
+        .out
+        .find("function $$render<T extends Foo>()")
+        .expect("the alias becomes a type parameter");
+    assert!(interface < render, "{}", output.out);
+    assert!(!output.out.contains("$$Generic"), "{}", output.out);
 }

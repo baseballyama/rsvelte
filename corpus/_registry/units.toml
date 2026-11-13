@@ -2946,6 +2946,60 @@
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 
+["svelte/svelte-maplibre/src/lib/BackgroundLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/CircleLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/FillExtrusionLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/FillLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/HeatmapLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/HillshadeLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/LineLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/MarkerLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/RasterLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/SymbolLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/appwrite-console/src/lib/components/code.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/style-directive/input.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/string-completion.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/primo/src/lib/builder/components/ComponentPreview.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/primo/src/lib/builder/field-types/RepeaterField.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/primo/src/lib/components/SitePreview.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/5f3e477248e3f847.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/rsvelte/pattern/adversarial/typescript/ts-type-only-forms.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
 ["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/011aebbaa3dfa3f0.svelte".skip]
 "svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
 "svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"

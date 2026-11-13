@@ -4,7 +4,7 @@ use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
 
-use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree};
+use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree, TypeParameters};
 
 /// [`emit_named`] for a component without a file, which svelte2tsx names `$$Component`.
 #[must_use]
@@ -177,6 +177,7 @@ impl Printer<'_> {
             Node::Boolean => self.output.push("true"),
             Node::String { parts, template } => self.string(parts, template),
             Node::Text(_) => unreachable!("text is printed only inside a string literal"),
+            Node::TypeParameter { .. } => unreachable!("type parameters are printed as a list"),
             node => self.contract_node(node),
         }
     }
@@ -288,7 +289,13 @@ impl Printer<'_> {
                 body,
             } => {
                 self.output.push("function $$render<");
-                self.output.copy(self.source, type_parameters);
+                match type_parameters {
+                    TypeParameters::Attribute(span) => self.output.copy(self.source, span),
+                    TypeParameters::Declared(_) => {
+                        let parameters = self.type_parameters(type_parameters);
+                        self.output.push(&parameters);
+                    }
+                }
                 self.output.push(">() {\n");
                 self.body(body);
                 self.output.push("}\n");
