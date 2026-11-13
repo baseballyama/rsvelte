@@ -2969,3 +2969,18 @@
 "svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
 "svelte.check" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
 "svelte.lint" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+
+["svelte/rsvelte-tests-core-2/import_assert_newline_3198/typescript_newline_assert_compiles_and_keeps_the_clause/76ce4ca3fb098a26.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 reads `assert {` after a line break as import attributes, where the grammar forbids a line break before assert and TypeScript rejects it"
+
+["svelte/rsvelte-tests-core-2/import_assert_newline_3198/typescript_newline_assert_compiles_and_keeps_the_clause/f05849b6cba14213.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 reads `assert {` after a line break as import attributes, where the grammar forbids a line break before assert and TypeScript rejects it"
+
+["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
+
+["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ad65fdf7d6a621fb.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
+
+["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
