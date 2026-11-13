@@ -2858,3 +2858,15 @@
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/c1530ef3f8c4da44.svelte".skip]
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sidesheet.svelte".skip]
+"svelte.check" = "checker: TS 7 prints a union's literal members in its own order where TS 6 keeps the written order, so the message lists them differently"
+
+["svelte/layerchart/docs/src/examples/components/BarChart/company-race.svelte".skip]
+"svelte.check" = "checker: TS 7 prints a union's literal members in its own order where TS 6 keeps the written order, so the message lists them differently"
+
+["svelte/svelte-inspect-value/packages/svelte/src/lib/components/HTMLViewSimple.svelte".skip]
+"svelte.check" = "checker: TS 7 reports only the last overload of a call that no overload matches where TS 6 reports each overload"
+
+["svelte/svelte/packages/svelte/tests/manual/each-stress-test/main.svelte".skip]
+"svelte.check" = "checker: TS 7 reports only the last overload of a call that no overload matches where TS 6 reports each overload"

@@ -3,7 +3,6 @@ svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/roles/default.svelte	mismatch
-svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sidesheet.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/save.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/sites/create-site/finish/+page.svelte	mismatch
@@ -76,7 +75,6 @@ svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/svelte-self-fo
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-4.v5/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-5.v5/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-type-assertion/input.svelte	mismatch
-svelte/layerchart/docs/src/examples/components/BarChart/company-race.svelte	mismatch
 svelte/layerchart/packages/layerchart/src/lib/components/ChartChildren/ChartChildren.base.svelte	mismatch
 svelte/layerchart/packages/layerchart/src/lib/components/charts/__fixtures__/ArcChartTooltip.svelte	mismatch
 svelte/layerchart/packages/layerchart/src/lib/components/geo/GeoRaster/GeoRaster.svelte	mismatch
@@ -784,7 +782,6 @@ svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store02-type-output.sve
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store03-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store03-type-output.svelte	mismatch
 svelte/svelte-inspect-value/packages/svelte/src/lib/components/GetterSetter.svelte	mismatch
-svelte/svelte-inspect-value/packages/svelte/src/lib/components/HTMLViewSimple.svelte	mismatch
 svelte/svelte-inspect-value/packages/svelte/src/lib/components/StringValue.svelte	mismatch
 svelte/svelte-inspect-value/packages/svelte/src/routes/(app)/reference/panel/PanelExample.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/richtext/ToolbarRichText.svelte	mismatch
@@ -813,7 +810,6 @@ svelte/svelte-sonner/src/lib/Toaster.svelte	mismatch
 svelte/svelte-sonner/src/routes/+page.svelte	mismatch
 svelte/svelte-sonner/src/routes/test/+page.svelte	mismatch
 svelte/svelte-virtuallists/src/comp/Button.svelte	mismatch
-svelte/svelte/packages/svelte/tests/manual/each-stress-test/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-style-tag/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-browser/custom-elements-samples/extend-with-ts/main.svelte	mismatch
