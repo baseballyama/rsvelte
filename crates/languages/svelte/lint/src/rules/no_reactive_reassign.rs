@@ -55,7 +55,7 @@ const MUTATORS: &[&str] = &[
 impl SvelteRule for NoReactiveReassign {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        if runes_mode(component, file.source()) {
+        if runes_mode(file, component) {
             return;
         }
         let legacy = legacy(file);
