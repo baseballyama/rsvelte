@@ -298,20 +298,20 @@ fn matches_parent<E: Element, S: FnMut(E, Option<&RelativeSelector>) + ?Sized>(
     scoped: &mut S,
 ) -> bool {
     let combinator = combinator.unwrap_or(Combinator::Descendant);
-    let candidates: Vec<E> = match combinator {
-        Combinator::Descendant => element.ancestors().collect(),
-        Combinator::Child => element.parents().collect(),
-        Combinator::NextSibling | Combinator::SubsequentSibling => element
-            .previous_siblings(combinator == Combinator::NextSibling)
-            .collect(),
-        Combinator::Column => return true,
-    };
     let mut matched = false;
-    for candidate in candidates {
+    let mut visit = |candidate: E| {
         if candidate.nesting(rule) != Match::No {
             scoped(candidate, None);
             matched = true;
         }
+    };
+    match combinator {
+        Combinator::Descendant => element.ancestors().for_each(&mut visit),
+        Combinator::Child => element.parents().for_each(&mut visit),
+        Combinator::NextSibling | Combinator::SubsequentSibling => element
+            .previous_siblings(combinator == Combinator::NextSibling)
+            .for_each(&mut visit),
+        Combinator::Column => return true,
     }
     // A parent of only global selectors matches outside the component too.
     matched || element.nesting(rule) == Match::Maybe
