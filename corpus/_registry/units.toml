@@ -2729,3 +2729,132 @@
 
 ["svelte/svelte/packages/svelte/tests/parser-legacy/samples/javascript-comments/input.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/svelte5-typescript/+page.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_call_with_no_type_arguments_always_keeps_optional/0859a559a26bc533.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_call_with_no_type_arguments_always_keeps_optional/3bcfae9735fd3a62.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_call_with_no_type_arguments_always_keeps_optional/43a525c6eb5d04d8.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_call_with_no_type_arguments_always_keeps_optional/632c41bc0cfebaa9.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_non_null_link_does_not_make_the_chain_optional/4ad92b84f65b88c9.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_plain_type_argument_call_omits_optional/a38b5584ac1c0504.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_type_argument_call_on_a_member_omits_optional/131ee3584ab1d248.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_type_argument_call_on_a_member_omits_optional/5887a5f55716c4d5.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_call_with_type_arguments_keeps_optional/d43e3907a29d145d.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_link_after_the_call_does_not_reach_it/5e60e6c87275e532.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_link_after_the_call_does_not_reach_it/d215ff9eb8e3fbb9.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_link_before_the_call_keeps_optional/e406c15e04b504b4.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_link_before_the_call_keeps_optional/e915c60fe8790ffe.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_link_deeper_in_the_callee_chain_keeps_optional/3479924ac57063d0.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_link_deeper_in_the_callee_chain_keeps_optional/72dce9c92e1cc84d.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/parentheses_cut_the_subscript_chain_so_optional_is_omitted/18abd872d898c10b.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-2/parse_ts_node_estree_fields_4133/a_decorator_call_has_no_optional_and_starts_at_its_callee/155fbeb681fb51fd.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/15236774b728cdf0.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/352be5c37b112081.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/a8398e50cf040f29.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/abd0a1f88f57a197.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/eb9c9a6b6c2af98d.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/faac14661d841790.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/ts_assertion_expressions_extra/non_null_as_member_object_preserves_wrapper/35d52702799bad3c.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/ts_assertion_expressions_extra/non_null_inside_optional_chain_preserves_wrapper/dfef30ecf8c7d136.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/ts_assertion_expressions_extra/ts_instantiation_preserves_wrapper_and_type_arguments/600b0a1fbcec00e9.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/ts_decorators_2597/every_decorator_position_is_rejected/09227f78130cec78.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/with_statement_strict_mode/with_statement_in_typescript_script_is_rejected/82c283be6466c763.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-formatter/typescript/const_tag_typed_annotation_round_trips/83c927bbbf71c868.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-formatter/typescript/const_tag_untyped_still_normalizes/a102e715fb6d3738.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-formatter/typescript/mustache_ts_casts_round_trip/c904afe9a2df46cb.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-formatter/typescript/mustache_ts_casts_round_trip/ddab471432ec6493.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_language_server/tsgo_symbols/tests/generated_snippet_functions_go_and_template_functions_the_user_wrote_stay/297bbd8238f2200b.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_lint/non_ascii_word_boundary/event_prefix_type_name_is_not_matched_by_a_non_ascii_suffixed_type/24da32669426728e.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/2a09f694c7ed44e1.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/a_comma_inside_another_bracket_kind_does_not_split_the_parameter/055da27d622b3fe6.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_source_range/a_ts_postfix_is_kept/0d24999c3e2f8869.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/0995de01ce063a4e.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/2f1e0f40c86be677.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/9e97208f3124bc25.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/b9b634f98e6c642e.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/c1530ef3f8c4da44.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
