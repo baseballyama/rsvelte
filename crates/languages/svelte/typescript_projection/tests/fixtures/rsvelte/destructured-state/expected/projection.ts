@@ -23,17 +23,17 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => { a++; one = 3; bb = 1; rest.x; c++; others = []; f++; g = 1; },
     });
-    (a);
-    (bb);
-    (c);
-    (rest);
-    (one);
-    (two);
-    (others);
-    (d);
-    (e);
-    (f);
-    (g);
+    a;
+    bb;
+    c;
+    rest;
+    one;
+    two;
+    others;
+    d;
+    e;
+    f;
+    g;
   }
 };
 const DestructuredState__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

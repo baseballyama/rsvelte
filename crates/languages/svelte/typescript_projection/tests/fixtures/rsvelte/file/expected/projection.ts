@@ -10,7 +10,7 @@ let { header }: $$ComponentProps = $props();
 async () => {
   {
     svelteHTML.createElement("p", {});
-    (header ? 'with header' : 'no header');
+    header ? 'with header' : 'no header';
   }
 };
 const File__SvelteComponent_ = __rsvelte_export_component<$$ComponentProps, {}, "">();

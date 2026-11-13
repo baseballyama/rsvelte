@@ -43,8 +43,8 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    (text);
-    (checked);
+    text;
+    checked;
   }
 };
 const SpreadInput__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();

@@ -6,8 +6,8 @@ import { writable } from 'svelte/store'; let a = $state(writable(1));;let $a!: _
 async () => {
   {
     svelteHTML.createElement("p", {});
-    ($a);
-    (a);
+    $a;
+    a;
   }
   {
     svelteHTML.createElement("button", {

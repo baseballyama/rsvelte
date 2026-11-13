@@ -7,19 +7,19 @@
 async () => {
   {
     svelteHTML.createElement("textarea", {});
-    (a);
+    a;
   }
   {
     svelteHTML.createElement("textarea", {});
-    (a);
+    a;
   }
   {
     svelteHTML.createElement("textarea", {});
-    (a);
+    a;
   }
   {
     svelteHTML.createElement("textarea", {});
-    (a);
+    a;
   }
 };
 const TextareaContent__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

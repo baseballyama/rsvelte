@@ -27,7 +27,7 @@ async () => {
     svelteHTML.createElement("p", {
       [Symbol("@attach")]: color(count > 0 ? 'red' : 'blue'),
     });
-    (count);
+    count;
   }
   {
     svelteHTML.createElement("button", {

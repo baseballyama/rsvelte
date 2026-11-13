@@ -20,8 +20,8 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => n++,
     });
-    (n);
-    (f());
+    n;
+    f();
   }
 };
 const Effect__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

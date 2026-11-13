@@ -10,7 +10,7 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    (props.value);
+    props.value;
   }
 };
 const OptionsCustomPropsIdentifier__SvelteComponent_ = __rsvelte_export_component<any, {}, "">();

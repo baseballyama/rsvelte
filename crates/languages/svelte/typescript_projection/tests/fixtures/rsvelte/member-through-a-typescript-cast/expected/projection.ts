@@ -7,15 +7,15 @@
 async () => {
   {
     svelteHTML.createElement("p", {});
-    ((globalThis as any).p);
+    (globalThis as any).p;
   }
   {
     svelteHTML.createElement("p", {});
-    ((o satisfies object).p);
+    (o satisfies object).p;
   }
   {
     svelteHTML.createElement("p", {});
-    ((fn!)());
+    (fn!)();
   }
 };
 const MemberThroughATypescriptCast__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

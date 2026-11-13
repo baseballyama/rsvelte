@@ -10,7 +10,7 @@
 async () => {
   {
     svelteHTML.createElement("span", {});
-    (label);
+    label;
   }
 };
 const InstanceReexportOfAnImport__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

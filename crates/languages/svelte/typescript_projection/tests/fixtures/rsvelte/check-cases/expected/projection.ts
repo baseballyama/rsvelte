@@ -14,24 +14,24 @@ async () => {
       "type": "button",
       "onclick": () => count.toUpperCase(),
     });
-    (label.foo);
+    label.foo;
   }
   if (maybe) {
     {
       svelteHTML.createElement("p", {});
-      (maybe.length);
+      maybe.length;
     }
   } else {
     {
       svelteHTML.createElement("p", {});
-      (maybe.length);
+      maybe.length;
     }
   }
   {
     svelteHTML.createElement("p", {
       "title": `a${count.bar}b`,
     });
-    (label.baz);
+    label.baz;
   }
 };
 const CheckCases__SvelteComponent_ = __rsvelte_export_component<$$ComponentProps, {}, "">();
