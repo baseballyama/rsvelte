@@ -2945,3 +2945,27 @@
 ["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_whole_key_subtree_moves_with_it/4f67cefb5b0ba2e9.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/011aebbaa3dfa3f0.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.check" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.lint" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/2d77964ecb1f570d.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.check" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.lint" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/54557b00a714b2a9.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.check" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.lint" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/8d74744ba580b1a1.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.check" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.lint" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
