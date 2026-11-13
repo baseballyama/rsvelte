@@ -4,11 +4,11 @@ mod buffers;
 pub mod content_mapper;
 mod lower;
 pub mod syntax_tree;
-pub use lower::{Resolve, lower, lower_alone};
+pub use lower::{Refusal, Resolve, lower, lower_alone};
 mod emit;
 pub use emit::{emit, emit_named};
 mod computation;
-pub use computation::{Printed, Projected, register, register_artifacts};
+pub use computation::{Printed, Projected, THROWN, register, register_artifacts};
 
 /// The helpers' declarations without the element types, for a project that reads them from
 /// svelte's own `svelte-html.d.ts`, as svelte-check does when the package has one.

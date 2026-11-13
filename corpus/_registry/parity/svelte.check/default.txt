@@ -1,4 +1,4 @@
-# svelte.check/default: 35752 match
+# svelte.check/default: 35768 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/lib/components/code.svelte	mismatch
@@ -42,7 +42,6 @@ svelte/kite-public/src/lib/components/OnThisDay.svelte	mismatch
 svelte/kite-public/src/lib/components/contribute/ContributeHistory.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$generic-filter-out-unused/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots-usage/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-wrong-usage/input.svelte	mismatch
@@ -70,7 +69,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/string-completion.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent2.svelte	mismatch
-svelte/language-tools/packages/svelte2tsx/test/emitDts/samples/typescript/src/Interfaces.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/svelte-self-forward-event/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-4.v5/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-5.v5/input.svelte	mismatch
@@ -387,8 +385,6 @@ svelte/rsvelte-tests/rsvelte_lint/rules/experimental_require_slot_types/tests/co
 svelte/rsvelte-tests/rsvelte_lint/rules/experimental_require_slot_types/tests/declared_interface_is_ok/3e6475a86aba596d.svelte	refused
 svelte/rsvelte-tests/rsvelte_lint/rules/experimental_require_slot_types/tests/reports_ts_slot_without_types/cf46bffb5942696d.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/projection_api/projection_has_bidirectional_exact_byte_mappings_and_frozen_facts/bdba5be3953bc90d.svelte	refused
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/dollar_generic_alias_is_a_generic_in_scope_on_render/ef37ecb21c8d7a1e.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/dollar_generic_alias_is_a_generic_in_scope_on_render/efd2209a7033600b.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/dollar_generic_referenced_ranges_keep_candidate_source_order/cfce5f2fcc3a189d.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/hoistable_types/tests/module_shadow_blocks_type_and_dependent_props/c79250a91f4d81d6.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/instance_script_dollar_slots_dollar_props_dollar_events_unaffected/bf518e1962ff1a4a.svelte	refused
@@ -477,18 +473,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_class_style_directive/style_s
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_component_export_format/legacy_v5_component_export_suffix_is_exact/780696c4ae157c8e.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_directive_suffix_map_4464/a_directive_name_and_its_parameters_carry_a_mapping/6131d61eb07dbc8c.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_directive_suffix_map_4464/a_directive_on_a_component_keeps_its_ranges_too/ca1ffbbcb873dc42.svelte	refused
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dollar_generic/a_dollar_generic_in_the_module_script_is_rejected/78dd777f789e77c1.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dollar_generic/a_dollar_generic_in_the_module_script_is_rejected/e733a6784704b9c4.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dollar_generic/a_dollar_generic_in_the_module_script_is_rejected/f2ca0a85a3f81acb.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dollar_generic/a_dollar_generic_in_the_module_script_is_rejected/f4a7b0c4c9891bee.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dollar_generic/a_dollar_generic_next_to_the_generics_attribute_is_rejected/526997a33457738f.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dollar_generic/a_dollar_generic_next_to_the_generics_attribute_is_rejected/721e9a70229c3e13.svelte	refused
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dollar_generic/a_dollar_generic_next_to_the_generics_attribute_is_rejected/865c04f1c1e6672f.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dollar_generic/a_dollar_generic_next_to_the_generics_attribute_is_rejected/c05823d7b49e8e9f.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dollar_generic/a_dollar_generic_with_two_type_arguments_is_rejected/adb1d47a9cda6696.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dollar_generic/an_exported_dollar_generic_becomes_a_type_parameter/0afdde4d2f284805.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dollar_generic/an_exported_dollar_generic_becomes_a_type_parameter/9832ea8a1610fee7.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dollar_generic/whitespace_around_the_type_argument_does_not_hide_the_declaration/3ac53e7870eb893e.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dts_interface_heritage_4077/a_brace_inside_a_trailing_comment_is_not_the_body/ebab2a5d8b51cdfe.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dts_interface_heritage_4077/a_comma_inside_a_comment_between_entries_is_not_the_separator/e03b653c5aa603aa.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dts_interface_heritage_4077/a_comment_before_the_heritage_entry_still_rewrites_extends/df0faeba64141b7e.svelte	refused

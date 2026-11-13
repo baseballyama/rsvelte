@@ -7,7 +7,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::Parsed;
-use rsvelte_svelte_typescript_projection::Printed;
+use rsvelte_svelte_typescript_projection::{Printed, THROWN};
 use rsvelte_typescript_check::{
     Check, Documents, TypeScriptDocument, TypeScriptEnv, TypeScriptStandIn, TypeScriptView,
 };
@@ -136,7 +136,16 @@ fn typescript_view(
     {
         return Ok(TypeScriptDocument::Unchecked);
     }
-    let projection = context.get::<Printed>().as_ref().map_err(Clone::clone)?;
+    let projection = match context.get::<Printed>() {
+        Ok(projection) => projection,
+        Err(thrown) if thrown.code == THROWN => {
+            return Ok(TypeScriptDocument::Rejected {
+                message: thrown.message.clone(),
+                span: thrown.span,
+            });
+        }
+        Err(diagnostic) => return Err(diagnostic.clone()),
+    };
     let env = env_of(env)?;
     Ok(TypeScriptDocument::Checked {
         projection: Emitter {

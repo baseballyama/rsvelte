@@ -5,7 +5,7 @@ use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Range};
 
 use super::binding::Binding;
 use super::directive::Directives;
-use super::{Builder, Result, Unsupported};
+use super::{Builder, Result, refuse};
 
 /// What kind of tag the attributes are on.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -88,11 +88,11 @@ impl Builder<'_> {
                 | AttributeKind::Animate
                 | AttributeKind::Style
                 | AttributeKind::Let => {
-                    return Err(Unsupported::at("directives", attribute.span));
+                    return Err(refuse("directives", attribute.span));
                 }
                 AttributeKind::Class if !host.is_component() => {}
                 AttributeKind::Class if host.is_component() => {
-                    return Err(Unsupported::at("component directives", attribute.span));
+                    return Err(refuse("component directives", attribute.span));
                 }
                 // svelte2tsx passes a slot's name, and a dynamic component, outside the props.
                 AttributeKind::Attribute
