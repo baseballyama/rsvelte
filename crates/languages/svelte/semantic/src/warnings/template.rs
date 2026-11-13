@@ -8,6 +8,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::names::is_component_name;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, Range, TemplateNode, decode_attribute,
+    decode_text,
 };
 use rustc_hash::FxHashSet;
 
@@ -107,7 +108,7 @@ impl<'a> Template<'a> {
         let children = component.children(range);
         for (i, &child) in children.iter().enumerate() {
             if let TemplateNode::Text { span } = *component.node(child) {
-                self.text(span, &children[..i]);
+                self.text(span, &children[..i], false);
             } else {
                 self.node(child, children.get(i + 1).copied(), parent);
             }
@@ -150,11 +151,16 @@ impl<'a> Template<'a> {
     }
 
     /// `Text`: bidirectional control characters, unless a `svelte-ignore` before it in the
-    /// fragment names them.
-    fn text(&mut self, span: Span, before: &[u32]) {
+    /// fragment names them. `attribute` says the text is an attribute's, decoded as one.
+    fn text(&mut self, span: Span, before: &[u32], attribute: bool) {
         let source = self.context.source;
-        let text = span.text(source);
-        let mut runs = bidirectional_runs(text).peekable();
+        let raw = span.text(source);
+        let text = if attribute {
+            decode_attribute(raw)
+        } else {
+            decode_text(raw)
+        };
+        let mut runs = bidirectional_runs(&text).peekable();
         if runs.peek().is_none() {
             return;
         }
@@ -173,9 +179,11 @@ impl<'a> Template<'a> {
         }
         let runs: Vec<(usize, usize)> = runs.collect();
         for (start, end) in runs {
-            let at = span.start_offset + start as u32;
-            let found = Span::new(at, span.start_offset + end as u32);
-            self.warn(at, bidirectional(found));
+            // Upstream adds the index in the decoded text to the node's start, in UTF-16 units.
+            let units = |s: &str| s.encode_utf16().count();
+            let at = span.start_offset + raw_offset(raw, units(&text[..start]));
+            let to = span.start_offset + raw_offset(raw, units(&text[..end]));
+            self.warn(at, bidirectional(Span::new(at, to)));
         }
     }
 
@@ -375,6 +383,19 @@ impl<'a> Template<'a> {
             }
         }
     }
+}
+
+/// The byte offset in `raw` after its first `units` UTF-16 units, or the next character's
+/// boundary when one character spans it.
+fn raw_offset(raw: &str, units: usize) -> u32 {
+    let mut seen = 0;
+    for (i, c) in raw.char_indices() {
+        if seen >= units {
+            return i as u32;
+        }
+        seen += c.len_utf16();
+    }
+    raw.len() as u32
 }
 
 /// A warning about one run of bidirectional control characters.

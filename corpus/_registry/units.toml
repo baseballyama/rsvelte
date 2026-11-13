@@ -2604,3 +2604,63 @@
 
 ["svelte/svelte/packages/svelte/tests/parser-legacy/samples/javascript-comments/input.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/the_shapes_official_already_gets_right_are_unchanged/62731713e2ae3407.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/three_string_literals_in_a_script_report_three_times/afdac586527470e9.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/two_quasis_of_one_template_literal_report_twice/a623ecae2f12e62a.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/two_string_literals_in_a_script_report_twice/f78ee2a73ae535ff.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/two_template_expressions_report_twice/fc996b62696df7a9.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_script_literal_still_warns/5204698638a62e55.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/1b153d5fd6e74398.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/d28b687dbfce54c4.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/an_attribute_and_an_expression_both_report/81542bf877f46ecd.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/12839e381b7e9d66.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/60efd40319cca749.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/ed8c0c7fe07ced23.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_template_expression_keeps_its_positions/f9e1a8d36317a200.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/69872f6e8c224c02.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_whole_key_subtree_moves_with_it/4f67cefb5b0ba2e9.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"

@@ -226,6 +226,17 @@ fn an_escape_in_a_string_can_spell_a_control_character() {
 }
 
 #[test]
+fn an_attribute_text_is_walked_where_upstream_counts_the_decoded_text() {
+    // Upstream adds the index in the decoded `&a` to where `&amp;a` starts, so it points into the
+    // entity.
+    let source = "<b title=\"a\u{202e}b\">x</b><i title=\"&amp;a\u{202e}b\">y</i>\n";
+    assert_eq!(
+        texts("bidirectional_control_characters", source),
+        ["\u{202e}", "m"]
+    );
+}
+
+#[test]
 fn a_special_element_reads_global_handlers_too() {
     let source = "<svelte:window {onresize} />\n";
     assert_eq!(

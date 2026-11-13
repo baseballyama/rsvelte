@@ -29,6 +29,24 @@ enum Tag {
 }
 
 impl<'a> Template<'a> {
+    /// An attribute's text, which upstream visits as a `Text` node; a dynamic tag's `this` it
+    /// takes out of the attributes.
+    fn attribute_texts(&mut self, attributes: Range, dynamic: bool) {
+        let component = self.context.component;
+        for attribute in component.attributes(attributes) {
+            let this = dynamic && attribute.name.text(self.context.source) == "this";
+            if let AttributeValue::Parts(parts) = attribute.value
+                && !this
+            {
+                for &part in component.parts(parts) {
+                    if let Part::Text(text) = part {
+                        self.text(text, &[], true);
+                    }
+                }
+            }
+        }
+    }
+
     /// The element `node`, followed in its fragment by `next`.
     pub(super) fn element(&mut self, node: u32, next: Option<u32>, parent: a11y::Parent<'a>) {
         let component = self.context.component;
@@ -75,6 +93,7 @@ impl<'a> Template<'a> {
             );
         }
         self.directives(attributes, matches!(tag, Tag::Regular | Tag::Dynamic));
+        self.attribute_texts(attributes, tag == Tag::Dynamic);
         let inner = match tag {
             Tag::Dynamic => a11y::Parent::Dynamic,
             Tag::Regular => a11y::Parent::Regular(name),
