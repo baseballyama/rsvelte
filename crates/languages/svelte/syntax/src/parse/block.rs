@@ -7,7 +7,8 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier};
 
 use super::identifier::is_identifier_continue;
-use super::{End, ParseResult, Parser, javascript_error};
+use super::javascript::javascript_failure;
+use super::{End, ParseResult, Parser};
 use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
 
 impl Parser<'_, '_> {
@@ -252,7 +253,7 @@ impl Parser<'_, '_> {
         let index = self
             .builder
             .pattern(span, source_type)
-            .map_err(javascript_error)?;
+            .map_err(javascript_failure)?;
         self.javascript_region(span.start_offset, span.end_offset);
         Ok(index)
     }

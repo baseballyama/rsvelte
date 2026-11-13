@@ -8,7 +8,8 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::DeclarationIdentifier;
 
 use super::identifier::is_identifier_continue;
-use super::{ParseResult, Parser, javascript_error};
+use super::javascript::javascript_failure;
+use super::{ParseResult, Parser};
 use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
 
 impl Parser<'_, '_> {
@@ -68,7 +69,7 @@ impl Parser<'_, '_> {
         let (statement, next) = self
             .builder
             .read_statement_at(start_offset, source_type)
-            .map_err(javascript_error)?;
+            .map_err(javascript_failure)?;
         let declaration = match statement {
             Statement::VariableDeclaration(declaration) => declaration,
             // `{let}` or `{constant + 1}` is an expression, as upstream reads it.

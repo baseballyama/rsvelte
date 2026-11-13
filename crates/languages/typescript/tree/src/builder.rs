@@ -13,7 +13,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
 use crate::acorn_grammar::{Rejection, Unsupported};
-use crate::syntax_error::{Operand, SyntaxError, acorn, syntax_error};
+use crate::syntax_error::{Locator, SyntaxError, acorn, syntax_error};
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, Trees, TypeParametersIdentifier,
@@ -121,7 +121,7 @@ impl<'a> Builder<'a> {
                     .is_none_or(|n| !self.unchecked.contains(&n))
         };
         if let Some(first) = diagnostics.iter().position(reported) {
-            let visit = |operand: &mut Operand| part.walk(operand);
+            let visit = |locator: &mut Locator| part.walk(locator);
             let acorn = acorn(&diagnostics[first], text, tokens, visit);
             let errors = diagnostics.into_iter().skip(first);
             let mut error = syntax_error(errors, text, fallback, shift);
@@ -300,7 +300,7 @@ impl<'a> Builder<'a> {
         &mut self,
         start: u32,
         source_type: SourceType,
-    ) -> Result<(Statement<'a>, u32), Diagnostic> {
+    ) -> Result<(Statement<'a>, u32), SyntaxError> {
         let parsed = Parser::new(self.allocator, self.source_text, source_type)
             .with_options(options())
             .with_config(TokensParserConfig)
@@ -328,7 +328,7 @@ impl<'a> Builder<'a> {
         &mut self,
         range: Span,
         source_type: SourceType,
-    ) -> Result<PatternIdentifier, Diagnostic> {
+    ) -> Result<PatternIdentifier, SyntaxError> {
         let pattern = self.read_pattern(range, source_type)?;
         Ok(self.keep_pattern(pattern))
     }
@@ -342,16 +342,12 @@ impl<'a> Builder<'a> {
         &mut self,
         range: Span,
         source_type: SourceType,
-    ) -> Result<FormalParameter<'a>, Diagnostic> {
+    ) -> Result<FormalParameter<'a>, SyntaxError> {
         let parameters = self.read_parameters(range, source_type)?;
         let mut items = parameters.items.into_iter();
         match (items.next(), items.next(), parameters.rest) {
             (Some(pattern), None, None) => Ok(pattern),
-            _ => Err(Diagnostic::error(
-                "parse_error",
-                "expected one pattern",
-                range,
-            )),
+            _ => Err(refused("expected one pattern", range)),
         }
     }
 
@@ -365,7 +361,7 @@ impl<'a> Builder<'a> {
         &mut self,
         range: Span,
         source_type: SourceType,
-    ) -> Result<ParametersIdentifier, Diagnostic> {
+    ) -> Result<ParametersIdentifier, SyntaxError> {
         let parameters = self.read_parameters(range, source_type)?;
         let identifier = ParametersIdentifier::at(self.parameters.len());
         self.parameters.push(parameters);
@@ -382,7 +378,7 @@ impl<'a> Builder<'a> {
         &mut self,
         range: Span,
         source_type: SourceType,
-    ) -> Result<TypeParametersIdentifier, Diagnostic> {
+    ) -> Result<TypeParametersIdentifier, SyntaxError> {
         // An arrow's `<T extends …>` would read as a type assertion, so a function expression.
         // The wrapper's own tokens: `function` and `<` first, and `>`, `(`, `)`, `{` and `}` last.
         let (expression, shift) = self.read_wrapped(
@@ -399,11 +395,7 @@ impl<'a> Builder<'a> {
             _ => None,
         };
         let Some(mut parameters) = parameters.map(oxc_allocator::Box::unbox) else {
-            return Err(Diagnostic::error(
-                "parse_error",
-                "expected type parameters",
-                range,
-            ));
+            return Err(refused("expected type parameters", range));
         };
         Shift(shift).visit_ts_type_parameter_declaration(&mut parameters);
         let identifier = TypeParametersIdentifier::at(self.type_parameters.len());
@@ -416,7 +408,7 @@ impl<'a> Builder<'a> {
         &mut self,
         range: Span,
         source_type: SourceType,
-    ) -> Result<FormalParameters<'a>, Diagnostic> {
+    ) -> Result<FormalParameters<'a>, SyntaxError> {
         // The wrapper's own tokens: `(` first, and `)`, `=>` and `0` last.
         let (expression, shift) = self.read_wrapped(
             range,
@@ -428,11 +420,7 @@ impl<'a> Builder<'a> {
             }),
         )?;
         let Expression::ArrowFunctionExpression(arrow) = expression else {
-            return Err(Diagnostic::error(
-                "parse_error",
-                "expected a pattern",
-                range,
-            ));
+            return Err(refused("expected a pattern", range));
         };
         let mut parameters = arrow.unbox().params.unbox();
         Shift(shift).visit_formal_parameters(&mut parameters);
@@ -450,14 +438,10 @@ impl<'a> Builder<'a> {
         (open, opening_tokens): (&str, usize),
         (close, closing_tokens): (&str, usize),
         (expected, wrapper): (&str, fn(&Expression<'a>) -> bool),
-    ) -> Result<(Expression<'a>, u32), Diagnostic> {
+    ) -> Result<(Expression<'a>, u32), SyntaxError> {
         // The wrapped text's opening stands where the bytes before the range are.
         let Some(shift) = range.start_offset.checked_sub(open.len() as u32) else {
-            return Err(Diagnostic::error(
-                "parse_error",
-                "a part cannot start the document",
-                range,
-            ));
+            return Err(refused("a part cannot start the document", range));
         };
         self.wrapped.clear();
         self.wrapped.push_str(open);
@@ -477,11 +461,10 @@ impl<'a> Builder<'a> {
             (part, source_type),
         )?;
         if !wrapper(&parsed.expression) {
-            return Err(Diagnostic::error("parse_error", expected, range));
+            return Err(refused(expected, range));
         }
         if parsed.end as usize != text.len() {
-            return Err(Diagnostic::error(
-                "parse_error",
+            return Err(refused(
                 "unexpected token",
                 Span::new(parsed.end + shift, range.end_offset),
             ));
@@ -562,6 +545,15 @@ impl<'a> Builder<'a> {
             kind: None,
             span: span(comment.span, shift),
         }));
+    }
+}
+
+/// A part that oxc read but that is not the one the host asked for, which acorn would not say.
+#[cold]
+fn refused(message: &str, span: Span) -> SyntaxError {
+    SyntaxError {
+        diagnostic: Diagnostic::error("parse_error", message, span),
+        acorn: None,
     }
 }
 
