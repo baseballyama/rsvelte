@@ -23,8 +23,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 31348546,
-	"alloc_bytes": 4559656699,
+	"allocs": 31309265,
+	"alloc_bytes": 4603001923,
 	"peak_live_growth_bytes": 3489327,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -33,9 +33,9 @@
 			"alloc_bytes": 1661076
 		},
 		"js.print": {
-			"calls": 69493,
-			"allocs": 208501,
-			"alloc_bytes": 139096951
+			"calls": 69397,
+			"allocs": 208213,
+			"alloc_bytes": 139035556
 		},
 		"no-unused-vars": {
 			"calls": 34828,
@@ -54,13 +54,13 @@
 		},
 		"svelte.compile/client": {
 			"calls": 36862,
-			"allocs": 93169,
-			"alloc_bytes": 13195983
+			"allocs": 93151,
+			"alloc_bytes": 13201491
 		},
 		"svelte.compile/server": {
 			"calls": 36862,
-			"allocs": 93168,
-			"alloc_bytes": 13196045
+			"allocs": 93150,
+			"alloc_bytes": 13201553
 		},
 		"svelte.compileModule/client": {
 			"calls": 2680,
@@ -78,9 +78,9 @@
 			"alloc_bytes": 75020461
 		},
 		"svelte.css": {
-			"calls": 33829,
-			"allocs": 45662,
-			"alloc_bytes": 5178256
+			"calls": 33780,
+			"allocs": 45613,
+			"alloc_bytes": 5177080
 		},
 		"svelte.format/default": {
 			"calls": 36862,
@@ -89,8 +89,8 @@
 		},
 		"svelte.lint.svelte_config": {
 			"calls": 34485,
-			"allocs": 999305,
-			"alloc_bytes": 97106989
+			"allocs": 964292,
+			"alloc_bytes": 140709641
 		},
 		"svelte.lint/default": {
 			"calls": 36862,
@@ -98,14 +98,14 @@
 			"alloc_bytes": 21637744
 		},
 		"svelte.lower.client": {
-			"calls": 36431,
-			"allocs": 5743911,
-			"alloc_bytes": 497037945
+			"calls": 36382,
+			"allocs": 5741560,
+			"alloc_bytes": 496894943
 		},
 		"svelte.lower.server": {
-			"calls": 36431,
-			"allocs": 4070229,
-			"alloc_bytes": 391660126
+			"calls": 36382,
+			"allocs": 4068512,
+			"alloc_bytes": 391549926
 		},
 		"svelte.output_identity": {
 			"calls": 34713,
@@ -144,8 +144,8 @@
 		},
 		"svelte.validate": {
 			"calls": 34713,
-			"allocs": 220481,
-			"alloc_bytes": 18298551
+			"allocs": 220654,
+			"alloc_bytes": 18345880
 		},
 		"svelte/button-has-type": {
 			"calls": 34828,
