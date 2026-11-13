@@ -283,11 +283,21 @@ fn lint(official: &str, actual: &str, official_rules: &[String]) -> Result<bool,
             wanted.push(line);
         }
     }
-    Ok(wanted.len() == actual.findings.len()
-        && wanted
-            .iter()
-            .zip(&actual.findings)
-            .all(|(w, a)| *w == a.line()))
+    let mut actual: Vec<String> = actual.findings.iter().map(Finding::line).collect();
+    let mut wanted: Vec<String> = wanted.into_iter().map(str::to_owned).collect();
+    // ESLint orders findings at one position by when each rule reported during its walk, which
+    // says nothing about what was found.
+    sort_ties(&mut wanted);
+    sort_ties(&mut actual);
+    Ok(wanted == actual)
+}
+
+/// Sorts each run of lines that start at the same position, keeping the runs in order.
+fn sort_ties(lines: &mut [String]) {
+    let start = |line: &String| line.split(' ').next().unwrap_or_default().to_owned();
+    for run in lines.chunk_by_mut(|a, b| start(a) == start(b)) {
+        run.sort_unstable();
+    }
 }
 
 /// The rule an `ESLint` report of an unused `eslint-disable` directive names, from its message.
