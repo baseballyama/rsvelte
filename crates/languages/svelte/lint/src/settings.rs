@@ -58,6 +58,8 @@ pub struct KitFiles {
 /// document ([`crate::computation::SvelteConfiguration`]).
 #[derive(Clone, Debug, Default)]
 pub struct SvelteConfig {
+    /// `compilerOptions.runes` when it is static; `<svelte:options runes>` wins over it.
+    pub runes: Option<bool>,
     pub kit: Option<Kit>,
     /// `compilerOptions.experimental.async`.
     pub experimental_async: bool,

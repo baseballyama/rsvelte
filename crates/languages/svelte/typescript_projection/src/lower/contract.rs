@@ -1,7 +1,7 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
     BindingPattern, Declaration, Expression, PropertyKey, Statement, TSNamespaceDeclaration,
-    TSNamespaceDeclarationKind, VariableDeclaration, VariableDeclarationKind,
+    TSNamespaceDeclarationKind, TSType, VariableDeclaration, VariableDeclarationKind,
 };
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
@@ -69,13 +69,14 @@ impl Builder<'_> {
                                 span(declarator.id.span()),
                             ));
                         }
-                        let annotation = declarator
-                            .type_annotation
-                            .as_ref()
-                            .map(|a| span(a.type_annotation.span()));
+                        let annotation = declarator.type_annotation.as_ref().map(|a| {
+                            let reference = matches!(a.type_annotation, TSType::TSTypeReference(_));
+                            (span(a.type_annotation.span()), reference)
+                        });
                         props = Some(self.props(
                             &declarator.id,
                             annotation,
+                            declaration.span.start,
                             &mut bindings,
                             &mut edits,
                         )?);
@@ -310,13 +311,14 @@ impl Builder<'_> {
     fn props(
         &mut self,
         pattern: &BindingPattern<'_>,
-        annotation: Option<Span>,
+        annotation: Option<(Span, bool)>,
+        statement: u32,
         bindings: &mut Buffer<NodeIdentifier>,
         edits: &mut Buffer<Edit>,
     ) -> Result<NodeIdentifier> {
         let BindingPattern::ObjectPattern(object) = pattern else {
-            if let Some(span) = annotation {
-                return Ok(self.tree.push(Node::SourceCopy { span }));
+            if let Some((span, reference)) = annotation {
+                return Ok(self.props_alias(span, reference, statement, edits));
             }
             // svelte2tsx names an undeclared `$$ComponentProps` here, which TypeScript reads as
             // `any`.
@@ -353,8 +355,8 @@ impl Builder<'_> {
                 }
             }
         }
-        if let Some(span) = annotation {
-            return Ok(self.tree.push(Node::SourceCopy { span }));
+        if let Some((span, reference)) = annotation {
+            return Ok(self.props_alias(span, reference, statement, edits));
         }
         let name = self.props_name();
         let required = self.tree.list(&required);
@@ -577,6 +579,7 @@ impl Builder<'_> {
     }
 }
 
+mod props_alias;
 mod siblings;
 mod slot_flags;
 use siblings::Siblings;

@@ -4,6 +4,10 @@ use rsvelte_stylesheet_syntax::syntax_tree::{
     AttributeOperator, Combinator, ComplexSelector, RelativeSelector, RuleIdentifier, Simple,
 };
 
+mod global;
+use global::is_outer_global;
+pub use global::{is_explicitly_global, is_global, is_unscoped_pseudo_class};
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Match {
     Yes,
@@ -107,129 +111,41 @@ pub trait Element: Copy {
     }
 }
 
-/// Whether a compound leaves every element it selects unscoped: Svelte's `is_global` or
-/// `is_global_like`, or a compound after a `:global` block in its chain.
-#[must_use]
-pub fn is_global(source_text: &str, rel: &RelativeSelector) -> bool {
-    rel.global || is_explicitly_global(source_text, rel) || is_global_like(source_text, rel)
-}
-
-/// Svelte's `is_global`: `:global`, or a `:global(...)` that every other selector of its compound
-/// leaves unscoped, as `.x` in `:global(button).x` does not.
-#[must_use]
-pub fn is_explicitly_global(source_text: &str, rel: &RelativeSelector) -> bool {
-    let first = rel.simple.first();
-    first.is_pseudo(source_text, &["global"])
-        && (matches!(
-            first,
-            Simple::PseudoClass {
-                arguments: None,
-                ..
-            }
-        ) || rel.simple.iter().all(|simple| {
-            matches!(simple, Simple::PseudoElement { .. })
-                || is_unscoped_pseudo_class(source_text, simple)
-        }))
-}
-
-/// Svelte's `is_outer_global`: `:global`, or a `:global(...)` whose compound holds only
-/// pseudo-classes and pseudo-elements, which may still scope what their arguments hold.
-fn is_outer_global(source_text: &str, rel: &RelativeSelector) -> bool {
-    let first = rel.simple.first();
-    first.is_pseudo(source_text, &["global"])
-        && (matches!(
-            first,
-            Simple::PseudoClass {
-                arguments: None,
-                ..
-            }
-        ) || rel.simple.iter().all(|simple| {
-            matches!(
-                simple,
-                Simple::PseudoClass { .. } | Simple::PseudoElement { .. }
-            )
-        }))
-}
-
-/// Svelte's `is_unscoped_pseudo_class`: a pseudo-class that does not scope its compound.
-#[must_use]
-pub fn is_unscoped_pseudo_class(source_text: &str, simple: &Simple) -> bool {
-    let Simple::PseudoClass {
-        arguments,
-        selectors,
-        ..
-    } = simple
-    else {
-        return false;
-    };
-    let scoping = simple.is_pseudo(source_text, &["has", "is", "where"])
-        || (simple.is_pseudo(source_text, &["not"])
-            && arguments.is_some()
-            && !selectors.iter().all(|s| s.parts.len() == 1));
-    !scoping
-        || arguments.is_none()
-        || selectors.iter().all(|s| {
-            s.parts
-                .iter()
-                .all(|part| is_explicitly_global(source_text, part))
-        })
-}
-
-/// Svelte's `is_global_like`, without the compounds after a `:global` block.
-fn is_global_like(source_text: &str, rel: &RelativeSelector) -> bool {
-    let pseudo_only = rel.simple.iter().all(|simple| {
-        matches!(
-            simple,
-            Simple::PseudoClass { .. } | Simple::PseudoElement { .. }
-        )
-    });
-    let first = rel.simple.first();
-    let unscoped_first = first.is_pseudo(source_text, &["host"])
-        || matches!(first, Simple::PseudoElement { name, .. } if matches!(
-            name.text(source_text),
-            "view-transition"
-                | "view-transition-group"
-                | "view-transition-old"
-                | "view-transition-new"
-                | "view-transition-image-pair"
-        ));
-    (pseudo_only && unscoped_first)
-        || (rel
-            .simple
-            .iter()
-            .any(|s| s.is_pseudo(source_text, &["root"]))
-            && !rel
-                .simple
-                .iter()
-                .any(|s| s.is_pseudo(source_text, &["has"])))
-}
-
 /// Whether `selector` can select `el` (a [`Match::Maybe`] anywhere counts as yes).
 pub fn matches<E: Element>(source_text: &str, selector: &ComplexSelector, el: E) -> bool {
     matches_with(source_text, selector, el, &mut |_, _| {}, &mut |_| {})
 }
 
-pub fn matches_with<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32) + ?Sized>(
+pub fn matches_with<
+    E: Element,
+    S: FnMut(E, Option<&RelativeSelector>) + ?Sized,
+    U: FnMut(u32) + ?Sized,
+>(
     source_text: &str,
     selector: &ComplexSelector,
     el: E,
     scoped: &mut S,
     used: &mut U,
 ) -> bool {
-    let matched = match_from(source_text, &selector.parts, el, scoped, used, None);
+    let matched = match_from(source_text, &selector.parts, el, scoped, used, None, true);
     if matched {
         used(selector.id);
     }
     matched
 }
 
-fn match_from<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32) + ?Sized>(
+fn match_from<
+    E: Element,
+    S: FnMut(E, Option<&RelativeSelector>) + ?Sized,
+    U: FnMut(u32) + ?Sized,
+>(
     source_text: &str,
     parts: &[RelativeSelector],
     el: E,
     scoped: &mut S,
     used: &mut U,
     boundary: Option<E>,
+    trailing: bool,
 ) -> bool {
     let Some((last, rest)) = parts.split_last() else {
         return true;
@@ -243,7 +159,9 @@ fn match_from<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32)
     {
         return false;
     }
-    if is_global(source_text, last) {
+    // Svelte drops the trailing global compounds before it matches, so the element meets the
+    // compound before them.
+    if trailing && is_global(source_text, last) {
         if last
             .simple
             .iter()
@@ -251,32 +169,18 @@ fn match_from<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32)
         {
             return false;
         }
-        return rest.is_empty() || match_from(source_text, rest, el, scoped, used, boundary);
+        return rest.is_empty() || match_from(source_text, rest, el, scoped, used, boundary, true);
     }
-    if compound(source_text, last, el) == Match::No {
+    let matched = if is_global(source_text, last) {
+        global_compound(source_text, last, el, scoped, used)
+    } else {
+        compound(source_text, last, el)
+    };
+    if matched == Match::No {
         return false;
     }
     if rest.is_empty() {
-        if last.combinator == Some(Combinator::Child)
-            && boundary.is_some_and(|boundary| !el.parents().any(|parent| parent.same(boundary)))
-        {
-            return false;
-        }
-        if let Some(parent) = last.parent_rule
-            && last.implicit_parent
-            && !matches_parent(el, parent, last.combinator)
-        {
-            return false;
-        }
-        if let Some(anchor) = boundary
-            && matches!(
-                last.combinator,
-                Some(Combinator::NextSibling | Combinator::SubsequentSibling)
-            )
-            && !el
-                .previous_siblings(last.combinator == Some(Combinator::NextSibling))
-                .any(|at| at.same(anchor))
-        {
+        if !fits_before_it(last, el, boundary, scoped) {
             return false;
         }
         mark(source_text, last, el, scoped, used);
@@ -288,19 +192,20 @@ fn match_from<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32)
     {
         Combinator::Child => {
             // A parent must match what a `:global(...)` holds, as a sibling must.
-            el.parents()
-                .filter(|&p| {
-                    rest.last()
-                        .is_none_or(|relative| global_arguments_match(source_text, relative, p))
-                })
-                .any(|p| match_from(source_text, rest, p, scoped, used, boundary))
-                || el.parent().is_none() && rest.iter().all(|r| is_global(source_text, r))
+            let mut found = false;
+            for parent in el.parents().filter(|&p| {
+                rest.last()
+                    .is_none_or(|relative| global_arguments_match(source_text, relative, p))
+            }) {
+                found |= match_from(source_text, rest, parent, scoped, used, boundary, false);
+            }
+            found || el.parent().is_none() && rest.iter().all(|r| is_global(source_text, r))
         }
         Combinator::Descendant => {
             let mut found = false;
             for parent in el.ancestors() {
                 if !boundary.is_some_and(|at| parent.same(at)) {
-                    found |= match_from(source_text, rest, parent, scoped, used, boundary);
+                    found |= match_from(source_text, rest, parent, scoped, used, boundary, false);
                 }
             }
             found
@@ -320,7 +225,7 @@ fn match_from<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32)
                     .last()
                     .is_none_or(|relative| global_arguments_match(source_text, relative, sibling))
                 {
-                    found |= match_from(source_text, rest, sibling, scoped, used, boundary);
+                    found |= match_from(source_text, rest, sibling, scoped, used, boundary, false);
                 }
             }
             found
@@ -333,6 +238,39 @@ fn match_from<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32)
         mark(source_text, last, el, scoped, used);
     }
     matched
+}
+
+/// Whether what comes before the first compound fits: the `:has(...)` subject it is relative to,
+/// or the parent rule its implicit `&` stands for.
+fn fits_before_it<E: Element, S: FnMut(E, Option<&RelativeSelector>) + ?Sized>(
+    first: &RelativeSelector,
+    el: E,
+    boundary: Option<E>,
+    scoped: &mut S,
+) -> bool {
+    if first.combinator == Some(Combinator::Child)
+        && boundary.is_some_and(|boundary| !el.parents().any(|parent| parent.same(boundary)))
+    {
+        return false;
+    }
+    if let Some(parent) = first.parent_rule
+        && first.implicit_parent
+        && !matches_parent(el, parent, first.combinator, scoped)
+    {
+        return false;
+    }
+    if let Some(anchor) = boundary
+        && matches!(
+            first.combinator,
+            Some(Combinator::NextSibling | Combinator::SubsequentSibling)
+        )
+        && !el
+            .previous_siblings(first.combinator == Some(Combinator::NextSibling))
+            .any(|at| at.same(anchor))
+    {
+        return false;
+    }
+    true
 }
 
 fn global_arguments_match<E: Element>(
@@ -351,26 +289,69 @@ fn global_arguments_match<E: Element>(
     })
 }
 
-fn matches_parent<E: Element>(
+/// Whether the parent rule matches where Svelte's implicit `&` puts it, scoping each element it
+/// matches there.
+fn matches_parent<E: Element, S: FnMut(E, Option<&RelativeSelector>) + ?Sized>(
     element: E,
     rule: RuleIdentifier,
     combinator: Option<Combinator>,
+    scoped: &mut S,
 ) -> bool {
-    if element.nesting(rule) == Match::Maybe {
-        return true;
-    }
-    match combinator.unwrap_or(Combinator::Descendant) {
-        Combinator::Descendant => element
-            .ancestors()
-            .any(|parent| parent.nesting(rule) != Match::No),
-        Combinator::Child => element
-            .parents()
-            .any(|parent| parent.nesting(rule) != Match::No),
+    let combinator = combinator.unwrap_or(Combinator::Descendant);
+    let mut matched = false;
+    let mut visit = |candidate: E| {
+        if candidate.nesting(rule) != Match::No {
+            scoped(candidate, None);
+            matched = true;
+        }
+    };
+    match combinator {
+        Combinator::Descendant => element.ancestors().for_each(&mut visit),
+        Combinator::Child => element.parents().for_each(&mut visit),
         Combinator::NextSibling | Combinator::SubsequentSibling => element
-            .previous_siblings(combinator == Some(Combinator::NextSibling))
-            .any(|s| s.nesting(rule) != Match::No),
-        Combinator::Column => true,
+            .previous_siblings(combinator == Combinator::NextSibling)
+            .for_each(&mut visit),
+        Combinator::Column => return true,
     }
+    // A parent of only global selectors matches outside the component too.
+    matched || element.nesting(rule) == Match::Maybe
+}
+
+/// A global compound before the last local one, which Svelte matches against the element: a lone
+/// `:global(...)` through its argument, a `:root` or `:host` never, anything else always.
+fn global_compound<
+    E: Element,
+    S: FnMut(E, Option<&RelativeSelector>) + ?Sized,
+    U: FnMut(u32) + ?Sized,
+>(
+    source_text: &str,
+    rel: &RelativeSelector,
+    el: E,
+    scoped: &mut S,
+    used: &mut U,
+) -> Match {
+    if rel
+        .simple
+        .iter()
+        .any(|s| s.is_pseudo(source_text, &["host", "root"]))
+    {
+        return Match::No;
+    }
+    let first = rel.simple.first();
+    if let Simple::PseudoClass {
+        arguments: Some(_),
+        selectors,
+        ..
+    } = first
+        && rel.simple.len() == 1
+        && first.is_pseudo(source_text, &["global"])
+    {
+        let matched = selectors
+            .first()
+            .is_some_and(|selector| matches_with(source_text, selector, el, scoped, used));
+        return if matched { Match::Yes } else { Match::No };
+    }
+    Match::Yes
 }
 
 /// The selectors of a compound that Svelte tests against an element: only the `:has(...)` of a
@@ -462,16 +443,18 @@ fn compound<E: Element>(source_text: &str, rel: &RelativeSelector, el: E) -> Mat
     result
 }
 
-fn mark<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32) + ?Sized>(
+fn mark<E: Element, S: FnMut(E, Option<&RelativeSelector>) + ?Sized, U: FnMut(u32) + ?Sized>(
     source: &str,
     relative: &RelativeSelector,
     element: E,
     scoped: &mut S,
     used: &mut U,
 ) {
-    if !is_outer_global(source, relative) {
-        scoped(element, relative);
-    }
+    // Svelte scopes every element a compound matches, and the compound unless it is outer global.
+    scoped(
+        element,
+        (!is_outer_global(source, relative)).then_some(relative),
+    );
     for simple in &relative.simple {
         if let Simple::PseudoClass {
             name, selectors, ..
@@ -506,7 +489,7 @@ fn mark<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32) + ?Si
                             .map_or(0, |last| last + 1);
                         for part in &selector.parts[..kept] {
                             for at in std::iter::successors(Some(element), E::parent) {
-                                scoped(at, part);
+                                scoped(at, Some(part));
                             }
                         }
                     }
@@ -532,7 +515,7 @@ fn mark<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32) + ?Si
     }
 }
 
-fn has<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32) + ?Sized>(
+fn has<E: Element, S: FnMut(E, Option<&RelativeSelector>) + ?Sized, U: FnMut(u32) + ?Sized>(
     source: &str,
     selector: &ComplexSelector,
     element: E,
@@ -546,7 +529,15 @@ fn has<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32) + ?Siz
     ) {
         let mut found = false;
         for at in element.following_siblings(leading == Some(Combinator::NextSibling)) {
-            let matched = match_from(source, &selector.parts, at, scoped, used, Some(element));
+            let matched = match_from(
+                source,
+                &selector.parts,
+                at,
+                scoped,
+                used,
+                Some(element),
+                true,
+            );
             if matched {
                 used(selector.id);
             }
@@ -558,7 +549,11 @@ fn has<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32) + ?Siz
     has_descendants(source, selector, element, element, scoped, used)
 }
 
-fn has_descendants<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut(u32) + ?Sized>(
+fn has_descendants<
+    E: Element,
+    S: FnMut(E, Option<&RelativeSelector>) + ?Sized,
+    U: FnMut(u32) + ?Sized,
+>(
     source: &str,
     selector: &ComplexSelector,
     element: E,
@@ -568,7 +563,15 @@ fn has_descendants<E: Element, S: FnMut(E, &RelativeSelector) + ?Sized, U: FnMut
 ) -> bool {
     let mut found = false;
     for at in element.descendants() {
-        let matched = match_from(source, &selector.parts, at, scoped, used, Some(boundary));
+        let matched = match_from(
+            source,
+            &selector.parts,
+            at,
+            scoped,
+            used,
+            Some(boundary),
+            true,
+        );
         if matched {
             used(selector.id);
         }

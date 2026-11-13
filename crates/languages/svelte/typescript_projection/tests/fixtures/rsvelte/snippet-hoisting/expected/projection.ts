@@ -26,7 +26,8 @@ const typed = (item: Item): ReturnType<import('svelte').Snippet> => {
 };
 
 	type Item = { label: string };
-	let { name }: { name: string } = $props();
+	type $$ComponentProps = { name: string };
+let { name }: $$ComponentProps = $props();
 
 ;
 
@@ -34,6 +35,6 @@ async () => {
   __rsvelte_ensure_snippet(reaches());
   __rsvelte_ensure_snippet(typed({ label: 'a' }));
 };
-const SnippetHoisting__SvelteComponent_ = __rsvelte_export_component<{ name: string }, {}, "">();
+const SnippetHoisting__SvelteComponent_ = __rsvelte_export_component<$$ComponentProps, {}, "">();
 type SnippetHoisting__SvelteComponent_ = ReturnType<typeof SnippetHoisting__SvelteComponent_>;
 export default SnippetHoisting__SvelteComponent_;

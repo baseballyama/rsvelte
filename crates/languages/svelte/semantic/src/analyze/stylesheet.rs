@@ -83,7 +83,9 @@ pub(super) fn analyze(
                         element,
                         &mut |matched, relative| {
                             elements_scoped[matched.identifier] = true;
-                            scoped(relative.id);
+                            if let Some(relative) = relative {
+                                scoped(relative.id);
+                            }
                         },
                         used,
                     );

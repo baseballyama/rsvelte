@@ -1,4 +1,24 @@
 # rsvelte pack 1
+=== 735 packages/async-stack/src/stack-item.svelte.js	lint.txt
+9:2 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
+18:20 18:30 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+20:21 20:30 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+55:3 55:15 no-undef "'clearTimeout' is not defined."
+56:37 56:47 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+57:31 57:41 no-undef "'setTimeout' is not defined."
+67:3 67:15 no-undef "'clearTimeout' is not defined."
+68:34 68:44 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+
+=== 568 packages/async-stack/src/stack.svelte.js	lint.txt
+16:2 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
+20:2 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
+43:23 43:34 no-undef "'CustomEvent' is not defined."
+50:24 50:35 no-undef "'CustomEvent' is not defined."
+105:7 105:9 no-useless-assignment "The value assigned to 'id' is not used in subsequent statements."
+110:31 110:37 no-undef "'crypto' is not defined."
+111:8 111:14 no-undef "'crypto' is not defined."
+119:7 119:13 svelte/prefer-const "'pushed' is never reassigned. Use 'const' instead."
+
 === 3957 packages/avatar/src/Avatar.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -48,6 +68,18 @@
 52:3 52:22 svelte/sort-attributes "Attribute 'bind:this' should go before 'src'."
 53:1 53:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 54:1 54:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 641 packages/popover/src/popover.svelte.js	lint.txt
+19:2 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
+37:8 37:14 no-undef "'crypto' is not defined."
+145:5 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
+147:6 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
+218:3 218:15 no-undef "'clearTimeout' is not defined."
+219:3 219:15 no-undef "'clearTimeout' is not defined."
+221:25 221:35 no-undef "'setTimeout' is not defined."
+231:3 231:15 no-undef "'clearTimeout' is not defined."
+232:3 232:15 no-undef "'clearTimeout' is not defined."
+234:25 234:35 no-undef "'setTimeout' is not defined."
 
 === 3104 packages/preprocess-markdown/src/enhance-code-block/ButtonCollapse.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -771,6 +803,40 @@
 51:1 51:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 52:1 52:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 53:1 53:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 876 packages/swipeable/src/swipeable.svelte.js	lint.txt
+51:6 51:14 svelte/prefer-const "'distance' is never reassigned. Use 'const' instead."
+123:3 123:55 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+124:3 124:51 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+199:7 199:13 svelte/prefer-const "'easing' is never reassigned. Use 'const' instead."
+200:7 200:16 svelte/prefer-const "'container' is never reassigned. Use 'const' instead."
+207:10 207:16 no-useless-assignment "The value assigned to 'parent' is not used in subsequent statements."
+253:2 253:44 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+254:2 254:54 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+
+=== 264 packages/toc/src/actions/link.svelte.js	lint.txt
+10:2 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
+60:3 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
+67:3 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
+
+=== 596 packages/toc/src/actions/root.svelte.js	lint.txt
+17:2 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
+31:7 31:28 svelte/prefer-const "'intersectionObservers' is never reassigned. Use 'const' instead."
+45:27 45:43 no-undef "'MutationObserver' is not defined."
+58:34 58:45 no-undef "'CustomEvent' is not defined."
+69:10 69:22 no-undef "'clearTimeout' is not defined."
+72:40 72:50 no-undef "'setTimeout' is not defined."
+107:9 107:11 svelte/prefer-const "'mt' is never reassigned. Use 'const' instead."
+136:27 136:38 no-undef "'CustomEvent' is not defined."
+154:5 154:17 no-undef "'clearTimeout' is not defined."
+
+=== 447 packages/toc/src/toc.svelte.js	lint.txt
+13:29 13:35 no-undef "'crypto' is not defined."
+14:6 14:12 no-undef "'crypto' is not defined."
+27:2 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
+34:2 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
+50:2 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
+58:2 - - "Unused eslint-disable directive (no problems were reported from 'no-undef')."
 
 === 9435 sites/docs/src/lib/components/color-scheme-menu/ColorSchemeMenu.svelte	lint.txt
 1:1 27:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1500,6 +1566,23 @@
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 171 sites/docs/src/lib/notifications/context.svelte.ts	lint.txt
+8:19 8:34 no-unused-vars "'message' is defined but never used."
+8:36 8:50 no-unused-vars "'title' is defined but never used."
+25:16 25:19 no-undef "'App' is not defined."
+
+=== 464 sites/docs/src/lib/settings/context.svelte.ts	lint.txt
+12:13 12:16 no-undef "'App' is not defined."
+18:37 18:40 no-undef "'App' is not defined."
+20:6 20:12 no-undef "'window' is not defined."
+27:15 27:18 no-undef "'App' is not defined."
+32:18 32:21 no-undef "'App' is not defined."
+34:20 34:23 no-undef "'App' is not defined."
+41:5 41:13 no-undef "'document' is not defined."
+42:5 42:13 no-undef "'document' is not defined."
+49:5 49:13 no-undef "'document' is not defined."
+54:19 54:22 no-undef "'App' is not defined."
 
 === 4070 sites/docs/src/packages/async-stack/_page/examples/await.svelte	lint.txt
 1:1 35:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

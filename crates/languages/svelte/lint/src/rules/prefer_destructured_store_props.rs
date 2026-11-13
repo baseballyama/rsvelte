@@ -48,7 +48,7 @@ impl SvelteRule for PreferDestructuredStoreProps {
                     .chain(&component.instance)
                     .map(|script| script.content)
                     .collect(),
-                runes_mode(component, file.source()),
+                runes_mode(file, component),
             ),
             (None, Some(_)) => (Vec::new(), file.is_svelte_module()),
             (None, None) => return,

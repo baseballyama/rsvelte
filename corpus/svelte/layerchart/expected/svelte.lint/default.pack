@@ -59705,6 +59705,9 @@
 42:1 42:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 43:1 43:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 48 docs/src/lib/utils/stackblitz.svelte.ts	lint.txt
+24:3 24:10 no-undef "'console' is not defined."
+
 === 11596 docs/src/routes/+layout.svelte	lint.txt
 1:1 85:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -64446,6 +64449,9 @@
 8:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 17:28 17:34 svelte/max-attributes-per-line "'Text' should be on a new line."
 
+=== 49 packages/layerchart/src/lib/components/AnnotationLine/AnnotationLine.shared.svelte.ts	lint.txt
+34:25 34:32 no-undef "'Element' is not defined."
+
 === 320 packages/layerchart/src/lib/components/AnnotationLine/AnnotationLine.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -64492,6 +64498,9 @@
 8:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 18:31 18:37 svelte/max-attributes-per-line "'Text' should be on a new line."
 
+=== 49 packages/layerchart/src/lib/components/AnnotationPoint/AnnotationPoint.shared.svelte.ts	lint.txt
+74:25 74:32 no-undef "'Element' is not defined."
+
 === 321 packages/layerchart/src/lib/components/AnnotationPoint/AnnotationPoint.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -64537,6 +64546,9 @@
 8:1 17:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 19:39 19:48 svelte/max-attributes-per-line "'Pattern' should be on a new line."
 
+=== 49 packages/layerchart/src/lib/components/AnnotationRange/AnnotationRange.shared.svelte.ts	lint.txt
+37:25 37:32 no-undef "'Element' is not defined."
+
 === 321 packages/layerchart/src/lib/components/AnnotationRange/AnnotationRange.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -64574,6 +64586,14 @@
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 14:17 14:27 svelte/max-attributes-per-line "'{...props}' should be on a new line."
 
+=== 325 packages/layerchart/src/lib/components/Arc/Arc.shared.svelte.ts	lint.txt
+68:14 68:28 no-undef "'SVGPathElement' is not defined."
+70:9 70:23 no-undef "'SVGPathElement' is not defined."
+75:22 75:29 no-undef "'DOMRect' is not defined."
+90:25 90:39 no-undef "'SVGPathElement' is not defined."
+117:21 117:35 no-undef "'SVGPathElement' is not defined."
+221:75 221:82 no-undef "'DOMRect' is not defined."
+
 === 310 packages/layerchart/src/lib/components/Arc/Arc.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -64600,6 +64620,8 @@
 3:5 3:18 no-import-assign "'ArcLabelProps' is read-only."
 9:1 17:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 19:22 19:28 svelte/max-attributes-per-line "'Text' should be on a new line."
+
+=== 0 packages/layerchart/src/lib/components/ArcLabel/ArcLabel.shared.svelte.ts	lint.txt
 
 === 314 packages/layerchart/src/lib/components/ArcLabel/ArcLabel.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -64637,6 +64659,13 @@
 2:17 2:26 no-import-assign "'AreaProps' is read-only."
 5:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 15:18 15:26 svelte/max-attributes-per-line "'Spline' should be on a new line."
+
+=== 468 packages/layerchart/src/lib/components/Area/Area.shared.svelte.ts	lint.txt
+7:15 7:31 no-unused-vars "'CommonStyleProps' is defined but never used."
+68:25 68:39 no-undef "'SVGPathElement' is not defined."
+131:20 137:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+174:29 174:35 no-unused-vars "'d' is defined but never used."
+282:7 284:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
 === 311 packages/layerchart/src/lib/components/Area/Area.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -64702,6 +64731,11 @@
 18:19 18:25 svelte/max-attributes-per-line "'Line' should be on a new line."
 18:33 18:39 svelte/sort-attributes "Attribute 'Rule' should go before 'Text'."
 
+=== 258 packages/layerchart/src/lib/components/Axis/Axis.shared.svelte.ts	lint.txt
+7:54 7:64 no-unused-vars "'PeriodType' is defined but never used."
+64:27 64:37 no-undef "'SVGElement' is not defined."
+338:16 347:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
 === 509 packages/layerchart/src/lib/components/Axis/Axis.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -64759,6 +64793,10 @@
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 15:17 15:27 svelte/max-attributes-per-line "'{...props}' should be on a new line."
 
+=== 191 packages/layerchart/src/lib/components/Bar/Bar.shared.svelte.ts	lint.txt
+68:24 68:34 no-undef "'SVGElement' is not defined."
+104:20 109:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
 === 310 packages/layerchart/src/lib/components/Bar/Bar.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -64798,6 +64836,13 @@
 5:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 15:17 15:24 svelte/max-attributes-per-line "'Group' should be on a new line."
 
+=== 301 packages/layerchart/src/lib/components/Bars/Bars.shared.svelte.ts	lint.txt
+12:10 12:16 no-unused-vars "'d' is defined but never used."
+12:18 12:31 no-unused-vars "'index' is defined but never used."
+14:17 14:30 no-unused-vars "'e' is defined but never used."
+14:20 14:30 no-undef "'MouseEvent' is not defined."
+14:32 14:53 no-unused-vars "'detail' is defined but never used."
+
 === 311 packages/layerchart/src/lib/components/Bars/Bars.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -64822,6 +64867,8 @@
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:17 2:26 no-import-assign "'BlurProps' is read-only."
 5:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+
+=== 0 packages/layerchart/src/lib/components/Blur/Blur.shared.svelte.ts	lint.txt
 
 === 311 packages/layerchart/src/lib/components/Blur/Blur.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -64931,6 +64978,9 @@
 16:22 16:28 svelte/max-attributes-per-line "'Rect' should be on a new line."
 16:29 16:35 svelte/sort-attributes "Attribute 'Line' should go before 'Rect'."
 16:36 16:44 svelte/sort-attributes "Attribute 'Circle' should go before 'Group'."
+
+=== 52 packages/layerchart/src/lib/components/BoxPlot/BoxPlot.shared.svelte.ts	lint.txt
+27:25 27:35 no-undef "'SVGElement' is not defined."
 
 === 314 packages/layerchart/src/lib/components/BoxPlot/BoxPlot.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -65089,6 +65139,9 @@
 9:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 18:22 18:28 svelte/max-attributes-per-line "'Text' should be on a new line."
 
+=== 56 packages/layerchart/src/lib/components/Calendar/Calendar.shared.svelte.ts	lint.txt
+30:25 30:39 no-undef "'SVGRectElement' is not defined."
+
 === 325 packages/layerchart/src/lib/components/Calendar/Calendar.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -65128,6 +65181,8 @@
 15:18 15:26 svelte/max-attributes-per-line "'Circle' should be on a new line."
 15:18 15:26 svelte/sort-attributes "Attribute 'Circle' should go before 'Rect'."
 15:27 15:34 svelte/sort-attributes "Attribute 'Group' should go before 'Rect'."
+
+=== 0 packages/layerchart/src/lib/components/Cell/Cell.shared.svelte.ts	lint.txt
 
 === 311 packages/layerchart/src/lib/components/Cell/Cell.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -65213,6 +65268,11 @@
 13:3 13:97 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
 28:28 28:36 svelte/max-attributes-per-line "'bind:ref' should be on a new line."
 
+=== 174 packages/layerchart/src/lib/components/Chart/Chart.shared.svelte.ts	lint.txt
+122:9 122:20 no-undef "'HTMLElement' is not defined."
+300:15 300:35 no-unused-vars "'e' is defined but never used."
+319:26 319:40 no-undef "'HTMLDivElement' is not defined."
+
 === 475 packages/layerchart/src/lib/components/Chart/Chart.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -65279,6 +65339,11 @@
 23:49 23:60 svelte/sort-attributes "Attribute 'Highlight' should go before 'Layer'."
 23:61 23:76 svelte/sort-attributes "Attribute 'ChartClipPath' should go before 'Layer'."
 
+=== 184 packages/layerchart/src/lib/components/ChartChildren/ChartChildren.shared.svelte.ts	lint.txt
+104:21 104:34 no-unused-vars "'e' is defined but never used."
+104:24 104:34 no-undef "'MouseEvent' is not defined."
+104:36 104:58 no-unused-vars "'details' is defined but never used."
+
 === 811 packages/layerchart/src/lib/components/ChartChildren/ChartChildren.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -65324,6 +65389,8 @@
 3:5 3:23 no-import-assign "'ChartClipPathProps' is read-only."
 8:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 17:35 17:45 svelte/max-attributes-per-line "'{...props}' should be on a new line."
+
+=== 0 packages/layerchart/src/lib/components/ChartClipPath/ChartClipPath.shared.svelte.ts	lint.txt
 
 === 319 packages/layerchart/src/lib/components/ChartClipPath/ChartClipPath.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -65421,6 +65488,14 @@
 76:5 76:66 svelte/no-inline-styles "Found disallowed style directive."
 77:5 77:44 svelte/no-inline-styles "Found disallowed style directive."
 
+=== 478 packages/layerchart/src/lib/components/Circle/Circle.shared.svelte.ts	lint.txt
+79:10 79:16 no-unused-vars "'d' is defined but never used."
+79:18 79:31 no-unused-vars "'index' is defined but never used."
+86:9 86:25 no-undef "'SVGCircleElement' is not defined."
+103:25 103:32 no-undef "'Element' is not defined."
+266:28 266:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+266:28 266:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
 === 313 packages/layerchart/src/lib/components/Circle/Circle.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -65471,6 +65546,9 @@
 2:17 2:47 no-import-assign "'CircleClipPathPropsWithoutHTML' is read-only."
 5:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:32 13:42 svelte/max-attributes-per-line "'{...props}' should be on a new line."
+
+=== 57 packages/layerchart/src/lib/components/CircleClipPath/CircleClipPath.shared.svelte.ts	lint.txt
+18:9 18:25 no-undef "'SVGCircleElement' is not defined."
 
 === 332 packages/layerchart/src/lib/components/CircleClipPath/CircleClipPath.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -65538,6 +65616,9 @@
 35:7 37:40 svelte/no-inline-styles "Found disallowed style directive."
 35:7 37:40 svelte/sort-attributes "Attribute 'style:clip-path' should go before 'class'."
 
+=== 60 packages/layerchart/src/lib/components/ClipPath/ClipPath.shared.svelte.ts	lint.txt
+36:25 36:43 no-undef "'SVGClipPathElement' is not defined."
+
 === 315 packages/layerchart/src/lib/components/ClipPath/ClipPath.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -65596,6 +65677,11 @@
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 14:22 14:28 svelte/max-attributes-per-line "'Path' should be on a new line."
 
+=== 173 packages/layerchart/src/lib/components/Contour/Contour.shared.svelte.ts	lint.txt
+15:24 15:33 no-unused-vars "'x' is defined but never used."
+15:35 15:44 no-unused-vars "'y' is defined but never used."
+29:25 29:36 no-undef "'SVGGElement' is not defined."
+
 === 314 packages/layerchart/src/lib/components/Contour/Contour.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -65626,6 +65712,9 @@
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 14:22 14:28 svelte/max-attributes-per-line "'Path' should be on a new line."
 
+=== 53 packages/layerchart/src/lib/components/Density/Density.shared.svelte.ts	lint.txt
+17:25 17:36 no-undef "'SVGGElement' is not defined."
+
 === 314 packages/layerchart/src/lib/components/Density/Density.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -65638,6 +65727,15 @@
 2:17 2:29 no-import-assign "'DensityProps' is read-only."
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 14:22 14:28 svelte/max-attributes-per-line "'Path' should be on a new line."
+
+=== 505 packages/layerchart/src/lib/components/Dodge/Dodge.shared.svelte.ts	lint.txt
+44:13 44:31 no-unused-vars "'interval' is defined but never used."
+58:51 58:69 no-unused-vars "'interval' is defined but never used."
+110:18 110:22 no-unused-vars "'d' is defined but never used."
+120:19 120:23 no-unused-vars "'d' is defined but never used."
+129:19 129:23 no-unused-vars "'d' is defined but never used."
+136:15 136:19 no-unused-vars "'d' is defined but never used."
+380:18 380:35 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
 
 === 839 packages/layerchart/src/lib/components/Dodge/Dodge.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -65715,6 +65813,14 @@
 66:5 66:31 svelte/no-inline-styles "Found disallowed style directive."
 67:5 67:44 svelte/no-inline-styles "Found disallowed style directive."
 
+=== 477 packages/layerchart/src/lib/components/Ellipse/Ellipse.shared.svelte.ts	lint.txt
+34:10 34:16 no-unused-vars "'d' is defined but never used."
+34:18 34:31 no-unused-vars "'index' is defined but never used."
+36:9 36:26 no-undef "'SVGEllipseElement' is not defined."
+42:25 42:32 no-undef "'Element' is not defined."
+221:28 221:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+221:28 221:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
 === 396 packages/layerchart/src/lib/components/Ellipse/Ellipse.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -65791,6 +65897,8 @@
 5:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:19 13:29 svelte/max-attributes-per-line "'{...props}' should be on a new line."
 
+=== 0 packages/layerchart/src/lib/components/Frame/Frame.shared.svelte.ts	lint.txt
+
 === 312 packages/layerchart/src/lib/components/Frame/Frame.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -65864,6 +65972,10 @@
 18:19 18:25 svelte/max-attributes-per-line "'Line' should be on a new line."
 18:26 18:34 svelte/sort-attributes "Attribute 'Circle' should go before 'Group'."
 
+=== 104 packages/layerchart/src/lib/components/Grid/Grid.shared.svelte.ts	lint.txt
+14:48 14:58 no-undef "'SVGElement' is not defined."
+98:9 98:20 no-undef "'SVGGElement' is not defined."
+
 === 509 packages/layerchart/src/lib/components/Grid/Grid.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -65907,6 +66019,14 @@
 72:7 72:35 svelte/no-inline-styles "Found disallowed style directive."
 83:5 83:34 svelte/no-inline-styles "Found disallowed style directive."
 84:5 84:33 svelte/no-inline-styles "Found disallowed style directive."
+
+=== 467 packages/layerchart/src/lib/components/Group/Group.shared.svelte.ts	lint.txt
+56:10 56:16 no-unused-vars "'d' is defined but never used."
+56:18 56:31 no-unused-vars "'index' is defined but never used."
+81:9 81:16 no-undef "'Element' is not defined."
+93:26 93:33 no-undef "'Element' is not defined."
+208:28 208:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+208:28 208:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
 
 === 557 packages/layerchart/src/lib/components/Group/Group.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -65982,6 +66102,23 @@
 25:25 25:31 svelte/max-attributes-per-line "'Line' should be on a new line."
 25:39 25:44 svelte/sort-attributes "Attribute 'Arc' should go before 'Circle'."
 
+=== 915 packages/layerchart/src/lib/components/Highlight/Highlight.shared.svelte.ts	lint.txt
+108:18 108:31 no-unused-vars "'e' is defined but never used."
+108:21 108:31 no-undef "'MouseEvent' is not defined."
+108:33 108:54 no-unused-vars "'detail' is defined but never used."
+109:17 109:30 no-unused-vars "'e' is defined but never used."
+109:20 109:30 no-undef "'MouseEvent' is not defined."
+109:32 109:53 no-unused-vars "'detail' is defined but never used."
+111:19 111:32 no-unused-vars "'e' is defined but never used."
+111:22 111:32 no-undef "'MouseEvent' is not defined."
+111:34 111:78 no-unused-vars "'detail' is defined but never used."
+112:19 112:32 no-unused-vars "'e' is defined but never used."
+112:22 112:32 no-undef "'MouseEvent' is not defined."
+112:34 112:78 no-unused-vars "'detail' is defined but never used."
+113:19 113:32 no-unused-vars "'e' is defined but never used."
+113:22 113:32 no-undef "'MouseEvent' is not defined."
+113:34 113:78 no-unused-vars "'detail' is defined but never used."
+
 === 316 packages/layerchart/src/lib/components/Highlight/Highlight.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -66036,6 +66173,18 @@
 2:17 2:26 no-import-assign "'HullProps' is read-only."
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 14:19 14:27 svelte/max-attributes-per-line "'Spline' should be on a new line."
+
+=== 588 packages/layerchart/src/lib/components/Hull/Hull.shared.svelte.ts	lint.txt
+2:15 2:28 no-unused-vars "'SVGAttributes' is defined but never used."
+17:5 17:20 no-unused-vars "'e' is defined but never used."
+17:8 17:20 no-undef "'PointerEvent' is not defined."
+18:5 18:71 no-unused-vars "'details' is defined but never used."
+21:5 21:18 no-unused-vars "'e' is defined but never used."
+21:8 21:18 no-undef "'MouseEvent' is not defined."
+22:5 22:71 no-unused-vars "'details' is defined but never used."
+24:21 24:36 no-unused-vars "'e' is defined but never used."
+24:24 24:36 no-undef "'PointerEvent' is not defined."
+26:9 26:20 no-undef "'SVGGElement' is not defined."
 
 === 311 packages/layerchart/src/lib/components/Hull/Hull.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -66114,6 +66263,15 @@
 98:5 98:29 svelte/sort-attributes "Attribute 'style:object-fit' should go before 'src'."
 99:5 99:30 svelte/sort-attributes "Attribute 'crossorigin' should go before 'src'."
 100:5 100:39 svelte/sort-attributes "Attribute 'class' should go before 'src'."
+
+=== 543 packages/layerchart/src/lib/components/Image/Image.shared.svelte.ts	lint.txt
+25:21 25:27 no-unused-vars "'d' is defined but never used."
+49:10 49:16 no-unused-vars "'d' is defined but never used."
+49:18 49:31 no-unused-vars "'index' is defined but never used."
+51:9 51:24 no-undef "'SVGImageElement' is not defined."
+57:25 57:40 no-undef "'SVGImageElement' is not defined."
+238:28 238:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+238:28 238:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
 
 === 394 packages/layerchart/src/lib/components/Image/Image.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -66194,6 +66352,11 @@
 16:20 16:27 svelte/max-attributes-per-line "'Group' should be on a new line."
 16:20 16:27 svelte/sort-attributes "Attribute 'Group' should go before 'Text'."
 16:28 16:36 svelte/sort-attributes "Attribute 'Points' should go before 'Text'."
+
+=== 246 packages/layerchart/src/lib/components/Labels/Labels.shared.svelte.ts	lint.txt
+57:10 57:14 no-unused-vars "'d' is defined but never used."
+57:16 57:29 no-unused-vars "'index' is defined but never used."
+381:9 383:10 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
 
 === 489 packages/layerchart/src/lib/components/Labels/Labels.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -66354,6 +66517,13 @@
 70:5 70:32 svelte/sort-attributes "Attribute 'style' should go before 'class'."
 70:11 70:32 svelte/require-optimized-style-attribute "It cannot be optimized because too complex."
 
+=== 428 packages/layerchart/src/lib/components/Line/Line.shared.svelte.ts	lint.txt
+80:10 80:16 no-unused-vars "'d' is defined but never used."
+80:18 80:31 no-unused-vars "'index' is defined but never used."
+107:25 107:39 no-undef "'SVGPathElement' is not defined."
+273:28 273:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+273:28 273:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
 === 311 packages/layerchart/src/lib/components/Line/Line.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -66415,6 +66585,10 @@
 3:5 3:24 no-import-assign "'LinearGradientProps' is read-only."
 8:1 49:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
+=== 131 packages/layerchart/src/lib/components/LinearGradient/LinearGradient.shared.svelte.ts	lint.txt
+47:9 47:33 no-undef "'SVGLinearGradientElement' is not defined."
+56:25 56:49 no-undef "'SVGLinearGradientElement' is not defined."
+
 === 402 packages/layerchart/src/lib/components/LinearGradient/LinearGradient.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -66474,6 +66648,13 @@
 2:17 2:26 no-import-assign "'LinkProps' is read-only."
 5:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:18 13:28 svelte/max-attributes-per-line "'{...props}' should be on a new line."
+
+=== 298 packages/layerchart/src/lib/components/Link/Link.shared.svelte.ts	lint.txt
+17:13 17:19 no-unused-vars "'d' is defined but never used."
+18:13 18:19 no-unused-vars "'d' is defined but never used."
+19:8 19:14 no-unused-vars "'d' is defined but never used."
+20:8 20:14 no-unused-vars "'d' is defined but never used."
+36:22 36:28 no-unused-vars "'d' is defined but never used."
 
 === 393 packages/layerchart/src/lib/components/Link/Link.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -66562,6 +66743,9 @@
 15:19 15:26 svelte/max-attributes-per-line "'Group' should be on a new line."
 15:19 15:26 svelte/sort-attributes "Attribute 'Group' should go before 'Rect'."
 
+=== 56 packages/layerchart/src/lib/components/Month/Month.shared.svelte.ts	lint.txt
+37:25 37:39 no-undef "'SVGRectElement' is not defined."
+
 === 323 packages/layerchart/src/lib/components/Month/Month.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -66618,6 +66802,12 @@
 37:1 37:13 svelte/indent "Expected indentation of 10 spaces but found 12 spaces."
 38:1 38:13 svelte/indent "Expected indentation of 10 spaces but found 12 spaces."
 39:1 39:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
+
+=== 212 packages/layerchart/src/lib/components/Path/Path.shared.svelte.ts	lint.txt
+56:36 56:44 no-undef "'DOMPoint' is not defined."
+62:34 62:42 no-undef "'DOMPoint' is not defined."
+69:13 69:27 no-undef "'SVGPathElement' is not defined."
+75:25 75:39 no-undef "'SVGPathElement' is not defined."
 
 === 393 packages/layerchart/src/lib/components/Path/Path.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -66682,6 +66872,10 @@
 74:1 74:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
 75:1 75:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
 
+=== 164 packages/layerchart/src/lib/components/Pattern/Pattern.shared.svelte.ts	lint.txt
+76:25 76:42 no-undef "'SVGPatternElement' is not defined."
+133:11 133:15 no-useless-assignment "The value assigned to 'path' is not used in subsequent statements."
+
 === 314 packages/layerchart/src/lib/components/Pattern/Pattern.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -66733,6 +66927,10 @@
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 14:16 14:26 svelte/max-attributes-per-line "'{...props}' should be on a new line."
 
+=== 120 packages/layerchart/src/lib/components/Pie/Pie.shared.svelte.ts	lint.txt
+38:12 38:18 no-unused-vars "'a' is defined but never used."
+38:20 38:26 no-unused-vars "'b' is defined but never used."
+
 === 310 packages/layerchart/src/lib/components/Pie/Pie.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -66774,6 +66972,12 @@
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 14:22 14:32 svelte/max-attributes-per-line "'{...props}' should be on a new line."
 
+=== 406 packages/layerchart/src/lib/components/Points/Points.shared.svelte.ts	lint.txt
+25:26 25:39 no-unused-vars "'value' is defined but never used."
+25:41 25:53 no-unused-vars "'context' is defined but never used."
+90:20 95:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+169:12 187:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
 === 313 packages/layerchart/src/lib/components/Points/Points.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -66813,6 +67017,14 @@
 89:22 89:26 svelte/valid-compile "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 90:21 90:25 svelte/valid-compile "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 
+=== 474 packages/layerchart/src/lib/components/Polygon/Polygon.shared.svelte.ts	lint.txt
+31:10 31:16 no-unused-vars "'d' is defined but never used."
+31:18 31:31 no-unused-vars "'index' is defined but never used."
+53:9 53:23 no-undef "'SVGPathElement' is not defined."
+58:25 58:32 no-undef "'Element' is not defined."
+267:28 267:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+267:28 267:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
 === 396 packages/layerchart/src/lib/components/Polygon/Polygon.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -66848,6 +67060,9 @@
 26:8 26:12 no-unused-vars "'rest' is assigned a value but never used."
 31:31 31:45 no-undef "'CanvasGradient' is not defined."
 33:25 33:49 no-undef "'CanvasRenderingContext2D' is not defined."
+
+=== 66 packages/layerchart/src/lib/components/RadialGradient/RadialGradient.shared.svelte.ts	lint.txt
+57:25 57:49 no-undef "'SVGRadialGradientElement' is not defined."
 
 === 320 packages/layerchart/src/lib/components/RadialGradient/RadialGradient.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -66898,6 +67113,11 @@
 2:17 2:28 no-import-assign "'RasterProps' is read-only."
 5:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:21 13:31 svelte/max-attributes-per-line "'{...props}' should be on a new line."
+
+=== 177 packages/layerchart/src/lib/components/Raster/Raster.shared.svelte.ts	lint.txt
+15:24 15:33 no-unused-vars "'x' is defined but never used."
+15:35 15:44 no-unused-vars "'y' is defined but never used."
+29:25 29:40 no-undef "'SVGImageElement' is not defined."
 
 === 313 packages/layerchart/src/lib/components/Raster/Raster.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -66997,6 +67217,16 @@
 77:5 77:61 svelte/no-inline-styles "Found disallowed style directive."
 79:5 79:20 svelte/sort-attributes "Attribute 'bind:this' should go before 'style:position'."
 
+=== 686 packages/layerchart/src/lib/components/Rect/Rect.shared.svelte.ts	lint.txt
+129:10 129:16 no-unused-vars "'d' is defined but never used."
+129:18 129:31 no-unused-vars "'index' is defined but never used."
+137:9 137:23 no-undef "'SVGRectElement' is not defined."
+137:26 137:40 no-undef "'HTMLDivElement' is not defined."
+161:25 161:39 no-undef "'SVGRectElement' is not defined."
+344:21 346:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+437:28 437:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+437:28 437:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
 === 393 packages/layerchart/src/lib/components/Rect/Rect.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -67094,6 +67324,9 @@
 8:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 17:30 17:40 svelte/max-attributes-per-line "'{...props}' should be on a new line."
 
+=== 52 packages/layerchart/src/lib/components/RectClipPath/RectClipPath.shared.svelte.ts	lint.txt
+39:25 39:35 no-undef "'SVGElement' is not defined."
+
 === 318 packages/layerchart/src/lib/components/RectClipPath/RectClipPath.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -67141,6 +67374,9 @@
 16:19 16:25 svelte/max-attributes-per-line "'Line' should be on a new line."
 16:26 16:34 svelte/sort-attributes "Attribute 'Circle' should go before 'Group'."
 
+=== 52 packages/layerchart/src/lib/components/Rule/Rule.shared.svelte.ts	lint.txt
+59:25 59:35 no-undef "'SVGElement' is not defined."
+
 === 311 packages/layerchart/src/lib/components/Rule/Rule.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -67172,6 +67408,15 @@
 2:17 2:28 no-import-assign "'SplineProps' is read-only."
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 14:20 14:30 svelte/max-attributes-per-line "'{...props}' should be on a new line."
+
+=== 525 packages/layerchart/src/lib/components/Spline/Spline.shared.svelte.ts	lint.txt
+55:25 55:39 no-undef "'SVGPathElement' is not defined."
+90:11 90:18 no-unused-vars "'initial' is assigned a value but never used."
+146:20 151:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+178:29 178:35 no-unused-vars "'d' is defined but never used."
+419:11 419:17 no-unused-vars "'d' is defined but never used."
+419:19 419:32 no-unused-vars "'index' is defined but never used."
+419:34 419:45 no-unused-vars "'data' is defined but never used."
 
 === 313 packages/layerchart/src/lib/components/Spline/Spline.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -67264,6 +67509,23 @@
 76:5 76:59 svelte/no-inline-styles "Found disallowed style directive."
 80:7 80:39 svelte/require-each-key "Each block should have a key"
 
+=== 1017 packages/layerchart/src/lib/components/Text/Text.shared.svelte.ts	lint.txt
+51:31 51:37 no-unused-vars "'d' is defined but never used."
+74:27 74:33 no-unused-vars "'d' is defined but never used."
+92:27 92:33 no-unused-vars "'d' is defined but never used."
+186:12 186:22 no-undef "'SVGElement' is not defined."
+191:33 191:43 no-undef "'SVGElement' is not defined."
+198:9 198:23 no-undef "'SVGTextElement' is not defined."
+245:10 245:16 no-unused-vars "'d' is defined but never used."
+245:18 245:31 no-unused-vars "'index' is defined but never used."
+249:25 249:39 no-undef "'SVGTextElement' is not defined."
+253:40 253:54 no-undef "'SVGPathElement' is not defined."
+258:7 258:14 no-undef "'console' is not defined."
+341:20 341:34 no-undef "'SVGPathElement' is not defined."
+478:39 478:40 no-irregular-whitespace "Irregular whitespace not allowed."
+630:28 630:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+630:28 630:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
 === 311 packages/layerchart/src/lib/components/Text/Text.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -67348,6 +67610,8 @@
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 14:23 14:33 svelte/max-attributes-per-line "'ClipPath' should be on a new line."
 
+=== 0 packages/layerchart/src/lib/components/Threshold/Threshold.shared.svelte.ts	lint.txt
+
 === 316 packages/layerchart/src/lib/components/Threshold/Threshold.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -67390,6 +67654,8 @@
 2:17 2:27 no-import-assign "'TrailProps' is read-only."
 5:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:19 13:29 svelte/max-attributes-per-line "'{...props}' should be on a new line."
+
+=== 0 packages/layerchart/src/lib/components/Trail/Trail.shared.svelte.ts	lint.txt
 
 === 312 packages/layerchart/src/lib/components/Trail/Trail.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -67510,6 +67776,11 @@
 5:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:20 13:30 svelte/max-attributes-per-line "'{...props}' should be on a new line."
 
+=== 180 packages/layerchart/src/lib/components/Vector/Vector.shared.svelte.ts	lint.txt
+32:10 32:16 no-unused-vars "'d' is defined but never used."
+32:18 32:31 no-unused-vars "'index' is defined but never used."
+38:25 38:39 no-undef "'SVGPathElement' is not defined."
+
 === 313 packages/layerchart/src/lib/components/Vector/Vector.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -67566,6 +67837,9 @@
 5:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 16:21 16:27 svelte/max-attributes-per-line "'Path' should be on a new line."
 16:35 16:41 svelte/sort-attributes "Attribute 'Line' should go before 'Path'."
+
+=== 56 packages/layerchart/src/lib/components/Violin/Violin.shared.svelte.ts	lint.txt
+24:25 24:39 no-undef "'SVGPathElement' is not defined."
 
 === 313 packages/layerchart/src/lib/components/Violin/Violin.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -67624,6 +67898,20 @@
 15:22 15:28 svelte/max-attributes-per-line "'Path' should be on a new line."
 15:29 15:45 svelte/sort-attributes "Attribute 'CircleClipPath' should go before 'Group'."
 
+=== 706 packages/layerchart/src/lib/components/Voronoi/Voronoi.shared.svelte.ts	lint.txt
+52:5 52:18 no-unused-vars "'e' is defined but never used."
+52:8 52:18 no-undef "'MouseEvent' is not defined."
+53:5 53:86 no-unused-vars "'details' is defined but never used."
+56:5 56:20 no-unused-vars "'e' is defined but never used."
+56:8 56:20 no-undef "'PointerEvent' is not defined."
+57:5 57:86 no-unused-vars "'details' is defined but never used."
+60:5 60:20 no-unused-vars "'e' is defined but never used."
+60:8 60:20 no-undef "'PointerEvent' is not defined."
+61:5 61:86 no-unused-vars "'details' is defined but never used."
+64:5 64:20 no-unused-vars "'e' is defined but never used."
+64:8 64:20 no-undef "'PointerEvent' is not defined."
+65:5 65:86 no-unused-vars "'details' is defined but never used."
+
 === 314 packages/layerchart/src/lib/components/Voronoi/Voronoi.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -67637,6 +67925,19 @@
 5:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 15:22 15:28 svelte/max-attributes-per-line "'Path' should be on a new line."
 15:29 15:45 svelte/sort-attributes "Attribute 'CircleClipPath' should go before 'Group'."
+
+=== 749 packages/layerchart/src/lib/components/Waffle/Waffle.shared.svelte.ts	lint.txt
+11:39 11:48 no-unused-vars "'n' is defined but never used."
+70:10 70:16 no-unused-vars "'d' is defined but never used."
+70:18 70:31 no-unused-vars "'index' is defined but never used."
+74:20 74:33 no-unused-vars "'e' is defined but never used."
+74:23 74:33 no-undef "'MouseEvent' is not defined."
+74:35 74:56 no-unused-vars "'detail' is defined but never used."
+96:30 96:40 no-undef "'SVGElement' is not defined."
+121:11 121:20 no-unused-vars "'n' is defined but never used."
+200:20 206:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+267:11 267:14 no-unused-vars "'gap' is assigned a value but never used."
+385:55 385:64 no-unused-vars "'n' is defined but never used."
 
 === 2590 packages/layerchart/src/lib/components/Waffle/Waffle.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -67742,6 +68043,13 @@
 16:23 16:28 svelte/sort-attributes "Attribute 'Arc' should go before 'Chart'."
 16:29 16:39 svelte/sort-attributes "Attribute 'ArcLabel' should go before 'Chart'."
 
+=== 301 packages/layerchart/src/lib/components/charts/ArcChart/ArcChart.shared.svelte.ts	lint.txt
+17:17 17:58 no-unused-vars "'s' is defined but never used."
+17:60 17:69 no-unused-vars "'i' is defined but never used."
+110:7 110:20 no-unused-vars "'e' is defined but never used."
+110:10 110:20 no-undef "'MouseEvent' is not defined."
+111:7 111:76 no-unused-vars "'detail' is defined but never used."
+
 === 724 packages/layerchart/src/lib/components/charts/ArcChart/ArcChart.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -67818,6 +68126,11 @@
 5:19 5:35 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
 14:24 14:30 svelte/max-attributes-per-line "'Area' should be on a new line."
 14:24 14:30 svelte/sort-attributes "Attribute 'Area' should go before 'Chart'."
+
+=== 178 packages/layerchart/src/lib/components/charts/AreaChart/AreaChart.shared.svelte.ts	lint.txt
+36:21 36:34 no-unused-vars "'e' is defined but never used."
+36:24 36:34 no-undef "'MouseEvent' is not defined."
+36:36 36:81 no-unused-vars "'details' is defined but never used."
 
 === 643 packages/layerchart/src/lib/components/charts/AreaChart/AreaChart.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -67914,6 +68227,11 @@
 5:19 5:35 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
 14:23 14:29 svelte/max-attributes-per-line "'Bars' should be on a new line."
 14:23 14:29 svelte/sort-attributes "Attribute 'Bars' should go before 'Chart'."
+
+=== 179 packages/layerchart/src/lib/components/charts/BarChart/BarChart.shared.svelte.ts	lint.txt
+62:7 62:24 no-unused-vars "'event' is defined but never used."
+62:14 62:24 no-undef "'MouseEvent' is not defined."
+63:7 63:77 no-unused-vars "'detail' is defined but never used."
 
 === 642 packages/layerchart/src/lib/components/charts/BarChart/BarChart.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -68068,6 +68386,11 @@
 5:19 5:35 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
 14:24 14:32 svelte/max-attributes-per-line "'Spline' should be on a new line."
 
+=== 176 packages/layerchart/src/lib/components/charts/LineChart/LineChart.shared.svelte.ts	lint.txt
+32:7 32:20 no-unused-vars "'e' is defined but never used."
+32:10 32:20 no-undef "'MouseEvent' is not defined."
+33:7 33:95 no-unused-vars "'details' is defined but never used."
+
 === 565 packages/layerchart/src/lib/components/charts/LineChart/LineChart.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -68156,6 +68479,11 @@
 17:23 17:28 svelte/sort-attributes "Attribute 'Arc' should go before 'Chart'."
 17:29 17:39 svelte/sort-attributes "Attribute 'ArcLabel' should go before 'Chart'."
 
+=== 181 packages/layerchart/src/lib/components/charts/PieChart/PieChart.shared.svelte.ts	lint.txt
+174:7 174:20 no-unused-vars "'e' is defined but never used."
+174:10 174:20 no-undef "'MouseEvent' is not defined."
+175:7 175:76 no-unused-vars "'detail' is defined but never used."
+
 === 724 packages/layerchart/src/lib/components/charts/PieChart/PieChart.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -68225,6 +68553,8 @@
 5:19 5:35 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
 14:27 14:35 svelte/max-attributes-per-line "'Points' should be on a new line."
 
+=== 0 packages/layerchart/src/lib/components/charts/ScatterChart/ScatterChart.shared.svelte.ts	lint.txt
+
 === 568 packages/layerchart/src/lib/components/charts/ScatterChart/ScatterChart.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -68283,6 +68613,8 @@
 5:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:26 13:36 svelte/max-attributes-per-line "'{...props}' should be on a new line."
 
+=== 0 packages/layerchart/src/lib/components/geo/GeoCircle/GeoCircle.shared.svelte.ts	lint.txt
+
 === 316 packages/layerchart/src/lib/components/geo/GeoCircle/GeoCircle.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -68309,6 +68641,8 @@
 3:5 3:21 no-import-assign "'GeoClipPathProps' is read-only."
 8:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 16:29 16:39 svelte/max-attributes-per-line "'{...props}' should be on a new line."
+
+=== 0 packages/layerchart/src/lib/components/geo/GeoClipPath/GeoClipPath.shared.svelte.ts	lint.txt
 
 === 317 packages/layerchart/src/lib/components/geo/GeoClipPath/GeoClipPath.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -68337,6 +68671,9 @@
 3:5 3:21 no-import-assign "'GeoEdgeFadeProps' is read-only."
 8:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 16:26 16:36 svelte/max-attributes-per-line "'{...props}' should be on a new line."
+
+=== 50 packages/layerchart/src/lib/components/geo/GeoEdgeFade/GeoEdgeFade.shared.svelte.ts	lint.txt
+8:9 8:20 no-undef "'SVGGElement' is not defined."
 
 === 317 packages/layerchart/src/lib/components/geo/GeoEdgeFade/GeoEdgeFade.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -68415,6 +68752,14 @@
 5:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:21 13:31 svelte/max-attributes-per-line "'{...props}' should be on a new line."
 
+=== 357 packages/layerchart/src/lib/components/geo/GeoPath/GeoPath.shared.svelte.ts	lint.txt
+18:9 18:22 no-unused-vars "'e' is defined but never used."
+18:12 18:22 no-undef "'MouseEvent' is not defined."
+18:24 18:76 no-unused-vars "'geoPath' is defined but never used."
+22:19 22:67 no-unused-vars "'projection' is defined but never used."
+24:9 24:23 no-undef "'SVGPathElement' is not defined."
+40:25 40:39 no-undef "'SVGPathElement' is not defined."
+
 === 314 packages/layerchart/src/lib/components/geo/GeoPath/GeoPath.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -68448,6 +68793,9 @@
 2:17 2:30 no-import-assign "'GeoPointProps' is read-only."
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 14:24 14:31 svelte/max-attributes-per-line "'Group' should be on a new line."
+
+=== 46 packages/layerchart/src/lib/components/geo/GeoPoint/GeoPoint.shared.svelte.ts	lint.txt
+8:9 8:16 no-undef "'Element' is not defined."
 
 === 315 packages/layerchart/src/lib/components/geo/GeoPoint/GeoPoint.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -68500,6 +68848,8 @@
 5:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:23 13:33 svelte/max-attributes-per-line "'{...props}' should be on a new line."
 
+=== 0 packages/layerchart/src/lib/components/geo/GeoSpline/GeoSpline.shared.svelte.ts	lint.txt
+
 === 316 packages/layerchart/src/lib/components/geo/GeoSpline/GeoSpline.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -68531,6 +68881,11 @@
 2:17 2:40 no-import-assign "'GeoTilePropsWithoutHTML' is read-only."
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 14:22 14:33 svelte/max-attributes-per-line "'TileImage' should be on a new line."
+
+=== 173 packages/layerchart/src/lib/components/geo/GeoTile/GeoTile.shared.svelte.ts	lint.txt
+5:9 5:18 no-unused-vars "'x' is defined but never used."
+5:20 5:29 no-unused-vars "'y' is defined but never used."
+5:31 5:40 no-unused-vars "'z' is defined but never used."
 
 === 325 packages/layerchart/src/lib/components/geo/GeoTile/GeoTile.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -68565,6 +68920,8 @@
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 14:24 14:33 svelte/max-attributes-per-line "'GeoPath' should be on a new line."
 14:24 14:33 svelte/sort-attributes "Attribute 'GeoPath' should go before 'Group'."
+
+=== 0 packages/layerchart/src/lib/components/geo/Graticule/Graticule.shared.svelte.ts	lint.txt
 
 === 316 packages/layerchart/src/lib/components/geo/Graticule/Graticule.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -68610,6 +68967,13 @@
 2:17 2:31 no-import-assign "'TileImageProps' is read-only."
 5:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:23 13:33 svelte/max-attributes-per-line "'{...props}' should be on a new line."
+
+=== 355 packages/layerchart/src/lib/components/geo/TileImage/TileImage.shared.svelte.ts	lint.txt
+4:26 4:60 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+17:9 17:18 no-unused-vars "'x' is defined but never used."
+17:20 17:29 no-unused-vars "'y' is defined but never used."
+17:31 17:40 no-unused-vars "'z' is defined but never used."
+21:30 21:45 no-undef "'SVGImageElement' is not defined."
 
 === 316 packages/layerchart/src/lib/components/geo/TileImage/TileImage.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -68669,6 +69033,15 @@
 2:17 2:28 no-import-assign "'RibbonProps' is read-only."
 5:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:20 13:30 svelte/max-attributes-per-line "'{...props}' should be on a new line."
+
+=== 392 packages/layerchart/src/lib/components/graph/Ribbon/Ribbon.shared.svelte.ts	lint.txt
+16:40 16:54 no-undef "'SVGPathElement' is not defined."
+17:39 17:53 no-undef "'SVGPathElement' is not defined."
+18:40 18:54 no-undef "'SVGPathElement' is not defined."
+19:18 19:67 no-unused-vars "'e' is defined but never used."
+19:21 19:31 no-undef "'TouchEvent' is not defined."
+19:51 19:65 no-undef "'SVGPathElement' is not defined."
+23:25 23:39 no-undef "'SVGPathElement' is not defined."
 
 === 313 packages/layerchart/src/lib/components/graph/Ribbon/Ribbon.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -69230,6 +69603,176 @@
 === 153 packages/layerchart/src/lib/states/__fixtures__/ComponentNodeLifecycleParent.svelte	lint.txt
 1:1 24:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 11:21 11:40 no-unused-vars "'node' is defined but never used."
+
+=== 345 packages/layerchart/src/lib/states/brush.svelte.ts	lint.txt
+45:13 45:19 no-unused-vars "'v' is defined but never used."
+46:13 46:19 no-unused-vars "'v' is defined but never used."
+105:24 105:49 no-unused-vars "'selection' is defined but never used."
+123:20 123:45 no-unused-vars "'selection' is defined but never used."
+460:9 460:14 svelte/prefer-const "'width' is never reassigned. Use 'const' instead."
+
+=== 2385 packages/layerchart/src/lib/states/chart.svelte.ts	lint.txt
+85:53 85:60 no-undef "'Element' is not defined."
+85:63 85:70 no-undef "'Element' is not defined."
+249:5 249:73 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+286:31 286:38 no-undef "'Element' is not defined."
+286:41 286:48 no-undef "'Element' is not defined."
+375:25 375:36 no-undef "'HTMLElement' is not defined."
+773:10 773:97 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+773:23 773:29 no-unused-vars "'d' is defined but never used."
+795:18 795:36 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+795:18 795:36 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+844:17 846:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+930:33 930:39 no-unused-vars "'d' is defined but never used."
+988:9 988:16 no-undef "'console' is not defined."
+993:9 993:16 no-undef "'console' is not defined."
+1033:15 1036:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+1107:23 1107:39 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+1107:41 1107:57 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+1269:14 1269:80 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+1270:14 1270:80 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+1364:44 1364:55 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+1375:44 1375:55 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+1392:26 1392:32 no-unused-vars "'d' is defined but never used."
+1411:24 1411:74 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+1414:25 1414:82 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
+=== 674 packages/layerchart/src/lib/states/facet.svelte.ts	lint.txt
+36:25 36:34 no-unused-vars "'data' is defined but never used."
+72:7 72:15 no-unused-vars "'row' is defined but never used."
+80:8 80:14 no-unused-vars "'d' is defined but never used."
+81:8 81:14 no-unused-vars "'d' is defined but never used."
+112:54 112:60 no-unused-vars "'d' is defined but never used."
+114:54 114:60 no-unused-vars "'d' is defined but never used."
+172:19 172:43 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+172:19 172:43 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+247:15 247:21 no-unused-vars "'d' is defined but never used."
+
+=== 0 packages/layerchart/src/lib/states/geo.svelte.ts	lint.txt
+
+=== 428 packages/layerchart/src/lib/states/group.svelte.ts	lint.txt
+30:7 30:33 no-unused-vars "'pointer' is defined but never used."
+30:35 30:65 no-unused-vars "'ctx' is defined but never used."
+153:12 153:39 no-unused-vars "'point' is defined but never used."
+340:16 340:42 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+353:7 353:14 no-undef "'console' is not defined."
+577:33 577:39 no-unused-vars "'d' is defined but never used."
+
+=== 981 packages/layerchart/src/lib/states/series.svelte.ts	lint.txt
+29:14 29:22 no-unused-vars "'d' is defined but never used."
+37:15 37:23 no-unused-vars "'d' is defined but never used."
+294:24 294:59 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+294:24 294:59 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+329:25 329:60 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+329:25 329:60 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+355:24 355:60 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+361:17 361:81 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+361:17 361:81 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 0 packages/layerchart/src/lib/states/settings.svelte.ts	lint.txt
+
+=== 580 packages/layerchart/src/lib/states/tooltip.svelte.ts	lint.txt
+54:4 54:34 no-unused-vars "'options' is defined but never used."
+60:4 60:45 no-unused-vars "'e' is defined but never used."
+60:7 60:19 no-undef "'PointerEvent' is not defined."
+60:22 60:32 no-undef "'MouseEvent' is not defined."
+60:35 60:45 no-undef "'TouchEvent' is not defined."
+60:47 60:55 no-unused-vars "'data' is defined but never used."
+107:10 107:26 no-unused-vars "'e' is defined but never used."
+107:14 107:26 no-undef "'PointerEvent' is not defined."
+123:63 123:79 no-unused-vars "'e' is defined but never used."
+123:67 123:79 no-undef "'PointerEvent' is not defined."
+
+=== 1824 packages/layerchart/src/lib/states/transform.svelte.ts	lint.txt
+41:5 41:14 no-unused-vars "'x' is defined but never used."
+42:5 42:14 no-unused-vars "'y' is defined but never used."
+43:5 43:19 no-unused-vars "'deltaX' is defined but never used."
+44:5 44:19 no-unused-vars "'deltaY' is defined but never used."
+51:18 51:81 no-unused-vars "'details' is defined but never used."
+79:16 79:46 no-unused-vars "'transform' is defined but never used."
+90:5 90:14 no-unused-vars "'x' is defined but never used."
+91:5 91:14 no-unused-vars "'y' is defined but never used."
+92:5 92:19 no-unused-vars "'deltaX' is defined but never used."
+93:5 93:19 no-unused-vars "'deltaY' is defined but never used."
+102:17 102:80 no-unused-vars "'details' is defined but never used."
+108:16 108:46 no-unused-vars "'transform' is defined but never used."
+130:23 130:66 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+418:30 418:42 no-undef "'PointerEvent' is not defined."
+418:62 418:73 no-undef "'HTMLElement' is not defined."
+528:20 528:32 no-undef "'PointerEvent' is not defined."
+528:52 528:63 no-undef "'HTMLElement' is not defined."
+550:20 550:32 no-undef "'PointerEvent' is not defined."
+550:52 550:63 no-undef "'HTMLElement' is not defined."
+586:21 586:32 no-undef "'performance' is not defined."
+602:18 602:30 no-undef "'PointerEvent' is not defined."
+602:50 602:61 no-undef "'HTMLElement' is not defined."
+636:19 636:30 no-undef "'performance' is not defined."
+717:22 717:34 no-undef "'PointerEvent' is not defined."
+717:54 717:65 no-undef "'HTMLElement' is not defined."
+745:20 745:30 no-undef "'MouseEvent' is not defined."
+745:50 745:61 no-undef "'HTMLElement' is not defined."
+751:35 751:45 no-undef "'WheelEvent' is not defined."
+765:14 765:24 no-undef "'WheelEvent' is not defined."
+765:44 765:55 no-undef "'HTMLElement' is not defined."
+
+=== 329 packages/layerchart/src/lib/utils/arcText.svelte.ts	lint.txt
+223:11 223:18 no-undef "'console' is not defined."
+226:9 226:16 no-undef "'console' is not defined."
+305:9 305:25 svelte/prefer-const "'effectivePadding' is never reassigned. Use 'const' instead."
+375:3 375:28 no-unused-vars "'position' is defined but never used."
+376:3 376:24 no-unused-vars "'opts' is defined but never used."
+
+=== 0 packages/layerchart/src/lib/utils/key.svelte.ts	lint.txt
+
+=== 1082 packages/layerchart/src/lib/utils/motion.svelte.ts	lint.txt
+63:66 63:70 no-unused-vars "'prop' is defined but never used."
+99:25 99:38 no-unused-vars "'_options' is assigned a value but never used."
+108:17 108:30 no-unused-vars "'_options' is assigned a value but never used."
+209:11 209:20 no-unused-vars "'_value' is defined but never used."
+209:22 209:36 no-unused-vars "'_options' is defined but never used."
+253:9 253:18 svelte/prefer-const "'currIndex' is never reassigned. Use 'const' instead."
+283:15 283:86 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+283:15 283:86 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+296:19 296:28 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+296:19 296:28 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+372:15 372:19 no-unused-vars "'type' is assigned a value but never used."
+375:15 375:19 no-unused-vars "'type' is assigned a value but never used."
+
+=== 840 packages/layerchart/src/lib/utils/rect.svelte.ts	lint.txt
+98:11 98:15 no-useless-assignment "The value assigned to 'left' is not used in subsequent statements."
+99:11 99:16 no-useless-assignment "The value assigned to 'right' is not used in subsequent statements."
+140:11 140:14 no-useless-assignment "The value assigned to 'top' is not used in subsequent statements."
+141:11 141:17 no-useless-assignment "The value assigned to 'bottom' is not used in subsequent statements."
+181:11 181:14 no-useless-assignment "The value assigned to 'top' is not used in subsequent statements."
+182:11 182:17 no-useless-assignment "The value assigned to 'bottom' is not used in subsequent statements."
+217:11 217:15 no-useless-assignment "The value assigned to 'left' is not used in subsequent statements."
+218:11 218:16 no-useless-assignment "The value assigned to 'right' is not used in subsequent statements."
+
+=== 1634 packages/layerchart/src/lib/utils/scales.svelte.ts	lint.txt
+13:15 13:27 no-unused-vars "'TimeInterval' is defined but never used."
+20:4 20:17 no-unused-vars "'value' is defined but never used."
+21:10 21:46 no-unused-vars "'domain' is defined but never used."
+23:9 23:46 no-unused-vars "'range' is defined but never used."
+25:17 25:54 no-unused-vars "'range' is defined but never used."
+27:13 27:27 no-unused-vars "'value' is defined but never used."
+28:19 28:33 no-unused-vars "'value' is defined but never used."
+30:12 30:26 no-unused-vars "'count' is defined but never used."
+31:17 31:31 no-unused-vars "'count' is defined but never used."
+31:37 31:50 no-unused-vars "'value' is defined but never used."
+32:12 32:26 no-unused-vars "'clamp' is defined but never used."
+34:5 34:68 no-unused-vars "'interpolate' is defined but never used."
+34:19 34:29 no-unused-vars "'a' is defined but never used."
+34:31 34:41 no-unused-vars "'b' is defined but never used."
+34:47 34:56 no-unused-vars "'t' is defined but never used."
+36:11 36:25 no-unused-vars "'count' is defined but never used."
+37:17 37:53 no-unused-vars "'interpolator' is defined but never used."
+37:32 37:41 no-unused-vars "'t' is defined but never used."
+38:21 38:30 no-unused-vars "'t' is defined but never used."
+88:14 88:44 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+88:46 88:76 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+108:3 108:10 no-undef "'console' is not defined."
+368:61 368:69 no-unused-vars "'d' is defined but never used."
+369:51 369:59 no-unused-vars "'d' is defined but never used."
 
 === 0 packages/layerchart/src/routes/+page.svelte	lint.txt
 

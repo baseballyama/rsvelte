@@ -19948,6 +19948,8 @@
 310:1 310:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 313:1 334:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
+=== 0 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/helpers/init.svelte.ts	lint.txt
+
 === 2877 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/breadcrumbs.svelte	lint.txt
 1:1 42:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."

@@ -21,6 +21,23 @@
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 6:28 6:33 svelte/valid-compile "This reference only captures the initial value of `layer`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 
+=== 862 src/lib/util/LayerManager.svelte.ts	lint.txt
+32:20 32:36 no-undef "'MutationObserver' is not defined."
+45:42 45:53 no-undef "'HTMLElement' is not defined."
+98:35 98:46 no-undef "'HTMLElement' is not defined."
+100:23 100:34 no-undef "'HTMLElement' is not defined."
+104:31 104:47 no-undef "'MutationObserver' is not defined."
+112:28 112:49 no-undef "'requestAnimationFrame' is not defined."
+114:7 114:27 no-undef "'cancelAnimationFrame' is not defined."
+119:22 119:46 no-undef "'CanvasRenderingContext2D' is not defined."
+143:35 143:45 no-undef "'MouseEvent' is not defined."
+143:48 143:58 no-undef "'TouchEvent' is not defined."
+149:34 149:44 no-undef "'MouseEvent' is not defined."
+149:47 149:57 no-undef "'TouchEvent' is not defined."
+173:29 173:39 no-undef "'MouseEvent' is not defined."
+173:42 173:52 no-undef "'TouchEvent' is not defined."
+191:5 191:25 no-undef "'cancelAnimationFrame' is not defined."
+
 === 1242 src/routes/_components/Code.svelte	lint.txt
 10:1 27:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 31:5 31:29 svelte/no-unused-class-name "Unused class \"hljs\"."

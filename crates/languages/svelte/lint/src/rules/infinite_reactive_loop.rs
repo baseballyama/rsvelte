@@ -33,7 +33,7 @@ struct InfiniteReactiveLoop;
 impl SvelteRule for InfiniteReactiveLoop {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        let statements: Vec<_> = reactive_statements(component, file.source()).collect();
+        let statements: Vec<_> = reactive_statements(file, component).collect();
         if statements.is_empty() {
             return;
         }

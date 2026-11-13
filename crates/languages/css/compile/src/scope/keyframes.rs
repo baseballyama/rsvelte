@@ -22,11 +22,7 @@ impl<'a> Names<'a> {
             for rule in rules {
                 let mut global = global;
                 if let RuleKind::Style { selectors, .. } = &rule.kind {
-                    global |= selectors.iter().any(|s| {
-                        s.parts
-                            .iter()
-                            .any(|p| p.simple.iter().any(|simple| simple.is_global_block(source)))
-                    });
+                    global |= selectors.iter().any(|s| s.opens_global_block(source));
                 }
                 if let RuleKind::At { name, prelude, .. } = rule.kind
                     && without_browser_prefix(name.text(source)) == "keyframes"
