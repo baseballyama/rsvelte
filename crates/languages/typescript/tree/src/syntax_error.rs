@@ -131,8 +131,9 @@ pub(crate) fn acorn(
         }
         // A modifier: acorn reads it as the member's name and fails at the token after it.
         "8009" | "8012" => Some(fails("Unexpected token", token(end, None)?)),
-        // A second modifier: acorn reads the first as the name and fails at this one.
-        "1029" => Some(fails("Unexpected token", start)),
+        // A second modifier: acorn reads the first as the name and fails at this one. A numeric
+        // enum member and a class's `implements` are where acorn fails too.
+        "1029" | "2452" | "8005" => Some(fails("Unexpected token", start)),
         // `()`: oxc labels both parentheses, and acorn fails at the closing one.
         "1109" => Some(fails("Unexpected token", end.checked_sub(1)?)),
         // oxc labels the slash, and acorn reports the body after it.
@@ -150,6 +151,18 @@ pub(crate) fn acorn(
             )),
             at: start,
         }),
+        "1049" => Some(fails("setter should have exactly one param", start)),
+        "1473" | "1474" => Some(fails(
+            "'import' and 'export' may only appear at the top level",
+            start,
+        )),
+        // acorn-typescript reads `<>` and fails at the token after it, and an index signature's
+        // second parameter at its comma.
+        "1098" => Some(fails(
+            "Type parameter list cannot be empty.",
+            token(end, None)?,
+        )),
+        "1096" => Some(fails("Unexpected token", token(start, Some(Kind::Comma))?)),
         "1101" => Some(fails("'with' in strict mode", start)),
         "2660" => Some(fails("'super' keyword outside a method", start)),
         // `super()` where it is not allowed: acorn first asks whether `super` is allowed at all.
@@ -208,6 +221,10 @@ fn early_error(
         // A second declaration: oxc labels the first one first, and acorn fails at this one.
         "2300" => {
             let (at, name) = second()?;
+            let end = at + name.len() as u32;
+            if locate(at, end, Find::Parameters, visit).is_some() {
+                return Some(fails("Argument name clash", at));
+            }
             Some(Acorn::Fails {
                 message: Cow::Owned(format!("Identifier '{name}' has already been declared")),
                 at,
@@ -290,6 +307,8 @@ enum Find {
     Jump,
     /// The `delete` around the label.
     Unary,
+    /// The parameter list around the label.
+    Parameters,
     /// The innermost method, class field, static block or other function around the label, which
     /// decides whether acorn allows `super` there.
     SuperHome,
@@ -323,6 +342,7 @@ impl Locator {
             | (Find::Rest, AstKind::FormalParameterRest(_))
             | (Find::Jump, AstKind::BreakStatement(_) | AstKind::ContinueStatement(_))
             | (Find::Unary, AstKind::UnaryExpression(_))
+            | (Find::Parameters, AstKind::FormalParameters(_))
             | (
                 Find::SuperHome,
                 AstKind::PropertyDefinition(_)
