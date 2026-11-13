@@ -15,6 +15,7 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_typescript_projection::Printed;
 use rsvelte_test_harness::NodePackages;
@@ -69,13 +70,33 @@ impl Task for CountCoverage {
             Ok(projection) => {
                 let allocator = Allocator::default();
                 let result = Parser::new(&allocator, &projection.out, SourceType::ts()).parse();
-                // The projection keeps the script's own grammar, which may break these rules.
-                let added = result.diagnostics.iter().any(|d| {
-                    d.code.scope.as_deref() != Some("TS")
-                        || d.code.number.as_deref().is_none_or(|n| {
-                            !rsvelte_svelte_syntax::parse::ACORN_UNCHECKED_TYPESCRIPT_RULES
-                                .contains(&n)
+                let in_script = |offset: u32| {
+                    [&component.instance, &component.module]
+                        .into_iter()
+                        .flatten()
+                        .any(|script| {
+                            (script.content.start_offset..script.content.end_offset)
+                                .contains(&offset)
                         })
+                };
+                let added = result.diagnostics.iter().any(|d| {
+                    // The projection keeps the script's own grammar, which may break these rules.
+                    let unchecked = d.code.scope.as_deref() == Some("TS")
+                        && d.code.number.as_deref().is_some_and(|n| {
+                            rsvelte_svelte_syntax::parse::ACORN_UNCHECKED_TYPESCRIPT_RULES
+                                .contains(&n)
+                        });
+                    // svelte2tsx writes a template expression as a statement, which TypeScript
+                    // may read as a declaration, so an error there is the source's own.
+                    let labels = &d.labels;
+                    let in_template = !labels.is_empty()
+                        && labels.iter().all(|label| {
+                            let at = label.offset();
+                            projection
+                                .lookup_overlap(Span::new(at, at))
+                                .is_some_and(|source| !in_script(source.start_offset))
+                        });
+                    !unchecked && !in_template
                 });
                 if added {
                     self.0

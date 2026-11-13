@@ -15,12 +15,12 @@ async () => {
     svelteHTML.createElement("ul", {});
     {
       for (let [, item] of __rsvelte_each(items)) {
-        (item.id);
+        item.id;
         {
           svelteHTML.createElement("li", {
             [Symbol("@attach")]: highlight(item),
           });
-          (item.label);
+          item.label;
         }
       }
     }

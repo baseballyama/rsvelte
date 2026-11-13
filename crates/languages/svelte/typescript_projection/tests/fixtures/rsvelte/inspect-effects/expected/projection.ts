@@ -25,7 +25,7 @@ async () => {
     const c = a;
     {
       svelteHTML.createElement("p", {});
-      (c);
+      c;
     }
   }
 };

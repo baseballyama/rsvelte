@@ -8,7 +8,7 @@ const plain = (): ReturnType<import('svelte').Snippet> => {
     {
       __rsvelte_component(Icon)(__rsvelte_internals(), {});
     }
-    (greeting);
+    greeting;
   };
   return __rsvelte_snippet_return;
 };
@@ -16,7 +16,7 @@ const uses_prop = (): ReturnType<import('svelte').Snippet> => {
   async () => {
     {
       svelteHTML.createElement("b", {});
-      (name);
+      name;
     }
   };
   return __rsvelte_snippet_return;

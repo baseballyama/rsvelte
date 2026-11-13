@@ -28,14 +28,14 @@ async () => {
       for (let [, item] of __rsvelte_each(items)) {
         {
           svelteHTML.createElement("option", {});
-          (item);
+          item;
         }
       }
     }
   }
   {
     svelteHTML.createElement("p", {});
-    (choice);
+    choice;
   }
 };
 const SelectBind__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

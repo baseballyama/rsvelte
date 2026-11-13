@@ -28,8 +28,8 @@
 async () => {
   {
     svelteHTML.createElement("p", {});
-    (double);
-    (foo);
+    double;
+    foo;
   }
 };
 const VarStateReads__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

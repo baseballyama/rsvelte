@@ -43,7 +43,7 @@ async () => {
     svelteHTML.createElement("ul", {});
     {
       for (let [, todo] of __rsvelte_each(todos)) {
-        (todo.id);
+        todo.id;
         {
           svelteHTML.createElement("li", {});
           {
@@ -81,7 +81,7 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    (remaining);
+    remaining;
   }
   {
     svelteHTML.createElement("button", {

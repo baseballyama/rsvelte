@@ -7,7 +7,7 @@ async () => {
     svelteHTML.createElement("svelte:head", {});
     {
       svelteHTML.createElement("title", {});
-      (title);
+      title;
     }
   }
   {

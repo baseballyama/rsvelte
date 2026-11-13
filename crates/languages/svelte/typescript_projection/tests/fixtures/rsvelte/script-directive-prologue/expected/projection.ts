@@ -13,7 +13,7 @@ const __rsvelte_public_props0 = __rsvelte_props({
 async () => {
   {
     svelteHTML.createElement("p", {});
-    (b);
+    b;
   }
 };
 const ScriptDirectivePrologue__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();

@@ -11,8 +11,8 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": f,
     });
-    (o.a);
-    (r.length);
+    o.a;
+    r.length;
   }
 };
 const ExportedConstState__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {

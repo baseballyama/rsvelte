@@ -89,10 +89,11 @@ impl Printer<'_> {
                 self.program_end();
             }
             Node::Source(expression) => self.source_expression(expression),
+            // svelte2tsx writes the expression bare, so TypeScript reads a leading word such as
+            // `accessor` or `function` as the start of a statement.
             Node::Expression(value) => {
-                self.output.push("(");
                 self.source_expression(value);
-                self.output.push(");\n");
+                self.output.push(";\n");
             }
             Node::Statement(expression) => {
                 self.node(expression);

@@ -43,12 +43,12 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    (w);
-    (scroll);
-    (online);
-    (active);
-    (visibility);
-    (ratio);
+    w;
+    scroll;
+    online;
+    active;
+    visibility;
+    ratio;
   }
 };
 const GlobalsBindings__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

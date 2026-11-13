@@ -39,7 +39,7 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => count++,
     });
-    (count);
+    count;
   }
   {
     for (let [, row] of __rsvelte_each(items)) {

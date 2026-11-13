@@ -4,7 +4,7 @@ async () => {
     svelteHTML.createElement("svelte:boundary", {});
     {
       svelteHTML.createElement("p", {});
-      ($effect.pending());
+      $effect.pending();
     }
   }
 };

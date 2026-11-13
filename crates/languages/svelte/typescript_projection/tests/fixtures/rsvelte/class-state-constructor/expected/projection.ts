@@ -25,9 +25,9 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => c.inc(),
     });
-    (c.count);
-    (c.doubled);
-    (c.p);
+    c.count;
+    c.doubled;
+    c.p;
   }
 };
 const ClassStateConstructor__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

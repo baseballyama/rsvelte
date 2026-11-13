@@ -5,7 +5,7 @@ const active = true;
 async () => {
   {
     svelteHTML.createElement("div", {});
-    (active);
+    active;
   }
 };
 const ElementClassOnlyStatic__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

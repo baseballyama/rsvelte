@@ -6,6 +6,7 @@ mod children;
 mod contract;
 mod directive;
 mod generic;
+mod statement;
 mod tag;
 
 use oxc_ast::ast::Expression;
@@ -271,10 +272,11 @@ impl Builder<'_> {
     fn node(&mut self, identifier: u32) -> Result<Option<NodeIdentifier>> {
         let node = match *self.component.node(identifier) {
             TemplateNode::Text { .. } | TemplateNode::Comment { .. } => return Ok(None),
-            TemplateNode::Expression { expression, span }
-            | TemplateNode::Html { expression, span } => {
-                let at = self.expression(expression).span();
-                Node::Expression(source_expression(at, Some(span.end_offset - 1)))
+            TemplateNode::Expression { expression, span } => {
+                self.expression_statement(expression, Some(span.end_offset - 1), true)
+            }
+            TemplateNode::Html { expression, span } => {
+                self.expression_statement(expression, Some(span.end_offset - 1), false)
             }
             TemplateNode::Element {
                 name,
@@ -332,8 +334,8 @@ impl Builder<'_> {
                 let value = value.map(|at| self.source(at, None));
                 let binding = self.tree.push(Node::ArrayPattern { index, value });
                 if let Some(key) = key {
-                    let value = source_expression(self.expression(key).span(), None);
-                    self.scratch.push(self.tree.push(Node::Expression(value)));
+                    let statement = self.expression_statement(key, None, false);
+                    self.scratch.push(self.tree.push(statement));
                 }
                 self.append_children(body)?;
                 let body = self.finish_list(start);
@@ -503,8 +505,8 @@ impl Builder<'_> {
                 && let AttributeValue::Parts(parts) = attribute.value
                 && let [Part::Expression { expression, .. }] = self.component.parts(parts)
             {
-                let value = source_expression(self.expression(*expression).span(), None);
-                self.scratch.push(self.tree.push(Node::Expression(value)));
+                let statement = self.expression_statement(*expression, None, false);
+                self.scratch.push(self.tree.push(statement));
             }
         }
     }

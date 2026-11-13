@@ -9,7 +9,7 @@
 async () => {
   {
     svelteHTML.createElement("p", {});
-    (copy.f);
+    copy.f;
   }
 };
 const StateSnapshotIgnored__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

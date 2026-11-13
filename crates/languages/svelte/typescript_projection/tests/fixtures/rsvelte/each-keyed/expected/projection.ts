@@ -10,10 +10,10 @@
 async () => {
   {
     for (let [, person] of __rsvelte_each(people)) {
-      (person.id);
+      person.id;
       {
         svelteHTML.createElement("p", {});
-        (person.name);
+        person.name;
       }
     }
   }
