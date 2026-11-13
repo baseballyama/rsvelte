@@ -233,6 +233,10 @@ pub(crate) fn validate_unit(
         custom_element,
         stylesheet_injected,
     } = special::validate(input)?;
+    // Upstream erases the types right after it parses, before it analyzes.
+    if unit == Unit::Component {
+        validation::check_typescript(input)?;
+    }
     let names = stores::Names::new(input, res);
     let mut errors = snippets::errors(input, res);
     if unit == Unit::Component {
@@ -246,9 +250,6 @@ pub(crate) fn validate_unit(
     if let Err(refusal) = coverage::check(input, res) {
         let script = validation::script_error(input, res, custom_element.is_some());
         return Err(script.map_or(refusal, |(_, error)| error));
-    }
-    if unit == Unit::Component {
-        validation::check_typescript(input)?;
     }
     let rest_reads = rest_reads::build(res, custom_element.is_some());
     Ok(ValidatedOptions {

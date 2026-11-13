@@ -429,3 +429,15 @@ fn a_reactive_statement_in_the_instance_raises_upstreams_error() {
     let module = "<script module>let a = 1; $: b = a;</script>";
     assert_eq!(compile(module, Target::Client).err(), None);
 }
+
+#[test]
+fn a_typescript_feature_is_refused_before_the_template_is_analyzed() {
+    assert_eq!(
+        compile_at(
+            "<script lang=\"ts\">enum E { A }</script>\n<svelte:window bind:foo={x} />",
+            Target::Client
+        )
+        .err(),
+        Some(("typescript_invalid_feature".to_owned(), (18, 30)))
+    );
+}
