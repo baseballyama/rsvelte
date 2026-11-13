@@ -1,4 +1,4 @@
-# svelte.check/default: 35768 match
+# svelte.check/default: 35769 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/lib/components/roles/default.svelte	mismatch
@@ -733,7 +733,6 @@ svelte/rsvelte/pattern/issues/element-bind-prop-indirect-invalidation.svelte	ref
 svelte/rsvelte/pattern/issues/legacy-prop-trailing-comment.svelte	refused
 svelte/rsvelte/pattern/issues/prop-mutation-location-duplicate-words.svelte	refused
 svelte/rsvelte/pattern/issues/script-data-lang-ts-strips.svelte	mismatch
-svelte/rsvelte/pattern/issues/script-lang-after-quoted-gt.svelte	mismatch
 svelte/rsvelte/pattern/issues/typescript-omits-the-import-fields-acorn-always-writes.svelte	refused
 svelte/rsvelte/pattern/issues/typescript-reactive-prop-read.svelte	refused
 svelte/rsvelte/pattern/issues/var-derived-outlives-the-statement-it-declared-it.svelte	mismatch
