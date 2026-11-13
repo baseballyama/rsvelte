@@ -24,7 +24,7 @@ struct NoReactiveLiterals;
 impl SvelteRule for NoReactiveLiterals {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        for (statement, body) in reactive_statements(component, file.source()) {
+        for (statement, body) in reactive_statements(file, component) {
             let Statement::ExpressionStatement(expression) = body else {
                 continue;
             };

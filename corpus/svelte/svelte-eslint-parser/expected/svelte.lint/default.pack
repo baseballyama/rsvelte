@@ -197,6 +197,16 @@
 16:18 16:32 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 16:32 16:33 svelte/html-self-closing "Require self-closing on HTML void elements."
 
+=== 230 tests/fixtures/integrations/type-info-tests/$derived-ts-input.svelte.ts	lint.txt
+2:5 2:19 no-useless-assignment "The value assigned to 'x' is not used in subsequent statements."
+7:7 7:8 no-unused-vars "'z' is assigned a value but never used."
+8:7 8:10 no-unused-vars "'foo' is assigned a value but never used."
+
+=== 0 tests/fixtures/integrations/type-info-tests/$derived-within-class-input.svelte.ts	lint.txt
+
+=== 97 tests/fixtures/integrations/type-info-tests/$derived2-ts-input.svelte.ts	lint.txt
+3:7 3:21 no-useless-assignment "The value assigned to 'a' is not used in subsequent statements."
+
 === 166 tests/fixtures/integrations/type-info-tests/$props-input.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -2156,6 +2166,12 @@
 18:9 18:37 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/03-input.svelte.js	lint.txt
+
+=== 0 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/03-ts-input.svelte.ts	lint.txt
+
+=== 0 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/03-ts-type-output.svelte.ts	lint.txt
+
 === 522 tests/fixtures/parser/ast/svelte5/function-binding-with-comment01-input.svelte	lint.txt
 1:8 6:2 svelte/first-attribute-linebreak "Expected a linebreak before this attribute."
 1:19 2:5 svelte/mustache-spacing "Expected no space after '{', but found."
@@ -2260,6 +2276,20 @@
 === 175 tests/fixtures/parser/ast/svelte5/svelte-options/svelte-options02-input.svelte	lint.txt
 1:30 1:32 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
 1:31 1:49 svelte/html-self-closing "Require self-closing on Svelte special elements."
+
+=== 0 tests/fixtures/parser/ast/svelte5/svelte-ts-$derived01-input.svelte.ts	lint.txt
+
+=== 0 tests/fixtures/parser/ast/svelte5/svelte-ts-$derived01-type-output.svelte.ts	lint.txt
+
+=== 94 tests/fixtures/parser/ast/svelte5/svelte-ts-$effect01-input.svelte.ts	lint.txt
+9:3 9:10 no-undef "'console' is not defined."
+12:5 12:12 no-undef "'console' is not defined."
+
+=== 94 tests/fixtures/parser/ast/svelte5/svelte-ts-$effect01-type-output.svelte.ts	lint.txt
+9:3 9:10 no-undef "'console' is not defined."
+12:5 12:12 no-undef "'console' is not defined."
+
+=== 0 tests/fixtures/parser/ast/svelte5/svelte-ts-$props01-input.svelte.ts	lint.txt
 
 === 1123 tests/fixtures/parser/ast/svelte5/ts-$derived-by01-input.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -4804,36 +4834,6 @@
 9:43 9:45 svelte/mustache-spacing "Expected no space before '}', but found."
 9:45 9:47 svelte/html-self-closing "Disallow self-closing on HTML elements."
 9:45 9:47 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
-
-=== 79 tests/fixtures/parser/error/directive-animate-with-expr-input.svelte	lint.txt
-17:13 - - "Parsing error: Expected JS Identifier, but MemberExpression found."
-
-=== 75 tests/fixtures/parser/error/directive-class-with-expr-input.svelte	lint.txt
-2:11 - - "Parsing error: Expected Identifier, but MemberExpression found."
-
-=== 78 tests/fixtures/parser/error/directive-in-with-exxpr-input.svelte	lint.txt
-13:7 - - "Parsing error: Expected JS Identifier, but MemberExpression found."
-
-=== 78 tests/fixtures/parser/error/directive-out-with-expr-input.svelte	lint.txt
-13:8 - - "Parsing error: Expected JS Identifier, but MemberExpression found."
-
-=== 69 tests/fixtures/parser/error/directive-style-with-expr-input.svelte	lint.txt
-2:11 - - "Parsing error: Expected JS identifier or attribute value."
-
-=== 79 tests/fixtures/parser/error/directive-transition-with-expr-input.svelte	lint.txt
-13:15 - - "Parsing error: Expected JS Identifier, but MemberExpression found."
-
-=== 96 tests/fixtures/parser/error/directive-use-with-expr01-input.svelte	lint.txt
-7:9 - - "Parsing error: Expected JS Identifier, or MemberExpression, but CallExpression found."
-
-=== 96 tests/fixtures/parser/error/directive-use-with-expr02-input.svelte	lint.txt
-7:9 - - "Parsing error: Expected JS Identifier, or MemberExpression, but CallExpression found."
-
-=== 78 tests/fixtures/parser/error/name01-input.svelte	lint.txt
-7:15 - - "Parsing error: Expected JS Identifier, but BinaryExpression found."
-
-=== 69 tests/fixtures/parser/error/shorthand02-input.svelte	lint.txt
-7:10 - - "Parsing error: Expected JS identifier or attribute value."
 
 === 944 tests/fixtures/parser/selector-parsing/simple-css-input.svelte	lint.txt
 2:7 2:8 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."

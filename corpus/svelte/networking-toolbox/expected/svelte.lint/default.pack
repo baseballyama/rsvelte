@@ -6348,6 +6348,18 @@
 493:7 493:46 svelte/no-unused-class-name "Unused class \"info-panel\"."
 504:1 1047:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
+=== 102 src/lib/composables/useClipboard.svelte.ts	lint.txt
+18:13 18:22 no-undef "'navigator' is not defined."
+20:7 20:17 no-undef "'setTimeout' is not defined."
+
+=== 0 src/lib/composables/useDiagnosticState.svelte.ts	lint.txt
+
+=== 0 src/lib/composables/useExamples.svelte.ts	lint.txt
+
+=== 0 src/lib/composables/useToolSearch.svelte.ts	lint.txt
+
+=== 0 src/lib/composables/useValidation.svelte.ts	lint.txt
+
 === 3704 src/routes/+error.svelte	lint.txt
 1:1 145:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 16:7 16:14 no-undef "'console' is not defined."

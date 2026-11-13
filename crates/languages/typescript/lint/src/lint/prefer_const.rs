@@ -13,7 +13,7 @@ use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::ProgramIdentifier;
 use rustc_hash::FxHashMap;
 
-use super::{Facts, Use, roots, span};
+use super::{Facts, Use, identifier_range, roots, span};
 
 /// `ESLint`'s `prefer-const` options.
 #[derive(Clone, Copy, Debug, Default)]
@@ -210,7 +210,13 @@ fn check_group<'s>(
                 "'{}' is never reassigned. Use 'const' instead.",
                 name_of(f, node)
             ),
-            span(f.span(node)),
+            match f.kind(node) {
+                AstKind::BindingIdentifier(i) => i
+                    .symbol_id
+                    .get()
+                    .map_or_else(|| span(i.span), |s| identifier_range(f, s, i.span)),
+                _ => span(f.span(node)),
+            },
         )
         .message_id("useConst");
         if should_fix && let Some((_, declaration)) = declaration {

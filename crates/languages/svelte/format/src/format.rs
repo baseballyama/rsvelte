@@ -181,9 +181,13 @@ fn print(
         buffers: Vec::new(),
         ignore: Ignore::default(),
         unparsed_script,
+        comments: (c.tokens.iter())
+            .filter(|t| t.kind == TokenType::JavaScriptComment)
+            .map(|t| t.span)
+            .collect(),
     };
     let root = f.top_level()?;
-    refuse_lost_comments(c, &f.embedder.kept, &f.embedder.dropped)?;
+    refuse_lost_comments(&f.comments, &f.embedder.kept, &f.embedder.dropped)?;
     let embedding = f.embedder.embedding;
     // Room for output a quarter longer than its source, so the buffer seldom grows.
     embedding
@@ -309,11 +313,12 @@ fn has_pragma(text: &str) -> bool {
 /// A JavaScript comment outside the code the output keeps as text, which the template printer
 /// does not place: around an expression (`{/* a */ b}`) or between a tag's attributes
 /// (`<A // b={1}>`, only a token), it would be lost.
-fn refuse_lost_comments(c: &Component, kept: &[Span], dropped: &[(Span, &'static str)]) -> R<()> {
-    for comment in (c.tokens.iter())
-        .filter(|t| t.kind == TokenType::JavaScriptComment)
-        .map(|t| t.span)
-    {
+fn refuse_lost_comments(
+    comments: &[Span],
+    kept: &[Span],
+    dropped: &[(Span, &'static str)],
+) -> R<()> {
+    for &comment in comments {
         if let Some(&(_, why)) = dropped.iter().find(|(d, _)| *d == comment) {
             return Err(Unsupported::at(why, comment));
         }
@@ -412,6 +417,20 @@ struct Printer<'a, 'd, 'x> {
     ignore: Ignore,
     /// The body of the script Babel would reject, which the plugin prints as it is.
     unparsed_script: Option<Span>,
+    /// Every JavaScript comment's span, in order.
+    comments: Vec<Span>,
+}
+
+impl Printer<'_, '_, '_> {
+    /// Whether a JavaScript comment starts inside `span`.
+    fn holds_comment(&self, span: Span) -> bool {
+        let i = self
+            .comments
+            .partition_point(|c| c.start_offset < span.start_offset);
+        self.comments
+            .get(i)
+            .is_some_and(|c| c.start_offset < span.end_offset)
+    }
 }
 
 /// The plugin's `ignoreNext` and `ignoreRange`.

@@ -349,6 +349,100 @@
 
 === 0 packages/kit/src/core/sync/write_types/test/slugs-layout-not-all-pages-have-load/+layout.svelte	lint.txt
 
+=== 482 packages/kit/src/runtime/app/state/client.svelte.js	lint.txt
+17:23 17:26 no-undef "'URL' is not defined."
+131:18 131:57 no-undef "'__SVELTEKIT_APP_VERSION_POLL_INTERVAL__' is not defined."
+152:3 152:9 no-undef "'window' is not defined."
+160:23 160:28 no-undef "'fetch' is not defined."
+160:42 160:72 no-undef "'__SVELTEKIT_APP_VERSION_FILE__' is not defined."
+176:42 176:48 no-undef "'window' is not defined."
+183:12 183:18 no-undef "'window' is not defined."
+197:6 197:46 no-undef "'__SVELTEKIT_APP_VERSION_CHECKS_ENABLED__' is not defined."
+
+=== 242 packages/kit/src/runtime/client/remote-functions/cache.svelte.js	lint.txt
+72:14 72:23 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+72:14 72:23 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 48 packages/kit/src/runtime/client/remote-functions/command.svelte.js	lint.txt
+76:5 76:12 no-undef "'console' is not defined."
+
+=== 1804 packages/kit/src/runtime/client/remote-functions/form.svelte.js	lint.txt
+51:20 51:29 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+70:20 70:29 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+70:20 70:29 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+92:25 92:40 no-undef "'URLSearchParams' is not defined."
+137:6 137:21 no-undef "'HTMLFormElement' is not defined."
+168:4 168:14 no-undef "'setTimeout' is not defined."
+184:6 184:13 no-undef "'console' is not defined."
+253:35 253:43 no-undef "'location' is not defined."
+254:33 254:41 no-undef "'location' is not defined."
+309:6 309:13 no-undef "'console' is not defined."
+417:24 417:27 no-undef "'URL' is not defined."
+438:27 438:35 no-undef "'FormData' is not defined."
+486:16 486:19 no-undef "'URL' is not defined."
+486:20 486:28 no-undef "'location' is not defined."
+569:57 569:65 no-undef "'FormData' is not defined."
+591:4 591:50 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+592:4 592:48 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+593:4 593:54 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+594:4 594:48 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+621:28 621:36 no-undef "'FormData' is not defined."
+712:28 712:36 no-undef "'FormData' is not defined."
+735:34 735:42 no-undef "'location' is not defined."
+736:32 736:40 no-undef "'location' is not defined."
+817:27 817:38 no-undef "'HTMLElement' is not defined."
+835:25 835:29 no-undef "'File' is not defined."
+
+=== 522 packages/kit/src/runtime/client/remote-functions/prerender.svelte.js	lint.txt
+12:20 12:37 no-undef "'__SVELTEKIT_DEV__' is not defined."
+19:28 19:34 no-undef "'caches' is not defined."
+22:30 22:36 no-undef "'caches' is not defined."
+25:12 25:18 no-undef "'caches' is not defined."
+29:4 29:11 no-undef "'console' is not defined."
+43:8 43:16 no-undef "'Response' is not defined."
+126:29 126:38 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+171:15 171:18 no-undef "'URL' is not defined."
+171:19 171:27 no-undef "'location' is not defined."
+
+=== 414 packages/kit/src/runtime/client/remote-functions/query-batch.svelte.js	lint.txt
+14:17 14:26 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+14:17 14:26 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+38:5 38:15 no-undef "'setTimeout' is not defined."
+40:17 40:26 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+
+=== 1389 packages/kit/src/runtime/client/remote-functions/query-live/instance.svelte.js	lint.txt
+129:27 129:42 no-undef "'AbortController' is not defined."
+193:46 193:55 no-undef "'navigator' is not defined."
+202:6 202:16 no-undef "'setTimeout' is not defined."
+242:4 242:54 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+242:4 242:10 no-undef "'window' is not defined."
+243:4 243:56 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+243:4 243:10 no-undef "'window' is not defined."
+244:4 244:58 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+244:4 244:10 no-undef "'window' is not defined."
+245:4 245:62 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+245:4 245:10 no-undef "'window' is not defined."
+246:4 246:58 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+246:4 246:10 no-undef "'window' is not defined."
+254:4 254:10 no-undef "'window' is not defined."
+255:4 255:10 no-undef "'window' is not defined."
+256:4 256:10 no-undef "'window' is not defined."
+257:4 257:10 no-undef "'window' is not defined."
+258:4 258:10 no-undef "'window' is not defined."
+419:13 419:16 no-undef "'URL' is not defined."
+419:17 419:25 no-undef "'location' is not defined."
+
+=== 99 packages/kit/src/runtime/client/remote-functions/query/instance.svelte.js	lint.txt
+142:15 142:18 no-undef "'URL' is not defined."
+142:19 142:27 no-undef "'location' is not defined."
+
+=== 541 packages/kit/src/runtime/client/remote-functions/shared.svelte.js	lint.txt
+114:25 114:30 no-undef "'fetch' is not defined."
+216:24 216:33 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+216:24 216:33 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+220:20 220:29 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+220:20 220:29 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
 === 81 packages/kit/src/runtime/components/error.svelte	lint.txt
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
@@ -417,6 +511,8 @@
 53:1 53:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 54:1 54:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 55:1 55:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/kit/src/runtime/props.svelte.js	lint.txt
 
 === 320 packages/kit/test/apps/async/src/routes/+error.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -4087,6 +4183,8 @@
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:17 12:19 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
+=== 0 packages/package/test/fixtures/javascript/expected/internal/runes.svelte.js	lint.txt
+
 === 474 packages/package/test/fixtures/svelte-3-types/expected/Test.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -4102,6 +4200,8 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:17 9:19 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 0 packages/package/test/fixtures/tsconfig-specified/src/lib/runes.svelte.ts	lint.txt
 
 === 251 packages/package/test/fixtures/typescript-declaration-map/expected/Test.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

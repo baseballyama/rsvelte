@@ -134,6 +134,9 @@ impl Printer<'_, '_, '_> {
     /// end. The comments after it, and those outside its parentheses, which Svelte attaches to no
     /// node, are in no text the plugin prints: it deletes them, so they are refused.
     fn with_leading_comments(&mut self, expression: Span) -> Span {
+        if self.comments.is_empty() {
+            return expression;
+        }
         let c = self.c;
         let comment = |t: &&Token<TokenType>| t.kind == TokenType::JavaScriptComment;
         let mut before = (c.tokens.until_offset(expression.start_offset).iter().rev())

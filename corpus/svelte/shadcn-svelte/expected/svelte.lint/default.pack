@@ -9348,6 +9348,10 @@
 45:1 45:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 46:1 46:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 123 docs/src/lib/features/design-system/components/design-system-provider-state.svelte.ts	lint.txt
+36:9 36:28 no-unused-vars "'key' is defined but never used."
+37:11 37:30 no-unused-vars "'key' is defined but never used."
+
 === 20030 docs/src/lib/features/design-system/components/design-system-provider.svelte	lint.txt
 1:1 259:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9593,6 +9597,27 @@
 266:1 266:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 266:2 266:80 svelte/sort-attributes "Attribute 'class' should go before 'data-slot'."
 268:1 268:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 508 docs/src/lib/hooks/use-clipboard.svelte.ts	lint.txt
+34:29 34:39 no-undef "'setTimeout' is not defined."
+54:4 54:16 no-undef "'clearTimeout' is not defined."
+59:18 59:28 no-undef "'setTimeout' is not defined."
+87:7 87:16 no-undef "'navigator' is not defined."
+87:30 87:36 no-undef "'window' is not defined."
+88:10 88:19 no-undef "'navigator' is not defined."
+93:20 93:28 no-undef "'document' is not defined."
+98:3 98:11 no-undef "'document' is not defined."
+101:22 101:30 no-undef "'document' is not defined."
+103:3 103:11 no-undef "'document' is not defined."
+
+=== 49 docs/src/lib/hooks/use-is-mac.svelte.ts	lint.txt
+8:35 8:44 no-undef "'navigator' is not defined."
+
+=== 225 docs/src/lib/hooks/use-mutation-observer.svelte.ts	lint.txt
+2:13 2:24 no-undef "'HTMLElement' is not defined."
+3:12 3:28 no-undef "'MutationCallback' is not defined."
+4:11 4:31 no-undef "'MutationObserverInit' is not defined."
+14:24 14:40 no-undef "'MutationObserver' is not defined."
 
 === 491 docs/src/lib/registry/blocks/calendar-01.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -75344,6 +75369,8 @@
 54:1 54:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 55:1 55:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 docs/src/lib/registry/hooks/is-mobile.svelte.ts	lint.txt
+
 === 2780 docs/src/lib/registry/icons/logos/hugeicons.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -82903,6 +82930,12 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:32 7:46 svelte/max-attributes-per-line "'{...restProps}' should be on a new line."
 
+=== 393 docs/src/lib/registry/ui/sidebar/context.svelte.ts	lint.txt
+20:12 20:25 no-unused-vars "'open' is defined but never used."
+25:9 25:45 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+29:10 29:67 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+44:30 44:43 no-undef "'KeyboardEvent' is not defined."
+
 === 1720 docs/src/lib/registry/ui/sidebar/sidebar-content.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -84396,9 +84429,16 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:34 7:48 svelte/max-attributes-per-line "'{...restProps}' should be on a new line."
 
+=== 151 docs/src/lib/user-config.svelte.ts	lint.txt
+99:3 99:11 no-undef "'document' is not defined."
+109:2 109:10 no-undef "'document' is not defined."
+111:2 111:10 no-undef "'document' is not defined."
+
 === 170 docs/src/routes/(app)/(layout)/(create)/+layout@(app).svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 docs/src/routes/(app)/(layout)/(create)/components/action-menu-context.svelte.ts	lint.txt
 
 === 3981 docs/src/routes/(app)/(layout)/(create)/components/action-menu.svelte	lint.txt
 1:1 31:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -85412,6 +85452,8 @@
 68:1 68:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 69:1 69:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 70:1 70:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 docs/src/routes/(app)/(layout)/(create)/components/initialize-project-context.svelte.ts	lint.txt
 
 === 7250 docs/src/routes/(app)/(layout)/(create)/components/item-explorer.svelte	lint.txt
 1:1 17:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -94911,6 +94953,8 @@
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:22 10:32 svelte/max-attributes-per-line "'alt' should be on a new line."
 10:22 10:32 svelte/sort-attributes "Attribute 'alt' should go before 'src'."
+
+=== 0 sv-addons/registry/template/src/lib/registry/blocks/complex-component/hooks/use-pokemon.svelte.ts	lint.txt
 
 === 14463 sv-addons/registry/template/src/lib/registry/blocks/example-form/example-form.svelte	lint.txt
 1:1 54:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

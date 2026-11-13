@@ -26,7 +26,7 @@ impl SvelteRule for NoReactiveFunctions {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let tokens = &component.tokens;
-        for (statement, body) in reactive_statements(component, file.source()) {
+        for (statement, body) in reactive_statements(file, component) {
             let Statement::ExpressionStatement(expression) = body else {
                 continue;
             };

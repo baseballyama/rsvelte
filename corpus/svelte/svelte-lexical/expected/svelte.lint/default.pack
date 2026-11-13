@@ -417,6 +417,10 @@
 === 90 demos/qalam/src/lib/Toolbar.svelte	lint.txt
 3:1 51:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
+=== 138 demos/qalam/src/lib/notesStore.svelte.ts	lint.txt
+76:7 - - "Unused eslint-disable directive (no problems were reported from 'no-console')."
+77:7 77:14 no-undef "'console' is not defined."
+
 === 465 demos/richtext-editor/src/App.svelte	lint.txt
 8:33 8:54 svelte/max-attributes-per-line "'alt' should be on a new line."
 8:33 8:54 svelte/sort-attributes "Attribute 'alt' should go before 'src'."
@@ -833,6 +837,14 @@
 144:7 146:44 svelte/button-has-type "Missing an explicit type attribute for button."
 145:29 145:75 svelte/prefer-class-directive "Unexpected class using the ternary operator."
 146:43 146:43 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
+
+=== 379 packages/svelte-lexical/src/lib/components/generic/theme/themeTracker.svelte.ts	lint.txt
+8:5 8:11 no-undef "'window' is not defined."
+8:59 8:73 no-undef "'MediaQueryList' is not defined."
+10:22 10:34 no-undef "'localStorage' is not defined."
+18:5 20:6 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+30:5 30:17 no-undef "'localStorage' is not defined."
+52:7 52:15 no-undef "'document' is not defined."
 
 === 849 packages/svelte-lexical/src/lib/components/richtext/RichTextComposer.svelte	lint.txt
 3:1 51:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

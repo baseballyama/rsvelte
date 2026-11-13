@@ -177,6 +177,43 @@ fn an_unused_directive_counts_only_for_a_rule_rsvelte_ran() {
 }
 
 #[test]
+fn findings_at_one_position_match_in_any_order() {
+    let expected = [(
+        "lint.txt",
+        "1:1 1:2 svelte/x \"a\"\n1:1 1:2 no-unused-vars \"b\"\n2:1 2:2 svelte/x \"c\"\n",
+    )];
+    let finding = |rule: &str, message: &str, line: u32| {
+        format!(
+            r#"{{"rule":"{rule}","message":"{message}","start":{{"line":{line},"column":1}},"end":{{"line":{line},"column":2}}}}"#
+        )
+    };
+    let ours = |findings: [String; 3]| {
+        format!(
+            r#"{{"rules":["svelte/x","no-unused-vars"],"findings":[{}]}}"#,
+            findings.join(",")
+        )
+    };
+    let swapped = ours([
+        finding("no-unused-vars", "b", 1),
+        finding("svelte/x", "a", 1),
+        finding("svelte/x", "c", 2),
+    ]);
+    assert_eq!(
+        judge(&expected, &[("lint.json", &swapped)], None),
+        Some(Verdict::Match)
+    );
+    let moved = ours([
+        finding("svelte/x", "c", 2),
+        finding("svelte/x", "a", 1),
+        finding("no-unused-vars", "b", 1),
+    ]);
+    assert_eq!(
+        judge(&expected, &[("lint.json", &moved)], None),
+        Some(Verdict::Mismatch)
+    );
+}
+
+#[test]
 fn labels_round_trip() {
     for v in Verdict::ALL {
         assert_eq!(Verdict::from_label(v.label()), Some(v));
