@@ -3,10 +3,25 @@ use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
 use rsvelte_typescript_compile::features::{Feature, first_runtime_feature};
 
+mod declarations;
 pub(super) mod markup;
 mod runes;
 
-pub(super) use runes::{check_runes, rejects_binding};
+pub(super) use runes::{check_runes, rejects_binding, script_error};
+
+/// Whether oxc's `error` is a name declared again outside the scripts.
+pub(super) fn redeclares_in_template(input: &CompileInput<'_>, error: &Diagnostic) -> bool {
+    let javascript = input.component.javascript;
+    let start = error.span.start_offset;
+    error.message.ends_with("has already been declared")
+        && !(input
+            .component
+            .module
+            .into_iter()
+            .chain(input.component.instance))
+        .map(|program| javascript.get_program(program).span)
+        .any(|span| span.start <= start && start < span.end)
+}
 
 use super::{CompileInput, Diagnostic, Resolution, Span};
 
@@ -25,6 +40,7 @@ pub(super) fn check_analysis(
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
     let component = input.component;
+    errors.extend(declarations::duplicates(input, res));
     errors.extend(dollar_name_errors(
         component.javascript,
         component.instance,
@@ -48,11 +64,9 @@ pub(super) fn check_analysis(
             .filter_map(Result::err)
             .map(|e| walk(Section::Template, e)),
     );
-    // Only a template error needs the scripts' first, which the later rune checks raise anyway.
-    if errors
-        .iter()
-        .any(|(raised, _)| raised.section == Section::Template)
-        && let Some((module, error)) = runes::script_error(input, res, custom_element)
+    // A walk error waits for the scripts' first, which the later rune checks raise anyway.
+    if errors.iter().any(|(raised, _)| raised.phase == Phase::Walk)
+        && let Some((module, error)) = script_error(input, res, custom_element)
     {
         let section = if module {
             Section::Module
@@ -67,25 +81,43 @@ pub(super) fn check_analysis(
         return Err(error);
     }
     names.check(input, res)?;
-    check_legacy_props(res)?;
+    check_legacy_props(input, res)?;
     errors.next().map_or(Ok(()), |(_, error)| Err(error))
 }
 
 /// Upstream `legacy_props_invalid` and `legacy_rest_props_invalid` at a name no script declares.
-fn check_legacy_props(res: &Resolution) -> Result<(), Diagnostic> {
-    let first = first_unresolved(res, |name| matches!(name, "$$props" | "$$restProps"));
-    let Some((name, span)) = first else {
-        return Ok(());
+fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
+    // Upstream reads `$$props` first, and meets the scripts' references before the template's.
+    let javascript = input.component.javascript;
+    let scripted = |offset: u32| {
+        [input.component.module, input.component.instance]
+            .into_iter()
+            .flatten()
+            .any(|p| {
+                let span = javascript.get_program(p).span;
+                span.start <= offset && offset < span.end
+            })
     };
-    let (code, message) = if name == "$$props" {
-        ("legacy_props_invalid", "Cannot use `$$props` in runes mode")
-    } else {
+    for (name, code, message) in [
         (
+            "$$props",
+            "legacy_props_invalid",
+            "Cannot use `$$props` in runes mode",
+        ),
+        (
+            "$$restProps",
             "legacy_rest_props_invalid",
             "Cannot use `$$restProps` in runes mode",
-        )
-    };
-    super::special::invalid(code, message, span)
+        ),
+    ] {
+        let first = unbound(res, |n| n == name)
+            .flat_map(|(_, references)| references.into_iter().map(|r| res.reference_span(r)))
+            .min_by_key(|span| (!scripted(span.start), span.start));
+        if let Some(span) = first {
+            return super::special::invalid(code, message, Span::new(span.start, span.end));
+        }
+    }
+    Ok(())
 }
 
 /// The first value reference, in document order, to a name no binding declares that `wanted`

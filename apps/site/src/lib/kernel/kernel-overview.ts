@@ -43,7 +43,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/plugins',
 		source: {
 			path: 'crates/languages/svelte/compile/src/task.rs',
-			line: 36,
+			line: 37,
 			text: '.task(Compile {',
 		},
 		box: { x: 32, y: 162, w: 188, h: height },
@@ -141,7 +141,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/database',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/database.rs',
-			line: 212,
+			line: 230,
 			text: 'pub fn get<A: Artifact>(&self) -> &A::Output {',
 		},
 		box: { x: left, y: 262, w: width, h: height },
@@ -197,7 +197,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel#life',
 		source: {
 			path: 'crates/hosts/browser/src/computation.rs',
-			line: 276,
+			line: 252,
 			text: 'pipeline::run(&reg',
 		},
 		box: { x: 790, y: 162, w: 176, h: height },
@@ -319,13 +319,13 @@ export const overviewEdges: OverviewEdge[] = [
 		from: 'host',
 		to: 'registry',
 		label: '使うプラグインを登録',
-		sentence: 'ホストは、使う言語プラグインの登録関数を呼びます。',
+		sentence: 'ホストは、使うプラグインの拡張を選んで登録に組み込みます。',
 		path: 'M878 162 V8 H396 V60',
 		at: [560, 0],
 		source: {
 			path: 'crates/hosts/browser/src/computation.rs',
-			line: 147,
-			text: 'rsvelte_svelte_compile::register(&mut reg);',
+			line: 154,
+			text: 'rsvelte_plugin_interface::install(&mut reg, &extensions, &mut settings)',
 		},
 	},
 	{
@@ -381,7 +381,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [226, 246],
 		source: {
 			path: 'crates/languages/svelte/lint/src/rule.rs',
-			line: 190,
+			line: 146,
 			text: 'self.context.get::<Lowered>()',
 		},
 	},
@@ -407,7 +407,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [496, 318],
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/database.rs',
-			line: 234,
+			line: 252,
 			text: 'pub fn facet<F: Facet>(&self) -> Option<&F::Output> {',
 		},
 	},
@@ -420,7 +420,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [512, 352],
 		source: {
 			path: task,
-			line: 51,
+			line: 53,
 			text: 'pub fn file(&mut self, name: impl Into<String>, text: String) {',
 		},
 	},

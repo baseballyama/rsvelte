@@ -10,6 +10,8 @@ use super::CheckRequest;
 pub(crate) struct ContentMappedInput {
     pub source: String,
     pub extension: &'static str,
+    /// The extension the checker reads the projection as.
+    pub generated_extension: &'static str,
     pub mappings: Vec<Mapping>,
     pub atoms: Vec<Atom>,
 }
@@ -99,7 +101,7 @@ pub(super) fn store_json(req: &CheckRequest, root: &Path, paths: &[PathBuf]) -> 
             .key("text")
             .write_string(text)
             .key("extension")
-            .write_string(".ts");
+            .write_string(file.generated_extension);
         rsvelte_typescript_content_mapper::write_mappings(&file.mappings, &file.atoms, &mut output);
         output.end_object();
     }

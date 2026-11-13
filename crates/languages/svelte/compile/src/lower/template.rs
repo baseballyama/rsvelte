@@ -1,7 +1,6 @@
 use oxc_ast::ast::{ArrowFunctionExpression, Expression, Function, IdentifierReference};
 use oxc_ast_visit::{Visit, walk};
 use oxc_syntax::scope::ScopeFlags;
-use rsvelte_svelte_semantic::compiler_syntax_tree::Part;
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{Attribute, AttributeValue, CompilerSyntaxTree, Element, NodeKind, Resolution};
@@ -194,18 +193,10 @@ pub(super) enum DynamicTag<'a> {
     Expression(ExpressionIdentifier),
 }
 
-/// Upstream's tag of `this`: its value, or for a value such as `this="h{n}"` the first chunk only,
-/// as Svelte 4 did, with its text as written.
-pub(super) fn dynamic_tag<'a>(source: &'a str, value: &'a AttributeValue) -> DynamicTag<'a> {
+/// The tag `this` names: its text, or its expression.
+pub(super) fn dynamic_tag(value: &AttributeValue) -> DynamicTag<'_> {
     match value {
         AttributeValue::Static(text) => DynamicTag::Text(std::borrow::Cow::Borrowed(text)),
-        AttributeValue::Interpolated(parts) => match parts.first() {
-            Some(Part::Text(text)) => {
-                DynamicTag::Text(std::borrow::Cow::Borrowed(text.text(source)))
-            }
-            Some(&Part::Expression { expression, .. }) => DynamicTag::Expression(expression),
-            None => unreachable!("validation keeps a value in `this`"),
-        },
         value => DynamicTag::Expression(
             single_expression(value).expect("validation keeps an expression in `this`"),
         ),

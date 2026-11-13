@@ -22,8 +22,9 @@ pub(super) struct Embedder<'x> {
     /// The source the output keeps the comments of: what oxc formatted from its text, and what
     /// is printed as it is.
     pub(super) kept: Vec<Span>,
-    /// The comments the plugin leaves out of every part it prints, so the output drops them too.
-    pub(super) dropped: Vec<Span>,
+    /// The comments the plugin leaves out of every part it prints, each with why. Deleting a
+    /// comment loses the user's code, so each is refused.
+    pub(super) dropped: Vec<(Span, &'static str)>,
 }
 
 /// The plugin's adjustments to a part: `forceSingleQuote` inside a quoted attribute,

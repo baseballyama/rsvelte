@@ -222,9 +222,14 @@ impl Parser<'_, '_> {
             self.component.instance.is_some()
         };
         let source_type = self.source_type();
+        let parsed = if self.scripts {
+            content
+        } else {
+            Span::new(content.end_offset, content.end_offset)
+        };
         let program = self
             .builder
-            .program(content, source_type)
+            .program(parsed, source_type)
             .map_err(javascript_failure)?;
         // Upstream parses the script before it checks for another.
         if duplicate {
@@ -238,7 +243,7 @@ impl Parser<'_, '_> {
         self.javascript_region(content.start_offset, content.end_offset);
         // Svelte only strips `generics`, so a list that does not parse is left out, as
         // `svelte-eslint-parser` does; read after the program's tokens are taken.
-        let generics = (!module && typescript)
+        let generics = (!module && typescript && self.scripts)
             .then(|| {
                 let (_, value) = attributes
                     .iter()

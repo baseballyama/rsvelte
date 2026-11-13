@@ -9,6 +9,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::FxHashSet;
 
+mod lets;
 mod placement;
 mod slots;
 
@@ -184,6 +185,7 @@ fn element<'a>(
             node.span,
         );
     }
+    lets::fragment(el, attributes)?;
     event_handlers(source, el, attributes)?;
     let slot = attributes
         .iter()
@@ -242,6 +244,7 @@ fn element<'a>(
     }
     let placement = element_placement(input, identifier, el, placement)?;
     directives(input, attributes)?;
+    lets::snippet_conflict(input, el, attributes)?;
     let owner = match el.kind {
         kind if kind.renders_component() => Some(Owner::Component(identifier)),
         ElementKind::Metadata(Some(MetadataTag::Element)) => Some(Owner::Element),

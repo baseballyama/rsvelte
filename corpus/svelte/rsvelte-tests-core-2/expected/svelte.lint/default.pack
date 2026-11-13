@@ -13549,19 +13549,7 @@ Rule: "svelte/indent"
 
 === 0 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/0b0bcbfea058b467.svelte	lint.txt
 
-=== 136 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/0d00c068ccca4cea.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
-=== 136 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/148e1f2f7435ded8.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
 === 0 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/46c6b788c5c62faa.svelte	lint.txt
-
-=== 136 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/73a10a2fef873026.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
-=== 136 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/9f5cf48cdd4d0a71.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
 
 === 0 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/c576047cfd8ac35e.svelte	lint.txt
 

@@ -8675,9 +8675,6 @@
 === 101 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/02af14e27b72bb31.svelte	lint.txt
 1:16 - - "Parsing error: Tag name is reserved\nhttps://svelte.dev/e/svelte_options_reserved_tagname"
 
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/02b8bd4a8ab920ef.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
 === 126 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/03e676148dc5fb08.svelte	lint.txt
 2:0 - - "Parsing error: A component can only have one `<svelte:options>` element\nhttps://svelte.dev/e/svelte_meta_duplicate"
 
@@ -8699,9 +8696,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 === 126 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/08790c89fe232547.svelte	lint.txt
 1:16 - - "Parsing error: `<svelte:options>` unknown attribute 'bogus'\nhttps://svelte.dev/e/svelte_options_unknown_attribute"
 
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/08ce42869b21def9.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
 === 126 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/0c89b5f72448f4ca.svelte	lint.txt
 2:0 - - "Parsing error: A component can only have one `<svelte:options>` element\nhttps://svelte.dev/e/svelte_meta_duplicate"
 
@@ -8721,9 +8715,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 
 === 129 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/1013ad0415730f79.svelte	lint.txt
 1:16 - - "Parsing error: Value must be true or false, if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value"
-
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/107eb7ce6783b87f.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
 
 === 126 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/109819a439de5901.svelte	lint.txt
 2:0 - - "Parsing error: A component can only have one `<svelte:options>` element\nhttps://svelte.dev/e/svelte_meta_duplicate"
@@ -8811,9 +8802,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 === 129 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/233c08ab1d164f2f.svelte	lint.txt
 1:16 - - "Parsing error: Value must be true or false, if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value"
 
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/234dc959b53ad977.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
 === 129 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/238973be27c8b030.svelte	lint.txt
 1:16 - - "Parsing error: Value must be true or false, if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value"
 
@@ -8876,9 +8864,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 === 126 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/3c58efadfb86530e.svelte	lint.txt
 2:0 - - "Parsing error: A component can only have one `<svelte:options>` element\nhttps://svelte.dev/e/svelte_meta_duplicate"
 
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/3cf7b596d370436e.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
 === 129 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/3da0a1017f453904.svelte	lint.txt
 1:16 - - "Parsing error: Value must be true or false, if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value"
 
@@ -8900,9 +8885,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 === 121 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/410cf16515dfddfb.svelte	lint.txt
 1:16 - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
 
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/41672ad9acf8d9aa.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
 === 0 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/418a67e93baa559c.svelte	lint.txt
 
 === 126 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/42b50babc3a97bdb.svelte	lint.txt
@@ -8916,9 +8898,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 
 === 103 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/437f216b80bee65f.svelte	lint.txt
 1:27 1:37 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/44bd7f37829919f3.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
 
 === 126 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/44ea7315138b1a75.svelte	lint.txt
 2:0 - - "Parsing error: A component can only have one `<svelte:options>` element\nhttps://svelte.dev/e/svelte_meta_duplicate"
@@ -8944,9 +8923,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 === 114 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/4a58665d97d68e9a.svelte	lint.txt
 1:60 - - "Parsing error: <svelte:options> cannot have children\nhttps://svelte.dev/e/svelte_meta_invalid_content"
 
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/4a73a43dffe334eb.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
 === 147 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/4b8577d7a0a14f69.svelte	lint.txt
 1:16 - - "Parsing error: Value must be \"html\", \"mathml\" or \"svg\", if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value"
 
@@ -8971,9 +8947,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 === 128 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/4ffe8fbb9048cd95.svelte	lint.txt
 1:16 - - "Parsing error: Value must be \"injected\", if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value"
 
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5002f20344e50a2e.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
 === 0 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/506af957926226ac.svelte	lint.txt
 
 === 126 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/51290ea8368050cc.svelte	lint.txt
@@ -8986,12 +8959,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 
 === 114 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/524dc3dcc19e72fc.svelte	lint.txt
 1:35 - - "Parsing error: <svelte:options> cannot have children\nhttps://svelte.dev/e/svelte_meta_invalid_content"
-
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5278cf1d23460451.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/55601ae2614c6b53.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
 
 === 121 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/55663d535c8ee296.svelte	lint.txt
 1:16 - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
@@ -9013,9 +8980,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 
 === 128 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5f7fdb3b9c5bb86c.svelte	lint.txt
 1:16 - - "Parsing error: Value must be \"injected\", if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value"
-
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5f9f85a4472d151b.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
 
 === 294 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5fdbfbb0e39b749c.svelte	lint.txt
 1:16 - - "Parsing error: \"props\" must be a statically analyzable object literal of the form \"{ [key: string]: { attribute?: string; reflect?: boolean; type?: \"String\" | \"Boolean\" | \"Number\" | \"Array\" | \"Object\" }\"\nhttps://svelte.dev/e/svelte_options_invalid_customelement_props"
@@ -9100,9 +9064,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 === 114 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/7e39d4c78df169b5.svelte	lint.txt
 1:38 - - "Parsing error: <svelte:options> cannot have children\nhttps://svelte.dev/e/svelte_meta_invalid_content"
 
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/7f2e247324af9c81.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
 === 114 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/80ed8d13db943f4c.svelte	lint.txt
 1:29 - - "Parsing error: <svelte:options> cannot have children\nhttps://svelte.dev/e/svelte_meta_invalid_content"
 
@@ -9131,9 +9092,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 
 === 129 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/8a3f7dd2a1da37d4.svelte	lint.txt
 1:16 - - "Parsing error: Value must be true or false, if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value"
-
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/8bae3f89d57dd71c.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
 
 === 126 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/8ca32cb81e73220a.svelte	lint.txt
 2:0 - - "Parsing error: A component can only have one `<svelte:options>` element\nhttps://svelte.dev/e/svelte_meta_duplicate"
@@ -9174,9 +9132,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 
 === 147 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/9c338f3b7f4cf63c.svelte	lint.txt
 1:16 - - "Parsing error: Value must be \"html\", \"mathml\" or \"svg\", if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value"
-
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/9d297f9dc6127645.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
 
 === 0 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/9e862c22335a7815.svelte	lint.txt
 
@@ -9323,12 +9278,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 === 137 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/cae2217d27711f34.svelte	lint.txt
 1:5 - - "Parsing error: `<svelte:options>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement"
 
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/cb80ba7928fe889b.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/cc78e710c686d5e0.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
 === 114 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/d0af4fb96bfd850c.svelte	lint.txt
 1:98 - - "Parsing error: <svelte:options> cannot have children\nhttps://svelte.dev/e/svelte_meta_invalid_content"
 
@@ -9405,9 +9354,6 @@ undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenate
 
 === 121 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/e2752ea17f4b2c3a.svelte	lint.txt
 1:16 - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
-
-=== 136 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/e38cd649906cd769.svelte	lint.txt
-undefined:undefined - - "Parsing error: Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname"
 
 === 135 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/e617a8b03e834832.svelte	lint.txt
 1:16 - - "Parsing error: `<svelte:options>` can only receive static attributes\nhttps://svelte.dev/e/svelte_options_invalid_attribute"

@@ -141,6 +141,8 @@ pub enum TypeScriptDocument {
         /// What the checker reports where the upstream projection places code differently from
         /// this one, by source range, code and message.
         placement: Vec<(Span, u32, &'static str)>,
+        /// The extension the checker reads a content-mapped projection as, such as `.ts`.
+        extension: &'static str,
     },
 }
 
@@ -264,6 +266,7 @@ struct Prepared {
     env: Arc<TypeScriptEnv>,
     source_text: String,
     placement: Vec<(Span, u32, &'static str)>,
+    extension: &'static str,
 }
 
 impl FinishTask for Check {
@@ -325,6 +328,7 @@ impl FinishTask for Check {
                 map_back,
                 env,
                 placement,
+                extension,
             }) => Some(Box::new(Prepared {
                 path: context.document.path.clone(),
                 projection: Emitter {
@@ -336,6 +340,7 @@ impl FinishTask for Check {
                 env: Arc::clone(env),
                 source_text: context.source_text().to_owned(),
                 placement: placement.clone(),
+                extension,
             })),
         }
     }
@@ -420,6 +425,7 @@ fn check_projected(
                 d.env.mapped_extension.map(|extension| ContentMappedInput {
                     source: d.source_text[bom as usize..].to_owned(),
                     extension,
+                    generated_extension: d.extension,
                     mappings: d
                         .projection
                         .mappings

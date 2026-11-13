@@ -221,7 +221,10 @@ pub(crate) fn validate_unit(
     unit: Unit,
 ) -> Result<ValidatedOptions, Diagnostic> {
     // Acorn rejects at parse time what oxc's semantic checker finds after the parser.
-    if let Some(error) = res.javascript_syntax_error() {
+    // A name the template declares twice is upstream's `declaration_duplicate`, raised later.
+    if let Some(error) = res.javascript_syntax_error()
+        && !validation::redeclares_in_template(input, &error.diagnostic)
+    {
         return Err(rsvelte_svelte_syntax::parse::javascript_failure(
             error.clone(),
         ));
@@ -239,7 +242,11 @@ pub(crate) fn validate_unit(
     let hoistable = snippets::hoistable(input, res, &names);
     snippets::check_exports(input, res, &hoistable)?;
     const_cycles::check(input, res)?;
-    coverage::check(input, res)?;
+    // A refusal waits for the scripts' errors, which the rune checks raise only later.
+    if let Err(refusal) = coverage::check(input, res) {
+        let script = validation::script_error(input, res, custom_element.is_some());
+        return Err(script.map_or(refusal, |(_, error)| error));
+    }
     if unit == Unit::Component {
         validation::check_typescript(input)?;
     }

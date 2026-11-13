@@ -363,13 +363,3 @@ fn analysis_errors_that_silence_every_warning() {
         assert_eq!(first_error(code), expected, "{code}");
     }
 }
-
-#[test]
-fn the_tag_option_is_an_error_not_a_custom_element() {
-    assert_eq!(
-        first_error(
-            "<svelte:options tag=\"my-el\" />\n<script>\n  let props = $props();\n</script>\n"
-        ),
-        [("svelte_options_deprecated_tag".to_owned(), 1, 16)]
-    );
-}

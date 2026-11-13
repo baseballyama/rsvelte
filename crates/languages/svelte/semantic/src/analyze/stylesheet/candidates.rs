@@ -256,7 +256,7 @@ fn selector_classes<'a>(
         .rev()
         .find(|relative| !matcher::is_global(source, relative))
         .into_iter()
-        .flat_map(|relative| &relative.simple)
+        .flat_map(|relative| matcher::tested(source, relative))
         .filter_map(|simple| match simple {
             Simple::Class { name, .. } => Some(sheet.text(*name, source)),
             _ => None,
