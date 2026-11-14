@@ -1,0 +1,152 @@
+# Compares the official Svelte compiler and Prettier with main's and this branch's compiler and
+# formatter (and oxfmt for format) on the corpus's Svelte components;
+# tools/performance/workloads/versus-official/README.md says what each job measures. The report is
+# the run's summary and the `versus-official-report` artifact.
+name: Versus official
+
+on:
+  push:
+    branches: [perf/talk-benchmark]
+  workflow_dispatch:
+    inputs:
+      main:
+        description: The main revision to compare with
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: versus-official-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  W: tools/performance/workloads/versus-official
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.main || 'main' }}
+          path: .main
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+          package-manager-cache: false
+      - uses: ./.github/actions/rust
+      - run: node "$W/arms.ts" .main "$RUNNER_TEMP/arms"
+      # One build at a time, so the two never compete for the runner.
+      - run: |
+          for arm in main experimental; do
+            cargo build --release --manifest-path "$RUNNER_TEMP/arms/$arm/Cargo.toml" \
+              --target-dir "$RUNNER_TEMP/target-$arm"
+            mkdir -p bin
+            cp "$RUNNER_TEMP/target-$arm/release/$arm-arm" bin/
+          done
+          git -C .main rev-parse HEAD > bin/main-revision
+          git rev-parse HEAD > bin/experimental-revision
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: versus-official-arms-${{ matrix.os }}
+          path: bin/
+          if-no-files-found: error
+
+  # One workload on one runner per job, so the two workloads never share a machine.
+  measure:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15]
+        workload: [compile, format]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/oracle...
+      # The latest oxfmt, with the Svelte compiler the corpus pins, which its Svelte plugin loads.
+      - if: matrix.workload == 'format'
+        run: |
+          svelte=$(node -p "require('./corpus/_registry/oracles.json')['svelte.compile'].oracles.svelte")
+          npm install --prefix "$RUNNER_TEMP/oxfmt" --no-save --no-package-lock \
+            oxfmt@latest "svelte@$svelte"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: versus-official-arms-${{ matrix.os }}
+          path: bin
+      - run: chmod +x bin/*-arm
+      - run: node tools/performance/workloads/lint-versus-main/stage.ts "$RUNNER_TEMP/stage"
+      - name: Measure
+        env:
+          LABEL: ${{ matrix.os }}
+          WORKLOAD: ${{ matrix.workload }}
+        run: |
+          M=(node "$W/measure.ts")
+          A=(--workload "$WORKLOAD" --official "$W/official.ts" --main bin/main-arm
+             --experimental bin/experimental-arm --out results)
+          if [ "$WORKLOAD" = format ]; then
+            export OXFMT_DIRECTORY="$RUNNER_TEMP/oxfmt"
+            A+=(--oxfmt "$W/oxfmt.ts")
+          fi
+          R=(--root "$RUNNER_TEMP/stage/files")
+          "${M[@]}" platform "${A[@]}" --main-revision "$(cat bin/main-revision)" \
+            --experimental-revision "$(cat bin/experimental-revision)" --label "$LABEL"
+          "${M[@]}" check "${A[@]}" "${R[@]}" --inputs "$RUNNER_TEMP/stage/inputs.txt" --sources real
+          "${M[@]}" control "${A[@]}" "${R[@]}"
+          "${M[@]}" wall "${A[@]}" "${R[@]}" --repetitions 3 --rounds 3 --threads 1,all \
+            --allocators system,mimalloc
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: versus-official-results-${{ matrix.workload }}-${{ matrix.os }}
+          path: |
+            results/
+            !results/outputs/
+          if-no-files-found: ignore
+
+  report:
+    needs: measure
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: versus-official-results-*
+          path: downloaded
+      - run: |
+          shopt -s nullglob
+          node "$W/report.ts" report.md downloaded/versus-official-results-*
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: versus-official-report
+          path: |
+            report.md
+            downloaded/
