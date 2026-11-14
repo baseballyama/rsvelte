@@ -4092,3 +4092,6 @@
 
 ["svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/20d491fc9d358155.svelte".skip]
 "svelte.lint" = "upstream bug: eslint-plugin-svelte's svelte/indent throws `Cannot read properties of null (reading 'range')` on a plain script's `enum`, so ESLint reports the crash instead of the findings"
+
+["svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/36e05300c734c306.svelte".skip]
+"svelte.check" = "the official output depends on Node's stack depth, so it cannot be trusted"

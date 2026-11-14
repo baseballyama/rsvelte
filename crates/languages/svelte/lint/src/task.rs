@@ -123,13 +123,16 @@ impl Task for Lint {
         // finding: the markup's, or a JavaScript one in the template's expressions, which Svelte's
         // parser reads too. It parses a script itself, with typescript-eslint whatever the
         // script's language, and throws what that rejects; the rules read a script it parses.
-        let parse_error = || match context.get::<rsvelte_svelte_syntax::Parsed>() {
-            Err(error) => Some(error.clone()),
-            Ok(_) => rsvelte_svelte_semantic::javascript_error(context),
+        let javascript_error;
+        let parse_error = if !rsvelte_svelte_syntax::matches(context.document) {
+            None
+        } else if let Err(error) = context.get::<rsvelte_svelte_syntax::Parsed>() {
+            Some(error)
+        } else {
+            javascript_error = rsvelte_svelte_semantic::javascript_error(context);
+            javascript_error.as_ref()
         };
-        if rsvelte_svelte_syntax::matches(context.document)
-            && let Some(error) = parse_error()
-        {
+        if let Some(error) = parse_error {
             let verdict = if rsvelte_svelte_syntax::parse::in_script_content(
                 context.source_text(),
                 error.span.start_offset,
@@ -152,7 +155,7 @@ impl Task for Lint {
                     return;
                 }
                 TypescriptEslint::Unknown => {
-                    out.diagnostics.push(error);
+                    out.diagnostics.push(error.clone());
                     return;
                 }
                 TypescriptEslint::Parses => {}

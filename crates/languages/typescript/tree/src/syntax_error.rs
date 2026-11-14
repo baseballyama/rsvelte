@@ -215,8 +215,12 @@ pub(crate) fn acorn(
         "1029" | "2452" | "8005" | "1109" | "1110" => Some(fails("Unexpected token", start)),
         // oxc labels the slash, and acorn reports the body after it.
         "1161" => Some(fails("Unterminated regular expression", start + 1)),
-        // A missing token: acorn fails at the next token from where oxc labels it.
-        "1005" => Some(fails("Unexpected token", token(start, None)?)),
+        // A missing token: oxc labels the token it found instead, where acorn fails too. A parse
+        // that fails has no tokens to look at.
+        "1005" => Some(fails(
+            "Unexpected token",
+            token(start, None).unwrap_or(start),
+        )),
         "1212" => Some(Acorn::Fails {
             message: Cow::Owned(error.message.to_string()),
             at: start,
