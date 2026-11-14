@@ -7,7 +7,7 @@ identifier.
 
 Configure the type checker, `content_mapper` and the Svelte package types through
 `TypeCheckConfiguration`, or through the options that `EXTENSION` reads. A component without a
-TypeScript script projects to JavaScript, which the checker reads as `.js`. Projection consumers can use the separate projection crate without any of these
+TypeScript script projects to JavaScript, its types in `JSDoc` comments, which the checker reads as `.js`. Projection consumers can use the separate projection crate without any of these
 dependencies.
 
 The checker gives the original Svelte inputs and the cached AST projections to
@@ -36,8 +36,9 @@ svelte-check, the checker blanks the svelte package's `declare module '*.svelte'
 of a missing component fails. An unchecked component, such as one with a refused
 projection, still resolves: the checker reads it as `any`, with the exports of its module
 script. Without `allowJs`, svelte-check reports TS7016 for an import of a component in JavaScript.
-The checker reads a content-mapped file as typed whatever its extension, so `rsvelte_typescript_check`
-adds TS7016 for a relative import of one when a probe shows that the project's options report it. Empty findings do not prove that the checker checked its props or its instance. A
+The checker reads a content-mapped file as typed whatever its extension. So when a probe shows
+that the project's options report TS7016, `rsvelte_typescript_check` adds it for a relative import
+of one, and the component's default export reads as `any`. Empty findings do not prove that the checker checked its props or its instance. A
 component that does not parse is not checked: as in svelte-check, its one finding is the
 parser's error, with the code `-1`.
 

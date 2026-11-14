@@ -1,6 +1,6 @@
 ;
 
-	let { open = $bindable(), w = $bindable() } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { open = $bindable(), w = $bindable() } = $props();
 	let t = $state(0);
 	let p = $state(true);
 	let v = $state(1);
@@ -224,5 +224,5 @@ async () => {
     }
   }
 };
-const BindElements__SvelteComponent_ = __rsvelte_export_component();
-export default BindElements__SvelteComponent_;
+const BindElements__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "open" | "w">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindElements__SvelteComponent_>} */ (BindElements__SvelteComponent_);

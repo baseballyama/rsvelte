@@ -1,6 +1,6 @@
 ;
 
-	let { ...attrs } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { ...attrs } = $props();
 	let text = $state('');
 	let checked = $state(false);
 
@@ -47,5 +47,5 @@ async () => {
     (checked);
   }
 };
-const SpreadInput__SvelteComponent_ = __rsvelte_export_component();
-export default SpreadInput__SvelteComponent_;
+const SpreadInput__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SpreadInput__SvelteComponent_>} */ (SpreadInput__SvelteComponent_);

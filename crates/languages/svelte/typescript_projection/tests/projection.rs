@@ -203,9 +203,11 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "    }\n",
             "  }\n",
             "};\n",
-            // A component without a TypeScript script projects to JavaScript.
-            "const $$Component = __rsvelte_export_component();\n",
-            "export default $$Component;\n",
+            // A component without a TypeScript script projects to JavaScript, its types in JSDoc.
+            "const $$Component = (/** @type {typeof __rsvelte_export_component<",
+            "__rsvelte_no_props, {}, \"\">} */ (__rsvelte_export_component))();\n",
+            "export default /** @type {__rsvelte_javascript_export<typeof $$Component>} */ ",
+            "($$Component);\n",
         )
     );
     for mapping in output.mappings.iter().filter(|mapping| mapping.len > 0) {

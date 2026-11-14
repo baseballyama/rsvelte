@@ -1,6 +1,6 @@
 ;
 
-	let { f, x, items } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { f, x, items } = $props();
 	let n = $state(1);
 
 ;
@@ -41,5 +41,5 @@ async () => {
     }
   }
 };
-const StyleQuotedCall__SvelteComponent_ = __rsvelte_export_component();
-export default StyleQuotedCall__SvelteComponent_;
+const StyleQuotedCall__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof StyleQuotedCall__SvelteComponent_>} */ (StyleQuotedCall__SvelteComponent_);

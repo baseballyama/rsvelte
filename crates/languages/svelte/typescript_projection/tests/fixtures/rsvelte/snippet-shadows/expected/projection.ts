@@ -1,7 +1,7 @@
 ;
 
 	import List from './List.svelte';
-	let { item, label } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { item, label } = $props();
 	let count = $state(0);
 	let items = $state([1]);
 
@@ -75,5 +75,5 @@ async () => {
     List;
   }
 };
-const SnippetShadows__SvelteComponent_ = __rsvelte_export_component();
-export default SnippetShadows__SvelteComponent_;
+const SnippetShadows__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SnippetShadows__SvelteComponent_>} */ (SnippetShadows__SvelteComponent_);

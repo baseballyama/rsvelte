@@ -1,5 +1,5 @@
 ;
-let tag = $state('div'); let c = $state('red'); let { p } = $props();
+let tag = $state('div'); let c = $state('red'); /** @type {typeof __rsvelte_public_props0} */ let { p } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -26,5 +26,5 @@ async () => {
     __sveltets_2_ensureType(String, Number, c);
   }
 };
-const DynamicElementSe__SvelteComponent_ = __rsvelte_export_component();
-export default DynamicElementSe__SvelteComponent_;
+const DynamicElementSe__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof DynamicElementSe__SvelteComponent_>} */ (DynamicElementSe__SvelteComponent_);

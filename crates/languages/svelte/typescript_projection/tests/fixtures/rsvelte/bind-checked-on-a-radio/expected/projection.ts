@@ -16,5 +16,5 @@ async () => {
     };
   }
 };
-const BindCheckedOnARadio__SvelteComponent_ = __rsvelte_export_component();
-export default BindCheckedOnARadio__SvelteComponent_;
+const BindCheckedOnARadio__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindCheckedOnARadio__SvelteComponent_>} */ (BindCheckedOnARadio__SvelteComponent_);

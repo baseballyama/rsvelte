@@ -13,5 +13,5 @@ async () => {
     });
   }
 };
-const DeclarationTagDestructuredState__SvelteComponent_ = __rsvelte_export_component();
-export default DeclarationTagDestructuredState__SvelteComponent_;
+const DeclarationTagDestructuredState__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof DeclarationTagDestructuredState__SvelteComponent_>} */ (DeclarationTagDestructuredState__SvelteComponent_);

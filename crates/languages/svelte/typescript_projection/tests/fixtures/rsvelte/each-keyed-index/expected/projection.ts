@@ -22,5 +22,5 @@ async () => {
     svelteHTML.createElement("p", {});
   }
 };
-const EachKeyedIndex__SvelteComponent_ = __rsvelte_export_component();
-export default EachKeyedIndex__SvelteComponent_;
+const EachKeyedIndex__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof EachKeyedIndex__SvelteComponent_>} */ (EachKeyedIndex__SvelteComponent_);

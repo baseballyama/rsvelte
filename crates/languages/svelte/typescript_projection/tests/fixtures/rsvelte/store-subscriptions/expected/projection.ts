@@ -3,7 +3,7 @@
 
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
-	let { store } = $props();;let $store = __rsvelte_store_get(store);
+	/** @type {typeof __rsvelte_public_props0} */ let { store } = $props();;let $store = __rsvelte_store_get(store);
 
 	const count = writable(0);;let $count = __rsvelte_store_get(count);
 
@@ -46,5 +46,5 @@ async () => {
     }
   }
 };
-const StoreSubscriptions__SvelteComponent_ = __rsvelte_export_component();
-export default StoreSubscriptions__SvelteComponent_;
+const StoreSubscriptions__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof StoreSubscriptions__SvelteComponent_>} */ (StoreSubscriptions__SvelteComponent_);

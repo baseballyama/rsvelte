@@ -27,5 +27,5 @@ async () => {
     }
   }
 };
-const BindThisConst__SvelteComponent_ = __rsvelte_export_component();
-export default BindThisConst__SvelteComponent_;
+const BindThisConst__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindThisConst__SvelteComponent_>} */ (BindThisConst__SvelteComponent_);

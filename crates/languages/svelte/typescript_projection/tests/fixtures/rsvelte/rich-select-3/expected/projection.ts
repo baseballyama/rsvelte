@@ -1,7 +1,7 @@
 ;
 
 	import Option from './Option.svelte';
-	let { p, c } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { p, c } = $props();
 
 ;
 
@@ -44,5 +44,5 @@ async () => {
     }
   }
 };
-const RichSelect3__SvelteComponent_ = __rsvelte_export_component();
-export default RichSelect3__SvelteComponent_;
+const RichSelect3__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof RichSelect3__SvelteComponent_>} */ (RichSelect3__SvelteComponent_);

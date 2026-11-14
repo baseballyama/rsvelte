@@ -1,6 +1,6 @@
 ;
 
-	let { items = $bindable([]), config = $bindable({ open: false }) } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { items = $bindable([]), config = $bindable({ open: false }) } = $props();
 
 ;
 
@@ -21,5 +21,5 @@ async () => {
     (config.open);
   }
 };
-const BindableProxy__SvelteComponent_ = __rsvelte_export_component();
-export default BindableProxy__SvelteComponent_;
+const BindableProxy__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "items" | "config">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindableProxy__SvelteComponent_>} */ (BindableProxy__SvelteComponent_);

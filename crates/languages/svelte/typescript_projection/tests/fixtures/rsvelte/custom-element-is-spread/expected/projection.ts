@@ -15,5 +15,5 @@ async () => {
     });
   }
 };
-const CustomElementIsSpread__SvelteComponent_ = __rsvelte_export_component();
-export default CustomElementIsSpread__SvelteComponent_;
+const CustomElementIsSpread__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<any, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof CustomElementIsSpread__SvelteComponent_>} */ (CustomElementIsSpread__SvelteComponent_);

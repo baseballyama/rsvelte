@@ -27,7 +27,7 @@ const calls_plain = () => {
   };
   return __rsvelte_snippet_return;
 };
- let { name } = $props();
+ /** @type {typeof __rsvelte_public_props0} */ let { name } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -41,5 +41,5 @@ async () => {
   }
   __rsvelte_ensure_snippet(calls_plain());
 };
-const SnippetHoisted__SvelteComponent_ = __rsvelte_export_component();
-export default SnippetHoisted__SvelteComponent_;
+const SnippetHoisted__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SnippetHoisted__SvelteComponent_>} */ (SnippetHoisted__SvelteComponent_);

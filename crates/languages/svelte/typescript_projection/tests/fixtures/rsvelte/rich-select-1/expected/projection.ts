@@ -42,5 +42,5 @@ async () => {
     }
   }
 };
-const RichSelect1__SvelteComponent_ = __rsvelte_export_component();
-export default RichSelect1__SvelteComponent_;
+const RichSelect1__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof RichSelect1__SvelteComponent_>} */ (RichSelect1__SvelteComponent_);

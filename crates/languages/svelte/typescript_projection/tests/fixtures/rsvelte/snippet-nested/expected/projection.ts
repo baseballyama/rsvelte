@@ -1,5 +1,5 @@
 ;
-let { items, children } = $props();
+/** @type {typeof __rsvelte_public_props0} */ let { items, children } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -42,5 +42,5 @@ async () => {
   }
   __rsvelte_ensure_snippet(children?.());
 };
-const SnippetNested__SvelteComponent_ = __rsvelte_export_component();
-export default SnippetNested__SvelteComponent_;
+const SnippetNested__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SnippetNested__SvelteComponent_>} */ (SnippetNested__SvelteComponent_);

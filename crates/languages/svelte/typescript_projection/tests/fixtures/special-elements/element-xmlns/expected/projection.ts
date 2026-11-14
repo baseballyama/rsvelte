@@ -1,5 +1,5 @@
 ;
-let { ns, tag } = $props();
+/** @type {typeof __rsvelte_public_props0} */ let { ns, tag } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -13,5 +13,5 @@ async () => {
     });
   }
 };
-const ElementXmlns__SvelteComponent_ = __rsvelte_export_component();
-export default ElementXmlns__SvelteComponent_;
+const ElementXmlns__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof ElementXmlns__SvelteComponent_>} */ (ElementXmlns__SvelteComponent_);

@@ -1,5 +1,5 @@
 ;
-let { n, t } = $props();
+/** @type {typeof __rsvelte_public_props0} */ let { n, t } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -20,5 +20,5 @@ async () => {
     svelteHTML.createElement(t, {});
   }
 };
-const DynamicElementInterpolated__SvelteComponent_ = __rsvelte_export_component();
-export default DynamicElementInterpolated__SvelteComponent_;
+const DynamicElementInterpolated__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof DynamicElementInterpolated__SvelteComponent_>} */ (DynamicElementInterpolated__SvelteComponent_);

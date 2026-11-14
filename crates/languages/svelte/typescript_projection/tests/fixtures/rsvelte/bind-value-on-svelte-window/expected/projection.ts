@@ -15,5 +15,5 @@ async () => {
     };
   }
 };
-const BindValueOnSvelteWindow__SvelteComponent_ = __rsvelte_export_component();
-export default BindValueOnSvelteWindow__SvelteComponent_;
+const BindValueOnSvelteWindow__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindValueOnSvelteWindow__SvelteComponent_>} */ (BindValueOnSvelteWindow__SvelteComponent_);

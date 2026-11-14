@@ -1,6 +1,6 @@
 ;
 
-	let { name } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { name } = $props();
 
 ;
 
@@ -13,5 +13,5 @@ async () => {
     (name);
   }
 };
-const Component__SvelteComponent_ = __rsvelte_export_component();
-export default Component__SvelteComponent_;
+const Component__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof Component__SvelteComponent_>} */ (Component__SvelteComponent_);

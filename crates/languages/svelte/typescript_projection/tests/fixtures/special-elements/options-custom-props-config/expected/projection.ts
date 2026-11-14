@@ -1,5 +1,5 @@
 ;
-let {enabled=false,count}= $props();
+/** @type {typeof __rsvelte_public_props0} */ let {enabled=false,count}= $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -19,5 +19,5 @@ async () => {
     (count);
   }
 };
-const OptionsCustomPropsConfig__SvelteComponent_ = __rsvelte_export_component();
-export default OptionsCustomPropsConfig__SvelteComponent_;
+const OptionsCustomPropsConfig__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof OptionsCustomPropsConfig__SvelteComponent_>} */ (OptionsCustomPropsConfig__SvelteComponent_);

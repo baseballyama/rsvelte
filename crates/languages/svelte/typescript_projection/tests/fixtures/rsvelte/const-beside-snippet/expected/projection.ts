@@ -1,6 +1,6 @@
 ;
 
-	let { items } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { items } = $props();
 
 ;
 
@@ -39,5 +39,5 @@ async () => {
     Component;
   }
 };
-const ConstBesideSnippet__SvelteComponent_ = __rsvelte_export_component();
-export default ConstBesideSnippet__SvelteComponent_;
+const ConstBesideSnippet__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof ConstBesideSnippet__SvelteComponent_>} */ (ConstBesideSnippet__SvelteComponent_);

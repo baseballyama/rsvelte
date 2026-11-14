@@ -48,7 +48,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .key("status")
                             .write_string("projected")
                             .key("code")
-                            .write_string(&projection.out);
+                            .write_string(&projection.out)
+                            .key("extension")
+                            .write_string(tree.extension());
                     }
                 }
             }

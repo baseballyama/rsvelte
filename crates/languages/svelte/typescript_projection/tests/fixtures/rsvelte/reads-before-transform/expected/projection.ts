@@ -10,7 +10,7 @@ const s = ({ p = q, q }, r = q, t) => {
   return __rsvelte_snippet_return;
 };
 
-	let { items } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { items } = $props();
 
 ;
 
@@ -46,5 +46,5 @@ async () => {
   }
   __rsvelte_ensure_snippet(s(items));
 };
-const ReadsBeforeTransform__SvelteComponent_ = __rsvelte_export_component();
-export default ReadsBeforeTransform__SvelteComponent_;
+const ReadsBeforeTransform__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof ReadsBeforeTransform__SvelteComponent_>} */ (ReadsBeforeTransform__SvelteComponent_);

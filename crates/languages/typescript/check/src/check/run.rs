@@ -116,9 +116,6 @@ impl Tsc {
             layer.files.push((path.clone(), text.clone()));
         }
         layer.files.extend(req.replaced.iter().cloned());
-        let untyped = untyped::imports(req, &root, &paths);
-        let probe = (!untyped.is_empty()).then(|| untyped::probe(&overlay));
-        layer.files.extend(probe.iter().flatten().cloned());
         layer.files.extend(
             req.stand_ins(&root)
                 .map(|(path, text)| (path, text.to_owned())),
@@ -149,17 +146,17 @@ impl Tsc {
         let mut session = Session::start(&self.checker.program, &self.checker.arguments, &root)
             .map_err(failed)?;
         // The project's own root files, as its tsconfig selects them; the overlay keeps them.
-        let mut roots = if let Some(base) = &base {
-            let project = session.open(&[base], &layer).map_err(failed)?.remove(0);
-            session.release(project.snapshot).map_err(failed)?;
-            project.root_files
-        } else {
-            Vec::new()
-        };
+        let (mut roots, untyped) =
+            base_project(&mut session, base.as_deref(), req, &overlay, &mut layer)
+                .map_err(failed)?;
+        if untyped {
+            let declaration = untyped::options_declaration(&overlay);
+            roots.push(declaration.0.clone());
+            layer.files.push(declaration);
+        }
         roots.extend(paths.iter().cloned());
         roots.extend(declarations);
         roots.extend(req.include.iter().cloned());
-        roots.extend(probe.iter().map(|[(probe, _), _]| probe.clone()));
         let config = overlay.join("tsconfig.json");
         layer.files.push((
             config.clone(),
@@ -176,8 +173,11 @@ impl Tsc {
         let semantic = session
             .diagnostics(&project, DiagnosticKind::Semantic, Some(&files))
             .map_err(failed)?;
-        let untyped =
-            untyped::reported(&mut session, &project, probe.as_ref(), untyped).map_err(failed)?;
+        let untyped = if untyped {
+            untyped::imports(req, &root, &paths)
+        } else {
+            Vec::new()
+        };
         session.release(project.snapshot).map_err(failed)?;
         let lines: Vec<LineIndex> = req
             .files
@@ -243,6 +243,34 @@ fn tsconfig_json(
     }
     w.end_array().end_object();
     w.finish()
+}
+
+/// The project's own root files, as its tsconfig selects them, and whether its options make an
+/// import of JavaScript untyped. Without a tsconfig, `noImplicitAny` is off and such an import
+/// stays quiet.
+fn base_project(
+    session: &mut Session,
+    base: Option<&Path>,
+    req: &CheckRequest,
+    overlay: &Path,
+    layer: &mut Layer,
+) -> Result<(Vec<PathBuf>, bool), String> {
+    let Some(base) = base else {
+        return Ok((Vec::new(), false));
+    };
+    let probe = untyped::any_javascript(req).then(|| untyped::probe(overlay, base));
+    layer.files.extend(probe.iter().flatten().cloned());
+    let mut configs = vec![base];
+    configs.extend(probe.iter().map(|[.., (config, _)]| config.as_path()));
+    // One snapshot holds both projects.
+    let mut projects = session.open(&configs, layer)?.into_iter();
+    let project = projects.next().ok_or("the checker opened no project")?;
+    let untyped = match projects.next() {
+        Some(probe) => untyped::reported(session, &probe, overlay)?,
+        None => false,
+    };
+    session.release(project.snapshot)?;
+    Ok((project.root_files, untyped))
 }
 
 /// `DiagnosticCategory.Error`.

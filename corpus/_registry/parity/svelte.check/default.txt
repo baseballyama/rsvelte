@@ -1,4 +1,4 @@
-# svelte.check/default: 34823 match
+# svelte.check/default: 34828 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
@@ -33,7 +33,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/implicit-snippet.v5/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-js.v5/input.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/transition-options/input.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ts-ignore-attribute.v5/input.svelte	mismatch
@@ -52,11 +51,7 @@ svelte/layerchart/packages/layerchart/src/lib/components/charts/__fixtures__/Arc
 svelte/layerchart/packages/layerchart/src/lib/components/geo/GeoRaster/GeoRaster.svelte	mismatch
 svelte/melt-ui/docs/src/components/motion.svelte	mismatch
 svelte/melt-ui/packages/melt/src/lib/builders/tests/SpatialMenuDisabledTest.svelte	mismatch
-svelte/primo/src/lib/builder/components/Fields/FieldItem.svelte	mismatch
-svelte/primo/src/lib/builder/components/Fields/SelectField.svelte	mismatch
 svelte/primo/src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte	mismatch
-svelte/primo/src/lib/builder/field-types/IconField.svelte	mismatch
-svelte/primo/src/lib/builder/views/modal/PageTypeModal/PageTypeForm.svelte	mismatch
 svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	mismatch
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/template_expressions_reject_it_too/52e418cc04b4e2a4.svelte	mismatch

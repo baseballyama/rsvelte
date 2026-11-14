@@ -18,5 +18,14 @@ async () => {
     (p);
   }
 };
-const ExportDeclarations__SvelteComponent_ = __rsvelte_export_component();
-export default ExportDeclarations__SvelteComponent_;
+const ExportDeclarations__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {
+  a: typeof a;
+  b: typeof b;
+  c: typeof c;
+  d: typeof d;
+  p: typeof p;
+  r: typeof r;
+  s: typeof s;
+  Foo: typeof Foo;
+}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof ExportDeclarations__SvelteComponent_>} */ (ExportDeclarations__SvelteComponent_);

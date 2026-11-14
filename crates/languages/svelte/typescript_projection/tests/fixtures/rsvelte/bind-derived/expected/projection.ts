@@ -40,5 +40,5 @@ async () => {
     d = svelteHTML.createElement("div", {});
   }
 };
-const BindDerived__SvelteComponent_ = __rsvelte_export_component();
-export default BindDerived__SvelteComponent_;
+const BindDerived__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindDerived__SvelteComponent_>} */ (BindDerived__SvelteComponent_);

@@ -13,5 +13,5 @@ async () => {
     (props.value);
   }
 };
-const OptionsCustomPropsIdentifier__SvelteComponent_ = __rsvelte_export_component();
-export default OptionsCustomPropsIdentifier__SvelteComponent_;
+const OptionsCustomPropsIdentifier__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<any, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof OptionsCustomPropsIdentifier__SvelteComponent_>} */ (OptionsCustomPropsIdentifier__SvelteComponent_);

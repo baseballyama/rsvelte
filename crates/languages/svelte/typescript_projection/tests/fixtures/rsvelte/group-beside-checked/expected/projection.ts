@@ -1,5 +1,5 @@
 ;
-let g = $state(); let t = $state('a'); let { p } = $props();
+let g = $state(); let t = $state('a'); /** @type {typeof __rsvelte_public_props0} */ let { p } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -31,5 +31,5 @@ async () => {
     g = __rsvelte_untyped_prop();
   }
 };
-const GroupBesideChecked__SvelteComponent_ = __rsvelte_export_component();
-export default GroupBesideChecked__SvelteComponent_;
+const GroupBesideChecked__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof GroupBesideChecked__SvelteComponent_>} */ (GroupBesideChecked__SvelteComponent_);

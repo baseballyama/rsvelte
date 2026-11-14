@@ -1,6 +1,6 @@
 ;
 
-	let { children } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { children } = $props();
 	let x = $state(1);
 
 ;
@@ -23,5 +23,5 @@ async () => {
   }
   __rsvelte_ensure_snippet(children?.());
 };
-const CssInjected__SvelteComponent_ = __rsvelte_export_component();
-export default CssInjected__SvelteComponent_;
+const CssInjected__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof CssInjected__SvelteComponent_>} */ (CssInjected__SvelteComponent_);

@@ -45,5 +45,5 @@ async () => {
     }
   }
 };
-const DeclarationTags__SvelteComponent_ = __rsvelte_export_component();
-export default DeclarationTags__SvelteComponent_;
+const DeclarationTags__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof DeclarationTags__SvelteComponent_>} */ (DeclarationTags__SvelteComponent_);

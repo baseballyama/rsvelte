@@ -1,6 +1,6 @@
 ;
 
-	let { items, rest } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { items, rest } = $props();
 	let count = $state(0);
 
 ;
@@ -43,5 +43,5 @@ async () => {
     });
   }
 };
-const SlotElement__SvelteComponent_ = __rsvelte_export_component();
-export default SlotElement__SvelteComponent_;
+const SlotElement__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SlotElement__SvelteComponent_>} */ (SlotElement__SvelteComponent_);

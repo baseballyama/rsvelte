@@ -21,6 +21,7 @@ pub fn emit_named(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
         path,
         output: Emitter::new(),
         indent: 0,
+        in_type: false,
     };
     printer.output.push(";\n");
     printer.children(tree.root());
@@ -33,9 +34,12 @@ struct Printer<'a> {
     path: &'a str,
     output: Emitter,
     indent: usize,
+    /// Inside a `JSDoc` type, where a JavaScript projection prints types as TypeScript does.
+    in_type: bool,
 }
 
 mod generic;
+mod javascript;
 
 impl Printer<'_> {
     fn children(&mut self, range: Range) {
@@ -247,9 +251,10 @@ impl Printer<'_> {
                 self.output.push("typeof ");
                 self.node(value);
             }
-            Node::TypeArguments { callee, .. } if self.tree.javascript => self.node(callee),
-            // JavaScript has no type syntax, so nothing of a type is printed.
-            Node::TypeAnnotation(_) | Node::TypeAlias { .. } if self.tree.javascript => {}
+            Node::TypeArguments { callee, arguments } if self.tree.javascript && !self.in_type => {
+                self.instantiated(callee, arguments);
+            }
+            Node::DeclaredType(value) => self.declared_type(value),
             Node::TypeArguments { callee, arguments } => {
                 self.node(callee);
                 self.output.push("<");
@@ -310,21 +315,20 @@ impl Printer<'_> {
         }
     }
 
-    /// svelte2tsx's runes component: a type of the same name lets an import name the instance's
-    /// type, which JavaScript cannot declare.
+    /// svelte2tsx's runes component: a type of the same name lets an import name its type.
     fn export_default(&mut self, value: NodeIdentifier) {
+        if self.tree.javascript {
+            return self.javascript_export(value);
+        }
         self.output.push("const ");
         self.component_name();
         self.output.push(" = ");
         self.node(value);
-        if !self.tree.javascript {
-            self.output.push(";\ntype ");
-            self.component_name();
-            self.output.push(" = ReturnType<typeof ");
-            self.component_name();
-            self.output.push(">");
-        }
-        self.output.push(";\nexport default ");
+        self.output.push(";\ntype ");
+        self.component_name();
+        self.output.push(" = ReturnType<typeof ");
+        self.component_name();
+        self.output.push(">;\nexport default ");
         self.component_name();
         self.output.push(";\n");
     }
@@ -358,7 +362,7 @@ impl Printer<'_> {
         self.output.push(";\n");
     }
 
-    fn component_name(&mut self) {
+    pub(super) fn component_name(&mut self) {
         if self.path.is_empty() {
             self.output.push("$$Component");
         } else {

@@ -4,20 +4,23 @@
 
 use std::path::{Path, PathBuf};
 
+use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_typescript_api::{DiagnosticKind, Project, Session};
 
 use super::mapped::normalized;
 use super::{ERROR, TypeScriptDiagnostic};
 use crate::check::CheckRequest;
 
+/// The extensions the checker reads a projection as JavaScript by.
+const JAVASCRIPT: &[&str] = &[".js", ".jsx", ".mjs", ".cjs"];
+
 /// The probe's name in the overlay, and the JavaScript file it imports, whose name differs, since
 /// `./probe.js` would read `probe.ts`.
 const PROBE: (&str, &str) = ("untyped-probe.ts", "untyped.js");
+const PROBE_CONFIG: &str = "untyped-probe.json";
 
 /// `Could not find a declaration file for module '{0}'. '{1}' implicitly has an 'any' type.`
 pub(super) const CODE: u32 = 7016;
-
-const JAVASCRIPT: &[&str] = &[".js", ".jsx", ".mjs", ".cjs"];
 
 /// Each import of a typed document that reads a content-mapped JavaScript document, as the finding
 /// TypeScript reports for it when the probe says the project's options report one.
@@ -63,33 +66,67 @@ pub(super) fn imports(
     found
 }
 
-/// The probe and the JavaScript file it imports, in the overlay.
-pub(super) fn probe(overlay: &Path) -> [(PathBuf, String); 2] {
+/// Whether any document projects to JavaScript.
+pub(super) fn any_javascript(req: &CheckRequest) -> bool {
+    req.mapped_files
+        .iter()
+        .flatten()
+        .any(|mapped| JAVASCRIPT.contains(&mapped.generated_extension))
+}
+
+/// The probe, the JavaScript file it imports and the tsconfig of its own project, which extends
+/// the project's `base`.
+pub(super) fn probe(overlay: &Path, base: &Path) -> [(PathBuf, String); 3] {
+    let probe = overlay.join(PROBE.0);
+    let mut config = StructuredDataWriter::new(true);
+    config
+        .begin_object()
+        .key("extends")
+        .write_string(&base.to_string_lossy())
+        .key("compilerOptions")
+        .begin_object()
+        .key("noEmit")
+        .write_boolean(true)
+        .end_object()
+        .key("include")
+        .begin_array()
+        .end_array()
+        .key("files")
+        .begin_array()
+        .write_string(&probe.to_string_lossy())
+        .end_array()
+        .end_object();
     [
         (
-            overlay.join(PROBE.0),
+            probe,
             format!(
                 "import untyped from './{}';\nexport default untyped;\n",
                 PROBE.1
             ),
         ),
         (overlay.join(PROBE.1), "export default 1;\n".to_owned()),
+        (overlay.join(PROBE_CONFIG), config.finish()),
     ]
 }
 
-/// The findings, when the project's options report TS7016 for the probe's import.
+/// Whether the probe's project reports TS7016 for its import.
 pub(super) fn reported(
     session: &mut Session,
     project: &Project,
-    probe: Option<&[(PathBuf, String); 2]>,
-    found: Vec<TypeScriptDiagnostic>,
-) -> Result<Vec<TypeScriptDiagnostic>, String> {
-    let Some([(probe, _), _]) = probe else {
-        return Ok(found);
-    };
-    let reported = session
+    overlay: &Path,
+) -> Result<bool, String> {
+    let probe = overlay.join(PROBE.0);
+    Ok(session
         .diagnostics(project, DiagnosticKind::Semantic, Some(&[probe.as_path()]))?
         .iter()
-        .any(|d| d.code == CODE && d.category == ERROR);
-    Ok(if reported { found } else { Vec::new() })
+        .any(|d| d.code == CODE && d.category == ERROR))
+}
+
+/// Tells a projection that an import of a JavaScript document is untyped, as TypeScript reads a
+/// JavaScript file it does not include: `__rsvelte_check_options` gains `untypedJavaScript`.
+pub(super) fn options_declaration(overlay: &Path) -> (PathBuf, String) {
+    (
+        overlay.join("check-options.d.ts"),
+        "interface __rsvelte_check_options {\n\tuntypedJavaScript: true;\n}\n".to_owned(),
+    )
 }

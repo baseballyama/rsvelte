@@ -35,5 +35,5 @@ async () => {
     });
   }
 };
-const SpreadScoped__SvelteComponent_ = __rsvelte_export_component();
-export default SpreadScoped__SvelteComponent_;
+const SpreadScoped__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<any, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SpreadScoped__SvelteComponent_>} */ (SpreadScoped__SvelteComponent_);

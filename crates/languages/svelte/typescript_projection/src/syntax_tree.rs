@@ -29,6 +29,8 @@ pub enum Node {
         arguments: Range,
     },
     TypeAnnotation(NodeIdentifier),
+    /// A JavaScript declaration's type, in a `JSDoc` comment before it.
+    DeclaredType(NodeIdentifier),
     TypeLiteral(Range),
     TypeProperty {
         name: NodeIdentifier,
@@ -242,6 +244,12 @@ impl SyntaxTree {
     #[must_use]
     pub fn children(&self, range: Range) -> &[NodeIdentifier] {
         range.get(&self.children)
+    }
+
+    /// The extension a checker reads the projection as: `.js` without type syntax of its own.
+    #[must_use]
+    pub const fn extension(&self) -> &'static str {
+        if self.javascript { ".js" } else { ".ts" }
     }
 
     #[must_use]

@@ -1,7 +1,7 @@
 ;
 
 	let text = $state('');
-	let { p = $bindable() } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { p = $bindable() } = $props();
 	let rest = {};
 
 ;
@@ -69,5 +69,5 @@ async () => {
     });
   }
 };
-const Textarea__SvelteComponent_ = __rsvelte_export_component();
-export default Textarea__SvelteComponent_;
+const Textarea__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "p">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof Textarea__SvelteComponent_>} */ (Textarea__SvelteComponent_);

@@ -48,5 +48,5 @@ async () => {
     (item.w);
   }
 };
-const ElementBindingsOnSpecialHosts__SvelteComponent_ = __rsvelte_export_component();
-export default ElementBindingsOnSpecialHosts__SvelteComponent_;
+const ElementBindingsOnSpecialHosts__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof ElementBindingsOnSpecialHosts__SvelteComponent_>} */ (ElementBindingsOnSpecialHosts__SvelteComponent_);

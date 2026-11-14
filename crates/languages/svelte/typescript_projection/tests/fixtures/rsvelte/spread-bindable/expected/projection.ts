@@ -1,6 +1,6 @@
 ;
 
-	let { value = $bindable(), text = $bindable('x'), ...properties } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { value = $bindable(), text = $bindable('x'), ...properties } = $props();
 
 ;
 
@@ -23,5 +23,5 @@ async () => {
     (text);
   }
 };
-const SpreadBindable__SvelteComponent_ = __rsvelte_export_component();
-export default SpreadBindable__SvelteComponent_;
+const SpreadBindable__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "value" | "text">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SpreadBindable__SvelteComponent_>} */ (SpreadBindable__SvelteComponent_);

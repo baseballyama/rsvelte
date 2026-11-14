@@ -21,5 +21,7 @@ async () => {
     }
   }
 };
-const AssignmentPatternArrayNames__SvelteComponent_ = __rsvelte_export_component();
-export default AssignmentPatternArrayNames__SvelteComponent_;
+const AssignmentPatternArrayNames__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {
+  swap: typeof swap;
+}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof AssignmentPatternArrayNames__SvelteComponent_>} */ (AssignmentPatternArrayNames__SvelteComponent_);

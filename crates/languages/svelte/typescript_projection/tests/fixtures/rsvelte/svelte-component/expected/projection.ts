@@ -1,7 +1,7 @@
 ;
 
 	import A from './A.svelte';
-	let { depth = 0, other } = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { depth = 0, other } = $props();
 	let current = $state(A);
 
 ;
@@ -32,5 +32,5 @@ async () => {
     }
   }
 };
-const SvelteComponent__SvelteComponent_ = __rsvelte_export_component();
-export default SvelteComponent__SvelteComponent_;
+const SvelteComponent__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SvelteComponent__SvelteComponent_>} */ (SvelteComponent__SvelteComponent_);
