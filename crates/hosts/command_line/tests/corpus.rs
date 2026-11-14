@@ -13,8 +13,12 @@ use oxc_span::SourceType;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::legacy::legacy_syntax;
+use rsvelte_svelte_semantic::{Resolved, Warned};
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_typescript_projection::Printed;
 use rsvelte_test_harness::NodePackages;
@@ -36,6 +40,39 @@ struct Coverage {
     unchecked: AtomicUsize,
     thrown: AtomicUsize,
     unsupported: AtomicUsize,
+}
+
+/// Reports a legacy component, which no task compares: rsvelte leaves legacy mode to the official
+/// tools.
+struct LegacyComponent;
+
+impl Task for LegacyComponent {
+    fn identifier(&self) -> &'static str {
+        "test.svelte.legacy"
+    }
+
+    fn applies(&self, document: &Document) -> bool {
+        rsvelte_svelte_syntax::matches(document)
+    }
+
+    fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
+        let (Ok(component), Some(resolution), Some(warned)) = (
+            context.get::<Parsed>(),
+            context.get::<Resolved>(),
+            context.get::<Warned>(),
+        ) else {
+            return;
+        };
+        if let Some(syntax) =
+            legacy_syntax(component, resolution, context.source_text(), warned.runes)
+        {
+            out.diagnostics.push(Diagnostic::error(
+                "legacy_component",
+                format!("a legacy component: {syntax}"),
+                Span::new(0, 0),
+            ));
+        }
+    }
 }
 
 /// Counts what the projection and the type check cover, and keeps every projection that is not
@@ -181,6 +218,7 @@ fn main() -> ExitCode {
     rsvelte_svelte_typescript_projection::register(&mut registry);
     rsvelte_svelte_check::register(&mut registry, &typecheck);
     registry.task(CountCoverage(Arc::clone(&coverage)));
+    registry.task(LegacyComponent);
     let result = rsvelte_corpus::Conformance::new("svelte", registry)
         .compare("svelte.compile/client")
         .compare("svelte.compile/server")
@@ -195,6 +233,7 @@ fn main() -> ExitCode {
         .compare("svelte.lint/default")
         .compare("svelte.check/default")
         .also_run("test.svelte.coverage")
+        .out_of_scope("test.svelte.legacy")
         .run();
     let c = &coverage;
     let n = |counter: &AtomicUsize| counter.load(Ordering::Relaxed);

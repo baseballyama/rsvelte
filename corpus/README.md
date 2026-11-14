@@ -33,3 +33,7 @@ output cannot be trusted on for a unit is skipped in `units.toml`:
 ["svelte/<source>/<path>".skip]
 "svelte.compile/client" = "why this task does not apply"
 ```
+
+No task compares a legacy component, since Svelte 4 legacy mode is a non-goal: one in legacy
+mode that uses syntax runes mode rejects (`export let`, `$:`, `$$props`, `$$restProps` or
+`runes={false}`).

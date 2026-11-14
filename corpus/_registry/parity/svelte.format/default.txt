@@ -1,4 +1,4 @@
-# svelte.format/default: 35790 match
+# svelte.format/default: 34374 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -652,8 +652,6 @@ svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_coll
 svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/8e90b81fa7f50efb.svelte	refused
 svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/36176c73022a7862.svelte	mismatch
 svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/514380913654863c.svelte	mismatch
-svelte/rsvelte-tests-core-3/typescript_strip_recoverable_parse_error/a_different_oxc_only_diagnostic_also_strips/81f7ffa8f83a35fb.svelte	refused
-svelte/rsvelte-tests-core-3/typescript_strip_recoverable_parse_error/client_strips_the_annotations/20ba2f69db87b15f.svelte	refused
 svelte/rsvelte-tests-core-3/unary_fallback_arm_4386/an_each_destructuring_default_takes_the_arm_upstream_takes/bc756e01927eb257.svelte	refused
 svelte/rsvelte-tests-core-3/unary_fallback_arm_4386/an_each_destructuring_default_takes_the_arm_upstream_takes/c96cc8b9324e804d.svelte	refused
 svelte/rsvelte-tests-core-3/with_statement_strict_mode/with_statement_in_instance_script_is_rejected/d3aec6e2c66c6e6a.svelte	refused
@@ -824,7 +822,6 @@ svelte/rsvelte/pattern/adversarial/elements/very-long-text-runs.svelte	mismatch
 svelte/rsvelte/pattern/css/consecutive-and-column-combinators.svelte	refused
 svelte/rsvelte/pattern/css/declaration-without-property-or-colon.svelte	refused
 svelte/rsvelte/pattern/css/value-ends-outside-strings-and-urls.svelte	mismatch
-svelte/rsvelte/pattern/issues/2596-ts-required-after-optional.svelte	refused
 svelte/rsvelte/pattern/issues/3035-destructure-defaults.svelte	refused
 svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	refused
 svelte/rsvelte/pattern/issues/3194-strict-assign-eval.svelte	refused
