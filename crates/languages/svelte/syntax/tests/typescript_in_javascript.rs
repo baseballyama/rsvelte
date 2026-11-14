@@ -1,5 +1,5 @@
 //! TypeScript-only syntax in a JavaScript component fails where acorn stops: at the token after
-//! an assertion's operand or after a modifier.
+//! an assertion's operand or after a modifier, or at a word strict mode reserves.
 
 use rsvelte_svelte_syntax::parse::parse;
 
@@ -22,7 +22,7 @@ fn acorn_stops_at_typescript_only_syntax() {
             "x = 1",
         ),
         (
-            "<script>class A { constructor(public x) {} }</script>",
+            "<script>class A { constructor(readonly x) {} }</script>",
             "js_parse_error",
             "x) {}",
         ),
@@ -31,6 +31,34 @@ fn acorn_stops_at_typescript_only_syntax() {
         assert_eq!(error.code, code, "{source}");
         let at = source.find(at).expect("the stop") as u32;
         assert_eq!(error.span.start_offset, at, "{source}: {error:?}");
+    }
+}
+
+#[test]
+fn typescript_reserved_words_in_javascript_fail_as_acorn_reads_them() {
+    for (source, word) in [
+        ("<script>\n\tenum E { A }\n</script>", "enum"),
+        (
+            "<script>class C { constructor(private a) {} }</script>",
+            "private",
+        ),
+        (
+            "<script>class C { constructor(public a) {} }</script>",
+            "public",
+        ),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert!(
+            error
+                .message
+                .starts_with(&format!("The keyword '{word}' is reserved")),
+            "{source}: {}",
+            error.message
+        );
+        assert_eq!(
+            error.span.start_offset as usize,
+            source.find(word).expect("word")
+        );
     }
 }
 
