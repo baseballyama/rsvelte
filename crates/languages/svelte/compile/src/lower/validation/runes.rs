@@ -408,7 +408,20 @@ impl<'a> RuneWalk<'a> {
             matches!(function.map(|f| f.kind), Some(AstKind::ArrowFunctionExpression(arrow))
                 if self.bind_arrows.contains(&Some(arrow.span.start)))
         };
-        if suspends && ((self.awaits == Awaits::Here && place.rendering) || in_bind_arrow()) {
+        // Upstream suspends at a `$derived(…)` argument in any script, up to the nearest function.
+        let in_derived = || {
+            self.frames.iter().rev().find_map(|f| match f.kind {
+                AstKind::Function(_) | AstKind::ArrowFunctionExpression(_) => Some(false),
+                AstKind::CallExpression(call) => {
+                    (self.res.rune_of_call(call) == Some("$derived")).then_some(true)
+                }
+                _ => None,
+            }) == Some(true)
+        };
+        if suspends
+            && ((self.awaits == Awaits::Here && (place.rendering || in_derived()))
+                || in_bind_arrow())
+        {
             return crate::lower::special::invalid(
                 "experimental_async",
                 "Cannot use `await` in deriveds and template expressions, or at the top level of a \
