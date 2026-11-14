@@ -3,6 +3,7 @@ use std::path::{Component, Path, PathBuf};
 
 use rsvelte_kernel::output::emitter::{Atom, Mapping};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
+use rsvelte_kernel::source::positions::Span;
 
 use super::CheckRequest;
 
@@ -14,6 +15,8 @@ pub(crate) struct ContentMappedInput {
     pub generated_extension: &'static str,
     pub mappings: Vec<Mapping>,
     pub atoms: Vec<Atom>,
+    /// Each relative module specifier the document imports, by its string literal's range.
+    pub imports: Vec<(Span, String)>,
 }
 
 /// Extensions the checker reads as JavaScript or TypeScript without a content mapper.
@@ -145,7 +148,7 @@ pub(super) fn package_json(binary: &Path) -> String {
 }
 
 /// `path` without `.` and with each `..` taken back, as the checker spells file names.
-fn normalized(path: &Path) -> PathBuf {
+pub(super) fn normalized(path: &Path) -> PathBuf {
     let mut out = PathBuf::new();
     for c in path.components() {
         match c {

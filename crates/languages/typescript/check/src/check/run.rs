@@ -116,6 +116,9 @@ impl Tsc {
             layer.files.push((path.clone(), text.clone()));
         }
         layer.files.extend(req.replaced.iter().cloned());
+        let untyped = untyped::imports(req, &root, &paths);
+        let probe = (!untyped.is_empty()).then(|| untyped::probe(&overlay));
+        layer.files.extend(probe.iter().flatten().cloned());
         layer.files.extend(
             req.stand_ins(&root)
                 .map(|(path, text)| (path, text.to_owned())),
@@ -156,6 +159,7 @@ impl Tsc {
         roots.extend(paths.iter().cloned());
         roots.extend(declarations);
         roots.extend(req.include.iter().cloned());
+        roots.extend(probe.iter().map(|[(probe, _), _]| probe.clone()));
         let config = overlay.join("tsconfig.json");
         layer.files.push((
             config.clone(),
@@ -172,6 +176,8 @@ impl Tsc {
         let semantic = session
             .diagnostics(&project, DiagnosticKind::Semantic, Some(&files))
             .map_err(failed)?;
+        let untyped =
+            untyped::reported(&mut session, &project, probe.as_ref(), untyped).map_err(failed)?;
         session.release(project.snapshot).map_err(failed)?;
         let lines: Vec<LineIndex> = req
             .files
@@ -197,6 +203,7 @@ impl Tsc {
                 located(&d, &root, &paths, &lines, syntactic)
                     .ok_or_else(|| unlocated(&self.checker, &d))
             })
+            .chain(untyped.into_iter().map(Ok))
             .collect()
     }
 }
@@ -286,4 +293,5 @@ fn unlocated(checker: &TypeChecker, d: &rsvelte_typescript_api::Diagnostic) -> S
 }
 
 mod mapped;
+mod untyped;
 pub(crate) use mapped::ContentMappedInput;

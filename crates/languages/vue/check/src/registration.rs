@@ -102,6 +102,7 @@ fn typescript_view(
                 env: Arc::clone(env),
                 placement: Vec::new(),
                 extension: ".ts",
+                imports: Vec::new(),
             })
         }
     }
