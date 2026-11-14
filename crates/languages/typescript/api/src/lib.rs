@@ -21,9 +21,17 @@ pub struct Session {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Project {
     pub snapshot: u64,
-    pub handle: u64,
+    pub id: ProjectId,
     /// The root files the tsconfig names, after its `files`, `include` and `exclude`.
     pub root_files: Vec<PathBuf>,
+}
+
+/// How requests name a project: TypeScript 7.1 beta and tsrs by its `id`, later 7.1 builds by a
+/// numeric `handle`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProjectId {
+    Handle(u64),
+    Id(String),
 }
 
 /// What the checker reads before the disk: files by their full text, and links to directories on
@@ -90,7 +98,8 @@ struct Snapshot {
 
 #[derive(Deserialize)]
 struct ProjectResponse {
-    handle: u64,
+    handle: Option<u64>,
+    id: Option<String>,
     #[serde(rename = "configFileName")]
     config_file_name: PathBuf,
     #[serde(rename = "parsedCommandLine")]
@@ -210,16 +219,29 @@ impl Session {
                     .projects
                     .iter()
                     .find(|p| p.config_file_name == *c)
-                    .map(|p| Project {
-                        snapshot: snapshot.snapshot,
-                        handle: p.handle,
-                        root_files: p
-                            .parsed
-                            .as_ref()
-                            .map(|c| c.file_names.clone())
-                            .unwrap_or_default(),
-                    })
                     .ok_or_else(|| format!("{}: no project for {}", self.program, c.display()))
+                    .and_then(|p| {
+                        let id = match (p.handle, &p.id) {
+                            (Some(handle), _) => ProjectId::Handle(handle),
+                            (None, Some(id)) => ProjectId::Id(id.clone()),
+                            (None, None) => {
+                                return Err(format!(
+                                    "{}: `createSnapshot` named no handle or id for {}",
+                                    self.program,
+                                    c.display()
+                                ));
+                            }
+                        };
+                        Ok(Project {
+                            snapshot: snapshot.snapshot,
+                            id,
+                            root_files: p
+                                .parsed
+                                .as_ref()
+                                .map(|c| c.file_names.clone())
+                                .unwrap_or_default(),
+                        })
+                    })
             })
             .collect()
     }
@@ -238,8 +260,11 @@ impl Session {
         w.begin_object()
             .key("snapshot")
             .write_number(project.snapshot)
-            .key("project")
-            .write_number(project.handle);
+            .key("project");
+        match &project.id {
+            ProjectId::Handle(handle) => w.write_number(*handle),
+            ProjectId::Id(id) => w.write_string(id),
+        };
         if let Some(files) = files {
             w.key("files").begin_array();
             for f in files {
