@@ -246,7 +246,8 @@ fn main() -> ExitCode {
 }
 
 /// The rules the oracle's lint runs (`corpus/_registry/oracles.json`) that this crate implements,
-/// with their default options, so the corpus compares every one of them.
+/// with their default options, so the corpus compares every one of them, and the globals the
+/// oracle declares.
 fn oracle_lint_configuration() -> rsvelte_svelte_lint::Configuration {
     #[derive(serde::Deserialize)]
     struct Oracles {
@@ -256,6 +257,8 @@ fn oracle_lint_configuration() -> rsvelte_svelte_lint::Configuration {
     #[derive(serde::Deserialize)]
     struct Oracle {
         rules: Vec<String>,
+        /// What the oracle's configuration declares in `languageOptions.globals`.
+        globals: Vec<String>,
     }
     let oracles: Oracles = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -264,6 +267,9 @@ fn oracle_lint_configuration() -> rsvelte_svelte_lint::Configuration {
     .expect("oracles.json lists the lint oracle's rules");
     let mut configuration =
         rsvelte_svelte_lint::Configuration::new(rsvelte_svelte_lint::LintSettings::default());
+    configuration.declare_globals(rsvelte_typescript_semantic::globals::Declared::new(
+        oracles.lint.globals,
+    ));
     for name in &oracles.lint.rules {
         if rsvelte_svelte_lint::definition(name, &[]).is_some() {
             configuration
