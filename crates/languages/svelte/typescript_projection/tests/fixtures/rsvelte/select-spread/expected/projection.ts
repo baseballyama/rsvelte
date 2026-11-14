@@ -25,8 +25,8 @@ async () => {
           svelteHTML.createElement("option", {
             "value": option,
           });
-          option === current;
-          option;
+          (option === current);
+          (option);
         }
       }
     }

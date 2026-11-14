@@ -31,7 +31,7 @@ async () => {
       ...(extra()),
       "title": `n ${count}`,
     });
-    active;
+    (active);
   }
   {
     svelteHTML.createElement("p", {
@@ -46,7 +46,7 @@ async () => {
       ...({ role: 'status' }),
       "aria-live": "polite",
     });
-    count;
+    (count);
   }
   {
     svelteHTML.createElement("button", {

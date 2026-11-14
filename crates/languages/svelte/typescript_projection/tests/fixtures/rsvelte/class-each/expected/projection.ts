@@ -13,19 +13,19 @@ async () => {
     svelteHTML.createElement("ul", {});
     {
       for (let [, item] of __rsvelte_each(items)) {
-        item.id;
+        (item.id);
         {
           svelteHTML.createElement("li", {
             "class": "row",
           });
-          item.id === selected;
-          item.done;
+          (item.id === selected);
+          (item.done);
           {
             svelteHTML.createElement("button", {
               "class": { current: item.id === selected },
               "onclick": () => (selected = item.id),
             });
-            item.name;
+            (item.name);
           }
         }
       }

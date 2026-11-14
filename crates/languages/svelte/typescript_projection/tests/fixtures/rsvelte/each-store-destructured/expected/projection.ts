@@ -9,12 +9,12 @@
 async () => {
   {
     for (let [i, { name, icon = 1 }] of __rsvelte_each($items)) {
-      name;
+      (name);
       {
         svelteHTML.createElement("p", {});
-        name;
-        icon;
-        i;
+        (name);
+        (icon);
+        (i);
       }
     }
   }
@@ -24,8 +24,8 @@ async () => {
         svelteHTML.createElement("button", {
           "onclick": () => { a.x = 1; },
         });
-        a;
-        b;
+        (a);
+        (b);
       }
     }
   }

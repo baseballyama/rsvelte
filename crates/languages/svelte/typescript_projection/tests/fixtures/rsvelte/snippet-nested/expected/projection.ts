@@ -15,8 +15,8 @@ async () => {
       async () => {
         {
           svelteHTML.createElement("li", {});
-          index;
-          item.label;
+          (index);
+          (item.label);
         }
       };
       return __rsvelte_snippet_return;
@@ -32,8 +32,8 @@ async () => {
       async () => {
         {
           svelteHTML.createElement("p", {});
-          title;
-          count;
+          (title);
+          (count);
         }
       };
       return __rsvelte_snippet_return;

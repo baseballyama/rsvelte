@@ -9,11 +9,11 @@ async () => {
     svelteHTML.createElement("div", {});
     {
       for (let [index, row] of __rsvelte_each(rows)) {
-        row.id;
+        (row.id);
         {
           svelteHTML.createElement("span", {});
-          index;
-          row.id;
+          (index);
+          (row.id);
         }
       }
     }

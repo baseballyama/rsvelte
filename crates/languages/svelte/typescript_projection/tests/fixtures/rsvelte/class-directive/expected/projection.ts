@@ -14,41 +14,41 @@
 async () => {
   {
     svelteHTML.createElement("div", {});
-    active;
+    (active);
   }
   {
     svelteHTML.createElement("div", {
       "class": "panel",
     });
-    active;
-    count > 3;
+    (active);
+    (count > 3);
   }
   {
     svelteHTML.createElement("div", {
       "class": theme,
     });
-    !active;
+    (!active);
   }
   {
     svelteHTML.createElement("div", {});
-    even(count);
-    !even(count);
+    (even(count));
+    (!even(count));
   }
   {
     svelteHTML.createElement("div", {});
-    flag;
+    (flag);
   }
   {
     svelteHTML.createElement("div", {
       "class": `a ${theme}`,
     });
-    active;
+    (active);
   }
   {
     svelteHTML.createElement("button", {
       "onclick": () => count++,
     });
-    count;
+    (count);
   }
   {
     svelteHTML.createElement("button", {

@@ -48,7 +48,7 @@ async () => {
       }
       {
         for (let [, n] of __rsvelte_each([1, 2])) {
-          n;
+          (n);
           {
             svelteHTML.createElement("input", {
               "type": "checkbox",
@@ -62,7 +62,7 @@ async () => {
   }
   {
     for (let [j, item] of __rsvelte_each(items)) {
-      item;
+      (item);
       {
         svelteHTML.createElement("input", {
           "type": "radio",

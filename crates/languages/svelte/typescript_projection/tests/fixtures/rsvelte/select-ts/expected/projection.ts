@@ -28,7 +28,7 @@ async () => {
     });
     {
       svelteHTML.createElement("option", {});
-      name;
+      (name);
     }
   }
 };

@@ -15,8 +15,8 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    enabled;
-    count;
+    (enabled);
+    (count);
   }
 };
 const OptionsCustomPropsConfig__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
