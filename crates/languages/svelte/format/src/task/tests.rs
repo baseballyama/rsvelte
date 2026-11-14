@@ -60,3 +60,41 @@ fn a_sheet_the_plugin_cuts_at_a_closing_tag_inside_it_is_refused() {
     let source_text = "<p class=\"a\">x</p>\n<style>.a { content: \"</styles>\" }</style>\n";
     format(source_text, &Options::default()).expect("the sheet is whole");
 }
+
+// The plugin reads a script the compiler rejects with `babel-ts`, and keeps the body of one Babel
+// throws on as it is, as the units of `ts_class_modifiers_3100_3203` record.
+#[test]
+fn a_script_the_compiler_rejects_is_formatted_as_the_plugin_reads_it() {
+    for (source_text, formatted) in [
+        (
+            "<script>\n\tclass C {\n\t\tprivate m() {}\n\t}\n</script>\n",
+            "<script>\n  class C {\n    private m() {}\n  }\n</script>\n",
+        ),
+        (
+            "<script>\n\tclass C {\n\t\toverride m() {}\n\t}\n</script>\n",
+            "<script>\n\tclass C {\n\t\toverride m() {}\n\t}\n</script>\n",
+        ),
+        // Prettier's TypeScript parser, which reads `lang="ts"`, accepts it.
+        (
+            "<script lang=\"ts\">\n\tclass C {\n\t\toverride m() {}\n\t}\n</script>\n",
+            "<script lang=\"ts\">\n  class C {\n    override m() {}\n  }\n</script>\n",
+        ),
+        (
+            "<script>\n\tclass B {}\n\tclass C extends B {\n\t\toverride m() {}\n\t}\n</script>\n",
+            "<script>\n  class B {}\n  class C extends B {\n    override m() {}\n  }\n</script>\n",
+        ),
+    ] {
+        let output = task_output(source_text);
+        assert_eq!(output.files[0].text, formatted, "{source_text}");
+        let text = format(source_text, &Options::default()).expect(source_text);
+        assert_eq!(text, formatted, "{source_text}");
+    }
+    let source_text = "<script>\n\tlet x = ;\n</script>\n";
+    let error = format(source_text, &Options::default()).expect_err("TypeScript rejects it too");
+    assert_eq!(
+        error.span.start_offset,
+        source_text.find(';').expect("the stop") as u32
+    );
+    let output = task_output(source_text);
+    assert_eq!(output.diagnostics[0].span, error.span);
+}

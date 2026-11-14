@@ -47,6 +47,7 @@ impl SvelteRule for InfiniteReactiveLoop {
             .into_iter()
             .chain(global_references(
                 semantic,
+                file.globals(),
                 &["setTimeout", "setInterval", "queueMicrotask"],
             ))
             .filter_map(|reference| reference.call)

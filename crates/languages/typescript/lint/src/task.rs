@@ -92,7 +92,10 @@ impl Task for Lint {
         };
         rsvelte_lint_runner::output::report(
             out,
-            context.lines(LineBreaks::Ecmascript),
+            rsvelte_lint_runner::output::Positions::new(
+                context.lines(LineBreaks::Ecmascript),
+                context.source_text(),
+            ),
             self.rules.iter().map(|rule| rule.rule.identifier()),
             findings,
         );

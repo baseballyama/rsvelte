@@ -14,7 +14,9 @@ use rsvelte_svelte_lint::{Configuration, LintSettings};
 /// Lints `source` with one rule and returns the number of findings and the fastest of three runs.
 fn lint(rule: &str, path: &str, source: &str) -> (usize, Duration) {
     let mut configuration = Configuration::new(LintSettings::default());
+    // The inputs call browser globals such as `setTimeout`.
     configuration
+        .declare_globals(rsvelte_typescript_semantic::globals::Declared::browser())
         .rule(rule, Severity::Error, &[], &[])
         .expect("the rule exists");
     let document = Document::new(path.to_owned(), source.to_owned()).expect("small enough");

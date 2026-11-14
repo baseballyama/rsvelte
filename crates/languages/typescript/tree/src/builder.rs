@@ -5,7 +5,7 @@ use oxc_ast::ast::{
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::{Visit, VisitMut};
-use oxc_diagnostics::Diagnostics;
+use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, Parser, Token};
 use oxc_span::SourceType;
@@ -13,6 +13,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
 mod parentheses;
+mod program;
 
 use crate::acorn_grammar::{Rejection, Unsupported, rejection};
 use crate::syntax_error::{Locator, SyntaxError, acorn, reported, syntax_error};
@@ -113,7 +114,7 @@ impl<'a> Builder<'a> {
     /// are the part's, for what acorn reports.
     fn check(
         &mut self,
-        diagnostics: Diagnostics,
+        diagnostics: &[OxcDiagnostic],
         (text, fallback, shift): (&str, u32, u32),
         tokens: &[Token],
         (part, source_type): (Part<'_, 'a>, SourceType),
@@ -130,7 +131,7 @@ impl<'a> Builder<'a> {
         };
         if let Some(first) = first {
             let acorn = acorn(&diagnostics[first], text, tokens, visit);
-            let errors = diagnostics.into_iter().skip(first);
+            let errors = diagnostics.iter().skip(first).cloned();
             let mut error = syntax_error(errors, text, fallback, shift);
             error.acorn = acorn.map(|acorn| acorn.shifted(shift));
             // acorn throws where it stops first, before an error oxc reports later or at the same
@@ -187,55 +188,6 @@ impl<'a> Builder<'a> {
         &self.recorded
     }
 
-    /// Parses `range` of the document as a program, such as the body of a `<script>` element.
-    ///
-    /// # Errors
-    ///
-    /// The first syntax error.
-    pub fn program(
-        &mut self,
-        range: Span,
-        source_type: SourceType,
-    ) -> Result<ProgramIdentifier, SyntaxError> {
-        let text = &self.source_text[..range.end_offset as usize];
-        self.parse_program(text, range.start_offset, source_type)
-    }
-
-    /// Parses `text[start..]`, where `text` is the document up to the program's end.
-    pub(crate) fn parse_program(
-        &mut self,
-        text: &'a str,
-        start: u32,
-        source_type: SourceType,
-    ) -> Result<ProgramIdentifier, SyntaxError> {
-        let parsed = Parser::new(self.allocator, text, source_type)
-            .with_options(parentheses::options(false))
-            .with_config(TokensParserConfig)
-            .with_start(start)
-            .parse();
-        if parsed.fatal_error {
-            let acorn = (parsed.diagnostics.first())
-                .and_then(|first| acorn(first, text, &parsed.tokens, |_| {}));
-            let mut error = syntax_error(parsed.diagnostics, text, start, 0);
-            error.acorn = acorn;
-            return Err(error);
-        }
-        let part = Part::Program(&parsed.program);
-        self.check(
-            parsed.diagnostics,
-            (text, start, 0),
-            &parsed.tokens,
-            (part, source_type),
-        )?;
-        self.record(&parsed.tokens, &parsed.program.comments, 0);
-        let mut program = parsed.program;
-        // Its spans are the document's, so a task that reads text at a span reads the document.
-        program.source_text = self.source_text;
-        let identifier = ProgramIdentifier::at(self.programs.len());
-        self.programs.push(program);
-        Ok(identifier)
-    }
-
     /// Parses the expression that starts at `start`, and returns where it ends.
     ///
     /// # Errors
@@ -282,7 +234,7 @@ impl<'a> Builder<'a> {
             .map_err(|errors| syntax_error(errors, text, start, 0))?;
         let part = Part::Expression(&parsed.expression);
         self.check(
-            parsed.diagnostics,
+            &parsed.diagnostics,
             (text, start, 0),
             &parsed.tokens,
             (part, source_type),
@@ -321,7 +273,7 @@ impl<'a> Builder<'a> {
             .map_err(|errors| syntax_error(errors, self.source_text, start, 0))?;
         let part = Part::Statement(&parsed.statement);
         self.check(
-            parsed.diagnostics,
+            &parsed.diagnostics,
             (self.source_text, start, 0),
             &parsed.tokens,
             (part, source_type),
@@ -475,7 +427,7 @@ impl<'a> Builder<'a> {
         }
         let part = Part::Expression(&parsed.expression);
         self.check(
-            parsed.diagnostics,
+            &parsed.diagnostics,
             (text, 0, shift),
             &parsed.tokens,
             (part, source_type),

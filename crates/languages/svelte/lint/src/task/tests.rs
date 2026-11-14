@@ -68,7 +68,16 @@ fn other_rules_do_not_look_for_a_same_named_file() {
     let document = Document::new("Foo.svelte".to_owned(), "<button></button>".to_owned())
         .expect("a small document");
     let (_, computed) = lint_with("svelte/button-has-type", &document, |_| {});
-    assert_eq!(computed, ["svelte.lint.configuration", "svelte.parse"]);
+    // The template's JavaScript syntax errors fail the parse whatever rules run.
+    assert_eq!(
+        computed,
+        [
+            "svelte.lint.configuration",
+            "svelte.parse",
+            "svelte.compiler_syntax_tree",
+            "svelte.resolve"
+        ]
+    );
 }
 
 #[test]
@@ -83,4 +92,25 @@ fn a_jsx_module_is_linted() {
         r.provide::<SameNamedFile>("host", |_| true, |_| Some("Foo.svelte".to_owned()));
     });
     assert_eq!(json["findings"].as_array().map(Vec::len), Some(1), "{json}");
+}
+
+/// Svelte's parser reads the template's expressions, so their syntax errors stop `ESLint` as the
+/// markup's do; a name the template declares twice is the analysis's `declaration_duplicate`.
+#[test]
+fn a_syntax_error_in_the_template_fails_the_parse() {
+    let report = |source: &str| {
+        let document =
+            Document::new("App.svelte".to_owned(), source.to_owned()).expect("a small document");
+        lint_with("svelte/valid-compile", &document, |_| {}).0
+    };
+    let json = report("{#await p catch [eval]}x{/await}\n");
+    assert_eq!(json["findings"].as_array().map(Vec::len), Some(1), "{json}");
+    assert!(json["findings"][0]["rule"].is_null(), "{json}");
+    assert_eq!(json["findings"][0]["start"]["column"].as_u64(), Some(17));
+    let twice = report("{#snippet s()}a{/snippet}\n{#snippet s()}b{/snippet}\n");
+    assert_eq!(
+        twice["rules"][0].as_str(),
+        Some("svelte/valid-compile"),
+        "{twice}"
+    );
 }
