@@ -7,7 +7,7 @@
 use oxc_semantic::{AstNodes, Scoping, SemanticBuilder, SemanticBuilderReturn};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_typescript_tree::scratch::{Arenas, Pool};
-use rsvelte_typescript_tree::{ProgramIdentifier, SyntaxError, Tree};
+use rsvelte_typescript_tree::{Locator, ProgramIdentifier, SyntaxError, Tree};
 
 thread_local! {
     static SCOPING_ARENAS: Arenas = const { Arenas::new(Vec::new()) };
@@ -77,15 +77,12 @@ impl Semantic {
             let analysis = build(tree, builder);
             let text = tree.source_text();
             let nodes = analysis.semantic.nodes();
-            let syntax_error = (analysis.diagnostics.errors().next()).map(|error| {
-                Box::new(rsvelte_typescript_tree::analysis_error(
-                    error,
-                    text,
-                    |locator| {
-                        nodes.iter().for_each(|node| locator.enter(node.kind()));
-                    },
-                ))
-            });
+            let visit = |locator: &mut Locator| {
+                nodes.iter().for_each(|node| locator.enter(node.kind()));
+            };
+            let syntax_error = (analysis.diagnostics.errors())
+                .find(|error| tree.reports(error, visit))
+                .map(|error| Box::new(rsvelte_typescript_tree::analysis_error(error, text, visit)));
             Analyzed {
                 semantic: Some(analysis.semantic),
                 syntax_error,

@@ -218,8 +218,9 @@ fn child_snippet_errors(
     }
 }
 
-/// Upstream `snippet_invalid_export`, which it raises after the template's walk: the module
-/// script exports a snippet that is not hoisted beside it.
+/// Upstream `snippet_invalid_export` and `export_undefined`, which it raises after the template's
+/// walk: the module script exports a snippet that is not hoisted beside it, or a name nothing
+/// declares.
 pub(super) fn check_exports(
     input: &CompileInput<'_>,
     res: &Resolution,
@@ -259,13 +260,23 @@ pub(super) fn check_exports(
                 }
                 snippets
             });
-            if snippets.get(local.name.as_str()) == Some(&false) {
-                return invalid(
-                    "snippet_invalid_export",
-                    "An exported snippet can only reference things declared in a `<script \
-                        module>`, or other exportable snippets",
-                    span_of(specifier),
-                );
+            match snippets.get(local.name.as_str()) {
+                Some(true) => {}
+                Some(false) => {
+                    return invalid(
+                        "snippet_invalid_export",
+                        "An exported snippet can only reference things declared in a `<script \
+                            module>`, or other exportable snippets",
+                        span_of(specifier),
+                    );
+                }
+                None => {
+                    return invalid(
+                        "export_undefined",
+                        &format!("`{}` is not defined", local.name),
+                        span_of(specifier),
+                    );
+                }
             }
         }
     }
