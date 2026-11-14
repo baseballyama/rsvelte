@@ -159,11 +159,7 @@ svelte/rsvelte-tests-core-1/css_identifier_required/a_namespace_local_part_and_a
 svelte/rsvelte-tests-core-1/css_identifier_required/a_pseudo_class_and_an_attribute_still_need_one/7f107c374b5a7473.svelte	unexpected
 svelte/rsvelte-tests-core-1/css_identifier_required/a_pseudo_class_and_an_attribute_still_need_one/82707306ed0bcdd9.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_identifier_required/a_pseudo_element_needs_a_name/45e2ed376d25c163.svelte	unexpected
-svelte/rsvelte-tests-core-1/css_pseudo_class_args/a_comment_between_two_kept_arguments_is_kept/4531a6f78fb39af5.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_pseudo_class_args/combinator_with_nothing_after_it_is_an_invalid_selector/0abb752d6985640a.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/76da5691786f61cb.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/8bb2d3a6f27e3a83.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/92e5b2bc3c06fbbb.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/12c6b8beaa21d52d.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/1d52c2bf6295517c.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/7733d0ce2f3be523.svelte	mismatch
@@ -952,7 +948,6 @@ svelte/rsvelte/pattern/issues/3124-slot-snippet-conflict-span.svelte	mismatch
 svelte/rsvelte/pattern/issues/3125-let-directive-paren-default.svelte	mismatch
 svelte/rsvelte/pattern/issues/3128-options-runes-false-store-subs.svelte	mismatch
 svelte/rsvelte/pattern/issues/3129-comment-between-compounds.svelte	mismatch
-svelte/rsvelte/pattern/issues/3130-pseudo-class-argument-comments.svelte	mismatch
 svelte/rsvelte/pattern/issues/3139-snippet-hoist-dynamic-nodes.svelte	mismatch
 svelte/rsvelte/pattern/issues/3141-const-in-svelte-self.svelte	mismatch
 svelte/rsvelte/pattern/issues/3144-render-sibling-snippet-in-dynamic-nodes.svelte	mismatch

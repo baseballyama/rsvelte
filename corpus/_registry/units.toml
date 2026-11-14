@@ -3752,3 +3752,18 @@
 
 ["svelte/syntaxfm-website/src/lib/player/Player.svelte".skip]
 "svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/a_comment_between_two_kept_arguments_is_kept/4531a6f78fb39af5.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style places a selector inside a pseudo-class's arguments as if a comment before it there were not in the source, such as `.a` in `div:is(/* l */ .a)`"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/76da5691786f61cb.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style places a selector inside a pseudo-class's arguments as if a comment before it there were not in the source, such as `.a` in `div:is(/* l */ .a)`"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/8bb2d3a6f27e3a83.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style places a selector inside a pseudo-class's arguments as if a comment before it there were not in the source, such as `.a` in `div:is(/* l */ .a)`"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/92e5b2bc3c06fbbb.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style places a selector inside a pseudo-class's arguments as if a comment before it there were not in the source, such as `.a` in `div:is(/* l */ .a)`"
+
+["svelte/rsvelte/pattern/issues/3130-pseudo-class-argument-comments.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style places a selector inside a pseudo-class's arguments as if a comment before it there were not in the source, such as `.a` in `div:is(/* l */ .a)`"

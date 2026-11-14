@@ -453,6 +453,17 @@ Issue: [eslint-plugin-svelte #1701](https://github.com/sveltejs/eslint-plugin-sv
 - Correct: no fix, and the report stays.
 - Why: the fix does not look at the element's other directives.
 
+## A comment in a pseudo-class's arguments moves the selectors after it (`svelte/consistent-selector-style`)
+
+No issue yet.
+
+- Case: `<div class="a"></div><style>div:is(/* l */ .a) { color: red }</style>`.
+- Upstream reports `.a` 7 columns early, the length of `/* l */`, as if the comment were not in
+  the source. A comment before another argument does the same: in `div:not(.a /* m */, .b)`,
+  `.b` moves by its comment.
+- Correct: report `.a` where it is.
+- The corpus skips its 5 lint units.
+
 ## Quirks of the CSS parsers that upstream uses
 
 Not filed.
