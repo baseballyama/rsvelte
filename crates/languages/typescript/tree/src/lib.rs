@@ -78,6 +78,9 @@ struct Trees<'a> {
     /// The comments of every part but the programs, which keep their own, in document order.
     comments: Vec<Comment>,
     acorn_rejection: Option<(u32, acorn_grammar::Rejection)>,
+    /// How many pairs of parentheses wrapped each node of a snippet's parameters that had any,
+    /// by span.
+    parentheses: Vec<(oxc_span::Span, u8)>,
     unchecked: &'static [&'static str],
     as_acorn: bool,
 }
@@ -313,6 +316,22 @@ impl Tree {
     #[must_use]
     pub fn comments(&self) -> &[Comment] {
         &self.0.borrow_dependent().comments
+    }
+
+    /// Whether any snippet parameter had parentheses.
+    #[must_use]
+    pub fn has_parentheses(&self) -> bool {
+        !self.0.borrow_dependent().parentheses.is_empty()
+    }
+
+    /// How many pairs of parentheses the source wrapped around the node at `span` of a snippet's
+    /// parameters, which upstream keeps there and nowhere else.
+    #[must_use]
+    pub fn parentheses(&self, span: oxc_span::Span) -> u8 {
+        let parentheses = &self.0.borrow_dependent().parentheses;
+        parentheses
+            .binary_search_by_key(&(span.start, span.end), |&(s, _)| (s.start, s.end))
+            .map_or(0, |i| parentheses[i].1)
     }
 }
 

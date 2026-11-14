@@ -160,7 +160,7 @@ pub fn analyze(input: &ComponentInput<'_>, res: &Resolution) -> Analysis {
     }
     // Upstream visits a snippet's parameters, but never the patterns of `{#each}` or `{:then}`.
     for (_, parameters) in tree.parameters() {
-        let mut walker = MetadataWalker::<true>::new(res, &mut values);
+        let mut walker = MetadataWalker::<true>::new(res, &mut values).with_parentheses(tree);
         walker.visit_formal_parameters(parameters);
         needs_context |= walker.needs_context();
     }

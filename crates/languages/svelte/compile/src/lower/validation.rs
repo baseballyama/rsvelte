@@ -9,6 +9,7 @@ pub(super) mod markup;
 mod runes;
 
 pub(super) use awaits::check as check_awaits;
+use runes::script_and_template_errors;
 pub(super) use runes::{check_runes, rejects_binding, script_error};
 
 /// Whether oxc's `error` is a name declared again outside the scripts.
@@ -25,7 +26,7 @@ pub(super) fn redeclares_in_template(input: &CompileInput<'_>, error: &Diagnosti
         .any(|span| span.start <= start && start < span.end)
 }
 
-use super::{CompileInput, Diagnostic, Resolution, Span, Target};
+use super::{CompileInput, Diagnostic, Resolution, Span};
 
 /// Upstream's analysis errors in its order: the first it raises as it builds the scopes, then
 /// `$$props` and `$$restProps`, then the first its walk meets. `template` holds those of the
@@ -68,17 +69,19 @@ pub(super) fn check_analysis(
         (raised, error)
     }));
     // The rune walk's template error, which upstream meets in the same walk as the template's.
-    if errors
-        .iter()
+    let script = (errors.iter())
         .any(|(raised, _)| raised.section == Section::Template)
-        && let Err(error) = check_runes(input, res, Target::Client, custom_element)
-        && error.code != "unsupported"
-    {
-        errors.push(walk(Section::Template, error));
-    }
+        .then(|| {
+            let (script, template) = script_and_template_errors(input, res, custom_element);
+            if let Some(error) = template.filter(|error| error.code != "unsupported") {
+                errors.push(walk(Section::Template, error));
+            }
+            script
+        });
     // A walk error waits for the scripts' first, which the later rune checks raise anyway.
     if errors.iter().any(|(raised, _)| raised.phase == Phase::Walk)
-        && let Some((module, error)) = script_error(input, res, custom_element)
+        && let Some((module, error)) =
+            script.unwrap_or_else(|| script_error(input, res, custom_element))
     {
         let section = if module {
             Section::Module
