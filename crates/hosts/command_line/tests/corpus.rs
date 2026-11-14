@@ -199,6 +199,12 @@ fn main() -> ExitCode {
         |_| true,
         |_| None,
     );
+    // The oracle runs where no PostCSS configuration is found, so it strips a `postcss` style.
+    registry.provide::<rsvelte_svelte_lint::computation::PostcssConfiguration>(
+        "svelte",
+        |_| true,
+        |_| false,
+    );
     rsvelte_svelte_typescript_projection::register(&mut registry);
     rsvelte_svelte_check::register(&mut registry, &typecheck);
     registry.task(CountCoverage(Arc::clone(&coverage)));

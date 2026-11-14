@@ -10,7 +10,7 @@ use rsvelte_kernel::source::positions::LineBreaks;
 use crate::Configuration;
 use crate::computation::{
     ConditionTypes, LegacyReactivity, LintConfiguration, ModuleSemantic, NativeConditionTypes,
-    SameNamedFileOnDisk,
+    PostcssConfigurationOnDisk, SameNamedFileOnDisk,
 };
 use crate::rules::style_attribute::InlineStyles;
 use crate::rules::style_sheet::StyleSheetVerdict;
@@ -48,7 +48,8 @@ pub fn register_artifacts(registry: &mut Registry) {
         .artifact::<StyleSheetVerdict>()
         .artifact::<NativeConditionTypes>()
         .artifact::<LegacyReactivity>()
-        .artifact::<SameNamedFileOnDisk>();
+        .artifact::<SameNamedFileOnDisk>()
+        .artifact::<PostcssConfigurationOnDisk>();
 }
 
 /// Replaces the built-in prototype's condition types with `provider`'s.

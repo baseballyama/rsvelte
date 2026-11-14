@@ -400,3 +400,32 @@ fn a_rune_out_of_place_fails_the_compile_in_runes_mode() {
         [("state_invalid_placement".to_owned(), 4, 1)]
     );
 }
+
+/// The messages of a component with a `postcss` style, as `found` answers whether a `PostCSS`
+/// configuration exists and `settings` configure the rule.
+fn postcss_messages(found: bool, settings: LintSettings) -> Vec<String> {
+    let mut registry = Registry::new();
+    crate::register_artifacts(&mut registry);
+    registry.provide::<crate::computation::PostcssConfiguration>("test", |_| true, move |_| found);
+    let mut configuration = Configuration::new(settings);
+    configuration
+        .rule("svelte/valid-compile", Severity::Error, &[], &[])
+        .expect("configures");
+    let code = "<p>x</p>\n<style lang=\"postcss\">\n  .unused { color: red; }\n</style>\n";
+    let document = Document::new("test.svelte".to_owned(), code.to_owned()).expect("small");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    crate::lint(&context, &configuration)
+        .expect("parses")
+        .into_iter()
+        .map(|f| f.diagnostic.message)
+        .collect()
+}
+
+#[test]
+fn a_postcss_style_compiles_only_with_a_configuration_to_transform_it() {
+    assert_eq!(postcss_messages(true, LintSettings::default()).len(), 1);
+    assert_eq!(postcss_messages(false, LintSettings::default()), [""; 0]);
+    let disabled: LintSettings =
+        serde_json::from_str(r#"{"compileOptions":{"postcss":false}}"#).expect("settings");
+    assert_eq!(postcss_messages(true, disabled), [""; 0]);
+}

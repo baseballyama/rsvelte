@@ -1,4 +1,4 @@
-# svelte.lint/default: 38107 match
+# svelte.lint/default: 38127 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -10,14 +10,8 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/i
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-svelte4-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/script-comment01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang02-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/transform-test-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/transform-test-svelte4-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang02-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/invalid-svelte-ignore03-svelte4-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/style-lang01-input.svelte	mismatch
 svelte/flare/src/lib/components/SettingsView.svelte	mismatch
 svelte/joy-of-code/posts/learn-svelte/examples/reactive-events.svelte	mismatch
 svelte/kampsy-ui/src/routes/badge/+page.svelte	mismatch
@@ -28,7 +22,6 @@ svelte/kampsy-ui/src/routes/installation/+page.svelte	mismatch
 svelte/kite-public/src/lib/components/story/CitationTooltip.svelte	mismatch
 svelte/kite-public/src/routes/+layout.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/svelte/testfiles/diagnostics-module.svelte	mismatch
-svelte/language-tools/packages/svelte-vscode/test/grammar/samples/style-postcss/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/export-list/input.svelte	mismatch
 svelte/layercake/src/_components/SharedTooltip.html.svelte	mismatch
 svelte/layercake/src/_components/SharedTooltip.percent-range.html.svelte	mismatch
@@ -38,11 +31,7 @@ svelte/melt-ui/docs/src/components/preview.svelte	mismatch
 svelte/mode-watcher/packages/mode-watcher/src/lib/components/mode-watcher-full.svelte	mismatch
 svelte/originui-svelte/src/lib/components/ui/data-table/flex-render.svelte	mismatch
 svelte/originui-svelte/src/lib/hooks/use-local-storage.svelte.ts	mismatch
-svelte/primo/src/lib/builder/ui/Switch.svelte	mismatch
-svelte/primo/src/lib/builder/views/modal/Collaboration.svelte	mismatch
-svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte	mismatch
 svelte/primo/src/lib/components/app-sidebar.svelte	mismatch
-svelte/primo/src/routes/setup/+page.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_let_that_opens_a_declaration_keeps_the_parsers_position/0215afc9063b8da6.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_let_that_opens_a_declaration_keeps_the_parsers_position/29f7ab0bdc6f67e4.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_let_that_opens_a_declaration_keeps_the_parsers_position/afa81a756d5738cd.svelte	refused
@@ -743,7 +732,6 @@ svelte/rsvelte-tests/rsvelte_language_server/tsgo_response/tests/semantic_tokens
 svelte/rsvelte-tests/rsvelte_language_server/upstream_fixture_manifest/ported_unit_cases_assert_native_provider_responses/305235683821988d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_lint/rules/no_undef/tests/typeof_option_and_arguments_match_eslint_semantics/2e1b52bcaf5ad094.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/ignore_in_other_if_branch_is_unused/592e39911be35f02.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/non_css_style_ignore_is_treated_as_used/befdd05c4edb8a56.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/nodes/snippet_hoisting/tests/duplicate_name_self_reference_does_not_inherit_blocked_peer/7a63d4879226079a.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/stores/tests/props_id_rune_next_to_props_declaration_is_not_a_store/c1144c764992de79.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_exported_interface_dollar_props_throws/6f1a3ee68490bdbe.svelte	refused
@@ -999,23 +987,16 @@ svelte/svar-core/svelte/src/components/Calendar.svelte	mismatch
 svelte/svar-grid/svelte/src/components/Layout.svelte	mismatch
 svelte/svelte-bits/src/lib/components/library/Backgrounds/GridDistortion/GridDistortion.svelte	mismatch
 svelte/svelte-canvas/src/routes/_components/NavMenu.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/postcss-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/docs/template-syntax/11-bind/function-bindings/01-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/function-binding-with-comment01-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/function-binding-with-comment02-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/non-function-binding02-input.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/selector-parsing/simple-postcss-input.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/style-context/simple-postcss-input.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/style-location-converter/simple-postcss-input.svelte	mismatch
 svelte/svelte-inspect-value/packages/svelte/src/lib/components/HTMLViewSimple.svelte	mismatch
 svelte/svelte-inspect-value/packages/svelte/src/lib/components/Preview.svelte	mismatch
 svelte/svelte-material-ui/packages/checkbox/src/Checkbox.svelte	mismatch
 svelte/svelte-material-ui/packages/radio/src/Radio.svelte	mismatch
 svelte/svelte-material-ui/packages/slider/src/Slider.svelte	mismatch
 svelte/svelte-material-ui/packages/tooltip/src/Tooltip.svelte	mismatch
-svelte/svelte-put/packages/preprocess-markdown/src/enhance-code-block/ButtonCollapse.svelte	mismatch
-svelte/svelte-put/packages/preprocess-markdown/src/enhance-code-block/ButtonFullScreen.svelte	mismatch
-svelte/svelte-put/packages/preprocess-markdown/src/enhance-code-block/CodeBlock.svelte	mismatch
 svelte/svelte-toast/src/routes/+layout.svelte	mismatch
 svelte/svelte/packages/svelte/tests/css/samples/general-siblings-combinator-each-else-nested/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/css/samples/general-siblings-combinator-each-else/input.svelte	mismatch
@@ -1056,7 +1037,6 @@ svelte/svelte/packages/svelte/tests/validator/samples/svelte-self-deprecated/inp
 svelte/svelte/packages/svelte/tests/validator/samples/unknown-code/input.svelte	mismatch
 svelte/sveltekit/packages/kit/src/runtime/client/remote-functions/query-batch.svelte.js	mismatch
 svelte/sveltekit/packages/kit/src/runtime/components/root.svelte	mismatch
-svelte/syntaxfm-website/src/lib/MadCSS.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/extras/cube-camera/App.svelte	mismatch
 svelte/threlte/packages/extras/src/lib/components/GLTF/GLTF.svelte	mismatch
 svelte/threlte/packages/extras/src/lib/components/Instancing/InstancedMeshes/InstancedMeshes.svelte	mismatch
