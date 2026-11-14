@@ -124,7 +124,7 @@ impl Task for Lint {
         // refused.
         let parse_error = || match context.get::<rsvelte_svelte_syntax::Parsed>() {
             Err(error) => Some(error.clone()),
-            Ok(_) => rsvelte_svelte_compile::javascript_error(context),
+            Ok(_) => rsvelte_svelte_semantic::javascript_error(context),
         };
         if rsvelte_svelte_syntax::matches(context.document)
             && let Some(error) = parse_error()
