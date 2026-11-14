@@ -14,10 +14,10 @@
 async () => {
   {
     svelteHTML.createElement("p", {});
-    JSON.stringify(start);
-    f();
-    eager;
-    pending;
+    (JSON.stringify(start));
+    (f());
+    (eager);
+    (pending);
   }
 };
 const ServerRuneDeclarators__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

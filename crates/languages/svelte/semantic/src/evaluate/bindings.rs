@@ -52,12 +52,11 @@ impl Evaluator<'_> {
                 return;
             }
             if let Some(initializer) = self.res.initializer(symbol) {
-                // Cycles follow bindings, not the acyclic expression tree.
+                // Cycles follow bindings, not the acyclic expression tree. Upstream's evaluation
+                // of an initializer already in progress adds no value, so a cycle stays known.
                 if self.in_progress.insert(symbol.index()) {
                     self.eval_into(initializer, values);
                     self.in_progress.remove(symbol.index());
-                } else {
-                    add(values, Value::Unknown);
                 }
                 return;
             }

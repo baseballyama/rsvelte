@@ -7,12 +7,12 @@ async () => {
     svelteHTML.createElement("svelte:window", {});
     __sveltets_2_ensureType(String, Number, c);
     __sveltets_2_ensureTransition(fade(svelteHTML.mapElementTag("svelte:window")));
-    x;
+    (x);
   }
   {
     svelteHTML.createElement("svelte:body", {});
     __sveltets_2_ensureType(String, Number, c);
-    b;
+    (b);
   }
 };
 const GlobalElementDirectives__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

@@ -26,7 +26,7 @@ async () => {
   }
   {
     svelteHTML.createElement("my-el", {});
-    c;
+    (c);
   }
   {
     svelteHTML.createElement("my-el", {

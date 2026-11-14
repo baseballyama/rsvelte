@@ -89,17 +89,17 @@ impl Printer<'_> {
                 self.program_end();
             }
             Node::Source(expression) => self.source_expression(expression),
-            // svelte2tsx writes the expression bare, so TypeScript reads a leading word such as
-            // `accessor` or `function` as the start of a statement.
             Node::Expression(value) => {
+                self.output.push("(");
                 self.source_expression(value);
-                self.output.push(";\n");
+                self.output.push(");\n");
             }
             Node::Statement(expression) => {
                 self.node(expression);
                 self.output.push(";\n");
             }
             Node::Identifier(name) => self.output.push(name),
+            Node::AnyComponent => self.output.push("__rsvelte_any_component"),
             Node::StringLiteralAt { value, at } => {
                 let start = self.output.out.len() as u32;
                 self.node_string_literal(value);
@@ -288,19 +288,8 @@ impl Printer<'_> {
             Node::Render {
                 type_parameters,
                 body,
-            } => {
-                self.output.push("function $$render<");
-                match type_parameters {
-                    TypeParameters::Attribute(span) => self.output.copy(self.source, span),
-                    TypeParameters::Declared(_) => {
-                        let parameters = self.type_parameters(type_parameters);
-                        self.output.push(&parameters);
-                    }
-                }
-                self.output.push(">() {\n");
-                self.body(body);
-                self.output.push("}\n");
-            }
+                name,
+            } => self.render(type_parameters, body, name),
             Node::Return(value) => {
                 self.output.push("return ");
                 self.node(value);
@@ -328,6 +317,26 @@ impl Printer<'_> {
             }
             _ => unreachable!("ordinary nodes are printed by node"),
         }
+    }
+
+    /// svelte2tsx's `function $$render<type parameters>() { body }`.
+    fn render(&mut self, type_parameters: TypeParameters, body: Range, name: Option<Span>) {
+        self.output.push("function ");
+        match name {
+            Some(name) => self.output.atom("$$render", name),
+            None => self.output.push("$$render"),
+        }
+        self.output.push("<");
+        match type_parameters {
+            TypeParameters::Attribute(span) => self.output.copy(self.source, span),
+            TypeParameters::Declared(_) => {
+                let parameters = self.type_parameters(type_parameters);
+                self.output.push(&parameters);
+            }
+        }
+        self.output.push(">() {\n");
+        self.body(body);
+        self.output.push("}\n");
     }
 
     /// `const name = value;` or `type name = value;`.

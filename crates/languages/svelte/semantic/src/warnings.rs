@@ -37,6 +37,7 @@ use exports::unused_exports;
 use found::Found;
 pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
 pub use runes::dollar_name_errors;
+pub(crate) use runes::svelte_option;
 use runes::{custom_element, rune_placement, runes};
 use selectors::unused_selectors;
 use template::Template;
@@ -51,6 +52,8 @@ pub struct CompileWarnings {
     pub errors: Vec<(Raised, Diagnostic)>,
     /// The `await`s that are `experimental_async` errors unless that option is on.
     pub awaits: Vec<Span>,
+    /// Whether the compiler is in runes mode, given or inferred.
+    pub runes: bool,
 }
 
 /// When the compiler raises an error: it creates every scope before it walks any tree, and it
@@ -106,6 +109,17 @@ impl CompileWarnings {
         component: &Component,
         experimental_async: bool,
     ) -> Option<Diagnostic> {
+        self.first_error_with(component, experimental_async, &[])
+    }
+
+    /// [`Self::first_error`] among these and the `others` that the compiler raises besides.
+    #[must_use]
+    pub fn first_error_with(
+        &self,
+        component: &Component,
+        experimental_async: bool,
+        others: &[(Raised, Diagnostic)],
+    ) -> Option<Diagnostic> {
         let awaits = self
             .awaits
             .iter()
@@ -121,6 +135,7 @@ impl CompileWarnings {
         let (_, first) = self
             .errors
             .iter()
+            .chain(others)
             .map(|(raised, error)| (*raised, Ok(error)))
             .chain(awaits)
             .min_by_key(|(raised, _)| *raised)?;
@@ -280,7 +295,7 @@ impl Options {
     /// `<svelte:options>` names `tag` or `customElement`.
     #[must_use]
     pub fn linting(component: &Component, source: &str) -> Self {
-        let names = |name| runes::svelte_option(component, source, name).is_some();
+        let names = |name| svelte_option(component, source, name).is_some();
         Self {
             runes: None,
             custom_element: names("tag") || names("customElement"),
@@ -306,6 +321,7 @@ pub fn warnings(
     };
     deprecated_tag(component, source, &mut out.errors);
     let runes = runes(component, resolution, source, &out.awaits, options.runes);
+    out.runes = runes;
     out.errors.extend(dollar_name_errors(
         &component.javascript,
         component.instance.as_ref().map(|s| s.program),
@@ -317,7 +333,7 @@ pub fn warnings(
         rune_placement(component, resolution, &mut out.errors);
     }
     let mut found = Found::default();
-    let custom_options = runes::svelte_option(component, source, "customElement").is_some();
+    let custom_options = svelte_option(component, source, "customElement").is_some();
     let none = rustc_hash::FxHashMap::default();
     let exported = if runes {
         resolution.exported_by_specifier()
@@ -414,6 +430,7 @@ pub fn module_warnings(
     CompileWarnings {
         ignored: ignore::ignored(&found, &regions),
         warnings: found.into_iter().map(|(_, warning)| warning).collect(),
+        runes: true,
         ..CompileWarnings::default()
     }
 }

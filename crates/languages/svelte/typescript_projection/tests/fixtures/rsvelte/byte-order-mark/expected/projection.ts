@@ -5,7 +5,7 @@ let x: number = "a";
 async () => {
   {
     svelteHTML.createElement("p", {});
-    x;
+    (x);
   }
 };
 const ByteOrderMark__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

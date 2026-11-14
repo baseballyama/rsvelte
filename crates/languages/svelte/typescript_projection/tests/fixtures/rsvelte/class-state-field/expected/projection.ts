@@ -13,7 +13,7 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => counter.count++,
     });
-    counter.count;
+    (counter.count);
   }
 };
 const ClassStateField__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

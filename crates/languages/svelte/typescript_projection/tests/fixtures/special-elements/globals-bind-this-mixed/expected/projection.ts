@@ -10,7 +10,7 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    n;
+    (n);
   }
 };
 const GlobalsBindThisMixed__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

@@ -39,7 +39,7 @@ async () => {
       });
       {
         svelteHTML.createElement("b", {});
-        c;
+        (c);
       }
     }
   }

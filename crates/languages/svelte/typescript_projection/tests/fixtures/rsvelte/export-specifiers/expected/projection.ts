@@ -25,9 +25,9 @@ const __rsvelte_public_props0 = __rsvelte_props({
 async () => {
   {
     svelteHTML.createElement("p", {});
-    s;
-    l;
-    a;
+    (s);
+    (l);
+    (a);
   }
 };
 const ExportSpecifiers__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {

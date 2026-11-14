@@ -12,6 +12,10 @@ fn rules_acorn_does_not_check_parse_in_every_host() {
         // TS1263 and TS5085.
         "<script lang=\"ts\">let x!: number = 1;</script>",
         "<script lang=\"ts\">type T = [...a?: string[]];</script>",
+        // TS1308, which the compiler raises where acorn reads the `await`; a script is a module.
+        "<script lang=\"ts\">enum E { A = await (f()) }</script>",
+        "<script lang=\"ts\">function g() { await (f()); }</script>",
+        "<script>function g() { await (f()); }</script>",
     ] {
         assert!(parse(source).is_ok(), "{source}");
     }

@@ -32,11 +32,11 @@ async () => {
   }
   {
     for (let [, item] of __rsvelte_each(items)) {
-      item.key;
+      (item.key);
       {
         svelteHTML.createElement("span", {});
         __sveltets_2_ensureType(String, Number, `${f(item.x)}px`);
-        item.k;
+        (item.k);
       }
     }
   }

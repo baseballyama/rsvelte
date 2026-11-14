@@ -13,7 +13,7 @@ async () => {
   {
     {
       svelteHTML.createElement("p", {});
-      count;
+      (count);
     }
     try {
       const __rsvelte_awaited = await (load(count));
@@ -21,14 +21,14 @@ async () => {
         const value = __rsvelte_awaited;
         {
           svelteHTML.createElement("p", {});
-          value;
+          (value);
         }
       }
     } catch (__rsvelte_error) {
       const error = __rsvelte_untyped_prop();
       {
         svelteHTML.createElement("p", {});
-        error.message;
+        (error.message);
       }
     }
   }
@@ -38,8 +38,8 @@ async () => {
       const { name, size = 1 } = __rsvelte_awaited;
       {
         svelteHTML.createElement("b", {});
-        name;
-        size;
+        (name);
+        (size);
       }
     }
   }
@@ -50,7 +50,7 @@ async () => {
       const e = __rsvelte_untyped_prop();
       {
         svelteHTML.createElement("i", {});
-        e;
+        (e);
       }
     }
   }

@@ -1,0 +1,2 @@
+error bind_invalid_value 1:20-1:25 Can only bind to state or props
+    https://svelte.dev/e/bind_invalid_value

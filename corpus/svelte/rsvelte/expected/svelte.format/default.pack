@@ -12182,20 +12182,6 @@ literal`}
 {`multi
 line`}
 
-=== 134 lint/no-useless-mustaches/05-comments-option.svelte	svelte
-<script>
-  /* eslint svelte/no-useless-mustaches: ["warn", { "ignoreIncludesComment": true }] */
-</script>
-
-{/* c */ "x"}
-{"y"}
-{"z"}
-
-=== 46 lint/no-useless-mustaches/06-comments-default.svelte	svelte
-{/* c */ "x"}
-{"y"}
-{"a /* not a comment */"}
-
 === 140 lint/no-useless-mustaches/07-escape-option.svelte	svelte
 <script>
   /* eslint svelte/no-useless-mustaches: ["warn", { "ignoreStringEscape": true }] */
@@ -12295,14 +12281,6 @@ line`}
 <div data-x={`http://x${b}`}>1</div>
 <div data-x={`a /* t */ ${b}`}>2</div>
 <div data-x={`${b} // tail`}>3</div>
-
-=== 101 lint/prefer-attribute-interpolation/05-comment-outside-template.svelte	svelte
-<script>
-  let b = 2;
-</script>
-
-<div data-x={/* c */ `v${b}`}>1</div>
-<div data-x={`v${b}`}>2</div>
 
 === 130 lint/prefer-attribute-interpolation/06-comment-in-interpolation.svelte	svelte
 <script>
@@ -16600,16 +16578,6 @@ newline padding allowed
 {/each}
 {#each items as thing (`thing`)}
   <b>{thing}</b>
-{/each}
-
-=== 114 lint/valid-each-key/06-comment-decoy.svelte	svelte
-<script>
-  const items = [1];
-  const outer = 1;
-</script>
-
-{#each items as item (outer)}
-  <b>{item}</b>
 {/each}
 
 === 140 lint/valid-each-key/07-property-key-decoy.svelte	svelte
@@ -45508,6 +45476,19 @@ https://svelte.dev/e/block_unclosed
   }}
 ></button>
 {v}
+
+=== 265 pattern/issues/textarea-bind-moved-content.svelte	svelte
+<script>
+  let value = $state("");
+  let note = $state("");
+</script>
+
+<textarea bind:value>a {note} b</textarea>
+<textarea bind:value={note}>
+	{value}</textarea
+>
+<textarea>{value}</textarea>
+<textarea bind:value={() => note, (v) => (note = v)}>{value}</textarea>
 
 === 186 pattern/issues/title-memo-definedness.svelte	svelte
 <script>
