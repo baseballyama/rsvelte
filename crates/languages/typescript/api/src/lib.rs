@@ -24,6 +24,8 @@ pub struct Project {
     pub id: ProjectId,
     /// The root files the tsconfig names, after its `files`, `include` and `exclude`.
     pub root_files: Vec<PathBuf>,
+    /// `compilerOptions.paths` after `extends`, each target an absolute path.
+    pub paths: Vec<(String, Vec<PathBuf>)>,
 }
 
 /// How requests name a project: TypeScript 7.1 beta and tsrs by its `id`, later 7.1 builds by a
@@ -110,6 +112,27 @@ struct ProjectResponse {
 struct ParsedCommandLine {
     #[serde(rename = "fileNames", default)]
     file_names: Vec<PathBuf>,
+    #[serde(default)]
+    options: CompilerOptions,
+}
+
+#[derive(Deserialize, Default)]
+struct CompilerOptions {
+    #[serde(default)]
+    paths: std::collections::BTreeMap<String, Vec<String>>,
+    /// What a relative `paths` target starts from.
+    #[serde(rename = "pathsBasePath")]
+    paths_base: Option<PathBuf>,
+}
+
+impl CompilerOptions {
+    fn absolute_paths(&self) -> Vec<(String, Vec<PathBuf>)> {
+        let base = self.paths_base.as_deref().unwrap_or_else(|| Path::new(""));
+        self.paths
+            .iter()
+            .map(|(spec, targets)| (spec.clone(), targets.iter().map(|t| base.join(t)).collect()))
+            .collect()
+    }
 }
 
 /// Which diagnostics of a program to ask for.
@@ -239,6 +262,11 @@ impl Session {
                                 .parsed
                                 .as_ref()
                                 .map(|c| c.file_names.clone())
+                                .unwrap_or_default(),
+                            paths: p
+                                .parsed
+                                .as_ref()
+                                .map(|c| c.options.absolute_paths())
                                 .unwrap_or_default(),
                         })
                     })

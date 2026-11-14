@@ -146,12 +146,12 @@ impl Tsc {
         let mut session = Session::start(&self.checker.program, &self.checker.arguments, &root)
             .map_err(failed)?;
         // The project's own root files, as its tsconfig selects them; the overlay keeps them.
-        let mut roots = if let Some(base) = &base {
+        let (mut roots, project_paths) = if let Some(base) = &base {
             let project = session.open(&[base], &layer).map_err(failed)?.remove(0);
             session.release(project.snapshot).map_err(failed)?;
-            project.root_files
+            (project.root_files, project.paths)
         } else {
-            Vec::new()
+            (Vec::new(), Vec::new())
         };
         roots.extend(paths.iter().cloned());
         roots.extend(declarations);
@@ -159,7 +159,7 @@ impl Tsc {
         let config = overlay.join("tsconfig.json");
         layer.files.push((
             config.clone(),
-            tsconfig_json(base.as_deref(), req, &roots, &store),
+            tsconfig_json(base.as_deref(), req, &project_paths, &roots, &store),
         ));
         let project = session.open(&[&config], &layer).map_err(failed)?.remove(0);
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
@@ -201,9 +201,11 @@ impl Tsc {
     }
 }
 
+/// `project_paths`: the project's own `paths`, which the overlay's `paths` would otherwise replace.
 fn tsconfig_json(
     base: Option<&Path>,
     req: &CheckRequest,
+    project_paths: &[(String, Vec<PathBuf>)],
     roots: &[PathBuf],
     store: &Path,
 ) -> String {
@@ -219,6 +221,16 @@ fn tsconfig_json(
         .key("skipLibCheck")
         .write_boolean(true);
     w.key("paths").begin_object();
+    for (spec, targets) in project_paths {
+        if req.paths.iter().any(|(own, _)| own == spec) {
+            continue;
+        }
+        w.key(spec).begin_array();
+        for target in targets {
+            w.write_string(&target.to_string_lossy());
+        }
+        w.end_array();
+    }
     for (spec, file) in &req.paths {
         w.key(spec)
             .begin_array()
