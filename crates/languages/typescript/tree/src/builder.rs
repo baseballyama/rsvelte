@@ -7,7 +7,7 @@ use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::{Visit, VisitMut};
 use oxc_diagnostics::{Diagnostics, OxcDiagnostic};
 use oxc_parser::config::TokensParserConfig;
-use oxc_parser::{Kind, ParseOptions, Parser, Token};
+use oxc_parser::{Kind, Parser, Token};
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
@@ -151,11 +151,7 @@ impl<'a> Builder<'a> {
             type_parameters: self.type_parameters,
             comments: self.comments,
             acorn_rejection: self.acorn_rejection,
-            parentheses: {
-                let mut parentheses = self.parentheses;
-                parentheses.sort_unstable_by_key(|&(span, _)| (span.start, span.end));
-                parentheses
-            },
+            parentheses: self.parentheses,
         }
     }
 
@@ -205,7 +201,7 @@ impl<'a> Builder<'a> {
         source_type: SourceType,
     ) -> Result<ProgramIdentifier, SyntaxError> {
         let parsed = Parser::new(self.allocator, text, source_type)
-            .with_options(options())
+            .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .with_start(start)
             .parse();
@@ -272,7 +268,7 @@ impl<'a> Builder<'a> {
     ) -> Result<(Expression<'a>, u32), SyntaxError> {
         let text = &self.source_text[..limit as usize];
         let parsed = Parser::new(self.allocator, text, source_type)
-            .with_options(options())
+            .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_expression_at(start)
             .map_err(|errors| syntax_error(errors, text, start, 0))?;
@@ -311,7 +307,7 @@ impl<'a> Builder<'a> {
         source_type: SourceType,
     ) -> Result<(Statement<'a>, u32), SyntaxError> {
         let parsed = Parser::new(self.allocator, self.source_text, source_type)
-            .with_options(options())
+            .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_statement_at(start)
             .map_err(|errors| syntax_error(errors, self.source_text, start, 0))?;
@@ -461,10 +457,7 @@ impl<'a> Builder<'a> {
         self.wrapped.push_str(close);
         let text = self.allocator.alloc_str(&self.wrapped);
         let mut parsed = Parser::new(self.allocator, text, source_type)
-            .with_options(ParseOptions {
-                preserve_parens: parenthesized,
-                ..options()
-            })
+            .with_options(parentheses::options(parenthesized))
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
             .map_err(|errors| syntax_error(errors, text, 0, shift))?;
@@ -594,14 +587,4 @@ impl VisitMut<'_> for Shift {
 
 const fn span(span: oxc_span::Span, shift: u32) -> Span {
     Span::new(span.start + shift, span.end + shift)
-}
-
-/// `ESTree` has no parentheses, and the formatter requires that they are not kept. Regular
-/// expressions are validated, as acorn validates them.
-fn options() -> ParseOptions {
-    ParseOptions {
-        preserve_parens: false,
-        parse_regular_expression: true,
-        ..ParseOptions::default()
-    }
 }

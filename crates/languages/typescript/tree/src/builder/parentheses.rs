@@ -3,22 +3,36 @@
 use oxc_allocator::{Allocator, TakeIn};
 use oxc_ast::ast::Expression;
 use oxc_ast_visit::{VisitMut, walk_mut};
+use oxc_parser::ParseOptions;
 use oxc_span::GetSpan;
 
+/// `ESTree` has no parentheses, and the formatter requires that they are not kept, so a part
+/// keeps them only to [`strip`] them. Regular expressions are validated, as acorn validates them.
+pub(super) fn options(parenthesized: bool) -> ParseOptions {
+    ParseOptions {
+        preserve_parens: parenthesized,
+        parse_regular_expression: true,
+        ..ParseOptions::default()
+    }
+}
+
 /// Removes every parenthesized expression from `expression`, and records how many pairs wrapped
-/// each node that had any, at its span `shift` bytes later.
+/// each node that had any, at its span `shift` bytes later, in span order.
 pub(super) fn strip<'a>(
     allocator: &'a Allocator,
     expression: &mut Expression<'a>,
     shift: u32,
     recorded: &mut Vec<(oxc_span::Span, u8)>,
 ) {
+    let from = recorded.len();
     Strip {
         allocator,
         shift,
         recorded,
     }
     .visit_expression(expression);
+    // The parts come in document order, so sorting each keeps the whole list in order.
+    recorded[from..].sort_unstable_by_key(|&(span, _)| (span.start, span.end));
 }
 
 struct Strip<'a, 'r> {
