@@ -14,6 +14,7 @@ use rsvelte_kernel::source::positions::Span;
 
 mod parentheses;
 mod program;
+pub use program::Rejected;
 
 use crate::acorn_grammar::{Rejection, Unsupported, rejection};
 use crate::syntax_error::{Locator, SyntaxError, acorn, reported, syntax_error};
