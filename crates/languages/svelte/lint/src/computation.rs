@@ -174,7 +174,7 @@ fn same_named_file(context: &DocumentContext<'_>) -> Option<String> {
 /// Whether upstream finds a `PostCSS` configuration to transform a style in `postcss` with.
 ///
 /// Without one it compiles the component without that style. A host that knows its working
-/// directory can provide it; without a provider, [`PostcssConfigurationOnDisk`] searches as
+/// directory can provide it; without a provider, `PostcssConfigurationOnDisk` searches as
 /// `postcss-load-config` does. Only the rules that compile the component ask.
 #[derive(Debug)]
 pub struct PostcssConfiguration;
