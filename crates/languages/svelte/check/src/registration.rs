@@ -50,8 +50,10 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         typescript_view(context, env.as_ref())
     });
     reg.provide::<TypeScriptStandIn>("svelte", rsvelte_svelte_syntax::matches, |context| {
-        let component = context.get::<Parsed>().as_ref().ok()?;
-        rsvelte_svelte_typescript_projection::stand_in(component, &context.document.text)
+        let own = context.get::<Parsed>().as_ref().ok().and_then(|component| {
+            rsvelte_svelte_typescript_projection::stand_in(component, &context.document.text)
+        });
+        Some(own.unwrap_or_else(|| rsvelte_svelte_typescript_projection::STAND_IN.to_owned()))
     });
 }
 
