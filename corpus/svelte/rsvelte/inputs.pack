@@ -47287,6 +47287,18 @@ export function unbraced(cond) {
 <button onclick={() => { var v = 0; v--; base = (typeof v).length; }}></button>
 {v}
 
+=== 262 pattern/issues/textarea-bind-moved-content.svelte	svelte	runes	runes
+<script>
+	let value = $state('');
+	let note = $state('');
+</script>
+
+<textarea bind:value>a {note} b</textarea>
+<textarea bind:value={note}>
+	{value}</textarea>
+<textarea>{value}</textarea>
+<textarea bind:value={() => note, (v) => (note = v)}>{value}</textarea>
+
 === 180 pattern/issues/title-memo-definedness.svelte	svelte	runes	runes
 <script>
 	let value = $state('value');

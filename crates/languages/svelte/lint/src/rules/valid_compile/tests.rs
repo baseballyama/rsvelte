@@ -382,6 +382,9 @@ fn what_the_port_does_not_compile_is_no_error() {
 
 #[test]
 fn an_error_raised_only_while_generating_code_is_no_error() {
-    let code = "<svelte:options runes />\n<C>\n  {@const foo = 1}\n  {#snippet p()}{foo}{/snippet}\n</C>\n";
+    let code = concat!(
+        "<svelte:options runes />\n<C>\n  {@const foo = 1}\n",
+        "  {#snippet p()}{foo}{/snippet}\n</C>\n",
+    );
     assert_eq!(first_error(code), []);
 }
