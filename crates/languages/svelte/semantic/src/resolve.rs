@@ -16,7 +16,7 @@ use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 use rustc_hash::FxHashMap;
 
 use crate::compiler_syntax_tree::{
-    AttributeIdentifier, CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind,
+    AttributeIdentifier, CompilerNodeIdentifier, CompilerSyntaxTree,
 };
 
 mod classify;
@@ -161,14 +161,6 @@ fn resolve_scripts(
             scopes: RefCell::new(FxHashMap::default()),
         };
         let mut built = builder.build_with_host(root, &host);
-        if let Some(module) = module {
-            allow_snippet_exports(
-                tree,
-                tree.get_program(module),
-                compiler_syntax_tree,
-                &mut built,
-            );
-        }
         if let Some(instance) = nested_instance {
             imports::hoist(instance, built.semantic.scoping_mut());
         }
@@ -215,54 +207,6 @@ fn resolve_scripts(
             instance_scope,
         }
     }))
-}
-
-/// Svelte lets the module script export a snippet the template declares at its top level, which
-/// is no binding of the module's scope.
-fn allow_snippet_exports(
-    tree: &Tree,
-    module: &Program<'_>,
-    compiler_syntax_tree: &CompilerSyntaxTree,
-    built: &mut oxc_semantic::SemanticBuilderReturn<'_>,
-) {
-    // A nested snippet's export is upstream's `snippet_invalid_export`, which the compiler raises.
-    let snippets: Vec<&str> = compiler_syntax_tree
-        .nodes
-        .iter()
-        .filter_map(|node| match &node.kind {
-            NodeKind::Snippet(snippet) => match tree.get_expression(snippet.name) {
-                Expression::Identifier(name) => Some(name.name.as_str()),
-                _ => None,
-            },
-            _ => None,
-        })
-        .collect();
-    if snippets.is_empty() {
-        return;
-    }
-    let exported: Vec<u32> = module
-        .body
-        .iter()
-        .filter_map(|statement| match statement {
-            oxc_ast::ast::Statement::ExportNamedDeclaration(export) => Some(&export.specifiers),
-            _ => None,
-        })
-        .flatten()
-        .filter_map(|specifier| match &specifier.local {
-            oxc_ast::ast::ModuleExportName::IdentifierReference(local)
-                if snippets.contains(&local.name.as_str()) =>
-            {
-                Some(local.span.start)
-            }
-            _ => None,
-        })
-        .collect();
-    built.diagnostics.retain(|diagnostic| {
-        !diagnostic
-            .labels
-            .first()
-            .is_some_and(|label| exported.contains(&label.offset()))
-    });
 }
 
 /// The program a component without scripts resolves its template in.

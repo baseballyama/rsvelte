@@ -5,7 +5,7 @@ use oxc_ast::ast::{
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::{Visit, VisitMut};
-use oxc_diagnostics::{Diagnostics, OxcDiagnostic};
+use oxc_diagnostics::Diagnostics;
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, ParseOptions, Parser, Token};
 use oxc_span::SourceType;
@@ -13,7 +13,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
 use crate::acorn_grammar::{Rejection, Unsupported, rejection};
-use crate::syntax_error::{Locator, SyntaxError, acorn, acorn_accepts, syntax_error};
+use crate::syntax_error::{Locator, SyntaxError, acorn, reported, syntax_error};
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, Trees, TypeParametersIdentifier,
@@ -115,15 +115,8 @@ impl<'a> Builder<'a> {
         (part, source_type): (Part<'_, 'a>, SourceType),
     ) -> Result<(), SyntaxError> {
         let visit = |locator: &mut Locator| part.walk(locator);
-        let reported = |d: &OxcDiagnostic| {
-            let checked = d.code.scope.as_deref() != Some("TS")
-                || d.code
-                    .number
-                    .as_deref()
-                    .is_none_or(|n| !self.unchecked.contains(&n));
-            checked && !(self.as_acorn && acorn_accepts(d, visit))
-        };
-        let first = diagnostics.iter().position(reported);
+        let first = (diagnostics.iter())
+            .position(|error| reported(error, self.unchecked, self.as_acorn, visit));
         let stop = if self.as_acorn && (first.is_some() || self.acorn_rejection.is_none()) {
             let mut unsupported = Unsupported::new(source_type.is_typescript(), tokens);
             part.walk(&mut unsupported);
@@ -160,6 +153,8 @@ impl<'a> Builder<'a> {
             type_parameters: self.type_parameters,
             comments: self.comments,
             acorn_rejection: self.acorn_rejection,
+            unchecked: self.unchecked,
+            as_acorn: self.as_acorn,
         }
     }
 

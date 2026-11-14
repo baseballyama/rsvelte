@@ -101,16 +101,37 @@ impl Acorn {
     }
 }
 
-/// Whether acorn reads the text oxc rejects with `error` without failing, in the part whose tree
-/// `visit` walks.
+/// Whether a host reports `error`, in the part whose tree `visit` walks: not when its code is one
+/// of `unchecked`, the rules the host's parser does not check, nor, for a host that reads
+/// `as_acorn`, where acorn reads the text oxc rejects.
+pub(crate) fn reported(
+    error: &OxcDiagnostic,
+    unchecked: &[&str],
+    as_acorn: bool,
+    visit: impl FnOnce(&mut Locator),
+) -> bool {
+    let number = (error.code.scope.as_deref() == Some("TS"))
+        .then(|| error.code.number.as_deref())
+        .flatten();
+    number.is_none_or(|number| {
+        let accepted = as_acorn && acorn_accepts(error, number, visit);
+        !(unchecked.contains(&number) || accepted)
+    })
+}
+
+/// Whether acorn reads the text oxc rejects with `error`, whose code is `number`, without failing.
 #[cold]
-pub(crate) fn acorn_accepts(error: &OxcDiagnostic, visit: impl FnOnce(&mut Locator)) -> bool {
-    error.code.scope.as_deref() == Some("TS")
-        && error.code.number.as_deref() == Some("1047")
-        && error.labels.first().is_some_and(|label| {
-            let start = label.offset();
-            optional_rest(start, start + label.len(), visit) == Some(Ok(()))
-        })
+fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Locator)) -> bool {
+    let Some(label) = error.labels.first() else {
+        return false;
+    };
+    let (start, end) = (label.offset(), label.offset() + label.len());
+    match number {
+        "1047" => optional_rest(start, end, visit) == Some(Ok(())),
+        // acorn-typescript reads a class accessor without a body as a signature.
+        "1005" => locate(start, end, Find::BodilessAccessor, visit).is_some(),
+        _ => false,
+    }
 }
 
 /// What acorn reports for `error`, in the part whose text is `text`, whose tokens are `tokens` and
@@ -165,13 +186,6 @@ pub(crate) fn acorn(
         "1005" => Some(fails("Unexpected token", token(start, None)?)),
         "1212" => Some(Acorn::Fails {
             message: Cow::Owned(error.message.to_string()),
-            at: start,
-        }),
-        "1100" => Some(Acorn::Fails {
-            message: Cow::Owned(format!(
-                "Assigning to {} in strict mode",
-                text.get(start as usize..end as usize)?
-            )),
             at: start,
         }),
         "1049" => Some(fails("setter should have exactly one param", start)),
@@ -265,6 +279,34 @@ fn early_error(
             second()?.0,
         )),
         "1117" => Some(fails("Redefinition of __proto__ property", second()?.0)),
+        // acorn tells a name declared from a name assigned to.
+        "1100" => {
+            let name = text.get(start as usize..end as usize)?;
+            let mut locator = Locator::new(start, end, Find::Binding);
+            visit(&mut locator);
+            let message = if locator.found.is_some() && locator.declares {
+                format!("Binding {name} in strict mode")
+            } else {
+                format!("Assigning to {name} in strict mode")
+            };
+            Some(Acorn::Fails {
+                message: Cow::Owned(message),
+                at: start,
+            })
+        }
+        // acorn reports a private name no class around declares in one message, inside a class
+        // or outside one.
+        "1111" | "18016" => Some(Acorn::Fails {
+            message: Cow::Owned(format!(
+                "Private field '{}' must be declared in an enclosing class",
+                text.get(start as usize..end as usize)?
+            )),
+            at: start,
+        }),
+        "18037" | "18054" => Some(fails(
+            "Cannot use await in class static initialization block",
+            start,
+        )),
         // acorn-typescript reports an abstract member at its start.
         "1244" | "1253" => Some(fails(
             "Abstract methods can only appear within an abstract class.",
@@ -335,6 +377,10 @@ pub struct Locator {
     find: Find,
     found: Option<(u32, AstType)>,
     rest: AroundRest,
+    /// Whether acorn reads the label as a name declared, for [`Find::Binding`]: in a script, a
+    /// function or a parameter list. A template's pattern and `{@const}` are none of these, and
+    /// upstream hands each to acorn as the target of an assignment.
+    declares: bool,
 }
 
 /// What decides how acorn reads an optional rest element, from the nodes around it.
@@ -379,6 +425,10 @@ enum Find {
     Member,
     /// What decides how acorn reads the rest element whose `?` is the label.
     OptionalRest,
+    /// The name the label is, where oxc's tree declares one.
+    Binding,
+    /// The class accessor without a body whose key is the label.
+    BodilessAccessor,
     /// The `break` or `continue` statement around the label.
     Jump,
     /// The `delete` around the label.
@@ -396,6 +446,7 @@ impl Locator {
             label: oxc_span::Span::new(start, end),
             find,
             found: None,
+            declares: false,
             rest: AroundRest {
                 ambient: false,
                 reading: Reading::Binding,
@@ -446,6 +497,18 @@ impl Locator {
     /// Takes in a node of the walk, outer nodes before inner ones.
     pub fn enter(&mut self, kind: AstKind<'_>) {
         let around = kind.span().contains_inclusive(self.label);
+        if matches!(self.find, Find::Binding)
+            && around
+            && matches!(
+                kind,
+                AstKind::Program(_)
+                    | AstKind::Function(_)
+                    | AstKind::ArrowFunctionExpression(_)
+                    | AstKind::FormalParameters(_)
+            )
+        {
+            self.declares = true;
+        }
         if matches!(self.find, Find::OptionalRest) {
             if around {
                 self.enter_around_rest(kind);
@@ -465,6 +528,16 @@ impl Locator {
             }
             (Find::OperandEnd, AstKind::TSSatisfiesExpression(it)) if it.span == self.label => {
                 it.expression.span().end
+            }
+            (Find::Binding, AstKind::BindingIdentifier(it)) if it.span == self.label => {
+                it.span.start
+            }
+            (Find::BodilessAccessor, AstKind::MethodDefinition(it))
+                if it.key.span() == self.label
+                    && it.kind.is_accessor()
+                    && it.value.body.is_none() =>
+            {
+                it.span.start
             }
             (Find::Function, AstKind::Function(_) | AstKind::ArrowFunctionExpression(_))
             | (
