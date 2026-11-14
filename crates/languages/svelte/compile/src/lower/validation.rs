@@ -3,10 +3,12 @@ use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
 use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature};
 
+mod awaits;
 mod declarations;
 pub(super) mod markup;
 mod runes;
 
+pub(super) use awaits::check as check_awaits;
 use runes::script_and_template_errors;
 pub(super) use runes::{check_runes, rejects_binding, script_error};
 

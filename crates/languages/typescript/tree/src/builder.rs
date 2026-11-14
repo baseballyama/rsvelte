@@ -5,7 +5,7 @@ use oxc_ast::ast::{
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::{Visit, VisitMut};
-use oxc_diagnostics::{Diagnostics, OxcDiagnostic};
+use oxc_diagnostics::Diagnostics;
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, Parser, Token};
 use oxc_span::SourceType;
@@ -14,8 +14,8 @@ use rsvelte_kernel::source::positions::Span;
 
 mod parentheses;
 
-use crate::acorn_grammar::{Rejection, Unsupported};
-use crate::syntax_error::{Locator, SyntaxError, acorn, syntax_error};
+use crate::acorn_grammar::{Rejection, Unsupported, rejection};
+use crate::syntax_error::{Locator, SyntaxError, acorn, reported, syntax_error};
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, Trees, TypeParametersIdentifier,
@@ -102,9 +102,10 @@ impl<'a> Builder<'a> {
         self.unchecked = codes;
     }
 
-    /// Records where acorn first stops in syntax oxc parses and acorn does not, for a host whose
-    /// compiler parses with acorn; [`crate::Tree::acorn_rejection`] reads it.
-    pub const fn note_what_acorn_rejects(&mut self) {
+    /// Reads the parts as acorn, which the host's compiler parses with: lets pass an error where
+    /// acorn reads the text, and records where acorn first stops in syntax oxc parses, which
+    /// [`crate::Tree::acorn_rejection`] reads.
+    pub const fn read_as_acorn(&mut self) {
         self.as_acorn = true;
     }
 
@@ -117,25 +118,30 @@ impl<'a> Builder<'a> {
         tokens: &[Token],
         (part, source_type): (Part<'_, 'a>, SourceType),
     ) -> Result<(), SyntaxError> {
-        let reported = |d: &OxcDiagnostic| {
-            d.code.scope.as_deref() != Some("TS")
-                || d.code
-                    .number
-                    .as_deref()
-                    .is_none_or(|n| !self.unchecked.contains(&n))
+        let visit = |locator: &mut Locator| part.walk(locator);
+        let first = (diagnostics.iter())
+            .position(|error| reported(error, self.unchecked, self.as_acorn, visit));
+        let stop = if self.as_acorn && (first.is_some() || self.acorn_rejection.is_none()) {
+            let mut unsupported = Unsupported::new(source_type.is_typescript(), tokens);
+            part.walk(&mut unsupported);
+            unsupported.first.map(|(at, why)| (at + shift, why))
+        } else {
+            None
         };
-        if let Some(first) = diagnostics.iter().position(reported) {
-            let visit = |locator: &mut Locator| part.walk(locator);
+        if let Some(first) = first {
             let acorn = acorn(&diagnostics[first], text, tokens, visit);
             let errors = diagnostics.into_iter().skip(first);
             let mut error = syntax_error(errors, text, fallback, shift);
             error.acorn = acorn.map(|acorn| acorn.shifted(shift));
-            return Err(error);
+            // acorn throws where it stops first, before an error oxc reports later or at the same
+            // place.
+            return Err(match stop {
+                Some(stop) if stop.0 <= error.acorn_at() => rejection(stop),
+                _ => error,
+            });
         }
-        if self.as_acorn && self.acorn_rejection.is_none() {
-            let mut unsupported = Unsupported::new(source_type.is_typescript(), tokens);
-            part.walk(&mut unsupported);
-            self.acorn_rejection = unsupported.first.map(|(at, why)| (at + shift, why));
+        if self.acorn_rejection.is_none() {
+            self.acorn_rejection = stop;
         }
         Ok(())
     }
@@ -152,6 +158,8 @@ impl<'a> Builder<'a> {
             comments: self.comments,
             acorn_rejection: self.acorn_rejection,
             parentheses: self.parentheses,
+            unchecked: self.unchecked,
+            as_acorn: self.as_acorn,
         }
     }
 
@@ -572,6 +580,7 @@ fn refused(message: &str, span: Span) -> SyntaxError {
     SyntaxError {
         diagnostic: Diagnostic::error("parse_error", message, span),
         acorn: None,
+        typescript_code: None,
     }
 }
 

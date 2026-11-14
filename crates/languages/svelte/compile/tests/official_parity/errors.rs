@@ -442,3 +442,102 @@ fn a_reactive_statement_in_the_instance_raises_upstreams_error() {
     let module = "<script module>let a = 1; $: b = a;</script>";
     assert_eq!(compile(module, Target::Client).err(), None);
 }
+
+#[test]
+fn an_await_outside_an_async_function_raises_acorns_error_where_acorn_reads_one() {
+    let error = |source| compile_at(source, Target::Client).err();
+    let parse_error = |at| Some(("js_parse_error".to_owned(), (at, at)));
+    // From svelte 5.57.3, at the `await`: a class field's initializer, a function and its
+    // parameters, an arrow in the template.
+    assert_eq!(
+        error("<script>class A { x = await (f()); }</script>"),
+        parse_error(22)
+    );
+    assert_eq!(
+        error("<script lang=\"ts\">class A { x = await (f()); }</script>"),
+        parse_error(32)
+    );
+    assert_eq!(
+        error("<script lang=\"ts\">class A { accessor x = await (f()); }</script>"),
+        parse_error(41)
+    );
+    assert_eq!(
+        error("<script>function g() { await f(); }</script>"),
+        parse_error(23)
+    );
+    assert_eq!(
+        error("<script>function g(x = await f()) {}</script>"),
+        parse_error(23)
+    );
+    assert_eq!(
+        error("<script>let a = (x) => await [x];</script>"),
+        parse_error(23)
+    );
+    assert_eq!(
+        error("<script>let a;</script>{() => await a}"),
+        parse_error(30)
+    );
+    // The script's error comes before the enum's, which upstream raises when it erases types.
+    assert_eq!(
+        error("<script lang=\"ts\">function g() { await (f()); }\nenum E { A }</script>"),
+        parse_error(33)
+    );
+    // Acorn reads an enum's member as TypeScript, where it may await.
+    assert_eq!(
+        error("<script lang=\"ts\">enum E { A = await (f()) }</script>"),
+        Some(("typescript_invalid_feature".to_owned(), (18, 44)))
+    );
+    assert_eq!(
+        error(
+            "<script>const g = async () => { class A { m() { return 1; } } await f(); \
+             };</script>"
+        ),
+        None
+    );
+}
+
+#[test]
+fn a_typescript_feature_is_refused_before_the_template_is_analyzed() {
+    assert_eq!(
+        compile_at(
+            "<script lang=\"ts\">enum E { A }</script>\n<svelte:window bind:foo={x} />",
+            Target::Client
+        )
+        .err(),
+        Some(("typescript_invalid_feature".to_owned(), (18, 30)))
+    );
+}
+
+#[test]
+fn a_default_export_is_refused_before_the_typescript_it_holds() {
+    assert_eq!(
+        compile_at(
+            "<script lang=\"ts\">export default class { @dec m() {} };</script>",
+            Target::Client
+        )
+        .err(),
+        Some(("module_illegal_default_export".to_owned(), (18, 54)))
+    );
+}
+
+#[test]
+fn a_decorator_or_an_accessor_field_in_a_plain_script_stops_where_acorn_stops() {
+    // acorn stops at a decorator's `@`, and reads `accessor` as a field name and stops after it.
+    for (source, at) in [
+        ("<script>class C { @dec m() {} }</script>", "@dec"),
+        ("<script>class C { accessor a = 1; }</script>", "a = 1"),
+        (
+            "<script>class C { static accessor #a = 1; }</script>",
+            "#a = 1",
+        ),
+    ] {
+        let at = source.find(at).expect("stop") as u32;
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(
+                compile_at(source, target).map(|_| ()),
+                Err(("js_parse_error".to_owned(), (at, at))),
+                "{source} on {target:?}"
+            );
+        }
+    }
+}

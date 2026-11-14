@@ -105,7 +105,9 @@ impl Task for CountCoverage {
         match context.get::<Printed>() {
             Ok(projection) => {
                 let allocator = Allocator::default();
-                let result = Parser::new(&allocator, &projection.out, SourceType::ts()).parse();
+                // The projection exports its component, so it is a module.
+                let source_type = SourceType::ts().with_module(true);
+                let result = Parser::new(&allocator, &projection.out, source_type).parse();
                 let source = context.source_text();
                 let generics = component
                     .instance
@@ -113,6 +115,7 @@ impl Task for CountCoverage {
                     .flat_map(|script| &script.attributes)
                     .find(|(name, _)| name.text(source) == "generics")
                     .and_then(|&(_, value)| value);
+                let own = script_errors(component, source);
                 // The projection keeps the script's own grammar, which may break these rules.
                 let added = result.diagnostics.iter().any(|d| {
                     let unchecked = d.code.scope.as_deref() == Some("TS")
@@ -142,7 +145,14 @@ impl Task for CountCoverage {
                                         && label.offset() + label.len() <= list.end
                                 })
                         });
-                    !unchecked && !in_generics
+                    !unchecked
+                        && !in_generics
+                        && !script_error(
+                            d.code.number.as_deref(),
+                            d.labels.first().map(oxc_span::LabeledSpan::offset),
+                            &own,
+                            &projection.mappings,
+                        )
                 });
                 if added {
                     self.0
@@ -171,6 +181,54 @@ impl Task for CountCoverage {
             Err(_) => count(&self.0.unsupported),
         };
     }
+}
+
+/// The tsc code and source offset of each error oxc reports in the component's scripts, read as
+/// the TypeScript the projection is.
+fn script_errors(
+    component: &rsvelte_svelte_syntax::syntax_tree::Component,
+    source: &str,
+) -> Vec<(String, u32)> {
+    let scripts = component.module.iter().chain(&component.instance);
+    scripts
+        .flat_map(|script| {
+            let allocator = Allocator::default();
+            let text = script.content.text(source);
+            let source_type = SourceType::ts().with_module(true);
+            let result = Parser::new(&allocator, text, source_type).parse();
+            (result.diagnostics.into_iter())
+                .filter_map(|d| {
+                    let label = d.labels.first()?;
+                    Some((
+                        d.code.number.as_deref()?.to_owned(),
+                        script.content.start_offset + label.offset(),
+                    ))
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+/// Whether the projection's error with code `number` at `offset` is one of `own`, the scripts'
+/// own errors: it has the code of one and lies where the mappings copy that one's place.
+fn script_error(
+    number: Option<&str>,
+    offset: Option<u32>,
+    own: &[(String, u32)],
+    mappings: &[rsvelte_kernel::output::emitter::Mapping],
+) -> bool {
+    let Some((number, generated)) = number.zip(offset) else {
+        return false;
+    };
+    let Some(copy) = mappings
+        .iter()
+        .find(|m| (m.generated..m.generated + m.len).contains(&generated))
+    else {
+        return false;
+    };
+    let at = copy.source_text + (generated - copy.generated);
+    own.iter()
+        .any(|(code, offset)| code == number && *offset == at)
 }
 
 /// Why the token table is not the source byte for byte, or a trivia token holds what its kind

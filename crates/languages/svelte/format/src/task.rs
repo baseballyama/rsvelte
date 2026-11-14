@@ -63,7 +63,7 @@ impl Task for Format {
         let rejected = context
             .get::<rsvelte_svelte_semantic::Resolved>()
             .as_ref()
-            .and_then(|resolution| resolution.syntax_error());
+            .and_then(|resolution| resolution.javascript_syntax_error());
         match formatted(c, context.source_text(), &self.options, rejected) {
             Ok(text) => out.file("svelte", text),
             Err(diagnostic) => out.diagnostics.push(diagnostic),
@@ -86,7 +86,7 @@ fn formatted(
     component: &Component,
     source_text: &str,
     options: &Options,
-    rejected: Option<&Diagnostic>,
+    rejected: Option<&rsvelte_typescript_tree::SyntaxError>,
 ) -> Result<String, Diagnostic> {
     crate::format::format(component, source_text, options, rejected).map_err(|u| {
         Diagnostic::error(
