@@ -2,9 +2,9 @@
 
 const t = (p, v = p(), w = f(), z = (() => 2)()): ReturnType<import('svelte').Snippet> => {
   async () => {
-    (v);
-    (w);
-    (z);
+    v;
+    w;
+    z;
   };
   return __rsvelte_snippet_return;
 };

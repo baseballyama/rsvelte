@@ -17,8 +17,8 @@
 async () => {
   {
     svelteHTML.createElement("p", {});
-    (label);
-    (count);
+    label;
+    count;
   }
 };
 const ModuleImports__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

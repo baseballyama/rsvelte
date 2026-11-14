@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .key("status")
                             .write_string("unsupported")
                             .key("detail")
-                            .write_string(error.what);
+                            .write_string(error.what());
                     }
                     Ok(tree) => {
                         let projection = rsvelte_svelte_typescript_projection::emit(&tree, &source);

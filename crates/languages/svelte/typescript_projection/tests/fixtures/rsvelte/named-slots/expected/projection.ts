@@ -21,9 +21,9 @@ async () => {
       svelteHTML.createElement("div", {
         "slot": "a",
       });
-      (x);
+      x;
     }
-    (x);
+    x;
     {
       __rsvelte_component(C)(__rsvelte_internals(), {
         "slot": "1",
@@ -34,7 +34,7 @@ async () => {
       svelteHTML.createElement("span", {
         "slot": "0",
       });
-      (x);
+      x;
     }
     C;
   }
@@ -46,7 +46,7 @@ async () => {
       });
       {
         svelteHTML.createElement("span", {});
-        (x);
+        x;
       }
     }
     {
@@ -68,7 +68,7 @@ async () => {
     });
     {
       svelteHTML.createElement("svelte:fragment", {});
-      (x);
+      x;
     }
     C;
   }

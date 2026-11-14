@@ -2437,6 +2437,146 @@
 "svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
 
+["svelte/rsvelte-tests-core-2/keyframe_percentage_scoping/a_top_level_step_scopes_every_element/706368196c7e4643.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 css-prune matches a @keyframes step such as 0% as a selector that every element satisfies, so it gives every element the scoping class though no rule uses it"
+
+["svelte/rsvelte-tests-core-2/keyframe_percentage_scoping/a_step_under_an_at_rule_scopes_every_element/2a3cfd5ac73bdf57.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 css-prune matches a @keyframes step such as 0% as a selector that every element satisfies, so it gives every element the scoping class though no rule uses it"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/6e19c2606f952300.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 apply_selector scopes the elements of a partial match even when the whole selector fails, so elements get the scoping class of a selector it reports unused and removes"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/d194f58883e60cf4.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 apply_selector scopes the elements of a partial match even when the whole selector fails, so elements get the scoping class of a selector it reports unused and removes"
+
+["svelte/rsvelte-tests-core-1/css_is_where_branch/is_descendant_no_match_reports_whole/c9eaf32a044209cb.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 apply_selector scopes the elements of a partial match even when the whole selector fails, so elements get the scoping class of a selector it reports unused and removes"
+
+["svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/0d00c068ccca4cea.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/148e1f2f7435ded8.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/73a10a2fef873026.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/9f5cf48cdd4d0a71.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/02b8bd4a8ab920ef.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/08ce42869b21def9.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/107eb7ce6783b87f.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/234dc959b53ad977.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/3cf7b596d370436e.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/41672ad9acf8d9aa.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/44bd7f37829919f3.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/4a73a43dffe334eb.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5002f20344e50a2e.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5278cf1d23460451.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/55601ae2614c6b53.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5f9f85a4472d151b.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/7f2e247324af9c81.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/8bae3f89d57dd71c.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/9d297f9dc6127645.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/cb80ba7928fe889b.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/cc78e710c686d5e0.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-3/svelte_options_validation_3324_3325/svelte_options_grid_matches_official/e38cd649906cd769.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-1/custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/3ba1c33cb1ffa0f4.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-1/custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/871423b006a5dcd9.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
+["svelte/rsvelte-tests-core-1/custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/e0eea289ca0c9bbf.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.check" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+"svelte.lint" = "upstream bug: svelte 5.57.3 validate_tag passes the `[name, value]` pair of an object's `tag` property as the node, so svelte_options_invalid_tagname has no position"
+
 ["svelte/rsvelte-tests-core-1/block_header_pattern_validation/legal_neighbours_still_compile/8a80c229fe285e83.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block's pattern from its nodes (expandNode), so it deletes a comment in it"
 
@@ -2604,3 +2744,297 @@
 
 ["svelte/svelte/packages/svelte/tests/parser-legacy/samples/javascript-comments/input.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/svelte5-typescript/+page.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_call_with_no_type_arguments_always_keeps_optional/0859a559a26bc533.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_call_with_no_type_arguments_always_keeps_optional/3bcfae9735fd3a62.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_call_with_no_type_arguments_always_keeps_optional/43a525c6eb5d04d8.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_call_with_no_type_arguments_always_keeps_optional/632c41bc0cfebaa9.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_non_null_link_does_not_make_the_chain_optional/4ad92b84f65b88c9.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_plain_type_argument_call_omits_optional/a38b5584ac1c0504.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_type_argument_call_on_a_member_omits_optional/131ee3584ab1d248.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/a_type_argument_call_on_a_member_omits_optional/5887a5f55716c4d5.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_call_with_type_arguments_keeps_optional/d43e3907a29d145d.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_link_after_the_call_does_not_reach_it/5e60e6c87275e532.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_link_after_the_call_does_not_reach_it/d215ff9eb8e3fbb9.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_link_before_the_call_keeps_optional/e406c15e04b504b4.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_link_before_the_call_keeps_optional/e915c60fe8790ffe.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_link_deeper_in_the_callee_chain_keeps_optional/3479924ac57063d0.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/an_optional_link_deeper_in_the_callee_chain_keeps_optional/72dce9c92e1cc84d.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-1/call_optional_type_arguments/parentheses_cut_the_subscript_chain_so_optional_is_omitted/18abd872d898c10b.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-2/parse_ts_node_estree_fields_4133/a_decorator_call_has_no_optional_and_starts_at_its_callee/155fbeb681fb51fd.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/15236774b728cdf0.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/352be5c37b112081.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/a8398e50cf040f29.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/abd0a1f88f57a197.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/eb9c9a6b6c2af98d.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/template_expression_ts_gate/matches_the_official_compiler/faac14661d841790.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/ts_assertion_expressions_extra/non_null_as_member_object_preserves_wrapper/35d52702799bad3c.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/ts_assertion_expressions_extra/non_null_inside_optional_chain_preserves_wrapper/dfef30ecf8c7d136.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/ts_assertion_expressions_extra/ts_instantiation_preserves_wrapper_and_type_arguments/600b0a1fbcec00e9.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/ts_decorators_2597/every_decorator_position_is_rejected/09227f78130cec78.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-core-3/with_statement_strict_mode/with_statement_in_typescript_script_is_rejected/82c283be6466c763.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-formatter/typescript/const_tag_typed_annotation_round_trips/83c927bbbf71c868.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-formatter/typescript/const_tag_untyped_still_normalizes/a102e715fb6d3738.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-formatter/typescript/mustache_ts_casts_round_trip/c904afe9a2df46cb.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests-formatter/typescript/mustache_ts_casts_round_trip/ddab471432ec6493.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_language_server/tsgo_symbols/tests/generated_snippet_functions_go_and_template_functions_the_user_wrote_stay/297bbd8238f2200b.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_lint/non_ascii_word_boundary/event_prefix_type_name_is_not_matched_by_a_non_ascii_suffixed_type/24da32669426728e.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/2a09f694c7ed44e1.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/a_comma_inside_another_bracket_kind_does_not_split_the_parameter/055da27d622b3fe6.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_source_range/a_ts_postfix_is_kept/0d24999c3e2f8869.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/0995de01ce063a4e.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/2f1e0f40c86be677.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/9e97208f3124bc25.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/b9b634f98e6c642e.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/c1530ef3f8c4da44.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sidesheet.svelte".skip]
+"svelte.check" = "checker: TS 7 prints a union's literal members in its own order where TS 6 keeps the written order, so the message lists them differently"
+
+["svelte/layerchart/docs/src/examples/components/BarChart/company-race.svelte".skip]
+"svelte.check" = "checker: TS 7 prints a union's literal members in its own order where TS 6 keeps the written order, so the message lists them differently"
+
+["svelte/svelte-inspect-value/packages/svelte/src/lib/components/HTMLViewSimple.svelte".skip]
+"svelte.check" = "checker: TS 7 reports only the last overload of a call that no overload matches where TS 6 reports each overload"
+
+["svelte/svelte/packages/svelte/tests/manual/each-stress-test/main.svelte".skip]
+"svelte.check" = "checker: TS 7 reports only the last overload of a call that no overload matches where TS 6 reports each overload"
+
+["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/the_shapes_official_already_gets_right_are_unchanged/62731713e2ae3407.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/three_string_literals_in_a_script_report_three_times/afdac586527470e9.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/two_quasis_of_one_template_literal_report_twice/a623ecae2f12e62a.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/two_string_literals_in_a_script_report_twice/f78ee2a73ae535ff.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/two_template_expressions_report_twice/fc996b62696df7a9.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_script_literal_still_warns/5204698638a62e55.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/1b153d5fd6e74398.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/d28b687dbfce54c4.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/an_attribute_and_an_expression_both_report/81542bf877f46ecd.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/12839e381b7e9d66.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/60efd40319cca749.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/ed8c0c7fe07ced23.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_template_expression_keeps_its_positions/f9e1a8d36317a200.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/69872f6e8c224c02.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_whole_key_subtree_moves_with_it/4f67cefb5b0ba2e9.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+"svelte.compile.warnings" = "upstream bug: svelte 5.57.3 tests a string or template literal with the `test` of a global regex, which keeps `lastIndex` from the call before, even in another file, so whether a literal warns about bidirectional control characters depends on what was compiled before"
+
+["svelte/svelte-maplibre/src/lib/BackgroundLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/CircleLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/FillExtrusionLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/FillLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/HeatmapLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/HillshadeLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/LineLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/MarkerLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/RasterLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/svelte-maplibre/src/lib/SymbolLayer.svelte".skip]
+"svelte.check" = "checker: TS 7 names a local type of a generic function without its type arguments where TS 6 writes them, so the message says $$render.Props where TS 6 says $$render<Feature>.Props"
+
+["svelte/appwrite-console/src/lib/components/code.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/style-directive/input.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/string-completion.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/primo/src/lib/builder/components/ComponentPreview.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/primo/src/lib/builder/field-types/RepeaterField.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/primo/src/lib/components/SitePreview.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/rsvelte-tests-core-3/template_typescript_mode_3261/typescript_only_expressions_are_accepted_with_lang_ts/5f3e477248e3f847.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/rsvelte/pattern/adversarial/typescript/ts-type-only-forms.svelte".skip]
+"svelte.check" = "checker: TS 7 orders the members of a union in its own way where TS 6 keeps the order it built them in, so the message lists them differently"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/011aebbaa3dfa3f0.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.check" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.lint" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/2d77964ecb1f570d.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.check" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.lint" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/54557b00a714b2a9.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.check" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.lint" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/8d74744ba580b1a1.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.format" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.check" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+"svelte.lint" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 throws Unexpected token at the type of a valid `async as T` cast, which TypeScript parses"
+
+["svelte/rsvelte-tests-core-2/import_assert_newline_3198/typescript_newline_assert_compiles_and_keeps_the_clause/76ce4ca3fb098a26.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 reads `assert {` after a line break as import attributes, where the grammar forbids a line break before assert and TypeScript rejects it"
+
+["svelte/rsvelte-tests-core-2/import_assert_newline_3198/typescript_newline_assert_compiles_and_keeps_the_clause/f05849b6cba14213.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 reads `assert {` after a line break as import attributes, where the grammar forbids a line break before assert and TypeScript rejects it"
+
+["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
+
+["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ad65fdf7d6a621fb.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
+
+["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte".skip]
+"svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"

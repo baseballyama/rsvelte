@@ -1,7 +1,7 @@
 use oxc_semantic::ReferenceId;
 use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
-use rsvelte_typescript_compile::features::{Feature, first_runtime_feature};
+use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature};
 
 mod declarations;
 pub(super) mod markup;
@@ -57,13 +57,7 @@ pub(super) fn check_analysis(
         };
         (raised, error)
     };
-    let template = [super::special::analysis(input), markup::check(input)];
-    errors.extend(
-        template
-            .into_iter()
-            .filter_map(Result::err)
-            .map(|e| walk(Section::Template, e)),
-    );
+    errors.extend(template_error(input).map(|e| walk(Section::Template, e)));
     // A walk error waits for the scripts' first, which the later rune checks raise anyway.
     if errors.iter().any(|(raised, _)| raised.phase == Phase::Walk)
         && let Some((module, error)) = script_error(input, res, custom_element)
@@ -83,6 +77,14 @@ pub(super) fn check_analysis(
     names.check(input, res)?;
     check_legacy_props(input, res)?;
     errors.next().map_or(Ok(()), |(_, error)| Err(error))
+}
+
+/// The first error upstream's walk over the template raises, which it raises in either mode.
+pub(super) fn template_error(input: &CompileInput<'_>) -> Option<Diagnostic> {
+    [super::special::analysis(input), markup::check(input)]
+        .into_iter()
+        .filter_map(Result::err)
+        .min_by_key(|error| error.span.start_offset)
 }
 
 /// Upstream `legacy_props_invalid` and `legacy_rest_props_invalid` at a name no script declares.
@@ -187,7 +189,7 @@ pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnosti
         .collect();
     // The parser met the scripts in document order.
     programs.sort_by_key(|p| p.span.start);
-    match programs.into_iter().find_map(first_runtime_feature) {
+    match programs.into_iter().find_map(first_svelte_runtime_feature) {
         Some((feature, span)) => Err(typescript_invalid_feature(
             feature,
             Span::new(span.start, span.end),

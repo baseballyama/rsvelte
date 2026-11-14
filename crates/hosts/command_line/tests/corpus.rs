@@ -15,6 +15,7 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_typescript_projection::Printed;
 use rsvelte_test_harness::NodePackages;
@@ -30,9 +31,11 @@ struct Coverage {
     /// The projection: valid TypeScript, or not produced.
     projected: AtomicUsize,
     not_projected: AtomicUsize,
-    /// The type check's view: prepared for the checker, a document it skips, or unsupported.
+    /// The type check's view: prepared for the checker, a document it skips, an error svelte2tsx
+    /// throws, or unsupported.
     prepared: AtomicUsize,
     unchecked: AtomicUsize,
+    thrown: AtomicUsize,
     unsupported: AtomicUsize,
 }
 
@@ -67,13 +70,33 @@ impl Task for CountCoverage {
             Ok(projection) => {
                 let allocator = Allocator::default();
                 let result = Parser::new(&allocator, &projection.out, SourceType::ts()).parse();
-                // The projection keeps the script's own grammar, which may break these rules.
-                let added = result.diagnostics.iter().any(|d| {
-                    d.code.scope.as_deref() != Some("TS")
-                        || d.code.number.as_deref().is_none_or(|n| {
-                            !rsvelte_svelte_syntax::parse::ACORN_UNCHECKED_TYPESCRIPT_RULES
-                                .contains(&n)
+                let in_script = |offset: u32| {
+                    [&component.instance, &component.module]
+                        .into_iter()
+                        .flatten()
+                        .any(|script| {
+                            (script.content.start_offset..script.content.end_offset)
+                                .contains(&offset)
                         })
+                };
+                let added = result.diagnostics.iter().any(|d| {
+                    // The projection keeps the script's own grammar, which may break these rules.
+                    let unchecked = d.code.scope.as_deref() == Some("TS")
+                        && d.code.number.as_deref().is_some_and(|n| {
+                            rsvelte_svelte_syntax::parse::ACORN_UNCHECKED_TYPESCRIPT_RULES
+                                .contains(&n)
+                        });
+                    // svelte2tsx writes a template expression as a statement, which TypeScript
+                    // may read as a declaration, so an error there is the source's own.
+                    let labels = &d.labels;
+                    let in_template = !labels.is_empty()
+                        && labels.iter().all(|label| {
+                            let at = label.offset();
+                            projection
+                                .lookup_overlap(Span::new(at, at))
+                                .is_some_and(|source| !in_script(source.start_offset))
+                        });
+                    !unchecked && !in_template
                 });
                 if added {
                     self.0
@@ -98,7 +121,7 @@ impl Task for CountCoverage {
         {
             Ok(TypeScriptDocument::Checked { .. }) => count(&self.0.prepared),
             Ok(TypeScriptDocument::Unchecked) => count(&self.0.unchecked),
-            Ok(TypeScriptDocument::Rejected { .. }) => unreachable!("a parse error returned above"),
+            Ok(TypeScriptDocument::Rejected { .. }) => count(&self.0.thrown),
             Err(_) => count(&self.0.unsupported),
         };
     }
@@ -150,7 +173,32 @@ fn main() -> ExitCode {
     let mut registry = Registry::new();
     rsvelte_svelte_compile::register(&mut registry);
     rsvelte_svelte_format::register(&mut registry);
-    rsvelte_svelte_lint::register(&mut registry);
+    rsvelte_svelte_lint::register_with_configuration(&mut registry, oracle_lint_configuration());
+    // The oracle lints each unit outside any SvelteKit project, with a `svelte.config.js` of
+    // `compilerOptions: { runes: true }`.
+    registry.provide::<rsvelte_svelte_lint::computation::SvelteConfiguration>(
+        "svelte",
+        |_| true,
+        |_| {
+            Ok(rsvelte_svelte_lint::SvelteConfig {
+                runes: Some(true),
+                ..rsvelte_svelte_lint::SvelteConfig::default()
+            })
+        },
+    );
+    registry.provide::<rsvelte_svelte_lint::computation::SvelteKit>(
+        "svelte",
+        |_| true,
+        |_| rsvelte_svelte_lint::project::SvelteKitProject {
+            version: None,
+            location: rsvelte_svelte_lint::project::Location::NoProject,
+        },
+    );
+    registry.provide::<rsvelte_svelte_lint::computation::SameNamedFile>(
+        "svelte",
+        |_| true,
+        |_| None,
+    );
     rsvelte_svelte_typescript_projection::register(&mut registry);
     rsvelte_svelte_check::register(&mut registry, &typecheck);
     registry.task(CountCoverage(Arc::clone(&coverage)));
@@ -177,13 +225,14 @@ fn main() -> ExitCode {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     eprintln!(
         "coverage: {} parse errors, {} invariants broken; projection: {} valid TypeScript, {} not \
-         produced; type check: {} prepared, {} unchecked, {} unsupported",
+         produced; type check: {} prepared, {} unchecked, {} thrown, {} unsupported",
         n(&c.parse_errors),
         invalid.len(),
         n(&c.projected),
         n(&c.not_projected),
         n(&c.prepared),
         n(&c.unchecked),
+        n(&c.thrown),
         n(&c.unsupported),
     );
     for i in invalid.iter() {
@@ -194,4 +243,33 @@ fn main() -> ExitCode {
     } else {
         ExitCode::FAILURE
     }
+}
+
+/// The rules the oracle's lint runs (`corpus/_registry/oracles.json`) that this crate implements,
+/// with their default options, so the corpus compares every one of them.
+fn oracle_lint_configuration() -> rsvelte_svelte_lint::Configuration {
+    #[derive(serde::Deserialize)]
+    struct Oracles {
+        #[serde(rename = "svelte.lint")]
+        lint: Oracle,
+    }
+    #[derive(serde::Deserialize)]
+    struct Oracle {
+        rules: Vec<String>,
+    }
+    let oracles: Oracles = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../corpus/_registry/oracles.json"
+    )))
+    .expect("oracles.json lists the lint oracle's rules");
+    let mut configuration =
+        rsvelte_svelte_lint::Configuration::new(rsvelte_svelte_lint::LintSettings::default());
+    for name in &oracles.lint.rules {
+        if rsvelte_svelte_lint::definition(name, &[]).is_some() {
+            configuration
+                .rule(name, rsvelte_kernel::diagnostics::Severity::Error, &[], &[])
+                .unwrap_or_else(|e| panic!("{e}"));
+        }
+    }
+    configuration
 }

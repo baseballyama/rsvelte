@@ -188,7 +188,7 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "        \"title\": text,\n",
             "        \"data-label\": `café\n  🚀`,\n",
             "      });\n",
-            "      (text);\n",
+            "      text;\n",
             "    }\n",
             "  }\n",
             "};\n",
@@ -520,5 +520,38 @@ fn a_binding_typescript_cannot_assign_is_unsupported() {
     let Err(error) = rsvelte_svelte_typescript_projection::lower_alone(&component, source) else {
         panic!("an optional chain is not an assignment target");
     };
-    assert_eq!(error.what, "bind: directives");
+    assert_eq!(error.what(), "bind: directives");
+}
+
+#[test]
+fn a_type_a_dollar_generic_constraint_names_moves_before_the_render_function() {
+    let source = concat!(
+        "<script lang=\"ts\">\n\tinterface Foo { a: 1 }\n\ttype T = $$Generic<Foo>;\n",
+        "\tlet { a }: { a: T } = $props();\n</script>\n",
+    );
+    let (_, output) = project(source);
+    let interface = output
+        .out
+        .find("interface Foo")
+        .expect("the interface is kept");
+    let render = output
+        .out
+        .find("function $$render<T extends Foo>()")
+        .expect("the alias becomes a type parameter");
+    assert!(interface < render, "{}", output.out);
+    assert!(!output.out.contains("$$Generic"), "{}", output.out);
+}
+
+/// svelte2tsx writes a text expression bare, and parenthesizes one that opens with an object.
+#[test]
+fn a_text_expression_is_bare_unless_it_opens_with_an_object() {
+    let (_, output) =
+        project("<script lang=\"ts\"></script>{accessor as string}{{ a: 1 }.a}{({ b: 2 })}");
+    assert!(
+        output.out.contains("accessor as string;\n"),
+        "{}",
+        output.out
+    );
+    assert!(output.out.contains("({ a: 1 }.a);\n"), "{}", output.out);
+    assert!(output.out.contains("({ b: 2 });\n"), "{}", output.out);
 }

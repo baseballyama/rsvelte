@@ -15,20 +15,20 @@ async () => {
       prop: () => {
         async () => {
           const foo = items[0];
-          (foo);
+          foo;
         };
         return __rsvelte_snippet_return;
       },
     });
     const { prop } = __rsvelte_component_props(__rsvelte_component_0);
     const foo = items.length;
-    (foo);
+    foo;
     {
       const __rsvelte_component_0 = __rsvelte_component(Component);
       __rsvelte_component_0(__rsvelte_internals(), {
         prop: () => {
           async () => {
-            (foo);
+            foo;
           };
           return __rsvelte_snippet_return;
         },

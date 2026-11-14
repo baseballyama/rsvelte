@@ -18,13 +18,13 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    (open);
+    open;
   }
   {
     svelteHTML.createElement("p", {
       "class": "static",
     });
-    (open);
+    open;
   }
   {
     svelteHTML.createElement("p", {

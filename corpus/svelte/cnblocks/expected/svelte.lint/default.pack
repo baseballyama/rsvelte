@@ -33437,6 +33437,21 @@
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 1135 src/lib/components/ui/add/add.svelte.ts	lint.txt
+18:23 18:59 no-unused-vars "'opts' is defined but never used."
+38:12 38:27 no-unused-vars "'opts' is defined but never used."
+39:12 39:57 no-unused-vars "'provider' is defined but never used."
+90:23 90:41 no-unused-vars "'root' is defined but never used."
+92:10 94:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+103:12 103:45 no-unused-vars "'opts' is defined but never used."
+104:12 104:30 no-unused-vars "'root' is defined but never used."
+107:10 112:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+121:12 121:48 no-unused-vars "'opts' is defined but never used."
+122:12 122:30 no-unused-vars "'root' is defined but never used."
+125:10 130:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+134:23 134:41 no-unused-vars "'root' is defined but never used."
+136:10 138:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+
 === 992 src/lib/components/ui/avatar/avatar-fallback.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -34219,6 +34234,12 @@
 30:2 30:31 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
 31:1 31:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 34:1 104:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
+
+=== 258 src/lib/components/ui/code/code.svelte.ts	lint.txt
+13:23 13:51 no-unused-vars "'opts' is defined but never used."
+37:12 37:36 no-unused-vars "'opts' is defined but never used."
+38:12 38:40 no-unused-vars "'overflow' is defined but never used."
+104:23 104:42 no-unused-vars "'root' is defined but never used."
 
 === 11676 src/lib/components/ui/code/multiple-code.svelte	lint.txt
 1:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -36420,6 +36441,12 @@
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:2 15:56 svelte/sort-attributes "Attribute 'class' should go before 'bind:ref'."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 393 src/lib/components/ui/sidebar/context.svelte.ts	lint.txt
+20:12 20:25 no-unused-vars "'open' is defined but never used."
+25:9 25:45 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+29:10 29:67 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+44:30 44:43 no-undef "'KeyboardEvent' is not defined."
 
 === 1720 src/lib/components/ui/sidebar/sidebar-content.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -48655,6 +48682,24 @@
 74:1 74:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 75:1 75:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 76:1 76:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 260 src/lib/hooks/use-clipboard.svelte.ts	lint.txt
+35:37 35:47 no-undef "'setTimeout' is not defined."
+54:4 54:16 no-undef "'clearTimeout' is not defined."
+58:10 58:19 no-undef "'navigator' is not defined."
+62:19 62:29 no-undef "'setTimeout' is not defined."
+69:19 69:29 no-undef "'setTimeout' is not defined."
+
+=== 500 src/lib/hooks/use-toc.svelte.ts	lint.txt
+7:7 7:14 no-undef "'Element' is not defined."
+20:16 20:27 no-undef "'HTMLElement' is not defined."
+24:15 24:26 no-undef "'HTMLElement' is not defined."
+32:32 32:48 no-undef "'MutationObserver' is not defined."
+61:44 61:51 no-undef "'Element' is not defined."
+63:25 63:45 no-undef "'IntersectionObserver' is not defined."
+107:33 107:51 no-undef "'HTMLHeadingElement' is not defined."
+129:21 129:32 no-undef "'HTMLElement' is not defined."
+131:37 131:55 no-undef "'HTMLHeadingElement' is not defined."
 
 === 5093 src/lib/seo/SEO.svelte	lint.txt
 1:1 34:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

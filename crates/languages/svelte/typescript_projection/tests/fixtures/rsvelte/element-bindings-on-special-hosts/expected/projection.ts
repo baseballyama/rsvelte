@@ -43,9 +43,9 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    (w);
-    (h);
-    (item.w);
+    w;
+    h;
+    item.w;
   }
 };
 const ElementBindingsOnSpecialHosts__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

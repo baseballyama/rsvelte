@@ -5397,6 +5397,8 @@
 
 === 0 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/invalid/js/Foo.svelte	lint.txt
 
+=== 0 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/invalid/js/Foo.svelte.js	lint.txt
+
 === 0 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/invalid/jsx/Foo.svelte	lint.txt
 
 === 0 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/invalid/mjs/Foo.svelte	lint.txt
@@ -5407,9 +5409,13 @@
 
 === 0 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/invalid/tsx/Foo.svelte	lint.txt
 
+=== 0 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/valid/declaration-sibling-d-svelte/Bar.d.svelte.ts	lint.txt
+
 === 0 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/valid/declaration-sibling-d-svelte/Bar.svelte	lint.txt
 
 === 0 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/valid/different-module/Foo.svelte	lint.txt
+
+=== 0 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/valid/different-module/foo-state.svelte.ts	lint.txt
 
 === 0 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/valid/no-sibling/Foo.svelte	lint.txt
 
@@ -10693,6 +10699,10 @@
 5:28 5:30 svelte/html-self-closing "Disallow self-closing on HTML elements."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 181 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/valid/runes01-input.svelte.js	lint.txt
+3:6 3:35 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
+6:3 6:10 no-undef "'console' is not defined."
+
 === 227 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/complex-test01-input.svelte	lint.txt
 1:6 1:28 svelte/no-inline-styles "Found disallowed style attribute."
 1:13 1:27 svelte/prefer-style-directive "Can use style directives instead."
@@ -10969,6 +10979,24 @@
 
 === 121 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setYear01-input.svelte	lint.txt
 2:20 2:37 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+
+=== 701 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/exports01-input.svelte.js	lint.txt
+1:19 1:36 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+2:19 2:52 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+3:19 3:43 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+4:23 4:38 no-undef "'URLSearchParams' is not defined."
+5:23 5:26 no-undef "'URL' is not defined."
+6:19 6:36 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+10:26 10:43 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+
+=== 121 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/exports02-input.svelte.js	lint.txt
+1:19 1:36 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+
+=== 121 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/exports03-input.svelte.js	lint.txt
+1:16 1:33 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
+
+=== 121 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/exports04-input.svelte.js	lint.txt
+1:19 1:36 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
 
 === 119 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/map/clear01-input.svelte	lint.txt
 2:20 2:53 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
@@ -13401,21 +13429,6 @@
 === 151 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/valid-custom-element-with-props-identifier-input.svelte	lint.txt
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:6 4:11 no-unused-vars "'props' is assigned a value but never used."
-
-=== 1139 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-each-key/invalid/const-key01-input.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:12 svelte/prefer-const "'things' is never reassigned. Use 'const' instead."
-3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-11:25 11:28 svelte/valid-each-key "Expected key to use the variables which are defined by the `{#each}` block."
-12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-12:2 12:25 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
-12:10 12:13 no-useless-assignment "The value assigned to 'key' is not used in subsequent statements."
-13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
 === 930 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-each-key/invalid/out-vars-key01-input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

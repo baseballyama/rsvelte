@@ -25,7 +25,7 @@ struct NoExtraReactiveCurlies;
 impl SvelteRule for NoExtraReactiveCurlies {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        for (_, body) in reactive_statements(component, file.source()) {
+        for (_, body) in reactive_statements(file, component) {
             let Statement::BlockStatement(block) = body else {
                 continue;
             };

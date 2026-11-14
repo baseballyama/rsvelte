@@ -9,6 +9,7 @@ use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
 use rsvelte_typescript_tree::ProgramIdentifier;
 
 use super::runes::runes_mode;
+use crate::rule::File;
 
 /// The scripts' programs, the module script's first.
 fn programs(component: &Component) -> impl Iterator<Item = ProgramIdentifier> + '_ {
@@ -22,15 +23,17 @@ fn programs(component: &Component) -> impl Iterator<Item = ProgramIdentifier> + 
 /// The top-level `$:` statements with their bodies, in source order; none in runes mode, where
 /// upstream's rules on them do not run.
 pub(super) fn reactive_statements<'a>(
+    file: &File<'_>,
     component: &'a Component,
-    source: &str,
 ) -> impl Iterator<Item = (&'a Statement<'a>, &'a Statement<'a>)> + 'a {
-    let runes = runes_mode(component, source);
     let javascript = &component.javascript;
-    programs(component)
-        .filter(move |_| !runes)
+    let mut statements = programs(component)
         .flat_map(move |program| &javascript.get_program(program).body)
         .filter_map(|statement| reactive_body(statement).map(|body| (statement, body)))
+        .peekable();
+    // Deciding the mode reads `svelte.config.js` and walks every name, so only `$:` asks.
+    let runes = statements.peek().is_some() && runes_mode(file, component);
+    statements.filter(move |_| !runes)
 }
 
 /// The `items`, keyed by start offset, grouped by the statement each starts in, for statements

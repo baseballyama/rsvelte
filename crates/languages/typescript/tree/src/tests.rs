@@ -70,8 +70,10 @@ fn a_typescript_file_is_one_program_without_parentheses() {
 fn a_pattern_parses_in_place_with_its_type() {
     let source = "{#each items as { a, b }: Item /* c */}";
     let range = Span::new(16, 38);
-    let (tree, pattern) =
-        Tree::build(source, |builder| builder.pattern(range, SourceType::ts())).expect("parses");
+    let (tree, pattern) = Tree::build(source, |builder| {
+        Ok(builder.pattern(range, SourceType::ts())?)
+    })
+    .expect("parses");
     let pattern = tree.get_pattern(pattern);
     let at = |span: oxc_span::Span| &source[span.start as usize..span.end as usize];
     assert_eq!(at(pattern.pattern.span()), "{ a, b }");
@@ -101,7 +103,7 @@ fn a_pattern_records_its_own_tokens_only() {
 fn snippet_parameters_parse_in_place() {
     let source = "{#snippet f(a, b = 1, ...rest)}";
     let (tree, parameters) = Tree::build(source, |builder| {
-        builder.parameters(Span::new(12, 29), SourceType::mjs())
+        Ok(builder.parameters(Span::new(12, 29), SourceType::mjs())?)
     })
     .expect("parses");
     let parameters = tree.get_parameters(parameters);
@@ -134,7 +136,7 @@ fn generics_parse_in_place_with_their_own_tokens() {
 #[test]
 fn two_patterns_are_not_one() {
     let error = Tree::build("{#each x as a, b}", |builder| {
-        builder.pattern(Span::new(12, 16), SourceType::mjs())
+        Ok(builder.pattern(Span::new(12, 16), SourceType::mjs())?)
     })
     .expect_err("two patterns");
     assert_eq!(error.span, Span::new(12, 16));

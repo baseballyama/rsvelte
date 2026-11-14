@@ -283,17 +283,19 @@ pub(super) fn start_tags(component: &Component) -> impl Iterator<Item = StartTag
     elements.chain(raw)
 }
 
-/// Every end tag `</name>`, in document order.
+/// Every end tag `</name>`, in document order. A `</style` that no `>` follows ends at its name.
 pub(super) fn end_tags(tokens: &Tokens<TokenType>) -> impl Iterator<Item = Span> + '_ {
     let all = tokens.from_offset(0);
     all.iter()
         .enumerate()
         .filter(|(_, open)| open.kind == TokenType::EndTagOpen)
         .map(move |(i, open)| {
-            let end = all[i..]
+            // A `</textarea` keeps the text up to its `>` as words.
+            let end = all[i + 2..]
                 .iter()
-                .find(|token| token.kind == TokenType::TagEnd)
-                .expect("an end tag ends with `>`");
+                .find(|token| !matches!(token.kind, TokenType::Text | TokenType::Whitespace))
+                .filter(|token| token.kind == TokenType::TagEnd)
+                .unwrap_or(&all[i + 1]);
             Span::new(open.span.start_offset, end.span.end_offset)
         })
 }

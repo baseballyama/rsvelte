@@ -14,7 +14,7 @@ async () => {
         async () => {
           {
             svelteHTML.createElement("p", {});
-            (error.message);
+            error.message;
           }
           {
             svelteHTML.createElement("button", {

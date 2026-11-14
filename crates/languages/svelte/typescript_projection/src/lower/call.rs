@@ -6,7 +6,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{Builder, Node, NodeIdentifier, Result, Unsupported};
+use super::{Builder, Node, NodeIdentifier, Result, refuse};
 
 impl Builder<'_> {
     /// `__rsvelte_component(C)(internals, properties)`, with the name it gives the component when
@@ -155,10 +155,10 @@ impl Builder<'_> {
                         template: false,
                     })
                 }
-                _ => return Err(Unsupported::at("dynamic slot names", a.span)),
+                _ => return Err(refuse("dynamic slot names", a.span)),
             },
             Some((a, AttributeValue::True)) => {
-                return Err(Unsupported::at("dynamic slot names", a.span));
+                return Err(refuse("dynamic slot names", a.span));
             }
         };
         let mut callee = self.tree.push(Node::Identifier("__rsvelte_slots"));

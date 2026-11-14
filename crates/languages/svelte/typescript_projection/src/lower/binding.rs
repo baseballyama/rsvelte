@@ -6,7 +6,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeValue, Part};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{Builder, Node, NodeIdentifier, Result, Unsupported};
+use super::{Builder, Node, NodeIdentifier, Result, refuse};
 
 /// svelte2tsx's `oneWayBindingAttributes`: the element's property of the same name is assigned.
 const ONE_WAY: &[&str] = &[
@@ -137,7 +137,7 @@ impl Builder<'_> {
         is_component: bool,
         intrinsic: bool,
     ) -> Result<Binding> {
-        let unsupported = || Unsupported::at("bind: directives", attribute.span);
+        let unsupported = || refuse("bind: directives", attribute.span);
         let AttributeValue::Parts(parts) = attribute.value else {
             return Err(unsupported());
         };
@@ -156,7 +156,7 @@ impl Builder<'_> {
         let get_set = match self.expression(expression) {
             Expression::SequenceExpression(sequence) => match sequence.expressions.as_slice() {
                 [get, set] => Some((get.span(), set.span())),
-                _ => return Err(Unsupported::at("function bindings", attribute.span)),
+                _ => return Err(refuse("function bindings", attribute.span)),
             },
             _ => None,
         };

@@ -53,3 +53,33 @@ fn a_kit_that_is_not_an_object_literal_is_not_read() {
     assert_eq!(routes("export const x = 1;"), "none");
     parse("export default {").expect_err("does not parse");
 }
+
+fn runes(source: &str) -> Option<bool> {
+    parse(source).expect("the configuration parses").runes
+}
+
+#[test]
+fn compiler_options_runes_is_read_when_static() {
+    assert_eq!(
+        runes("export default { compilerOptions: { runes: true } };"),
+        Some(true)
+    );
+    assert_eq!(
+        runes("const r = 0; export default { compilerOptions: { runes: r } };"),
+        Some(false)
+    );
+    assert_eq!(
+        runes("export default { compilerOptions: { runes: 'yes' } };"),
+        Some(true)
+    );
+    assert_eq!(
+        runes("export default { compilerOptions: { runes: null } };"),
+        None
+    );
+    assert_eq!(
+        runes("export default { compilerOptions: { runes: () => true } };"),
+        None
+    );
+    assert_eq!(runes("export default { compilerOptions: options };"), None);
+    assert_eq!(runes("export default {};"), None);
+}

@@ -76,12 +76,14 @@ impl Semantic {
             let builder = Self::builder().with_scoping_allocator(SCOPINGS.take());
             let analysis = build(tree, builder);
             let text = tree.source_text();
+            let nodes = analysis.semantic.nodes();
             let syntax_error = (analysis.diagnostics.errors().next()).map(|error| {
-                Box::new(rsvelte_typescript_tree::syntax_error(
-                    [error.clone()],
+                Box::new(rsvelte_typescript_tree::analysis_error(
+                    error,
                     text,
-                    0,
-                    0,
+                    |locator| {
+                        nodes.iter().for_each(|node| locator.enter(node.kind()));
+                    },
                 ))
             });
             Analyzed {
@@ -146,5 +148,6 @@ impl Drop for Semantic {
     }
 }
 
+mod acorn_scope;
 #[cfg(test)]
 mod tests;

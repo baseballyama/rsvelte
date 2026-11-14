@@ -18,9 +18,9 @@ async () => {
         async () => {
           {
             svelteHTML.createElement("p", {});
-            (double);
-            (a);
-            (c);
+            double;
+            a;
+            c;
           }
         };
         return __rsvelte_snippet_return;
@@ -29,7 +29,7 @@ async () => {
         async () => {
           {
             svelteHTML.createElement("i", {});
-            (double);
+            double;
           }
         };
         return __rsvelte_snippet_return;
@@ -42,8 +42,8 @@ async () => {
     }
     {
       svelteHTML.createElement("b", {});
-      (double);
-      (a);
+      double;
+      a;
     }
     __rsvelte_ensure_snippet(other());
   }
@@ -52,7 +52,7 @@ async () => {
     const x = test + 1;
     {
       svelteHTML.createElement("p", {});
-      (x);
+      x;
     }
   }
 };

@@ -4,6 +4,7 @@
 use std::borrow::Cow;
 
 use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKey};
+use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
@@ -171,7 +172,7 @@ impl<'c> Reader<'c> {
         };
         let expression = match self.parts(attribute) {
             [Part::Text(_), ..] => {
-                return validate_tag(self.static_string(attribute).as_deref(), attribute);
+                return validate_tag(self.static_string(attribute).as_deref(), attribute.span);
             }
             [Part::Expression { expression, .. }, ..] => self
                 .component
@@ -195,12 +196,17 @@ impl<'c> Reader<'c> {
                 .find(|(key, _)| *key == name)
                 .map(|&(_, v)| v)
         };
-        if let Some(tag) = find("tag") {
-            let tag = match tag {
-                Expression::StringLiteral(literal) => literal.value.as_str(),
+        if let Some(property) = properties
+            .iter()
+            .find(|p| option_property(p).is_some_and(|(key, _)| key == "tag"))
+        {
+            let tag = match option_property(property) {
+                Some((_, Expression::StringLiteral(literal))) => literal.value.as_str(),
                 _ => None,
             };
-            validate_tag(tag, attribute)?;
+            // Upstream passes the property as a tuple without a position; it means the property.
+            let span = property.span();
+            validate_tag(tag, Span::new(span.start, span.end))?;
         }
         if let Some(props) = find("props") {
             validate_props(props, attribute)?;
@@ -278,12 +284,12 @@ fn validate_props(props: &Expression<'_>, attribute: &Attribute) -> Result<(), D
 }
 
 /// Upstream's `validate_tag`: a valid custom element name that is not reserved, or empty.
-fn validate_tag(tag: Option<&str>, attribute: &Attribute) -> Result<(), Diagnostic> {
+fn validate_tag(tag: Option<&str>, span: Span) -> Result<(), Diagnostic> {
     let invalid = || {
-        error(
+        svelte_error(
             "svelte_options_invalid_tagname",
             "Tag name must be lowercase and hyphenated",
-            attribute,
+            span,
         )
     };
     let tag = tag.ok_or_else(invalid)?;
@@ -307,10 +313,10 @@ fn validate_tag(tag: Option<&str>, attribute: &Attribute) -> Result<(), Diagnost
             | "font-face-name"
             | "missing-glyph"
     ) {
-        return Err(error(
+        return Err(svelte_error(
             "svelte_options_reserved_tagname",
             "Tag name is reserved",
-            attribute,
+            span,
         ));
     }
     Ok(())

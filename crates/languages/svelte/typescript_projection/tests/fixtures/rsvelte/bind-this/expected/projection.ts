@@ -52,7 +52,7 @@ async () => {
   }
   {
     for (let [i, n] of __rsvelte_each([1, 2])) {
-      (n);
+      n;
       {
         refs[i] = __rsvelte_component(Foo)(__rsvelte_internals(), {});
       }

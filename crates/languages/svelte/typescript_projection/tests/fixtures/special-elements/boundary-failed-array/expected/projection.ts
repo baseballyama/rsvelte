@@ -6,8 +6,8 @@ async () => {
         async () => {
           {
             svelteHTML.createElement("p", {});
-            (first);
-            (rest.length);
+            first;
+            rest.length;
           }
         };
         return __rsvelte_snippet_return;

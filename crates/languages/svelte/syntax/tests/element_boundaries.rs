@@ -186,3 +186,12 @@ fn a_parse_without_scripts_reads_only_the_markup() {
     );
     parse_without_scripts("<script>let a = ;</script>\n<p>{a +}</p>").expect_err("the markup");
 }
+
+/// Upstream reports an object's invalid `tag` at no position; this parser points at the property.
+#[test]
+fn an_invalid_tag_in_the_options_object_is_reported_at_its_property() {
+    let source = "<svelte:options customElement={{ tag: 1 }} />";
+    let error = parse(source).expect_err("an invalid tag");
+    assert_eq!(&*error.code, "svelte_options_invalid_tagname");
+    assert_eq!(error.span.text(source), "tag: 1");
+}

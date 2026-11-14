@@ -43,19 +43,22 @@ pub enum Node {
         name: NodeIdentifier,
         value: NodeIdentifier,
     },
+    TypeAlias {
+        name: NodeIdentifier,
+        value: NodeIdentifier,
+    },
     ExportDefault(NodeIdentifier),
     /// svelte2tsx's `$$render` of a generic component: the instance script and the template in a
     /// function of the type parameters, which returns the contract.
     Render {
-        /// The type parameters without their angle brackets.
-        type_parameters: Span,
+        type_parameters: TypeParameters,
         body: Range,
     },
     Return(NodeIdentifier),
     /// The default export of a generic component, whose call signature takes its type
     /// parameters, as svelte2tsx's `$$IsomorphicComponent`.
     GenericExport {
-        type_parameters: Span,
+        type_parameters: TypeParameters,
         /// The parameters' names, which instantiate the render function.
         names: Range,
         /// The parameters without modifiers, for the interface and the instance type.
@@ -149,6 +152,11 @@ pub enum Node {
     Text(Span),
     /// Source text without a mapping, so neither findings nor typed lint see this copy.
     UnmappedSource(Span),
+    /// A `$$Generic` alias as svelte2tsx's unmapped type parameter, `name extends constraint`.
+    TypeParameter {
+        name: Span,
+        constraint: Option<Span>,
+    },
     /// A statement whose findings TypeScript drops, as svelte2tsx's ignore comments do.
     Ignored(NodeIdentifier),
     Parenthesized(NodeIdentifier),
@@ -176,6 +184,15 @@ pub enum Node {
         parameters: Option<NodeIdentifier>,
         body: Range,
     },
+}
+
+/// A generic component's type parameters, without their angle brackets.
+#[derive(Clone, Copy, Debug)]
+pub enum TypeParameters {
+    /// The `generics` attribute's text, which the render function maps.
+    Attribute(Span),
+    /// The `$$Generic` aliases' [`Node::TypeParameter`]s, which nothing maps.
+    Declared(Range),
 }
 
 #[derive(Clone, Copy, Debug)]

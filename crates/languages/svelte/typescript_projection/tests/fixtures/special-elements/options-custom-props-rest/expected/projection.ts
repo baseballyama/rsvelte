@@ -13,8 +13,8 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    (value);
-    (rest.other);
+    value;
+    rest.other;
   }
 };
 const OptionsCustomPropsRest__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();

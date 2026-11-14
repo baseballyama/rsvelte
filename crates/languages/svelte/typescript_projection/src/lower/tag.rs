@@ -14,8 +14,8 @@ impl Builder<'_> {
                 expression, body, ..
             } => {
                 let start = self.scratch.len();
-                let value = source_expression(self.expression(expression).span(), None);
-                self.scratch.push(self.tree.push(Node::Expression(value)));
+                let statement = self.expression_statement(expression, None, false);
+                self.scratch.push(self.tree.push(statement));
                 self.append_children(body)?;
                 let body = self.finish_list(start);
                 Node::Block { body }

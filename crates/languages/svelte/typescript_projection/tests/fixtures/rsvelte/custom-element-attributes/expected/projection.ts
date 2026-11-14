@@ -34,7 +34,7 @@ async () => {
     });
     {
       svelteHTML.createElement("span", {});
-      (s);
+      s;
     }
   }
   {
@@ -51,7 +51,7 @@ async () => {
       "data-a": s,
     });
     __sveltets_2_ensureType(String, Number, "red");
-    (s);
+    s;
   }
   {
     svelteHTML.createElement("p", {

@@ -55,11 +55,28 @@ impl SvelteRule for MaxAttributesPerLine {
         let source = file.source();
         let lines = file.context.lines(LineBreaks::Ecmascript);
         let line = |offset: u32| lines.line(offset);
+        // Upstream's parser makes type parameters that parse a directive, named by all its text.
+        let generics = component
+            .instance
+            .as_ref()
+            .filter(|script| script.generics.is_some())
+            .and_then(|script| {
+                script
+                    .attributes
+                    .iter()
+                    .find(|(name, _)| name.text(source) == "generics")
+            })
+            .map(|(name, _)| name.start_offset);
         let mut report = |attribute: TagAttribute<'_>| {
             let gap = whitespace_before(tokens, attribute.span.start_offset);
+            let name = if generics == Some(attribute.span.start_offset) {
+                attribute.span
+            } else {
+                attribute.key
+            };
             reporter.report(
                 Report::range(
-                    format!("'{}' should be on a new line.", attribute.key.text(source)),
+                    format!("'{}' should be on a new line.", name.text(source)),
                     attribute.span,
                 )
                 .fix(Fix::replace(gap, "\n")),

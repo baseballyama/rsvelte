@@ -59,18 +59,6 @@ impl Topology<'_> {
         self.links[parent].first.get_or_insert(child);
     }
 
-    /// The snippets a renderer may render, in source order.
-    fn rendered_snippets(&self, id: CompilerNodeIdentifier) -> Vec<SnippetFlow> {
-        let mut snippets: Vec<_> = match self.rendered.get(&id) {
-            Some(Rendered::Snippets(snippets)) => snippets.to_vec(),
-            Some(Rendered::Every) => self.snippet_nodes.values().copied().collect(),
-            None => Vec::new(),
-        };
-        snippets.sort_by_key(|snippet| snippet.node);
-        snippets.dedup_by_key(|snippet| snippet.node);
-        snippets
-    }
-
     fn invoke(
         &mut self,
         snippet: SnippetFlow,
@@ -281,20 +269,28 @@ impl Topology<'_> {
     }
 }
 
+/// The elements a snippet's body puts at its top, and the renderers there, whose snippets' top
+/// elements are the snippet's too.
 pub(super) fn snippet_roots(
     tree: &CompilerSyntaxTree,
     body: Children,
-) -> Vec<CompilerNodeIdentifier> {
+) -> (Vec<CompilerNodeIdentifier>, Vec<CompilerNodeIdentifier>) {
     let mut roots = Vec::new();
+    let mut renderers = Vec::new();
     let mut pending = vec![body];
     while let Some(body) = pending.pop() {
         for &child in tree.children(body) {
             match &tree.node(child).kind {
                 NodeKind::Element(el) if is_dom(el) => roots.push(child),
                 NodeKind::Snippet(_) => {}
+                NodeKind::Render { .. } => renderers.push(child),
+                NodeKind::Element(el) if el.kind.renders_component() => {
+                    renderers.push(child);
+                    pending.extend(tree.child_lists(child));
+                }
                 _ => pending.extend(tree.child_lists(child)),
             }
         }
     }
-    roots
+    (roots, renderers)
 }

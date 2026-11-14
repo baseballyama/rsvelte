@@ -6,6 +6,7 @@ mod children;
 mod contract;
 mod directive;
 mod generic;
+mod statement;
 mod tag;
 
 use oxc_ast::ast::Expression;
@@ -21,7 +22,43 @@ use rsvelte_typescript_tree::ExpressionIdentifier;
 use crate::buffers::Buffer;
 use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree};
 
-type Result<T> = std::result::Result<T, Unsupported>;
+type Result<T> = std::result::Result<T, Refusal>;
+
+/// Why a component has no projection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Refusal {
+    /// A construct the projection does not cover yet.
+    Unsupported(Unsupported),
+    /// An error svelte2tsx throws, which svelte-check reports as it is.
+    Thrown { message: &'static str, span: Span },
+}
+
+impl Refusal {
+    /// What the projection does not cover, or the error svelte2tsx throws.
+    #[must_use]
+    pub const fn what(&self) -> &'static str {
+        match self {
+            Self::Unsupported(unsupported) => unsupported.what,
+            Self::Thrown { message, .. } => message,
+        }
+    }
+
+    /// The construct, or where svelte-check reports the thrown error.
+    #[must_use]
+    pub fn span(&self) -> Span {
+        match self {
+            Self::Unsupported(unsupported) => unsupported.span(),
+            Self::Thrown { span, .. } => *span,
+        }
+    }
+}
+
+fn refuse(
+    what: &'static str,
+    at: impl Into<rsvelte_kernel::source::positions::SourceLocation>,
+) -> Refusal {
+    Refusal::Unsupported(Unsupported::at(what, at))
+}
 
 /// The component's analysis, which `lower` asks for only when a call may be a rune.
 pub type Resolve<'a> = dyn Fn() -> Option<&'a Resolution> + 'a;
@@ -235,10 +272,11 @@ impl Builder<'_> {
     fn node(&mut self, identifier: u32) -> Result<Option<NodeIdentifier>> {
         let node = match *self.component.node(identifier) {
             TemplateNode::Text { .. } | TemplateNode::Comment { .. } => return Ok(None),
-            TemplateNode::Expression { expression, span }
-            | TemplateNode::Html { expression, span } => {
-                let at = self.expression(expression).span();
-                Node::Expression(source_expression(at, Some(span.end_offset - 1)))
+            TemplateNode::Expression { expression, span } => {
+                self.expression_statement(expression, Some(span.end_offset - 1), true)
+            }
+            TemplateNode::Html { expression, span } => {
+                self.expression_statement(expression, Some(span.end_offset - 1), false)
             }
             TemplateNode::Element {
                 name,
@@ -296,8 +334,8 @@ impl Builder<'_> {
                 let value = value.map(|at| self.source(at, None));
                 let binding = self.tree.push(Node::ArrayPattern { index, value });
                 if let Some(key) = key {
-                    let value = source_expression(self.expression(key).span(), None);
-                    self.scratch.push(self.tree.push(Node::Expression(value)));
+                    let statement = self.expression_statement(key, None, false);
+                    self.scratch.push(self.tree.push(statement));
                 }
                 self.append_children(body)?;
                 let body = self.finish_list(start);
@@ -347,7 +385,7 @@ impl Builder<'_> {
         };
         let is_component = component.is_some();
         if !is_component && !is_element(tag) {
-            return Err(Unsupported::at("svelte: elements", name));
+            return Err(refuse("svelte: elements", name));
         }
         let slot = !is_component && tag == "slot";
         // An element whose attributes svelte2tsx checks against the intrinsic element types.
@@ -467,8 +505,8 @@ impl Builder<'_> {
                 && let AttributeValue::Parts(parts) = attribute.value
                 && let [Part::Expression { expression, .. }] = self.component.parts(parts)
             {
-                let value = source_expression(self.expression(*expression).span(), None);
-                self.scratch.push(self.tree.push(Node::Expression(value)));
+                let statement = self.expression_statement(*expression, None, false);
+                self.scratch.push(self.tree.push(statement));
             }
         }
     }

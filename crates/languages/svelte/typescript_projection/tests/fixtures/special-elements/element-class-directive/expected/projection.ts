@@ -11,7 +11,7 @@ async () => {
     svelteHTML.createElement(tag, {
       "class": "base",
     });
-    (active);
+    active;
   }
 };
 const ElementClassDirective__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();

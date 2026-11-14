@@ -31,9 +31,9 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    (a);
-    (b);
-    (sum);
+    a;
+    b;
+    sum;
   }
 };
 const BindNumber__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

@@ -360,6 +360,14 @@ fn prefers_const_where_eslint_does() {
                 "let r = 1, s = 2; s++; console.log(r, s);",
                 &["'r' is never reassigned. Use 'const' instead.@4-5"],
             ),
+            (
+                "let t: number = 1; console.log(t);",
+                &["'t' is never reassigned. Use 'const' instead.@4-13#0-18:const t: number = 1;"],
+            ),
+            (
+                "let u: number; u = 1; console.log(u);",
+                &["'u' is never reassigned. Use 'const' instead.@15-16"],
+            ),
         ],
         |semantic, program, reporter| {
             super::prefer_const(
