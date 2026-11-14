@@ -71,7 +71,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/database#facet',
 		source: {
 			path: 'crates/languages/svelte/check/src/registration.rs',
-			line: 36,
+			line: 38,
 			text: 'reg.finish_task(Check {',
 		},
 		box: { x: 32, y: 362, w: 188, h: height },
@@ -381,7 +381,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [226, 246],
 		source: {
 			path: 'crates/languages/svelte/lint/src/rule.rs',
-			line: 146,
+			line: 161,
 			text: 'self.context.get::<Lowered>()',
 		},
 	},

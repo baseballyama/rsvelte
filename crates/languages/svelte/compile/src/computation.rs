@@ -125,7 +125,22 @@ impl Artifact for Validated {
 pub fn compile_errors(context: &DocumentContext<'_>, runes: bool) -> CompileErrors {
     if runes {
         match context.get::<Validated>() {
-            Ok(_) => return CompileErrors::default(),
+            Ok(options) => {
+                let (Some(input), Some(res)) = (
+                    component_input(context),
+                    context.get::<rsvelte_svelte_semantic::Resolved>().as_ref(),
+                ) else {
+                    return CompileErrors::default();
+                };
+                let raised = crate::lower::rune_error(&input.into(), res, options)
+                    .filter(|(_, error)| error.code != UNSUPPORTED)
+                    .into_iter()
+                    .collect();
+                return CompileErrors {
+                    raised,
+                    after_analysis: None,
+                };
+            }
             Err(error) if error.code != UNSUPPORTED && !GENERATED.contains(&&*error.code) => {
                 let raised = Raised {
                     phase: Phase::Parse,
@@ -153,6 +168,17 @@ pub fn compile_errors(context: &DocumentContext<'_>, runes: bool) -> CompileErro
         .after_analysis
         .filter(|error| error.code != UNSUPPORTED);
     errors
+}
+
+/// The first JavaScript syntax error that upstream's parser raises in the component, as Svelte
+/// reports it: in the scripts or in the template's expressions, whichever comes first.
+#[must_use]
+pub fn javascript_error(context: &DocumentContext<'_>) -> Option<Diagnostic> {
+    let input = component_input(context)?;
+    let res = context
+        .get::<rsvelte_svelte_semantic::Resolved>()
+        .as_ref()?;
+    crate::lower::parse_error(&input.into(), res)
 }
 
 /// The code of what this port refuses, which upstream compiles.

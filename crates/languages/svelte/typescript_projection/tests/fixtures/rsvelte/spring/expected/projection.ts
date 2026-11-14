@@ -12,6 +12,5 @@ async () => {
     (size.current);
   }
 };
-const Spring__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type Spring__SvelteComponent_ = ReturnType<typeof Spring__SvelteComponent_>;
-export default Spring__SvelteComponent_;
+const Spring__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof Spring__SvelteComponent_>} */ (Spring__SvelteComponent_);

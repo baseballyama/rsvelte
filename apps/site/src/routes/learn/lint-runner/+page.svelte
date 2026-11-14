@@ -109,7 +109,7 @@
 </div>
 
 <Code item={data.code.render} mark={['capacity(rules.clone(), findings)', 'if d.has_end {']} />
-<Code item={data.code.position} mark={['at.column + 1']} />
+<Code item={data.code.position} mark={['column + 1']} />
 <Code item={data.code.columnsTest} />
 
 <ChapterFooter chapter={c} />

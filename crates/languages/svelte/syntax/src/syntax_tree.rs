@@ -11,7 +11,7 @@ use rsvelte_kernel::source::tokens::{TokenKind, Tokens};
 use rsvelte_stylesheet_syntax::StyleSheet;
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
-    ProgramIdentifier, Tree, TypeParametersIdentifier,
+    ProgramIdentifier, SyntaxError, Tree, TypeParametersIdentifier,
 };
 
 pub type TemplateNodeIdentifier = u32;
@@ -288,6 +288,8 @@ pub struct Script {
     pub attributes: Vec<TagAttributes>,
     pub content: Span,
     pub program: ProgramIdentifier,
+    /// Whether its program is TypeScript: the component's `lang="ts"`, or a script
+    /// [`crate::parse::parse_reading_scripts_as_typescript`] read as TypeScript.
     pub typescript: bool,
     /// The type parameters of an instance script's `generics="…"`, when they parse.
     pub generics: Option<TypeParametersIdentifier>,
@@ -330,6 +332,9 @@ pub struct Component {
     pub module: Option<Script>,
     pub instance: Option<Script>,
     pub style: Option<Style>,
+    /// Read by [`crate::parse::parse_reading_scripts_as_typescript`], the errors of the first
+    /// script the compiler rejects that TypeScript rejects too, in order; empty otherwise.
+    pub script_typescript_errors: Vec<SyntaxError>,
     /// The whole document as tokens: markup, the JavaScript parser's tokens and comments, and the
     /// whitespace between them. The style sheet is one [`TokenType::Stylesheet`] token.
     pub tokens: Tokens<TokenType>,

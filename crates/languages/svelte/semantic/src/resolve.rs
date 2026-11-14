@@ -189,7 +189,14 @@ fn resolve_scripts(
         );
         let subscribed = if stores {
             let instance_program = instance.and_then(|p| tree.get_program(p).scope_id.get());
-            runes::subscribed(semantic, instance_scope, instance_program, module.is_some())
+            let instance_body = instance.map_or(&[][..], |p| &tree.get_program(p).body[..]);
+            runes::subscribed(
+                semantic,
+                instance_scope,
+                instance_program,
+                instance_body,
+                module.is_some(),
+            )
         } else {
             runes::Subscriptions::default()
         };

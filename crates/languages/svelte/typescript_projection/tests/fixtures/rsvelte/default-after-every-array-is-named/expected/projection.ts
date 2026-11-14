@@ -11,6 +11,5 @@ async () => {
     (b);
   }
 };
-const DefaultAfterEveryArrayIsNamed__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type DefaultAfterEveryArrayIsNamed__SvelteComponent_ = ReturnType<typeof DefaultAfterEveryArrayIsNamed__SvelteComponent_>;
-export default DefaultAfterEveryArrayIsNamed__SvelteComponent_;
+const DefaultAfterEveryArrayIsNamed__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof DefaultAfterEveryArrayIsNamed__SvelteComponent_>} */ (DefaultAfterEveryArrayIsNamed__SvelteComponent_);

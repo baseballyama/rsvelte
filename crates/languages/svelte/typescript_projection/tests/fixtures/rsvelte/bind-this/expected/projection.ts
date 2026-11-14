@@ -1,7 +1,7 @@
 ;
 
 	import Foo from './Foo.svelte';
-	let { p = $bindable(), C }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { p = $bindable(), C } = $props();
 	let el;
 	let a = $state();
 	let refs = $state([]);
@@ -59,6 +59,5 @@ async () => {
     }
   }
 };
-const BindThis__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "p">();
-type BindThis__SvelteComponent_ = ReturnType<typeof BindThis__SvelteComponent_>;
-export default BindThis__SvelteComponent_;
+const BindThis__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "p">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindThis__SvelteComponent_>} */ (BindThis__SvelteComponent_);

@@ -7,6 +7,5 @@ async () => {
     }
   }
 };
-const HeadWhitespace__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type HeadWhitespace__SvelteComponent_ = ReturnType<typeof HeadWhitespace__SvelteComponent_>;
-export default HeadWhitespace__SvelteComponent_;
+const HeadWhitespace__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof HeadWhitespace__SvelteComponent_>} */ (HeadWhitespace__SvelteComponent_);

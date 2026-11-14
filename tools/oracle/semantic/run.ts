@@ -48,6 +48,8 @@ export async function* projections(binary: string, inputs: string): AsyncGenerat
 				(typeof record.code !== 'string' || !Array.isArray(record.mappings))
 			)
 				throw new Error('projector omitted code or span mappings');
+			if (record.extension !== undefined && !['.ts', '.js'].includes(String(record.extension)))
+				throw new Error('projector extension must be .ts or .js');
 			if (record.detail !== undefined && typeof record.detail !== 'string')
 				throw new Error('projector detail must be a string');
 			yield record as unknown as Projection;

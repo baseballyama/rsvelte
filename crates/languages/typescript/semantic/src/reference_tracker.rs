@@ -13,7 +13,7 @@ use oxc_semantic::{AstNodes, NodeId, Scoping, SymbolId};
 use rsvelte_typescript_tree::ProgramIdentifier;
 use rustc_hash::FxHashSet;
 
-use super::globals::global;
+use super::globals::Declared;
 use crate::semantic::Semantic;
 
 /// A use of a tracked name.
@@ -80,11 +80,14 @@ pub const GLOBAL_OBJECTS: &[&str] = &["global", "globalThis", "self", "window"];
 /// The uses of the global variables `names`, directly or as members of `window`, `globalThis`
 /// and `self`, in no particular order.
 ///
-/// As in `ESLint`, a global counts only when it is declared (see [`global`]) and nothing
-/// assigns it.
+/// As in `ESLint`, a global counts only when `declared` declares it and nothing assigns it.
 #[must_use]
-pub fn global_references<'a>(semantic: &Semantic, names: &[&'a str]) -> Vec<TrackedReference<'a>> {
-    globals(Tracker::new(semantic, names), GLOBAL_OBJECTS)
+pub fn global_references<'a>(
+    semantic: &Semantic,
+    declared: &Declared,
+    names: &[&'a str],
+) -> Vec<TrackedReference<'a>> {
+    globals(Tracker::new(semantic, names), declared, GLOBAL_OBJECTS)
 }
 
 /// [`global_references`] for every global that `tracked` accepts, with `global_objects` in place
@@ -92,11 +95,12 @@ pub fn global_references<'a>(semantic: &Semantic, names: &[&'a str]) -> Vec<Trac
 #[must_use]
 pub fn global_references_matching<'s>(
     semantic: &'s Semantic,
+    declared: &Declared,
     tracked: impl Fn(&str) -> bool,
     global_objects: &[&str],
 ) -> Vec<TrackedReference<'s>> {
     let tracked = Matching(tracked);
-    globals(Tracker::new(semantic, &tracked), global_objects)
+    globals(Tracker::new(semantic, &tracked), declared, global_objects)
 }
 
 /// The uses of the members `names` of `node`'s value, or of its member `prefix` path
@@ -122,6 +126,7 @@ pub fn property_references<'a>(
 
 fn globals<'s, 'a, N: Names<'s, 'a> + ?Sized>(
     mut tracker: Tracker<'s, 'a, '_, N>,
+    declared: &Declared,
     global_objects: &[&str],
 ) -> Vec<TrackedReference<'a>> {
     let scoping = tracker.scoping;
@@ -133,7 +138,7 @@ fn globals<'s, 'a, N: Names<'s, 'a> + ?Sized>(
         .collect();
     for (name, ids) in unresolved {
         let name: &'s str = name.as_str();
-        if global(name).is_none() || modified.contains(name) {
+        if !declared.declares(name) || modified.contains(name) {
             continue;
         }
         let (value, report) = if let Some(name) = tracker.names.find(name) {

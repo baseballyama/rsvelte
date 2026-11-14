@@ -203,9 +203,11 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "    }\n",
             "  }\n",
             "};\n",
-            "const $$Component = __rsvelte_export_component<__rsvelte_no_props, {}, \"\">();\n",
-            "type $$Component = ReturnType<typeof $$Component>;\n",
-            "export default $$Component;\n",
+            // A component without a TypeScript script projects to JavaScript, its types in JSDoc.
+            "const $$Component = (/** @type {typeof __rsvelte_export_component<",
+            "__rsvelte_no_props, {}, \"\">} */ (__rsvelte_export_component))();\n",
+            "export default /** @type {__rsvelte_javascript_export<typeof $$Component>} */ ",
+            "($$Component);\n",
         )
     );
     for mapping in output.mappings.iter().filter(|mapping| mapping.len > 0) {
@@ -344,7 +346,8 @@ fn a_default_slot_lets_the_component_take_children_as_svelte2tsx_does() {
         ("<slot name=\"x\" />", false),
         ("<div></div>", false),
     ] {
-        let (_, output) = project(source);
+        // The widened type is TypeScript's; JavaScript writes no type arguments.
+        let (_, output) = project(&format!("<script lang=\"ts\"></script>{source}"));
         assert_eq!(
             output.out.contains(widened),
             expected,
@@ -376,7 +379,7 @@ fn a_component_s_snippets_are_props_after_its_attributes_as_svelte2tsx_passes_th
         .expect("mapped");
     assert_eq!(mapped.text(source), "head");
     // A snippet elsewhere is a constant, before the other children of its parent.
-    let source = "<div>{@render s()}{#snippet s()}{/snippet}</div>";
+    let source = "<script lang=\"ts\"></script><div>{@render s()}{#snippet s()}{/snippet}</div>";
     let (_, output) = project(source);
     let out = &output.out;
     let declared = out.find("const s = (): ReturnType<import('svelte').Snippet>");

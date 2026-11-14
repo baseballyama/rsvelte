@@ -1,7 +1,7 @@
 ;
 
 	import C from './C.svelte';
-const dot = (r): ReturnType<import('svelte').Snippet> => {
+const dot = (r) => {
   async () => {
     {
       svelteHTML.createElement("circle", {
@@ -12,7 +12,7 @@ const dot = (r): ReturnType<import('svelte').Snippet> => {
   return __rsvelte_snippet_return;
 };
 
-	let { show = true, label = 'a' }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { show = true, label = 'a' } = $props();
 
 ;
 
@@ -67,6 +67,5 @@ async () => {
     }
   }
 };
-const SvgInferredFragments__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type SvgInferredFragments__SvelteComponent_ = ReturnType<typeof SvgInferredFragments__SvelteComponent_>;
-export default SvgInferredFragments__SvelteComponent_;
+const SvgInferredFragments__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SvgInferredFragments__SvelteComponent_>} */ (SvgInferredFragments__SvelteComponent_);

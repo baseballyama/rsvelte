@@ -1,8 +1,10 @@
+use oxc_span::SourceType;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_tree::{ProgramIdentifier, SyntaxError};
 
 use super::javascript::javascript_failure;
-use super::{ParseResult, Parser};
+use super::{ParseResult, Parser, Scripts};
 use crate::syntax_tree::{Script, Style, TagAttributes, TokenType};
 
 /// Ports upstream's `regex_lang_attribute` (1-parse/index.js): the first `<script …lang=…>` outside
@@ -268,6 +270,35 @@ impl Parser<'_, '_> {
         self.eat_token(TokenType::TagEnd, 1);
     }
 
+    /// The script's program as Prettier's Svelte plugin reads it: as the compiler reads it, else
+    /// as TypeScript, else empty, keeping the first such script's TypeScript errors; and whether
+    /// it is TypeScript.
+    fn program_read_as_typescript(
+        &mut self,
+        content: Span,
+        source_type: SourceType,
+    ) -> Result<(ProgramIdentifier, bool), SyntaxError> {
+        let typescript = SourceType::ts().with_module(true);
+        let read = if source_type.is_typescript() {
+            self.builder.program_or_errors(content, source_type)
+        } else {
+            match self.builder.program(content, source_type) {
+                Ok(program) => return Ok((program, false)),
+                Err(_) => self.builder.program_or_errors(content, typescript),
+            }
+        };
+        let errors = match read {
+            Ok(program) => return Ok((program, true)),
+            Err(errors) => errors,
+        };
+        if self.component.script_typescript_errors.is_empty() {
+            self.component.script_typescript_errors = errors;
+        }
+        let end = content.end_offset;
+        let program = self.builder.program(Span::new(end, end), source_type)?;
+        Ok((program, source_type.is_typescript()))
+    }
+
     fn script(&mut self, start_offset: usize, attributes: Vec<TagAttributes>) -> ParseResult<()> {
         let module = is_module(self.source_text, &attributes);
         let typescript = self.typescript;
@@ -278,15 +309,20 @@ impl Parser<'_, '_> {
             self.component.instance.is_some()
         };
         let source_type = self.source_type();
-        let parsed = if self.scripts {
-            content
-        } else {
-            Span::new(content.end_offset, content.end_offset)
-        };
-        let program = self
-            .builder
-            .program(parsed, source_type)
-            .map_err(javascript_failure)?;
+        let (program, typescript) = match self.scripts {
+            Scripts::Read => self
+                .builder
+                .program(content, source_type)
+                .map(|p| (p, typescript)),
+            Scripts::Left => (self.builder)
+                .program(
+                    Span::new(content.end_offset, content.end_offset),
+                    source_type,
+                )
+                .map(|p| (p, typescript)),
+            Scripts::ReadAsTypeScript => self.program_read_as_typescript(content, source_type),
+        }
+        .map_err(javascript_failure)?;
         // Upstream parses the script before it checks for another.
         if duplicate {
             return Self::err_at(
@@ -299,7 +335,7 @@ impl Parser<'_, '_> {
         self.javascript_region(content.start_offset, content.end_offset);
         // Svelte only strips `generics`, so a list that does not parse is left out, as
         // `svelte-eslint-parser` does; read after the program's tokens are taken.
-        let generics = (!module && typescript && self.scripts)
+        let generics = (!module && self.typescript && self.scripts != Scripts::Left)
             .then(|| {
                 let (_, value) = attributes
                     .iter()

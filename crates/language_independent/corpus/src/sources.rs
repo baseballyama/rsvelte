@@ -136,17 +136,10 @@ impl UnitTable {
     }
 }
 
-#[derive(Deserialize)]
-struct Lock {
-    #[serde(default)]
-    rules: Vec<String>,
-}
-
 /// The shared files of the corpus.
 pub(crate) struct Registry {
     pub(crate) dir: PathBuf,
     pub(crate) units: BTreeMap<String, UnitTable>,
-    locks: BTreeMap<String, Lock>,
 }
 
 impl Registry {
@@ -157,14 +150,6 @@ impl Registry {
             std::fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()))
         };
         let units = toml::from_str(&read("units.toml")?).map_err(|e| format!("units.toml: {e}"))?;
-        let locks = serde_json::from_str(&read("oracles.json")?)
-            .map_err(|e| format!("oracles.json: {e}"))?;
-        Ok(Self { dir, units, locks })
-    }
-
-    /// The rules the official linter of `task` ran.
-    pub(crate) fn lint_rules(&self, task: &str) -> &[String] {
-        let (name, _) = crate::task_files::location(task);
-        self.locks.get(name).map_or(&[], |l| &l.rules)
+        Ok(Self { dir, units })
     }
 }
