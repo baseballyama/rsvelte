@@ -11,6 +11,7 @@ use rsvelte_svelte_semantic::warnings::CompileWarnings;
 use rsvelte_svelte_semantic::{Lowered, Resolved, Warned};
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_typescript_semantic::globals::Declared;
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree};
 
@@ -69,6 +70,7 @@ pub type RuleOptions<'a> = rsvelte_lint_runner::catalog::RuleOptions<'a, LintSet
 pub struct File<'a> {
     pub context: &'a DocumentContext<'a>,
     parsed: Source<'a>,
+    globals: &'a Declared,
 }
 
 #[derive(Debug)]
@@ -83,7 +85,10 @@ impl<'a> File<'a> {
     /// # Errors
     ///
     /// The source does not parse.
-    pub fn new(context: &'a DocumentContext<'a>) -> Result<Self, Diagnostic> {
+    pub fn new(
+        context: &'a DocumentContext<'a>,
+        globals: &'a Declared,
+    ) -> Result<Self, Diagnostic> {
         let parsed = if rsvelte_svelte_syntax::matches(context.document) {
             Source::Component(context.get::<Parsed>().as_ref().map_err(Clone::clone)?)
         } else {
@@ -94,7 +99,17 @@ impl<'a> File<'a> {
                     .map_err(Clone::clone)?,
             )
         };
-        Ok(Self { context, parsed })
+        Ok(Self {
+            context,
+            parsed,
+            globals,
+        })
+    }
+
+    /// The global variables that the configuration declares.
+    #[must_use]
+    pub const fn globals(&self) -> &'a Declared {
+        self.globals
     }
 
     #[must_use]

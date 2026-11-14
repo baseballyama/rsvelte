@@ -398,6 +398,8 @@ fn run(case: &Case<'_>, deviation: Option<&Deviation>) -> Verdict {
         Err(why) => return Verdict::Unmeasured(format!("a svelte.config.js {why}")),
     };
     let mut configuration = Configuration::new(settings);
+    // Upstream's tests declare `globals.browser`.
+    configuration.declare_globals(rsvelte_typescript_semantic::globals::Declared::browser());
     if let Err(error) = configuration.rule(&name, Severity::Error, &config.options, &[]) {
         return Verdict::Fail(format!("the options do not configure the rule: {error}"));
     }

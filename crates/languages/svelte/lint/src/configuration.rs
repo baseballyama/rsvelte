@@ -3,6 +3,7 @@ use std::sync::{Arc, LazyLock};
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_lint_runner::catalog::{self, Enabled, EnabledRules};
 use rsvelte_lint_runner::rule::{Reporter, Rule};
+use rsvelte_typescript_semantic::globals::Declared;
 use serde_json::value::RawValue;
 
 use crate::LintSettings;
@@ -13,6 +14,7 @@ use crate::rule::{File, Files, LintPlugin, RuleDefinition, RuleOptions, SvelteRu
 pub struct Configuration {
     rules: EnabledRules<dyn SvelteRule, Files>,
     settings: Arc<LintSettings>,
+    globals: Declared,
 }
 
 /// A rule that configuration turned on, with the documents it runs on.
@@ -47,7 +49,21 @@ impl Configuration {
         Self {
             rules: EnabledRules::default(),
             settings: Arc::new(settings),
+            globals: Declared::default(),
         }
+    }
+
+    /// Declares the global variables of `ESLint`'s `languageOptions.globals`; without it, only
+    /// the builtins exist.
+    pub fn declare_globals(&mut self, globals: Declared) -> &mut Self {
+        self.globals = globals;
+        self
+    }
+
+    /// The global variables that exist.
+    #[must_use]
+    pub const fn globals(&self) -> &Declared {
+        &self.globals
     }
 
     /// Turns on rule `name`, a built-in rule or one of `plugins`, with `ESLint`'s options after

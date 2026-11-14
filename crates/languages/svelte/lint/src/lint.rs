@@ -21,7 +21,7 @@ pub fn lint(
     context: &DocumentContext<'_>,
     configuration: &Configuration,
 ) -> Result<Vec<Finding>, Diagnostic> {
-    check(&File::new(context)?, configuration)
+    check(&File::new(context, configuration.globals())?, configuration)
 }
 
 /// [`lint`] of a parsed document.

@@ -132,10 +132,11 @@ impl Task for Lint {
             );
             return;
         }
-        let (file, findings) = match crate::rule::File::new(context).and_then(|file| {
-            let findings = crate::lint::check(&file, configuration)?;
-            Ok((file, findings))
-        }) {
+        let (file, findings) = match crate::rule::File::new(context, configuration.globals())
+            .and_then(|file| {
+                let findings = crate::lint::check(&file, configuration)?;
+                Ok((file, findings))
+            }) {
             Ok(linted) => linted,
             Err(error) => {
                 out.diagnostics.push(error);
