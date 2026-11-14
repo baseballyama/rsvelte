@@ -157,10 +157,9 @@ pub(super) fn named_in_scope<'a>(
     call: &'a CallExpression<'a>,
 ) -> Option<&'static str> {
     let (rune, root) = named(call)?;
-    let bound = root
-        .reference_id
-        .get()
-        .and_then(|reference| semantic.scoping().get_reference(reference).symbol_id())
+    let scoping = semantic.scoping();
+    let bound = (root.reference_id.get())
+        .and_then(|reference| super::bound(scoping, scoping.get_reference(reference).symbol_id()))
         .is_some();
     (!bound && !subscribed.shadows(semantic, root)).then_some(rune)
 }

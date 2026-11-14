@@ -9,7 +9,7 @@ use oxc_ast::AstKind;
 use oxc_ast::ast::{
     CallExpression, Expression, IdentifierReference, Program, PropertyKey, VariableDeclarationKind,
 };
-use oxc_semantic::{ReferenceId, ScopeId, Scoping, SymbolId};
+use oxc_semantic::{ReferenceId, ScopeId, Scoping, SymbolFlags, SymbolId};
 use oxc_span::{GetSpan, Span};
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
@@ -68,6 +68,15 @@ pub struct BindingInformation<'a> {
 pub(crate) struct TemplateNames {
     pub(crate) snippets: FxHashMap<CompilerNodeIdentifier, SymbolId>,
     pub(crate) lets: FxHashMap<AttributeIdentifier, Vec<SymbolId>>,
+}
+
+/// `symbol` unless only `declare` declarations make it: upstream strips them before its analysis.
+pub(crate) fn bound(scoping: &Scoping, symbol: Option<SymbolId>) -> Option<SymbolId> {
+    let ambient = |flags: SymbolFlags| flags.contains(SymbolFlags::Ambient);
+    symbol.filter(|&symbol| {
+        !ambient(scoping.symbol_flags(symbol))
+            || !(scoping.symbol_redeclarations(symbol).iter()).all(|r| ambient(r.flags))
+    })
 }
 
 mod cell {
@@ -289,12 +298,17 @@ impl Resolution {
         self.0.borrow_dependent().uses_props
     }
 
-    /// The symbol `reference` resolves to; `None` for a global, or for an identifier the analysis
-    /// did not visit, such as one a task built.
+    /// The symbol `reference` resolves to; `None` for a global, for a name only `declare`
+    /// declarations bind, or for an identifier the analysis did not visit, such as one a task
+    /// built.
     #[must_use]
     pub fn symbol(&self, reference: &IdentifierReference<'_>) -> Option<SymbolId> {
-        let reference = reference.reference_id.get()?;
-        self.scoping().get_reference(reference).symbol_id()
+        bound(
+            self.scoping(),
+            self.scoping()
+                .get_reference(reference.reference_id.get()?)
+                .symbol_id(),
+        )
     }
 
     /// Where the reference `reference` is.
