@@ -19,7 +19,7 @@ pub use compiler::{
     CompileOptions, CompileResult, JavaScript, ModuleCompileOptions, VERSION, compile,
     compile_module,
 };
-pub use computation::{Identified, Planned, ScopedStylesheet};
+pub use computation::{Identified, Planned, ScopedStylesheet, compile_errors, register_validation};
 pub use configuration::{Configuration, CssHash, CssHashInput};
 pub use extension::EXTENSION;
 pub use identity::OutputIdentity;
