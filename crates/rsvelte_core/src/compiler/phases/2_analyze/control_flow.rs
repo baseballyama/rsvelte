@@ -126,8 +126,7 @@ pub fn build_sibling_relationships(dom_structure: &mut DomStructure, root_fragme
     snippets.resolve();
 
     // Second pass: for each element, compute possible siblings using AST walk.
-    let num_elements = dom_structure.elements.len();
-    for dom_idx in 0..num_elements {
+    for (dom_idx, element) in dom_structure.elements.iter_mut().enumerate() {
         if let Some(path) = element_paths.get(&dom_idx) {
             let mut incomplete = false;
             let mut run = |direction, adjacent_only| {
@@ -148,11 +147,11 @@ pub fn build_sibling_relationships(dom_structure: &mut DomStructure, root_fragme
             let next_gen = run(Direction::Forward, false);
 
             // Convert results to the DomStructure format
-            dom_structure.elements[dom_idx].possible_prev_adjacent = convert_results(&prev_adj);
-            dom_structure.elements[dom_idx].possible_prev_general = convert_results(&prev_gen);
-            dom_structure.elements[dom_idx].possible_next_adjacent = convert_results(&next_adj);
-            dom_structure.elements[dom_idx].possible_next_general = convert_results(&next_gen);
-            dom_structure.elements[dom_idx].sibling_walk_incomplete = incomplete;
+            element.possible_prev_adjacent = convert_results(&prev_adj);
+            element.possible_prev_general = convert_results(&prev_gen);
+            element.possible_next_adjacent = convert_results(&next_adj);
+            element.possible_next_general = convert_results(&next_gen);
+            element.sibling_walk_incomplete = incomplete;
         }
     }
 
