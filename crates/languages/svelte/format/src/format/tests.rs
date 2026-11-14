@@ -463,6 +463,16 @@ fn a_script_babel_rejects_is_kept_as_written_and_the_rest_formatted() {
         formatted(&format!("{script}<div   class=\"a\"  >{{x+1}}</div>\n")),
         format!("{script}\n<div class=\"a\">{{x + 1}}</div>\n")
     );
+    // tsc gives both duplicates one code, and Babel throws only on the private name.
+    let script = "<script>\n\tclass A { #a; #a; }\n\tlet   x =  1\n</script>\n";
+    assert_eq!(
+        formatted(&format!("{script}<p>{{x}}</p>\n")),
+        format!("{script}\n<p>{{x}}</p>\n")
+    );
+    assert_eq!(
+        refusal("<script>\n\tlet a; let a;\n</script>\n<p>x</p>\n").0,
+        "code a module rejects"
+    );
     // Prettier's TypeScript parser recovers, and the port does not know what it prints.
     assert_eq!(
         refusal("<script lang=\"ts\">\n\tfunction f() { continue; }\n</script>\n<p>x</p>\n").0,

@@ -554,6 +554,7 @@ fn refused(message: &str, span: Span) -> SyntaxError {
     SyntaxError {
         diagnostic: Diagnostic::error("parse_error", message, span),
         acorn: None,
+        typescript_code: None,
     }
 }
 
