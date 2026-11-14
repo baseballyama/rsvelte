@@ -1,4 +1,4 @@
-# svelte.compile/server: 35092 match
+# svelte.compile/server: 35093 match
 svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/component_sequence_error_points_at_the_expression/c1314d8fdd09c86c.svelte	unexpected
 svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/element_sequence_error_points_at_the_expression/35ccaf71b9485683.svelte	unexpected
 svelte/rsvelte-tests-core-1/bind_host_axis_3264/legal_bindings_still_compile_on_every_host/e2b7a8af8920172b.svelte	refused
@@ -13,7 +13,6 @@ svelte/rsvelte-tests-core-2/dollar_parameter_is_not_a_store/a_dollar_local_is_as
 svelte/rsvelte-tests-core-2/dollar_parameter_is_not_a_store/a_dollar_local_is_assigned_directly_on_the_server/e20ca243f0bb5ea1.svelte	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/early_errors_reach_a_typescript_script_too/1f4d960367ca688a.svelte	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/the_analyze_phase_duplicate_check_is_still_reachable/d6fd0ea8bba6d45d.svelte	unexpected
-svelte/rsvelte-tests-core-2/export_import_attributes/every_module_specifier_form_keeps_its_with_clause/1b198651e8923152.svelte	mismatch
 svelte/rsvelte-tests-core-2/inspect_operand_slot_3441/a_with_inspect_initializer_on_server_dev/c295403bf92ffd40.svelte	refused
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_reject_a_nel/d17180b037ec6515.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/4e9145d6de0541b6.svelte	mismatch
