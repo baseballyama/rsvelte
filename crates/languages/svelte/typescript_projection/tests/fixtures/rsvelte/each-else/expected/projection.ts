@@ -12,7 +12,7 @@ async () => {
     for (let [, result] of __rsvelte_each(results)) {
       {
         svelteHTML.createElement("p", {});
-        result.title;
+        (result.title);
       }
     }
     {

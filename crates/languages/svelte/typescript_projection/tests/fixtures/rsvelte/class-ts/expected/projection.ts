@@ -11,17 +11,17 @@ async () => {
     svelteHTML.createElement("div", {
       "class": { active, [tone]: level > 1 },
     });
-    level > 2;
+    (level > 2);
   }
   {
     svelteHTML.createElement("div", {});
-    active.length;
+    (active.length);
   }
   {
     svelteHTML.createElement("button", {
       "onclick": () => level++,
     });
-    level;
+    (level);
   }
 };
 const ClassTs__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

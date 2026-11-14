@@ -303,11 +303,11 @@ pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution
         raised.extend(validation::check_awaits(input).err().map(parse));
     }
     raised.extend(special::validate(input).err().map(parse));
-    raised.extend(validation::template_error(input).map(|error| {
+    raised.extend(validation::template_error(input).map(|(at, error)| {
         let raised = Raised {
             phase: Phase::Walk,
             section: Section::Template,
-            at: error.span.start_offset,
+            at,
         };
         (raised, error)
     }));

@@ -1,0 +1,2 @@
+error bind_invalid_target 5:16-5:30 `bind:value` can only be used with `<input>`, `<textarea>`, `<select>`
+    https://svelte.dev/e/bind_invalid_target

@@ -19,7 +19,7 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => console.log(copy(), cleanup),
     });
-    copy().length;
+    (copy().length);
   }
 };
 const EffectRootSnapshot__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

@@ -31,7 +31,7 @@ async () => {
           "--b": item,
           "c": item,
         });
-        item;
+        (item);
         C;
       }
     }

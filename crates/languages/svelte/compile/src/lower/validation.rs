@@ -25,7 +25,7 @@ pub(super) fn redeclares_in_template(input: &CompileInput<'_>, error: &Diagnosti
         .any(|span| span.start <= start && start < span.end)
 }
 
-use super::{CompileInput, Diagnostic, Resolution, Span};
+use super::{CompileInput, Diagnostic, Resolution, Span, Target};
 
 /// Upstream's analysis errors in its order: the first it raises as it builds the scopes, then
 /// `$$props` and `$$restProps`, then the first its walk meets. `template` holds those of the
@@ -59,7 +59,23 @@ pub(super) fn check_analysis(
         };
         (raised, error)
     };
-    errors.extend(template_error(input).map(|e| walk(Section::Template, e)));
+    errors.extend(template_error(input).map(|(at, error)| {
+        let raised = Raised {
+            phase: Phase::Walk,
+            section: Section::Template,
+            at,
+        };
+        (raised, error)
+    }));
+    // The rune walk's template error, which upstream meets in the same walk as the template's.
+    if errors
+        .iter()
+        .any(|(raised, _)| raised.section == Section::Template)
+        && let Err(error) = check_runes(input, res, Target::Client, custom_element)
+        && error.code != "unsupported"
+    {
+        errors.push(walk(Section::Template, error));
+    }
     // A walk error waits for the scripts' first, which the later rune checks raise anyway.
     if errors.iter().any(|(raised, _)| raised.phase == Phase::Walk)
         && let Some((module, error)) = script_error(input, res, custom_element)
@@ -81,12 +97,16 @@ pub(super) fn check_analysis(
     errors.next().map_or(Ok(()), |(_, error)| Err(error))
 }
 
-/// The first error upstream's walk over the template raises, which it raises in either mode.
-pub(super) fn template_error(input: &CompileInput<'_>) -> Option<Diagnostic> {
-    [super::special::analysis(input), markup::check(input)]
-        .into_iter()
-        .filter_map(Result::err)
-        .min_by_key(|error| error.span.start_offset)
+/// The first error upstream's walk over the template raises, which it raises in either mode,
+/// with where the walk raises it.
+pub(super) fn template_error(input: &CompileInput<'_>) -> Option<(u32, Diagnostic)> {
+    [
+        super::special::analysis(input).map_err(|e| (e.span.start_offset, e)),
+        markup::check(input),
+    ]
+    .into_iter()
+    .filter_map(Result::err)
+    .min_by_key(|&(at, _)| at)
 }
 
 /// Upstream `legacy_props_invalid` and `legacy_rest_props_invalid` at a name no script declares.

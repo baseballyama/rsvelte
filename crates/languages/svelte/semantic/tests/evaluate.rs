@@ -61,8 +61,10 @@ fn global_folding_preserves_known_and_unknown_results() {
 
 #[test]
 fn binding_cycles_terminate_and_do_not_leak_between_expressions() {
+    // Upstream's evaluation of an initializer already in progress adds no value.
     for source in ["const a = a; a;", "const a = b; const b = a; a;"] {
-        assert!(evaluate(source).has_unknown, "{source}");
+        let result = evaluate(source);
+        assert!(result.is_known && result.values.is_empty(), "{source}");
     }
     assert_eq!(evaluate("const a = 2; a + a;").value, Value::Number(4.0));
     let mut source = String::from("const v0 = 1;");

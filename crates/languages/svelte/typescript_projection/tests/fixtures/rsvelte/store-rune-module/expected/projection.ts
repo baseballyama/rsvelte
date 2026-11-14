@@ -9,7 +9,7 @@
 async () => {
   {
     svelteHTML.createElement("p", {});
-    state.data.n;
+    (state.data.n);
   }
 };
 const StoreRuneModule__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

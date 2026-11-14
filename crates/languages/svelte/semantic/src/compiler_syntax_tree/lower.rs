@@ -20,6 +20,7 @@ pub fn lower(c: &Component, source_text: &str) -> CompilerSyntaxTree {
         b: CompilerSyntaxTreeBuilder::new(source_text, c.nodes.len(), c.attributes.len()),
     };
     let root = b.list(c.children(c.root), None);
+    b.b.parenthesized_binds(&c.parenthesized_binds);
     b.b.finish(root)
 }
 
