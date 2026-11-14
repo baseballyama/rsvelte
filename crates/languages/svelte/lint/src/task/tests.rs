@@ -148,3 +148,20 @@ fn the_rules_read_a_script_the_compiler_rejects_as_typescript() {
         ]
     );
 }
+
+/// What typescript-eslint throws at a script's end depends on the template's code, so lint
+/// refuses the script rather than guess.
+#[test]
+fn an_error_at_a_scripts_end_is_refused() {
+    let mut registry = Registry::new();
+    register_with_configuration(&mut registry, Configuration::new(LintSettings::default()));
+    let document = Document::new(
+        "App.svelte".to_owned(),
+        "<script>const a = </script><p></p>".to_owned(),
+    )
+    .expect("a small document");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let mut out = TaskOutput::default();
+    Lint { modules: false }.run(&context, &mut out);
+    assert_eq!((out.files.len(), out.diagnostics.len()), (0, 1));
+}
