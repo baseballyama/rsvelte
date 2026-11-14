@@ -10,7 +10,7 @@ use rsvelte_svelte_semantic::resolve::Resolution;
 
 use super::Builder;
 use super::builder::Runtime;
-use super::javascript::is_simple_expression;
+use super::javascript::is_simple_expression_in;
 
 /// What a caller of [`extract_paths`] decides: how its script reads the pattern's own
 /// expressions, and how it keeps an array the pattern destructures.
@@ -23,6 +23,11 @@ pub(super) trait Destructure<'a, 'o> {
 
     /// Called once `binding`'s path is read, as upstream gives a name its transform only then.
     fn bound(&mut self, _binding: &'a BindingIdentifier<'a>, _default: bool) {}
+
+    /// How many pairs of parentheses upstream keeps around `e`, which make it no simple value.
+    fn parentheses(&self, _e: &Expression<'_>) -> u8 {
+        0
+    }
 
     /// Whether `object.key` reads `$$props` instead, as upstream reads a rest prop's member.
     fn reads_props(&self, _object: &Expression<'o>, _key: &str) -> bool {
@@ -93,13 +98,16 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
         value: Expression<'o>,
     ) -> Expression<'o> {
         let b = self.b;
-        if is_simple_expression(fallback) {
+        let parenthesized = self.hooks.parentheses(fallback) > 0;
+        let hooks = &self.hooks;
+        if is_simple_expression_in(fallback, &|e| hooks.parentheses(e) > 0) {
             return b.runtime("fallback", [value, self.hooks.rewrite(fallback)]);
         }
         // Upstream makes the thunk before it rewrites the fallback, so `() => f()` is `f`.
         let thunk = match fallback.get_inner_expression() {
             Expression::CallExpression(call)
-                if call.arguments.is_empty()
+                if !parenthesized
+                    && call.arguments.is_empty()
                     && !call.optional
                     && matches!(call.callee, Expression::Identifier(_)) =>
             {

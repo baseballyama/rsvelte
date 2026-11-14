@@ -2,6 +2,7 @@ use oxc_ast::ast::{
     BindingPattern, Expression, FormalParameter, Statement, VariableDeclarationKind,
 };
 use oxc_semantic::SymbolId;
+use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
 
 use crate::lower::builder::Runtime;
@@ -95,6 +96,10 @@ pub(in crate::lower::client) struct Hooks<'c, 'x, 'o> {
 impl<'o> Destructure<'o, 'o> for Hooks<'_, '_, 'o> {
     fn rewrite(&mut self, e: &'o Expression<'o>) -> Expression<'o> {
         self.context.rewrite(e, true)
+    }
+
+    fn parentheses(&self, e: &Expression<'_>) -> u8 {
+        self.context.javascript.parentheses(e.span())
     }
 
     fn bound(&mut self, binding: &'o oxc_ast::ast::BindingIdentifier<'o>, default: bool) {

@@ -12,6 +12,8 @@ use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
+mod parentheses;
+
 use crate::acorn_grammar::{Rejection, Unsupported};
 use crate::syntax_error::{Locator, SyntaxError, acorn, syntax_error};
 use crate::{
@@ -43,6 +45,7 @@ pub struct Builder<'a> {
     unchecked: &'static [&'static str],
     as_acorn: bool,
     acorn_rejection: Option<(u32, Rejection)>,
+    parentheses: Vec<(oxc_span::Span, u8)>,
 }
 
 /// The tree of a part the builder just read.
@@ -89,6 +92,7 @@ impl<'a> Builder<'a> {
             unchecked: &[],
             as_acorn: false,
             acorn_rejection: None,
+            parentheses: Vec::new(),
         }
     }
 
@@ -147,6 +151,11 @@ impl<'a> Builder<'a> {
             type_parameters: self.type_parameters,
             comments: self.comments,
             acorn_rejection: self.acorn_rejection,
+            parentheses: {
+                let mut parentheses = self.parentheses;
+                parentheses.sort_unstable_by_key(|&(span, _)| (span.start, span.end));
+                parentheses
+            },
         }
     }
 
@@ -386,6 +395,7 @@ impl<'a> Builder<'a> {
             source_type,
             ("function<", 2),
             (">(){}", 5),
+            false,
             ("expected type parameters", |e| {
                 matches!(e, Expression::FunctionExpression(_))
             }),
@@ -415,6 +425,7 @@ impl<'a> Builder<'a> {
             source_type,
             ("(", 1),
             (")=>0", 3),
+            true,
             ("expected a pattern", |e| {
                 matches!(e, Expression::ArrowFunctionExpression(_))
             }),
@@ -437,6 +448,7 @@ impl<'a> Builder<'a> {
         source_type: SourceType,
         (open, opening_tokens): (&str, usize),
         (close, closing_tokens): (&str, usize),
+        parenthesized: bool,
         (expected, wrapper): (&str, fn(&Expression<'a>) -> bool),
     ) -> Result<(Expression<'a>, u32), SyntaxError> {
         // The wrapped text's opening stands where the bytes before the range are.
@@ -448,11 +460,18 @@ impl<'a> Builder<'a> {
         self.wrapped.push_str(range.text(self.source_text));
         self.wrapped.push_str(close);
         let text = self.allocator.alloc_str(&self.wrapped);
-        let parsed = Parser::new(self.allocator, text, source_type)
-            .with_options(options())
+        let mut parsed = Parser::new(self.allocator, text, source_type)
+            .with_options(ParseOptions {
+                preserve_parens: parenthesized,
+                ..options()
+            })
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
             .map_err(|errors| syntax_error(errors, text, 0, shift))?;
+        if parenthesized {
+            let recorded = &mut self.parentheses;
+            parentheses::strip(self.allocator, &mut parsed.expression, shift, recorded);
+        }
         let part = Part::Expression(&parsed.expression);
         self.check(
             parsed.diagnostics,
