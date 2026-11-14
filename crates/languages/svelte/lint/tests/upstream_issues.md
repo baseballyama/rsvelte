@@ -585,14 +585,17 @@ Issue: [svelte-eslint-parser #1005](https://github.com/sveltejs/svelte-eslint-pa
 
 ## Markup that svelte-eslint-parser does not read
 
-| Case                                                     | Upstream                        | Corpus units |
-| -------------------------------------------------------- | ------------------------------- | ------------ |
+| Case                                                      | Upstream                        | Corpus units |
+| --------------------------------------------------------- | ------------------------------- | ------------ |
 | `<script` in a string: `` {@html `<script>…</script>`} `` | `Parsing error`                 | 9            |
-| Components named `Script` and `Style`                    | `Parsing error: Type expected.` | 1            |
-| `use:a.b`, `transition:a.b`, `class:A.B`, `style:a-b`    | `Parsing error`                 | 11           |
-| A one-line `<script>import … from '…'</script>`          | `Parsing error: ';' expected.`  | 1            |
-| `{@const x = (y)}`                                       | `Parsing error: ')' expected.`  | 2            |
-| `<template lang="pug">` with a `{a}`                     | no reference to `a`             | 1            |
+| Components named `Script` and `Style`                     | `Parsing error: Type expected.` | 1            |
+| `use:a.b`, `transition:a.b`, `class:A.B`, `style:a-b`     | `Parsing error`                 | 11           |
+| A one-line `<script>import … from '…'</script>`           | `Parsing error: ';' expected.`  | 1            |
+| Any other one-line `<script>…</script>`                   | `Parsing error: ',' expected.`  | 38           |
+| `{@const x = (y)}`                                        | `Parsing error: ')' expected.`  | 2            |
+| `{@const x = (a, b)}` and `{#await (a, b)}`               | `Parsing error: ')' expected.`  | 9            |
+| An expression that ends in a line comment: `{a // c\n}`   | `Parsing error: ')' expected.`  | 24           |
+| `<template lang="pug">` with a `{a}`                      | no reference to `a`             | 1            |
 
 Issues for the rows of the table:
 
@@ -600,7 +603,12 @@ Issues for the rows of the table:
 - `Script` and `Style`: [svelte-eslint-parser #1006](https://github.com/sveltejs/svelte-eslint-parser/issues/1006). `Style` parses since svelte-eslint-parser 1.10.1.
 - Directive names: [svelte-eslint-parser #1007](https://github.com/sveltejs/svelte-eslint-parser/issues/1007), for a member name. Svelte reads a name with `-` as a subtraction, so that one has no issue.
 - The one-line script: [svelte-eslint-parser #1009](https://github.com/sveltejs/svelte-eslint-parser/issues/1009). It fails with TypeScript when `</script>` ends the file.
+- Any other one-line script: no issue yet. It may be the defect of #1009, without TypeScript. The error
+  is past the end of the script.
 - `{@const x = (y)}`: [svelte-eslint-parser #1008](https://github.com/sveltejs/svelte-eslint-parser/issues/1008).
+- A parenthesized sequence: no issue yet. It may be #1008 again; `{#await}` is another host.
+- A line comment at the end of an expression: no issue yet. The error is past the end of the
+  file. A guess: the comment hides a `)` or `}` that the parser adds after the expression.
 - `<template lang="pug">`: [svelte-eslint-parser #727](https://github.com/sveltejs/svelte-eslint-parser/issues/727).
 
 Svelte 5.57.3 compiles every one of them, so this crate lints them. The corpus skips their lint
