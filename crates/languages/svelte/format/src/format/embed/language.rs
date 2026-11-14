@@ -130,7 +130,7 @@ impl Printer<'_, '_, '_> {
             self.embedder.embedding.session(),
             &text,
             options,
-            None,
+            Some(oxc_formatter_css::CssEmbeddedIn::StyleElement),
         )
         .map_err(|_| Unsupported::at("CSS that oxc's formatter does not format", content))?;
         let body = self.keep(ir.ir);
