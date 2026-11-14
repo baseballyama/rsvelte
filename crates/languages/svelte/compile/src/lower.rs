@@ -247,10 +247,15 @@ pub(crate) fn validate_unit(
     {
         return Err(rsvelte_svelte_syntax::parse::javascript_failure(error));
     }
+    validation::check_awaits(input)?;
     let special::SvelteOptions {
         custom_element,
         stylesheet_injected,
     } = special::validate(input)?;
+    // Upstream erases the types right after it parses, before it analyzes.
+    if unit == Unit::Component {
+        validation::check_typescript(input)?;
+    }
     let names = stores::Names::new(input, res);
     let mut errors = snippets::errors(input, res);
     if unit == Unit::Component {
@@ -264,9 +269,6 @@ pub(crate) fn validate_unit(
     if let Err(refusal) = coverage::check(input, res) {
         let script = validation::script_error(input, res, custom_element.is_some());
         return Err(script.map_or(refusal, |(_, error)| error));
-    }
-    if unit == Unit::Component {
-        validation::check_typescript(input)?;
     }
     let rest_reads = rest_reads::build(res, custom_element.is_some());
     Ok(ValidatedOptions {
@@ -297,13 +299,15 @@ pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution
         raised.push(parse(rsvelte_svelte_syntax::parse::javascript_failure(
             error,
         )));
+    } else {
+        raised.extend(validation::check_awaits(input).err().map(parse));
     }
     raised.extend(special::validate(input).err().map(parse));
-    raised.extend(validation::template_error(input).map(|error| {
+    raised.extend(validation::template_error(input).map(|(at, error)| {
         let raised = Raised {
             phase: Phase::Walk,
             section: Section::Template,
-            at: error.span.start_offset,
+            at,
         };
         (raised, error)
     }));

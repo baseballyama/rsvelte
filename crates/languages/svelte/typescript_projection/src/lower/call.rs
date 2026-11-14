@@ -4,7 +4,6 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Part, Range, TemplateNode,
 };
-use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use super::{Builder, Node, NodeIdentifier, Result, refuse};
 
@@ -13,12 +12,11 @@ impl Builder<'_> {
     /// the snippets' names are declared from its props or its instance is checked.
     pub(super) fn component_call(
         &mut self,
-        component: ExpressionIdentifier,
+        component: NodeIdentifier,
         properties: NodeIdentifier,
         snippets: Range,
         name_it: bool,
     ) -> (NodeIdentifier, Option<NodeIdentifier>) {
-        let component = self.expression_source(component, None);
         let callee = self.tree.push(Node::Identifier("__rsvelte_component"));
         let arguments = self.tree.list(&[component]);
         let mut callee = self.tree.push(Node::Call { callee, arguments });

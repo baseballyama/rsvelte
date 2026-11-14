@@ -13,8 +13,8 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    doubled;
-    label;
+    (doubled);
+    (label);
   }
 };
 const Import__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

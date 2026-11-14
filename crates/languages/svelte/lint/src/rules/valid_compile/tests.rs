@@ -388,3 +388,16 @@ fn an_error_raised_only_while_generating_code_is_no_error() {
     );
     assert_eq!(first_error(code), []);
 }
+
+#[test]
+fn an_await_outside_an_async_function_fails_the_parse_in_either_mode() {
+    let error = vec![("js_parse_error".to_owned(), 2, 15)];
+    assert_eq!(
+        first_error("<script lang=\"ts\">\nfunction h() { await g(); }\n</script>\n"),
+        error
+    );
+    assert_eq!(
+        first_error("<script>\nfunction h() { await g(); }\nlet a = $state(1);\n</script>\n"),
+        error
+    );
+}

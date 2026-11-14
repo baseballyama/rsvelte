@@ -15,6 +15,23 @@ fn is_valid_identifier(name: &str) -> bool {
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 }
 
+/// Whether the text between a `{` and its expression opens a parenthesis outside a comment.
+fn opens_a_parenthesis(text: &str) -> bool {
+    let mut rest = text;
+    while let Some(c) = rest.chars().next() {
+        if let Some(comment) = rest.strip_prefix("/*") {
+            rest = comment.find("*/").map_or("", |end| &comment[end + 2..]);
+        } else if let Some(comment) = rest.strip_prefix("//") {
+            rest = comment.find('\n').map_or("", |end| &comment[end..]);
+        } else if c == '(' {
+            return true;
+        } else {
+            rest = &rest[c.len_utf8()..];
+        }
+    }
+    false
+}
+
 impl<'a> Parser<'a, '_> {
     pub(super) fn directive(
         &mut self,
@@ -43,6 +60,15 @@ impl<'a> Parser<'a, '_> {
             AttributeKind::Use | AttributeKind::Transition { .. } | AttributeKind::Animate
         ) {
             attribute.target = Some(self.directive_target(directive));
+        }
+        if attribute.kind == AttributeKind::Bind
+            && let [Part::Expression { expression, span }] = *parts.get(&self.component.parts)
+        {
+            let start = oxc_span::GetSpan::span(self.builder.get_expression(expression)).start;
+            let before = &self.source_text[span.start_offset as usize + 1..start as usize];
+            if opens_a_parenthesis(before) {
+                self.component.parenthesized_binds.push(expression);
+            }
         }
         Ok(())
     }

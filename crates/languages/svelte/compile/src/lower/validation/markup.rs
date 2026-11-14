@@ -46,8 +46,9 @@ struct Placement<'a> {
 ///
 /// `svelte_fragment_invalid_placement`, `slot_attribute_invalid_placement`,
 /// `node_invalid_placement` or `bind_invalid_expression`, at the first node in document order
-/// that has one.
-pub(in crate::lower) fn check(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
+/// that has one, with where upstream's walk raises it: an element's own checks where the walk
+/// enters it, before its directives' expressions.
+pub(in crate::lower) fn check(input: &CompileInput<'_>) -> Result<(), (u32, Diagnostic)> {
     walk(
         input,
         input.component.compiler_syntax_tree.root,
@@ -61,12 +62,13 @@ fn walk<'a>(
     children: Children,
     owner: Option<Owner>,
     placement: &Placement<'a>,
-) -> Result<(), Diagnostic> {
+) -> Result<(), (u32, Diagnostic)> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
     let mut slots = FxHashSet::default();
     for &identifier in tree.children(children) {
         let node = tree.node(identifier);
+        let here = |e: Diagnostic| (node.span.start_offset, e);
         let text = match &node.kind {
             NodeKind::Expression { .. } => true,
             kind => kind
@@ -77,12 +79,19 @@ fn walk<'a>(
             && let Some(parent) = placement.parent
             && let Some(message) = placement::invalid_with_parent("#text", parent)
         {
-            return node_invalid_placement(&message, node.span);
+            return node_invalid_placement(&message, node.span).map_err(here);
         }
         let (inner, inner_placement) = match &node.kind {
-            NodeKind::Element(el) => element(input, identifier, el, owner, placement, &mut slots)?,
+            NodeKind::Element(el) => {
+                let entered = element(input, identifier, el, owner, placement, &mut slots);
+                let entered = entered.map_err(here)?;
+                let attributes = tree.attributes(el.attributes);
+                directives(input, el, attributes).map_err(|e| (e.span.start_offset, e))?;
+                lets::snippet_conflict(input, el, attributes).map_err(here)?;
+                entered
+            }
             NodeKind::Each(each) if let Some(rune) = each_rune(input, each) => {
-                return super::state_invalid_placement(rune, node.span);
+                return super::state_invalid_placement(rune, node.span).map_err(here);
             }
             NodeKind::If { .. } | NodeKind::Each(_) | NodeKind::Await(_) | NodeKind::Key { .. } => {
                 (
@@ -251,8 +260,6 @@ fn element<'a>(
         );
     }
     let placement = element_placement(input, identifier, el, placement)?;
-    directives(input, attributes)?;
-    lets::snippet_conflict(input, el, attributes)?;
     let owner = match el.kind {
         kind if kind.renders_component() => Some(Owner::Component(identifier)),
         ElementKind::Metadata(Some(MetadataTag::Element)) => Some(Owner::Element),
@@ -429,9 +436,22 @@ fn event_handlers(source: &str, el: &Element, attributes: &[Attribute]) -> Resul
 }
 
 /// The directives' own checks, which upstream makes after the element's.
-fn directives(input: &CompileInput<'_>, attributes: &[Attribute]) -> Result<(), Diagnostic> {
+fn directives(
+    input: &CompileInput<'_>,
+    el: &Element,
+    attributes: &[Attribute],
+) -> Result<(), Diagnostic> {
     let source = input.component.source_text;
+    // Upstream's `BindDirective` reads `parent.name`, which is the tag as written.
+    let host = match el.kind {
+        ElementKind::Regular => Some(el.name.text(source)),
+        ElementKind::Metadata(Some(MetadataTag::Element)) => Some("svelte:element"),
+        _ => None,
+    };
     for a in attributes {
+        if let (AttributeValue::Bind(_), Some(host)) = (&a.value, host) {
+            super::super::bindings::check_binding(source, host, attributes, a)?;
+        }
         if let AttributeValue::Style { modifiers, .. } = &a.value
             && ![Modifiers::default(), Modifiers::IMPORTANT].contains(modifiers)
         {
@@ -451,6 +471,25 @@ fn directives(input: &CompileInput<'_>, attributes: &[Attribute]) -> Result<(), 
             return invalid(
                 "bind_group_invalid_expression",
                 "`bind:group` can only bind to an Identifier or MemberExpression",
+                a.span,
+            );
+        }
+        if let AttributeValue::Bind(target) = a.value
+            && matches!(
+                input.component.javascript.get_expression(target),
+                Expression::SequenceExpression(_)
+            )
+            && input
+                .component
+                .compiler_syntax_tree
+                .is_parenthesized_bind(target)
+        {
+            return invalid(
+                "bind_invalid_parens",
+                &format!(
+                    "`bind:{}={{get, set}}` must not have surrounding parentheses",
+                    a.name.text(source)
+                ),
                 a.span,
             );
         }

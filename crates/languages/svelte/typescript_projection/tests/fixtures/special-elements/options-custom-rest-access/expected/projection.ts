@@ -16,9 +16,9 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    rest.other;
-    rest.value;
-    rest['other'];
+    (rest.other);
+    (rest.value);
+    (rest['other']);
   }
 };
 const OptionsCustomRestAccess__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();

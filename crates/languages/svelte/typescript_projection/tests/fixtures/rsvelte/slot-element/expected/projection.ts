@@ -26,7 +26,7 @@ async () => {
     });
     {
       svelteHTML.createElement("p", {});
-      count;
+      (count);
     }
   }
   {

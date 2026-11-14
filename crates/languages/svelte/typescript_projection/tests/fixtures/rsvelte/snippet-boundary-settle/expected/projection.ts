@@ -5,7 +5,7 @@ const row = (): ReturnType<import('svelte').Snippet> => {
   async () => {
     {
       svelteHTML.createElement("p", {});
-      value;
+      (value);
     }
   };
   return __rsvelte_snippet_return;

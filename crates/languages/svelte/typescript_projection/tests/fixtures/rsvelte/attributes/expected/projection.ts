@@ -15,7 +15,7 @@ async () => {
       "class": "link",
       "title": `go to ${label}`,
     });
-    label;
+    (label);
   }
 };
 const Attributes__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();

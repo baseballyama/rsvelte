@@ -4,10 +4,12 @@
 //! `name`; upstream's analysis gives them `legacy_reactive` and `store_sub` bindings.
 
 use oxc_ast::ast::{
-    AssignmentTarget, AssignmentTargetMaybeDefault, AssignmentTargetProperty, Expression, Statement,
+    AssignmentTarget, AssignmentTargetMaybeDefault, AssignmentTargetProperty, Declaration,
+    Expression, Statement, VariableDeclarationKind,
 };
 use oxc_semantic::{ScopeId, SymbolId};
 use oxc_span::Span;
+use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 use rustc_hash::FxHashMap;
 
@@ -215,6 +217,44 @@ pub fn reactive_body<'s, 'a>(statement: &'s Statement<'a>) -> Option<&'s Stateme
         Statement::LabeledStatement(labeled) if labeled.label.name == "$" => Some(&labeled.body),
         _ => None,
     }
+}
+
+/// The syntax that makes a component in legacy mode (`runes` false) a legacy component, as runes
+/// mode rejects it: an `export let`, a `$:`, `$$props`, `$$restProps` or `runes={false}`.
+#[must_use]
+pub fn legacy_syntax(
+    component: &Component,
+    resolution: &Resolution,
+    source: &str,
+    runes: bool,
+) -> Option<&'static str> {
+    if runes {
+        return None;
+    }
+    if crate::warnings::svelte_option(component, source, "runes").is_some() {
+        return Some("<svelte:options runes={false}>");
+    }
+    let tree = &component.javascript;
+    for statement in component
+        .instance
+        .iter()
+        .flat_map(|script| &tree.get_program(script.program).body)
+    {
+        if reactive_body(statement).is_some() {
+            return Some("$:");
+        }
+        if let Statement::ExportDeclaration(export) = statement
+            && let Declaration::VariableDeclaration(declaration) = &export.declaration
+            && declaration.kind != VariableDeclarationKind::Const
+        {
+            return Some("export let");
+        }
+    }
+    resolution.unresolved_names().find_map(|name| match name {
+        "$$props" => Some("$$props"),
+        "$$restProps" => Some("$$restProps"),
+        _ => None,
+    })
 }
 
 /// The instance script's scope or the module script's, which encloses it.

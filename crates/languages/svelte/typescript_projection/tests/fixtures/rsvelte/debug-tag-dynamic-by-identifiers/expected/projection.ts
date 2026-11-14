@@ -13,7 +13,7 @@ async () => {
   {
     svelteHTML.createElement("p", {});
     {
-      a;
+      (a);
     }
   }
 };

@@ -1,10 +1,10 @@
 //! The TypeScript that has a runtime value, which erasing types cannot compile.
 
 use oxc_ast::ast::{
-    AccessorProperty, Decorator, ExportDeclaration, MethodDefinition, MethodDefinitionKind,
-    Program, Statement, TSEnumDeclaration, TSExportAssignment, TSExternalModuleDeclaration,
-    TSGlobalDeclaration, TSImportEqualsDeclaration, TSModuleBlock, TSNamespaceDeclaration,
-    TSNamespaceDeclarationBody,
+    AccessorProperty, Decorator, ExportDeclaration, ExportDefaultDeclaration, MethodDefinition,
+    MethodDefinitionKind, Program, Statement, TSEnumDeclaration, TSExportAssignment,
+    TSExternalModuleDeclaration, TSGlobalDeclaration, TSImportEqualsDeclaration, TSModuleBlock,
+    TSNamespaceDeclaration, TSNamespaceDeclarationBody,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::Span;
@@ -77,6 +77,9 @@ impl<'a> Visit<'a> for Finder {
             walk::walk_export_declaration(self, it);
         }
     }
+
+    // Upstream's visitor keeps a default export as it is, without visiting what it holds.
+    fn visit_export_default_declaration(&mut self, _: &ExportDefaultDeclaration<'a>) {}
 
     fn visit_ts_enum_declaration(&mut self, it: &TSEnumDeclaration<'a>) {
         self.found(Feature::Enum, it.span);

@@ -21,7 +21,7 @@ async () => {
     svelteHTML.createElement("p", {
       ...(props),
     });
-    open;
+    (open);
   }
   {
     svelteHTML.createElement("em", {

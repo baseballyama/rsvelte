@@ -489,6 +489,12 @@ impl<'a> Builder<'a> {
         &self.parameters[identifier.index()]
     }
 
+    /// An expression kept so far, for a host that checks its shape before the tree is done.
+    #[must_use]
+    pub fn get_expression(&self, identifier: ExpressionIdentifier) -> &Expression<'a> {
+        &self.expressions[identifier.index()]
+    }
+
     pub fn keep_expression(&mut self, expression: Expression<'a>) -> ExpressionIdentifier {
         let identifier = ExpressionIdentifier::at(self.expressions.len());
         self.expressions.push(expression);
