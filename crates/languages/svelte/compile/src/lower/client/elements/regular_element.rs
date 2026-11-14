@@ -1,3 +1,5 @@
+use oxc_allocator::{CloneIn, GetAllocator};
+
 use crate::lower::builder::Runtime;
 use crate::lower::client::{
     AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, ElementKind, Frag, Lists,
@@ -130,12 +132,19 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 },
             )
         });
-        let (snippets, child) =
-            self.collecting_snippets(|context| context.element_children(identifier, node, frag));
+        // Upstream's children share the fragment's consts unless they declare their own; a slot's
+        // element may hold `{@const}`s, which join them.
+        let shared = if declares {
+            Vec::new()
+        } else {
+            std::mem::take(&mut l.consts)
+        };
+        let (snippets, child) = self.collecting_snippets(|context| {
+            context.element_children(identifier, node, frag, shared)
+        });
         let mut child = child?;
-        // A slot's element may hold `{@const}`s, which upstream declares with the fragment's.
         if !declares {
-            l.consts.append(&mut child.consts);
+            l.consts = std::mem::take(&mut child.consts);
         }
         if snippets.is_empty() && !declares {
             if self.an.dynamic[identifier] {
@@ -149,6 +158,15 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             // A block keeps the snippets' names from clashing with the parent's.
             let mut block = snippets;
             block.append(&mut child.consts);
+            // The block repeats every shared const gathered so far.
+            if !declares {
+                let b = self.b;
+                block.extend(
+                    l.consts
+                        .iter()
+                        .map(|c| c.clone_in_with_semantic_ids(b.allocator())),
+                );
+            }
             block.append(&mut child.initializer);
             block.append(&mut directives.initializer);
             if !child.update.is_empty() {

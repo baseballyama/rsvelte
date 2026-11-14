@@ -519,3 +519,25 @@ fn a_default_export_is_refused_before_the_typescript_it_holds() {
         Some(("module_illegal_default_export".to_owned(), (18, 54)))
     );
 }
+
+#[test]
+fn a_decorator_or_an_accessor_field_in_a_plain_script_stops_where_acorn_stops() {
+    // acorn stops at a decorator's `@`, and reads `accessor` as a field name and stops after it.
+    for (source, at) in [
+        ("<script>class C { @dec m() {} }</script>", "@dec"),
+        ("<script>class C { accessor a = 1; }</script>", "a = 1"),
+        (
+            "<script>class C { static accessor #a = 1; }</script>",
+            "#a = 1",
+        ),
+    ] {
+        let at = source.find(at).expect("stop") as u32;
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(
+                compile_at(source, target).map(|_| ()),
+                Err(("js_parse_error".to_owned(), (at, at))),
+                "{source} on {target:?}"
+            );
+        }
+    }
+}
