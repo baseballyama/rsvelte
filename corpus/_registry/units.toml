@@ -257,7 +257,7 @@
 "svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (25:2)"
 
 ["svelte/rsvelte-tests-core-1/bind_host_axis_3264/legal_bindings_still_compile_on_every_host/e2b7a8af8920172b.svelte".skip]
-"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (15:38)"
+"svelte.compile/client" = "upstream bug: svelte 5.57.3 turns a `bind:this` shorthand on `<svelte:element>` into an assignment to `this`, which does not parse"
 
 ["svelte/rsvelte-tests-core-1/abstract_property_erasure_3082/an_abstract_member_is_erased_on_every_target/2433da24234ea06f.svelte".skip]
 "svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (10:11)"
@@ -3038,3 +3038,9 @@
 
 ["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte".skip]
 "svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
+
+["svelte/rsvelte-tests-core-2/inspect_operand_slot_3441/a_with_inspect_initializer_on_server_dev/c295403bf92ffd40.svelte".skip]
+"svelte.compile/client" = "upstream bug: svelte 5.57.3 drops a `const` initialised with `$inspect(...).with(...)`, so a read of it throws a ReferenceError"
+
+["svelte/rsvelte-tests-formatter/markup_patterns/let_directive_value_is_formatted_as_an_expression/ac7edb54ecf01f25.svelte".skip]
+"svelte.compile/client" = "upstream bug: svelte 5.57.3 destructures a `let:` pattern with defaults and returns `{}`, so the slot binds none of its names"
