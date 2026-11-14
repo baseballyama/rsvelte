@@ -404,5 +404,6 @@ const fn fails(message: &'static str, at: u32) -> Acorn {
 }
 
 mod locator;
+mod typescript_eslint;
 #[cfg(test)]
 mod tests;
