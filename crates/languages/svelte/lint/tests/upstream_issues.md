@@ -126,6 +126,8 @@ Issue: [svelte-eslint-parser #1002](https://github.com/sveltejs/svelte-eslint-pa
   so the rule should want a line break before `>`.
 - Correct: count node lines with ECMAScript's line terminators, as ESLint does. This crate counts
   lines once, with ECMAScript's terminators (`LineBreaks::Ecmascript`).
+- The corpus skips the 41 lint units whose source holds U+2028 or U+2029 and whose findings this
+  changes.
 
 ## `svelte/valid-compile`: a block holding only a `svelte-ignore` comment reports `block_empty`
 

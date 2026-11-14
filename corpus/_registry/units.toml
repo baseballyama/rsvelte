@@ -3355,3 +3355,126 @@
 
 ["svelte/svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-script-tag/input.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser reads no script when its closing tag has whitespace before `>`, such as `</script >`, which Svelte reads as the end of the script"
+
+["svelte/rsvelte-tests-core-1/compiler/acorn_lines/tests/legacy_locs_follow_acorn_line_terminators/22662201c5a9a0b6.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/a_string_or_comment_carrying_one_still_compiles/7f8e97bb8a108d3d.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/a_string_or_comment_carrying_one_still_compiles/ac89338ab357cb2f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/1438c7339a36871a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/2c98da085a2a1c52.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/4910fcf38b7870b7.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/578cddccac1ac624.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/6ee8d27e4a1f0ff9.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/b8cf1f026f01352f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/f4dc5c8838d02c4c.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/ff8d3238720764ec.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_each_as_separator_accepts_a_line_separator/40bb84ced031fedd.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_each_as_separator_accepts_a_line_separator/7ab7d155180db0a5.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/127e9f14142b01fd.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/21e964f0ed347120.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_shared_members_behave_like_a_space/06f3c925986549be.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_shared_members_behave_like_a_space/2500873388a0ba2f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_shared_members_behave_like_a_space/749aab3a75a1197a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_shared_members_behave_like_a_space/7c2e468d73d2d346.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-3/reactive_comment_attachment_3469/client_drops_the_comment_for_the_three_exotic_line_endings/161527d8f33a20ab.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-3/reactive_comment_attachment_3469/client_drops_the_comment_for_the_three_exotic_line_endings/cb9a675d531782db.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-3/script_line_terminators_3278/a_line_comment_ends_at_a_separator/2a7ab545a2f4f697.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-3/script_line_terminators_3278/a_line_comment_ends_at_a_separator/9bdd1b8f421ef909.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-3/script_line_terminators_3278/a_reactive_statement_on_a_cr_or_separator_line_keeps_its_effect/366a42887f77332a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-3/script_line_terminators_3278/a_reactive_statement_on_a_cr_or_separator_line_keeps_its_effect/b34b06b5d8d058cf.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-formatter/markup_preserve_ws/unicode_separators_in_text_are_content/de5bfca9953f9163.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests/rsvelte_lint/json_api/tests/a_directive_shields_the_rule_whose_table_agrees_with_it/3891b7d6ca564454.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests/rsvelte_lint/json_api/tests/a_directive_shields_the_rule_whose_table_agrees_with_it/93378db89c0db423.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests/rsvelte_lint/json_api/tests/the_json_api_reports_each_rule_on_its_own_line_table/9ef87a655e4bbf8d.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/html-closing-bracket-new-line/12-u2028-before-bracket.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/html-closing-bracket-new-line/14-exotic-ws-before-bracket.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/html-closing-bracket-spacing/11-u2028-line-shift.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/html-closing-bracket-spacing/12-u2029-line-shift.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/mustache-spacing/18-exotic-ws-controls.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/no-dupe-on-directives/15-line-comment-u2028.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/no-dupe-use-directives/12-line-comment-u2028.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/prefer-class-directive/20-line-separator.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/spaced-html-comment/11-u2028-lines.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/pattern/adversarial/text-and-entities/text-entity-shapes.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/pattern/adversarial/text-and-entities/unicode-line-separators.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/pattern/adversarial/text-and-entities/unicode-text-hostile.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
