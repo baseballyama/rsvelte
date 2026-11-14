@@ -105,6 +105,17 @@ pub fn component_input<'a>(context: &'a DocumentContext<'_>) -> Option<input::Co
     ))
 }
 
+/// The first JavaScript syntax error that upstream's parser raises in the component, as Svelte
+/// reports it: in the scripts or in the template's expressions, whichever comes first.
+#[must_use]
+pub fn javascript_error(
+    context: &DocumentContext<'_>,
+) -> Option<rsvelte_kernel::diagnostics::Diagnostic> {
+    let input = component_input(context)?;
+    let res = context.get::<Resolved>().as_ref()?;
+    crate::javascript_error::parse_error(&input, res)
+}
+
 /// [`component_input`] outside the artifact database.
 #[must_use]
 pub fn svelte_input<'a>(

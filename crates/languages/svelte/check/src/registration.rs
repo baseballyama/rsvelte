@@ -133,16 +133,18 @@ fn typescript_view(
                 return document;
             }
             // svelte2tsx throws Svelte's parse error, which svelte-check reports as it is.
-            return Ok(TypeScriptDocument::Rejected {
-                message: error.message.clone(),
-                span: if error.has_end {
-                    error.span
-                } else {
-                    Span::new(error.span.start_offset, error.span.start_offset)
-                },
-            });
+            return Ok(rejected(error));
         }
     };
+    // Svelte's parser also rejects the template's JavaScript; svelte2tsx blanks the scripts first.
+    if let Some(error) = rsvelte_svelte_semantic::javascript_error(context)
+        && !rsvelte_svelte_syntax::parse::in_script_content(
+            &context.document.text,
+            error.span.start_offset,
+        )
+    {
+        return Ok(rejected(&error));
+    }
     // svelte-check reads the component as TypeScript when either script is, else as JavaScript.
     let typescript = [&component.instance, &component.module]
         .into_iter()
@@ -173,6 +175,18 @@ fn typescript_view(
         extension: if typescript { ".ts" } else { ".js" },
         imports: relative_imports(component),
     })
+}
+
+/// What svelte-check reports for the parse error svelte2tsx throws.
+fn rejected(error: &Diagnostic) -> TypeScriptDocument {
+    TypeScriptDocument::Rejected {
+        message: error.message.clone(),
+        span: if error.has_end {
+            error.span
+        } else {
+            Span::new(error.span.start_offset, error.span.start_offset)
+        },
+    }
 }
 
 /// Each relative module specifier the scripts import or re-export from, by its string literal.

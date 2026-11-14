@@ -12,20 +12,6 @@ pub(super) use awaits::check as check_awaits;
 use runes::script_and_template_errors;
 pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
 
-/// Whether oxc's `error` is a name declared again outside the scripts.
-pub(super) fn redeclares_in_template(input: &CompileInput<'_>, error: &Diagnostic) -> bool {
-    let javascript = input.component.javascript;
-    let start = error.span.start_offset;
-    error.message.ends_with("has already been declared")
-        && !(input
-            .component
-            .module
-            .into_iter()
-            .chain(input.component.instance))
-        .map(|program| javascript.get_program(program).span)
-        .any(|span| span.start <= start && start < span.end)
-}
-
 use super::{CompileInput, Diagnostic, Resolution, Span};
 
 /// Upstream's analysis errors in its order: the first it raises as it builds the scopes, then

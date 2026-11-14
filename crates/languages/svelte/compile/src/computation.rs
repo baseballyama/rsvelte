@@ -170,17 +170,6 @@ pub fn compile_errors(context: &DocumentContext<'_>, runes: bool) -> CompileErro
     errors
 }
 
-/// The first JavaScript syntax error that upstream's parser raises in the component, as Svelte
-/// reports it: in the scripts or in the template's expressions, whichever comes first.
-#[must_use]
-pub fn javascript_error(context: &DocumentContext<'_>) -> Option<Diagnostic> {
-    let input = component_input(context)?;
-    let res = context
-        .get::<rsvelte_svelte_semantic::Resolved>()
-        .as_ref()?;
-    crate::lower::parse_error(&input.into(), res)
-}
-
 /// The code of what this port refuses, which upstream compiles.
 const UNSUPPORTED: &str = "unsupported";
 

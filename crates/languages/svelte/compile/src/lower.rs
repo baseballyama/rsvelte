@@ -47,7 +47,6 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 pub(crate) use rsvelte_svelte_semantic::template::{cannot_be_set_statically, needs_clsx};
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
-use rsvelte_typescript_tree::SyntaxError;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub use crate::input::{CompileInput, Target};
@@ -217,36 +216,15 @@ pub(crate) enum Unit {
     Module,
 }
 
-/// The first error acorn throws while upstream parses the scripts: where it stops in syntax oxc
-/// parsed, a name it declares twice that oxc lets TypeScript declare again, or what oxc's checker
-/// rejects after the parser, whichever comes first. Where acorn stops is its own verdict, so it
-/// wins over a checker's error at the same place.
-pub(crate) fn javascript_error(res: &Resolution) -> Option<SyntaxError> {
-    [
-        res.tree().acorn_rejection(),
-        res.javascript_syntax_error().cloned(),
-        res.semantic().acorn_redeclaration(),
-    ]
-    .into_iter()
-    .flatten()
-    .min_by_key(SyntaxError::acorn_at)
-}
-
-/// The [`javascript_error`] that upstream raises as it parses, as Svelte reports it. A name the
-/// template declares twice is not one: upstream's `declaration_duplicate`, raised later.
-pub(crate) fn parse_error(input: &CompileInput<'_>, res: &Resolution) -> Option<Diagnostic> {
-    javascript_error(res)
-        .filter(|error| !validation::redeclares_in_template(input, &error.diagnostic))
-        .map(rsvelte_svelte_syntax::parse::javascript_failure)
-}
-
 pub(crate) fn validate_unit(
     input: &CompileInput<'_>,
     res: &Resolution,
     unit: Unit,
 ) -> Result<ValidatedOptions, Diagnostic> {
     // Acorn rejects at parse time what oxc's semantic checker finds after the parser.
-    if let Some(error) = parse_error(input, res) {
+    if let Some(error) =
+        rsvelte_svelte_semantic::javascript_error::parse_error(&input.component, res)
+    {
         return Err(error);
     }
     validation::check_awaits(input)?;
@@ -329,7 +307,9 @@ pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution
         (raised, error)
     };
     let mut raised = Vec::new();
-    if let Some(error) = parse_error(input, res) {
+    if let Some(error) =
+        rsvelte_svelte_semantic::javascript_error::parse_error(&input.component, res)
+    {
         raised.push(parse(error));
     } else {
         raised.extend(validation::check_awaits(input).err().map(parse));
