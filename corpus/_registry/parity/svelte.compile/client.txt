@@ -1,4 +1,4 @@
-# svelte.compile/client: 36184 match
+# svelte.compile/client: 36186 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -356,7 +356,6 @@ svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelt
 svelte/rsvelte/pattern/adversarial/special-elements/options-legacy-mode.svelte	refused
 svelte/rsvelte/pattern/adversarial/special-elements/window-legacy-event-syntax.svelte	refused
 svelte/rsvelte/pattern/adversarial/typescript/declaration-forms.svelte	mismatch
-svelte/rsvelte/pattern/issues/3107-textarea-bind-fallback.svelte	refused
 svelte/rsvelte/pattern/issues/3124-slot-snippet-conflict-span.svelte	mismatch
 svelte/rsvelte/pattern/issues/3128-options-runes-false-store-subs.svelte	refused
 svelte/rsvelte/pattern/issues/3141-const-in-svelte-self.svelte	unexpected

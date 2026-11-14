@@ -1,4 +1,4 @@
-# svelte.compile/server: 36199 match
+# svelte.compile/server: 36204 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -103,7 +103,6 @@ svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/f5b6934a8b82c77d.svelte	mismatch
 svelte/rsvelte-tests-core-2/legacy_derived_server_fold/a_legacy_derived_is_not_folded_into_the_template/86156e7f76cbd96d.svelte	refused
 svelte/rsvelte-tests-core-2/legacy_derived_server_fold/the_declaration_still_subscribes_to_the_store/17575a31c5ff0f56.svelte	refused
-svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/not_implemented_let_directive_has_no_prefix/5f1b624538cd7c87.svelte	refused
 svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/shorthand_property_assignment_reports_acorns_error/53f41a05f9761fd1.svelte	mismatch
 svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/shorthand_property_assignment_reports_acorns_error/85f55f16bf223948.svelte	mismatch
 svelte/rsvelte-tests-core-2/legacy_error_parity_3274_3276/shorthand_property_assignment_reports_acorns_error/95b9e8e5da2db271.svelte	mismatch
@@ -257,8 +256,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_broken_script_3232/export_is_
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_class_rune_scan/matches_official_svelte2tsx/50bd00218c5ee21d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_class_rune_scan/matches_official_svelte2tsx/ad09375848e26929.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_class_rune_scan/matches_official_svelte2tsx/b6ebc2c3659ad9a5.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_let_forwarding_2105/nested_blocks_forward/8399e832669c9049.svelte	refused
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_let_forwarding_2105/svelte_element_child_forwards/6a5898a633eeef9e.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_snippet_props_order_3461/moved_generic_props_type_precedes_instance_hoisted_snippet/187b783aab73dcd5.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/04bc05a5c4a48321.svelte	unexpected
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/directive_name_store_subscribes_for_every_kind_but_style_and_on/696c0ed4f17747bc.svelte	mismatch
@@ -355,7 +352,6 @@ svelte/rsvelte/pattern/adversarial/runes/inspect-with-and-snapshot-nesting.svelt
 svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/special-elements/options-legacy-mode.svelte	refused
 svelte/rsvelte/pattern/adversarial/special-elements/window-legacy-event-syntax.svelte	refused
-svelte/rsvelte/pattern/issues/3107-textarea-bind-fallback.svelte	refused
 svelte/rsvelte/pattern/issues/3124-slot-snippet-conflict-span.svelte	mismatch
 svelte/rsvelte/pattern/issues/3128-options-runes-false-store-subs.svelte	refused
 svelte/rsvelte/pattern/issues/3141-const-in-svelte-self.svelte	unexpected
