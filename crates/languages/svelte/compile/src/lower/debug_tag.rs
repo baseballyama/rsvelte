@@ -1,4 +1,4 @@
-use oxc_ast::ast::{Expression, Statement};
+use oxc_ast::ast::{Expression, ObjectPropertyKind, PropertyKey, PropertyKind, Statement};
 use oxc_span::SPAN;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerSyntaxTree, NodeList};
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
@@ -17,7 +17,20 @@ pub(super) fn debug_tag<'o>(
         let Expression::Identifier(identifier) = javascript.get_expression(e) else {
             unreachable!("the parser gives `{{@debug}}` identifiers only")
         };
-        b.init(&identifier.name, value(e))
+        // Upstream's key is the identifier itself, whatever characters it holds.
+        let value = value(e);
+        let shorthand = matches!(&value, Expression::Identifier(v) if v.name == identifier.name);
+        let key = PropertyKey::new_static_identifier(SPAN, b.str(&identifier.name), b);
+        ObjectPropertyKind::new_object_property(
+            SPAN,
+            PropertyKind::Init,
+            key,
+            value,
+            false,
+            shorthand,
+            false,
+            b,
+        )
     });
     let object = b.object(properties);
     let log = b.call(b.member(b.id("console"), "log"), [object]);

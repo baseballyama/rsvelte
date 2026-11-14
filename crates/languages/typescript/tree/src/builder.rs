@@ -159,8 +159,14 @@ impl<'a> Builder<'a> {
             declarations: self.declarations,
             type_parameters: self.type_parameters,
             comments: self.comments,
-            acorn_rejection: self.acorn_rejection,
-            parentheses: self.parentheses,
+            rare: (self.acorn_rejection.is_some() || !self.parentheses.is_empty()).then(|| {
+                let mut parentheses = self.parentheses;
+                parentheses.sort_unstable_by_key(|&(span, _)| (span.start, span.end));
+                Box::new(crate::Rare {
+                    acorn_rejection: self.acorn_rejection,
+                    parentheses,
+                })
+            }),
             unchecked: self.unchecked,
             as_acorn: self.as_acorn,
         }

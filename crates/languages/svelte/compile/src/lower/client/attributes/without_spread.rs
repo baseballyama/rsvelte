@@ -30,7 +30,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let in_markup = self.plan.named(identifier) == crate::render_plan::Namespace::Html;
         let defaults = self.defaults(identifier, tag, attributes);
         let custom_element = self.is_custom_element(identifier);
-        let is = self.template_is(identifier, attributes);
+        let is = self.template_is(identifier, attributes).map(|(a, _)| a);
         for a in attributes
             .iter()
             .filter(|&a| !is.is_some_and(|is| std::ptr::eq(is, a)))
@@ -132,17 +132,35 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             NodeKind::Element(el) if is_custom_element_node(tree, self.source_text, el))
     }
 
-    /// Upstream puts a static `is` in the template, where the parser needs it, and nowhere else.
+    /// Upstream puts an `is` whose value builds to a string literal in the template, where the
+    /// parser needs it, and nowhere else.
     pub(in crate::lower::client) fn template_is<'a>(
         &self,
         identifier: CompilerNodeIdentifier,
         attributes: &'a [Attribute],
-    ) -> Option<&'a Attribute> {
+    ) -> Option<(&'a Attribute, String)> {
         if self.plan.namespace(identifier) != crate::render_plan::Namespace::Html {
             return None;
         }
-        attributes.iter().find(|a| {
-            a.name.text(self.source_text) == "is" && matches!(a.value, AttributeValue::Static(_))
+        attributes.iter().find_map(|a| {
+            if a.name.text(self.source_text) != "is" {
+                return None;
+            }
+            let value = match &a.value {
+                AttributeValue::Static(v) => return Some((a, v.to_string())),
+                &AttributeValue::Expression { expression, .. } => self.expression(expression),
+                AttributeValue::Interpolated(parts) => {
+                    self.chunk(&self.chunk_items(parts), None, false).0
+                }
+                _ => return None,
+            };
+            match value {
+                Expression::StringLiteral(literal) => Some((
+                    a,
+                    crate::lower::javascript::string_value(literal.value).into_owned(),
+                )),
+                _ => None,
+            }
         })
     }
 
