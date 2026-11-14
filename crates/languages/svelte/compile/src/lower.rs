@@ -235,17 +235,22 @@ pub(crate) fn javascript_error(res: &Resolution) -> Option<SyntaxError> {
     .min_by_key(at)
 }
 
+/// The [`javascript_error`] that upstream raises as it parses, as Svelte reports it. A name the
+/// template declares twice is not one: upstream's `declaration_duplicate`, raised later.
+pub(crate) fn parse_error(input: &CompileInput<'_>, res: &Resolution) -> Option<Diagnostic> {
+    javascript_error(res)
+        .filter(|error| !validation::redeclares_in_template(input, &error.diagnostic))
+        .map(rsvelte_svelte_syntax::parse::javascript_failure)
+}
+
 pub(crate) fn validate_unit(
     input: &CompileInput<'_>,
     res: &Resolution,
     unit: Unit,
 ) -> Result<ValidatedOptions, Diagnostic> {
     // Acorn rejects at parse time what oxc's semantic checker finds after the parser.
-    // A name the template declares twice is upstream's `declaration_duplicate`, raised later.
-    if let Some(error) = javascript_error(res)
-        && !validation::redeclares_in_template(input, &error.diagnostic)
-    {
-        return Err(rsvelte_svelte_syntax::parse::javascript_failure(error));
+    if let Some(error) = parse_error(input, res) {
+        return Err(error);
     }
     let special::SvelteOptions {
         custom_element,
@@ -325,13 +330,7 @@ pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution
         (raised, error)
     };
     let mut raised = Vec::new();
-    if let Some(error) = javascript_error(res)
-        && !validation::redeclares_in_template(input, &error.diagnostic)
-    {
-        raised.push(parse(rsvelte_svelte_syntax::parse::javascript_failure(
-            error,
-        )));
-    }
+    raised.extend(parse_error(input, res).map(parse));
     raised.extend(special::validate(input).err().map(parse));
     raised.extend(validation::template_error(input).map(|error| {
         let raised = Raised {
