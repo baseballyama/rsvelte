@@ -70,6 +70,60 @@ pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str], fix: bool) -
     }
 }
 
+/// Runs `tasks` on every file of `files` in one run, so a project task such as a type check sees
+/// all of them, and prints each output under its file. Exit code 1 means an error is left.
+pub(crate) fn run_files(reg: &Registry, files: &[&str], tasks: &[&str]) -> ExitCode {
+    let mut documents = Vec::with_capacity(files.len());
+    for file in files {
+        let text = match std::fs::read_to_string(file) {
+            Ok(t) => t,
+            Err(e) => return usage(&format!("{file}: {e}")),
+        };
+        match reg.document(*file, text) {
+            Ok(document) => documents.push(document),
+            Err(e) => return usage(&format!("{file}: {e:?}")),
+        }
+    }
+    let options = RunOptions {
+        tasks,
+        sharing: Sharing::Shared,
+        threads: None,
+    };
+    let results = match rsvelte_kernel::computation::pipeline::run(reg, &documents, &options) {
+        Ok(results) => results,
+        Err(e) => return usage(&e.to_string()),
+    };
+    let mut failed = false;
+    for (document, result) in documents.iter().zip(&results) {
+        if let Some(p) = &result.panic {
+            println!("// {} panic\n{p}", document.path);
+            failed = true;
+        }
+        for (task, out) in &result.outputs {
+            for f in &out.files {
+                println!("// {} {task} {}\n{}", document.path, f.name, f.text);
+            }
+            if !out.diagnostics.is_empty() {
+                println!(
+                    "// {} {task} diagnostics\n{}",
+                    document.path,
+                    diagnostics_json(&document.text, out)
+                );
+            }
+            failed |= out
+                .diagnostics
+                .iter()
+                .chain(out.findings.iter().map(|finding| &finding.diagnostic))
+                .any(|diagnostic| diagnostic.severity == Severity::Error);
+        }
+    }
+    if failed {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
 fn run_once(
     reg: &Registry,
     file: &Path,
