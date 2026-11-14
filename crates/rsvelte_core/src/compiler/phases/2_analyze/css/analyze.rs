@@ -1009,11 +1009,7 @@ fn is_relative_selector_global_like(relative_selector: &serde_json::Value) -> bo
         s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
             && s.field("name").and_then(|n| n.as_str()) == Some("has")
     });
-    if has_root && !has_has {
-        return true;
-    }
-
-    false
+    has_root && !has_has
 }
 
 /// Check if a PseudoClassSelector is "unscoped" - meaning it doesn't scope its contents.

@@ -754,11 +754,7 @@ fn has_disabled_attribute(attribute_map: &FxHashMap<String, &AttributeNode>) -> 
         return true;
     }
 
-    if static_text_is(attribute_map.get("aria-disabled"), "true") {
-        return true;
-    }
-
-    false
+    static_text_is(attribute_map.get("aria-disabled"), "true")
 }
 
 fn match_schemas_by_index(

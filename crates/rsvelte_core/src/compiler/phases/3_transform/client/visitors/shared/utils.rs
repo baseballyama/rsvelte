@@ -5202,11 +5202,10 @@ fn typed_has_reactive_state(
             {
                 return Some(true);
             }
-            if *computed && typed_has_reactive_state(arena.get_js_node(*property), arena, context)?
-            {
-                return Some(true);
-            }
-            Some(false)
+            Some(
+                *computed
+                    && typed_has_reactive_state(arena.get_js_node(*property), arena, context)?,
+            )
         }
         JsNode::CallExpression {
             callee, arguments, ..

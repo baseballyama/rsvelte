@@ -770,11 +770,7 @@ pub(super) fn body_references_identifier_in_statements(
 
     // Check the last statement
     let stmt = content[start..].trim();
-    if !stmt.is_empty() && check_identifier_in_statement(stmt, identifier, re) {
-        return true;
-    }
-
-    false
+    !stmt.is_empty() && check_identifier_in_statement(stmt, identifier, re)
 }
 
 /// Check if an identifier appears as a read (not just assignment target) in a single statement.
