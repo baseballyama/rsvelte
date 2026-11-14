@@ -552,3 +552,27 @@ fn a_type_a_dollar_generic_constraint_names_moves_before_the_render_function() {
     assert!(interface < render, "{}", output.out);
     assert!(!output.out.contains("$$Generic"), "{}", output.out);
 }
+
+#[test]
+fn a_generics_list_that_does_not_parse_is_copied_with_a_plain_export() {
+    let source = "<script lang=\"ts\" generics=\"extends string\">let x = 1;</script>{x}";
+    let component = parse(source).expect("valid Svelte source");
+    let tree = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
+        .expect("supported template");
+    // The copy keeps the list's own errors, so the output is not valid TypeScript.
+    let output = rsvelte_svelte_typescript_projection::emit(&tree, source);
+    let at = output
+        .out
+        .find("function $$render<extends string>() {")
+        .expect("copied") as u32;
+    let start = at + "function $$render<".len() as u32;
+    assert_eq!(
+        output
+            .lookup_span(Span::new(start, start + 7))
+            .unwrap()
+            .text(source),
+        "extends"
+    );
+    assert!(output.out.contains(" = $$render();\n"));
+    assert!(!output.out.contains("$$IsomorphicComponent"));
+}

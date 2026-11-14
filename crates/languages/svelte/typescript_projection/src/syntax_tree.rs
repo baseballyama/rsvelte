@@ -53,6 +53,9 @@ pub enum Node {
     Render {
         type_parameters: TypeParameters,
         body: Range,
+        /// The script's start tag up to the `generics` value, which svelte2tsx overwrites with
+        /// the function's name.
+        name: Option<Span>,
     },
     Return(NodeIdentifier),
     /// The default export of a generic component, whose call signature takes its type

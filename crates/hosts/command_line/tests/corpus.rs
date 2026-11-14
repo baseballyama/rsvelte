@@ -106,13 +106,36 @@ impl Task for CountCoverage {
             Ok(projection) => {
                 let allocator = Allocator::default();
                 let result = Parser::new(&allocator, &projection.out, SourceType::ts()).parse();
+                let source = context.source_text();
+                let generics = component
+                    .instance
+                    .iter()
+                    .flat_map(|script| &script.attributes)
+                    .find(|(name, _)| name.text(source) == "generics")
+                    .and_then(|&(_, value)| value);
                 // The projection keeps the script's own grammar, which may break these rules.
                 let added = result.diagnostics.iter().any(|d| {
-                    d.code.scope.as_deref() != Some("TS")
-                        || d.code.number.as_deref().is_none_or(|n| {
-                            !rsvelte_svelte_syntax::parse::ACORN_UNCHECKED_TYPESCRIPT_RULES
+                    let unchecked = d.code.scope.as_deref() == Some("TS")
+                        && d.code.number.as_deref().is_some_and(|n| {
+                            rsvelte_svelte_syntax::parse::ACORN_UNCHECKED_TYPESCRIPT_RULES
                                 .contains(&n)
+                        });
+                    // A `generics` list that does not parse is copied as it is, so an error
+                    // that points into the copy is the source's own, though TypeScript may also
+                    // point at the brackets around it; one only in generated text is not.
+                    let in_generics = generics.is_some_and(|value| {
+                        d.labels.iter().any(|label| {
+                            (label.offset()..label.offset() + label.len().max(1)).any(|at| {
+                                projection
+                                    .lookup_overlap(Span::new(at, at))
+                                    .is_some_and(|copied| {
+                                        (value.start_offset..value.end_offset)
+                                            .contains(&copied.start_offset)
+                                    })
+                            })
                         })
+                    });
+                    !unchecked && !in_generics
                 });
                 if added {
                     self.0
