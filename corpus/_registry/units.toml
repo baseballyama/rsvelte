@@ -4089,3 +4089,33 @@
 
 ["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_is_not_reactive/f4814aa53a465939.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte/pattern/adversarial/runes/inspect-with-and-snapshot-nesting.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/rsvelte/pattern/issues/3177-module-multi-declarator.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/rsvelte/pattern/issues/3180-snapshot-position.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/stores/tests/state_snapshot_member_access_still_subscribes/94c15692a417ad7d.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/rsvelte/pattern/issues/dollar-function-parameter.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server treats a member assignment to a `$viewport` parameter as a mutation of store `viewport`, and emits `$.store_mutate($$store_subs ??= {}, ...)` with `$$store_subs` declared nowhere"
+
+["svelte/rsvelte-tests-core-1/compiler/phases/phase2_analyze/store_subscriptions/tests/dollar_named_parameters_are_not_outer_store_subscriptions/620841e8ef148b9f.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server treats a member assignment to a `$viewport` parameter as a mutation of store `viewport`, and emits `$.store_mutate($$store_subs ??= {}, ...)` with `$$store_subs` declared nowhere"
+
+["svelte/rsvelte-tests-core-2/dollar_parameter_is_not_a_store/a_dollar_local_is_assigned_directly_on_the_server/05162353f0734d2f.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server treats a member assignment to a `$viewport` parameter as a mutation of store `viewport`, and emits `$.store_mutate($$store_subs ??= {}, ...)` with `$$store_subs` declared nowhere"
+
+["svelte/rsvelte-tests-core-2/dollar_parameter_is_not_a_store/a_dollar_local_is_assigned_directly_on_the_server/e20ca243f0bb5ea1.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server treats a member assignment to a `$viewport` parameter as a mutation of store `viewport`, and emits `$.store_mutate($$store_subs ??= {}, ...)` with `$$store_subs` declared nowhere"
+
+["svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/20d491fc9d358155.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's svelte/indent throws `Cannot read properties of null (reading 'range')` on a plain script's `enum`, so ESLint reports the crash instead of the findings"
+
+["svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/36e05300c734c306.svelte".skip]
+"svelte.check" = "the official output depends on Node's stack depth, so it cannot be trusted"

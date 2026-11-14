@@ -23,22 +23,27 @@ impl<'a> Builder<'a> {
         self.parse_program(text, range.start_offset, source_type)
     }
 
-    /// [`Self::program`], for a host that reports another error than the first.
+    /// [`Self::program`], for a host that reports another error than the first, or whose own
+    /// parser tolerates some of oxc's errors.
     ///
     /// # Errors
     ///
-    /// Every error oxc reported, in order, when the host's parser rejects the program.
+    /// Every error oxc reported, in order, with the program oxc recovered when no error stopped
+    /// it.
     pub fn program_or_errors(
         &mut self,
         range: Span,
         source_type: SourceType,
-    ) -> Result<ProgramIdentifier, Vec<SyntaxError>> {
+    ) -> Result<ProgramIdentifier, Rejected> {
         let text = &self.source_text[..range.end_offset as usize];
         let start = range.start_offset;
-        self.read_program(text, start, source_type)
+        self.read_program(text, start, source_type, true)
             .map_err(|rejected| {
-                let errors = rejected.1.into_iter();
-                errors.map(|e| syntax_error([e], text, start, 0)).collect()
+                let errors = rejected.diagnostics.into_iter();
+                Rejected {
+                    errors: errors.map(|e| syntax_error([e], text, start, 0)).collect(),
+                    recovered: rejected.recovered,
+                }
             })
     }
 
@@ -49,17 +54,19 @@ impl<'a> Builder<'a> {
         start: u32,
         source_type: SourceType,
     ) -> Result<ProgramIdentifier, SyntaxError> {
-        self.read_program(text, start, source_type)
-            .map_err(|rejected| rejected.0)
+        self.read_program(text, start, source_type, false)
+            .map_err(|rejected| rejected.error)
     }
 
-    /// [`Self::parse_program`], with oxc's errors when it fails.
+    /// [`Self::parse_program`], with oxc's errors when it fails, and, when `keep_recovered`, the
+    /// program oxc recovered unless an error stopped it.
     fn read_program(
         &mut self,
         text: &'a str,
         start: u32,
         source_type: SourceType,
-    ) -> Result<ProgramIdentifier, Box<(SyntaxError, Diagnostics)>> {
+        keep_recovered: bool,
+    ) -> Result<ProgramIdentifier, Box<Read>> {
         let parsed = Parser::new(self.allocator, text, source_type)
             .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
@@ -70,23 +77,58 @@ impl<'a> Builder<'a> {
                 .and_then(|first| acorn(first, text, &parsed.tokens, |_| {}));
             let mut error = syntax_error(parsed.diagnostics.iter().cloned(), text, start, 0);
             error.acorn = acorn;
-            return Err(Box::new((error, parsed.diagnostics)));
+            return Err(Box::new(Read {
+                error,
+                diagnostics: parsed.diagnostics,
+                recovered: None,
+            }));
         }
         let part = Part::Program(&parsed.program);
-        if let Err(error) = self.check(
+        let rejection = match self.check(
             &parsed.diagnostics,
             (text, start, 0),
             &parsed.tokens,
             (part, source_type),
         ) {
-            return Err(Box::new((error, parsed.diagnostics)));
-        }
+            Ok(()) => None,
+            Err(error) if keep_recovered => Some(error),
+            Err(error) => {
+                return Err(Box::new(Read {
+                    error,
+                    diagnostics: parsed.diagnostics,
+                    recovered: None,
+                }));
+            }
+        };
         self.record(&parsed.tokens, &parsed.program.comments, 0);
         let mut program = parsed.program;
         // Its spans are the document's, so a task that reads text at a span reads the document.
         program.source_text = self.source_text;
         let identifier = ProgramIdentifier::at(self.programs.len());
         self.programs.push(program);
-        Ok(identifier)
+        match rejection {
+            None => Ok(identifier),
+            Some(error) => Err(Box::new(Read {
+                error,
+                diagnostics: parsed.diagnostics,
+                recovered: Some(identifier),
+            })),
+        }
     }
+}
+
+/// What oxc read of a program the host's parser rejects.
+#[derive(Debug)]
+pub struct Rejected {
+    /// Every error oxc reported, in order.
+    pub errors: Vec<SyntaxError>,
+    /// The program oxc recovered; `None` when an error stopped it.
+    pub recovered: Option<ProgramIdentifier>,
+}
+
+/// [`Builder::read_program`]'s rejection.
+struct Read {
+    error: SyntaxError,
+    diagnostics: Diagnostics,
+    recovered: Option<ProgramIdentifier>,
 }

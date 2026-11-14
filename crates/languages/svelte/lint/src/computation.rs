@@ -1,9 +1,13 @@
 use std::path::Path;
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
-use rsvelte_svelte_semantic::Resolved;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_svelte_semantic::legacy::Legacy;
-use rsvelte_svelte_syntax::Parsed;
+use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_semantic::{Lowered, Resolved};
+use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_svelte_syntax::{Parsed, ParsedAsTypeScript};
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::ProgramIdentifier;
 
@@ -18,6 +22,94 @@ impl Facet for LintConfiguration {
     type Output = std::sync::Arc<Configuration>;
 
     const NAME: &'static str = "svelte.lint.configuration";
+}
+
+/// The component the rules read, as `svelte-eslint-parser` gives it: the compiler's, or the one
+/// read as TypeScript when the compiler rejects a script that typescript-eslint parses.
+///
+/// The rules and lint's artifacts read [`Parsed`], [`Lowered`] and [`Resolved`] only through it,
+/// so none sees the compiler's tree of a component lint reads as TypeScript. Only the compiler's
+/// own result, [`crate::rule::File::compile_warnings`], reads the compiler's tree.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Linted<'a> {
+    context: &'a DocumentContext<'a>,
+    pub(crate) component: &'a Component,
+    as_typescript: bool,
+}
+
+impl<'a> Linted<'a> {
+    /// # Errors
+    ///
+    /// The component does not parse as TypeScript either.
+    pub(crate) fn of(context: &'a DocumentContext<'a>) -> Result<Self, &'a Diagnostic> {
+        let (component, as_typescript) = match context.get::<Parsed>() {
+            Ok(component) => (component, false),
+            Err(_) => (context.get::<ParsedAsTypeScript>().as_ref()?, true),
+        };
+        Ok(Self {
+            context,
+            component,
+            as_typescript,
+        })
+    }
+
+    /// The template as the compiler reads it, computed on first request.
+    pub(crate) fn lowered(self) -> &'a CompilerSyntaxTree {
+        let lowered = if self.as_typescript {
+            self.context.get::<LoweredAsTypeScript>()
+        } else {
+            self.context.get::<Lowered>()
+        };
+        lowered.as_ref().expect("a parsed component lowers")
+    }
+
+    /// The scopes with the template's bindings, computed on first request.
+    pub(crate) fn resolution(self) -> &'a Resolution {
+        let resolution = if self.as_typescript {
+            self.context.get::<ResolvedAsTypeScript>()
+        } else {
+            self.context.get::<Resolved>()
+        };
+        resolution.as_ref().expect("a parsed component resolves")
+    }
+}
+
+/// [`Lowered`] of [`ParsedAsTypeScript`], which only lint reads.
+#[derive(Debug)]
+pub(crate) struct LoweredAsTypeScript;
+
+impl Artifact for LoweredAsTypeScript {
+    /// `None` when the component does not parse as TypeScript.
+    type Output = Option<CompilerSyntaxTree>;
+
+    const NAME: &'static str = "svelte.lint.compiler_syntax_tree_as_typescript";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        let component = context.get::<ParsedAsTypeScript>().as_ref().ok()?;
+        Some(rsvelte_svelte_semantic::compiler_syntax_tree::lower(
+            component,
+            context.source_text(),
+        ))
+    }
+}
+
+/// [`Resolved`] of [`ParsedAsTypeScript`], which only lint reads.
+#[derive(Debug)]
+pub(crate) struct ResolvedAsTypeScript;
+
+impl Artifact for ResolvedAsTypeScript {
+    /// `None` when the component does not parse as TypeScript.
+    type Output = Option<Resolution>;
+
+    const NAME: &'static str = "svelte.lint.resolve_as_typescript";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        let component = context.get::<ParsedAsTypeScript>().as_ref().ok()?;
+        let lowered = context.get::<LoweredAsTypeScript>().as_ref()?;
+        Some(rsvelte_svelte_semantic::resolve_component(
+            component, lowered,
+        ))
+    }
 }
 
 /// The condition type of each JS/TS node of a component, from a host's type provider
@@ -42,15 +134,8 @@ impl Artifact for NativeConditionTypes {
     const NAME: &'static str = "svelte.lint.native_condition_types";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let component = context
-            .get::<Parsed>()
-            .as_ref()
-            .expect("lint requests types after parsing");
-        let resolution = context
-            .get::<Resolved>()
-            .as_ref()
-            .expect("a parsed component resolves");
-        TypeFacts::infer(component, resolution, context.source_text())
+        let linted = Linted::of(context).expect("lint requests types after parsing");
+        TypeFacts::infer(linted.component, linted.resolution(), context.source_text())
     }
 }
 
@@ -65,21 +150,15 @@ impl Artifact for LegacyReactivity {
     const NAME: &'static str = "svelte.lint.legacy_reactivity";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let component = context
-            .get::<Parsed>()
-            .as_ref()
-            .expect("lint requests legacy reactivity after parsing");
-        let resolution = context
-            .get::<Resolved>()
-            .as_ref()
-            .expect("a parsed component resolves");
+        let linted = Linted::of(context).expect("lint requests legacy reactivity after parsing");
+        let component = linted.component;
         let programs: Vec<ProgramIdentifier> = component
             .module
             .iter()
             .chain(&component.instance)
             .map(|script| script.program)
             .collect();
-        Legacy::new(resolution, &programs)
+        Legacy::new(linted.resolution(), &programs)
     }
 }
 

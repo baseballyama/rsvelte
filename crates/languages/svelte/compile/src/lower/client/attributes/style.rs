@@ -86,7 +86,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
     fn style_value(&self, value: &StyleValue, memo: &mut Memo<'o>) -> (Expression<'o>, bool) {
         match value {
             StyleValue::Static(v) => (self.b.string(v), false),
-            // Upstream's analysis takes the name for state unless it is an ordinary binding.
+            // Upstream's analysis takes a bound name, a `$store` among them, for state unless it is
+            // an ordinary binding; an unbound name is not state.
             &StyleValue::Shorthand(expression) => {
                 let Expression::Identifier(identifier) = self
                     .javascript
@@ -95,10 +96,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 else {
                     unreachable!("a shorthand reads its name")
                 };
-                let has_state = self
-                    .res
-                    .symbol(identifier)
-                    .is_some_and(|symbol| self.res.binding(symbol).kind != BindingKind::Normal);
+                let has_state = self.res.symbol(identifier).map_or_else(
+                    || self.res.is_store_subscription(&identifier.name),
+                    |symbol| self.res.binding(symbol).kind != BindingKind::Normal,
+                );
                 (self.expression(expression), has_state)
             }
             &StyleValue::Expression { expression, .. } => {

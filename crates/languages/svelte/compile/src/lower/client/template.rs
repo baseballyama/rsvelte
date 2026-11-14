@@ -107,7 +107,7 @@ impl Template {
                 for (k, v) in attributes {
                     out.push(' ');
                     if *is_markup {
-                        out.push_str(&k.to_ascii_lowercase());
+                        out.push_str(&k.to_lowercase());
                     } else {
                         out.push_str(k);
                     }

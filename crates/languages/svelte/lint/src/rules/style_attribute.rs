@@ -5,7 +5,6 @@ use oxc_ast::ast::Expression;
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_stylesheet_syntax::postcss::{self, InlineNode};
-use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part,
 };
@@ -26,11 +25,9 @@ impl Artifact for InlineStyles {
     const NAME: &'static str = "svelte.lint.inline_styles";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let component = context
-            .get::<Parsed>()
-            .as_ref()
+        let linted = crate::computation::Linted::of(context)
             .expect("lint requests inline styles after parsing");
-        inline_styles(component, context.source_text())
+        inline_styles(linted.component, context.source_text())
     }
 }
 
