@@ -11,6 +11,7 @@ use oxc_ast::ast::{
     Comment, Expression, FormalParameter, FormalParameters, Program, TSTypeParameterDeclaration,
     VariableDeclaration,
 };
+use oxc_diagnostics::OxcDiagnostic;
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
@@ -77,6 +78,8 @@ struct Trees<'a> {
     /// The comments of every part but the programs, which keep their own, in document order.
     comments: Vec<Comment>,
     acorn_rejection: Option<(u32, acorn_grammar::Rejection)>,
+    unchecked: &'static [&'static str],
+    as_acorn: bool,
 }
 
 /// The trees parsed from one document, and the arena that holds them.
@@ -206,6 +209,14 @@ impl Tree {
             .borrow_dependent()
             .acorn_rejection
             .map(acorn_grammar::rejection)
+    }
+
+    /// Whether the host the builder read for reports `error`, an error of an analysis of the
+    /// trees whose nodes `visit` hands to [`Locator::enter`].
+    #[must_use]
+    pub fn reports(&self, error: &OxcDiagnostic, visit: impl FnOnce(&mut Locator)) -> bool {
+        let trees = self.0.borrow_dependent();
+        syntax_error::reported(error, trees.unchecked, trees.as_acorn, visit)
     }
 
     #[must_use]

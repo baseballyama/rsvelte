@@ -1,4 +1,4 @@
-# svelte.format/default: 34381 match
+# svelte.format/default: 34386 match
 svelte/appwrite-console/src/lib/components/billing/alerts/markedForDeletion.svelte	mismatch
 svelte/appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte	mismatch
 svelte/appwrite-console/src/lib/components/domains/recordTable.svelte	mismatch
@@ -428,7 +428,6 @@ svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_wher
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/d1347e76ec8cf4c8.svelte	refused
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/da266f625312c031.svelte	refused
 svelte/rsvelte-tests-core-2/early_errors_3243/the_analyze_phase_duplicate_check_is_still_reachable/1fb31d8590dd4b8b.svelte	refused
-svelte/rsvelte-tests-core-2/export_specifier_error_spans/export_undefined_points_at_the_whole_export_specifier/b9cd0b02029ce8d3.svelte	refused
 svelte/rsvelte-tests-core-2/import_assert_newline_3198/javascript_rejects_at_the_brace/404dfd40b20e4bfc.svelte	refused
 svelte/rsvelte-tests-core-2/import_assert_newline_3198/javascript_rejects_at_the_brace/f4319458422084af.svelte	refused
 svelte/rsvelte-tests-core-2/import_assert_newline_3198/same_line_assert_is_unchanged/5b4535faac199c0d.svelte	mismatch
@@ -646,7 +645,6 @@ svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/the_typescript_rules_a
 svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/the_typescript_rules_acorn_does_not_check_still_compile/e14e35d7727fafe7.svelte	refused
 svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/the_typescript_rules_acorn_does_not_check_still_compile/ed1659e2828fd6c3.svelte	refused
 svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/the_typescript_rules_acorn_does_not_check_still_compile/f885d612392a3a4f.svelte	refused
-svelte/rsvelte-tests-core-3/ts_overload_signature_3421/a_bodiless_class_member_is_erased_on_every_target/67fda423e2104328.svelte	refused
 svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/038d0dc034da5245.svelte	refused
 svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/37872848f3467e35.svelte	refused
 svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/8e90b81fa7f50efb.svelte	refused
@@ -661,9 +659,6 @@ svelte/rsvelte-tests-core-3/with_statement_strict_mode/with_statement_nested_in_
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/every_host_accepts_what_upstream_accepts/37afe1d05a47e6a8.svelte	refused
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/every_host_accepts_what_upstream_accepts/496b21501459d0e4.svelte	refused
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/every_host_accepts_what_upstream_accepts/cac5edaa93e04d7d.svelte	refused
-svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	refused
-svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ad65fdf7d6a621fb.svelte	refused
-svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte	refused
 svelte/rsvelte-tests-formatter/block_header_call_args/a_long_iterable_pushes_the_key_over_the_width/03834301bec484ba.svelte	mismatch
 svelte/rsvelte-tests-formatter/block_header_call_args/each_header_settles_iterable_before_key/b6419b2fd1f57a4a.svelte	mismatch
 svelte/rsvelte-tests-formatter/block_header_call_args/each_key_expression_expands_too/99247f18ab44c03d.svelte	mismatch
@@ -800,7 +795,6 @@ svelte/rsvelte/lint/max-attributes-per-line/13-this-comment-in-value.svelte	refu
 svelte/rsvelte/lint/no-add-event-listener/06-comment-as-decoy.svelte	mismatch
 svelte/rsvelte/lint/no-add-event-listener/17-line-comment-before-paren.svelte	mismatch
 svelte/rsvelte/lint/no-dupe-on-directives/19-ts-casts-and-generics.svelte	mismatch
-svelte/rsvelte/lint/no-inspect/17-import-export-specifier.svelte	refused
 svelte/rsvelte/lint/no-spaces-around-equal-signs-in-attribute/12-this-scan-failures.svelte	refused
 svelte/rsvelte/lint/no-trailing-spaces/14-exotic-ws-controls.svelte	mismatch
 svelte/rsvelte/lint/prefer-const/23-redeclared-let.svelte	refused
