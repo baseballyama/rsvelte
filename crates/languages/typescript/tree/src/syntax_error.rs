@@ -141,16 +141,20 @@ pub(crate) fn acorn(
         "8009" if text.get(start as usize..end as usize) == Some("?") => {
             Some(fails("Unexpected token", start))
         }
-        // A modifier: acorn reads it as the member's name and fails at the token after it.
-        "8009" | "8012" => Some(fails("Unexpected token", token(end, None)?)),
-        // A second modifier: acorn reads the first as the name and fails at this one. A numeric
-        // enum member and a class's `implements` are where acorn fails too.
-        "1029" | "2452" | "8005" => Some(fails("Unexpected token", start)),
+        // A modifier: acorn reads it as the member's name and fails at the token after it. So it
+        // does after a lone name that a token on its line follows.
+        "8009" | "8012" | "1434" | "1435" => Some(fails("Unexpected token", token(end, None)?)),
         // `()`: oxc labels both parentheses, and acorn fails at the closing one.
-        "1109" => Some(fails("Unexpected token", end.checked_sub(1)?)),
+        "1109" if text.get(start as usize..end as usize)?.starts_with('(') => {
+            Some(fails("Unexpected token", end.checked_sub(1)?))
+        }
+        // A second modifier: acorn reads the first as the name and fails at this one. A numeric
+        // enum member, a class's `implements` and a token where an expression or a type belongs
+        // are where acorn fails too.
+        "1029" | "2452" | "8005" | "1109" | "1110" => Some(fails("Unexpected token", start)),
         // oxc labels the slash, and acorn reports the body after it.
         "1161" => Some(fails("Unterminated regular expression", start + 1)),
-        // oxc labels where the semicolon is missing, and acorn fails at the next token.
+        // A missing token: acorn fails at the next token from where oxc labels it.
         "1005" => Some(fails("Unexpected token", token(start, None)?)),
         "1212" => Some(Acorn::Fails {
             message: Cow::Owned(error.message.to_string()),
