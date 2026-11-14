@@ -1,4 +1,4 @@
-# svelte.check/default: 34830 match
+# svelte.check/default: 34832 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
@@ -74,7 +74,6 @@ svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/d654bef2323adbe8.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/f1bad544504a65b6.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/671d2aac388388af.svelte	mismatch
-svelte/rsvelte-tests-core-2/malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/cf14a32120c034ea.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/2cd944404c6f582d.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/b6bcad46807ea3c1.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/c5bc4d862a4fa46e.svelte	mismatch
@@ -169,7 +168,6 @@ svelte/rsvelte-tests/rsvelte_language_server/completions/tests/the_component_doc
 svelte/rsvelte-tests/rsvelte_language_server/folding/tests/a_document_being_typed_still_folds/9a8f6b5e0cd9dd2d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/folding/tests/no_input_panics/a7896b97746ed2b6.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/hover/tests/a_css_property_name_in_a_script_is_not_a_css_hover/52402c94c98c8d94.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_language_server/hover/tests/at_tags_hover/1dbb24bfa4df915d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/36e05300c734c306.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/59adde327ea8994d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/tsgo_component_info/tests/parser_script_native_value_and_non_colon_triggers_are_rejected/91ee76e6755d0421.svelte	mismatch

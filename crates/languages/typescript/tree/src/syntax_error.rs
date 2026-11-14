@@ -203,6 +203,8 @@ pub(crate) fn acorn(
         // A modifier: acorn reads it as the member's name and fails at the token after it. So it
         // does after a lone name that a token on its line follows.
         "8009" | "8012" | "1434" | "1435" => Some(fails("Unexpected token", token(end, None)?)),
+        // `enum` where an expression belongs: acorn reads it as a reserved name.
+        "1109" if kind_at(start) == Some(Kind::Enum) => reserved(start),
         // `()`: oxc labels both parentheses, and acorn fails at the closing one.
         "1109" if text.get(start as usize..end as usize)?.starts_with('(') => {
             Some(fails("Unexpected token", end.checked_sub(1)?))

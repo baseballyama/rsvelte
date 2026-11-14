@@ -3261,3 +3261,54 @@
 
 ["svelte/rsvelte/pattern/issues/3199-grammar-import-assert.svelte".skip]
 "svelte.check" = "checker: TS 7 reports 2880 for an import assertion in a JavaScript file where TS 6 reports it only in TypeScript"
+
+["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/0088599d9714f97a.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 snips a style sheet only before `</style\\s*>`, so at `</style x>` it keeps none of the sheet and prints the element empty"
+
+["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/1bb2b4aed0a9a6d2.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 snips a style sheet only before `</style\\s*>`, so at `</style x>` it keeps none of the sheet and prints the element empty"
+
+["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/70dafcc981faebbf.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 snips a style sheet only before `</style\\s*>`, so at `</style x>` it keeps none of the sheet and prints the element empty"
+
+["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/cfe410676d33493a.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 snips a style sheet only before `</style\\s*>`, so at `</style x>` it keeps none of the sheet and prints the element empty"
+
+["svelte/rsvelte-tests-core-1/css_block_item_progress/empty_block_item_selector_terminates_with_the_upstream_error/6ee0cd37bd59cda7.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 throws \"Unexpected PostCSS node type: undefined\" at a rule whose selector is empty, so the plugin keeps the sheet unformatted"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/214ad01217b359a0.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 throws \"Unexpected PostCSS node type: undefined\" at a rule whose selector is empty, so the plugin keeps the sheet unformatted"
+
+["svelte/rsvelte-tests-core-2/parser_hardening/empty_style_selector_reports_css_expected_identifier/b88d5f3115712610.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 throws \"Unexpected PostCSS node type: undefined\" at a rule whose selector is empty, so the plugin keeps the sheet unformatted"
+
+["svelte/rsvelte-tests-core-1/css_keyframes_property_case_folding/kelvin_sign_in_webkit_prefix_still_renames_the_keyframe_reference/76689b0d4197a426.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 lowercases a property name with JavaScript's toLowerCase, which turns the Kelvin sign into `k` and so names another property"
+
+["svelte/rsvelte-tests-core-2/parse_ast_official_shapes/a_hex_escape_terminator_belongs_to_the_selector_before_a_combinator/f7145fc67908ac46.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 prints a hex escape's terminating space and a descendant combinator as one space, which joins the two selectors into one name"
+
+["svelte/svelte/packages/svelte/tests/css/samples/unicode-identifier/input.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 prints a hex escape's terminating space and a descendant combinator as one space, which joins the two selectors into one name"
+
+["svelte/rsvelte-tests-core-1/css_selector_syntax_5_56_10/a_scoped_pseudo_class_keeps_its_source_spelling/da31ac17065cbeab.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 reads the `of` of an An+B selector as a type selector and glues it to the selector after it"
+
+["svelte/rsvelte-tests-core-1/css_selector_syntax_5_56_10/nth_of_accepts_a_selector_list/a82807863802368f.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 reads the `of` of an An+B selector as a type selector and glues it to the selector after it"
+
+["svelte/rsvelte-tests-core-1/css_selector_syntax_5_56_10/nth_of_parses_without_whitespace_after_of/6ffbf7e8271d0509.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 reads the `of` of an An+B selector as a type selector and glues it to the selector after it"
+
+["svelte/rsvelte/pattern/issues/3195-nth-of-selector-list.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 reads the `of` of an An+B selector as a type selector and glues it to the selector after it"
+
+["svelte/svelte/packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 reads the `of` of an An+B selector as a type selector and glues it to the selector after it"
+
+["svelte/rsvelte-tests-core-1/css_custom_property_block_3052/a_custom_property_accepts_balanced_curly_and_square_blocks/1b6e89246c55c577.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 drops the whitespace tokens of a custom property's value, which changes the value var() substitutes"
+
+["svelte/rsvelte/pattern/adversarial/css/css-custom-property-values.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 drops the whitespace tokens of a custom property's value, which changes the value var() substitutes"
