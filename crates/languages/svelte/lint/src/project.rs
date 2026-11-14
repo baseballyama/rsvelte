@@ -44,15 +44,30 @@ pub enum Location {
 /// Answers [`SvelteConfiguration`] and [`SvelteKit`] from the files around each document. Each
 /// answer is read when a rule first asks for it.
 pub fn register_file_system(registry: &mut Registry) {
+    // A document with a name only is in no project: upstream looks it up from the current
+    // directory, which would make its findings depend on where the host runs.
     registry.provide::<SvelteConfiguration>(
         "svelte.lint.file_system",
         |_| true,
-        |context| svelte_config_near(context.files(), Path::new(&context.document.path)),
+        |context| {
+            context.document.file.as_ref().map_or_else(
+                || Ok(SvelteConfig::default()),
+                |file| svelte_config_near(context.files(), file),
+            )
+        },
     );
     registry.provide::<SvelteKit>(
         "svelte.lint.file_system",
         |_| true,
-        |context| svelte_kit_project(context.files(), Path::new(&context.document.path)),
+        |context| {
+            context.document.file.as_ref().map_or(
+                SvelteKitProject {
+                    version: None,
+                    location: Location::NoProject,
+                },
+                |file| svelte_kit_project(context.files(), file),
+            )
+        },
     );
 }
 
@@ -180,20 +195,14 @@ pub fn svelte_kit_project(files: &FileFacts, document: &Path) -> SvelteKitProjec
 /// The nearest `svelte.config.js` above the document, statically evaluated
 /// (`resolveSvelteConfig`); the default without one.
 ///
-/// A document that is not a file is looked up from the current directory, as upstream does.
-///
 /// # Errors
 ///
 /// The file cannot be read or does not parse.
 pub fn svelte_config_near(files: &FileFacts, document: &Path) -> Result<SvelteConfig, String> {
-    let file = absolute(document);
-    let start = match file.parent() {
-        Some(directory) if file.is_file() => directory.to_owned(),
-        _ => std::env::current_dir().map_err(|e| format!("the current directory: {e}"))?,
-    };
     // Upstream stops before the file system's root.
-    start
+    absolute(document)
         .ancestors()
+        .skip(1)
         .filter(|directory| directory.parent().is_some())
         .find_map(|directory| {
             (*files.get::<SvelteConfigFile>(&directory.join("svelte.config.js"))).clone()
@@ -201,7 +210,7 @@ pub fn svelte_config_near(files: &FileFacts, document: &Path) -> Result<SvelteCo
         .unwrap_or_else(|| Ok(SvelteConfig::default()))
 }
 
-/// The document's path as `ESLint` names it (`path.resolve`): absolute, from the current
+/// The document's file as `ESLint` names it (`path.resolve`): absolute, from the current
 /// directory, without `.` or `..`.
 fn absolute(path: &Path) -> PathBuf {
     let absolute = std::path::absolute(path).unwrap_or_else(|_| path.to_owned());
