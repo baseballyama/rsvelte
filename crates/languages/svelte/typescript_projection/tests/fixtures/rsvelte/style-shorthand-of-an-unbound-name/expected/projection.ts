@@ -2,10 +2,10 @@
 
 	import { writable } from 'svelte/store';
 
-	const store = writable('v');;let $store!: __rsvelte_store_value<typeof store>;
+	const store = writable('v');;let $store = __rsvelte_store_get(store);
 
 	const color = 'red';
-	let { size }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { size } = $props();
 
 ;
 
@@ -24,6 +24,5 @@ async () => {
     __sveltets_2_ensureType(String, Number, width);
   }
 };
-const StyleShorthandOfAnUnboundName__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type StyleShorthandOfAnUnboundName__SvelteComponent_ = ReturnType<typeof StyleShorthandOfAnUnboundName__SvelteComponent_>;
-export default StyleShorthandOfAnUnboundName__SvelteComponent_;
+const StyleShorthandOfAnUnboundName__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof StyleShorthandOfAnUnboundName__SvelteComponent_>} */ (StyleShorthandOfAnUnboundName__SvelteComponent_);
