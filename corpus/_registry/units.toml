@@ -3038,3 +3038,132 @@
 
 ["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte".skip]
 "svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
+
+["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/an_already_parsing_body_is_untouched/bcc4b9fb00313c20.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/0ce4a229f2651289.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/105f5e4e537fff6e.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/197185b2c1861f3a.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/1cbbc5495ab257c0.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/2088c6c2660e45f8.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/25028b81b8e28046.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/2d30650b5d114ae5.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/3d1398e90e495150.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/4bf8fbbf8830146f.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/4f23563c0c692a03.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/4f7146b39cf1d315.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/505123e771c673f6.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/527567190b2f3584.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/6b8b369f7f2c97cd.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/6e7d251a74d9f9d1.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/717fabcc869e137b.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/756b6441e9d40f62.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/799deeaa81aee0d7.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/8b30be58e48c5674.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/911c31ba02c7195d.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/916cce8c1237a738.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/9793503ba907852b.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/9ce729b5a618721c.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/a69db73b2d3feb98.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/bd67bef563628fae.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/bf213f92b9ac1b26.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/ce2f644bc2a7ffd5.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/d4a11143b57fb727.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/d74fe9ecf5e686f2.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/dda7faa5a56fc91e.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/e71380241ab6323f.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/f3d50d82e5a04800.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/f5839bc3c2bb2e4e.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/markup_cast_head_parens/declaration_name_head_matches_oracle/fcdce5f6704386ac.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/00b9f98ed10382e1.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid object literal reads as a block and reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/0f945bdc236517ed.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/257a80f582aa7e45.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/2ecb7ed3138f65ee.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid object literal reads as a block and reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/56fffd0c2fbc97e4.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/6f6f7ca9d3f29f54.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/ca63fda154f4bfbe.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/ec823872202ae4e8.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"

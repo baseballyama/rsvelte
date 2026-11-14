@@ -14,13 +14,13 @@ const __rsvelte_public_props0 = __rsvelte_props({
 async () => {
   {
     for (let [, { id, name, size = 1, ...rest }] of __rsvelte_each(items)) {
-      id;
+      (id);
       {
         svelteHTML.createElement("p", {});
-        id;
-        name;
-        size;
-        rest.extra;
+        (id);
+        (name);
+        (size);
+        (rest.extra);
       }
     }
   }
@@ -28,9 +28,9 @@ async () => {
     for (let [i, [key, value]] of __rsvelte_each(pairs)) {
       {
         svelteHTML.createElement("span", {});
-        i;
-        key;
-        value;
+        (i);
+        (key);
+        (value);
       }
     }
   }
@@ -38,8 +38,8 @@ async () => {
     for (let [, { name, tags: [first = fallback] }] of __rsvelte_each(plain)) {
       {
         svelteHTML.createElement("b", {});
-        name;
-        first;
+        (name);
+        (first);
       }
     }
   }
@@ -47,7 +47,7 @@ async () => {
     for (let [, { label }] of __rsvelte_each(fixed)) {
       {
         svelteHTML.createElement("i", {});
-        label;
+        (label);
       }
     }
   }

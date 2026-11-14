@@ -8,7 +8,7 @@ async () => {
       "id": "a",
     });
     __sveltets_2_ensureType(String, Number, c);
-    c;
+    (c);
   }
   {
     svelteHTML.createElement(tag, {

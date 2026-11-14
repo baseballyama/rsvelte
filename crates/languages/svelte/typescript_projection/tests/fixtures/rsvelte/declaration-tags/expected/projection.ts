@@ -11,8 +11,8 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => n++,
     });
-    n;
-    twice;
+    (n);
+    (twice);
   }
   if (shown) {
     let box = $state({ v: start });
@@ -21,8 +21,8 @@ async () => {
       svelteHTML.createElement("p", {
         "onclick": () => box.v++,
       });
-      label;
-      box.v;
+      (label);
+      (box.v);
     }
     {
       svelteHTML.createElement("section", {});
@@ -30,8 +30,8 @@ async () => {
       let t = $derived(twice + 1);
       {
         svelteHTML.createElement("i", {});
-        label;
-        t;
+        (label);
+        (t);
       }
     }
   }
@@ -40,7 +40,7 @@ async () => {
       let el = $state();
       {
         el = svelteHTML.createElement("b", {});
-        item;
+        (item);
       }
     }
   }

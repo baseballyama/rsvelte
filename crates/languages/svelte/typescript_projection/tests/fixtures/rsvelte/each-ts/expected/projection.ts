@@ -8,10 +8,10 @@ let { items }: $$ComponentProps = $props();
 async () => {
   {
     for (let [, item] of __rsvelte_each(items)) {
-      item;
+      (item);
       {
         svelteHTML.createElement("p", {});
-        item as string;
+        (item as string);
       }
     }
   }

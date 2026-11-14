@@ -16,19 +16,19 @@
 async () => {
   {
     svelteHTML.createElement("p", {});
-    a;
-    b;
-    c;
-    d;
-    e;
-    f;
-    g;
-    h;
-    i;
+    (a);
+    (b);
+    (c);
+    (d);
+    (e);
+    (f);
+    (g);
+    (h);
+    (i);
   }
   {
     svelteHTML.createElement("p", {});
-    1 ** Infinity;
+    (1 ** Infinity);
   }
 };
 const GlobalFunctionsFold__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

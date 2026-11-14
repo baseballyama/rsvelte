@@ -30,7 +30,7 @@ async () => {
             "dominant-baseline": "hanging",
             "textLength": 10,
           });
-          item;
+          (item);
         }
       }
     }

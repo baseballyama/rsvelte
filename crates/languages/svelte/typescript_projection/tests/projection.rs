@@ -188,7 +188,7 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "        \"title\": text,\n",
             "        \"data-label\": `café\n  🚀`,\n",
             "      });\n",
-            "      text;\n",
+            "      (text);\n",
             "    }\n",
             "  }\n",
             "};\n",
@@ -540,18 +540,4 @@ fn a_type_a_dollar_generic_constraint_names_moves_before_the_render_function() {
         .expect("the alias becomes a type parameter");
     assert!(interface < render, "{}", output.out);
     assert!(!output.out.contains("$$Generic"), "{}", output.out);
-}
-
-/// svelte2tsx writes a text expression bare, and parenthesizes one that opens with an object.
-#[test]
-fn a_text_expression_is_bare_unless_it_opens_with_an_object() {
-    let (_, output) =
-        project("<script lang=\"ts\"></script>{accessor as string}{{ a: 1 }.a}{({ b: 2 })}");
-    assert!(
-        output.out.contains("accessor as string;\n"),
-        "{}",
-        output.out
-    );
-    assert!(output.out.contains("({ a: 1 }.a);\n"), "{}", output.out);
-    assert!(output.out.contains("({ b: 2 });\n"), "{}", output.out);
 }

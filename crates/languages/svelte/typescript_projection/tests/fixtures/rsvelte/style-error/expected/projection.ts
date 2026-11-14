@@ -9,7 +9,7 @@ let { title }: $$ComponentProps = $props();
 async () => {
   {
     svelteHTML.createElement("h1", {});
-    title.toFixed();
+    (title.toFixed());
   }
 };
 const StyleError__SvelteComponent_ = __rsvelte_export_component<$$ComponentProps, {}, "">();

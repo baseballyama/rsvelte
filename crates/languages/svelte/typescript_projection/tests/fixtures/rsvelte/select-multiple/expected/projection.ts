@@ -21,14 +21,14 @@ async () => {
           svelteHTML.createElement("option", {
             "value": flavour,
           });
-          flavour;
+          (flavour);
         }
       }
     }
   }
   {
     svelteHTML.createElement("p", {});
-    flavours.join(', ');
+    (flavours.join(', '));
   }
 };
 const SelectMultiple__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
