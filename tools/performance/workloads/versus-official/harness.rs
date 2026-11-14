@@ -220,16 +220,21 @@ fn pass<T: Tool>(tool: &T, files: &[(String, String)], threads: usize, defect: D
     std::thread::scope(|scope| {
         let workers: Vec<_> = (0..threads)
             .map(|_| {
-                scope.spawn(|| {
-                    let mut bytes = 0;
-                    loop {
-                        let index = next.fetch_add(1, Ordering::Relaxed);
-                        if index >= files.len() {
-                            return bytes;
+                // The main thread's stack, so a deep component that one thread handles does not
+                // overflow on several.
+                std::thread::Builder::new()
+                    .stack_size(8 << 20)
+                    .spawn_scoped(scope, || {
+                        let mut bytes = 0;
+                        loop {
+                            let index = next.fetch_add(1, Ordering::Relaxed);
+                            if index >= files.len() {
+                                return bytes;
+                            }
+                            bytes += one(tool, files, index, defect);
                         }
-                        bytes += one(tool, files, index, defect);
-                    }
-                })
+                    })
+                    .expect("a worker starts")
             })
             .collect();
         workers
