@@ -184,7 +184,13 @@ fn findings_at_one_position_match_in_any_order() {
     )];
     let finding = |rule: &str, message: &str, line: u32| {
         format!(
-            r#"{{"rule":"{rule}","message":"{message}","start":{{"line":{line},"column":1}},"end":{{"line":{line},"column":2}}}}"#
+            concat!(
+                r#"{{"rule":"{rule}","message":"{message}","#,
+                r#""start":{{"line":{line},"column":1}},"end":{{"line":{line},"column":2}}}}"#,
+            ),
+            rule = rule,
+            message = message,
+            line = line,
         )
     };
     let ours = |findings: [String; 3]| {

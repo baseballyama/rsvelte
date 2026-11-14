@@ -26,9 +26,10 @@ impl Rejection {
     const fn message(self) -> &'static str {
         match self {
             Self::Unexpected => "Unexpected token",
-            Self::Override => {
-                "This member cannot have an 'override' modifier because its containing class does not extend another class."
-            }
+            Self::Override => concat!(
+                "This member cannot have an 'override' modifier because its containing class does ",
+                "not extend another class."
+            ),
             Self::ExportedGlobal => "'export declare' must be followed by an ambient declaration.",
         }
     }
