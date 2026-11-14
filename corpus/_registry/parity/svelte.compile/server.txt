@@ -1,4 +1,4 @@
-# svelte.compile/server: 36309 match
+# svelte.compile/server: 36298 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_typescript_script_reports_at_the_word_too/a447b5a782a8d8c0.svelte	mismatch
 svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/component_sequence_error_points_at_the_expression/c1314d8fdd09c86c.svelte	unexpected

@@ -2068,6 +2068,8 @@
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/070bec3752f0534a.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 checks the body of a `declare` namespace, module or global for values, and refuses a `const` there, though erasing the types leaves nothing"
+"svelte.lint" = "upstream bug: valid-compile reports svelte 5.57.3's refusal of a `const` in a `declare` namespace, module or global, though erasing the types leaves nothing"
 "svelte.check" = "upstream bug: svelte2tsx finds a top-level `await` with TypeScript's parser, which reads `await` as an identifier in a script without an import or export, so svelte-check reports a valid top-level await as an undeclared name"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/10142769056c4df0.svelte".skip]
@@ -3044,3 +3046,43 @@
 
 ["svelte/rsvelte-tests-formatter/markup_patterns/let_directive_value_is_formatted_as_an_expression/ac7edb54ecf01f25.svelte".skip]
 "svelte.compile/client" = "upstream bug: svelte 5.57.3 destructures a `let:` pattern with defaults and returns `{}`, so the slot binds none of its names"
+
+["svelte/rsvelte-tests-core-2/parse_ts_module_declaration/declare_and_global_are_present_only_when_true/0fa7602557ab055a.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 checks the body of a `declare` namespace, module or global for values, and refuses a `const` there, though erasing the types leaves nothing"
+"svelte.lint" = "upstream bug: valid-compile reports svelte 5.57.3's refusal of a `const` in a `declare` namespace, module or global, though erasing the types leaves nothing"
+
+["svelte/rsvelte-tests-core-2/parse_ts_module_declaration/declare_and_global_are_present_only_when_true/16a0e803d134a0dd.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 checks the body of a `declare` namespace, module or global for values, and refuses a `const` there, though erasing the types leaves nothing"
+"svelte.lint" = "upstream bug: valid-compile reports svelte 5.57.3's refusal of a `const` in a `declare` namespace, module or global, though erasing the types leaves nothing"
+
+["svelte/rsvelte-tests-core-2/parse_ts_module_declaration/declare_and_global_are_present_only_when_true/74d81e52718629cd.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 checks the body of a `declare` namespace, module or global for values, and refuses a `const` there, though erasing the types leaves nothing"
+"svelte.lint" = "upstream bug: valid-compile reports svelte 5.57.3's refusal of a `const` in a `declare` namespace, module or global, though erasing the types leaves nothing"
+
+["svelte/rsvelte-tests-core-3/ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/01bcf43fd86af194.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 checks the body of a `declare` namespace, module or global for values, and refuses a `const` there, though erasing the types leaves nothing"
+"svelte.lint" = "upstream bug: valid-compile reports svelte 5.57.3's refusal of a `const` in a `declare` namespace, module or global, though erasing the types leaves nothing"
+
+["svelte/rsvelte-tests-core-3/ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/2b44b741a37c9939.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 checks the body of a `declare` namespace, module or global for values, and refuses a `const` there, though erasing the types leaves nothing"
+"svelte.lint" = "upstream bug: valid-compile reports svelte 5.57.3's refusal of a `const` in a `declare` namespace, module or global, though erasing the types leaves nothing"
+
+["svelte/rsvelte-tests-core-3/ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/5d6c5de6ae8b0b55.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 checks the body of a `declare` namespace, module or global for values, and refuses a `const` there, though erasing the types leaves nothing"
+"svelte.lint" = "upstream bug: valid-compile reports svelte 5.57.3's refusal of a `const` in a `declare` namespace, module or global, though erasing the types leaves nothing"
+
+["svelte/rsvelte-tests-core-3/ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/7a5db3fcfa0a3d34.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 checks the body of a `declare` namespace, module or global for values, and refuses a `const` there, though erasing the types leaves nothing"
+"svelte.lint" = "upstream bug: valid-compile reports svelte 5.57.3's refusal of a `const` in a `declare` namespace, module or global, though erasing the types leaves nothing"
+
+["svelte/rsvelte-tests-core-3/ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/a16e6fb98c0725cd.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 checks the body of a `declare` namespace, module or global for values, and refuses a `const` there, though erasing the types leaves nothing"
+"svelte.lint" = "upstream bug: valid-compile reports svelte 5.57.3's refusal of a `const` in a `declare` namespace, module or global, though erasing the types leaves nothing"
+
+["svelte/rsvelte-tests-core-3/ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/c6bb79422a6087a7.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 checks the body of a `declare` namespace, module or global for values, and refuses a `const` there, though erasing the types leaves nothing"
+"svelte.lint" = "upstream bug: valid-compile reports svelte 5.57.3's refusal of a `const` in a `declare` namespace, module or global, though erasing the types leaves nothing"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_namespace_export_3257/nested_namespaces_and_ambient_modules_are_walked_too/2fb80e651772bf87.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 checks the body of a `declare` namespace, module or global for values, and refuses a `const` there, though erasing the types leaves nothing"
+"svelte.lint" = "upstream bug: valid-compile reports svelte 5.57.3's refusal of a `const` in a `declare` namespace, module or global, though erasing the types leaves nothing"
