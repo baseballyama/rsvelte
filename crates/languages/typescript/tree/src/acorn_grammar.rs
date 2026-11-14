@@ -6,7 +6,7 @@ use oxc_ast::ast::{
     ClassElement, Declaration, Statement, VariableDeclarationKind, WithClauseKeyword,
 };
 use oxc_ast_visit::Visit;
-use oxc_parser::Token;
+use oxc_parser::{Kind, Token};
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
@@ -22,6 +22,8 @@ pub(crate) enum Rejection {
     Override,
     /// `export declare global { … }`.
     ExportedGlobal,
+    /// A decorator's `@`, a character acorn does not read.
+    At,
 }
 
 impl Rejection {
@@ -33,6 +35,7 @@ impl Rejection {
                 "not extend another class."
             ),
             Self::ExportedGlobal => "'export declare' must be followed by an ambient declaration.",
+            Self::At => "Unexpected character '@'",
         }
     }
 }
@@ -89,6 +92,19 @@ fn stop(kind: AstKind<'_>, typescript: bool, tokens: &[Token]) -> Option<(u32, R
         AstKind::ForInStatement(it) => unexpected(declared_function(&it.body)),
         AstKind::ForOfStatement(it) => unexpected(declared_function(&it.body)),
         AstKind::WithStatement(it) => unexpected(declared_function(&it.body)),
+        // Decorators and `accessor` fields are acorn-typescript's alone. acorn stops at the `@`,
+        // and reads `accessor` as the field's name and stops at the token after it.
+        AstKind::Decorator(decorator) if !typescript => Some((decorator.span.start, Rejection::At)),
+        AstKind::AccessorProperty(property) if !typescript => {
+            let first = tokens.partition_point(|token| token.start() < property.span.start);
+            unexpected(
+                tokens[first..]
+                    .iter()
+                    .skip_while(|token| token.kind() != Kind::Accessor)
+                    .nth(1)
+                    .map(Token::start),
+            )
+        }
         AstKind::Class(class) if typescript && class.heritage.is_none() => class
             .body
             .body

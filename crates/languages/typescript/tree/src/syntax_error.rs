@@ -3,11 +3,11 @@
 
 use std::borrow::Cow;
 
-use oxc_ast::{AstKind, AstType};
-use oxc_ast_visit::Visit;
+pub use locator::Locator;
+use locator::{Find, Holder, Reading, locate};
+use oxc_ast::AstType;
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::{Kind, Token};
-use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
@@ -155,11 +155,24 @@ pub(crate) fn acorn(
     tokens: &[Token],
     visit: impl FnOnce(&mut Locator),
 ) -> Option<Acorn> {
-    if error.code.scope.as_deref() != Some("TS") {
-        return None;
-    }
     let label = error.labels.first()?;
     let (start, end) = (label.offset(), label.offset() + label.len());
+    let kind_at = |at: u32| {
+        let token = tokens.get(tokens.partition_point(|token| token.start() < at))?;
+        (token.start() == at).then(|| token.kind())
+    };
+    // A script is a module, so acorn reads every reserved word in a binding as an error of its own.
+    let reserved = |at: u32| {
+        let kind = kind_at(at)?;
+        (kind == Kind::Enum || kind.is_future_reserved_keyword()).then(|| Acorn::Fails {
+            message: Cow::Owned(format!("The keyword '{}' is reserved", kind.to_str())),
+            at,
+        })
+    };
+    if error.code.scope.as_deref() != Some("TS") {
+        // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
+        return reserved(start).filter(|_| kind_at(start) == Some(Kind::Enum));
+    }
     let token = |after: u32, kind: Option<Kind>| {
         tokens
             .iter()
@@ -185,16 +198,22 @@ pub(crate) fn acorn(
         "8009" if text.get(start as usize..end as usize) == Some("?") => {
             Some(fails("Unexpected token", start))
         }
-        // A modifier: acorn reads it as the member's name and fails at the token after it.
-        "8009" | "8012" => Some(fails("Unexpected token", token(end, None)?)),
-        // A second modifier: acorn reads the first as the name and fails at this one. A numeric
-        // enum member and a class's `implements` are where acorn fails too.
-        "1029" | "2452" | "8005" => Some(fails("Unexpected token", start)),
+        // A parameter's modifier is a binding to acorn, so a reserved one fails where it starts.
+        "8012" if reserved(start).is_some() => reserved(start),
+        // A modifier: acorn reads it as the member's name and fails at the token after it. So it
+        // does after a lone name that a token on its line follows.
+        "8009" | "8012" | "1434" | "1435" => Some(fails("Unexpected token", token(end, None)?)),
         // `()`: oxc labels both parentheses, and acorn fails at the closing one.
-        "1109" => Some(fails("Unexpected token", end.checked_sub(1)?)),
+        "1109" if text.get(start as usize..end as usize)?.starts_with('(') => {
+            Some(fails("Unexpected token", end.checked_sub(1)?))
+        }
+        // A second modifier: acorn reads the first as the name and fails at this one. A numeric
+        // enum member, a class's `implements` and a token where an expression or a type belongs
+        // are where acorn fails too.
+        "1029" | "2452" | "8005" | "1109" | "1110" => Some(fails("Unexpected token", start)),
         // oxc labels the slash, and acorn reports the body after it.
         "1161" => Some(fails("Unterminated regular expression", start + 1)),
-        // oxc labels where the semicolon is missing, and acorn fails at the next token.
+        // A missing token: acorn fails at the next token from where oxc labels it.
         "1005" => Some(fails("Unexpected token", token(start, None)?)),
         "1212" => Some(Acorn::Fails {
             message: Cow::Owned(error.message.to_string()),
@@ -382,214 +401,6 @@ const fn fails(message: &'static str, at: u32) -> Acorn {
     }
 }
 
-/// What acorn reports about a node around oxc's label, found as the tree is walked.
-#[derive(Debug)]
-pub struct Locator {
-    label: oxc_span::Span,
-    find: Find,
-    found: Option<(u32, AstType)>,
-    rest: AroundRest,
-    /// Whether acorn reads the label as a name declared, for [`Find::Binding`]: in a script, a
-    /// function or a parameter list. A template's pattern and `{@const}` are none of these, and
-    /// upstream hands each to acorn as the target of an assignment.
-    declares: bool,
-}
-
-/// What decides how acorn reads an optional rest element, from the nodes around it.
-#[derive(Clone, Copy, Debug)]
-struct AroundRest {
-    /// Under a `declare`, where acorn checks no pattern.
-    ambient: bool,
-    /// How acorn reads the innermost parameter list.
-    reading: Reading,
-    /// What holds the patterns entered last.
-    holder: Holder,
-    /// The innermost rest element, and what holds it.
-    rest: Option<(oxc_span::Span, Holder)>,
-}
-
-/// How acorn reads a parameter list.
-#[derive(Clone, Copy, Debug)]
-enum Reading {
-    /// As bindings, which may not be optional patterns.
-    Binding,
-    /// As a parenthesized expression, or an async function's arguments, turned into parameters.
-    Arrow { is_async: bool },
-    /// As a type, which checks no pattern.
-    Type,
-}
-
-/// What holds a rest element.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Holder {
-    Parameters,
-    Array,
-    Object,
-}
-
-#[derive(Clone, Copy, Debug)]
-enum Find {
-    /// The end of the operand of the type assertion that is the label.
-    OperandEnd,
-    /// The start of the innermost function around the label.
-    Function,
-    /// The start of the class member around the label.
-    Member,
-    /// What decides how acorn reads the rest element whose `?` is the label.
-    OptionalRest,
-    /// The name the label is, where oxc's tree declares one.
-    Binding,
-    /// The class accessor without a body whose key is the label.
-    BodilessAccessor,
-    /// The `break` or `continue` statement around the label.
-    Jump,
-    /// The `delete` around the label.
-    Unary,
-    /// The parameter list around the label.
-    Parameters,
-    /// The innermost method, class field, static block or other function around the label, which
-    /// decides whether acorn allows `super` there.
-    SuperHome,
-}
-
-impl Locator {
-    const fn new(start: u32, end: u32, find: Find) -> Self {
-        Self {
-            label: oxc_span::Span::new(start, end),
-            find,
-            found: None,
-            declares: false,
-            rest: AroundRest {
-                ambient: false,
-                reading: Reading::Binding,
-                holder: Holder::Parameters,
-                rest: None,
-            },
-        }
-    }
-
-    fn enter_around_rest(&mut self, kind: AstKind<'_>) {
-        let around = &mut self.rest;
-        let reading = match kind {
-            AstKind::Function(it) => {
-                around.ambient |= it.declare;
-                Reading::Binding
-            }
-            AstKind::ArrowFunctionExpression(it) => Reading::Arrow {
-                is_async: it.r#async,
-            },
-            AstKind::TSFunctionType(_)
-            | AstKind::TSConstructorType(_)
-            | AstKind::TSMethodSignature(_)
-            | AstKind::TSCallSignatureDeclaration(_)
-            | AstKind::TSConstructSignatureDeclaration(_) => Reading::Type,
-            AstKind::Class(it) => return around.ambient |= it.declare,
-            AstKind::VariableDeclaration(it) => return around.ambient |= it.declare,
-            AstKind::TSNamespaceDeclaration(it) => return around.ambient |= it.declare,
-            AstKind::TSExternalModuleDeclaration(it) => return around.ambient |= it.declare,
-            AstKind::TSGlobalDeclaration(it) => return around.ambient |= it.declare,
-            AstKind::ArrayPattern(_) => return around.holder = Holder::Array,
-            AstKind::ObjectPattern(_) => return around.holder = Holder::Object,
-            AstKind::FormalParameterRest(it) => {
-                return around.rest = Some((it.rest.span, Holder::Parameters));
-            }
-            // A rest parameter's element is the rest parameter itself.
-            AstKind::BindingRestElement(it) => {
-                if around.rest != Some((it.span, Holder::Parameters)) {
-                    around.rest = Some((it.span, around.holder));
-                }
-                return;
-            }
-            _ => return,
-        };
-        around.reading = reading;
-        around.holder = Holder::Parameters;
-    }
-
-    /// Takes in a node of the walk, outer nodes before inner ones.
-    pub fn enter(&mut self, kind: AstKind<'_>) {
-        let around = kind.span().contains_inclusive(self.label);
-        if matches!(self.find, Find::Binding)
-            && around
-            && matches!(
-                kind,
-                AstKind::Program(_)
-                    | AstKind::Function(_)
-                    | AstKind::ArrowFunctionExpression(_)
-                    | AstKind::FormalParameters(_)
-            )
-        {
-            self.declares = true;
-        }
-        if matches!(self.find, Find::OptionalRest) {
-            if around {
-                self.enter_around_rest(kind);
-            }
-            return;
-        }
-        let found = match (self.find, kind) {
-            // A method's function is the method, which comes first in the walk.
-            (Find::SuperHome, AstKind::MethodDefinition(it)) if around => it.value.span.start,
-            (Find::SuperHome, AstKind::Function(it))
-                if around && self.found != Some((it.span.start, AstType::MethodDefinition)) =>
-            {
-                it.span.start
-            }
-            (Find::OperandEnd, AstKind::TSAsExpression(it)) if it.span == self.label => {
-                it.expression.span().end
-            }
-            (Find::OperandEnd, AstKind::TSSatisfiesExpression(it)) if it.span == self.label => {
-                it.expression.span().end
-            }
-            (Find::Binding, AstKind::BindingIdentifier(it)) if it.span == self.label => {
-                it.span.start
-            }
-            (Find::BodilessAccessor, AstKind::MethodDefinition(it))
-                if it.key.span() == self.label
-                    && it.kind.is_accessor()
-                    && it.value.body.is_none() =>
-            {
-                it.span.start
-            }
-            (Find::Function, AstKind::Function(_) | AstKind::ArrowFunctionExpression(_))
-            | (
-                Find::Member,
-                AstKind::MethodDefinition(_)
-                | AstKind::PropertyDefinition(_)
-                | AstKind::AccessorProperty(_),
-            )
-            | (Find::Jump, AstKind::BreakStatement(_) | AstKind::ContinueStatement(_))
-            | (Find::Unary, AstKind::UnaryExpression(_))
-            | (Find::Parameters, AstKind::FormalParameters(_))
-            | (
-                Find::SuperHome,
-                AstKind::PropertyDefinition(_)
-                | AstKind::AccessorProperty(_)
-                | AstKind::StaticBlock(_),
-            ) if around => kind.span().start,
-            _ => return,
-        };
-        self.found = Some((found, kind.ty()));
-    }
-}
-
-impl<'a> Visit<'a> for Locator {
-    fn enter_node(&mut self, kind: AstKind<'a>) {
-        self.enter(kind);
-    }
-}
-
-/// What `find` finds around `start..end` in the tree `visit` walks.
-fn locate(
-    start: u32,
-    end: u32,
-    find: Find,
-    visit: impl FnOnce(&mut Locator),
-) -> Option<(u32, AstType)> {
-    let mut locator = Locator::new(start, end, find);
-    visit(&mut locator);
-    locator.found
-}
-
+mod locator;
 #[cfg(test)]
 mod tests;
