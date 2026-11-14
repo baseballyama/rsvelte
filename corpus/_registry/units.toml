@@ -4085,3 +4085,6 @@
 
 ["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_is_not_reactive/f4814aa53a465939.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/36e05300c734c306.svelte".skip]
+"svelte.check" = "the official output depends on Node's stack depth, so it cannot be trusted"
