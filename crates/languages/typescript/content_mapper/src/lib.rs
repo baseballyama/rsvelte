@@ -82,20 +82,11 @@ pub struct Input<'a> {
     pub options: Option<&'a str>,
 }
 
+/// Serves the protocol on `input` and `output` until the checker closes `input`; `transform`
+/// writes one file's result, and its error answers only that request.
+///
 /// # Errors
 /// Returns transport errors, invalid requests, or transform failures.
-pub fn serve(
-    diagnostic_source: &str,
-    transform: impl FnMut(Input<'_>, &mut StructuredDataWriter) -> Result<(), String>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    serve_on(
-        std::io::stdin().lock(),
-        std::io::stdout().lock(),
-        diagnostic_source,
-        transform,
-    )
-}
-
 fn serve_on(
     mut input: impl BufRead,
     mut output: impl Write,

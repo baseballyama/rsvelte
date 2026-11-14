@@ -40,7 +40,7 @@ pub fn serve_precomputed_or(
     // A store is read once per project options, when the first file is transformed; a host that
     // rewrites a store changes another option, which the checker folds into its cache key too.
     let mut stores: HashMap<String, Store> = HashMap::new();
-    crate::serve("rsvelte-projection", |input, output| {
+    let transform = |input: crate::Input<'_>, output: &mut StructuredDataWriter| {
         let raw = input
             .options
             .ok_or("the project gives no `projections` option")?;
@@ -59,7 +59,13 @@ pub fn serve_precomputed_or(
         }
         write_projection(projection, output);
         Ok(())
-    })
+    };
+    crate::serve_on(
+        std::io::stdin().lock(),
+        std::io::stdout().lock(),
+        "rsvelte-projection",
+        transform,
+    )
 }
 
 fn write_projection(projection: &Projection, output: &mut StructuredDataWriter) {
