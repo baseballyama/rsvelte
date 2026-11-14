@@ -1,2 +1,1 @@
-# svelte.compile.warnings: 31926 match
-svelte/rsvelte/lint/no-raw-special-elements/17-component-slot.svelte	mismatch
+# svelte.compile.warnings: 31927 match

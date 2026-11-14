@@ -30,7 +30,7 @@ mod tests;
 mod updates;
 
 use exports::unused_exports;
-use found::Found;
+use found::{Found, VisitOrder};
 pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
 pub use runes::dollar_name_errors;
 pub(crate) use runes::svelte_option;
@@ -386,7 +386,7 @@ pub fn warnings(
         unused_selectors(&sheet.rules, analysis, source, &mut found);
     }
     let regions = ignore::regions(component, compiler_syntax_tree, source, runes, &mut found);
-    let found = found.finish();
+    let found = found.finish(&VisitOrder::of(component, source));
     out.ignored = ignore::ignored(&found, &regions);
     out.warnings = found.into_iter().map(|(_, warning)| warning).collect();
     out
@@ -422,7 +422,7 @@ pub fn module_warnings(
         &mut found,
     );
     let regions = ignore::module_regions(&scripts, source, &mut found);
-    let found = found.finish();
+    let found = found.finish(&VisitOrder::default());
     CompileWarnings {
         ignored: ignore::ignored(&found, &regions),
         warnings: found.into_iter().map(|(_, warning)| warning).collect(),
