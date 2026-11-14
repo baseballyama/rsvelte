@@ -146,10 +146,10 @@ impl Tsc {
         let mut session = Session::start(&self.checker.program, &self.checker.arguments, &root)
             .map_err(failed)?;
         // The project's own root files, as its tsconfig selects them; the overlay keeps them.
-        let (mut roots, untyped) =
-            base_project(&mut session, base.as_deref(), req, &overlay, &mut layer)
-                .map_err(failed)?;
-        if untyped {
+        let own = base_project(&mut session, base.as_deref(), req, &overlay, &mut layer)
+            .map_err(failed)?;
+        let mut roots = own.roots;
+        if own.untyped {
             let declaration = untyped::options_declaration(&overlay);
             roots.push(declaration.0.clone());
             layer.files.push(declaration);
@@ -160,7 +160,7 @@ impl Tsc {
         let config = overlay.join("tsconfig.json");
         layer.files.push((
             config.clone(),
-            tsconfig_json(base.as_deref(), req, &roots, &store),
+            tsconfig_json(base.as_deref(), req, &own.paths, &roots, &store),
         ));
         let project = session.open(&[&config], &layer).map_err(failed)?.remove(0);
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
@@ -173,7 +173,7 @@ impl Tsc {
         let semantic = session
             .diagnostics(&project, DiagnosticKind::Semantic, Some(&files))
             .map_err(failed)?;
-        let untyped = if untyped {
+        let untyped = if own.untyped {
             untyped::imports(req, &root, &paths)
         } else {
             Vec::new()
@@ -211,6 +211,7 @@ impl Tsc {
 fn tsconfig_json(
     base: Option<&Path>,
     req: &CheckRequest,
+    project_paths: &[(String, Vec<PathBuf>)],
     roots: &[PathBuf],
     store: &Path,
 ) -> String {
@@ -226,6 +227,16 @@ fn tsconfig_json(
         .key("skipLibCheck")
         .write_boolean(true);
     w.key("paths").begin_object();
+    for (spec, targets) in project_paths {
+        if req.paths.iter().any(|(own, _)| own == spec) {
+            continue;
+        }
+        w.key(spec).begin_array();
+        for target in targets {
+            w.write_string(&target.to_string_lossy());
+        }
+        w.end_array();
+    }
     for (spec, file) in &req.paths {
         w.key(spec)
             .begin_array()
@@ -245,18 +256,27 @@ fn tsconfig_json(
     w.finish()
 }
 
-/// The project's own root files, as its tsconfig selects them, and whether its options make an
-/// import of JavaScript untyped. Without a tsconfig, `noImplicitAny` is off and such an import
-/// stays quiet.
+/// What the overlay keeps of the project its tsconfig describes.
+#[derive(Default)]
+struct BaseProject {
+    /// The root files, as the tsconfig selects them.
+    roots: Vec<PathBuf>,
+    /// `compilerOptions.paths`, which the overlay's own `paths` would otherwise replace.
+    paths: Vec<(String, Vec<PathBuf>)>,
+    /// Whether the options make an import of JavaScript untyped. Without a tsconfig,
+    /// `noImplicitAny` is off and such an import stays quiet.
+    untyped: bool,
+}
+
 fn base_project(
     session: &mut Session,
     base: Option<&Path>,
     req: &CheckRequest,
     overlay: &Path,
     layer: &mut Layer,
-) -> Result<(Vec<PathBuf>, bool), String> {
+) -> Result<BaseProject, String> {
     let Some(base) = base else {
-        return Ok((Vec::new(), false));
+        return Ok(BaseProject::default());
     };
     let probe = untyped::any_javascript(req).then(|| untyped::probe(overlay, base));
     layer.files.extend(probe.iter().flatten().cloned());
@@ -270,7 +290,11 @@ fn base_project(
         None => false,
     };
     session.release(project.snapshot)?;
-    Ok((project.root_files, untyped))
+    Ok(BaseProject {
+        roots: project.root_files,
+        paths: project.paths,
+        untyped,
+    })
 }
 
 /// `DiagnosticCategory.Error`.
