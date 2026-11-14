@@ -30,11 +30,16 @@ cargo run -p rsvelte_command_line -- run App.svelte --task svelte.lint/default
 Repeat `--task` to request more than one task. `run` prints generated files and diagnostics to
 standard output, with task labels. It exits with 1 when an error diagnostic or finding remains,
 and with 2 for a usage error. It does not edit the input file unless you pass `--fix`. Then it
-applies the findings' fixes as ESLint does, in up to 10 passes, and writes the file.
+applies the findings' fixes as ESLint does, in up to 10 passes, and writes the file. With more
+than one file, `run` runs the tasks over every file in one run, so one type check covers the
+whole project, and labels each output with its file. It does not take `--fix` then. `check`
+finds those files itself: it runs `ts.check/default`, or the given tasks, over every file the
+type checker selects from the `tsconfig` option of `typescript.check`, outside `node_modules`.
 
 | Command                                    | Purpose                                                         |
 | ------------------------------------------ | --------------------------------------------------------------- |
-| `run <file> --task <identifier>`           | Run selected tasks on one file                                  |
+| `run <file>... --task <identifier>`        | Run selected tasks on files, in one run                         |
+| `check [--task <identifier>]...`           | Type check the files of the project, in one run                 |
 | `corpus <dir>... --task <identifier>`      | Write task outputs under each corpus unit's `actual/` directory |
 | `benchmark <dir> --task <identifier>`      | Measure pipeline time                                           |
 | `performance <dir>... --task <identifier>` | Measure performance counters                                    |

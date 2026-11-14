@@ -125,12 +125,34 @@ pub(super) fn store_json(req: &CheckRequest, root: &Path, paths: &[PathBuf]) -> 
     output.finish()
 }
 
-pub(super) fn package_json(binary: &Path) -> String {
+/// Writes the store of `req`'s projections and the mapper's package in `support`, and returns
+/// the package's directory.
+pub(super) fn write_mapper(
+    req: &CheckRequest,
+    binary: &Path,
+    support: &Path,
+    store: &Path,
+    root: &Path,
+    paths: &[PathBuf],
+) -> Result<PathBuf, String> {
+    std::fs::write(store, store_json(req, root, paths))
+        .map_err(|e| format!("{}: {e}", store.display()))?;
+    let package = support.join(super::MAPPER_PACKAGE);
+    std::fs::create_dir_all(&package).map_err(|e| e.to_string())?;
+    std::fs::write(
+        package.join("package.json"),
+        package_json(super::MAPPER_PACKAGE, binary),
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(package)
+}
+
+pub(super) fn package_json(name: &str, binary: &Path) -> String {
     let mut output = StructuredDataWriter::new(false);
     output
         .begin_object()
         .key("name")
-        .write_string(super::MAPPER_PACKAGE)
+        .write_string(name)
         .key("version")
         .write_string(env!("CARGO_PKG_VERSION"))
         .key("typescript")

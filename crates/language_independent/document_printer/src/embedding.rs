@@ -4,10 +4,14 @@
 use oxc_allocator::{Allocator, ArenaVec};
 use oxc_formatter_core::{
     CoreFormatOptions, Document, FormatContext, FormatElement, FormatElements, FormatSession,
-    FormatState, Formatter, InputKind, LineEnding, PrintError, PrintWidth, PrinterOptions,
+    FormatState, Formatter, InputKind, LineEnding, LineMode, PrintError, PrintWidth,
+    PrinterOptions,
 };
 
 use crate::{LayoutInstructionIdentifier, LayoutInstructions, Unlowered};
+
+#[cfg(test)]
+mod tests;
 
 /// What every embedded layout shares: the session that owns their arena and group identifiers,
 /// and the layouts kept so far, which the document refers to by index.
@@ -87,12 +91,14 @@ impl<'x> Embedding<'x> {
         f.into_vec()
     }
 
-    /// Writes `layout` into `docs`.
+    /// Writes `layout` into `docs`, without the hard lines that end it, as Prettier strips an
+    /// embedded part's trailing hard lines: the document puts its own line after the part.
     pub fn keep(
         &mut self,
         docs: &mut LayoutInstructions,
-        layout: ArenaVec<'x, FormatElement<'x>>,
+        mut layout: ArenaVec<'x, FormatElement<'x>>,
     ) -> LayoutInstructionIdentifier {
+        strip_trailing_hard_lines(&mut layout);
         let breaks = layout.iter().any(FormatElements::will_break);
         let index = self.layouts.len() as u32;
         self.layouts.push(layout.into_arena_slice());
@@ -127,5 +133,26 @@ impl<'x> Embedding<'x> {
             .print(source_len, print)
             .map_err(|PrintError::InvalidDocument(_)| Unprinted::Rejected)?
             .into_code())
+    }
+}
+
+/// Removes the hard lines at the end of `layout`, also inside the tags that close it.
+fn strip_trailing_hard_lines(layout: &mut ArenaVec<'_, FormatElement<'_>>) {
+    let mut end = layout.len();
+    while let Some(at) = end.checked_sub(1) {
+        match &layout[at] {
+            FormatElement::Tag(tag) if tag.is_end() => {}
+            FormatElement::Line(
+                LineMode::Hard
+                | LineMode::HardWithoutExpand
+                | LineMode::Empty
+                | LineMode::ExactLineBreaks(_)
+                | LineMode::Literal,
+            ) => {
+                layout.remove(at);
+            }
+            _ => return,
+        }
+        end = at;
     }
 }

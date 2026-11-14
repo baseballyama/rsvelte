@@ -1342,6 +1342,7 @@
 
 ["svelte/svelte/packages/svelte/tests/runtime-legacy/samples/escaped-attr/main.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 replaces each `<script>…</script>` in the text with a placeholder before it parses, also inside a string or an attribute value, so the component it parses is broken and Prettier throws"
 
 ["svelte/svelte/packages/svelte/tests/runtime-legacy/samples/textarea-value-escape/main.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
@@ -3365,6 +3366,9 @@
 
 ["svelte/rsvelte/pattern/adversarial/css/css-custom-property-values.svelte".skip]
 "svelte.format" = "upstream bug: Prettier 3.9.10 drops the whitespace tokens of a custom property's value, which changes the value var() substitutes"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/utils/htmlxparser/tests/orphan_script_fast_path_defers_raw_html_and_comments/43c7d095953ef3fb.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 replaces each `<script>…</script>` in the text with a placeholder before it parses, also inside a string or an attribute value, so the component it parses is broken and Prettier throws"
 
 ["svelte/rsvelte-tests-core-1/compiler/tests/diagnostic_locates_renamed_runes/00f783c761548924.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"

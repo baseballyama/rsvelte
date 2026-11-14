@@ -122,13 +122,16 @@ impl Task for Lint {
         // parser reads too. It parses a script itself, with typescript-eslint whatever the
         // script's language, and throws what that rejects; any other error in a script stays
         // refused.
-        let parse_error = || match context.get::<rsvelte_svelte_syntax::Parsed>() {
-            Err(error) => Some(error.clone()),
-            Ok(_) => rsvelte_svelte_semantic::javascript_error(context),
+        let javascript_error;
+        let parse_error = if !rsvelte_svelte_syntax::matches(context.document) {
+            None
+        } else if let Err(error) = context.get::<rsvelte_svelte_syntax::Parsed>() {
+            Some(error)
+        } else {
+            javascript_error = rsvelte_svelte_semantic::javascript_error(context);
+            javascript_error.as_ref()
         };
-        if rsvelte_svelte_syntax::matches(context.document)
-            && let Some(error) = parse_error()
-        {
+        if let Some(error) = parse_error {
             let thrown = if rsvelte_svelte_syntax::parse::in_script_content(
                 context.source_text(),
                 error.span.start_offset,
