@@ -1,4 +1,4 @@
-# svelte.compile/client: 35090 match
+# svelte.compile/client: 35091 match
 svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/component_sequence_error_points_at_the_expression/c1314d8fdd09c86c.svelte	unexpected
 svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/element_sequence_error_points_at_the_expression/35ccaf71b9485683.svelte	unexpected
 svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/a_type_alias_is_a_declaration_only_in_typescript/31d56272e52457e9.svelte	mismatch
@@ -53,5 +53,4 @@ svelte/rsvelte/lint/require-store-reactive-access/16-await-shadow.svelte	mismatc
 svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelte	mismatch
 svelte/rsvelte/pattern/issues/3124-slot-snippet-conflict-span.svelte	mismatch
 svelte/rsvelte/pattern/issues/3141-const-in-svelte-self.svelte	unexpected
-svelte/rsvelte/pattern/issues/3256-concatenated-is.svelte	mismatch
 svelte/rsvelte/pattern/issues/destructure-in-a-statement-head-is-standalone.svelte	mismatch
