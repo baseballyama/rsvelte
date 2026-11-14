@@ -88,7 +88,8 @@ function prepare(id: string, work: string): string {
 	run('git', ['init', '--quiet'], root);
 	run('git', ['fetch', '--quiet', '--depth', '1', project.repository, project.revision], root);
 	run('git', ['checkout', '--quiet', 'FETCH_HEAD'], root);
-	const pnpm = ['--yes', `pnpm@${project.pnpm}`];
+	// Every arm runs on the same Node, which can be newer than the one a project declares.
+	const pnpm = ['--yes', `pnpm@${project.pnpm}`, '--config.engine-strict=false'];
 	run('npx', [...pnpm, ...project.install], root);
 	const directory = path.join(root, project.directory);
 	for (const [program, ...args] of project.prepare) {

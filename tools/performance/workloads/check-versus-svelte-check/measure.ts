@@ -170,7 +170,45 @@ function programFiles(): string[] {
 		);
 	return [...new Set(files)].toSorted();
 }
-const files = programFiles();
+
+const rsvelteArguments = (checked: string[], checker: string) => [
+	'run',
+	...checked,
+	'--task',
+	TASK,
+	'--options',
+	'typescript.check',
+	JSON.stringify({ command: [checker], tsconfig }),
+	'--options',
+	'svelte.check',
+	JSON.stringify({ svelte, contentMapper: mapper }),
+];
+
+/**
+ * The listing misses a component that only a component the official mapper failed on imports.
+ * rsvelte names each component its run left out, so add those until it names none; each run
+ * names at most five, after which the checker stops using the mapper.
+ */
+function withEveryComponent(listed: string[]): { files: string[]; added: string[]; runs: number } {
+	const all = new Set(listed);
+	const added: string[] = [];
+	for (let runs = 1; runs <= 400; runs++) {
+		const run = output(rsvelte, rsvelteArguments([...all], ts7Native));
+		const missing = new Set<string>();
+		for (const [, list] of run.stdout.matchAll(/could not transform:\\n((?:[^"\\]|\\.)*)"/g))
+			for (const file of list!.split('\\n')) if (file) missing.add(file);
+		if (missing.size === 0) return { files: [...all].toSorted(), added, runs };
+		for (const file of missing) {
+			if (all.has(file) || !fs.existsSync(file))
+				throw new Error(`rsvelte cannot transform ${file}, which it was given`);
+			all.add(file);
+			added.push(file);
+		}
+	}
+	throw new Error('the missing components did not converge');
+}
+const discovery = withEveryComponent(programFiles());
+const files = discovery.files;
 
 type Diagnostic = { file: string; line: number; column: number; code: string; message: string };
 type Parsed = {
@@ -265,18 +303,7 @@ const sources = ['--diagnostic-sources', 'js'];
 const rsvelteArm = (checker: string, typescript: string, env?: Record<string, string>): Arm => ({
 	label: '',
 	program: rsvelte,
-	arguments: [
-		'run',
-		...files,
-		'--task',
-		TASK,
-		'--options',
-		'typescript.check',
-		JSON.stringify({ command: [checker], tsconfig }),
-		'--options',
-		'svelte.check',
-		JSON.stringify({ svelte, contentMapper: mapper }),
-	],
+	arguments: rsvelteArguments(files, checker),
 	env,
 	typescript,
 	parse: parseRsvelte,
@@ -370,6 +397,8 @@ const env = {
 		"find . -name '*.svelte' -not -path '*/node_modules/*' -not -path './.svelte-kit/*' | wc -l",
 	]).stdout.trim(),
 	programFiles: files.length,
+	discoveryRuns: discovery.runs,
+	discoveredComponents: discovery.added.map(relative),
 	programComponents: files.filter((file) => file.endsWith('.svelte')).length,
 	programComponentsInNodeModules: files.filter((file) => /[\\/]node_modules[\\/]/.test(file))
 		.length,
