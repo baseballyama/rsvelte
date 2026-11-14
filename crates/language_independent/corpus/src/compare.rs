@@ -65,8 +65,7 @@ pub(crate) struct Ours<'a> {
     pub(crate) diagnostics: Option<String>,
 }
 
-/// The unit's verdict, or `None` when neither side has output for it. `lint_rules` are the rules
-/// the official linter ran.
+/// The unit's verdict, or `None` when neither side has output for it.
 ///
 /// # Errors
 ///
@@ -74,7 +73,6 @@ pub(crate) struct Ours<'a> {
 pub(crate) fn verdict(
     official: &[Entry<'_>],
     ours: Option<&Ours<'_>>,
-    lint_rules: &[String],
 ) -> Result<Option<Verdict>, String> {
     let wrote = ours.is_some_and(|o| !o.output.files.is_empty());
     let rejected = ours.is_some_and(|o| !wrote && o.diagnostics.is_some());
@@ -106,7 +104,7 @@ pub(crate) fn verdict(
         };
         let v = match actual {
             None => Verdict::Missing,
-            Some(actual) => compare(e.attributes, e.body, actual, lint_rules)
+            Some(actual) => compare(e.attributes, e.body, actual)
                 .map_err(|why| format!("official {} of {}: {why}", e.attributes, e.path))?,
         };
         worst = worst.min(v);
@@ -170,19 +168,14 @@ const fn same(equal: bool) -> Verdict {
 }
 
 /// `Err` when the official text itself is not what its name says.
-fn compare(
-    name: &str,
-    official: &str,
-    actual: &str,
-    lint_rules: &[String],
-) -> Result<Verdict, String> {
+fn compare(name: &str, official: &str, actual: &str) -> Result<Verdict, String> {
     match name {
         "js" => match javascript::same_tree(official, actual) {
             Ok(equal) => Ok(same(equal)),
             Err(Unparsed::Actual(_)) => Ok(Verdict::Unparseable),
             Err(Unparsed::Expected(e)) => Err(format!("does not parse: {e}")),
         },
-        "lint.txt" => lint(official, actual, lint_rules).map(same),
+        "lint.txt" => lint(official, actual).map(same),
         "warnings.json" => same_diagnostics(official, actual).map(same),
         _ if name.ends_with("json") => {
             let parse = serde_json::from_str::<serde_json::Value>;
@@ -256,14 +249,12 @@ impl Finding {
 
 /// The official linter runs every plugin rule and rsvelte the rules it has. They agree when
 /// rsvelte's findings are the official findings of those rules, plus the ones without a rule (a
-/// fatal parse error). A rule the official linter did not run disagrees.
-fn lint(official: &str, actual: &str, official_rules: &[String]) -> Result<bool, String> {
+/// fatal parse error). A rule outside the official configuration runs on both sides only when
+/// the unit's own configuration comment turns it on, so its findings are compared too.
+fn lint(official: &str, actual: &str) -> Result<bool, String> {
     let Ok(actual) = serde_json::from_str::<LintFile>(actual) else {
         return Ok(false);
     };
-    if actual.rules.iter().any(|r| !official_rules.contains(r)) {
-        return Ok(false);
-    }
     let mut wanted = Vec::new();
     for line in official.lines() {
         let mut fields = line.splitn(4, ' ');
