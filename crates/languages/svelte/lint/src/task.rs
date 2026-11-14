@@ -126,7 +126,7 @@ impl Task for Lint {
         {
             rsvelte_lint_runner::output::report_parse_error(
                 out,
-                context.lines(LineBreaks::Ecmascript),
+                positions(context),
                 &error.message,
                 error.span.start_offset,
             );
@@ -145,13 +145,20 @@ impl Task for Lint {
         };
         rsvelte_lint_runner::output::report(
             out,
-            context.lines(LineBreaks::Ecmascript),
+            positions(context),
             // The rules that ran, so a report tells a rule that found nothing from one that
             // does not run on this file.
             rules.running(configuration, &file).map(|rule| rule.name),
             findings,
         );
     }
+}
+
+fn positions<'a>(context: &'a DocumentContext<'_>) -> rsvelte_lint_runner::output::Positions<'a> {
+    rsvelte_lint_runner::output::Positions::new(
+        context.lines(LineBreaks::Ecmascript),
+        context.source_text(),
+    )
 }
 
 #[cfg(test)]
