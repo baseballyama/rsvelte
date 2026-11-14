@@ -22,7 +22,7 @@ enum Context {
 }
 
 struct Awaits {
-    contexts: Vec<Context>,
+    context: Context,
     error: Option<Diagnostic>,
 }
 
@@ -34,44 +34,44 @@ struct Awaits {
 pub(in crate::lower) fn check(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
     let javascript = input.component.javascript;
     let mut walk = Awaits {
-        contexts: vec![Context::Async],
+        context: Context::Async,
         error: None,
     };
-    let mut starts: Vec<(u32, Root<'_>)> = (input.component.module.into_iter())
+    // The parts do not overlap, so the part that starts first holds the first error.
+    let mut first: Option<(u32, Diagnostic)> = None;
+    let mut found = |start: u32, walk: &mut Awaits| {
+        if let Some(error) = walk.error.take()
+            && first.as_ref().is_none_or(|(at, _)| start < *at)
+        {
+            first = Some((start, error));
+        }
+    };
+    for p in input
+        .component
+        .module
+        .into_iter()
         .chain(input.component.instance)
-        .map(|p| {
-            let program = javascript.get_program(p);
-            (program.span.start, Root::Program(program))
-        })
-        .chain((javascript.expressions()).map(|(_, e)| (e.span().start, Root::Expression(e))))
-        .chain((javascript.declarations()).map(|(_, d)| (d.span.start, Root::Declaration(d))))
-        .collect();
-    starts.sort_by_key(|&(start, _)| start);
-    for (_, root) in starts {
-        match root {
-            Root::Program(program) => walk.visit_program(program),
-            Root::Expression(e) => walk.visit_expression(e),
-            Root::Declaration(d) => walk.visit_variable_declaration(d),
-        }
-        if let Some(error) = walk.error {
-            return Err(error);
-        }
+    {
+        let program = javascript.get_program(p);
+        walk.visit_program(program);
+        found(program.span.start, &mut walk);
     }
-    Ok(())
-}
-
-#[derive(Clone, Copy)]
-enum Root<'a> {
-    Program(&'a oxc_ast::ast::Program<'a>),
-    Expression(&'a Expression<'a>),
-    Declaration(&'a oxc_ast::ast::VariableDeclaration<'a>),
+    for (_, e) in javascript.expressions() {
+        walk.visit_expression(e);
+        found(e.span().start, &mut walk);
+    }
+    for (_, d) in javascript.declarations() {
+        walk.visit_variable_declaration(d);
+        found(d.span.start, &mut walk);
+    }
+    first.map_or(Ok(()), |(_, error)| Err(error))
 }
 
 impl Awaits {
     fn within(&mut self, context: Context, visit: impl FnOnce(&mut Self)) {
-        self.contexts.push(context);
+        let outer = std::mem::replace(&mut self.context, context);
         visit(self);
-        self.contexts.pop();
+        self.context = outer;
     }
 }
 
@@ -119,7 +119,7 @@ impl<'a> Visit<'a> for Awaits {
 
     fn visit_await_expression(&mut self, it: &AwaitExpression<'a>) {
         // oxc's semantic checker reports one in a static block.
-        if self.contexts.last() != Some(&Context::Function) {
+        if self.context != Context::Function {
             return walk::walk_await_expression(self, it);
         }
         if self.error.is_none() {
