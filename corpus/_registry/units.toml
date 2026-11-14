@@ -2067,6 +2067,9 @@
 ["svelte/rsvelte/pattern/issues/3129-comment-between-compounds.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
 
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ef7c2ebb965e3245.svelte".skip]
+"svelte.compile" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
+
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/06a6ed83909b32c0.svelte".skip]
 "svelte.compile" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
 

@@ -445,6 +445,10 @@ fn an_await_outside_an_async_function_raises_acorns_error_where_acorn_reads_one(
         parse_error(32)
     );
     assert_eq!(
+        error("<script lang=\"ts\">class A { accessor x = await (f()); }</script>"),
+        parse_error(41)
+    );
+    assert_eq!(
         error("<script>function g() { await f(); }</script>"),
         parse_error(23)
     );

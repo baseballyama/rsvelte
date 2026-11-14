@@ -2,7 +2,8 @@
 //! for the compiler to raise.
 
 use oxc_ast::ast::{
-    ArrowFunctionExpression, AwaitExpression, Expression, Function, PropertyDefinition,
+    AccessorProperty, ArrowFunctionExpression, AwaitExpression, Expression, Function,
+    PropertyDefinition,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
@@ -101,6 +102,14 @@ impl<'a> Visit<'a> for Awaits {
 
     // Acorn reads a field's initializer as the body of a method that is not async.
     fn visit_property_definition(&mut self, it: &PropertyDefinition<'a>) {
+        self.visit_decorators(&it.decorators);
+        self.visit_property_key(&it.key);
+        if let Some(value) = &it.value {
+            self.within(Context::Function, |w| w.visit_expression(value));
+        }
+    }
+
+    fn visit_accessor_property(&mut self, it: &AccessorProperty<'a>) {
         self.visit_decorators(&it.decorators);
         self.visit_property_key(&it.key);
         if let Some(value) = &it.value {
