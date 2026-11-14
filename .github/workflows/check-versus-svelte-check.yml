@@ -1,0 +1,204 @@
+# Times type checking of whole projects: svelte-check (TypeScript 6, and TypeScript 7.1 through the
+# svelte2tsx content mapper of sveltejs/language-tools#3193, on tsgo and on tsrs) against rsvelte's
+# checker with its Rust content mapper (on tsgo and on tsrs).
+# tools/performance/workloads/check-versus-svelte-check/README.md says what each arm runs.
+name: Check versus svelte-check
+
+on:
+  push:
+    branches: [perf/talk-benchmark-check]
+    paths:
+      - '.github/workflows/check-versus-svelte-check.yml'
+      - 'tools/performance/workloads/check-versus-svelte-check/**'
+      - 'crates/**'
+      - 'Cargo.lock'
+  workflow_dispatch:
+    inputs:
+      projects:
+        description: JSON list of project ids (prepare.ts)
+        default: ''
+      replicas:
+        description: Jobs (machines) per project
+        default: ''
+      rounds:
+        description: Measured rounds per job
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-versus-svelte-check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  W: tools/performance/workloads/check-versus-svelte-check
+  # The head of sveltejs/language-tools#3193 ("feat: proper tsgo support in svelte-check").
+  LANGUAGE_TOOLS_SHA: 7f0d7a2f27153841a6dbeea533d8dd21234fd0e7
+  LANGUAGE_TOOLS_PNPM: 10.34.9
+  SVELTE_CHECK_VERSION: 4.7.8
+  TS6_VERSION: 6.0.3
+  TS7_VERSION: 7.1.0-dev.20261113.1
+  TSRS_VERSION: 0.25.0-ts7.1.0-beta
+  PSUTIL_VERSION: 7.2.2
+  DEFAULT_PROJECTS: '["synthetic-100","synthetic-1000","synthetic-5000","bits-ui","skeleton-svelte","flowbite-svelte","shadcn-svelte-docs"]'
+  DEFAULT_REPLICAS: '3'
+  DEFAULT_ROUNDS: '10'
+  WARMUP: '2'
+  COLD: '3'
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      rounds: ${{ steps.plan.outputs.rounds }}
+    steps:
+      - id: plan
+        env:
+          IN_PROJECTS: ${{ inputs.projects }}
+          IN_REPLICAS: ${{ inputs.replicas }}
+          IN_ROUNDS: ${{ inputs.rounds }}
+        run: |
+          node --input-type=module <<'NODE' >> "$GITHUB_OUTPUT"
+          const pick = (a, b) => (a && a.trim() ? a : b);
+          const projects = JSON.parse(pick(process.env.IN_PROJECTS, process.env.DEFAULT_PROJECTS));
+          const replicas = Number(pick(process.env.IN_REPLICAS, process.env.DEFAULT_REPLICAS));
+          const include = projects.flatMap((project) =>
+            Array.from({ length: replicas }, (_, i) => ({ project, replica: i + 1 })));
+          console.log(`matrix=${JSON.stringify({ include })}`);
+          console.log(`rounds=${pick(process.env.IN_ROUNDS, process.env.DEFAULT_ROUNDS)}`);
+          NODE
+          cat "$GITHUB_OUTPUT"
+
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+      - run: cargo build --release -p rsvelte_command_line -p rsvelte_typescript_content_mapper
+      - run: |
+          mkdir -p bin
+          cp target/release/rsvelte target/release/rsvelte-typescript-content-mapper bin/
+          git rev-parse HEAD > bin/REVISION
+          sha256sum bin/rsvelte bin/rsvelte-typescript-content-mapper
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rsvelte
+          path: bin/
+          if-no-files-found: error
+          retention-days: 14
+
+  bench:
+    needs: [plan, build]
+    name: ${{ matrix.project }} r${{ matrix.replica }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: rsvelte
+          path: bin
+      - run: chmod +x bin/rsvelte bin/rsvelte-typescript-content-mapper
+      - name: Build svelte-check of language-tools#3193
+        run: |
+          git init -q "$RUNNER_TEMP/lt" && cd "$RUNNER_TEMP/lt"
+          git fetch -q --depth 1 https://github.com/sveltejs/language-tools.git "$LANGUAGE_TOOLS_SHA"
+          git checkout -q FETCH_HEAD
+          PNPM=(npx --yes "pnpm@$LANGUAGE_TOOLS_PNPM")
+          "${PNPM[@]}" install --frozen-lockfile
+          "${PNPM[@]}" bootstrap
+          "${PNPM[@]}" build
+          (cd packages/svelte-check && "${PNPM[@]}" build)
+          test -f packages/typescript-content-mapper/dist/server.js ||
+            (cd packages/typescript-content-mapper && "${PNPM[@]}" build)
+          git status --short
+      - name: Install the released tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/tools" && cd "$RUNNER_TEMP/tools"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund "svelte-check@$SVELTE_CHECK_VERSION" \
+            "typescript@$TS6_VERSION" "ts7@npm:typescript@$TS7_VERSION" "tsrs@$TSRS_VERSION"
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet "psutil==$PSUTIL_VERSION"
+          echo "BENCH_PYTHON=$RUNNER_TEMP/venv/bin/python" >> "$GITHUB_ENV"
+      - id: project
+        run: node "$W/prepare.ts" "${{ matrix.project }}" "$RUNNER_TEMP/projects" >> "$GITHUB_OUTPUT"
+      - name: Runner state
+        run: |
+          uptime
+          nproc
+          ps -Ao %cpu=,comm= | sort -rn | head -8
+      - name: Measure
+        env:
+          RSVELTE_REVISION: ${{ github.sha }}
+          EXPECT: ${{ steps.project.outputs.expect }}
+        run: |
+          test "$(cat bin/REVISION)" = "$GITHUB_SHA"
+          expect=()
+          if [ -n "$EXPECT" ]; then expect=(--expect-synthetic "$EXPECT"); fi
+          node "$W/measure.ts" \
+            --id "${{ matrix.project }}" \
+            --project "${{ steps.project.outputs.dir }}" \
+            --tsconfig "${{ steps.project.outputs.tsconfig }}" \
+            --language-tools "$RUNNER_TEMP/lt" \
+            --tools "$RUNNER_TEMP/tools" \
+            --rsvelte bin/rsvelte \
+            --mapper bin/rsvelte-typescript-content-mapper \
+            --rounds "${{ needs.plan.outputs.rounds }}" \
+            --warmup "$WARMUP" \
+            --cold "$COLD" \
+            --seed "${{ matrix.replica }}" \
+            "${expect[@]}" \
+            --out "results/${{ matrix.project }}.r${{ matrix.replica }}.json"
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: result-${{ matrix.project }}-r${{ matrix.replica }}
+          path: results/
+          if-no-files-found: warn
+          retention-days: 90
+
+  report:
+    needs: bench
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: result-*
+          path: results
+          merge-multiple: true
+      - run: |
+          node "$W/report.ts" results report.md report.json
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: check-versus-svelte-check-report
+          path: |
+            report.md
+            report.json
+            results/
+          retention-days: 90
