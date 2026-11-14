@@ -90,8 +90,20 @@ impl Acorn {
     }
 }
 
+/// Whether acorn reads the text oxc rejects with `error` without failing, in the part whose tree
+/// `visit` walks.
+#[cold]
+pub(crate) fn acorn_accepts(error: &OxcDiagnostic, visit: impl FnOnce(&mut Locator)) -> bool {
+    error.code.scope.as_deref() == Some("TS")
+        && error.code.number.as_deref() == Some("1047")
+        && error.labels.first().is_some_and(|label| {
+            let start = label.offset();
+            optional_rest(start, start + label.len(), visit) == Some(Ok(()))
+        })
+}
+
 /// What acorn reports for `error`, in the part whose text is `text`, whose tokens are `tokens` and
-/// whose tree `visit` walks; `None` for an error whose code does not say.
+/// whose tree `visit` walks; `None` for an error whose code does not say, or that acorn accepts.
 #[cold]
 pub(crate) fn acorn(
     error: &OxcDiagnostic,
@@ -242,16 +254,12 @@ fn early_error(
             second()?.0,
         )),
         "1117" => Some(fails("Redefinition of __proto__ property", second()?.0)),
-        // acorn-typescript reports an abstract member, and a binding pattern made optional, at
-        // its start.
+        // acorn-typescript reports an abstract member at its start.
         "1244" | "1253" => Some(fails(
             "Abstract methods can only appear within an abstract class.",
             locate(start, end, Find::Member, visit)?.0,
         )),
-        "1047" => Some(fails(
-            "A binding pattern parameter cannot be optional in an implementation signature.",
-            locate(start, end, Find::Rest, visit)?.0,
-        )),
+        "1047" => optional_rest(start, end, visit)?.err(),
         "1347" => Some(fails(
             "Illegal 'use strict' directive in function with non-simple parameter list",
             locate(start, end, Find::Function, visit)?.0,
@@ -278,6 +286,30 @@ fn early_error(
     }
 }
 
+/// What acorn does with a rest element whose `?` is `question..end`: `Ok` where it reads one.
+fn optional_rest(
+    question: u32,
+    end: u32,
+    visit: impl FnOnce(&mut Locator),
+) -> Option<Result<(), Acorn>> {
+    let mut locator = Locator::new(question, end, Find::OptionalRest);
+    visit(&mut locator);
+    let around = locator.rest;
+    let (rest, holder) = around.rest?;
+    let unexpected = |at| Err(fails("Unexpected token", at));
+    Some(match (holder, around.reading) {
+        // acorn reads an object pattern's rest as a name, which ends before the `?`.
+        (Holder::Object, _) => unexpected(question),
+        (_, Reading::Type) | (Holder::Parameters, Reading::Arrow { is_async: false }) => Ok(()),
+        (_, Reading::Arrow { .. }) => unexpected(question),
+        (_, Reading::Binding) if around.ambient => Ok(()),
+        (_, Reading::Binding) => Err(fails(
+            "A binding pattern parameter cannot be optional in an implementation signature.",
+            rest.start,
+        )),
+    })
+}
+
 const fn fails(message: &'static str, at: u32) -> Acorn {
     Acorn::Fails {
         message: Cow::Borrowed(message),
@@ -291,6 +323,39 @@ pub struct Locator {
     label: oxc_span::Span,
     find: Find,
     found: Option<(u32, AstType)>,
+    rest: AroundRest,
+}
+
+/// What decides how acorn reads an optional rest element, from the nodes around it.
+#[derive(Clone, Copy, Debug)]
+struct AroundRest {
+    /// Under a `declare`, where acorn checks no pattern.
+    ambient: bool,
+    /// How acorn reads the innermost parameter list.
+    reading: Reading,
+    /// What holds the patterns entered last.
+    holder: Holder,
+    /// The innermost rest element, and what holds it.
+    rest: Option<(oxc_span::Span, Holder)>,
+}
+
+/// How acorn reads a parameter list.
+#[derive(Clone, Copy, Debug)]
+enum Reading {
+    /// As bindings, which may not be optional patterns.
+    Binding,
+    /// As a parenthesized expression, or an async function's arguments, turned into parameters.
+    Arrow { is_async: bool },
+    /// As a type, which checks no pattern.
+    Type,
+}
+
+/// What holds a rest element.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Holder {
+    Parameters,
+    Array,
+    Object,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -301,8 +366,8 @@ enum Find {
     Function,
     /// The start of the class member around the label.
     Member,
-    /// The start of the rest parameter around the label.
-    Rest,
+    /// What decides how acorn reads the rest element whose `?` is the label.
+    OptionalRest,
     /// The `break` or `continue` statement around the label.
     Jump,
     /// The `delete` around the label.
@@ -315,9 +380,67 @@ enum Find {
 }
 
 impl Locator {
+    const fn new(start: u32, end: u32, find: Find) -> Self {
+        Self {
+            label: oxc_span::Span::new(start, end),
+            find,
+            found: None,
+            rest: AroundRest {
+                ambient: false,
+                reading: Reading::Binding,
+                holder: Holder::Parameters,
+                rest: None,
+            },
+        }
+    }
+
+    fn enter_around_rest(&mut self, kind: AstKind<'_>) {
+        let around = &mut self.rest;
+        let reading = match kind {
+            AstKind::Function(it) => {
+                around.ambient |= it.declare;
+                Reading::Binding
+            }
+            AstKind::ArrowFunctionExpression(it) => Reading::Arrow {
+                is_async: it.r#async,
+            },
+            AstKind::TSFunctionType(_)
+            | AstKind::TSConstructorType(_)
+            | AstKind::TSMethodSignature(_)
+            | AstKind::TSCallSignatureDeclaration(_)
+            | AstKind::TSConstructSignatureDeclaration(_) => Reading::Type,
+            AstKind::Class(it) => return around.ambient |= it.declare,
+            AstKind::VariableDeclaration(it) => return around.ambient |= it.declare,
+            AstKind::TSNamespaceDeclaration(it) => return around.ambient |= it.declare,
+            AstKind::TSExternalModuleDeclaration(it) => return around.ambient |= it.declare,
+            AstKind::TSGlobalDeclaration(it) => return around.ambient |= it.declare,
+            AstKind::ArrayPattern(_) => return around.holder = Holder::Array,
+            AstKind::ObjectPattern(_) => return around.holder = Holder::Object,
+            AstKind::FormalParameterRest(it) => {
+                return around.rest = Some((it.rest.span, Holder::Parameters));
+            }
+            // A rest parameter's element is the rest parameter itself.
+            AstKind::BindingRestElement(it) => {
+                if around.rest != Some((it.span, Holder::Parameters)) {
+                    around.rest = Some((it.span, around.holder));
+                }
+                return;
+            }
+            _ => return,
+        };
+        around.reading = reading;
+        around.holder = Holder::Parameters;
+    }
+
     /// Takes in a node of the walk, outer nodes before inner ones.
     pub fn enter(&mut self, kind: AstKind<'_>) {
         let around = kind.span().contains_inclusive(self.label);
+        if matches!(self.find, Find::OptionalRest) {
+            if around {
+                self.enter_around_rest(kind);
+            }
+            return;
+        }
         let found = match (self.find, kind) {
             // A method's function is the method, which comes first in the walk.
             (Find::SuperHome, AstKind::MethodDefinition(it)) if around => it.value.span.start,
@@ -339,7 +462,6 @@ impl Locator {
                 | AstKind::PropertyDefinition(_)
                 | AstKind::AccessorProperty(_),
             )
-            | (Find::Rest, AstKind::FormalParameterRest(_))
             | (Find::Jump, AstKind::BreakStatement(_) | AstKind::ContinueStatement(_))
             | (Find::Unary, AstKind::UnaryExpression(_))
             | (Find::Parameters, AstKind::FormalParameters(_))
@@ -368,11 +490,10 @@ fn locate(
     find: Find,
     visit: impl FnOnce(&mut Locator),
 ) -> Option<(u32, AstType)> {
-    let mut locator = Locator {
-        label: oxc_span::Span::new(start, end),
-        find,
-        found: None,
-    };
+    let mut locator = Locator::new(start, end, find);
     visit(&mut locator);
     locator.found
 }
+
+#[cfg(test)]
+mod tests;

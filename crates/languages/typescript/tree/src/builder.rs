@@ -13,7 +13,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
 use crate::acorn_grammar::{Rejection, Unsupported};
-use crate::syntax_error::{Locator, SyntaxError, acorn, syntax_error};
+use crate::syntax_error::{Locator, SyntaxError, acorn, acorn_accepts, syntax_error};
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, Trees, TypeParametersIdentifier,
@@ -98,9 +98,10 @@ impl<'a> Builder<'a> {
         self.unchecked = codes;
     }
 
-    /// Records where acorn first stops in syntax oxc parses and acorn does not, for a host whose
-    /// compiler parses with acorn; [`crate::Tree::acorn_rejection`] reads it.
-    pub const fn note_what_acorn_rejects(&mut self) {
+    /// Reads the parts as acorn, which the host's compiler parses with: lets pass an error where
+    /// acorn reads the text, and records where acorn first stops in syntax oxc parses, which
+    /// [`crate::Tree::acorn_rejection`] reads.
+    pub const fn read_as_acorn(&mut self) {
         self.as_acorn = true;
     }
 
@@ -113,15 +114,16 @@ impl<'a> Builder<'a> {
         tokens: &[Token],
         (part, source_type): (Part<'_, 'a>, SourceType),
     ) -> Result<(), SyntaxError> {
+        let visit = |locator: &mut Locator| part.walk(locator);
         let reported = |d: &OxcDiagnostic| {
-            d.code.scope.as_deref() != Some("TS")
+            let checked = d.code.scope.as_deref() != Some("TS")
                 || d.code
                     .number
                     .as_deref()
-                    .is_none_or(|n| !self.unchecked.contains(&n))
+                    .is_none_or(|n| !self.unchecked.contains(&n));
+            checked && !(self.as_acorn && acorn_accepts(d, visit))
         };
         if let Some(first) = diagnostics.iter().position(reported) {
-            let visit = |locator: &mut Locator| part.walk(locator);
             let acorn = acorn(&diagnostics[first], text, tokens, visit);
             let errors = diagnostics.into_iter().skip(first);
             let mut error = syntax_error(errors, text, fallback, shift);

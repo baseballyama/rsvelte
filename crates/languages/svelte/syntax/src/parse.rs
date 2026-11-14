@@ -50,7 +50,7 @@ const INITIAL_TOKEN_CAPACITY_LIMIT: usize = 8192;
 /// The TypeScript grammar rules oxc checks and acorn-typescript, upstream's parser, does not.
 ///
 /// Upstream compiles each one, or rejects it later as `typescript_invalid_feature` (1147, 1194).
-/// An optional rest parameter (1047) is not one: acorn rejects it in a function with a body.
+/// An optional rest parameter (1047) is not one: acorn checks it in some places only.
 pub const ACORN_UNCHECKED_TYPESCRIPT_RULES: &[&str] = &[
     "1015", "1016", "1021", "1038", "1051", "1093", "1094", "1095", "1147", "1194", "1221", "1222",
     "1263", "1264", "2368", "2681", "5085",
@@ -79,7 +79,7 @@ pub fn parse_without_scripts(source_text: &str) -> ParseResult<Component> {
 fn parse_with(source_text: &str, scripts: bool) -> ParseResult<Component> {
     let (javascript, template) = Tree::build(source_text, |builder| {
         builder.leave_unchecked(ACORN_UNCHECKED_TYPESCRIPT_RULES);
-        builder.note_what_acorn_rejects();
+        builder.read_as_acorn();
         let mut parser = Parser {
             source_text: builder.source_text(),
             position: 0,
