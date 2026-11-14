@@ -87,12 +87,25 @@ fn typescript_env(
         content_mapper: Some(content_mapper.to_owned()),
         declarations: vec![declarations],
         include,
-        paths: vec![
-            ("svelte", types.clone()),
-            ("svelte/elements", svelte.join("elements.d.ts")),
-        ],
+        paths: package_modules(&text, &types)
+            .chain([("svelte/elements".to_owned(), svelte.join("elements.d.ts"))])
+            .collect(),
         replaced: vec![(types, without_any_component_module(text))],
     })
+}
+
+/// Each module the package's types declare, such as `svelte/store`, read from the blanked types: a
+/// module the checker found through `node_modules` would read the package's own file, whose
+/// `declare module '*.svelte'` stays.
+fn package_modules<'t>(
+    text: &'t str,
+    types: &'t std::path::Path,
+) -> impl Iterator<Item = (String, std::path::PathBuf)> + 't {
+    text.split("declare module '")
+        .skip(1)
+        .filter_map(|rest| rest.split_once('\'').map(|(name, _)| name))
+        .filter(|name| *name == "svelte" || name.starts_with("svelte/"))
+        .map(|name| (name.to_owned(), types.to_owned()))
 }
 
 /// svelte-check blanks the svelte package's `declare module '*.svelte'`, so an import of a

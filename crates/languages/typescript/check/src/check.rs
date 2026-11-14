@@ -158,7 +158,7 @@ pub struct TypeScriptEnv {
     /// Existing declaration files to include.
     pub include: Vec<PathBuf>,
     /// `compilerOptions.paths` entries: module specifier → file.
-    pub paths: Vec<(&'static str, PathBuf)>,
+    pub paths: Vec<(String, PathBuf)>,
     /// Existing files the checker reads with this text instead, as the language's own checker
     /// reads them.
     pub replaced: Vec<(PathBuf, String)>,

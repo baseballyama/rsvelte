@@ -28,7 +28,7 @@ pub(crate) struct CheckRequest {
     /// Documents the run does not check, by path, with what an import of each one reads.
     pub stand_ins: Vec<(String, String)>,
     /// `compilerOptions.paths` entries: module specifier → file.
-    pub paths: Vec<(&'static str, PathBuf)>,
+    pub paths: Vec<(String, PathBuf)>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
