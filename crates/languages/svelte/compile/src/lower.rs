@@ -247,6 +247,7 @@ pub(crate) fn validate_unit(
     {
         return Err(rsvelte_svelte_syntax::parse::javascript_failure(error));
     }
+    validation::check_awaits(input)?;
     let special::SvelteOptions {
         custom_element,
         stylesheet_injected,
@@ -298,6 +299,8 @@ pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution
         raised.push(parse(rsvelte_svelte_syntax::parse::javascript_failure(
             error,
         )));
+    } else {
+        raised.extend(validation::check_awaits(input).err().map(parse));
     }
     raised.extend(special::validate(input).err().map(parse));
     raised.extend(validation::template_error(input).map(|error| {

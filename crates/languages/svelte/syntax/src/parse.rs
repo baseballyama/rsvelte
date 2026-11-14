@@ -51,9 +51,11 @@ const INITIAL_TOKEN_CAPACITY_LIMIT: usize = 8192;
 ///
 /// Upstream compiles each one, or rejects it later as `typescript_invalid_feature` (1147, 1194).
 /// An optional rest parameter (1047) is not one: acorn rejects it in a function with a body.
+/// An `await` outside an async function (1308) is one: acorn accepts it in an enum, so the
+/// compiler raises it only where acorn does.
 pub const ACORN_UNCHECKED_TYPESCRIPT_RULES: &[&str] = &[
     "1015", "1016", "1021", "1038", "1051", "1093", "1094", "1095", "1147", "1194", "1221", "1222",
-    "1263", "1264", "2368", "2681", "5085",
+    "1263", "1264", "1308", "2368", "2681", "5085",
 ];
 
 /// # Errors
@@ -277,7 +279,7 @@ impl<'a> Parser<'a, '_> {
     /// How the component's JavaScript parses.
     const fn source_type(&self) -> SourceType {
         if self.typescript {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         }
