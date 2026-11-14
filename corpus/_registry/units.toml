@@ -3252,3 +3252,30 @@
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/965ef08eed5fe140.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx moves the instance script into a function, so a statement allowed only at the top level (`export default`, `export import`) reports TS's error for its new place"
+
+["svelte/rsvelte-tests-core-3/special_tag_bracket_scan/const_tag_comment_with_brace/ddfdc4445d644eab.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/e36998062761fd6b.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/const_tag_initializer_survives/7c1cca8553798b5f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+
+["svelte/rsvelte-tests-formatter/const_tag_line_comment/a_block_comment_is_not_treated_as_a_line_comment/dfd12cb86a630e8f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+
+["svelte/rsvelte-tests-formatter/const_tag_line_comment/a_regex_literal_followed_by_a_real_comment_still_breaks/16da57cccecd6f20.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+
+["svelte/rsvelte-tests-formatter/const_tag_line_comment/a_trailing_line_comment_does_not_swallow_the_closing_brace/6f41de20fb78df05.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+
+["svelte/rsvelte-tests-formatter/const_tag_line_comment/the_fix_is_idempotent/996596f05a4aac4f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/const_tag_destructuring_initializer_survives/1bbc1da7f91ecf2f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+
+["svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/script-tag-in-style-comment-with-real-script/input.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a script empty when a `<style>` comment before it names `<script>`, which deletes the script's code"
