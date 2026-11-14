@@ -1,4 +1,4 @@
-# svelte.compile/client: 35091 match
+# svelte.compile/client: 35092 match
 svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/component_sequence_error_points_at_the_expression/c1314d8fdd09c86c.svelte	unexpected
 svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/element_sequence_error_points_at_the_expression/35ccaf71b9485683.svelte	unexpected
 svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/a_type_alias_is_a_declaration_only_in_typescript/31d56272e52457e9.svelte	mismatch
@@ -37,7 +37,6 @@ svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/plain_css_
 svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/transformed_scss_unused_ignore_is_reported/e19fecebd6a045c3.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/04bc05a5c4a48321.svelte	unexpected
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/directive_name_store_subscribes_for_every_kind_but_style_and_on/4af7c52f432c02dc.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/d6a5f31f137be6f0.svelte	mismatch
 svelte/rsvelte/lint/block-lang/05-case-insensitive.svelte	mismatch
 svelte/rsvelte/lint/no-at-debug-tags/15-many-identifiers.svelte	mismatch
 svelte/rsvelte/lint/no-inner-declarations/10-decoy-strings.svelte	mismatch
