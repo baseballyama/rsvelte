@@ -3767,3 +3767,30 @@
 
 ["svelte/rsvelte/pattern/issues/3130-pseudo-class-argument-comments.svelte".skip]
 "svelte.lint" = "upstream bug: svelte/consistent-selector-style places a selector inside a pseudo-class's arguments as if a comment before it there were not in the source, such as `.a` in `div:is(/* l */ .a)`"
+
+["svelte/rsvelte-tests-core-1/client_shared_evaluator_3466_3636/component_let_shadowing_respects_each_slot_scope/b57d3eccdf2c4b11.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_default_slot_read_and_a_shadowed_name_still_are/7190a65f576801b9.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/09a477170072902c.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/b1f41bda00b8d1f4.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/c3f0df2559482807.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/f0ad233ce0e1a177.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_is_not_reactive/054fad118a8cb2b1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_is_not_reactive/1f913430bfa1de2c.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_is_not_reactive/f4814aa53a465939.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"

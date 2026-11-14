@@ -600,6 +600,7 @@ Issue: [svelte-eslint-parser #1003](https://github.com/sveltejs/svelte-eslint-pa
   outer one. That scope lacks the component's `let:` names, unless the component has a static
   `slot` of its own. This crate resolves names as the compiler does.
   Test: `rsvelte_svelte_semantic` `resolve::tests::a_component_s_let_names_reach_its_default_slot_and_not_a_named_one`.
+- The corpus skips its 9 lint units.
 
 ## A component's `let:` names reach its own attributes (svelte-eslint-parser)
 
