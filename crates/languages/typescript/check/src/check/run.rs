@@ -122,12 +122,7 @@ impl Tsc {
         );
         let store = support.join("projections.json");
         if let Some(binary) = &req.content_mapper {
-            std::fs::write(&store, mapped::store_json(req, &root, &paths))
-                .map_err(|e| format!("{}: {e}", store.display()))?;
-            let package = support.join(MAPPER_PACKAGE);
-            std::fs::create_dir_all(&package).map_err(|e| e.to_string())?;
-            std::fs::write(package.join("package.json"), mapped::package_json(binary))
-                .map_err(|e| e.to_string())?;
+            let package = mapped::write_mapper(req, binary, support, &store, &root, &paths)?;
             layer
                 .links
                 .push((overlay.join("node_modules").join(MAPPER_PACKAGE), package));
@@ -345,5 +340,6 @@ fn unlocated(checker: &TypeChecker, d: &rsvelte_typescript_api::Diagnostic) -> S
 }
 
 mod mapped;
+mod project;
 mod untyped;
 pub(crate) use mapped::ContentMappedInput;

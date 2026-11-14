@@ -241,3 +241,15 @@ fn several_files_run_together_and_each_output_names_its_file() {
         "{stdout}"
     );
 }
+
+#[test]
+fn check_runs_the_project_check_and_so_needs_a_type_checker() {
+    let scratch = component("project-check");
+    let output = rsvelte_in(&scratch, &["check"]);
+    let stderr = stderr(&output);
+    assert_eq!(output.status.code(), Some(2), "{stderr}");
+    assert!(
+        stderr.contains("ts.check/default") && stderr.contains("type checker"),
+        "{stderr}"
+    );
+}

@@ -9,6 +9,7 @@ use std::process::Command;
 use std::sync::Arc;
 
 use rsvelte_kernel::computation::database::{ArtifactRegistry, DocumentContext, Facet};
+use rsvelte_kernel::computation::registry::Contribution;
 use rsvelte_kernel::computation::task::{FinishTask, Part, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::{Atom, Emitter, Mapping};
@@ -233,6 +234,23 @@ pub struct Check {
     /// Documents the run passes to the checker as they are, unchecked, so imports of them
     /// resolve as on the disk.
     pub imported: Option<fn(&Document) -> bool>,
+}
+
+/// The languages whose documents the checker reads through a content mapper, so a project check
+/// can ask the checker for their files. The language's own plugin adds itself.
+#[derive(Debug)]
+pub struct MappedLanguages;
+
+impl Contribution for MappedLanguages {
+    type Item = MappedLanguage;
+}
+
+#[derive(Debug, Clone)]
+pub struct MappedLanguage {
+    /// Such as `.svelte`.
+    pub extension: &'static str,
+    /// The executable that serves the language's projections.
+    pub content_mapper: PathBuf,
 }
 
 /// A document the run does not check but other documents may import.

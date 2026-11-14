@@ -70,6 +70,20 @@ pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str], fix: bool) -
     }
 }
 
+/// Runs `tasks` on every file of the project they check, as the project's checker selects them.
+pub(crate) fn run_project(reg: &Registry, tasks: &[&str]) -> ExitCode {
+    let files = match reg.project_files(tasks) {
+        Ok(files) => files,
+        Err(e) => return usage(&e),
+    };
+    let names: Vec<String> = files
+        .iter()
+        .map(|file| file.to_string_lossy().into_owned())
+        .collect();
+    let names: Vec<&str> = names.iter().map(String::as_str).collect();
+    run_files(reg, &names, tasks)
+}
+
 /// Runs `tasks` on every file of `files` in one run, so a project task such as a type check sees
 /// all of them, and prints each output under its file. Exit code 1 means an error is left.
 pub(crate) fn run_files(reg: &Registry, files: &[&str], tasks: &[&str]) -> ExitCode {

@@ -71,7 +71,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/database#facet',
 		source: {
 			path: 'crates/languages/svelte/check/src/registration.rs',
-			line: 38,
+			line: 39,
 			text: 'reg.finish_task(Check {',
 		},
 		box: { x: 32, y: 362, w: 188, h: height },
@@ -99,7 +99,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel#modules',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/registry.rs',
-			line: 57,
+			line: 70,
 			text: 'pub fn validate_plugins(&self) -> Result<(), PluginError> {',
 		},
 		box: { x: right, y: 60, w: width, h: height },

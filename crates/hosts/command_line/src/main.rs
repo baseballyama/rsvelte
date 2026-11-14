@@ -3,6 +3,8 @@
 //! `rsvelte run <file> --task <identifier>` prints one task's outputs for one file.
 //! `rsvelte run <file>... --task <identifier>` runs the tasks over every file in one run, as a
 //! project, and labels each output with its file.
+//! `rsvelte check [--task <identifier>]...` runs the tasks, by default `ts.check/default`, over
+//! the files of the project they check, as its checker selects them from the tsconfig.
 //! `rsvelte benchmark <dir> [--task <identifier>]... [rounds=N] [json=<file>]` measures the
 //! pipeline (see `commands/benchmark.rs`).
 //! `rsvelte performance <dir>... [--task <identifier>]... [rounds=N] [json=<file>]` prints the
@@ -27,7 +29,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use commands::corpus::corpus;
-use commands::run::{run_file, run_files};
+use commands::run::{run_file, run_files, run_project};
 use commands::{benchmark, performance};
 use input::load;
 use rsvelte_kernel::computation::registry::Registry;
@@ -36,6 +38,9 @@ use rsvelte_kernel::computation::registry::Registry;
 #[global_allocator]
 static ALLOC: rsvelte_kernel::performance::measurement::CountingAllocator =
     rsvelte_kernel::performance::measurement::CountingAllocator;
+
+/// What `check` runs without `--task`.
+const PROJECT_CHECK: &str = "ts.check/default";
 
 /// Every plugin the command installs, in installation order.
 static EXTENSIONS: &[&rsvelte_plugin_interface::Extension] = &[
@@ -95,6 +100,8 @@ fn main() -> ExitCode {
     }
     let selection = if !tasks.is_empty() {
         rsvelte_plugin_interface::Selection::Named(tasks.iter().map(|&t| t.to_owned()).collect())
+    } else if positional.first() == Some(&"check") {
+        rsvelte_plugin_interface::Selection::Named(vec![PROJECT_CHECK.to_owned()])
     } else if matches!(positional.first(), Some(&("corpus" | "run"))) {
         rsvelte_plugin_interface::Selection::Every
     } else {
@@ -162,6 +169,14 @@ fn dispatch(
         }
         ["run", file] => run_file(reg, Path::new(file), tasks, fix),
         ["run", files @ ..] if !files.is_empty() && !fix => run_files(reg, files, tasks),
+        ["check"] if !fix => run_project(
+            reg,
+            if tasks.is_empty() {
+                &[PROJECT_CHECK]
+            } else {
+                tasks
+            },
+        ),
         ["benchmark", dir, rest @ ..] => match benchmark::Options::parse(rest) {
             Ok(mut options) => {
                 options.tools = tools;
@@ -177,7 +192,7 @@ fn dispatch(
             Err(e) => usage(&e),
         },
         _ => usage(concat!(
-            "expected `corpus <dir>...`, `run <file>...`, ",
+            "expected `corpus <dir>...`, `run <file>...`, `check`, ",
             "`benchmark <dir>` or `performance <dir>...`"
         )),
     }
