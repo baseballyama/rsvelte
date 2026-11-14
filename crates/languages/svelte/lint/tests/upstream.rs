@@ -16,7 +16,7 @@ use rsvelte_kernel::computation::task::Task;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_lint_runner::finding::{Finding, apply_fix, apply_fixes};
-use rsvelte_svelte_lint::computation::{SvelteConfiguration, SvelteKit};
+use rsvelte_svelte_lint::computation::{PostcssConfiguration, SvelteConfiguration, SvelteKit};
 use rsvelte_svelte_lint::project::{Location, SvelteKitProject};
 use rsvelte_svelte_lint::{Configuration, Kit, LintSettings};
 use serde::Deserialize;
@@ -398,6 +398,8 @@ fn run(case: &Case<'_>, deviation: Option<&Deviation>) -> Verdict {
         Err(why) => return Verdict::Unmeasured(format!("a svelte.config.js {why}")),
     };
     let mut configuration = Configuration::new(settings);
+    // Upstream's tests declare `globals.browser`.
+    configuration.declare_globals(rsvelte_typescript_semantic::globals::Declared::browser());
     if let Err(error) = configuration.rule(&name, Severity::Error, &config.options, &[]) {
         return Verdict::Fail(format!("the options do not configure the rule: {error}"));
     }
@@ -511,6 +513,8 @@ fn lint(
     let Project { svelte_config, kit } = project;
     registry.provide::<SvelteConfiguration>("test", |_| true, move |_| svelte_config.clone());
     registry.provide::<SvelteKit>("test", |_| true, move |_| kit.clone());
+    // Upstream's fixtures expect a `postcss` style transformed, which needs a configuration.
+    registry.provide::<PostcssConfiguration>("test", |_| true, |_| true);
     let context = DocumentContext::new(document, registry.artifacts());
     rsvelte_svelte_lint::lint(&context, configuration)
 }

@@ -11,6 +11,7 @@ use super::{
     TrackedReference, global_references, global_references_matching, import_references,
     property_references,
 };
+use crate::globals::Declared;
 use crate::semantic::Semantic;
 
 /// Each use as `name@text`, the text being the call's when the use is called, in source order.
@@ -54,8 +55,16 @@ fn store(source: &str, exports: &[&'static str]) -> Vec<String> {
 }
 
 fn globals(source: &str) -> Vec<String> {
+    globals_declared(source, &Declared::browser())
+}
+
+fn globals_declared(source: &str, declared: &Declared) -> Vec<String> {
     uses(source, |semantic, _| {
-        global_references(semantic, &["setTimeout", "setInterval", "queueMicrotask"])
+        global_references(
+            semantic,
+            declared,
+            &["setTimeout", "setInterval", "queueMicrotask"],
+        )
     })
 }
 
@@ -209,6 +218,7 @@ fn globals_can_be_matched_by_a_predicate_with_other_global_objects() {
     let found = uses(source, |semantic, _| {
         let found = global_references_matching(
             semantic,
+            &Declared::browser(),
             |name| matches!(name, "location" | "window"),
             &["globalThis"],
         );
@@ -314,5 +324,16 @@ fn a_value_passes_through_an_optional_chain() {
     assert_eq!(
         store(source, &["writable"]),
         ["writable@ns?.writable", "writable@c()"]
+    );
+}
+
+#[test]
+fn an_undeclared_global_counts_only_as_a_member_of_a_builtin() {
+    assert_eq!(
+        globals_declared(
+            "setTimeout(f); window.setTimeout(f); globalThis.setTimeout(f);",
+            &Declared::default(),
+        ),
+        ["setTimeout@globalThis.setTimeout(f)"]
     );
 }

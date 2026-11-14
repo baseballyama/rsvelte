@@ -74,7 +74,7 @@ impl SvelteRule for PreferSvelteReactivity {
         } else {
             exported_declarations(file, semantic)
         };
-        for reference in global_references(semantic, CLASSES) {
+        for reference in global_references(semantic, file.globals(), CLASSES) {
             let Some(node) = reference
                 .call
                 .filter(|&call| matches!(nodes.kind(call), AstKind::NewExpression(_)))

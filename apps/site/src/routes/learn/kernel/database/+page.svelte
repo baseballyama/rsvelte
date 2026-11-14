@@ -129,8 +129,10 @@
 
 <div class="prose-learn">
 	<p>
-		コード検査のタスクの本体は <code>Lint::run</code> です。指摘を JSON で書き出すときは
-		<code>context.lines(LineBreaks::Ecmascript)</code> を使います。
+		コード検査のタスクの本体は <code>Lint::run</code> です。指摘を JSON で書き出すときは、<code
+			>positions</code
+		>
+		が <code>context.lines(LineBreaks::Ecmascript)</code> を使います。
 	</p>
 </div>
 

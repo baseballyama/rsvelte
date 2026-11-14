@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use rsvelte_kernel::computation::database::DocumentContext;
@@ -10,7 +11,7 @@ use rsvelte_kernel::source::positions::LineBreaks;
 use crate::Configuration;
 use crate::computation::{
     ConditionTypes, LegacyReactivity, LintConfiguration, ModuleSemantic, NativeConditionTypes,
-    SameNamedFileOnDisk,
+    PostcssConfigurationOnDisk, SameNamedFileOnDisk,
 };
 use crate::rules::style_attribute::InlineStyles;
 use crate::rules::style_sheet::StyleSheetVerdict;
@@ -48,7 +49,8 @@ pub fn register_artifacts(registry: &mut Registry) {
         .artifact::<StyleSheetVerdict>()
         .artifact::<NativeConditionTypes>()
         .artifact::<LegacyReactivity>()
-        .artifact::<SameNamedFileOnDisk>();
+        .artifact::<SameNamedFileOnDisk>()
+        .artifact::<PostcssConfigurationOnDisk>();
 }
 
 /// Replaces the built-in prototype's condition types with `provider`'s.
@@ -116,26 +118,43 @@ impl Task for Lint {
                 configuration.as_ref()
             });
         // svelte-eslint-parser throws Svelte's parse error, which ESLint reports as the one
-        // finding; it parses scripts itself, so an error in one stays refused.
+        // finding: the markup's, or a JavaScript one in the template's expressions, which Svelte's
+        // parser reads too. It parses a script itself, with typescript-eslint whatever the
+        // script's language, and throws what that rejects; any other error in a script stays
+        // refused.
+        let parse_error = || match context.get::<rsvelte_svelte_syntax::Parsed>() {
+            Err(error) => Some(error.clone()),
+            Ok(_) => rsvelte_svelte_compile::javascript_error(context),
+        };
         if rsvelte_svelte_syntax::matches(context.document)
-            && let Err(error) = context.get::<rsvelte_svelte_syntax::Parsed>()
-            && !rsvelte_svelte_syntax::parse::in_script_content(
+            && let Some(error) = parse_error()
+        {
+            let thrown = if rsvelte_svelte_syntax::parse::in_script_content(
                 context.source_text(),
                 error.span.start_offset,
-            )
-        {
-            rsvelte_lint_runner::output::report_parse_error(
-                out,
-                context.lines(LineBreaks::Ecmascript),
-                &error.message,
-                error.span.start_offset,
-            );
-            return;
+            ) {
+                typescript_eslint_rejection(context)
+            } else {
+                Some((
+                    Cow::Borrowed(error.message.as_str()),
+                    error.span.start_offset,
+                ))
+            };
+            if let Some((message, at)) = thrown {
+                rsvelte_lint_runner::output::report_parse_error(
+                    out,
+                    positions(context),
+                    &message,
+                    at,
+                );
+                return;
+            }
         }
-        let (file, findings) = match crate::rule::File::new(context).and_then(|file| {
-            let findings = crate::lint::check(&file, configuration)?;
-            Ok((file, findings))
-        }) {
+        let (file, findings, rules) = match crate::rule::File::new(context, configuration.globals())
+            .and_then(|file| {
+                let (findings, rules) = crate::lint::check(&file, configuration)?;
+                Ok((file, findings, rules))
+            }) {
             Ok(linted) => linted,
             Err(error) => {
                 out.diagnostics.push(error);
@@ -144,17 +163,48 @@ impl Task for Lint {
         };
         rsvelte_lint_runner::output::report(
             out,
-            context.lines(LineBreaks::Ecmascript),
+            positions(context),
             // The rules that ran, so a report tells a rule that found nothing from one that
             // does not run on this file.
-            configuration
-                .rules()
-                .iter()
-                .filter(|rule| crate::configuration::applies(rule, &file))
-                .map(crate::ConfiguredRule::name),
+            rules.running(configuration, &file).map(|rule| rule.name),
             findings,
         );
     }
+}
+
+/// What typescript-eslint throws for the first script the compiler rejects, and where.
+fn typescript_eslint_rejection<'a>(
+    context: &'a DocumentContext<'_>,
+) -> Option<(Cow<'a, str>, u32)> {
+    // svelte-eslint-parser parses the template with the scripts blanked out first, so an error of
+    // the template wins over the scripts'.
+    let component = match context.get::<rsvelte_svelte_syntax::ParsedAsTypeScript>() {
+        Ok(component) => component,
+        Err(error) => {
+            return Some((
+                Cow::Borrowed(error.message.as_str()),
+                error.span.start_offset,
+            ));
+        }
+    };
+    let error =
+        rsvelte_typescript_tree::typescript_eslint_error(&component.script_typescript_errors)?;
+    let at = error.diagnostic.span.start_offset;
+    // svelte-eslint-parser hands typescript-eslint the template's code after the script's, so
+    // what it throws at the script's end depends on that code.
+    let script = (component.module.iter().chain(&component.instance))
+        .find(|script| script.content.start_offset <= at && at <= script.content.end_offset)?;
+    if at == script.content.end_offset {
+        return None;
+    }
+    Some((error.typescript_eslint_message()?, at))
+}
+
+fn positions<'a>(context: &'a DocumentContext<'_>) -> rsvelte_lint_runner::output::Positions<'a> {
+    rsvelte_lint_runner::output::Positions::new(
+        context.lines(LineBreaks::Ecmascript),
+        context.source_text(),
+    )
 }
 
 #[cfg(test)]

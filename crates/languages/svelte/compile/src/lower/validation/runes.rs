@@ -2,9 +2,8 @@
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    AssignmentTarget, BindingPattern, Expression, ForStatementLeft, ImportDeclaration,
-    ImportDeclarationSpecifier, MemberExpression, MethodDefinitionKind, ModuleExportName,
-    Statement, VariableDeclaration, VariableDeclarator,
+    AssignmentTarget, Expression, ForStatementLeft, MemberExpression, MethodDefinitionKind,
+    Statement, VariableDeclaration,
 };
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
@@ -17,12 +16,14 @@ use crate::lower::{CompileInput, Diagnostic, Resolution, Span, Target, span_of};
 
 mod assignments;
 mod calls;
+mod declarations;
 mod errors;
 mod exports;
 mod places;
 mod references;
 
 use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
+use declarations::{check_props_pattern, imports};
 pub(in crate::lower) use errors::{script_and_template_errors, script_error};
 use places::place_of;
 
@@ -102,12 +103,23 @@ struct Frame<'a> {
     rune: Option<&'static str>,
 }
 
+/// What raises `experimental_async` at an `await` that suspends rendering, outside the arrow
+/// functions of a `bind:` pair, which the rune checks always raise.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(in crate::lower) enum Awaits {
+    /// The rune checks.
+    Here,
+    /// The analysis's warnings, where `experimental.async` decides it.
+    Analysis,
+}
+
 /// Upstream's rune and assignment checks over the scripts and the template expressions, in
 /// document order, then the runes this port does not lower.
 struct RuneWalk<'a> {
     res: &'a Resolution,
     target: Target,
     custom_element: bool,
+    awaits: Awaits,
     props: bool,
     props_id: bool,
     /// Where the root being walked sits.
@@ -148,7 +160,21 @@ pub(in crate::lower) fn check_runes(
     target: Target,
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
-    walk_template(input, walk_scripts(input, res, target, custom_element))
+    check_runes_with(input, res, target, custom_element, Awaits::Here)
+}
+
+/// [`check_runes`], with what raises `experimental_async`.
+pub(in crate::lower) fn check_runes_with(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    target: Target,
+    custom_element: bool,
+    awaits: Awaits,
+) -> Result<(), Diagnostic> {
+    walk_template(
+        input,
+        walk_scripts(input, res, target, custom_element, awaits),
+    )
 }
 
 /// Continues `walk` over the template's expressions and declarations, in document order.
@@ -238,6 +264,7 @@ fn walk_scripts<'a>(
     res: &'a Resolution,
     target: Target,
     custom_element: bool,
+    awaits: Awaits,
 ) -> RuneWalk<'a> {
     let javascript = input.component.javascript;
     let place = |module, rendering| Place {
@@ -249,6 +276,7 @@ fn walk_scripts<'a>(
         res,
         target,
         custom_element,
+        awaits,
         props: false,
         props_id: false,
         root: place(false, false),
@@ -380,7 +408,7 @@ impl<'a> RuneWalk<'a> {
             matches!(function.map(|f| f.kind), Some(AstKind::ArrowFunctionExpression(arrow))
                 if self.bind_arrows.contains(&Some(arrow.span.start)))
         };
-        if suspends && (place.rendering || in_bind_arrow()) {
+        if suspends && ((self.awaits == Awaits::Here && place.rendering) || in_bind_arrow()) {
             return crate::lower::special::invalid(
                 "experimental_async",
                 "Cannot use `await` in deriveds and template expressions, or at the top level of a \
@@ -502,81 +530,4 @@ impl<'a> RuneWalk<'a> {
             self.check_pattern_assignment(span, target, Target::Client)
         })
     }
-}
-
-/// Upstream's `ImportDeclaration` checks in runes mode.
-fn imports(import: &ImportDeclaration<'_>) -> Result<(), Diagnostic> {
-    let is_value = |s: &&ImportDeclarationSpecifier<'_>| match s {
-        ImportDeclarationSpecifier::ImportSpecifier(s) => !s.import_kind.is_type(),
-        _ => true,
-    };
-    // Upstream erases a type-only import, and one whose specifiers are all types, first.
-    let mut values = import
-        .specifiers
-        .iter()
-        .flatten()
-        .filter(is_value)
-        .peekable();
-    if import.import_kind.is_type()
-        || (import.specifiers.as_ref().is_some_and(|s| !s.is_empty()) && values.peek().is_none())
-    {
-        return Ok(());
-    }
-    let source = &import.source.value;
-    if source.starts_with("svelte/internal") {
-        return crate::lower::special::invalid(
-            "import_svelte_internal_forbidden",
-            "Imports of `svelte/internal/*` are forbidden. It contains private runtime code which \
-                is subject to change without notice. If you're importing from `svelte/internal/*` \
-                to work around a limitation of Svelte, please open an issue at \
-                https://github.com/sveltejs/svelte and explain your use case",
-            span_of(import),
-        );
-    }
-    if *source != "svelte" {
-        return Ok(());
-    }
-    for specifier in values {
-        if let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier
-            && let ModuleExportName::IdentifierName(imported) = &specifier.imported
-            && matches!(imported.name.as_str(), "beforeUpdate" | "afterUpdate")
-        {
-            return crate::lower::special::invalid(
-                "runes_mode_invalid_import",
-                &format!("{} cannot be used in runes mode", imported.name),
-                span_of(&**specifier),
-            );
-        }
-    }
-    Ok(())
-}
-
-/// Upstream `VariableDeclarator`: `$props()` binds a name or flat object pattern, checked before
-/// the call and its `$bindable` defaults.
-fn check_props_pattern(declarator: &VariableDeclarator<'_>) -> Result<(), Diagnostic> {
-    let properties = match &declarator.id {
-        BindingPattern::BindingIdentifier(_) => return Ok(()),
-        BindingPattern::ObjectPattern(pattern) => &pattern.properties,
-        _ => {
-            return crate::lower::special::invalid(
-                "props_invalid_identifier",
-                "`$props()` can only be used with an object destructuring pattern",
-                span_of(declarator),
-            );
-        }
-    };
-    for property in properties {
-        let value = match &property.value {
-            BindingPattern::AssignmentPattern(p) => &p.left,
-            value => value,
-        };
-        if property.computed || !matches!(value, BindingPattern::BindingIdentifier(_)) {
-            return crate::lower::special::invalid(
-                "props_invalid_pattern",
-                "`$props()` assignment must not contain nested properties or computed keys",
-                span_of(property),
-            );
-        }
-    }
-    Ok(())
 }
