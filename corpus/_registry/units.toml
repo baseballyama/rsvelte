@@ -2870,6 +2870,7 @@
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
 ["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/2a09f694c7ed44e1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads no script in a one-line file whose script follows the template, `{#if x}<p></p>{/if}<script lang=\"ts\">let a = 1</script>`"
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/a_comma_inside_another_bracket_kind_does_not_split_the_parameter/055da27d622b3fe6.svelte".skip]
@@ -3213,3 +3214,144 @@
 
 ["svelte/rsvelte/pattern/issues/3691-const-tag-parse-error.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a parenthesized sequence or initializer in `{@const}` or `{#await}`, which Svelte compiles"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/teams/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/storage/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/layerchart/docs/src/examples/components/BarChart/single-stack-with-indicator.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/layerchart/docs/src/examples/components/GeoPath/timezones.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/layerchart/docs/src/examples/components/TransformContext/pan-zoom-html-image.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/layerchart/docs/src/examples/components/TransformContext/pan-zoom-svg-image.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/layerchart/docs/src/examples/components/TransformContext/scroll-activation-key.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/39d68bb877c065d1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/589db3f3788fcd37.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/917f006e16515daf.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/ad52f74a04ffdc17.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/e82c5a6a9eb0d8ad.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/efd3b6fcb554dbb4.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/f9c59de6b6a65f41.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_variable_function_or_class_still_loses_its_export/40b5ca4a04084aba.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte/lint/prefer-const/17-module-script-props-scope.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte/pattern/issues/3315-parenthesised-rune-module-script.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/svelte-inspect-value/packages/svelte/src/lib/Panel.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-nested-top-level/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-top-level-error-nested-obsolete/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-top-level-error-nested/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/bits-ui/tests/src/tests/accordion/accordion-multi-test-controlled.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/flowbite-svelte/src/routes/builder/button/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/layerchart/docs/src/routes/docs/playground/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests-core-1/bind_invalid_expression_2583/typescript_assertion_bind_targets_still_compile/d90781335b5ffb93.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests-core-3/ts_assertion_assignment_targets/simple_assignment_lhs_preserves_the_assertion/b3a8fa26c276743a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests-core-3/ts_assertion_assignment_targets/simple_assignment_lhs_preserves_the_assertion/e0f35b7937e18d75.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_bind_multibyte_boundary_4072/element_bind_value_with_ts_assertion_on_multibyte_identifier/97c26726beb8b540.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_bind_suffix_map_4103/a_bind_this_type_assertion_tail_carries_its_own_map_segments/0b3131ff2aa9ebdb.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_binding_ts_assertion/binding_non_null_and_satisfies_strip_from_setter/91cfc66245554c37.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_binding_ts_assertion/binding_non_null_and_satisfies_strip_from_setter/e5b5d2f7d9d0bc57.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_binding_ts_assertion/component_binding_as_expression_strips_assertion_from_setter/56b955a10d666245.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_as_expression_strips_assertion_from_setter/e411dff7dcde881b.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_type_assertion_prefix_strips_from_setter/4407b68d90ad0482.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript-as-expression/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript-non-null-expression/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-4.v5/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-type-assertion/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/rsvelte-tests-core-2/dev_console_wrap_shadowing/an_instance_local_shadowing_a_module_export_keeps_its_own_value/8afb4023ab20179b.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_root_const_colliding_with_an_instance_let_reports_the_placement/f20de58cd3047783.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_top_level_declaration_tag_collides_with_an_instance_let/d6f97735300930aa.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/rsvelte-tests-core-3/root_fragment_scope_3375/the_placement_wins_over_every_collision_kind/90c18d536656c3c9.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/svelte/packages/svelte/tests/runtime-legacy/samples/module-context-export/Foo.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/a_root_script_is_not_closed_by_a_closer_carrying_junk/1861257dbcd04089.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads no script when its closing tag has whitespace before `>`, such as `</script >`, which Svelte reads as the end of the script"
+
+["svelte/rsvelte-tests-formatter/render_neutral_divergences/a_script_close_tag_keeps_its_internal_whitespace/6898cde9d10db12f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads no script when its closing tag has whitespace before `>`, such as `</script >`, which Svelte reads as the end of the script"
+
+["svelte/svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-script-tag/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads no script when its closing tag has whitespace before `>`, such as `</script >`, which Svelte reads as the end of the script"

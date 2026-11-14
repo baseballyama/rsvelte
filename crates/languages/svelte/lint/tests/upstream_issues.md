@@ -246,6 +246,32 @@ Issue: [svelte-eslint-parser #992](https://github.com/sveltejs/svelte-eslint-par
   attribute does not count.
 - Correct: report `m`, as for `<script context="module">`. A module script's exports are not
   props, so nothing writes `m` after its declaration.
+- The corpus skips the 22 lint units that this changes (`corpus/_registry/units.toml`).
+
+## `svelte/prefer-const`: a write through a TypeScript assertion counts as a read
+
+No issue yet.
+
+- Cases: `bind:value={x as T}`, `bind:this={el as HTMLElement}` and, in a script,
+  `(count satisfies number) = 1` or `count!! = 1`.
+- Upstream reports the variable as never reassigned. Its scope analysis reads a reference inside
+  `TSAsExpression`, `TSSatisfiesExpression`, `TSNonNullExpression` or a type assertion as a read,
+  so the write is lost. `svelte/no-reactive-reassign` has the same gap (above).
+- Correct: report nothing. Svelte writes the binding through the assertion, and TypeScript
+  assigns through it, so `const` would break the code.
+- The corpus skips its 15 lint units.
+
+## `svelte/prefer-const`: a name that another scope declares too
+
+No issue yet.
+
+- Cases: `<script module>export const foo = 42;</script><script>let foo = 100;</script>`, and an
+  instance `let nm = 1;` beside a root `{@const nm = 1}` or `{let nm = 1}`.
+- Upstream reports nothing for the instance `let`. A guess: svelte-eslint-parser declares both
+  names in one scope, and the rule skips a variable with two declarations.
+- Correct: report the instance `let`. Svelte keeps the instance script in a scope of its own
+  inside the module's, so the `let` shadows the other name and nothing reassigns it.
+- The corpus skips its 7 lint units.
 
 ## `svelte/prefer-svelte-reactivity`: a reassigned variable hides its later constructions
 
@@ -596,6 +622,8 @@ Issue: [svelte-eslint-parser #1005](https://github.com/sveltejs/svelte-eslint-pa
 | `{@const x = (a, b)}` and `{#await (a, b)}`               | `Parsing error: ')' expected.`  | 9            |
 | An expression that ends in a line comment: `{a // c\n}`   | `Parsing error: ')' expected.`  | 24           |
 | `<template lang="pug">` with a `{a}`                      | no reference to `a`             | 1            |
+| A closing tag with a space: `</script >`                  | no script                       | 3            |
+| A one-line file whose script follows the template         | no script                       | 1            |
 
 Issues for the rows of the table:
 
@@ -610,6 +638,10 @@ Issues for the rows of the table:
 - A line comment at the end of an expression: no issue yet. The error is past the end of the
   file. A guess: the comment hides a `)` or `}` that the parser adds after the expression.
 - `<template lang="pug">`: [svelte-eslint-parser #727](https://github.com/sveltejs/svelte-eslint-parser/issues/727).
+- `</script >`: no issue yet. No rule sees the script, so its names are undefined in the
+  template.
+- A script after the template on one line: no issue yet. The case is
+  `{#if x}<p></p>{/if}<script lang="ts">let a = 1</script>`.
 
 Svelte 5.57.3 compiles every one of them, so this crate lints them. The corpus skips their lint
 units (`corpus/_registry/units.toml`).
