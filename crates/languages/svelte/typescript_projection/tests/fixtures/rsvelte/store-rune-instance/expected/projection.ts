@@ -11,8 +11,8 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => count++,
     });
-    count;
-    state.a;
+    (count);
+    (state.a);
   }
 };
 const StoreRuneInstance__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

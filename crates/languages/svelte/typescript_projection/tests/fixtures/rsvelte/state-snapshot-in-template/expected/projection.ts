@@ -7,7 +7,7 @@
 async () => {
   {
     svelteHTML.createElement("p", {});
-    $state.snapshot(items).length;
+    ($state.snapshot(items).length);
   }
 };
 const StateSnapshotInTemplate__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

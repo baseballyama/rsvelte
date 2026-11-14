@@ -35,7 +35,7 @@ async () => {
       "onclick": () => (text = 'x'),
       ...(attrs),
     });
-    text;
+    (text);
   }
 };
 const SpreadClassLast__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();

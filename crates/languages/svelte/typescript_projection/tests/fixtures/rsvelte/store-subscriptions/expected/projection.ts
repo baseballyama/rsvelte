@@ -21,10 +21,10 @@ const __rsvelte_public_props0 = __rsvelte_props({
 async () => {
   {
     svelteHTML.createElement("p", {});
-    $count;
-    $store;
-    $obj.a;
-    d;
+    ($count);
+    ($store);
+    ($obj.a);
+    (d);
   }
   {
     svelteHTML.createElement("input", {
@@ -42,7 +42,7 @@ async () => {
   }
   {
     for (let [, item] of __rsvelte_each($obj.list)) {
-      item;
+      (item);
     }
   }
 };

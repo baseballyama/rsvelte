@@ -11,7 +11,7 @@ async () => {
       for (let [, name] of __rsvelte_each(names)) {
         {
           svelteHTML.createElement("li", {});
-          name;
+          (name);
         }
       }
     }

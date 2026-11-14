@@ -22,7 +22,7 @@ async () => {
         __rsvelte_component(Option)(__rsvelte_internals(), {});
       }
     }
-    html;
+    (html);
   }
   {
     svelteHTML.createElement("select", {
@@ -35,7 +35,7 @@ async () => {
       svelteHTML.createElement("option", {});
       {
         svelteHTML.createElement("b", {});
-        x;
+        (x);
       }
     }
   }

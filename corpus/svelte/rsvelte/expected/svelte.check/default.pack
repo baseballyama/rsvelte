@@ -7573,22 +7573,6 @@
 	}
 ]
 
-=== 472 pattern/adversarial/typescript/ts-type-only-forms.svelte	json
-[
-	{
-		"code": 2344,
-		"message": "Type 'typeof SvelteComponent' does not satisfy the constraint 'SvelteComponent<Record<string, any>, any, any> | Component<any, any, string>'.\n  Type 'typeof SvelteComponent' is missing the following properties from type 'SvelteComponent<Record<string, any>, any, any>': $$prop_def, $$events_def, $$slot_def, $destroy, and 2 more.",
-		"start": {
-			"line": 6,
-			"character": 24
-		},
-		"end": {
-			"line": 6,
-			"character": 63
-		}
-	}
-]
-
 === 3 pattern/adversarial/typescript/type-narrowing-in-the-template.svelte	json
 []
 
@@ -10893,6 +10877,9 @@
 []
 
 === 3 pattern/issues/template-local-shadows-state.svelte	json
+[]
+
+=== 3 pattern/issues/textarea-bind-moved-content.svelte	json
 []
 
 === 3 pattern/issues/title-memo-definedness.svelte	json

@@ -36,7 +36,7 @@ async () => {
   {
     window.__el = svelteHTML.createElement("p", {});
   }
-  a;
+  (a);
 };
 const BindingTargetsAFunctionOrAGlobal__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {
   a: typeof a;

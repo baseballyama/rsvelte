@@ -13,9 +13,12 @@ use oxc_span::SourceType;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::legacy::legacy_syntax;
+use rsvelte_svelte_semantic::{Resolved, Warned};
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_typescript_projection::Printed;
 use rsvelte_test_harness::NodePackages;
@@ -37,6 +40,39 @@ struct Coverage {
     unchecked: AtomicUsize,
     thrown: AtomicUsize,
     unsupported: AtomicUsize,
+}
+
+/// Reports a legacy component, which no task compares: rsvelte leaves legacy mode to the official
+/// tools.
+struct LegacyComponent;
+
+impl Task for LegacyComponent {
+    fn identifier(&self) -> &'static str {
+        "test.svelte.legacy"
+    }
+
+    fn applies(&self, document: &Document) -> bool {
+        rsvelte_svelte_syntax::matches(document)
+    }
+
+    fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
+        let (Ok(component), Some(resolution), Some(warned)) = (
+            context.get::<Parsed>(),
+            context.get::<Resolved>(),
+            context.get::<Warned>(),
+        ) else {
+            return;
+        };
+        if let Some(syntax) =
+            legacy_syntax(component, resolution, context.source_text(), warned.runes)
+        {
+            out.diagnostics.push(Diagnostic::error(
+                "legacy_component",
+                format!("a legacy component: {syntax}"),
+                Span::new(0, 0),
+            ));
+        }
+    }
 }
 
 /// Counts what the projection and the type check cover, and keeps every projection that is not
@@ -69,34 +105,46 @@ impl Task for CountCoverage {
         match context.get::<Printed>() {
             Ok(projection) => {
                 let allocator = Allocator::default();
-                let result = Parser::new(&allocator, &projection.out, SourceType::ts()).parse();
-                let in_script = |offset: u32| {
-                    [&component.instance, &component.module]
-                        .into_iter()
-                        .flatten()
-                        .any(|script| {
-                            (script.content.start_offset..script.content.end_offset)
-                                .contains(&offset)
-                        })
-                };
+                // The projection exports its component, so it is a module.
+                let source_type = SourceType::ts().with_module(true);
+                let result = Parser::new(&allocator, &projection.out, source_type).parse();
+                let source = context.source_text();
+                let generics = component
+                    .instance
+                    .iter()
+                    .flat_map(|script| &script.attributes)
+                    .find(|(name, _)| name.text(source) == "generics")
+                    .and_then(|&(_, value)| value);
+                // The projection keeps the script's own grammar, which may break these rules.
                 let added = result.diagnostics.iter().any(|d| {
-                    // The projection keeps the script's own grammar, which may break these rules.
                     let unchecked = d.code.scope.as_deref() == Some("TS")
                         && d.code.number.as_deref().is_some_and(|n| {
                             rsvelte_svelte_syntax::parse::ACORN_UNCHECKED_TYPESCRIPT_RULES
                                 .contains(&n)
                         });
-                    // svelte2tsx writes a template expression as a statement, which TypeScript
-                    // may read as a declaration, so an error there is the source's own.
-                    let labels = &d.labels;
-                    let in_template = !labels.is_empty()
-                        && labels.iter().all(|label| {
-                            let at = label.offset();
-                            projection
-                                .lookup_overlap(Span::new(at, at))
-                                .is_some_and(|source| !in_script(source.start_offset))
+                    // A `generics` list that does not parse is copied as it is, so an error whose
+                    // primary span lies within our `<`, the copy and our `>` is the source's own.
+                    // An error in generated text after such a list stays unseen, since the parser
+                    // stops at the list's own fatal error.
+                    let in_generics =
+                        generics.is_some_and(|value| {
+                            let Some(copy) = projection.mappings.iter().find(|m| {
+                                m.source_text == value.start_offset && m.len == value.len()
+                            }) else {
+                                return false;
+                            };
+                            // From our `<` to just past our `>`.
+                            let list = copy.generated - 1..copy.generated + copy.len + 1;
+                            d.labels
+                                .iter()
+                                .find(|label| label.primary())
+                                .or_else(|| d.labels.first())
+                                .is_some_and(|label| {
+                                    list.contains(&label.offset())
+                                        && label.offset() + label.len() <= list.end
+                                })
                         });
-                    !unchecked && !in_template
+                    !unchecked && !in_generics
                 });
                 if added {
                     self.0
@@ -202,6 +250,7 @@ fn main() -> ExitCode {
     rsvelte_svelte_typescript_projection::register(&mut registry);
     rsvelte_svelte_check::register(&mut registry, &typecheck);
     registry.task(CountCoverage(Arc::clone(&coverage)));
+    registry.task(LegacyComponent);
     let result = rsvelte_corpus::Conformance::new("svelte", registry)
         .compare("svelte.compile/client")
         .compare("svelte.compile/server")
@@ -216,6 +265,7 @@ fn main() -> ExitCode {
         .compare("svelte.lint/default")
         .compare("svelte.check/default")
         .also_run("test.svelte.coverage")
+        .out_of_scope("test.svelte.legacy")
         .run();
     let c = &coverage;
     let n = |counter: &AtomicUsize| counter.load(Ordering::Relaxed);

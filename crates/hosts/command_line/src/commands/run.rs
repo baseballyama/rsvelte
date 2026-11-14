@@ -78,7 +78,8 @@ fn run_once(
 ) -> Result<DocumentResult, ExitCode> {
     let document = reg
         .document(file.to_string_lossy().into_owned(), text.to_owned())
-        .map_err(|e| usage(&format!("{}: {e:?}", file.display())))?;
+        .map_err(|e| usage(&format!("{}: {e:?}", file.display())))?
+        .read_from(file.to_owned());
     let options = RunOptions {
         tasks,
         sharing: Sharing::Shared,

@@ -10,13 +10,13 @@ async () => {
     {
       svelteHTML.createElement("b", {});
     }
-    x;
+    (x);
   }
   {
     svelteHTML.createElement("template", {});
     {
       svelteHTML.createElement("b", {});
-      x;
+      (x);
     }
   }
   {

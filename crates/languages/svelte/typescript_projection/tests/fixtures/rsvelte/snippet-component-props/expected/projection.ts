@@ -14,7 +14,7 @@ async () => {
         async () => {
           {
             svelteHTML.createElement("span", {});
-            value;
+            (value);
           }
         };
         return __rsvelte_snippet_return;

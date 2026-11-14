@@ -67847,6 +67847,47 @@ export default function Template_local_shadows_state($$renderer, $$props) {
 	}
 ]
 
+=== 778 pattern/issues/textarea-bind-moved-content.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Textarea_bind_moved_content($$renderer) {
+	let value = '';
+	let note = '';
+
+	$$renderer.push(`<textarea>`);
+
+	const $$body = $.escape(`a ${$.stringify(note)} b`);
+
+	if ($$body) {
+		$$renderer.push(`${$$body}`);
+	} else {}
+
+	$$renderer.push(`</textarea> <textarea>`);
+
+	const $$body_1 = $.escape(`	${$.stringify(value)}`);
+
+	if ($$body_1) {
+		$$renderer.push(`${$$body_1}`);
+	} else {}
+
+	$$renderer.push(`</textarea> <textarea>`);
+
+	const $$body_2 = $.escape(value);
+
+	if ($$body_2) {
+		$$renderer.push(`${$$body_2}`);
+	} else {}
+
+	$$renderer.push(`</textarea> <textarea>`);
+
+	const $$body_3 = $.escape(value);
+
+	if ($$body_3) {
+		$$renderer.push(`${$$body_3}`);
+	} else {}
+
+	$$renderer.push(`</textarea>`);
+}
 === 372 pattern/issues/title-memo-definedness.svelte	js
 import * as $ from 'svelte/internal/server';
 

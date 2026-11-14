@@ -16,6 +16,8 @@ use rsvelte_kernel::source::positions::Span;
 pub struct SyntaxError {
     pub diagnostic: Diagnostic,
     pub acorn: Option<Acorn>,
+    /// The number of tsc's diagnostic for it, when oxc gives one.
+    pub typescript_code: Option<u32>,
 }
 
 /// What acorn, which knows no TypeScript, does with the text oxc rejected.
@@ -51,6 +53,7 @@ pub fn syntax_error(
                 Span::new(fallback, fallback),
             ),
             acorn: None,
+            typescript_code: None,
         };
     };
     let span = error.labels.first().map_or_else(
@@ -63,6 +66,7 @@ pub fn syntax_error(
     SyntaxError {
         diagnostic: Diagnostic::error("parse_error", error.message.to_string(), span),
         acorn: acorn(&error, text, &[], |_| {}).map(|acorn| acorn.shifted(shift)),
+        typescript_code: typescript_code(&error),
     }
 }
 
@@ -76,6 +80,14 @@ pub fn analysis_error(
     let mut syntax_error = syntax_error([error.clone()], text, 0, 0);
     syntax_error.acorn = acorn(error, text, &[], visit);
     syntax_error
+}
+
+/// The number of `error`'s tsc diagnostic.
+fn typescript_code(error: &OxcDiagnostic) -> Option<u32> {
+    if error.code.scope.as_deref() != Some("TS") {
+        return None;
+    }
+    error.code.number.as_deref()?.parse().ok()
 }
 
 impl SyntaxError {

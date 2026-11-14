@@ -33,7 +33,7 @@ async () => {
           });
           {
             svelteHTML.createElement("span", {});
-            item;
+            (item);
           }
         }
       }

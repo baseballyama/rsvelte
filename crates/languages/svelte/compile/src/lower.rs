@@ -46,6 +46,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 pub(crate) use rsvelte_svelte_semantic::template::{cannot_be_set_statically, needs_clsx};
+use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
 use rsvelte_typescript_tree::SyntaxError;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -243,10 +244,15 @@ pub(crate) fn validate_unit(
     {
         return Err(rsvelte_svelte_syntax::parse::javascript_failure(error));
     }
+    validation::check_awaits(input)?;
     let special::SvelteOptions {
         custom_element,
         stylesheet_injected,
     } = special::validate(input)?;
+    // Upstream erases the types right after it parses, before it analyzes.
+    if unit == Unit::Component {
+        validation::check_typescript(input)?;
+    }
     let names = stores::Names::new(input, res);
     let mut errors = snippets::errors(input, res);
     if unit == Unit::Component {
@@ -261,9 +267,6 @@ pub(crate) fn validate_unit(
         let script = validation::script_error(input, res, custom_element.is_some());
         return Err(script.map_or(refusal, |(_, error)| error));
     }
-    if unit == Unit::Component {
-        validation::check_typescript(input)?;
-    }
     let rest_reads = rest_reads::build(res, custom_element.is_some());
     Ok(ValidatedOptions {
         custom_element,
@@ -272,6 +275,52 @@ pub(crate) fn validate_unit(
         hoistable,
         stores: names.subscriptions(res),
     })
+}
+
+/// The errors of [`validate`] that upstream raises in legacy mode too, with when it raises each:
+/// the scripts' syntax and `<svelte:options>` as it parses, then the first of the template walk.
+/// Apart, a TypeScript feature with a runtime meaning, which it refuses after the analysis.
+pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution) -> CompileErrors {
+    let parse = |error| {
+        let raised = Raised {
+            phase: Phase::Parse,
+            section: Section::Template,
+            at: 0,
+        };
+        (raised, error)
+    };
+    let mut raised = Vec::new();
+    if let Some(error) = javascript_error(res)
+        && !validation::redeclares_in_template(input, &error.diagnostic)
+    {
+        raised.push(parse(rsvelte_svelte_syntax::parse::javascript_failure(
+            error,
+        )));
+    } else {
+        raised.extend(validation::check_awaits(input).err().map(parse));
+    }
+    raised.extend(special::validate(input).err().map(parse));
+    raised.extend(validation::template_error(input).map(|(at, error)| {
+        let raised = Raised {
+            phase: Phase::Walk,
+            section: Section::Template,
+            at,
+        };
+        (raised, error)
+    }));
+    CompileErrors {
+        raised,
+        after_analysis: validation::check_typescript(input).err(),
+    }
+}
+
+/// What [`crate::compile_errors`] finds.
+#[derive(Debug, Default)]
+pub struct CompileErrors {
+    /// The errors upstream raises before or during its analysis, in no order.
+    pub raised: Vec<(Raised, Diagnostic)>,
+    /// The error it raises once the analysis passes.
+    pub after_analysis: Option<Diagnostic>,
 }
 
 pub(crate) struct Prepared<'c, 'o> {

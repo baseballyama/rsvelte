@@ -14,7 +14,7 @@ async () => {
     for (let [, ] of __rsvelte_each(items)) {
       {
         svelteHTML.createElement("p", {});
-        item;
+        (item);
       }
     }
   }
@@ -22,7 +22,7 @@ async () => {
     for (let [i, ] of __rsvelte_each(items)) {
       {
         svelteHTML.createElement("p", {});
-        i;
+        (i);
       }
     }
   }
@@ -30,7 +30,7 @@ async () => {
     for (let [i, ] of __rsvelte_each({ length: count })) {
       {
         svelteHTML.createElement("span", {});
-        i;
+        (i);
       }
     }
     {
