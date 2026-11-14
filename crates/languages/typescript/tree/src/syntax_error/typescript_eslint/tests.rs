@@ -93,3 +93,40 @@ fn a_quoted_name_fills_the_message() {
 fn an_error_typescript_eslint_lets_through_has_no_message() {
     assert_eq!(thrown("import(...a);"), None);
 }
+
+/// What typescript-eslint throws for `text`, from all of oxc's errors, and at which byte.
+fn thrown_of_all(text: &str) -> Option<(String, u32)> {
+    let allocator = oxc_allocator::Allocator::default();
+    let errors: Vec<_> = oxc_parser::Parser::new(&allocator, text, SourceType::ts())
+        .parse()
+        .diagnostics
+        .into_iter()
+        .map(|error| crate::syntax_error([error], text, 0, 0))
+        .collect();
+    let error = super::typescript_eslint_error(&errors)?;
+    let message = error.typescript_eslint_message()?.into_owned();
+    Some((message, error.diagnostic.span.start_offset))
+}
+
+#[test]
+fn tsc_s_parser_error_wins_over_a_check_oxc_reported_first() {
+    let text = "let accessor: any; const q = (accessor satisfies string);";
+    assert_eq!(
+        thrown_of_all(text),
+        Some((
+            "',' expected.".to_owned(),
+            text.find("string").unwrap() as u32
+        ))
+    );
+}
+
+#[test]
+fn a_check_typescript_eslint_makes_is_thrown_when_tsc_s_parser_finds_nothing() {
+    assert_eq!(
+        thrown_of_all("interface I { public a: string }"),
+        Some((
+            "'public' modifier cannot appear on a type member".to_owned(),
+            14
+        ))
+    );
+}

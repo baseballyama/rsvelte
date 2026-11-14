@@ -73,6 +73,20 @@ const MESSAGES: [(u32, &str); 28] = [
     ),
 ];
 
+/// The codes of TypeScript 6.0.3's parser and scanner, whose first error typescript-eslint throws
+/// before it checks anything itself.
+const PARSER_CODES: [u32; 141] = [
+    1002, 1003, 1005, 1007, 1010, 1011, 1012, 1034, 1068, 1069, 1109, 1110, 1121, 1124, 1125, 1126,
+    1127, 1128, 1129, 1130, 1131, 1132, 1134, 1135, 1136, 1137, 1138, 1139, 1140, 1142, 1144, 1145,
+    1146, 1160, 1161, 1177, 1178, 1179, 1180, 1181, 1198, 1199, 1209, 1223, 1228, 1260, 1351, 1352,
+    1353, 1357, 1359, 1369, 1381, 1382, 1385, 1386, 1387, 1388, 1389, 1390, 1433, 1434, 1435, 1436,
+    1437, 1438, 1439, 1440, 1441, 1442, 1443, 1472, 1477, 1478, 1487, 1488, 1489, 1490, 1499, 1500,
+    1501, 1502, 1503, 1504, 1505, 1506, 1507, 1508, 1509, 1510, 1511, 1512, 1513, 1514, 1515, 1516,
+    1517, 1518, 1519, 1520, 1521, 1522, 1523, 1524, 1525, 1526, 1527, 1528, 1529, 1530, 1531, 1532,
+    1533, 1534, 1535, 1536, 1537, 1538, 2427, 2457, 2657, 2754, 2809, 2819, 6188, 6189, 8033, 8034,
+    8039, 17002, 17006, 17007, 17008, 17014, 17015, 17021, 18009, 18016, 18026, 18029, 18030,
+];
+
 /// oxc's message for a missing semicolon, the one 1005 that quotes no token.
 const MISSING_SEMICOLON: &str =
     "Expected a semicolon or an implicit semicolon after a statement, but found none";
@@ -94,6 +108,32 @@ impl SyntaxError {
             first_quoted(message)?
         };
         Some(Cow::Owned(template.replace("{0}", argument)))
+    }
+}
+
+/// The error of `errors`, oxc's in its order, that typescript-eslint throws.
+///
+/// It is the first of tsc's parser's errors, or else the first of the checks typescript-eslint
+/// makes, unless an error whose code is unknown comes before it; `None` for no errors.
+#[must_use]
+pub fn typescript_eslint_error(errors: &[SyntaxError]) -> Option<&SyntaxError> {
+    let at = |error: &&SyntaxError| error.diagnostic.span.start_offset;
+    let first = |keep: &dyn Fn(u32) -> bool| {
+        errors
+            .iter()
+            .filter(|error| error.typescript_code.is_some_and(keep))
+            .min_by_key(at)
+    };
+    let thrown = first(&|code| PARSER_CODES.contains(&code))
+        .or_else(|| first(&|code| MESSAGES.iter().any(|(number, _)| *number == code)));
+    let unknown = errors
+        .iter()
+        .filter(|error| error.typescript_code.is_none())
+        .min_by_key(at);
+    match (thrown, unknown) {
+        (Some(thrown), Some(unknown)) if at(&unknown) < at(&thrown) => Some(unknown),
+        (Some(thrown), _) => Some(thrown),
+        (None, unknown) => unknown.or_else(|| errors.first()),
     }
 }
 
