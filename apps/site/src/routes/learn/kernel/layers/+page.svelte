@@ -508,10 +508,12 @@
 		</li>
 	</ul>
 	<p>
-		Svelte プラグインでは、設定の中の各ルール（<code>ConfiguredRule</code>）を包む
-		<code>Running</code> が <code>Rule</code>
-		を実装します。<code>Running</code> は、オプションを読んで作ったルール（<code
-			>dyn SvelteRule</code
+		Svelte プラグインでは、<code>Running</code> が <code>Rule</code> を実装します。<code
+			>Running</code
+		>
+		が包むのは、設定の中の各ルール（<code>ConfiguredRule</code
+		>）と、ファイルの設定コメントが有効にしたルールです。<code>Running</code>
+		は、オプションを読んで作ったルール（<code>dyn SvelteRule</code
 		>）を呼びます。そのルールが、必要な層をその場で求めます。<code>rsvelte_lint_runner</code> の
 		<code>Findings</code> は、ルールを設定の順に走らせ、指摘を一つの並びにまとめます。並びは開始位置の順で、同じ位置の指摘はルールの順に残ります。
 	</p>
@@ -519,7 +521,7 @@
 
 <Code item={data.code.findings} />
 <Code item={data.code.lint} />
-<Code item={data.code.ruleImpl} mark={['self.0.rule().check(context, reporter);']} />
+<Code item={data.code.ruleImpl} mark={['self.rule.check(context, reporter);']} />
 <Code
 	item={data.code.button}
 	mark={[
