@@ -132,10 +132,10 @@ impl Task for Lint {
             );
             return;
         }
-        let (file, findings) = match crate::rule::File::new(context, configuration.globals())
+        let (file, findings, rules) = match crate::rule::File::new(context, configuration.globals())
             .and_then(|file| {
-                let findings = crate::lint::check(&file, configuration)?;
-                Ok((file, findings))
+                let (findings, rules) = crate::lint::check(&file, configuration)?;
+                Ok((file, findings, rules))
             }) {
             Ok(linted) => linted,
             Err(error) => {
@@ -148,11 +148,7 @@ impl Task for Lint {
             context.lines(LineBreaks::Ecmascript),
             // The rules that ran, so a report tells a rule that found nothing from one that
             // does not run on this file.
-            configuration
-                .rules()
-                .iter()
-                .filter(|rule| crate::configuration::applies(rule, &file))
-                .map(crate::ConfiguredRule::name),
+            rules.running(configuration, &file).map(|rule| rule.name),
             findings,
         );
     }

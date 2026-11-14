@@ -15,30 +15,49 @@ pub struct Configuration {
     rules: EnabledRules<dyn SvelteRule, Files>,
     settings: Arc<LintSettings>,
     globals: Declared,
+    /// The plugins whose rules configuration named, which a file's configuration comments may
+    /// name too.
+    plugins: Vec<&'static LintPlugin>,
 }
 
 /// A rule that configuration turned on, with the documents it runs on.
 pub type ConfiguredRule = Enabled<dyn SvelteRule, Files>;
 
-pub(crate) fn applies(rule: &ConfiguredRule, file: &File<'_>) -> bool {
-    rule.extra == Files::All || file.is_component()
+pub(crate) fn applies(files: Files, file: &File<'_>) -> bool {
+    files == Files::All || file.is_component()
 }
 
-/// Runs a configured rule over a document; its own name and severity stamp its findings.
-#[derive(Debug)]
-pub(crate) struct Running<'r>(pub &'r ConfiguredRule);
+/// A rule as it runs over one document; its own name and severity stamp its findings.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Running<'r> {
+    pub name: &'static str,
+    pub severity: Severity,
+    pub files: Files,
+    pub rule: &'r dyn SvelteRule,
+}
+
+impl<'r> Running<'r> {
+    pub(crate) fn configured(rule: &'r ConfiguredRule) -> Self {
+        Self {
+            name: rule.name(),
+            severity: rule.severity(),
+            files: rule.extra,
+            rule: rule.rule(),
+        }
+    }
+}
 
 impl Rule<File<'_>> for Running<'_> {
     fn identifier(&self) -> &'static str {
-        self.0.name()
+        self.name
     }
 
     fn severity(&self) -> Severity {
-        self.0.severity()
+        self.severity
     }
 
     fn check(&self, context: &File<'_>, reporter: &mut Reporter<'_>) {
-        self.0.rule().check(context, reporter);
+        self.rule.check(context, reporter);
     }
 }
 
@@ -50,6 +69,7 @@ impl Configuration {
             rules: EnabledRules::default(),
             settings: Arc::new(settings),
             globals: Declared::default(),
+            plugins: Vec::new(),
         }
     }
 
@@ -79,6 +99,31 @@ impl Configuration {
         options: &[Box<RawValue>],
         plugins: &[&'static LintPlugin],
     ) -> Result<&mut Self, String> {
+        let (definition, rule) = self.configure(name, options, plugins)?;
+        for &plugin in plugins {
+            if !self.plugins.iter().any(|&p| std::ptr::eq(p, plugin)) {
+                self.plugins.push(plugin);
+            }
+        }
+        self.push(definition.name, definition.files, severity, rule)
+    }
+
+    /// Rule `name`, a built-in rule or one of the plugins configuration named, configured with
+    /// `options`, as a configuration comment sets it for one file.
+    pub(crate) fn configure_again(
+        &self,
+        name: &str,
+        options: &[Box<RawValue>],
+    ) -> Result<(&'static RuleDefinition, Box<dyn SvelteRule>), String> {
+        self.configure(name, options, &self.plugins)
+    }
+
+    fn configure(
+        &self,
+        name: &str,
+        options: &[Box<RawValue>],
+        plugins: &[&'static LintPlugin],
+    ) -> Result<(&'static RuleDefinition, Box<dyn SvelteRule>), String> {
         let definition = definition(name, plugins)
             .ok_or_else(|| format!("unknown Svelte lint rule `{name}`"))?;
         let rule = (definition.configure)(&RuleOptions {
@@ -86,7 +131,7 @@ impl Configuration {
             settings: &self.settings,
         })
         .map_err(|e| format!("rule `{name}`: {e}"))?;
-        self.push(definition.name, definition.files, severity, rule)
+        Ok((definition, rule))
     }
 
     /// Turns on a rule that no definition names, such as one a host function implements.
