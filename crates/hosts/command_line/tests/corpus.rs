@@ -120,21 +120,28 @@ impl Task for CountCoverage {
                             rsvelte_svelte_syntax::parse::ACORN_UNCHECKED_TYPESCRIPT_RULES
                                 .contains(&n)
                         });
-                    // A `generics` list that does not parse is copied as it is, so an error
-                    // that points into the copy is the source's own, though TypeScript may also
-                    // point at the brackets around it; one only in generated text is not.
-                    let in_generics = generics.is_some_and(|value| {
-                        d.labels.iter().any(|label| {
-                            (label.offset()..label.offset() + label.len().max(1)).any(|at| {
-                                projection
-                                    .lookup_overlap(Span::new(at, at))
-                                    .is_some_and(|copied| {
-                                        (value.start_offset..value.end_offset)
-                                            .contains(&copied.start_offset)
-                                    })
-                            })
-                        })
-                    });
+                    // A `generics` list that does not parse is copied as it is, so an error whose
+                    // primary span lies within our `<`, the copy and our `>` is the source's own.
+                    // An error in generated text after such a list stays unseen, since the parser
+                    // stops at the list's own fatal error.
+                    let in_generics =
+                        generics.is_some_and(|value| {
+                            let Some(copy) = projection.mappings.iter().find(|m| {
+                                m.source_text == value.start_offset && m.len == value.len()
+                            }) else {
+                                return false;
+                            };
+                            // From our `<` to just past our `>`.
+                            let list = copy.generated - 1..copy.generated + copy.len + 1;
+                            d.labels
+                                .iter()
+                                .find(|label| label.primary())
+                                .or_else(|| d.labels.first())
+                                .is_some_and(|label| {
+                                    list.contains(&label.offset())
+                                        && label.offset() + label.len() <= list.end
+                                })
+                        });
                     !unchecked && !in_generics
                 });
                 if added {
