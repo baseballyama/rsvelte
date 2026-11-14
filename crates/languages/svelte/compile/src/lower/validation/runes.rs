@@ -102,10 +102,21 @@ struct Frame<'a> {
 
 /// Upstream's rune and assignment checks over the scripts and the template expressions, in
 /// document order, then the runes this port does not lower.
+/// What raises `experimental_async` at an `await` that suspends rendering, outside the arrow
+/// functions of a `bind:` pair, which the rune checks always raise.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(in crate::lower) enum Awaits {
+    /// The rune checks.
+    Here,
+    /// The analysis's warnings, where `experimental.async` decides it.
+    Analysis,
+}
+
 struct RuneWalk<'a> {
     res: &'a Resolution,
     target: Target,
     custom_element: bool,
+    awaits: Awaits,
     props: bool,
     props_id: bool,
     /// Where the root being walked sits.
@@ -146,8 +157,19 @@ pub(in crate::lower) fn check_runes(
     target: Target,
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
+    check_runes_with(input, res, target, custom_element, Awaits::Here)
+}
+
+/// [`check_runes`], with what raises `experimental_async`.
+pub(in crate::lower) fn check_runes_with(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    target: Target,
+    custom_element: bool,
+    awaits: Awaits,
+) -> Result<(), Diagnostic> {
     let javascript = input.component.javascript;
-    let mut walk = walk_scripts(input, res, target, custom_element);
+    let mut walk = walk_scripts(input, res, target, custom_element, awaits);
     // Upstream checks a binding's target where it visits the directive, before the expression.
     let tree = input.component.compiler_syntax_tree;
     let binds: FxHashMap<ExpressionIdentifier, (Span, bool)> = (tree.nodes.iter())
@@ -233,7 +255,7 @@ pub(in crate::lower) fn script_error(
     res: &Resolution,
     custom_element: bool,
 ) -> Option<(bool, Diagnostic)> {
-    let walk = walk_scripts(input, res, Target::Client, custom_element);
+    let walk = walk_scripts(input, res, Target::Client, custom_element, Awaits::Here);
     let error = walk.error.filter(|error| error.code != "unsupported")?;
     let module = input.component.module.is_some_and(|module| {
         let span = input.component.javascript.get_program(module).span;
@@ -248,6 +270,7 @@ fn walk_scripts<'a>(
     res: &'a Resolution,
     target: Target,
     custom_element: bool,
+    awaits: Awaits,
 ) -> RuneWalk<'a> {
     let javascript = input.component.javascript;
     let place = |module, rendering| Place {
@@ -259,6 +282,7 @@ fn walk_scripts<'a>(
         res,
         target,
         custom_element,
+        awaits,
         props: false,
         props_id: false,
         root: place(false, false),
@@ -390,7 +414,7 @@ impl<'a> RuneWalk<'a> {
             matches!(function.map(|f| f.kind), Some(AstKind::ArrowFunctionExpression(arrow))
                 if self.bind_arrows.contains(&Some(arrow.span.start)))
         };
-        if suspends && (place.rendering || in_bind_arrow()) {
+        if suspends && ((self.awaits == Awaits::Here && place.rendering) || in_bind_arrow()) {
             return crate::lower::special::invalid(
                 "experimental_async",
                 "Cannot use `await` in deriveds and template expressions, or at the top level of a \

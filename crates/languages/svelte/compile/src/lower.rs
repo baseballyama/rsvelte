@@ -278,6 +278,40 @@ pub(crate) fn validate_unit(
     })
 }
 
+/// The first error of the rune checks, which upstream raises in runes mode as it walks the scripts
+/// and the template's expressions, after what [`validate`] checks; without the `experimental_async`
+/// of the scripts and the template, which the analysis's warnings raise where `experimental.async`
+/// decides it.
+pub(crate) fn rune_error(
+    input: &CompileInput<'_>,
+    res: &Resolution,
+    options: &ValidatedOptions,
+) -> Option<(Raised, Diagnostic)> {
+    let custom_element = options.custom_element.is_some();
+    let error =
+        check_runes_with(input, res, Target::Client, custom_element, Awaits::Analysis).err()?;
+    let at = error.span.start_offset;
+    let inside = |program: Option<_>| {
+        program.is_some_and(|program| {
+            let span = input.component.javascript.get_program(program).span;
+            (span.start..span.end).contains(&at)
+        })
+    };
+    let section = if inside(input.component.module) {
+        Section::Module
+    } else if inside(input.component.instance) {
+        Section::Instance
+    } else {
+        Section::Template
+    };
+    let raised = Raised {
+        phase: Phase::Walk,
+        section,
+        at,
+    };
+    Some((raised, error))
+}
+
 /// The errors of [`validate`] that upstream raises in legacy mode too, with when it raises each:
 /// the scripts' syntax and `<svelte:options>` as it parses, then the first of the template walk.
 /// Apart, a TypeScript feature with a runtime meaning, which it refuses after the analysis.
@@ -367,4 +401,4 @@ use template::{
     event_attribute, has_dependency, is_behaviour, is_directive, is_dom_property,
     is_load_error_element, synthetic_value,
 };
-use validation::{check_runes, uses_slots};
+use validation::{Awaits, check_runes, check_runes_with, uses_slots};

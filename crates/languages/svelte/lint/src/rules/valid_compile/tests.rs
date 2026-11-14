@@ -388,3 +388,15 @@ fn an_error_raised_only_while_generating_code_is_no_error() {
     );
     assert_eq!(first_error(code), []);
 }
+
+#[test]
+fn a_rune_out_of_place_fails_the_compile_in_runes_mode() {
+    assert_eq!(
+        first_error("<script>\n\tfunction a(x) {}\n\ta($state(1));\n</script>\n"),
+        [("state_invalid_placement".to_owned(), 3, 3)]
+    );
+    assert_eq!(
+        first_error("<script>\n\tlet a = $state(1);\n</script>\n{$derived.by(() => a)}\n"),
+        [("state_invalid_placement".to_owned(), 4, 1)]
+    );
+}

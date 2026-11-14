@@ -164,7 +164,12 @@ pub(super) fn apply<'a>(
         .filter(|_| stripped.is_none())
         .cloned();
     let first_error = parse_error.or_else(|| {
-        let others = rsvelte_svelte_compile::compile_errors(file.context, compile.runes);
+        let mut others = rsvelte_svelte_compile::compile_errors(file.context, compile.runes);
+        if experimental_async {
+            others
+                .raised
+                .retain(|(_, error)| error.code != "experimental_async");
+        }
         compile
             .first_error_with(component, experimental_async, &others.raised)
             .or(others.after_analysis)

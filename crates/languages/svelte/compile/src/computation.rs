@@ -125,7 +125,22 @@ impl Artifact for Validated {
 pub fn compile_errors(context: &DocumentContext<'_>, runes: bool) -> CompileErrors {
     if runes {
         match context.get::<Validated>() {
-            Ok(_) => return CompileErrors::default(),
+            Ok(options) => {
+                let (Some(input), Some(res)) = (
+                    component_input(context),
+                    context.get::<rsvelte_svelte_semantic::Resolved>().as_ref(),
+                ) else {
+                    return CompileErrors::default();
+                };
+                let raised = crate::lower::rune_error(&input.into(), res, options)
+                    .filter(|(_, error)| error.code != UNSUPPORTED)
+                    .into_iter()
+                    .collect();
+                return CompileErrors {
+                    raised,
+                    after_analysis: None,
+                };
+            }
             Err(error) if error.code != UNSUPPORTED && !GENERATED.contains(&&*error.code) => {
                 let raised = Raised {
                     phase: Phase::Parse,
