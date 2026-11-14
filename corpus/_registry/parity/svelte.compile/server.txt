@@ -1,4 +1,4 @@
-# svelte.compile/server: 35034 match
+# svelte.compile/server: 35036 match
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_typescript_script_reports_at_the_word_too/a447b5a782a8d8c0.svelte	mismatch
 svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/component_sequence_error_points_at_the_expression/c1314d8fdd09c86c.svelte	unexpected
 svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/element_sequence_error_points_at_the_expression/35ccaf71b9485683.svelte	unexpected
@@ -41,7 +41,6 @@ svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_not_check_are_not_parse_errors/3fbf11608512c3ee.svelte	refused
 svelte/rsvelte-tests-core-3/server_fragment_init_order/title_keeps_source_order_among_hoisted_nodes/4ff65b3fab5a4745.svelte	mismatch
 svelte/rsvelte-tests-core-3/server_fragment_init_order/title_precedes_a_bind_pushed_by_a_later_sibling/15dd611416a9eecf.svelte	mismatch
-svelte/rsvelte-tests-core-3/snippet_param_default_parens_4384/the_client_matches_the_official_compiler/c24a069de8126c33.svelte	mismatch
 svelte/rsvelte-tests-core-3/state_destructure_default_2002/a_default_is_visited_after_every_array_is_named/7fffa763303d97fe.svelte	mismatch
 svelte/rsvelte-tests-core-3/store_rune_conflict_3597/another_rune_reference_still_enables_runes_mode/85dae5221dd8bfac.svelte	mismatch
 svelte/rsvelte-tests-core-3/tag_and_snippet_names_3279/html_tag_names_lowercase_beyond_ascii/e1927ab6ea29b13b.svelte	mismatch
@@ -139,4 +138,3 @@ svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-bind-eval.svelte	mismatch
 svelte/rsvelte/pattern/issues/dollar-function-parameter.svelte	mismatch
 svelte/rsvelte/pattern/issues/server-bind-get-after-const.svelte	mismatch
-svelte/rsvelte/pattern/issues/snippet-parameter-default-parentheses.svelte	mismatch
