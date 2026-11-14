@@ -8,14 +8,16 @@ runs it on x86_64 Linux, three jobs per project, and writes the report to the ru
 | `svelte-check-ts6`  | The released svelte-check with TypeScript 6                                                                 |
 | `svelte-check-tsgo` | svelte-check `--experimental-ts7` of `sveltejs/language-tools#3193`: tsgo and its svelte2tsx content mapper |
 | `svelte-check-tsrs` | The same, with the TypeScript 7.1 API that `tsrs` ships in place of tsgo's                                  |
-| `rsvelte-tsgo`      | `rsvelte run <files> --task ts.check/default` with the Rust content mapper, on tsgo                         |
+| `rsvelte-tsgo`      | `rsvelte check --task ts.check/default` with the Rust content mapper, on tsgo                               |
 | `rsvelte-tsrs`      | The same on `tsrs`                                                                                          |
 | `rsvelte-tsrs-fast` | The same with `TSRS_FAST=1`                                                                                 |
 
 The workflow pins every version. Every arm reports TypeScript diagnostics only
 (`--diagnostic-sources js`); rsvelte's check runs no compiler or CSS diagnostics either. The rsvelte
-arms check the files of the program that tsgo builds from the project's `tsconfig.json` with the official
-mapper: every component of it, and every other file outside `node_modules`.
+arms find their own files: the checker selects them from the project's `tsconfig.json`, and
+`rsvelte-svelte-content-mapper` projects any other component the program reads, such as a
+package's. The report counts the components of the program that tsgo builds with the official
+mapper.
 
 - `prepare.ts` fetches a project at a pinned commit and installs it from its `pnpm-lock.yaml`, or writes
   `synthetic-<N>` with `synthetic.ts`.
@@ -30,7 +32,7 @@ mapper: every component of it, and every other file outside `node_modules`.
 W=tools/performance/workloads/check-versus-svelte-check
 node $W/prepare.ts synthetic-100 <work>
 node $W/measure.ts --id synthetic-100 --project <work>/synthetic-100 --tsconfig tsconfig.json \
-  --language-tools <language-tools> --tools <tools> --rsvelte <rsvelte> --mapper <mapper> \
+  --language-tools <language-tools> --tools <tools> --rsvelte <rsvelte> --mapper <rsvelte-svelte-content-mapper> \
   --expect-synthetic 100 --out <results>/synthetic-100.json
 node $W/report.ts <results> report.md report.json
 ```
