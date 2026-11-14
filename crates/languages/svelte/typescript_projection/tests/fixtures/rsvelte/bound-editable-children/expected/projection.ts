@@ -15,7 +15,7 @@ async () => {
       // @ts-ignore
       value = __rsvelte_untyped_prop();
     };
-    value;
+    (value);
   }
   {
     svelteHTML.createElement("div", {
@@ -30,8 +30,8 @@ async () => {
       async () => {
         {
           svelteHTML.createElement("p", {});
-          value;
-          other;
+          (value);
+          (other);
         }
       };
       return __rsvelte_snippet_return;
@@ -39,7 +39,7 @@ async () => {
     __rsvelte_ensure_snippet(raw());
     {
       svelteHTML.createElement("span", {});
-      other;
+      (other);
     }
   }
   {
@@ -51,11 +51,11 @@ async () => {
       // @ts-ignore
       other = __rsvelte_untyped_prop();
     };
-    other;
+    (other);
   }
   {
     svelteHTML.createElement("p", {});
-    value;
+    (value);
   }
 };
 const BoundEditableChildren__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

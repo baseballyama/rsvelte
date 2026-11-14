@@ -9,7 +9,7 @@ async () => {
     svelteHTML.createElement("div", {
       "id": cyclic,
     });
-    cyclic;
+    (cyclic);
   }
 };
 const ConstInitializedByItself__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
