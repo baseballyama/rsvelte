@@ -381,7 +381,7 @@ impl Builder<'_> {
             None if tag == "svelte:component" => Some(self.dynamic_component(name, attributes)?),
             component => component,
         };
-        let is_component = component.is_some();
+        let is_component = component.is_some() || tag == "svelte:self";
         if !is_component && !is_element(tag) {
             return Err(refuse("svelte: elements", name));
         }
@@ -418,7 +418,11 @@ impl Builder<'_> {
         let snippets = self.snippet_props(children, snippet_props)?;
         let properties = self.finish_list(start);
         let properties = self.tree.push(Node::Object { properties });
-        let (call, named) = if let Some(component) = component {
+        let (call, named) = if is_component {
+            let component = match component {
+                Some(component) => self.expression_source(component, None),
+                None => self.tree.push(Node::AnyComponent),
+            };
             self.component_call(
                 component,
                 properties,

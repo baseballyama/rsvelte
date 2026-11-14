@@ -140,11 +140,22 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
 
 #[test]
 fn unsupported_semantics_are_reported_at_the_original_construct() {
-    let source = "<script lang=\"ts\">let a = 1;</script>{#if a}<svelte:self />{/if}";
+    let source = "<script lang=\"ts\">import C from './C.svelte';</script><C transition:fade />";
     let component = parse(source).expect("valid Svelte source");
     let error = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
-        .expect_err("a recursive component needs its own type semantics");
-    assert_eq!(error.span().text(source), "svelte:self");
+        .expect_err("a transition on a component has no type semantics yet");
+    assert_eq!(error.span().text(source), "transition:fade");
+}
+
+#[test]
+fn svelte_self_renders_a_component_whose_props_are_not_checked() {
+    let source = "<script lang=\"ts\">let a = 1;</script>{#if a}<svelte:self b={a} />{/if}";
+    let (_, output) = project(source);
+    assert!(
+        output
+            .out
+            .contains("__rsvelte_component(__rsvelte_any_component)(__rsvelte_internals(), {")
+    );
 }
 
 #[test]

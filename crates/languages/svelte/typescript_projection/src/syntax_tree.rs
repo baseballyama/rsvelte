@@ -67,6 +67,8 @@ pub enum Node {
     Expression(SourceExpression),
     Statement(NodeIdentifier),
     Identifier(&'static str),
+    /// The component `<svelte:self>` renders, whose props svelte2tsx does not check.
+    AnyComponent,
     StringLiteral(&'static str),
     /// A generated string whose findings fall on the empty range at `at`.
     StringLiteralAt {

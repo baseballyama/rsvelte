@@ -99,6 +99,7 @@ impl Printer<'_> {
                 self.output.push(";\n");
             }
             Node::Identifier(name) => self.output.push(name),
+            Node::AnyComponent => self.output.push("__rsvelte_any_component"),
             Node::StringLiteralAt { value, at } => {
                 let start = self.output.out.len() as u32;
                 self.node_string_literal(value);

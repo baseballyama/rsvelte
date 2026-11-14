@@ -1,4 +1,4 @@
-# svelte.check/default: 34701 match
+# svelte.check/default: 34703 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/lib/components/roles/default.svelte	mismatch
@@ -66,7 +66,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/component-props-completion-rune.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent2.svelte	mismatch
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/svelte-self-forward-event/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-4.v5/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-5.v5/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-type-assertion/input.svelte	mismatch
@@ -291,7 +290,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/type_only_reexp
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_runes_reference_3260/a_shadowed_rune_name_stays_a_store_subscription/d5f6e059e85fa828.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slot_value0_rule/degenerate_slot_names_stay_on_the_default_fallback/0cfb2b8120add6c6.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_snippet_props_order_3461/moved_generic_props_type_precedes_instance_hoisted_snippet/187b783aab73dcd5.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_start_tag_opener_segments_4385/cell5_svelte_self_opener_keeps_its_expression/49f3777960838430.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/0747857e339aa28c.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/7e2ac6445c7a4503.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/f9eb825ab25210d3.svelte	mismatch
