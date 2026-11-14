@@ -18,7 +18,7 @@ use rsvelte_kernel::source::document::Document;
 
 mod acorn_grammar;
 mod builder;
-pub use builder::{Builder, Recorded};
+pub use builder::{Builder, Recorded, Rejected};
 mod syntax_error;
 pub use syntax_error::{
     Acorn, Locator, SyntaxError, analysis_error, syntax_error, typescript_eslint_error,

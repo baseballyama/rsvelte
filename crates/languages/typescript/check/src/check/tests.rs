@@ -81,3 +81,35 @@ fn identify_says_what_to_change() {
         Ok("tsrs 0.21.0".to_owned())
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn a_project_is_the_files_the_checker_shows_outside_node_modules() {
+    let project = std::env::temp_dir().join(format!("rsvelte-project-test-{}", std::process::id()));
+    std::fs::create_dir_all(&project).unwrap();
+    let project = std::fs::canonicalize(&project).unwrap();
+    let config = project.join("tsconfig.json");
+    std::fs::write(&config, "{}").unwrap();
+    // The checker sees the mapped extension and the mapper's package, then shows the files.
+    let script = format!(
+        r#"[ "$1 $3 $4" = "-p --showConfig --runExternalCode" ] || exit 1
+grep -q '"extensions":\[".svelte"\]' "$2" || exit 2
+grep -q '"extends":"{config}"' "$2" || exit 3
+[ -f node_modules/rsvelte-project-mapper-0/package.json ] || exit 4
+printf '{{"files":["{p}/src/A.svelte","{p}/node_modules/pkg/B.svelte","{p}/src/c/../C.ts"]}}'"#,
+        config = config.display(),
+        p = project.display()
+    );
+    let mut tsc = shell(&script, &[]);
+    tsc.tsconfig = Some(config);
+    let languages = [MappedLanguage {
+        extension: ".svelte",
+        content_mapper: "/bin/true".into(),
+    }];
+    let files = tsc.project_files(&languages);
+    drop(std::fs::remove_dir_all(&project));
+    assert_eq!(
+        files.unwrap(),
+        [project.join("src/A.svelte"), project.join("src/C.ts")]
+    );
+}

@@ -41,3 +41,29 @@ fn chains_flatten_two_spaces_per_level() {
     );
     assert_eq!(d.flattened_message(), "a\n  b\n    c\n  d");
 }
+
+#[test]
+fn a_project_is_named_by_its_handle_or_else_its_id() {
+    let beta: ProjectResponse =
+        serde_json::from_str(r#"{"id": "/p/tsconfig.json", "configFileName": "/p/tsconfig.json"}"#)
+            .unwrap();
+    assert_eq!(
+        (beta.handle, beta.id.as_deref()),
+        (None, Some("/p/tsconfig.json"))
+    );
+    let later: ProjectResponse =
+        serde_json::from_str(r#"{"handle": 1, "configFileName": "/p/tsconfig.json"}"#).unwrap();
+    assert_eq!(later.handle, Some(1));
+}
+
+#[test]
+fn relative_path_targets_start_from_the_paths_base() {
+    let parsed: ParsedCommandLine = serde_json::from_str(
+        r#"{"options": {"paths": {"$lib/*": ["./src/lib/*"]}, "pathsBasePath": "/p"}}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        parsed.options.absolute_paths(),
+        [("$lib/*".to_owned(), vec![PathBuf::from("/p/./src/lib/*")])]
+    );
+}

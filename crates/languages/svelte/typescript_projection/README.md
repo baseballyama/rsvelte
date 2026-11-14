@@ -39,7 +39,8 @@ per-thread pool.
 
 A consumer that checks the emitted TypeScript includes `DECLARATIONS` and the Svelte package
 types. The standalone `rsvelte-svelte-content-mapper` executable gives native TypeScript 7.1
-the same AST lowering. It parses each transform input once and emits UTF-8 span mappings.
+the same AST lowering. It parses each transform input once and emits UTF-8 span mappings. Given a
+check's `projections` store, it serves the stored projections and projects only the rest.
 
 1. Install the executable with `cargo install --path crates/languages/svelte/typescript_projection`.
 2. Add the package in `content_mapper/package.json` to `node_modules`.

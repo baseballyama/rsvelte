@@ -215,3 +215,41 @@ fn named_tasks_and_document_task_commands_need_no_type_checker() {
         );
     }
 }
+
+#[test]
+fn several_files_run_together_and_each_output_names_its_file() {
+    let scratch = component("several-files");
+    std::fs::write(scratch.0.join("Other.svelte"), "<p>{</p>").expect("input");
+    let output = rsvelte_in(
+        &scratch,
+        &[
+            "run",
+            "App.svelte/input.svelte",
+            "Other.svelte",
+            "--task",
+            "svelte.compile/client",
+        ],
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(output.status.code(), Some(1), "{stdout}{}", stderr(&output));
+    assert!(
+        stdout.contains("// App.svelte/input.svelte svelte.compile/client "),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("// Other.svelte svelte.compile/client diagnostics"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn check_runs_the_project_check_and_so_needs_a_type_checker() {
+    let scratch = component("project-check");
+    let output = rsvelte_in(&scratch, &["check"]);
+    let stderr = stderr(&output);
+    assert_eq!(output.status.code(), Some(2), "{stderr}");
+    assert!(
+        stderr.contains("ts.check/default") && stderr.contains("type checker"),
+        "{stderr}"
+    );
+}

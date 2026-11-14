@@ -54,6 +54,7 @@ jobs:
       - run: cargo clippy --offline --workspace --all-targets
       - run: cargo clippy --offline --workspace --all-targets --all-features
       - run: cargo doc --offline --workspace --no-deps --all-features
+      - run: cargo check --locked --offline --manifest-path tools/performance/workloads/svelte-lint/Cargo.toml --all-features
 
   rust-test:
     runs-on: ubuntu-24.04

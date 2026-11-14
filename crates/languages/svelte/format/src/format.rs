@@ -15,7 +15,9 @@
 use std::borrow::Cow;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{Class, ClassElement, PrivateIdentifier, Program};
+use oxc_ast::ast::{
+    Class, ClassElement, PrivateIdentifier, Program, WithClause, WithClauseKeyword,
+};
 use oxc_ast_visit::{Visit, walk};
 use oxc_formatter::{BracketSameLine, JsFormatOptions, QuoteStyle};
 use oxc_formatter_core::{CoreFormatOptions, IndentStyle, IndentWidth, LineEnding, LineWidth};
@@ -97,7 +99,7 @@ pub(crate) fn format(
             Some(rejected) => Some(unparsed_script(c, source_text, rejected).ok_or_else(|| {
                 Unsupported::at("code a module rejects", rejected.diagnostic.span)
             })?),
-            None => overriding_script(c, source_text),
+            None => overriding_script(c, source_text).or_else(|| assertion_script(c, source_text)),
         };
 
     let core = core_options(options)?;
@@ -251,12 +253,24 @@ fn javascript_options(options: &Options, core: CoreFormatOptions) -> JsFormatOpt
 /// The plugin's `langTsRegex` (`/\slang=["']?ts["']?/`) on a `<script>` tag: its value starts
 /// with `ts`.
 fn is_typescript(c: &Component, source_text: &str) -> bool {
-    c.module.iter().chain(&c.instance).any(|s| {
-        s.attributes.iter().any(|&(name, value)| {
-            name.text(source_text) == "lang"
-                && value.is_some_and(|v| v.text(source_text).starts_with("ts"))
-        })
-    })
+    (c.module.iter().chain(&c.instance)).any(|script| in_typescript(script, source_text))
+}
+
+/// The body of the JavaScript script whose tree holds an `assert { … }` import attribute clause,
+/// which `babel-ts` throws on, so the plugin keeps that body as it is.
+fn assertion_script(c: &Component, source_text: &str) -> Option<Span> {
+    struct Find(bool);
+    impl<'a> Visit<'a> for Find {
+        fn visit_with_clause(&mut self, it: &WithClause<'a>) {
+            self.0 |= it.keyword == WithClauseKeyword::Assert;
+        }
+    }
+    let script = (c.module.iter().chain(&c.instance)).find(|script| {
+        let mut find = Find(false);
+        find.visit_program(c.javascript.get_program(script.program));
+        find.0 && !in_typescript(script, source_text)
+    })?;
+    Some(script.content)
 }
 
 /// The body of the JavaScript script holding `rejected`, an error Babel does not recover from
