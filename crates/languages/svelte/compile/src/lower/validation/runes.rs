@@ -17,11 +17,13 @@ use crate::lower::{CompileInput, Diagnostic, Resolution, Span, Target, span_of};
 
 mod assignments;
 mod calls;
+mod errors;
 mod exports;
 mod places;
 mod references;
 
 use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
+pub(in crate::lower) use errors::{script_and_template_errors, script_error};
 use places::place_of;
 
 use super::state_invalid_placement;
@@ -146,8 +148,12 @@ pub(in crate::lower) fn check_runes(
     target: Target,
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
+    walk_template(input, walk_scripts(input, res, target, custom_element))
+}
+
+/// Continues `walk` over the template's expressions and declarations, in document order.
+fn walk_template<'a>(input: &CompileInput<'a>, mut walk: RuneWalk<'a>) -> Result<(), Diagnostic> {
     let javascript = input.component.javascript;
-    let mut walk = walk_scripts(input, res, target, custom_element);
     // Upstream checks a binding's target where it visits the directive, before the expression.
     let tree = input.component.compiler_syntax_tree;
     let binds: FxHashMap<ExpressionIdentifier, (Span, bool)> = (tree.nodes.iter())
@@ -224,22 +230,6 @@ pub(in crate::lower) fn check_runes(
         (Some(error), _) | (None, Some(error)) => Err(error),
         (None, None) => Ok(()),
     }
-}
-
-/// The first upstream error the scripts raise, which upstream's analysis meets before the
-/// template, and whether the module raises it.
-pub(in crate::lower) fn script_error(
-    input: &CompileInput<'_>,
-    res: &Resolution,
-    custom_element: bool,
-) -> Option<(bool, Diagnostic)> {
-    let walk = walk_scripts(input, res, Target::Client, custom_element);
-    let error = walk.error.filter(|error| error.code != "unsupported")?;
-    let module = input.component.module.is_some_and(|module| {
-        let span = input.component.javascript.get_program(module).span;
-        (span.start..span.end).contains(&error.span.start_offset)
-    });
-    Some((module, error))
 }
 
 /// A walk over the module script, then the instance's.

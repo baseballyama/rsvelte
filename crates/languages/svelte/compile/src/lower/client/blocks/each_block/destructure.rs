@@ -42,6 +42,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                 context: self,
                 declarations,
             },
+            reserved: Vec::new(),
         };
         walker.extract(pattern, item, false, &mut paths);
         for path in paths {

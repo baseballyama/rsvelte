@@ -100,6 +100,35 @@ fn a_pattern_records_its_own_tokens_only() {
 }
 
 #[test]
+fn a_snippet_parameter_counts_its_parentheses_and_keeps_none() {
+    let source = "{#snippet f(a = ((1)), b = (c).d, e = f)}";
+    let (tree, parameters) = Tree::build(source, |builder| {
+        Ok(builder.parameters(Span::new(12, 39), SourceType::mjs())?)
+    })
+    .expect("parses");
+    let parameters = tree.get_parameters(parameters);
+    let default = |i: usize| {
+        parameters.items[i]
+            .initializer
+            .as_deref()
+            .expect("a default")
+    };
+    let at = |span: oxc_span::Span| &source[span.start as usize..span.end as usize];
+    assert!(matches!(
+        default(0),
+        oxc_ast::ast::Expression::NumericLiteral(_)
+    ));
+    assert_eq!(tree.parentheses(default(0).span()), 2);
+    let oxc_ast::ast::Expression::StaticMemberExpression(member) = default(1) else {
+        panic!("a member");
+    };
+    assert_eq!(at(member.object.span()), "c");
+    assert_eq!(tree.parentheses(member.object.span()), 1);
+    assert_eq!(tree.parentheses(default(1).span()), 0);
+    assert_eq!(tree.parentheses(default(2).span()), 0);
+}
+
+#[test]
 fn snippet_parameters_parse_in_place() {
     let source = "{#snippet f(a, b = 1, ...rest)}";
     let (tree, parameters) = Tree::build(source, |builder| {

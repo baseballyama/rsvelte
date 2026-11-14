@@ -36,6 +36,19 @@ pub(crate) fn string_value(value: JSStr<'_>) -> Cow<'_, str> {
 
 /// Upstream's `is_simple_expression`, on the expression with its types erased.
 pub(crate) fn is_simple_expression(e: &Expression<'_>) -> bool {
+    is_simple_expression_in(e, &|_| false)
+}
+
+/// [`is_simple_expression`] where `parenthesized` tells the nodes upstream keeps in parentheses,
+/// which are never simple.
+pub(crate) fn is_simple_expression_in(
+    e: &Expression<'_>,
+    parenthesized: &dyn Fn(&Expression<'_>) -> bool,
+) -> bool {
+    let simple = |e| is_simple_expression_in(e, parenthesized);
+    if parenthesized(e) {
+        return false;
+    }
     match e.get_inner_expression() {
         Expression::StringLiteral(_)
         | Expression::RegExpLiteral(_)
@@ -47,16 +60,10 @@ pub(crate) fn is_simple_expression(e: &Expression<'_>) -> bool {
         | Expression::ArrowFunctionExpression(_)
         | Expression::FunctionExpression(_) => true,
         Expression::ConditionalExpression(c) => {
-            is_simple_expression(&c.test)
-                && is_simple_expression(&c.consequent)
-                && is_simple_expression(&c.alternate)
+            simple(&c.test) && simple(&c.consequent) && simple(&c.alternate)
         }
-        Expression::BinaryExpression(b) => {
-            is_simple_expression(&b.left) && is_simple_expression(&b.right)
-        }
-        Expression::LogicalExpression(l) => {
-            is_simple_expression(&l.left) && is_simple_expression(&l.right)
-        }
+        Expression::BinaryExpression(b) => simple(&b.left) && simple(&b.right),
+        Expression::LogicalExpression(l) => simple(&l.left) && simple(&l.right),
         _ => false,
     }
 }

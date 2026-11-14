@@ -28,6 +28,8 @@ pub(super) struct MetadataWalker<'r, 'walk, const COLLECT_METADATA: bool> {
     /// The calls that end an optional chain, by address: upstream's `ChainExpression` names no
     /// rune.
     chain_calls: FxHashSet<usize>,
+    /// The tree whose snippet parameters keep upstream's parentheses, while walking them.
+    parentheses: Option<&'r rsvelte_typescript_tree::Tree>,
 }
 
 fn address<T>(node: &T) -> usize {
@@ -45,6 +47,30 @@ impl<'r, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'r, 'walk, COLLECT_
             function_depth: 0,
             pure_calls: FxHashMap::with_hasher(FxBuildHasher),
             chain_calls: FxHashSet::with_hasher(FxBuildHasher),
+            parentheses: None,
+        }
+    }
+
+    /// Walks a snippet's parameters, where upstream's parser keeps the parentheses.
+    pub(super) fn with_parentheses(mut self, tree: &'r rsvelte_typescript_tree::Tree) -> Self {
+        self.parentheses = tree.has_parentheses().then_some(tree);
+        self
+    }
+
+    /// Whether `e` or an object of its member chain stands in parentheses, which upstream's
+    /// `is_safe_identifier` stops at.
+    fn parenthesized(&self, mut e: &Expression<'_>) -> bool {
+        let Some(tree) = self.parentheses else {
+            return false;
+        };
+        loop {
+            if tree.parentheses(oxc_span::GetSpan::span(e)) > 0 {
+                return true;
+            }
+            match e.as_member_expression() {
+                Some(member) => e = member.object(),
+                None => return false,
+            }
         }
     }
 
@@ -69,6 +95,9 @@ impl<'r, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'r, 'walk, COLLECT_
     /// Judges a member whose object is not itself a member: every link of a chain `a.b.c…` shares
     /// its root, so only the innermost one is judged.
     fn member(&mut self, object: &Expression<'_>) {
+        if self.parenthesized(object) {
+            self.needs_context = true;
+        }
         if without_typescript(object).is_member_expression() {
             return;
         }
@@ -167,12 +196,12 @@ impl<'r, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'r, 'walk, COLLECT_
 
     /// Upstream `is_safe_identifier` of a member whose object is `object`.
     fn is_safe_member(&self, object: &Expression<'_>) -> bool {
-        root(object).is_some_and(|root| self.is_safe_root(root))
+        !self.parenthesized(object) && root(object).is_some_and(|root| self.is_safe_root(root))
     }
 
     /// Upstream `is_safe_identifier`.
     fn is_safe(&self, e: &Expression<'_>) -> bool {
-        root(e).is_some_and(|root| self.is_safe_root(root))
+        !self.parenthesized(e) && root(e).is_some_and(|root| self.is_safe_root(root))
     }
 
     fn is_safe_root(&self, root: &IdentifierReference<'_>) -> bool {
