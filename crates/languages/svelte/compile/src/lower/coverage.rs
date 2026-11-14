@@ -3,7 +3,7 @@
 
 use oxc_ast::ast::Expression;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    CompilerNodeIdentifier, ElementKind, MetadataTag, StyleValue,
+    CompilerNodeIdentifier, ElementKind, MetadataTag, Name, StyleValue,
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
@@ -11,7 +11,7 @@ use super::bindings::{Lowering, attribute_value, property_of};
 use super::javascript::member_root;
 use super::{
     Attribute, AttributeValue, BindingKind, CompileInput, CompilerSyntaxTree, Diagnostic, Element,
-    NodeKind, Resolution, unsupported,
+    NodeKind, Resolution, Target, unsupported,
 };
 
 pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
@@ -79,6 +79,31 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
     Ok(())
 }
 
+/// What one target does not lower. Upstream's client throws at a `let:` on an element that is
+/// not regular, a `<slot>` or `<svelte:fragment>`; its server ignores it.
+pub(super) fn check_for(input: &CompileInput<'_>, target: Target) -> Result<(), Diagnostic> {
+    if target == Target::Server {
+        return Ok(());
+    }
+    let tree = input.component.compiler_syntax_tree;
+    for node in &tree.nodes {
+        if let NodeKind::Element(el) = &node.kind
+            && !el.kind.renders_component()
+            && !matches!(
+                el.kind,
+                ElementKind::Regular
+                    | ElementKind::Slot
+                    | ElementKind::Metadata(Some(MetadataTag::Fragment))
+            )
+            && let Some(a) = (tree.attributes(el.attributes).iter())
+                .find(|a| matches!(a.value, AttributeValue::Let(_)))
+        {
+            return unsupported("a `let:` directive", a.span);
+        }
+    }
+    Ok(())
+}
+
 /// Whether `at` is in a component's content, which takes slot props, with no snippet between.
 fn in_component_content(tree: &CompilerSyntaxTree, mut at: Option<CompilerNodeIdentifier>) -> bool {
     while let Some(identifier) = at {
@@ -126,18 +151,6 @@ fn check_element(
             }
             AttributeValue::Style { .. } if matches!(&a.value, AttributeValue::Style { value, .. } if matches!(**value, StyleValue::Empty)) => {
                 "a `style:` directive without a value"
-            }
-            // Upstream's `<svelte:element>` passes its own on, which is not lowered.
-            AttributeValue::Let(_)
-                if !component
-                    && !matches!(
-                        el.kind,
-                        ElementKind::Regular
-                            | ElementKind::Slot
-                            | ElementKind::Metadata(Some(MetadataTag::Fragment))
-                    ) =>
-            {
-                "a `let:` directive"
             }
             AttributeValue::Let(_) => continue,
             _ if !component => continue,
@@ -245,6 +258,8 @@ fn check_element_binding(
     let beside = attributes.iter().any(|o| {
         !std::ptr::eq(o, a)
             && match o.name.text(source_text) {
+                // A `<textarea>`'s moved content, which a binding renders after.
+                "value" if tag == "textarea" && matches!(o.name, Name::Spelled { .. }) => false,
                 "value" if !super::is_directive(&o.value) => {
                     !keeps_value || matches!(o.value, AttributeValue::Interpolated(_))
                 }

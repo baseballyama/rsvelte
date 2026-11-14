@@ -1,7 +1,12 @@
 //! Compile artifacts cached within a document.
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
 use rsvelte_svelte_semantic::{Analyzed, component_input};
+
+use crate::lower::CompileErrors;
 
 #[derive(Debug)]
 pub struct Planned;
@@ -63,7 +68,7 @@ impl Artifact for ScopedStylesheet {
 pub struct Identified;
 
 impl Artifact for Identified {
-    type Output = Result<crate::OutputIdentity, rsvelte_kernel::diagnostics::Diagnostic>;
+    type Output = Result<crate::OutputIdentity, Diagnostic>;
 
     const NAME: &'static str = "svelte.output_identity";
 
@@ -78,7 +83,7 @@ impl Artifact for Identified {
             .facet::<CompileConfiguration>()
             .map_or(&default, |value| value.as_ref());
         crate::OutputIdentity::build_with_configuration(&input, configuration).map_err(|error| {
-            rsvelte_kernel::diagnostics::Diagnostic::error(
+            Diagnostic::error(
                 "svelte.compile.css-hash",
                 error.to_string(),
                 rsvelte_kernel::source::positions::Span::new(0, 0),
@@ -100,7 +105,7 @@ impl Facet for CompileConfiguration {
 pub(crate) struct Validated;
 
 impl Artifact for Validated {
-    type Output = Result<crate::lower::ValidatedOptions, rsvelte_kernel::diagnostics::Diagnostic>;
+    type Output = Result<crate::lower::ValidatedOptions, Diagnostic>;
 
     const NAME: &'static str = "svelte.validate";
 
@@ -112,4 +117,53 @@ impl Artifact for Validated {
             .expect("a parsed component is resolved");
         crate::lower::validate(&input.into(), res)
     }
+}
+
+/// The errors `compile` raises for the component that this port knows, without what it does not
+/// lower yet; `runes` adds those upstream raises only in runes mode, ahead of the analysis's.
+#[must_use]
+pub fn compile_errors(context: &DocumentContext<'_>, runes: bool) -> CompileErrors {
+    if runes {
+        match context.get::<Validated>() {
+            Ok(_) => return CompileErrors::default(),
+            Err(error) if error.code != UNSUPPORTED && !GENERATED.contains(&&*error.code) => {
+                let raised = Raised {
+                    phase: Phase::Parse,
+                    section: Section::Template,
+                    at: 0,
+                };
+                return CompileErrors {
+                    raised: vec![(raised, error.clone())],
+                    after_analysis: None,
+                };
+            }
+            // The checks after it still run.
+            Err(_) => {}
+        }
+    }
+    let Some(input) = component_input(context) else {
+        return CompileErrors::default();
+    };
+    let Some(res) = context.get::<rsvelte_svelte_semantic::Resolved>().as_ref() else {
+        return CompileErrors::default();
+    };
+    let mut errors = crate::lower::mode_independent_errors(&input.into(), res);
+    errors.raised.retain(|(_, error)| error.code != UNSUPPORTED);
+    errors.after_analysis = errors
+        .after_analysis
+        .filter(|error| error.code != UNSUPPORTED);
+    errors
+}
+
+/// The code of what this port refuses, which upstream compiles.
+const UNSUPPORTED: &str = "unsupported";
+
+/// The errors of [`Validated`] that upstream raises as it generates code, which
+/// `generate: false` skips.
+const GENERATED: &[&str] = &["const_tag_invalid_reference"];
+
+/// Registers what [`compile_errors`] reads.
+pub fn register_validation(registry: &mut Registry) {
+    rsvelte_svelte_semantic::register(registry);
+    registry.artifact::<Validated>();
 }

@@ -363,3 +363,28 @@ fn analysis_errors_that_silence_every_warning() {
         assert_eq!(first_error(code), expected, "{code}");
     }
 }
+
+#[test]
+fn a_template_error_of_the_compiler_in_legacy_mode() {
+    assert_eq!(
+        first_error("<script>\n  export let x;\n</script>\n<p><svelte:self /></p>{x}\n"),
+        [("svelte_self_invalid_placement".to_owned(), 4, 3)]
+    );
+}
+
+#[test]
+fn what_the_port_does_not_compile_is_no_error() {
+    assert_eq!(
+        first_error("<svelte:options runes={false} />\n<p>x</p>\n"),
+        []
+    );
+}
+
+#[test]
+fn an_error_raised_only_while_generating_code_is_no_error() {
+    let code = concat!(
+        "<svelte:options runes />\n<C>\n  {@const foo = 1}\n",
+        "  {#snippet p()}{foo}{/snippet}\n</C>\n",
+    );
+    assert_eq!(first_error(code), []);
+}

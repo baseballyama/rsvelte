@@ -28859,6 +28859,10 @@ Rule: "no-unused-vars"
 7:1 7:71 svelte/button-has-type "Missing an explicit type attribute for button."
 7:1 7:80 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
 
+=== 162 pattern/issues/textarea-bind-moved-content.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
 === 489 pattern/issues/title-memo-definedness.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:11 svelte/prefer-const "'value' is never reassigned. Use 'const' instead."
