@@ -155,11 +155,24 @@ pub(crate) fn acorn(
     tokens: &[Token],
     visit: impl FnOnce(&mut Locator),
 ) -> Option<Acorn> {
-    if error.code.scope.as_deref() != Some("TS") {
-        return None;
-    }
     let label = error.labels.first()?;
     let (start, end) = (label.offset(), label.offset() + label.len());
+    let kind_at = |at: u32| {
+        let token = tokens.get(tokens.partition_point(|token| token.start() < at))?;
+        (token.start() == at).then(|| token.kind())
+    };
+    // A script is a module, so acorn reads every reserved word in a binding as an error of its own.
+    let reserved = |at: u32| {
+        let kind = kind_at(at)?;
+        (kind == Kind::Enum || kind.is_future_reserved_keyword()).then(|| Acorn::Fails {
+            message: Cow::Owned(format!("The keyword '{}' is reserved", kind.to_str())),
+            at,
+        })
+    };
+    if error.code.scope.as_deref() != Some("TS") {
+        // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
+        return reserved(start).filter(|_| kind_at(start) == Some(Kind::Enum));
+    }
     let token = |after: u32, kind: Option<Kind>| {
         tokens
             .iter()
@@ -185,6 +198,8 @@ pub(crate) fn acorn(
         "8009" if text.get(start as usize..end as usize) == Some("?") => {
             Some(fails("Unexpected token", start))
         }
+        // A parameter's modifier is a binding to acorn, so a reserved one fails where it starts.
+        "8012" if reserved(start).is_some() => reserved(start),
         // A modifier: acorn reads it as the member's name and fails at the token after it.
         "8009" | "8012" => Some(fails("Unexpected token", token(end, None)?)),
         // A second modifier: acorn reads the first as the name and fails at this one. A numeric
