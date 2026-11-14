@@ -5,18 +5,17 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Contribution;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_lint_runner::rule::Reporter;
+use rsvelte_svelte_semantic::Warned;
 use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_semantic::warnings::CompileWarnings;
-use rsvelte_svelte_semantic::{Lowered, Resolved, Warned};
-use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_semantic::globals::Declared;
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree};
 
 use crate::computation::{
-    ConditionTypes, ModuleSemantic, NativeConditionTypes, SvelteConfiguration, SvelteKit,
+    ConditionTypes, Linted, ModuleSemantic, NativeConditionTypes, SvelteConfiguration, SvelteKit,
 };
 use crate::project::SvelteKitProject;
 use crate::types::TypeFacts;
@@ -75,12 +74,13 @@ pub struct File<'a> {
 
 #[derive(Debug)]
 enum Source<'a> {
-    Component(&'a Component),
+    Component(Linted<'a>),
     Module(&'a Script),
 }
 
 impl<'a> File<'a> {
-    /// A parsed component or module.
+    /// A parsed component or module. A component whose script the compiler rejects is read as
+    /// TypeScript, as `svelte-eslint-parser` reads it.
     ///
     /// # Errors
     ///
@@ -90,7 +90,7 @@ impl<'a> File<'a> {
         globals: &'a Declared,
     ) -> Result<Self, Diagnostic> {
         let parsed = if rsvelte_svelte_syntax::matches(context.document) {
-            Source::Component(context.get::<Parsed>().as_ref().map_err(Clone::clone)?)
+            Source::Component(Linted::of(context).map_err(Clone::clone)?)
         } else {
             Source::Module(
                 context
@@ -140,7 +140,7 @@ impl<'a> File<'a> {
     #[must_use]
     pub const fn component(&self) -> Option<&'a Component> {
         match self.parsed {
-            Source::Component(component) => Some(component),
+            Source::Component(linted) => Some(linted.component),
             Source::Module(_) => None,
         }
     }
@@ -157,22 +157,35 @@ impl<'a> File<'a> {
     /// The component's compiler tree; `None` for a module.
     #[must_use]
     pub fn normalized(&self) -> Option<&'a CompilerSyntaxTree> {
-        self.component()?;
-        self.context.get::<Lowered>().as_ref()
+        match self.parsed {
+            Source::Component(linted) => Some(linted.lowered()),
+            Source::Module(_) => None,
+        }
     }
 
-    /// The compiler's warnings and analysis errors of the component; `None` for a module.
+    /// The compiler's warnings and analysis errors of the component, or the error it stops at
+    /// while it parses the component; `None` for a module.
     #[must_use]
-    pub fn compile_warnings(&self) -> Option<&'a CompileWarnings> {
+    pub fn compile_warnings(&self) -> Option<Result<&'a CompileWarnings, &'a Diagnostic>> {
         self.component()?;
-        self.context.get::<Warned>().as_ref()
+        // The compiler reads its own tree, not the one the rules read.
+        self.context.get::<Warned>().as_ref().map_or_else(
+            || {
+                (self.context.get::<rsvelte_svelte_syntax::Parsed>().as_ref())
+                    .err()
+                    .map(Err)
+            },
+            |warnings| Some(Ok(warnings)),
+        )
     }
 
     /// The component's resolution: scopes with the template's bindings; `None` for a module.
     #[must_use]
     pub fn resolution(&self) -> Option<&'a Resolution> {
-        self.component()?;
-        self.context.get::<Resolved>().as_ref()
+        match self.parsed {
+            Source::Component(linted) => Some(linted.resolution()),
+            Source::Module(_) => None,
+        }
     }
 
     /// The JavaScript of the document: a component's scripts and template expressions, or a
@@ -180,7 +193,7 @@ impl<'a> File<'a> {
     #[must_use]
     pub const fn javascript(&self) -> &'a Tree {
         match self.parsed {
-            Source::Component(component) => &component.javascript,
+            Source::Component(linted) => &linted.component.javascript,
             Source::Module(module) => &module.tree,
         }
     }
@@ -190,7 +203,7 @@ impl<'a> File<'a> {
     #[must_use]
     pub fn programs(&self) -> Vec<ProgramIdentifier> {
         match self.parsed {
-            Source::Component(component) => {
+            Source::Component(Linted { component, .. }) => {
                 let mut scripts: Vec<_> =
                     component.module.iter().chain(&component.instance).collect();
                 scripts.sort_by_key(|script| script.span.start_offset);

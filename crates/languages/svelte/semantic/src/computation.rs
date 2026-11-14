@@ -19,13 +19,22 @@ impl Artifact for Resolved {
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let c = context.get::<Parsed>().as_ref().ok()?;
         let compiler_syntax_tree = context.get::<Lowered>().as_ref()?;
-        Some(resolve::resolve(
-            &c.javascript,
-            c.instance.as_ref().map(|s| s.program),
-            c.module.as_ref().map(|s| s.program),
-            compiler_syntax_tree,
-        ))
+        Some(resolve_component(c, compiler_syntax_tree))
     }
+}
+
+/// [`Resolved`] of a component read another way, whose template `compiler_syntax_tree` lowers.
+#[must_use]
+pub fn resolve_component(
+    c: &syntax_tree::Component,
+    compiler_syntax_tree: &compiler_syntax_tree::CompilerSyntaxTree,
+) -> resolve::Resolution {
+    resolve::resolve(
+        &c.javascript,
+        c.instance.as_ref().map(|s| s.program),
+        c.module.as_ref().map(|s| s.program),
+        compiler_syntax_tree,
+    )
 }
 
 #[derive(Debug)]

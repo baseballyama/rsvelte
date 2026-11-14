@@ -10,8 +10,8 @@ use rsvelte_kernel::source::positions::LineBreaks;
 
 use crate::Configuration;
 use crate::computation::{
-    ConditionTypes, LegacyReactivity, LintConfiguration, ModuleSemantic, NativeConditionTypes,
-    PostcssConfigurationOnDisk, SameNamedFileOnDisk,
+    ConditionTypes, LegacyReactivity, LintConfiguration, LoweredAsTypeScript, ModuleSemantic,
+    NativeConditionTypes, PostcssConfigurationOnDisk, ResolvedAsTypeScript, SameNamedFileOnDisk,
 };
 use crate::rules::style_attribute::InlineStyles;
 use crate::rules::style_sheet::StyleSheetVerdict;
@@ -47,6 +47,8 @@ pub fn register_artifacts(registry: &mut Registry) {
         .artifact::<ModuleSemantic>()
         .artifact::<InlineStyles>()
         .artifact::<StyleSheetVerdict>()
+        .artifact::<LoweredAsTypeScript>()
+        .artifact::<ResolvedAsTypeScript>()
         .artifact::<NativeConditionTypes>()
         .artifact::<LegacyReactivity>()
         .artifact::<SameNamedFileOnDisk>()
@@ -66,10 +68,10 @@ pub fn register_type_provider(
         rsvelte_svelte_syntax::matches,
         move |context| {
             let facts = provider(context);
-            let Some(resolution) = context.get::<rsvelte_svelte_semantic::Resolved>() else {
+            let Ok(linted) = crate::computation::Linted::of(context) else {
                 return Err("the type provider ran on a component that does not parse".to_owned());
             };
-            let nodes = resolution.semantic().nodes().len();
+            let nodes = linted.resolution().semantic().nodes().len();
             if facts.len() == nodes {
                 Ok(facts)
             } else {

@@ -16,5 +16,5 @@ mod visited;
 mod computation;
 pub use computation::{
     Analyzed, Lowered, PLUGIN, Resolved, Warned, component_input, javascript_error, register,
-    svelte_input,
+    resolve_component, svelte_input,
 };

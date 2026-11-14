@@ -114,3 +114,37 @@ fn a_syntax_error_in_the_template_fails_the_parse() {
         "{twice}"
     );
 }
+
+/// svelte-eslint-parser reads a script the compiler rejects as TypeScript, so the rules see a
+/// generic arrow function while valid-compile reports the compiler's error.
+#[test]
+fn the_rules_read_a_script_the_compiler_rejects_as_typescript() {
+    let mut configuration = Configuration::new(LintSettings::default());
+    for rule in ["svelte/valid-compile", "no-unused-vars"] {
+        configuration
+            .rule(rule, Severity::Error, &[], &[])
+            .expect("a built-in rule");
+    }
+    let mut registry = Registry::new();
+    register_with_configuration(&mut registry, configuration);
+    let document = Document::new(
+        "App.svelte".to_owned(),
+        "<script>const y = <string>() => 1;</script><p>{y}</p>".to_owned(),
+    )
+    .expect("a small document");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let mut out = TaskOutput::default();
+    Lint { modules: false }.run(&context, &mut out);
+    let json: serde_json::Value =
+        serde_json::from_str(&out.files[0].text).expect("the report is JSON");
+    let findings: Vec<_> = (json["findings"].as_array().expect("findings").iter())
+        .map(|f| (f["rule"].as_str(), f["start"]["column"].as_u64()))
+        .collect();
+    assert_eq!(
+        findings,
+        [
+            (Some("svelte/valid-compile"), Some(19)),
+            (Some("no-unused-vars"), Some(20))
+        ]
+    );
+}
