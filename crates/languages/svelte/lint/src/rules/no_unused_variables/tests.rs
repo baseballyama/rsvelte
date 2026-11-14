@@ -15,7 +15,9 @@ fn lint(source_text: &str) -> String {
         .rules()
         .iter()
         .map(crate::ConfiguredRule::name);
-    rsvelte_lint_runner::output::render_json(&LineIndex::new(source_text), rules, &findings)
+    let lines = LineIndex::new(source_text);
+    let positions = rsvelte_lint_runner::output::Positions::new(&lines, source_text);
+    rsvelte_lint_runner::output::render_json(positions, rules, &findings)
 }
 
 fn unused(source_text: &str) -> Vec<String> {

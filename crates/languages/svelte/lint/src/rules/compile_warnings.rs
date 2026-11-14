@@ -9,8 +9,10 @@ use rsvelte_svelte_semantic::warnings::{CompileWarnings, code_for_v5};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
 use rsvelte_typescript_tree::ProgramIdentifier;
 
+use crate::computation::{PostcssConfiguration, PostcssConfigurationOnDisk};
 use crate::rule::File;
 use crate::words::{is_javascript_space, words};
+use crate::{LintSettings, settings};
 
 /// One code of a `svelte-ignore` comment.
 #[derive(Debug)]
@@ -142,12 +144,42 @@ pub(super) struct Applied<'a> {
     pub(super) used: Vec<bool>,
 }
 
+/// Whether upstream transforms a style in `postcss`: `settings.svelte.compileOptions.postcss` is
+/// not `false`, and a `PostCSS` configuration is found.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Postcss {
+    allowed: bool,
+}
+
+impl Postcss {
+    pub(super) fn new(settings: &LintSettings) -> Self {
+        let disabled = matches!(
+            settings
+                .compile_options
+                .as_ref()
+                .and_then(|o| o.postcss.as_ref()),
+            Some(settings::Postcss::Disabled(false))
+        );
+        Self { allowed: !disabled }
+    }
+
+    fn transforms(self, file: &File<'_>) -> bool {
+        self.allowed
+            && file
+                .context
+                .facet::<PostcssConfiguration>()
+                .copied()
+                .unwrap_or_else(|| *file.context.get::<PostcssConfigurationOnDisk>())
+    }
+}
+
 /// Upstream's `processIgnore`, over the warnings of a style in CSS only.
 pub(super) fn apply<'a>(
     file: &File<'a>,
     compile: &'a CompileWarnings,
     ignores: &Ignores,
     experimental_async: bool,
+    postcss: Postcss,
 ) -> Applied<'a> {
     let component = file.component().expect("a component");
     let source = file.source();
@@ -155,7 +187,11 @@ pub(super) fn apply<'a>(
     let stripped = component
         .style
         .as_ref()
-        .filter(|style| !is_stylesheet(style.attributes.as_slice(), source))
+        .filter(|style| {
+            !is_stylesheet(style.attributes.as_slice(), source, || {
+                postcss.transforms(file)
+            })
+        })
         .map(|style| style.span);
     // A style sheet that does not parse fails the compile before analysis; a stripped one is
     // never parsed.
@@ -164,7 +200,12 @@ pub(super) fn apply<'a>(
         .filter(|_| stripped.is_none())
         .cloned();
     let first_error = parse_error.or_else(|| {
-        let others = rsvelte_svelte_compile::compile_errors(file.context, compile.runes);
+        let mut others = rsvelte_svelte_compile::compile_errors(file.context, compile.runes);
+        if experimental_async {
+            others
+                .raised
+                .retain(|(_, error)| error.code != "experimental_async");
+        }
         compile
             .first_error_with(component, experimental_async, &others.raised)
             .or(others.after_analysis)
@@ -219,15 +260,19 @@ pub(super) fn apply<'a>(
 }
 
 /// `lang` absent, `css`, or a language upstream transforms to CSS without a preprocessor
-/// package: `postcss`.
-fn is_stylesheet(attributes: &[(Span, Option<Span>)], source: &str) -> bool {
+/// package, `postcss`, when it does. It strips a style in any other language.
+fn is_stylesheet(
+    attributes: &[(Span, Option<Span>)],
+    source: &str,
+    postcss: impl FnOnce() -> bool,
+) -> bool {
     attributes
         .iter()
         .find(|(name, _)| name.text(source) == "lang")
         .and_then(|(_, value)| *value)
         .is_none_or(|value| {
             let lang = value.text(source).to_ascii_lowercase();
-            matches!(lang.as_str(), "css" | "postcss" | "pcss")
+            lang == "css" || (matches!(lang.as_str(), "postcss" | "pcss") && postcss())
         })
 }
 

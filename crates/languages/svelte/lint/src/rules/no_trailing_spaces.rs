@@ -70,7 +70,11 @@ impl SvelteRule for NoTrailingSpaces {
             }
         }
         for (line, ignored) in (1..).zip(ignored) {
-            let span = lines.line_span(line).expect("a line of the document");
+            let mut span = lines.line_span(line).expect("a line of the document");
+            // `ESLint` lints the text after a byte order mark.
+            if line == 1 && source.starts_with('\u{feff}') {
+                span.start_offset += '\u{feff}'.len_utf8() as u32;
+            }
             let text = span.text(source);
             if ignored || (self.0.skip_blank_lines && text.chars().all(is_javascript_whitespace)) {
                 continue;

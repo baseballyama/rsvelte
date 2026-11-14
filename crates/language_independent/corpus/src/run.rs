@@ -368,7 +368,7 @@ impl Conformance {
                     diagnostics: (!out.diagnostics.is_empty())
                         .then(|| task_files::diagnostics_json(&document.text, out)),
                 });
-                compare::verdict(&official, ours.as_ref(), registry.lint_rules(c.task))
+                compare::verdict(&official, ours.as_ref())
                     .map_err(|e| format!("{}: {e}", source.key(&document.path)))?
             };
             if let Some(v) = verdict {

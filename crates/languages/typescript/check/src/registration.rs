@@ -36,6 +36,7 @@ pub fn register(registry: &mut Registry) {
             env: Arc::clone(&env),
             placement: Vec::new(),
             extension: ".ts",
+            imports: Vec::new(),
         })
     });
 }

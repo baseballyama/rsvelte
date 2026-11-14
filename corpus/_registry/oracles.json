@@ -39,6 +39,7 @@
 		"canonicalizer": {
 			"acorn": "8.19.0"
 		},
+		"globals": [],
 		"oracles": {
 			"@typescript-eslint/parser": "8.72.1",
 			"eslint": "10.14.0",

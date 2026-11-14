@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
 
-use super::compile_warnings::{apply, decidable, ignores};
+use super::compile_warnings::{Postcss, apply, decidable, ignores};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -11,11 +11,15 @@ pub(super) static RULE: RuleDefinition = RuleDefinition {
 
 fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
     options.none()?;
-    Ok(Box::new(NoUnusedSvelteIgnore))
+    Ok(Box::new(NoUnusedSvelteIgnore {
+        postcss: Postcss::new(options.settings),
+    }))
 }
 
 #[derive(Debug)]
-struct NoUnusedSvelteIgnore;
+struct NoUnusedSvelteIgnore {
+    postcss: Postcss,
+}
 
 impl SvelteRule for NoUnusedSvelteIgnore {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
@@ -39,7 +43,7 @@ impl SvelteRule for NoUnusedSvelteIgnore {
             Some(Ok(config)) => config.experimental_async,
             None => false,
         };
-        let applied = apply(file, compile, &ignores, experimental_async);
+        let applied = apply(file, compile, &ignores, experimental_async, self.postcss);
         if applied.error.is_some() {
             return;
         }

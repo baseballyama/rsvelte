@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url';
 const version = (installed: string): string =>
 	JSON.parse(readFileSync(path.join(installed, 'package.json'), 'utf8')).version;
 
-// `oracle globals`: vendor the global variables the lint oracle declares, ESLint's builtins and
-// `globals.browser`, from the versions this package installs.
+// `oracle globals`: vendor ESLint's builtins and `globals.browser`, which eslint-plugin-svelte's
+// tests declare, from the versions this package installs.
 export async function main(): Promise<void> {
 	const require = createRequire(path.join(import.meta.dirname, 'package.json'));
 	const root = fileURLToPath(new URL('../../', import.meta.url));

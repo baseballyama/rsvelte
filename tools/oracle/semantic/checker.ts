@@ -22,6 +22,8 @@ export interface Projection {
 	status: 'projected' | 'unsupported' | 'parse-error';
 	code?: string;
 	mappings?: MappingTuple[];
+	/** The extension the checker reads the projection as, as svelte-check reads the component. */
+	extension?: '.ts' | '.js';
 	detail?: string;
 }
 
@@ -149,7 +151,7 @@ export class SemanticChecker {
 		const leftOutput = {
 			source,
 			text: projection.code,
-			extension: '.ts',
+			extension: projection.extension ?? '.ts',
 			mappings: projection.mappings,
 		};
 		const rightOutput = {

@@ -35,9 +35,11 @@ impl Builder<'_> {
         edits: &mut Buffer<Edit>,
     ) -> Result<Option<Generics>> {
         let aliases = DollarGenerics::of(program);
+        // svelte2tsx reads `generics` only in a TypeScript script.
         let attribute = script
             .attributes
             .iter()
+            .filter(|_| script.typescript)
             .find(|(name, _)| name.text(self.source) == "generics");
         let mut exported = true;
         // From after the `<` of the start tag to the value's opening quote.

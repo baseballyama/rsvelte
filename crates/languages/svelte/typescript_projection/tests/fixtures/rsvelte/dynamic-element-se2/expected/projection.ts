@@ -16,6 +16,5 @@ async () => {
     });
   }
 };
-const DynamicElementSe2__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type DynamicElementSe2__SvelteComponent_ = ReturnType<typeof DynamicElementSe2__SvelteComponent_>;
-export default DynamicElementSe2__SvelteComponent_;
+const DynamicElementSe2__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof DynamicElementSe2__SvelteComponent_>} */ (DynamicElementSe2__SvelteComponent_);

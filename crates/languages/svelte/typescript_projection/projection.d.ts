@@ -20,5 +20,9 @@ type __rsvelte_no_props = Record<string, never>;
 type __rsvelte_props_with_children<Props> = Props extends __rsvelte_no_props ? any : Props & { children?: any };
 type __rsvelte_store<T> = { subscribe: (run: (value: T) => any, invalidate?: any) => any };
 type __rsvelte_store_value<Store> = Store extends __rsvelte_store<infer T> ? T : Store;
+// The run declares `untypedJavaScript` where an import of a JavaScript component is untyped.
+interface __rsvelte_check_options {}
+type __rsvelte_javascript_export<T> = __rsvelte_check_options extends { untypedJavaScript: true } ? any : T;
+declare function __rsvelte_store_get<Store>(store: Store): __rsvelte_store_value<Store>;
 declare function __rsvelte_get_set<T>(get: (() => T) | null | undefined, set: (value: T) => void): T;
 declare function __rsvelte_ensure_snippet(value: ReturnType<import('svelte').Snippet> | undefined | null): any;

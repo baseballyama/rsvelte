@@ -24,6 +24,21 @@ export function enabledRules(config: Linter.Config[]): string[] {
 }
 
 /**
+ * The names `config` declares as global variables through `languageOptions.globals`, sorted; a
+ * later entry overrides an earlier one, and `"off"` removes the name. ESLint's builtins are apart.
+ */
+export function declaredGlobals(config: Linter.Config[]): string[] {
+	const globals = new Map<string, unknown>();
+	for (const c of config)
+		for (const [name, value] of Object.entries(c.languageOptions?.globals ?? {}))
+			globals.set(name, value);
+	return [...globals]
+		.filter(([, value]) => value !== 'off')
+		.map(([name]) => name)
+		.toSorted();
+}
+
+/**
  * `lint.txt`, one finding per line in ESLint's order, with ESLint's positions (1-based line and
  * UTF-16 column): `<line>:<column> <end line>:<end column> <rule> <message as a JSON string>`, with
  * `-` for no end and for no rule (a fatal parse error). The rules that ran go to oracles.json.

@@ -5,4 +5,7 @@ pub mod parse;
 pub mod syntax_tree;
 
 mod computation;
-pub use computation::{PLUGIN, Parsed, fully_parsed, matches, register};
+pub use computation::{
+    PLUGIN, Parsed, ParsedAsTypeScript, fully_parsed, matches,
+    parsed_reading_scripts_as_typescript, register,
+};

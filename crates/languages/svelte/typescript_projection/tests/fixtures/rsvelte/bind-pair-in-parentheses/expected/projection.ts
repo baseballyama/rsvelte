@@ -11,6 +11,5 @@ async () => {
     });
   }
 };
-const BindPairInParentheses__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BindPairInParentheses__SvelteComponent_ = ReturnType<typeof BindPairInParentheses__SvelteComponent_>;
-export default BindPairInParentheses__SvelteComponent_;
+const BindPairInParentheses__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindPairInParentheses__SvelteComponent_>} */ (BindPairInParentheses__SvelteComponent_);

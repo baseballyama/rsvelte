@@ -78,6 +78,5 @@ async () => {
     });
   }
 };
-const NamedSlots__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type NamedSlots__SvelteComponent_ = ReturnType<typeof NamedSlots__SvelteComponent_>;
-export default NamedSlots__SvelteComponent_;
+const NamedSlots__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof NamedSlots__SvelteComponent_>} */ (NamedSlots__SvelteComponent_);

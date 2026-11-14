@@ -85,7 +85,7 @@ pub(crate) fn markup_directives(component: &Component, source: &str) -> Vec<Mark
 }
 
 /// `ESLint`'s `/\s-{2,}\s/u`: where a directive's description starts.
-fn justification_start(value: &str) -> Option<usize> {
+pub(crate) fn justification_start(value: &str) -> Option<usize> {
     let bytes = value.as_bytes();
     value.char_indices().find_map(|(i, c)| {
         if !is_javascript_space(c) {

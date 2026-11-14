@@ -91,6 +91,39 @@ fn discovers_json_and_applies_lint_configuration_without_node() {
 }
 
 #[test]
+fn language_options_declare_the_globals_that_rules_track() {
+    let project = Project::new();
+    project.write("Input.svelte", "<script>\n  location.href;\n</script>\n");
+    let lint = |globals: &str| {
+        project.write(
+            "rsvelte.config.json",
+            &format!(
+                r#"{{"plugins": {{"svelte.lint": {{
+                    "rules": {{"svelte/no-top-level-browser-globals": "error"}},
+                    "languageOptions": {{"globals": {globals}}}
+                }}}}}}"#
+            ),
+        );
+        let output = project.run_without_runtime(&["--task", "svelte.lint/default"]);
+        assert!(
+            completed(&output),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).expect("UTF-8")
+    };
+    // As in `ESLint`, a name no configuration declares is not a global the rule tracks.
+    let none = "\"findings\": []";
+    assert!(lint("{}").contains(none));
+    let declared = lint(r#"{"location": "readonly"}"#);
+    assert!(
+        !declared.contains(none) && declared.contains("location"),
+        "{declared}"
+    );
+    assert!(lint(r#"{"location": "off"}"#).contains(none));
+}
+
+#[test]
 fn node_config_callbacks_reach_client_server_and_stylesheet_output() {
     let project = Project::new();
     project.write(

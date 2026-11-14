@@ -53,17 +53,24 @@ impl Task for Format {
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
         // The plugin takes the style sheet out before Svelte parses, so its errors do not count.
-        let c = match context.get::<rsvelte_svelte_syntax::Parsed>() {
+        let c = match rsvelte_svelte_syntax::parsed_reading_scripts_as_typescript(context) {
             Ok(c) => c,
             Err(e) => {
                 out.diagnostics.push(e.clone());
                 return;
             }
         };
-        let rejected = context
-            .get::<rsvelte_svelte_semantic::Resolved>()
-            .as_ref()
-            .and_then(|resolution| resolution.javascript_syntax_error());
+        let own;
+        let rejected = if context.get::<rsvelte_svelte_syntax::Parsed>().is_ok() {
+            (context.get::<rsvelte_svelte_semantic::Resolved>().as_ref())
+                .and_then(|resolution| resolution.javascript_syntax_error())
+        } else {
+            // A component only the TypeScript read gives has no resolution of its own. Its first
+            // error refuses even where Babel recovers, which is conservative: a later one Babel
+            // throws on is not known.
+            own = crate::format::rejected(c, context.source_text());
+            own.as_ref()
+        };
         match formatted(c, context.source_text(), &self.options, rejected) {
             Ok(text) => out.file("svelte", text),
             Err(diagnostic) => out.diagnostics.push(diagnostic),
@@ -77,7 +84,7 @@ impl Task for Format {
 ///
 /// The parse error, or the first construct the formatter does not handle yet.
 pub fn format(source_text: &str, options: &Options) -> Result<String, Diagnostic> {
-    let component = rsvelte_svelte_syntax::parse::parse(source_text)?;
+    let component = crate::format::parsed(source_text)?;
     let rejected = crate::format::rejected(&component, source_text);
     formatted(&component, source_text, options, rejected.as_ref())
 }

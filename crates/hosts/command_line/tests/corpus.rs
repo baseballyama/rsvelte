@@ -108,6 +108,7 @@ impl Task for CountCoverage {
                 // The projection exports its component, so it is a module.
                 let source_type = SourceType::ts().with_module(true);
                 let result = Parser::new(&allocator, &projection.out, source_type).parse();
+                let type_syntax = javascript_rejects(component, projection, &result);
                 let source = context.source_text();
                 let generics = component
                     .instance
@@ -153,7 +154,7 @@ impl Task for CountCoverage {
                             &own,
                             &projection.mappings,
                         )
-                });
+                }) || type_syntax;
                 if added {
                     self.0
                         .invalid
@@ -181,6 +182,42 @@ impl Task for CountCoverage {
             Err(_) => count(&self.0.unsupported),
         };
     }
+}
+
+/// Whether JavaScript's grammar rejects a component without a TypeScript script beyond
+/// TypeScript's: only what a script's own text holds, such as its second default export, may.
+fn javascript_rejects(
+    component: &rsvelte_svelte_syntax::syntax_tree::Component,
+    projection: &rsvelte_kernel::output::emitter::Emitter,
+    as_typescript: &oxc_parser::ParserReturn<'_>,
+) -> bool {
+    let scripts = || {
+        [&component.instance, &component.module]
+            .into_iter()
+            .flatten()
+    };
+    if scripts().any(|script| script.typescript) {
+        return false;
+    }
+    let allocator = Allocator::default();
+    let as_javascript = Parser::new(&allocator, &projection.out, SourceType::mjs()).parse();
+    let in_script = |offset: u32| {
+        projection
+            .lookup_overlap(Span::new(offset, offset))
+            .is_some_and(|at| {
+                scripts().any(|script| {
+                    (script.content.start_offset..script.content.end_offset)
+                        .contains(&at.start_offset)
+                })
+            })
+    };
+    as_javascript.diagnostics.iter().any(|d| {
+        !as_typescript
+            .diagnostics
+            .iter()
+            .any(|t| t.message == d.message && t.labels == d.labels)
+            && !d.labels.iter().any(|label| in_script(label.offset()))
+    })
 }
 
 /// The tsc code and source offset of each error oxc reports in the component's scripts, read as
@@ -303,6 +340,12 @@ fn main() -> ExitCode {
         |_| true,
         |_| None,
     );
+    // The oracle runs where no PostCSS configuration is found, so it strips a `postcss` style.
+    registry.provide::<rsvelte_svelte_lint::computation::PostcssConfiguration>(
+        "svelte",
+        |_| true,
+        |_| false,
+    );
     rsvelte_svelte_typescript_projection::register(&mut registry);
     rsvelte_svelte_check::register(&mut registry, &typecheck);
     registry.task(CountCoverage(Arc::clone(&coverage)));
@@ -352,7 +395,8 @@ fn main() -> ExitCode {
 }
 
 /// The rules the oracle's lint runs (`corpus/_registry/oracles.json`) that this crate implements,
-/// with their default options, so the corpus compares every one of them.
+/// with their default options, so the corpus compares every one of them, and the globals the
+/// oracle declares.
 fn oracle_lint_configuration() -> rsvelte_svelte_lint::Configuration {
     #[derive(serde::Deserialize)]
     struct Oracles {
@@ -362,6 +406,8 @@ fn oracle_lint_configuration() -> rsvelte_svelte_lint::Configuration {
     #[derive(serde::Deserialize)]
     struct Oracle {
         rules: Vec<String>,
+        /// What the oracle's configuration declares in `languageOptions.globals`.
+        globals: Vec<String>,
     }
     let oracles: Oracles = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -370,6 +416,9 @@ fn oracle_lint_configuration() -> rsvelte_svelte_lint::Configuration {
     .expect("oracles.json lists the lint oracle's rules");
     let mut configuration =
         rsvelte_svelte_lint::Configuration::new(rsvelte_svelte_lint::LintSettings::default());
+    configuration.declare_globals(rsvelte_typescript_semantic::globals::Declared::new(
+        oracles.lint.globals,
+    ));
     for name in &oracles.lint.rules {
         if rsvelte_svelte_lint::definition(name, &[]).is_some() {
             configuration

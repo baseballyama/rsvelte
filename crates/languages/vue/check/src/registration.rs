@@ -64,8 +64,11 @@ fn typescript_env(vue: &std::path::Path) -> TypeScriptEnv {
         include: Vec::new(),
         replaced: Vec::new(),
         paths: vec![
-            ("vue", vue.join("dist/vue.d.mts")),
-            ("vue/jsx-runtime", vue.join("jsx-runtime/index.d.ts")),
+            ("vue".to_owned(), vue.join("dist/vue.d.mts")),
+            (
+                "vue/jsx-runtime".to_owned(),
+                vue.join("jsx-runtime/index.d.ts"),
+            ),
         ],
     }
 }
@@ -102,6 +105,7 @@ fn typescript_view(
                 env: Arc::clone(env),
                 placement: Vec::new(),
                 extension: ".ts",
+                imports: Vec::new(),
             })
         }
     }

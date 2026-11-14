@@ -160,6 +160,28 @@ impl Legacy {
     }
 }
 
+/// Whether a top-level `$:` assignment of `body` declares `name`, as upstream's scopes do for an
+/// assigned name that `bound` says nothing declares.
+pub(crate) fn declares_implicitly(
+    body: &[Statement<'_>],
+    name: &str,
+    bound: impl Fn(&oxc_ast::ast::IdentifierReference<'_>) -> bool,
+) -> bool {
+    body.iter().filter_map(reactive_body).any(|statement| {
+        let Statement::ExpressionStatement(statement) = statement else {
+            return false;
+        };
+        let Expression::AssignmentExpression(assignment) = &statement.expression else {
+            return false;
+        };
+        let mut found = false;
+        for_each_assigned_identifier(&assignment.left, &mut |identifier| {
+            found |= identifier.name == name && !bound(identifier);
+        });
+        found
+    })
+}
+
 /// The identifiers an assignment's target assigns, in source order.
 fn for_each_assigned_identifier<'a>(
     target: &'a AssignmentTarget<'a>,

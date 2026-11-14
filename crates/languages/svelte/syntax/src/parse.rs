@@ -30,7 +30,7 @@ use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
-use rsvelte_typescript_tree::{Builder, Tree};
+use rsvelte_typescript_tree::{Builder, SyntaxError, Tree};
 use rustc_hash::FxHashSet;
 
 use crate::syntax_tree::{
@@ -66,7 +66,7 @@ pub const ACORN_UNCHECKED_TYPESCRIPT_RULES: &[&str] = &[
 /// sheet's error alone is kept on [`Style::sheet`](crate::syntax_tree::Style::sheet);
 /// [`crate::fully_parsed`] reports it.
 pub fn parse(source_text: &str) -> ParseResult<Component> {
-    parse_with(source_text, true)
+    parse_with(source_text, Scripts::Read)
 }
 
 /// The component as svelte2tsx parses it: with each script's content left out, so a script's
@@ -76,15 +76,43 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
 ///
 /// As [`parse`], for the markup.
 pub fn parse_without_scripts(source_text: &str) -> ParseResult<Component> {
-    parse_with(source_text, false)
+    parse_with(source_text, Scripts::Left)
 }
 
-fn parse_with(source_text: &str, scripts: bool) -> ParseResult<Component> {
+/// The component as Prettier's Svelte plugin reads it.
+///
+/// A script the compiler rejects is read as TypeScript, as the plugin's `babel-ts` reads it, and
+/// the parse goes on past it. When TypeScript rejects it too, its program is empty and its errors
+/// are [`Component::script_typescript_errors`].
+///
+/// # Errors
+///
+/// As [`parse`], outside the scripts.
+pub fn parse_reading_scripts_as_typescript(source_text: &str) -> ParseResult<Component> {
+    parse_with(source_text, Scripts::ReadAsTypeScript)
+}
+
+/// How the parser reads each script's content.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Scripts {
+    /// As the compiler does.
+    Read,
+    /// Not at all: each program is empty.
+    Left,
+    /// As the compiler does, and as TypeScript where the compiler rejects it.
+    ReadAsTypeScript,
+}
+
+fn parse_with(source_text: &str, scripts: Scripts) -> ParseResult<Component> {
     let (javascript, template) = Tree::build(source_text, |builder| {
         builder.leave_unchecked(ACORN_UNCHECKED_TYPESCRIPT_RULES);
         builder.read_as_acorn();
         let mut parser = Parser {
-            source_text: builder.source_text(),
+            // Upstream parses the component without its trailing whitespace, so that is where
+            // the input ends; offsets into it are offsets into the document.
+            source_text: builder
+                .source_text()
+                .trim_end_matches(is_ecmascript_whitespace),
             position: 0,
             builder,
             component: Template::new(source_text.len()),
@@ -101,6 +129,14 @@ fn parse_with(source_text: &str, scripts: bool) -> ParseResult<Component> {
             parser.eat_token(TokenType::ByteOrderMark, '\u{feff}'.len_utf8());
         }
         let root = parser.fragment(End::Eof);
+        // The trailing whitespace the parser does not read is still a token of the document.
+        let read = parser.source_text.len();
+        if read < source_text.len() {
+            (parser.component.tokens).push(
+                TokenType::Whitespace,
+                Span::new(read as u32, source_text.len() as u32),
+            );
+        }
         buffer_pool::give_keyed::<Parser<'static, 'static>, _>(std::mem::take(
             &mut parser.pending_children,
         ));
@@ -190,6 +226,7 @@ struct Template {
     module: Option<Script>,
     instance: Option<Script>,
     style: Option<Style>,
+    script_typescript_errors: Vec<SyntaxError>,
     tokens: Tokens<TokenType>,
 }
 
@@ -206,6 +243,7 @@ impl Template {
             module: None,
             instance: None,
             style: None,
+            script_typescript_errors: Vec::new(),
             // Long text regions need few tokens even when the source is large.
             tokens: Tokens::with_capacity(
                 (source_len / ESTIMATED_BYTES_PER_TOKEN).min(INITIAL_TOKEN_CAPACITY_LIMIT),
@@ -226,6 +264,7 @@ impl Template {
             module: self.module.take(),
             instance: self.instance.take(),
             style: self.style.take(),
+            script_typescript_errors: std::mem::take(&mut self.script_typescript_errors),
             tokens: std::mem::take(&mut self.tokens),
         }
     }
@@ -272,8 +311,7 @@ struct Parser<'a, 'b> {
     meta_tags: u8,
     /// How many fragments are open.
     depth: u32,
-    /// Whether each script's content is parsed.
-    scripts: bool,
+    scripts: Scripts,
 }
 
 impl<'a> Parser<'a, '_> {
@@ -286,19 +324,11 @@ impl<'a> Parser<'a, '_> {
         }
     }
 
-    /// Upstream's error `code` at the current position. Upstream trims the component's trailing
-    /// whitespace before it parses, so no position is past that end.
+    /// Upstream's error `code` at the current position.
     #[cold]
     fn err<T>(&self, code: &'static str, message: impl std::fmt::Display) -> ParseResult<T> {
-        let at = self.position.min(self.trimmed_end()) as u32;
+        let at = self.position.min(self.source_text.len()) as u32;
         Self::err_at(Span::new(at, at), code, message)
-    }
-
-    /// The end of the component without its trailing whitespace.
-    fn trimmed_end(&self) -> usize {
-        self.source_text
-            .trim_end_matches(is_ecmascript_whitespace)
-            .len()
     }
 
     #[cold]
@@ -316,8 +346,6 @@ impl<'a> Parser<'a, '_> {
         self.err("expected_token", format_args!("Expected token {token}"))
     }
 
-    /// Upstream's `unexpected_eof`, at the end of the component without its trailing whitespace,
-    /// which upstream trims before it parses.
     /// Upstream `match_bracket`'s error for the brackets that start here.
     #[cold]
     fn unmatched<T>(&self, why: identifier::Unmatched) -> ParseResult<T> {
@@ -343,9 +371,10 @@ impl<'a> Parser<'a, '_> {
         }
     }
 
+    /// Upstream's `unexpected_eof`, at the end of the input.
     #[cold]
     fn unexpected_eof<T>(&self) -> ParseResult<T> {
-        let end = self.trimmed_end() as u32;
+        let end = self.source_text.len() as u32;
         Self::err_at(
             Span::new(end, end),
             "unexpected_eof",
@@ -369,7 +398,8 @@ impl<'a> Parser<'a, '_> {
 
     /// Upstream's `require_whitespace`, over the input without its trailing whitespace.
     fn require_ws(&mut self) -> ParseResult<()> {
-        if self.position >= self.trimmed_end() || !self.rest().starts_with(is_ecmascript_whitespace)
+        if self.position >= self.source_text.len()
+            || !self.rest().starts_with(is_ecmascript_whitespace)
         {
             return self.err("expected_whitespace", "Expected whitespace");
         }

@@ -6,8 +6,8 @@ implementation. The task name stays `svelte.check/default` to match the existing
 identifier.
 
 Configure the type checker, `content_mapper` and the Svelte package types through
-`TypeCheckConfiguration`, or through the options that `EXTENSION` reads. JavaScript components
-stay unchecked. Projection consumers can use the separate projection crate without any of these
+`TypeCheckConfiguration`, or through the options that `EXTENSION` reads. A component without a
+TypeScript script projects to JavaScript, its types in `JSDoc` comments, which the checker reads as `.js`. Projection consumers can use the separate projection crate without any of these
 dependencies.
 
 The checker gives the original Svelte inputs and the cached AST projections to
@@ -33,11 +33,12 @@ because their globals can conflict.
 The checker reads each document at its own path through its file layer; a relative path is
 beside `tsconfig.json`. Imports between the documents of one run resolve as on the disk. Like
 svelte-check, the checker blanks the svelte package's `declare module '*.svelte'`, so an import
-of a missing component fails. An unchecked component, written in JavaScript or with a refused
+of a missing component fails. An unchecked component, such as one with a refused
 projection, still resolves: the checker reads it as `any`, with the exports of its module
-script. Without `allowJs`, svelte-check reports TS7016 for an import of a component in JavaScript: it
-resolves that module with a `.js` extension. A content mapper sets only the text's extension, so
-rsvelte reports no TS7016 there. Empty findings do not prove that the checker checked its props or its instance. A
+script. Without `allowJs`, svelte-check reports TS7016 for an import of a component in JavaScript.
+The checker reads a content-mapped file as typed whatever its extension. So when a probe shows
+that the project's options report TS7016, `rsvelte_typescript_check` adds it for a relative import
+of one, and the component's default export reads as `any`. Empty findings do not prove that the checker checked its props or its instance. A
 component that does not parse is not checked: as in svelte-check, its one finding is the
 parser's error, with the code `-1`.
 

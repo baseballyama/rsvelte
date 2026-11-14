@@ -1,1 +1,26 @@
-[]
+[
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'value'.",
+		"start": {
+			"line": 0,
+			"character": 21
+		},
+		"end": {
+			"line": 0,
+			"character": 26
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'value'.",
+		"start": {
+			"line": 0,
+			"character": 90
+		},
+		"end": {
+			"line": 0,
+			"character": 95
+		}
+	}
+]

@@ -554,3 +554,19 @@ fn a_module_file_warns_as_svelte_s_compile_module() {
         .map(|(code, text)| (code.to_owned(), text.to_owned()))
     );
 }
+
+#[test]
+fn an_unused_export_spans_the_type_annotation() {
+    let source = concat!(
+        "<script lang=\"ts\">\n",
+        "  export let a: string;\n  let b: number;\n  export { b };\n",
+        "</script>\n",
+    );
+    let warnings = compiled_with_errors(source, None).0;
+    let texts: Vec<_> = warnings
+        .into_iter()
+        .filter(|(c, ..)| c == "export_let_unused")
+        .map(|(_, text, _)| text)
+        .collect();
+    assert_eq!(texts, ["a: string", "b: number"]);
+}

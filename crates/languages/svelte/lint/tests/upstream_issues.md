@@ -126,6 +126,8 @@ Issue: [svelte-eslint-parser #1002](https://github.com/sveltejs/svelte-eslint-pa
   so the rule should want a line break before `>`.
 - Correct: count node lines with ECMAScript's line terminators, as ESLint does. This crate counts
   lines once, with ECMAScript's terminators (`LineBreaks::Ecmascript`).
+- The corpus skips the 41 lint units whose source holds U+2028 or U+2029 and whose findings this
+  changes.
 
 ## `svelte/valid-compile`: a block holding only a `svelte-ignore` comment reports `block_empty`
 
@@ -246,6 +248,32 @@ Issue: [svelte-eslint-parser #992](https://github.com/sveltejs/svelte-eslint-par
   attribute does not count.
 - Correct: report `m`, as for `<script context="module">`. A module script's exports are not
   props, so nothing writes `m` after its declaration.
+- The corpus skips the 22 lint units that this changes (`corpus/_registry/units.toml`).
+
+## `svelte/prefer-const`: a write through a TypeScript assertion counts as a read
+
+No issue yet.
+
+- Cases: `bind:value={x as T}`, `bind:this={el as HTMLElement}` and, in a script,
+  `(count satisfies number) = 1` or `count!! = 1`.
+- Upstream reports the variable as never reassigned. Its scope analysis reads a reference inside
+  `TSAsExpression`, `TSSatisfiesExpression`, `TSNonNullExpression` or a type assertion as a read
+  and misses the write. `svelte/no-reactive-reassign` has the same gap (above).
+- Correct: report nothing. Svelte writes the binding through the assertion, and TypeScript
+  assigns through it, so `const` would break the code.
+- The corpus skips its 15 lint units.
+
+## `svelte/prefer-const`: a name that another scope declares too
+
+No issue yet.
+
+- Cases: `<script module>export const foo = 42;</script><script>let foo = 100;</script>`, and an
+  instance `let nm = 1;` beside a root `{@const nm = 1}` or `{let nm = 1}`.
+- Upstream reports nothing for the instance `let`. A guess: svelte-eslint-parser declares both
+  names in one scope, and the rule skips a variable with two declarations.
+- Correct: report the instance `let`. Svelte keeps the instance script in a scope of its own
+  inside the module's, so the `let` shadows the other name and nothing reassigns it.
+- The corpus skips its 7 lint units.
 
 ## `svelte/prefer-svelte-reactivity`: a reassigned variable hides its later constructions
 
@@ -376,6 +404,7 @@ Issue: [eslint-plugin-svelte #1700](https://github.com/sveltejs/eslint-plugin-sv
 - Correct: no report.
 - Why: `findClassesInAttribute` trims a literal part and splits it on spaces, so a part that
   holds only spaces gives one empty string.
+- The corpus skips the lint units with such a report (`corpus/_registry/units.toml`).
 
 ## The style directive fix breaks a value with a double quote
 
@@ -423,6 +452,17 @@ Issue: [eslint-plugin-svelte #1701](https://github.com/sveltejs/eslint-plugin-sv
   `<div class:x={!a} class:x={b}>`, and Svelte rejects the duplicate attribute.
 - Correct: no fix, and the report stays.
 - Why: the fix does not look at the element's other directives.
+
+## A comment in a pseudo-class's arguments moves the selectors after it (`svelte/consistent-selector-style`)
+
+No issue yet.
+
+- Case: `<div class="a"></div><style>div:is(/* l */ .a) { color: red }</style>`.
+- Upstream reports `.a` 7 columns before it, the length of `/* l */`, as if the comment were not in
+  the source. A comment before another argument does the same: in `div:not(.a /* m */, .b)`,
+  `.b` moves by its comment.
+- Correct: report `.a` at its own column.
+- The corpus skips its 5 lint units.
 
 ## Quirks of the CSS parsers that upstream uses
 
@@ -560,6 +600,7 @@ Issue: [svelte-eslint-parser #1003](https://github.com/sveltejs/svelte-eslint-pa
   outer one. That scope lacks the component's `let:` names, unless the component has a static
   `slot` of its own. This crate resolves names as the compiler does.
   Test: `rsvelte_svelte_semantic` `resolve::tests::a_component_s_let_names_reach_its_default_slot_and_not_a_named_one`.
+- The corpus skips its 9 lint units.
 
 ## A component's `let:` names reach its own attributes (svelte-eslint-parser)
 
@@ -585,14 +626,19 @@ Issue: [svelte-eslint-parser #1005](https://github.com/sveltejs/svelte-eslint-pa
 
 ## Markup that svelte-eslint-parser does not read
 
-| Case                                                     | Upstream                        | Corpus units |
-| -------------------------------------------------------- | ------------------------------- | ------------ |
+| Case                                                      | Upstream                        | Corpus units |
+| --------------------------------------------------------- | ------------------------------- | ------------ |
 | `<script` in a string: `` {@html `<script>…</script>`} `` | `Parsing error`                 | 9            |
-| Components named `Script` and `Style`                    | `Parsing error: Type expected.` | 1            |
-| `use:a.b`, `transition:a.b`, `class:A.B`, `style:a-b`    | `Parsing error`                 | 11           |
-| A one-line `<script>import … from '…'</script>`          | `Parsing error: ';' expected.`  | 1            |
-| `{@const x = (y)}`                                       | `Parsing error: ')' expected.`  | 2            |
-| `<template lang="pug">` with a `{a}`                     | no reference to `a`             | 1            |
+| Components named `Script` and `Style`                     | `Parsing error: Type expected.` | 1            |
+| `use:a.b`, `transition:a.b`, `class:A.B`, `style:a-b`     | `Parsing error`                 | 11           |
+| A one-line `<script>import … from '…'</script>`           | `Parsing error: ';' expected.`  | 1            |
+| Any other one-line `<script>…</script>`                   | `Parsing error: ',' expected.`  | 38           |
+| `{@const x = (y)}`                                        | `Parsing error: ')' expected.`  | 2            |
+| `{@const x = (a, b)}` and `{#await (a, b)}`               | `Parsing error: ')' expected.`  | 9            |
+| An expression that ends in a line comment: `{a // c\n}`   | `Parsing error: ')' expected.`  | 24           |
+| `<template lang="pug">` with a `{a}`                      | no reference to `a`             | 1            |
+| A closing tag with a space: `</script >`                  | no script                       | 3            |
+| A one-line file whose script follows the template         | no script                       | 1            |
 
 Issues for the rows of the table:
 
@@ -600,8 +646,17 @@ Issues for the rows of the table:
 - `Script` and `Style`: [svelte-eslint-parser #1006](https://github.com/sveltejs/svelte-eslint-parser/issues/1006). `Style` parses since svelte-eslint-parser 1.10.1.
 - Directive names: [svelte-eslint-parser #1007](https://github.com/sveltejs/svelte-eslint-parser/issues/1007), for a member name. Svelte reads a name with `-` as a subtraction, so that one has no issue.
 - The one-line script: [svelte-eslint-parser #1009](https://github.com/sveltejs/svelte-eslint-parser/issues/1009). It fails with TypeScript when `</script>` ends the file.
+- Any other one-line script: no issue yet. It may be the defect of #1009, without TypeScript. The error
+  is past the end of the script.
 - `{@const x = (y)}`: [svelte-eslint-parser #1008](https://github.com/sveltejs/svelte-eslint-parser/issues/1008).
+- A parenthesized sequence: no issue yet. It may be #1008 again; `{#await}` is another host.
+- A line comment at the end of an expression: no issue yet. The error is past the end of the
+  file. A guess: the comment hides a `)` or `}` that the parser adds after the expression.
 - `<template lang="pug">`: [svelte-eslint-parser #727](https://github.com/sveltejs/svelte-eslint-parser/issues/727).
+- `</script >`: no issue yet. No rule sees the script, so `no-undef` reports its names in the
+  template.
+- A script after the template on one line: no issue yet. The case is
+  `{#if x}<p></p>{/if}<script lang="ts">let a = 1</script>`.
 
 Svelte 5.57.3 compiles every one of them, so this crate lints them. The corpus skips their lint
 units (`corpus/_registry/units.toml`).

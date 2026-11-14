@@ -9,6 +9,5 @@ async () => {
     });
   }
 };
-const Regex__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type Regex__SvelteComponent_ = ReturnType<typeof Regex__SvelteComponent_>;
-export default Regex__SvelteComponent_;
+const Regex__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof Regex__SvelteComponent_>} */ (Regex__SvelteComponent_);

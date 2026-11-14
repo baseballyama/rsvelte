@@ -368,10 +368,15 @@ impl Builder<'_> {
         self.scratch
             .push(self.tree.push(Node::Const { name, value }));
         let value = self.tree.push(Node::TypeQuery(name));
-        let replacement = self.tree.push(Node::TypeAnnotation(value));
-        let end = pattern.span().end;
+        // JavaScript types a declaration in a JSDoc comment before it.
+        let (at, replacement) = if self.tree.javascript {
+            (statement, Node::DeclaredType(value))
+        } else {
+            (pattern.span().end, Node::TypeAnnotation(value))
+        };
+        let replacement = self.tree.push(replacement);
         edits.push(Edit {
-            span: Span::new(end, end),
+            span: Span::new(at, at),
             replacement: Some(replacement),
         });
         Ok(value)

@@ -14,7 +14,7 @@ export const load = () => ({
 		context: 'kernel/computation/database/DocumentContext',
 		contextNew: 'kernel/computation/database/DocumentContext::new',
 		get: 'kernel/computation/database/DocumentContext::get',
-		lint: 'svelte/lint/task/Lint::run',
+		lint: 'svelte/lint/task/positions',
 		eachKey: 'svelte/lint/rules/valid_each_key/check',
 		compileInput: 'svelte/semantic/computation/component_input',
 		facet: 'kernel/computation/database/Facet',

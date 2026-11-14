@@ -6,7 +6,6 @@ use rsvelte_kernel::source::positions::{LineBreaks, Span};
 use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 
-use crate::configuration::{Running, applies};
 use crate::rule::File;
 use crate::rules::{comment_directive, system};
 use crate::{Configuration, directives};
@@ -21,32 +20,31 @@ pub fn lint(
     context: &DocumentContext<'_>,
     configuration: &Configuration,
 ) -> Result<Vec<Finding>, Diagnostic> {
-    check(&File::new(context)?, configuration)
+    check(&File::new(context, configuration.globals())?, configuration)
+        .map(|(findings, _)| findings)
 }
 
-/// [`lint`] of a parsed document.
+/// [`lint`] of a parsed document, with the rules that ran.
 pub(crate) fn check(
     file: &File<'_>,
     configuration: &Configuration,
-) -> Result<Vec<Finding>, Diagnostic> {
-    let mut findings = Findings::new();
-    findings.run(
-        configuration
-            .rules()
-            .iter()
-            .filter(|rule| applies(rule, file))
-            .map(Running),
-        file,
+) -> Result<(Vec<Finding>, FileRules), Diagnostic> {
+    let source = file.source();
+    let comments = comments(file);
+    let rules = FileRules::new(
+        configuration,
+        configuration_comments::settings(&comments, source),
     );
+    let mut findings = Findings::new();
+    findings.run(rules.running(configuration, file), file);
     let mut findings = findings.finish()?;
     // Directive lines are `ESLint`'s, which any ECMAScript line terminator ends.
     let lines = file.context.lines(LineBreaks::Ecmascript);
-    let source = file.source();
-    directives::apply_javascript(&mut findings, &comments(file), source, lines);
+    directives::apply_javascript(&mut findings, &comments, source, lines);
     let Some(component) = file.component() else {
-        return Ok(findings);
+        return Ok((findings, rules));
     };
-    let on = |name: &str| configuration.rules().iter().any(|r| r.name() == name);
+    let on = |name: &str| rules.running(configuration, file).any(|r| r.name == name);
     // Upstream's processor applies the plugin's directives after `ESLint`'s, in rule order.
     if on(comment_directive::RULE.name) {
         directives::template(component, source, lines).apply(
@@ -65,7 +63,7 @@ pub(crate) fn check(
             );
         }
     }
-    Ok(findings)
+    Ok((findings, rules))
 }
 
 /// Every JavaScript comment of the document, the scripts' and the template's, in document order.
@@ -109,6 +107,9 @@ pub fn verify(
         configuration,
     )
 }
+
+mod configuration_comments;
+pub(crate) use configuration_comments::FileRules;
 
 #[cfg(test)]
 mod tests;

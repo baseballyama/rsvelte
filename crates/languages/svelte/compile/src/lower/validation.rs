@@ -10,7 +10,7 @@ mod runes;
 
 pub(super) use awaits::check as check_awaits;
 use runes::script_and_template_errors;
-pub(super) use runes::{check_runes, rejects_binding, script_error};
+pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
 
 /// Whether oxc's `error` is a name declared again outside the scripts.
 pub(super) fn redeclares_in_template(input: &CompileInput<'_>, error: &Diagnostic) -> bool {

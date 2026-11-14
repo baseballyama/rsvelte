@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use oxc_ast::ast::Statement;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
@@ -7,6 +8,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::Parsed;
+use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_svelte_typescript_projection::{Printed, THROWN};
 use rsvelte_typescript_check::{
     Check, Documents, TypeScriptDocument, TypeScriptEnv, TypeScriptStandIn, TypeScriptView,
@@ -85,12 +87,25 @@ fn typescript_env(
         content_mapper: Some(content_mapper.to_owned()),
         declarations: vec![declarations],
         include,
-        paths: vec![
-            ("svelte", types.clone()),
-            ("svelte/elements", svelte.join("elements.d.ts")),
-        ],
+        paths: package_modules(&text, &types)
+            .chain([("svelte/elements".to_owned(), svelte.join("elements.d.ts"))])
+            .collect(),
         replaced: vec![(types, without_any_component_module(text))],
     })
+}
+
+/// Each module the package's types declare, such as `svelte/store`, read from the blanked types: a
+/// module the checker found through `node_modules` would read the package's own file, whose
+/// `declare module '*.svelte'` stays.
+fn package_modules<'t>(
+    text: &'t str,
+    types: &'t std::path::Path,
+) -> impl Iterator<Item = (String, std::path::PathBuf)> + 't {
+    text.split("declare module '")
+        .skip(1)
+        .filter_map(|rest| rest.split_once('\'').map(|(name, _)| name))
+        .filter(|name| *name == "svelte" || name.starts_with("svelte/"))
+        .map(|name| (name.to_owned(), types.to_owned()))
 }
 
 /// svelte-check blanks the svelte package's `declare module '*.svelte'`, so an import of a
@@ -128,14 +143,11 @@ fn typescript_view(
             });
         }
     };
-    // svelte-check reads the component as TypeScript when either script is.
-    if ![&component.instance, &component.module]
+    // svelte-check reads the component as TypeScript when either script is, else as JavaScript.
+    let typescript = [&component.instance, &component.module]
         .into_iter()
         .flatten()
-        .any(|script| script.typescript)
-    {
-        return Ok(TypeScriptDocument::Unchecked);
-    }
+        .any(|script| script.typescript);
     let projection = match context.get::<Printed>() {
         Ok(projection) => projection,
         Err(thrown) if thrown.code == THROWN => {
@@ -144,6 +156,8 @@ fn typescript_view(
                 span: thrown.span,
             });
         }
+        // A JavaScript component the projection does not cover stays unchecked.
+        Err(_) if !typescript => return Ok(TypeScriptDocument::Unchecked),
         Err(diagnostic) => return Err(diagnostic.clone()),
     };
     let env = env_of(env)?;
@@ -156,8 +170,36 @@ fn typescript_view(
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
         placement: placement::instance(component),
-        extension: ".ts",
+        extension: if typescript { ".ts" } else { ".js" },
+        imports: relative_imports(component),
     })
+}
+
+/// Each relative module specifier the scripts import or re-export from, by its string literal.
+fn relative_imports(component: &Component) -> Vec<(Span, String)> {
+    let mut found = Vec::new();
+    for script in [&component.instance, &component.module]
+        .into_iter()
+        .flatten()
+    {
+        let program = component.javascript.get_program(script.program);
+        for statement in &program.body {
+            let source = match statement {
+                Statement::ImportDeclaration(import) => Some(&import.source),
+                Statement::ExportFromDeclaration(export) => Some(&export.source),
+                Statement::ExportAllDeclaration(export) => Some(&export.source),
+                _ => None,
+            };
+            // A specifier with a lone surrogate names no file.
+            let relative = source
+                .and_then(|source| Some((source.span, source.value.as_str()?)))
+                .filter(|(_, specifier)| specifier.starts_with('.'));
+            if let Some((span, specifier)) = relative {
+                found.push((Span::new(span.start, span.end), specifier.to_owned()));
+            }
+        }
+    }
+    found
 }
 
 fn env_of(

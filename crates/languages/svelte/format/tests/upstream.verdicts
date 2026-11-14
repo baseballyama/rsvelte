@@ -141,12 +141,12 @@ pass	printer/script-and-style.html
 pass	printer/script-attributes-multiline.html
 pass	printer/script-inside-comment.html
 pass	printer/script-inside-element.html
-fail	printer/script-lang-typescript.html
+pass	printer/script-lang-typescript.html
 pass	printer/script-only.html
 pass	printer/script-style-inside-element-comment.html
 pass	printer/script-style-script-snipping.html
 pass	printer/script-tag-generics.html
-fail	printer/script-type-typescript.html
+pass	printer/script-type-typescript.html
 pass	printer/script-with-html-comment-and-style.html
 pass	printer/script.html
 pass	printer/self-closing-tags-lenient.html
@@ -219,9 +219,9 @@ pass	printer/transition-out.html
 pass	printer/transition-with-expression-local.html
 pass	printer/transition-with-expression.html
 pass	printer/transition.html
-fail	printer/typescript-call-generic-function.html
+pass	printer/typescript-call-generic-function.html
 pass	printer/typescript-template.html
-fail	printer/typescript-without-lang-attr.html
+pass	printer/typescript-without-lang-attr.html
 pass	printer/typescript.html
 pass	printer/unicode-element.html
 pass	printer/unicode-mustache.html

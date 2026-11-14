@@ -37,12 +37,7 @@ fn judge(
         output: &out,
         diagnostics: diagnostics.map(str::to_owned),
     };
-    verdict(
-        &official(expected),
-        Some(&ours),
-        &["no-unused-vars".to_owned(), "svelte/x".to_owned()],
-    )
-    .expect("the official side is valid")
+    verdict(&official(expected), Some(&ours)).expect("the official side is valid")
 }
 
 const WARNING: &str = concat!(
@@ -136,10 +131,12 @@ fn lint_compares_only_the_rules_rsvelte_ran() {
         judge(&expected, &[("lint.json", ours)], None),
         Some(Verdict::Match)
     );
-    let unknown = r#"{"rules":["mine"],"findings":[]}"#;
+    let commented = r#"{"rules":["svelte/x","mine"],"findings":[]}"#;
+    let quiet = [("lint.txt", "1:1 1:2 mine \"m\"\n")];
     assert_eq!(
-        judge(&expected, &[("lint.json", unknown)], None),
-        Some(Verdict::Mismatch)
+        judge(&quiet, &[("lint.json", commented)], None),
+        Some(Verdict::Mismatch),
+        "a rule outside the configuration that a comment turns on is compared too"
     );
     let fewer = r#"{"rules":["svelte/x"],"findings":[]}"#;
     assert_eq!(

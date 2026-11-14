@@ -11,22 +11,57 @@ use crate::finding::Finding;
 /// so the output is allocated once.
 const FINDING_BYTES: usize = 200;
 
+/// `ESLint`'s positions in one document: lines as `lines` counts them, which is with
+/// [`LineBreaks::Ecmascript`](rsvelte_kernel::source::positions::LineBreaks), and columns of the
+/// text after a leading byte order mark, which `ESLint` removes before it lints.
+#[derive(Clone, Copy, Debug)]
+pub struct Positions<'a> {
+    lines: &'a LineIndex,
+    byte_order_mark: bool,
+}
+
+impl<'a> Positions<'a> {
+    #[must_use]
+    pub fn new(lines: &'a LineIndex, source_text: &str) -> Self {
+        Self {
+            lines,
+            byte_order_mark: source_text.starts_with('\u{feff}'),
+        }
+    }
+
+    /// The 1-based line and 0-based UTF-16 column of a byte offset.
+    fn at(self, offset: u32) -> (u32, u32) {
+        let at = self.lines.line_column(offset);
+        let column = if self.byte_order_mark && at.line == 1 {
+            at.column.saturating_sub(1)
+        } else {
+            at.column
+        };
+        (at.line, column)
+    }
+}
+
 /// A lint task's output: `lint.json` as [`render_json`] writes it, and each finding with its fix.
 pub fn report<'a>(
     out: &mut TaskOutput,
-    lines: &LineIndex,
+    positions: Positions<'_>,
     rules: impl IntoIterator<Item = &'a str> + Clone,
     findings: Vec<Finding>,
 ) {
-    out.file("lint.json", render_json(lines, rules, &findings));
+    out.file("lint.json", render_json(positions, rules, &findings));
     out.findings
         .extend(findings.into_iter().map(Finding::reported));
 }
 
 /// A lint task's output when the document does not parse: `lint.json` as
 /// [`render_parse_error`] writes it, and the error as the one finding.
-pub fn report_parse_error(out: &mut TaskOutput, lines: &LineIndex, message: &str, offset: u32) {
-    out.file("lint.json", render_parse_error(lines, message, offset));
+pub fn report_parse_error(
+    out: &mut TaskOutput,
+    positions: Positions<'_>,
+    message: &str,
+    offset: u32,
+) {
+    out.file("lint.json", render_parse_error(positions, message, offset));
     out.findings.push(rsvelte_kernel::diagnostics::Finding {
         diagnostic: Diagnostic::error("parse_error", message, Span::new(offset, offset))
             .without_end(),
@@ -37,9 +72,6 @@ pub fn report_parse_error(out: &mut TaskOutput, lines: &LineIndex, message: &str
 /// `{rules, findings: [{rule, message, start: {line, column}, end: {line, column}}]}` with
 /// `ESLint`'s positions: 1-based lines and 1-based UTF-16 columns.
 ///
-/// `lines` counts lines as `ESLint` does, with
-/// [`LineBreaks::Ecmascript`](rsvelte_kernel::source::positions::LineBreaks).
-///
 /// `end` is `null` for a finding without one
 /// ([`has_end`](rsvelte_kernel::diagnostics::Diagnostic::has_end)).
 ///
@@ -47,7 +79,7 @@ pub fn report_parse_error(out: &mut TaskOutput, lines: &LineIndex, message: &str
 /// that was never run.
 #[must_use]
 pub fn render_json<'a>(
-    lines: &LineIndex,
+    positions: Positions<'_>,
     rules: impl IntoIterator<Item = &'a str> + Clone,
     findings: &[Finding],
 ) -> String {
@@ -64,10 +96,10 @@ pub fn render_json<'a>(
             .key("message")
             .write_string(&d.message)
             .key("start");
-        position(&mut w, lines, d.span.start_offset);
+        position(&mut w, positions, d.span.start_offset);
         w.key("end");
         if d.has_end {
-            position(&mut w, lines, d.span.end_offset);
+            position(&mut w, positions, d.span.end_offset);
         } else {
             w.null();
         }
@@ -80,8 +112,8 @@ pub fn render_json<'a>(
 /// `ESLint`'s report of a file whose parser threw `message` at `offset`: no rule runs, and the
 /// one finding has no rule, no end, and the parser's 0-based column.
 #[must_use]
-pub fn render_parse_error(lines: &LineIndex, message: &str, offset: u32) -> String {
-    let at = lines.line_column(offset);
+pub fn render_parse_error(positions: Positions<'_>, message: &str, offset: u32) -> String {
+    let (line, column) = positions.at(offset);
     let mut w = StructuredDataWriter::with_capacity(true, FINDING_BYTES + message.len());
     w.begin_object()
         .key("rules")
@@ -97,9 +129,9 @@ pub fn render_parse_error(lines: &LineIndex, message: &str, offset: u32) -> Stri
         .key("start")
         .begin_object()
         .key("line")
-        .write_number(at.line)
+        .write_number(line)
         .key("column")
-        .write_number(at.column)
+        .write_number(column)
         .end_object()
         .key("end")
         .null()
@@ -119,13 +151,13 @@ fn capacity<'a>(rules: impl IntoIterator<Item = &'a str>, findings: &[Finding]) 
     64 + rules + findings
 }
 
-fn position(w: &mut StructuredDataWriter, lines: &LineIndex, offset: u32) {
-    let at = lines.line_column(offset);
+fn position(w: &mut StructuredDataWriter, positions: Positions<'_>, offset: u32) {
+    let (line, column) = positions.at(offset);
     w.begin_object()
         .key("line")
-        .write_number(at.line)
+        .write_number(line)
         .key("column")
-        .write_number(at.column + 1)
+        .write_number(column + 1)
         .end_object();
 }
 

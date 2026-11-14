@@ -14,7 +14,6 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_semantic::legacy::{Variable, is_top_level};
 use rsvelte_svelte_semantic::resolve::{RUNE_ROOTS, Resolution};
 use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
-use rsvelte_typescript_semantic::globals::global;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::legacy_reactivity::{expression_node, legacy, property_name};
@@ -451,7 +450,7 @@ fn local_name(file: &File<'_>, top: &TopLevel<'_>, property: &str) -> String {
 
 /// Whether a global or a top-level variable is called `name`.
 fn declared(file: &File<'_>, top: &TopLevel<'_>, name: &str) -> bool {
-    if global(name).is_some() {
+    if file.globals().declares(name) {
         return true;
     }
     let scoping = file.semantic().scoping();

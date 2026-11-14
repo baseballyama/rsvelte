@@ -1,6 +1,6 @@
 ;
 
-	let { v = 1, o }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { v = 1, o } = $props();
 	let s = $state(2);
 
 ;
@@ -68,6 +68,5 @@ async () => {
     });
   }
 };
-const CustomElementAttributes__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type CustomElementAttributes__SvelteComponent_ = ReturnType<typeof CustomElementAttributes__SvelteComponent_>;
-export default CustomElementAttributes__SvelteComponent_;
+const CustomElementAttributes__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof CustomElementAttributes__SvelteComponent_>} */ (CustomElementAttributes__SvelteComponent_);

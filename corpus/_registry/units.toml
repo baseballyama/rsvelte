@@ -145,6 +145,7 @@
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/networking-toolbox/src/lib/components/global/Icon.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/svelte-commerce/src/lib/components/nav/nav.svelte".skip]
@@ -2623,27 +2624,35 @@
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/19b64d511d2a58f9.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/27c87aa51582232b.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/2e3ad48ee43c8bdc.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/357dfc3d4748dea5.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/7774b278d017cb9c.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/9b7916838f5442fb.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/9e6bf0cb719e5b0d.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/dcc440a866db1d34.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/e25c21d94a883fc2.svelte".skip]
@@ -2677,42 +2686,53 @@
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/2954fb9e5fcf630f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/295f6086c1ed3366.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/2ccd099fc932f111.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/44f1ee907b033ac7.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/5b33fa9fbc93a011.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/7f6f89d2d564d872.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/every_rejecting_host_compiles/c388dd61e1e7a2bd.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-formatter/markup_expressions/trailing_comment_keeps_the_tag_an_expression/b287a9cb4387e49f.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/5b48c20575ee097e.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/6c31a27208d4d289.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/d15dae7c28fa60c3.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/d9b6042991557371.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-formatter/trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/e89d92737973b5ce.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_mustache_interior/a_mustache_carries_its_interior_not_its_expression_span/60de768276a5f99c.svelte".skip]
@@ -2860,6 +2880,7 @@
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
 ["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/2a09f694c7ed44e1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads no script in a one-line file whose script follows the template, `{#if x}<p></p>{/if}<script lang=\"ts\">let a = 1</script>`"
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/a_comma_inside_another_bracket_kind_does_not_split_the_parameter/055da27d622b3fe6.svelte".skip]
@@ -3252,3 +3273,815 @@
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/965ef08eed5fe140.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx moves the instance script into a function, so a statement allowed only at the top level (`export default`, `export import`) reports TS's error for its new place"
+
+["svelte/rsvelte-tests-core-3/special_tag_bracket_scan/const_tag_comment_with_brace/ddfdc4445d644eab.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+
+["svelte/rsvelte-tests-core-3/template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/e36998062761fd6b.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/const_tag_initializer_survives/7c1cca8553798b5f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
+
+["svelte/rsvelte-tests-formatter/const_tag_line_comment/a_block_comment_is_not_treated_as_a_line_comment/dfd12cb86a630e8f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+
+["svelte/rsvelte-tests-formatter/const_tag_line_comment/a_regex_literal_followed_by_a_real_comment_still_breaks/16da57cccecd6f20.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+
+["svelte/rsvelte-tests-formatter/const_tag_line_comment/a_trailing_line_comment_does_not_swallow_the_closing_brace/6f41de20fb78df05.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
+
+["svelte/rsvelte-tests-formatter/const_tag_line_comment/the_fix_is_idempotent/996596f05a4aac4f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
+
+["svelte/rsvelte-tests-core-3/trailing_line_comment_3602/const_tag_destructuring_initializer_survives/1bbc1da7f91ecf2f.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 puts a stray `)` into a `{@const}` whose value holds a comment, so its output does not parse"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a template expression that ends in a line comment, reporting `)` or `}` expected past the end of the file, which Svelte compiles"
+
+["svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/script-tag-in-style-comment-with-real-script/input.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a script empty when a `<style>` comment before it names `<script>`, which deletes the script's code"
+
+["svelte/rsvelte-tests-core-2/import_assert_newline_3198/same_line_assert_is_unchanged/5b4535faac199c0d.svelte".skip]
+"svelte.check" = "checker: TS 7 reports 2880 for an import assertion in a JavaScript file where TS 6 reports it only in TypeScript"
+
+["svelte/rsvelte/pattern/issues/3199-grammar-export-assert.svelte".skip]
+"svelte.check" = "checker: TS 7 reports 2880 for an import assertion in a JavaScript file where TS 6 reports it only in TypeScript"
+
+["svelte/rsvelte/pattern/issues/3199-grammar-import-assert.svelte".skip]
+"svelte.check" = "checker: TS 7 reports 2880 for an import assertion in a JavaScript file where TS 6 reports it only in TypeScript"
+
+["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/0088599d9714f97a.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 snips a style sheet only before `</style\\s*>`, so at `</style x>` it keeps none of the sheet and prints the element empty"
+
+["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/1bb2b4aed0a9a6d2.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 snips a style sheet only before `</style\\s*>`, so at `</style x>` it keeps none of the sheet and prints the element empty"
+
+["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/70dafcc981faebbf.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 snips a style sheet only before `</style\\s*>`, so at `</style x>` it keeps none of the sheet and prints the element empty"
+
+["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/cfe410676d33493a.svelte".skip]
+"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 snips a style sheet only before `</style\\s*>`, so at `</style x>` it keeps none of the sheet and prints the element empty"
+
+["svelte/rsvelte-tests-core-1/css_block_item_progress/empty_block_item_selector_terminates_with_the_upstream_error/6ee0cd37bd59cda7.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 throws \"Unexpected PostCSS node type: undefined\" at a rule whose selector is empty, so the plugin keeps the sheet unformatted"
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/214ad01217b359a0.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 throws \"Unexpected PostCSS node type: undefined\" at a rule whose selector is empty, so the plugin keeps the sheet unformatted"
+
+["svelte/rsvelte-tests-core-2/parser_hardening/empty_style_selector_reports_css_expected_identifier/b88d5f3115712610.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 throws \"Unexpected PostCSS node type: undefined\" at a rule whose selector is empty, so the plugin keeps the sheet unformatted"
+
+["svelte/rsvelte-tests-core-1/css_keyframes_property_case_folding/kelvin_sign_in_webkit_prefix_still_renames_the_keyframe_reference/76689b0d4197a426.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 lowercases a property name with JavaScript's toLowerCase, which turns the Kelvin sign into `k` and so names another property"
+
+["svelte/rsvelte-tests-core-2/parse_ast_official_shapes/a_hex_escape_terminator_belongs_to_the_selector_before_a_combinator/f7145fc67908ac46.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 prints a hex escape's terminating space and a descendant combinator as one space, which joins the two selectors into one name"
+
+["svelte/svelte/packages/svelte/tests/css/samples/unicode-identifier/input.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 prints a hex escape's terminating space and a descendant combinator as one space, which joins the two selectors into one name"
+
+["svelte/rsvelte-tests-core-1/css_selector_syntax_5_56_10/a_scoped_pseudo_class_keeps_its_source_spelling/da31ac17065cbeab.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 reads the `of` of an An+B selector as a type selector and glues it to the selector after it"
+
+["svelte/rsvelte-tests-core-1/css_selector_syntax_5_56_10/nth_of_accepts_a_selector_list/a82807863802368f.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 reads the `of` of an An+B selector as a type selector and glues it to the selector after it"
+
+["svelte/rsvelte-tests-core-1/css_selector_syntax_5_56_10/nth_of_parses_without_whitespace_after_of/6ffbf7e8271d0509.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 reads the `of` of an An+B selector as a type selector and glues it to the selector after it"
+
+["svelte/rsvelte/pattern/issues/3195-nth-of-selector-list.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 reads the `of` of an An+B selector as a type selector and glues it to the selector after it"
+
+["svelte/svelte/packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 reads the `of` of an An+B selector as a type selector and glues it to the selector after it"
+
+["svelte/rsvelte-tests-core-1/css_custom_property_block_3052/a_custom_property_accepts_balanced_curly_and_square_blocks/1b6e89246c55c577.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 drops the whitespace tokens of a custom property's value, which changes the value var() substitutes"
+
+["svelte/rsvelte/pattern/adversarial/css/css-custom-property-values.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 drops the whitespace tokens of a custom property's value, which changes the value var() substitutes"
+
+["svelte/rsvelte-tests-core-1/compiler/tests/diagnostic_locates_renamed_runes/00f783c761548924.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests-core-1/const_tag_parse_error_3691/a_valid_const_tag_still_compiles/f245e4c9da48fbbd.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a parenthesized sequence or initializer in `{@const}` or `{#await}`, which Svelte compiles"
+
+["svelte/rsvelte-tests-core-2/expression_slot_classification_3350/const_tag_classifies_its_failure/a4f7c4254373001b.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a parenthesized sequence or initializer in `{@const}` or `{#await}`, which Svelte compiles"
+
+["svelte/rsvelte-tests-core-2/known_value_evaluator_3437/a_sequence_expression_is_never_known/9b2db29f342c4993.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a parenthesized sequence or initializer in `{@const}` or `{#await}`, which Svelte compiles"
+
+["svelte/rsvelte-tests-core-2/parse_ts_types/async_generator_object_method_generics_emit_type_parameters_after_body/729366860cdbd3d6.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests-core-2/parse_ts_types/generic_arrow_emits_type_parameters_after_body/c7ebcde842cdf4b2.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests-core-2/parse_ts_types/generic_function_expression_emits_type_parameters/731b59de3ad5cf2b.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests-core-2/parse_ts_types/object_function_value_keeps_type_parameters_before_params/931cc714a4a15c21.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests-core-2/parse_ts_types/object_method_generics_emit_type_parameters_after_body/a3579df3b6a09d5a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests-core-3/special_tag_bracket_scan/const_tag_parenthesized_sequence_is_allowed/037fe7256f948e1d.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a parenthesized sequence or initializer in `{@const}` or `{#await}`, which Svelte compiles"
+
+["svelte/rsvelte-tests-core-3/tag_directive_parse_errors/valid_tags_still_compile/ca1e7ed514ca3dc9.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a parenthesized sequence or initializer in `{@const}` or `{#await}`, which Svelte compiles"
+
+["svelte/rsvelte-tests-formatter/expression/an_assignment_used_as_a_const_body_loses_the_declarator_parens/9280cfee7a51471a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a parenthesized sequence or initializer in `{@const}` or `{#await}`, which Svelte compiles"
+
+["svelte/rsvelte-tests-formatter/indent/default_options_indent_with_two_spaces/3ee31eb2728ac375.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/6b8b31cf791755dc.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a parenthesized sequence or initializer in `{@const}` or `{#await}`, which Svelte compiles"
+
+["svelte/rsvelte-tests/rsvelte_language_server/completions/tests/nothing_inside_style_or_script/09f254d3ae377beb.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/01f37042be9662fe.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/217ee586c80d65cb.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/238f1ddea7872603.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/2c4dc4962106f66a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/4911316afcc47df0.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/51c6afd81e1fd325.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/795b8a2c062b64f6.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/8ca3485e809a4850.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/a20a180f5ca26356.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/e0427473cbf99870.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/e50335b95cea3d51.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/ea3a322dbf443a33.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/stores/tests/store_scan_context_preserves_instance_then_module_import_order_at_scale/aac437e8d8008b44.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_entry/test_runes_effect_expr_stmt/34c0491b27b17a07.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/03594e9781321e7e.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/445efe92a0511426.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/552590a5f9298a02/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/6b01b5097f75b9bc.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/7f6d4e39ace923bb.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/81824c329ca16375.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/83485eb0ae1fb657/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/91a4896712918250/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/952618cdc656b881.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/a79bd252bd343063.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/ab4f5022090ee287.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/c59d15693d5d0568.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/dd6328b9e8c8380f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/df4c205fb383bdbb.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/ebe96249761f6edb/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/f3254fcd9cccc8ab/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a one-line `<script>…</script>`, reporting `',' expected` or `';' expected` past the end of the script"
+
+["svelte/rsvelte/pattern/adversarial/control-flow/await-non-promise-expressions.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a parenthesized sequence or initializer in `{@const}` or `{#await}`, which Svelte compiles"
+
+["svelte/rsvelte/pattern/issues/3691-const-tag-parse-error.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a parenthesized sequence or initializer in `{@const}` or `{#await}`, which Svelte compiles"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/auth/teams/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/storage/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/layerchart/docs/src/examples/components/BarChart/single-stack-with-indicator.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/layerchart/docs/src/examples/components/GeoPath/timezones.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/layerchart/docs/src/examples/components/TransformContext/pan-zoom-html-image.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/layerchart/docs/src/examples/components/TransformContext/pan-zoom-svg-image.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/layerchart/docs/src/examples/components/TransformContext/scroll-activation-key.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/39d68bb877c065d1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/589db3f3788fcd37.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/917f006e16515daf.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/ad52f74a04ffdc17.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/e82c5a6a9eb0d8ad.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/efd3b6fcb554dbb4.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests-core-2/parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/f9c59de6b6a65f41.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_variable_function_or_class_still_loses_its_export/40b5ca4a04084aba.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte/lint/prefer-const/17-module-script-props-scope.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/rsvelte/pattern/issues/3315-parenthesised-rune-module-script.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/svelte-inspect-value/packages/svelte/src/lib/Panel.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-nested-top-level/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-top-level-error-nested-obsolete/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-top-level-error-nested/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reads an export of `<script module>` as a prop and never reports it (svelte-eslint-parser #992)"
+
+["svelte/bits-ui/tests/src/tests/accordion/accordion-multi-test-controlled.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/flowbite-svelte/src/routes/builder/button/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/layerchart/docs/src/routes/docs/playground/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests-core-1/bind_invalid_expression_2583/typescript_assertion_bind_targets_still_compile/d90781335b5ffb93.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests-core-3/ts_assertion_assignment_targets/simple_assignment_lhs_preserves_the_assertion/b3a8fa26c276743a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests-core-3/ts_assertion_assignment_targets/simple_assignment_lhs_preserves_the_assertion/e0f35b7937e18d75.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_bind_multibyte_boundary_4072/element_bind_value_with_ts_assertion_on_multibyte_identifier/97c26726beb8b540.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_bind_suffix_map_4103/a_bind_this_type_assertion_tail_carries_its_own_map_segments/0b3131ff2aa9ebdb.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_binding_ts_assertion/binding_non_null_and_satisfies_strip_from_setter/91cfc66245554c37.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_binding_ts_assertion/binding_non_null_and_satisfies_strip_from_setter/e5b5d2f7d9d0bc57.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_binding_ts_assertion/component_binding_as_expression_strips_assertion_from_setter/56b955a10d666245.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_as_expression_strips_assertion_from_setter/e411dff7dcde881b.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_type_assertion_prefix_strips_from_setter/4407b68d90ad0482.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript-as-expression/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript-non-null-expression/main.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const reports a variable that a binding or an assignment writes through a TypeScript assertion, such as `bind:value={x as T}` or `x! = 1`, which the scope analysis reads as a read"
+
+["svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-4.v5/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-type-assertion/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/rsvelte-tests-core-2/dev_console_wrap_shadowing/an_instance_local_shadowing_a_module_export_keeps_its_own_value/8afb4023ab20179b.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_root_const_colliding_with_an_instance_let_reports_the_placement/f20de58cd3047783.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_top_level_declaration_tag_collides_with_an_instance_let/d6f97735300930aa.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/rsvelte-tests-core-3/root_fragment_scope_3375/the_placement_wins_over_every_collision_kind/90c18d536656c3c9.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/svelte/packages/svelte/tests/runtime-legacy/samples/module-context-export/Foo.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/prefer-const does not report a `let` whose name the module script or a root `{@const}` or `{let}` also declares, which Svelte keeps in scopes of their own"
+
+["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/a_root_script_is_not_closed_by_a_closer_carrying_junk/1861257dbcd04089.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads no script when its closing tag has whitespace before `>`, such as `</script >`, which Svelte reads as the end of the script"
+
+["svelte/rsvelte-tests-formatter/render_neutral_divergences/a_script_close_tag_keeps_its_internal_whitespace/6898cde9d10db12f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads no script when its closing tag has whitespace before `>`, such as `</script >`, which Svelte reads as the end of the script"
+
+["svelte/svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-script-tag/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads no script when its closing tag has whitespace before `>`, such as `</script >`, which Svelte reads as the end of the script"
+
+["svelte/rsvelte-tests-core-1/compiler/acorn_lines/tests/legacy_locs_follow_acorn_line_terminators/22662201c5a9a0b6.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/a_string_or_comment_carrying_one_still_compiles/7f8e97bb8a108d3d.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/a_string_or_comment_carrying_one_still_compiles/ac89338ab357cb2f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/1438c7339a36871a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/2c98da085a2a1c52.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/4910fcf38b7870b7.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/578cddccac1ac624.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/6ee8d27e4a1f0ff9.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/b8cf1f026f01352f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/f4dc5c8838d02c4c.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/ff8d3238720764ec.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_each_as_separator_accepts_a_line_separator/40bb84ced031fedd.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_each_as_separator_accepts_a_line_separator/7ab7d155180db0a5.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/127e9f14142b01fd.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/21e964f0ed347120.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_shared_members_behave_like_a_space/06f3c925986549be.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_shared_members_behave_like_a_space/2500873388a0ba2f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_shared_members_behave_like_a_space/749aab3a75a1197a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_shared_members_behave_like_a_space/7c2e468d73d2d346.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-3/reactive_comment_attachment_3469/client_drops_the_comment_for_the_three_exotic_line_endings/161527d8f33a20ab.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-3/reactive_comment_attachment_3469/client_drops_the_comment_for_the_three_exotic_line_endings/cb9a675d531782db.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-3/script_line_terminators_3278/a_line_comment_ends_at_a_separator/2a7ab545a2f4f697.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-3/script_line_terminators_3278/a_line_comment_ends_at_a_separator/9bdd1b8f421ef909.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-3/script_line_terminators_3278/a_reactive_statement_on_a_cr_or_separator_line_keeps_its_effect/366a42887f77332a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-core-3/script_line_terminators_3278/a_reactive_statement_on_a_cr_or_separator_line_keeps_its_effect/b34b06b5d8d058cf.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests-formatter/markup_preserve_ws/unicode_separators_in_text_are_content/de5bfca9953f9163.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests/rsvelte_lint/json_api/tests/a_directive_shields_the_rule_whose_table_agrees_with_it/3891b7d6ca564454.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests/rsvelte_lint/json_api/tests/a_directive_shields_the_rule_whose_table_agrees_with_it/93378db89c0db423.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte-tests/rsvelte_lint/json_api/tests/the_json_api_reports_each_rule_on_its_own_line_table/9ef87a655e4bbf8d.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/html-closing-bracket-new-line/12-u2028-before-bracket.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/html-closing-bracket-new-line/14-exotic-ws-before-bracket.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/html-closing-bracket-spacing/11-u2028-line-shift.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/html-closing-bracket-spacing/12-u2029-line-shift.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/mustache-spacing/18-exotic-ws-controls.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/no-dupe-on-directives/15-line-comment-u2028.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/no-dupe-use-directives/12-line-comment-u2028.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/prefer-class-directive/20-line-separator.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/lint/spaced-html-comment/11-u2028-lines.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/pattern/adversarial/text-and-entities/text-entity-shapes.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/pattern/adversarial/text-and-entities/unicode-line-separators.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/rsvelte/pattern/adversarial/text-and-entities/unicode-text-hostile.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/edra/src/lib/edra/headless/primitives/tabs/TabsTrigger.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test02-output.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/trim-test01-input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/flowbite-svelte/src/lib/tour/Tour.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/flowbite-svelte/src/routes/admin-dashboard/utils/HighlightCompo.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/flowbite-svelte/src/routes/blocks/utils/Toc.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/flowbite-svelte/src/routes/utils/CodeWrapper.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/flowbite-svelte/src/routes/utils/Toc.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/docs/ui/row.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/collapse/content.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/menu/content.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/modal/body.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/modal/footer.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/note/note.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/projectBanner/banner.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/select/trigger.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/snippet/snippet.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/splitButton/content.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/table/body.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/tabs/tabs.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/text/text.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/text/textGradient.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kener/src/lib/components/LatencyTrendChart.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/BaseModal.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/CategoryNavigation.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/TimeTravel.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/settings/SettingsAccount.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/settings/SettingsCategories.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/settings/SettingsSyncPrivacy.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/story/CitationItem.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/story/CitationText.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/story/StoryCard.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/melt-ui/docs/src/previews/tabs.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/networking-toolbox/src/lib/components/global/SvgIcon.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-core-1/css_scoping_1237/sibling_combinator_kept_when_before_element_has_dynamic_class/4978af891d9c7d0c.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-core-3/server_empty_class_expression_4059/an_empty_static_class_is_still_dropped/cba9a77990ec7af3.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/attr_width/multi_breakable_value_breaks_first_when_later_cannot_absorb/6354b6639c25f4e1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/attr_width/multi_breakable_value_breaks_first_when_later_cannot_absorb/bd91abddec316cb5.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/attr_width/multi_interp_value_breaks_single_breakable_interpolation/2a0ccb0872a6e447.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/attr_width/multi_interp_value_is_idempotent/417e38be74b5c803.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/class_attribute_whitespace/a_whitespace_only_value_is_untouched/a784b21b0f53fbde.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/class_attribute_whitespace/whitespace_only_text_around_an_interpolation_survives/86f2768eff09025a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/class_attribute_whitespace/whitespace_only_text_around_an_interpolation_survives/91df26e9c35c9c87.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/whitespace_body_close_break/a_source_newline_body_breaks_the_same_way/915aa929cdbc3333.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/whitespace_body_close_break/an_open_tag_whose_value_was_wrapped_in_source_breaks_once_flattened/295ea0c2da6bcfac.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/whitespace_body_close_break/an_open_tag_whose_value_was_wrapped_in_source_breaks_once_flattened/816165f81f2e81dc.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/whitespace_body_close_break/the_reported_segmented_shape/4fea167a55291bd1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/whitespace_body_close_break/the_reported_segmented_shape/ad4da3b07186574f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte/lint/no-unused-class-name/03-empty-name-quirk.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte/lint/no-unused-class-name/17-attribute-and-expression-forms.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte/lint/prefer-class-directive/10-multiple-mustaches.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte/lint/prefer-class-directive/15-adjacent-parts.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte/pattern/adversarial/css/scoped-class-merge.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte/pattern/issues/whitespace-body-inline-element-breaks-before-close.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/skeleton/sites/plus.skeleton.dev/src/lib/components/markdown/overrides/li.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/skeleton/sites/skeleton.dev/src/components/examples/integrations/code-block/svelte/code-block.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/skeleton/sites/skeleton.dev/src/components/ui/preview.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/common/CodeBlock/CodeBlock.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/CheckboxGroup.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/Field.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/RadioButtonGroup.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/Segmented.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/SideArea.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/Tabs.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/calendar/Panel.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/helpers/InlineDropdown.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-grid/svelte/src/components/FooterCell.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-grid/svelte/src/components/HeaderCell.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-grid/svelte/src/components/print/HeaderFooter.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/docs/Sidebar.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/landing/Navbar/Navbar.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/Animations/GradualBlur/GradualBlur.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/Animations/LogoLoop/LogoLoop.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/Components/AnimatedList/AnimatedList.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/Components/BubbleMenu/BubbleMenu.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/Components/Folder/Folder.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/Components/StaggeredMenu/StaggeredMenu.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/TextAnimations/GradientText/GradientText.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/TextAnimations/TextPressure/TextPressure.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/TextAnimations/TextType/TextType.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-commerce/src/lib/components/page-blocks/blocks.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-commerce/src/lib/components/page-blocks/blocks/image-block.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-commerce/src/lib/core/components/plugins/share-button.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-commerce/src/routes/(my)/my/orders/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-commerce/src/routes/(www)/products/[slug]/components/product-reviews-section.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-french-toast/src/lib/components/ToastBar.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-put/packages/preprocess-markdown/src/enhance-code-block/CodeBlockGroup.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-put/sites/docs/src/lib/components/status-badge/StatusBadge.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-put/sites/docs/src/packages/dragscroll/_page/examples/no-parameters.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-put/sites/docs/src/packages/dragscroll/_page/examples/option-axis.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/syntaxfm-website/src/lib/player/Player.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/a_comment_between_two_kept_arguments_is_kept/4531a6f78fb39af5.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style places a selector inside a pseudo-class's arguments as if a comment before it there were not in the source, such as `.a` in `div:is(/* l */ .a)`"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/76da5691786f61cb.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style places a selector inside a pseudo-class's arguments as if a comment before it there were not in the source, such as `.a` in `div:is(/* l */ .a)`"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/8bb2d3a6f27e3a83.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style places a selector inside a pseudo-class's arguments as if a comment before it there were not in the source, such as `.a` in `div:is(/* l */ .a)`"
+
+["svelte/rsvelte-tests-core-1/css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/92e5b2bc3c06fbbb.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style places a selector inside a pseudo-class's arguments as if a comment before it there were not in the source, such as `.a` in `div:is(/* l */ .a)`"
+
+["svelte/rsvelte/pattern/issues/3130-pseudo-class-argument-comments.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style places a selector inside a pseudo-class's arguments as if a comment before it there were not in the source, such as `.a` in `div:is(/* l */ .a)`"
+
+["svelte/rsvelte-tests-core-1/client_shared_evaluator_3466_3636/component_let_shadowing_respects_each_slot_scope/b57d3eccdf2c4b11.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_default_slot_read_and_a_shadowed_name_still_are/7190a65f576801b9.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/09a477170072902c.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/b1f41bda00b8d1f4.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/c3f0df2559482807.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/f0ad233ce0e1a177.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_is_not_reactive/054fad118a8cb2b1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_is_not_reactive/1f913430bfa1de2c.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"
+
+["svelte/rsvelte-tests-core-2/named_slot_let_scope/a_named_slot_read_is_not_reactive/f4814aa53a465939.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser resolves a name inside a named slot of a component to the component's `let:` name, which Svelte keeps out of that slot's scope, so no-unused-vars misreads both (svelte-eslint-parser #1003)"

@@ -15,6 +15,5 @@ async () => {
     };
   }
 };
-const BindValueBeforeABadTarget__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BindValueBeforeABadTarget__SvelteComponent_ = ReturnType<typeof BindValueBeforeABadTarget__SvelteComponent_>;
-export default BindValueBeforeABadTarget__SvelteComponent_;
+const BindValueBeforeABadTarget__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindValueBeforeABadTarget__SvelteComponent_>} */ (BindValueBeforeABadTarget__SvelteComponent_);

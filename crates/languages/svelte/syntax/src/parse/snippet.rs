@@ -45,7 +45,7 @@ impl Parser<'_, '_> {
             i += 1;
         }
         if i == bytes.len() {
-            let end = self.trimmed_end() as u32;
+            let end = self.source_text.len() as u32;
             return Self::err_at(Span::new(end, end), "expected_token", "Expected token )");
         }
         let span = Span::new(start as u32, i as u32);

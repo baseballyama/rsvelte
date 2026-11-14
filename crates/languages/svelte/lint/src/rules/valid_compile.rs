@@ -2,7 +2,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use serde::Deserialize;
 
-use super::compile_warnings::{apply, ignores};
+use super::compile_warnings::{Postcss, apply, ignores};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 use crate::settings::Warning;
 
@@ -24,12 +24,16 @@ struct Options {
 
 fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
     let ignore_warnings = options.single::<Options>()?.ignore_warnings;
-    Ok(Box::new(ValidCompile { ignore_warnings }))
+    Ok(Box::new(ValidCompile {
+        ignore_warnings,
+        postcss: Postcss::new(options.settings),
+    }))
 }
 
 #[derive(Debug)]
 struct ValidCompile {
     ignore_warnings: bool,
+    postcss: Postcss,
 }
 
 impl SvelteRule for ValidCompile {
@@ -50,6 +54,7 @@ impl SvelteRule for ValidCompile {
             compile,
             &ignores(component, source),
             experimental_async,
+            self.postcss,
         );
         if let Some(error) = &applied.error {
             report(reporter, error, &error.message, &error.code);

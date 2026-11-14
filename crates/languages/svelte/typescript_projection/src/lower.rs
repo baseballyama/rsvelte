@@ -83,6 +83,10 @@ pub fn lower<'a>(
         root_snippets: None,
         slot_parent: None,
     };
+    builder.tree.javascript = ![&component.instance, &component.module]
+        .into_iter()
+        .flatten()
+        .any(|script| script.typescript);
     // svelte2tsx moves the root's snippets after the instance script's imports, or leaves them in
     // place without an instance script.
     let instance = component.instance.is_some();

@@ -40,6 +40,5 @@ async () => {
     });
   }
 };
-const DefaultValue__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type DefaultValue__SvelteComponent_ = ReturnType<typeof DefaultValue__SvelteComponent_>;
-export default DefaultValue__SvelteComponent_;
+const DefaultValue__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof DefaultValue__SvelteComponent_>} */ (DefaultValue__SvelteComponent_);

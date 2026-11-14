@@ -1,5 +1,5 @@
 ;
-let {value,...rest}: typeof __rsvelte_public_props0=$props()
+/** @type {typeof __rsvelte_public_props0} */ let {value,...rest}=$props()
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -17,6 +17,5 @@ async () => {
     (rest.other);
   }
 };
-const OptionsCustomPropsRest__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type OptionsCustomPropsRest__SvelteComponent_ = ReturnType<typeof OptionsCustomPropsRest__SvelteComponent_>;
-export default OptionsCustomPropsRest__SvelteComponent_;
+const OptionsCustomPropsRest__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof OptionsCustomPropsRest__SvelteComponent_>} */ (OptionsCustomPropsRest__SvelteComponent_);

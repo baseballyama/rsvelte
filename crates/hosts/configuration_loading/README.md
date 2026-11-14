@@ -35,15 +35,15 @@ a runtime loader such as `tsx`; rsvelte does not install it. See
 Each key of `plugins` is a plugin identifier, and the plugin decodes its value. Paths in it start
 from the configuration file.
 
-| Plugin             | Options                                                                 |
-| ------------------ | ----------------------------------------------------------------------- |
-| `svelte.compile`   | `cssHash`: a function                                                   |
-| `svelte.lint`      | `rules`: ESLint levels by rule name                                     |
-| `vue.lint`         | `rules`: ESLint levels by rule name; the rules take no options          |
-| `typescript.lint`  | `rules`: ESLint levels by rule name; the rules take no options          |
-| `typescript.check` | `command`: the type checker and its own arguments; `tsconfig`           |
-| `svelte.check`     | `svelte`: the package directory; `contentMapper`: the mapper executable |
-| `vue.check`        | `vue`: the package directory                                            |
+| Plugin             | Options                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------ |
+| `svelte.compile`   | `cssHash`: a function                                                                |
+| `svelte.lint`      | `rules`: ESLint levels by rule name; `languageOptions.globals`: the declared globals |
+| `vue.lint`         | `rules`: ESLint levels by rule name; the rules take no options                       |
+| `typescript.lint`  | `rules`: ESLint levels by rule name; the rules take no options                       |
+| `typescript.check` | `command`: the type checker and its own arguments; `tsconfig`                        |
+| `svelte.check`     | `svelte`: the package directory; `contentMapper`: the mapper executable              |
+| `vue.check`        | `vue`: the package directory                                                         |
 
 ```json
 { "plugins": { "typescript.check": { "command": ["tsrs"] } } }

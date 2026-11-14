@@ -1,7 +1,7 @@
 ;
 
 	import C from './C.svelte';
-const s = (): ReturnType<import('svelte').Snippet> => {
+const s = () => {
   async () => {
     {
       svelteHTML.createElement("i", {});
@@ -48,6 +48,5 @@ async () => {
   }
   __rsvelte_ensure_snippet(s());
 };
-const BindAccessors__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BindAccessors__SvelteComponent_ = ReturnType<typeof BindAccessors__SvelteComponent_>;
-export default BindAccessors__SvelteComponent_;
+const BindAccessors__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindAccessors__SvelteComponent_>} */ (BindAccessors__SvelteComponent_);

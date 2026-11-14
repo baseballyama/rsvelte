@@ -1,13 +1,13 @@
 ;
 
-const s = (q = 2n): ReturnType<import('svelte').Snippet> => {
+const s = (q = 2n) => {
   async () => {
     (q);
   };
   return __rsvelte_snippet_return;
 };
 
-	let { p = 1n }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { p = 1n } = $props();
 
 ;
 
@@ -18,6 +18,5 @@ async () => {
   __rsvelte_ensure_snippet(s());
   (p);
 };
-const BigintFallbackIsSimple__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type BigintFallbackIsSimple__SvelteComponent_ = ReturnType<typeof BigintFallbackIsSimple__SvelteComponent_>;
-export default BigintFallbackIsSimple__SvelteComponent_;
+const BigintFallbackIsSimple__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BigintFallbackIsSimple__SvelteComponent_>} */ (BigintFallbackIsSimple__SvelteComponent_);

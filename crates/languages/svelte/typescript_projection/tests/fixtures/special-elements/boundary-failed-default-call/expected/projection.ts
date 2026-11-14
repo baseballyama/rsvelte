@@ -20,6 +20,5 @@ async () => {
     }
   }
 };
-const BoundaryFailedDefaultCall__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BoundaryFailedDefaultCall__SvelteComponent_ = ReturnType<typeof BoundaryFailedDefaultCall__SvelteComponent_>;
-export default BoundaryFailedDefaultCall__SvelteComponent_;
+const BoundaryFailedDefaultCall__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BoundaryFailedDefaultCall__SvelteComponent_>} */ (BoundaryFailedDefaultCall__SvelteComponent_);

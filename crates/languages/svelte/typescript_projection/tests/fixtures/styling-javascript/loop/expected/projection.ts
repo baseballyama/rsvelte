@@ -9,6 +9,5 @@ async () => {
     });
   }
 };
-const Loop__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type Loop__SvelteComponent_ = ReturnType<typeof Loop__SvelteComponent_>;
-export default Loop__SvelteComponent_;
+const Loop__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof Loop__SvelteComponent_>} */ (Loop__SvelteComponent_);

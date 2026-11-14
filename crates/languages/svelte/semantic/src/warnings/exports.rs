@@ -24,7 +24,26 @@ pub(super) fn unused_exports(
     // Legacy props: `export let` and `export var`, and a `let` or `var` an `export { … }` names.
     let mut props: Vec<SymbolId> = Vec::new();
     let mut specifiers: FxHashSet<ReferenceId> = FxHashSet::default();
+    // Acorn-typescript's identifier of a declared name ends where its type annotation does.
+    let mut annotated: FxHashMap<SymbolId, u32> = FxHashMap::default();
     for statement in &component.javascript.get_program(instance.program).body {
+        let declaration = match statement {
+            Statement::VariableDeclaration(declaration) => Some(&**declaration),
+            Statement::ExportDeclaration(export) => match &export.declaration {
+                Declaration::VariableDeclaration(declaration) => Some(&**declaration),
+                _ => None,
+            },
+            _ => None,
+        };
+        for declarator in declaration.iter().flat_map(|d| &d.declarations) {
+            if let (Some(identifier), Some(annotation)) = (
+                declarator.id.get_binding_identifier(),
+                &declarator.type_annotation,
+            ) && let Some(symbol) = identifier.symbol_id.get()
+            {
+                annotated.insert(symbol, annotation.span.end);
+            }
+        }
         match statement {
             Statement::ExportDeclaration(export) => {
                 let Declaration::VariableDeclaration(declaration) = &export.declaration else {
@@ -81,6 +100,10 @@ pub(super) fn unused_exports(
                 })
         });
         if !used && !subscribed.contains(text) {
+            let mut name = scoping.symbol_span(symbol);
+            if let Some(&end) = annotated.get(&symbol) {
+                name.end = end;
+            }
             out.push(
                 Stage::Bindings,
                 0,
@@ -90,7 +113,7 @@ pub(super) fn unused_exports(
                         "Component has unused export property '{text}'. If it is for external \
                         reference only, please consider using `export const {text}`"
                     ),
-                    span(scoping.symbol_span(symbol)),
+                    span(name),
                 ),
             );
         }

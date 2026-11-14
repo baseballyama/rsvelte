@@ -19,7 +19,9 @@ pub struct LintSettings {
 }
 
 /// How upstream transforms scripts (with `babel`) and styles (with `postcss`) before it compiles.
-/// rsvelte runs neither tool, so the options change nothing it reports.
+///
+/// rsvelte runs neither tool. `postcss: false` strips a style in `postcss`, as upstream does
+/// without the transform; the other options change nothing it reports.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CompileOptions {

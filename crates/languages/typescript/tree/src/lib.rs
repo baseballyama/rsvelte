@@ -20,7 +20,9 @@ mod acorn_grammar;
 mod builder;
 pub use builder::{Builder, Recorded};
 mod syntax_error;
-pub use syntax_error::{Acorn, Locator, SyntaxError, analysis_error, syntax_error};
+pub use syntax_error::{
+    Acorn, Locator, SyntaxError, analysis_error, syntax_error, typescript_eslint_error,
+};
 
 pub mod scratch;
 pub use scratch::with_scratch_arena;

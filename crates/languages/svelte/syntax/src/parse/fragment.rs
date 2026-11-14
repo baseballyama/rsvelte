@@ -77,7 +77,7 @@ impl Parser<'_, '_> {
     fn stray_closing_tag<T>(&mut self) -> ParseResult<T> {
         let start = self.position as u32;
         // Upstream's `read_until` stops at the trimmed end before it reads the name.
-        if self.position + 2 >= self.trimmed_end() {
+        if self.position + 2 >= self.source_text.len() {
             return self.unexpected_eof();
         }
         let name = element::peek_tag_name(&self.rest()[2..]);

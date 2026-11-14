@@ -21,6 +21,7 @@ pub fn emit_named(tree: &SyntaxTree, source: &str, path: &str) -> Emitter {
         path,
         output: Emitter::new(),
         indent: 0,
+        in_type: false,
     };
     printer.output.push(";\n");
     printer.children(tree.root());
@@ -33,9 +34,12 @@ struct Printer<'a> {
     path: &'a str,
     output: Emitter,
     indent: usize,
+    /// Inside a `JSDoc` type, where a JavaScript projection prints types as TypeScript does.
+    in_type: bool,
 }
 
 mod generic;
+mod javascript;
 
 impl Printer<'_> {
     fn children(&mut self, range: Range) {
@@ -238,19 +242,7 @@ impl Printer<'_> {
                 self.output.copy(self.source, span);
                 self.output.mark(span.end_offset);
             }
-            Node::StoreSubscription(store) => {
-                let name = store.text(self.source);
-                // A type query reads no value, so this declaration can raise no finding of its own.
-                for part in [
-                    ";let $",
-                    name,
-                    "!: __rsvelte_store_value<typeof ",
-                    name,
-                    ">;\n",
-                ] {
-                    self.output.push(part);
-                }
-            }
+            Node::StoreSubscription(store) => self.store_subscription(store),
             Node::GeneratedIdentifier { prefix, index } => {
                 self.node(prefix);
                 write!(self.output.out, "{index}").expect("writing to a String cannot fail");
@@ -259,6 +251,10 @@ impl Printer<'_> {
                 self.output.push("typeof ");
                 self.node(value);
             }
+            Node::TypeArguments { callee, arguments } if self.tree.javascript && !self.in_type => {
+                self.instantiated(callee, arguments);
+            }
+            Node::DeclaredType(value) => self.declared_type(value),
             Node::TypeArguments { callee, arguments } => {
                 self.node(callee);
                 self.output.push("<");
@@ -300,23 +296,41 @@ impl Printer<'_> {
                 names,
                 declared,
             } => self.generic_export(type_parameters, names, declared),
-            Node::ExportDefault(value) => {
-                // svelte2tsx's runes component: a type of the same name lets an import name the
-                // instance's type.
-                self.output.push("const ");
-                self.component_name();
-                self.output.push(" = ");
-                self.node(value);
-                self.output.push(";\ntype ");
-                self.component_name();
-                self.output.push(" = ReturnType<typeof ");
-                self.component_name();
-                self.output.push(">;\nexport default ");
-                self.component_name();
-                self.output.push(";\n");
-            }
+            Node::ExportDefault(value) => self.export_default(value),
             _ => unreachable!("ordinary nodes are printed by node"),
         }
+    }
+
+    /// The store subscription `$name`, declared with the store's value type.
+    fn store_subscription(&mut self, store: Span) {
+        let name = store.text(self.source);
+        // A type query reads no value, so this declaration can raise no finding of its own.
+        let (open, close) = if self.tree.javascript {
+            (" = __rsvelte_store_get(", ")")
+        } else {
+            ("!: __rsvelte_store_value<typeof ", ">")
+        };
+        for part in [";let $", name, open, name, close, ";\n"] {
+            self.output.push(part);
+        }
+    }
+
+    /// svelte2tsx's runes component: a type of the same name lets an import name its type.
+    fn export_default(&mut self, value: NodeIdentifier) {
+        if self.tree.javascript {
+            return self.javascript_export(value);
+        }
+        self.output.push("const ");
+        self.component_name();
+        self.output.push(" = ");
+        self.node(value);
+        self.output.push(";\ntype ");
+        self.component_name();
+        self.output.push(" = ReturnType<typeof ");
+        self.component_name();
+        self.output.push(">;\nexport default ");
+        self.component_name();
+        self.output.push(";\n");
     }
 
     /// svelte2tsx's `function $$render<type parameters>() { body }`.
@@ -348,7 +362,7 @@ impl Printer<'_> {
         self.output.push(";\n");
     }
 
-    fn component_name(&mut self) {
+    pub(super) fn component_name(&mut self) {
         if self.path.is_empty() {
             self.output.push("$$Component");
         } else {
@@ -442,8 +456,10 @@ impl Printer<'_> {
             Some(parameters) => self.node(parameters),
             None => self.output.push("()"),
         }
-        self.output
-            .push(": ReturnType<import('svelte').Snippet> => {\n");
+        if !self.tree.javascript {
+            self.output.push(": ReturnType<import('svelte').Snippet>");
+        }
+        self.output.push(" => {\n");
         self.indent += 1;
         self.indentation();
         self.output.push("async () => {\n");

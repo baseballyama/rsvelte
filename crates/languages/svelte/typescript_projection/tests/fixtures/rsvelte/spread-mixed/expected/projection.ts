@@ -1,6 +1,6 @@
 ;
 
-	let { class: className, ...rest }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { class: className, ...rest } = $props();
 	let count = $state(0);
 	let active = $state(false);
 
@@ -55,6 +55,5 @@ async () => {
     });
   }
 };
-const SpreadMixed__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type SpreadMixed__SvelteComponent_ = ReturnType<typeof SpreadMixed__SvelteComponent_>;
-export default SpreadMixed__SvelteComponent_;
+const SpreadMixed__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SpreadMixed__SvelteComponent_>} */ (SpreadMixed__SvelteComponent_);
