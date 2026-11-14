@@ -67,6 +67,14 @@ impl Drop for Kept {
     }
 }
 
+/// What few documents have.
+struct Rare {
+    acorn_rejection: Option<(u32, acorn_grammar::Rejection)>,
+    /// How many pairs of parentheses wrapped each node that had any where upstream's parser keeps
+    /// them, sorted by span.
+    parentheses: Vec<(oxc_span::Span, u8)>,
+}
+
 struct Trees<'a> {
     source_text: &'a str,
     programs: Vec<Program<'a>>,
@@ -77,10 +85,8 @@ struct Trees<'a> {
     type_parameters: Vec<TSTypeParameterDeclaration<'a>>,
     /// The comments of every part but the programs, which keep their own, in document order.
     comments: Vec<Comment>,
-    acorn_rejection: Option<(u32, acorn_grammar::Rejection)>,
-    /// How many pairs of parentheses wrapped each node that had any where upstream's parser keeps
-    /// them, by span.
-    parentheses: Vec<(oxc_span::Span, u8)>,
+    /// Boxed, so that a document with neither costs one pointer in every tree.
+    rare: Option<Box<Rare>>,
     unchecked: &'static [&'static str],
     as_acorn: bool,
 }
@@ -208,9 +214,8 @@ impl Tree {
     /// acorn's error at the first syntax oxc parsed and acorn does not, when the builder noted it.
     #[must_use]
     pub fn acorn_rejection(&self) -> Option<SyntaxError> {
-        self.0
-            .borrow_dependent()
-            .acorn_rejection
+        (self.0.borrow_dependent().rare.as_ref())
+            .and_then(|rare| rare.acorn_rejection)
             .map(acorn_grammar::rejection)
     }
 
@@ -321,17 +326,25 @@ impl Tree {
     /// Whether any node upstream's parser keeps parentheses around had them.
     #[must_use]
     pub fn has_parentheses(&self) -> bool {
-        !self.0.borrow_dependent().parentheses.is_empty()
+        self.parentheses_table()
+            .is_some_and(|table| !table.is_empty())
     }
 
     /// How many pairs of parentheses the source wrapped around the node at `span`, in a snippet's
     /// parameters or around a `bind:` value, the places upstream's parser keeps them.
     #[must_use]
     pub fn parentheses(&self, span: oxc_span::Span) -> u8 {
-        let parentheses = &self.0.borrow_dependent().parentheses;
+        let Some(parentheses) = self.parentheses_table() else {
+            return 0;
+        };
         parentheses
             .binary_search_by_key(&(span.start, span.end), |&(s, _)| (s.start, s.end))
             .map_or(0, |i| parentheses[i].1)
+    }
+
+    fn parentheses_table(&self) -> Option<&[(oxc_span::Span, u8)]> {
+        let rare = self.0.borrow_dependent().rare.as_deref()?;
+        Some(&rare.parentheses)
     }
 }
 
