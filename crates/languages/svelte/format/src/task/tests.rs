@@ -64,7 +64,7 @@ fn a_sheet_the_plugin_cuts_at_a_closing_tag_inside_it_is_refused() {
 // The plugin reads a script the compiler rejects with `babel-ts`, and keeps the body of one Babel
 // throws on as it is, as the units of `ts_class_modifiers_3100_3203` record.
 #[test]
-fn a_script_the_compiler_rejects_is_formatted_as_babel_ts_reads_it() {
+fn a_script_the_compiler_rejects_is_formatted_as_the_plugin_reads_it() {
     for (source_text, formatted) in [
         (
             "<script>\n\tclass C {\n\t\tprivate m() {}\n\t}\n</script>\n",
