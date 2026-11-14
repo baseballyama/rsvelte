@@ -1,8 +1,7 @@
-# svelte.compileModule/server: 2290 match
+# svelte.compileModule/server: 2291 match
 svelte/rsvelte-tests-core-1/class_field_tag_label_2021/anonymous_class_falls_back_to_the_upstream_placeholder/0860dafe2dc30de4.svelte.js	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/tests/module_async_derived_instruments_its_thunk_in_dev/a70e89098f9b811a.svelte.js	unexpected
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/tests/module_async_derived_prelude_does_not_reorder_console_analysis/aa33996234c562fd.svelte.js	unexpected
-svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/12093ac1ccc12b93.svelte.js	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/6a26782d79102a88.svelte.js	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/e6f48eb60e9a7548.svelte.js	mismatch
 svelte/rsvelte-tests-core-2/indirect_state_export_error_spans/indirect_state_exports_point_at_the_invalid_specifier/8f5826d2dde2e7b6.svelte.js	unexpected
