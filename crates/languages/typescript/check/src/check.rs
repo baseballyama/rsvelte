@@ -387,11 +387,13 @@ impl FinishTask for Check {
 
 impl Check {
     fn stand_in(&self, context: &DocumentContext<'_>) -> Option<Part> {
-        let fallback = self.stand_in.filter(|_| self.tsc.is_some())?;
+        self.tsc.as_ref()?;
+        // A language's own stand-in serves every check, so the project-wide check resolves an
+        // unchecked component as the language's own check does.
         let text = context
             .facet::<TypeScriptStandIn>()
             .and_then(Clone::clone)
-            .unwrap_or_else(|| fallback.to_owned());
+            .or_else(|| self.stand_in.map(str::to_owned))?;
         Some(Box::new(StandIn {
             path: context.document.path.clone(),
             text,
