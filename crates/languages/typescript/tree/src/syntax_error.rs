@@ -78,6 +78,17 @@ pub fn analysis_error(
     syntax_error
 }
 
+impl SyntaxError {
+    /// Where acorn reports this error: where it stops, or oxc's place when its code does not say.
+    #[must_use]
+    pub const fn acorn_at(&self) -> u32 {
+        match self.acorn {
+            Some(Acorn::Stops(at) | Acorn::Fails { at, .. }) => at,
+            None => self.diagnostic.span.start_offset,
+        }
+    }
+}
+
 impl Acorn {
     pub(crate) fn shifted(self, shift: u32) -> Self {
         match self {

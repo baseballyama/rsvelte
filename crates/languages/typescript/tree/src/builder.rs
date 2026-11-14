@@ -12,7 +12,7 @@ use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
-use crate::acorn_grammar::{Rejection, Unsupported};
+use crate::acorn_grammar::{Rejection, Unsupported, rejection};
 use crate::syntax_error::{Locator, SyntaxError, acorn, acorn_accepts, syntax_error};
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
@@ -123,17 +123,28 @@ impl<'a> Builder<'a> {
                     .is_none_or(|n| !self.unchecked.contains(&n));
             checked && !(self.as_acorn && acorn_accepts(d, visit))
         };
-        if let Some(first) = diagnostics.iter().position(reported) {
+        let first = diagnostics.iter().position(reported);
+        let stop = if self.as_acorn && (first.is_some() || self.acorn_rejection.is_none()) {
+            let mut unsupported = Unsupported::new(source_type.is_typescript(), tokens);
+            part.walk(&mut unsupported);
+            unsupported.first.map(|(at, why)| (at + shift, why))
+        } else {
+            None
+        };
+        if let Some(first) = first {
             let acorn = acorn(&diagnostics[first], text, tokens, visit);
             let errors = diagnostics.into_iter().skip(first);
             let mut error = syntax_error(errors, text, fallback, shift);
             error.acorn = acorn.map(|acorn| acorn.shifted(shift));
-            return Err(error);
+            // acorn throws where it stops first, before an error oxc reports later or at the same
+            // place.
+            return Err(match stop {
+                Some(stop) if stop.0 <= error.acorn_at() => rejection(stop),
+                _ => error,
+            });
         }
-        if self.as_acorn && self.acorn_rejection.is_none() {
-            let mut unsupported = Unsupported::new(source_type.is_typescript(), tokens);
-            part.walk(&mut unsupported);
-            self.acorn_rejection = unsupported.first.map(|(at, why)| (at + shift, why));
+        if self.acorn_rejection.is_none() {
+            self.acorn_rejection = stop;
         }
         Ok(())
     }
