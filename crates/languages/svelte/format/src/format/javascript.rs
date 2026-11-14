@@ -92,7 +92,9 @@ impl<'x> Printer<'_, '_, 'x> {
         } else {
             // Prettier's `babel` reads JSX.
             SourceType::mjs().with_jsx(true)
-        };
+        }
+        // Prettier reads a component's code as a module, so `await` is an operator.
+        .with_module(true);
         let mut options = embedder.options.clone();
         if single_quote {
             options.quote_style = QuoteStyle::Single;
@@ -207,3 +209,6 @@ pub(super) fn trim_semicolon(ir: &mut ArenaVec<'_, FormatElement<'_>>) {
         ir.remove(i);
     }
 }
+
+#[cfg(test)]
+mod tests;

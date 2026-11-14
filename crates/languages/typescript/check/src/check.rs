@@ -9,6 +9,7 @@ use std::process::Command;
 use std::sync::Arc;
 
 use rsvelte_kernel::computation::database::{ArtifactRegistry, DocumentContext, Facet};
+use rsvelte_kernel::computation::registry::Contribution;
 use rsvelte_kernel::computation::task::{FinishTask, Part, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::{Atom, Emitter, Mapping};
@@ -235,6 +236,23 @@ pub struct Check {
     pub imported: Option<fn(&Document) -> bool>,
 }
 
+/// The languages whose documents the checker reads through a content mapper, so a project check
+/// can ask the checker for their files. The language's own plugin adds itself.
+#[derive(Debug)]
+pub struct MappedLanguages;
+
+impl Contribution for MappedLanguages {
+    type Item = MappedLanguage;
+}
+
+#[derive(Debug, Clone)]
+pub struct MappedLanguage {
+    /// Such as `.svelte`.
+    pub extension: &'static str,
+    /// The executable that serves the language's projections.
+    pub content_mapper: PathBuf,
+}
+
 /// A document the run does not check but other documents may import.
 struct StandIn {
     path: String,
@@ -392,11 +410,13 @@ impl FinishTask for Check {
 
 impl Check {
     fn stand_in(&self, context: &DocumentContext<'_>) -> Option<Part> {
-        let fallback = self.stand_in.filter(|_| self.tsc.is_some())?;
+        self.tsc.as_ref()?;
+        // A language's own stand-in serves every check, so the project-wide check resolves an
+        // unchecked component as the language's own check does.
         let text = context
             .facet::<TypeScriptStandIn>()
             .and_then(Clone::clone)
-            .unwrap_or_else(|| fallback.to_owned());
+            .or_else(|| self.stand_in.map(str::to_owned))?;
         Some(Box::new(StandIn {
             path: context.document.path.clone(),
             text,

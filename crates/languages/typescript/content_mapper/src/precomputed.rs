@@ -26,10 +26,21 @@ struct Projection {
 /// # Errors
 /// Returns protocol, input, or projection validation errors.
 pub fn serve_precomputed() -> Result<(), Box<dyn std::error::Error>> {
+    serve_precomputed_or(|_, _| Err("no projection for the file".to_owned()))
+}
+
+/// Serves the store's projection of a file it holds, and `missing`'s of any other, such as a
+/// component the checker found in a package.
+///
+/// # Errors
+/// Returns protocol, input, or projection validation errors.
+pub fn serve_precomputed_or(
+    mut missing: impl FnMut(crate::Input<'_>, &mut StructuredDataWriter) -> Result<(), String>,
+) -> Result<(), Box<dyn std::error::Error>> {
     // A store is read once per project options, when the first file is transformed; a host that
     // rewrites a store changes another option, which the checker folds into its cache key too.
     let mut stores: HashMap<String, Store> = HashMap::new();
-    crate::serve("rsvelte-projection", |input, output| {
+    let transform = |input: crate::Input<'_>, output: &mut StructuredDataWriter| {
         let raw = input
             .options
             .ok_or("the project gives no `projections` option")?;
@@ -40,16 +51,21 @@ pub fn serve_precomputed() -> Result<(), Box<dyn std::error::Error>> {
             let store: Store = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
             stores.insert(raw.to_owned(), store);
         }
-        let projection = stores[raw]
-            .files
-            .get(input.file_name)
-            .ok_or("no projection for the file")?;
+        let Some(projection) = stores[raw].files.get(input.file_name) else {
+            return missing(input, output);
+        };
         if projection.source != input.content {
             return Err("projection source does not match the native input".into());
         }
         write_projection(projection, output);
         Ok(())
-    })
+    };
+    crate::serve_on(
+        std::io::stdin().lock(),
+        std::io::stdout().lock(),
+        "rsvelte-projection",
+        transform,
+    )
 }
 
 fn write_projection(projection: &Projection, output: &mut StructuredDataWriter) {

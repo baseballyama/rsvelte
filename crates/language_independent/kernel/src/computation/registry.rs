@@ -26,6 +26,19 @@ pub trait Contribution: 'static {
     type Item: Send + Sync + 'static;
 }
 
+/// How a task names the files of the project it checks, as the project's own tool selects them,
+/// for a host given a project instead of files: the task, and the function that names them.
+#[derive(Debug)]
+pub struct ProjectFiles;
+
+/// Names the files of a project from the installed plugins.
+pub type ProjectFilesFn =
+    Box<dyn Fn(&Registry) -> Result<Vec<std::path::PathBuf>, String> + Send + Sync>;
+
+impl Contribution for ProjectFiles {
+    type Item = (&'static str, ProjectFilesFn);
+}
+
 impl std::fmt::Debug for Registry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Registry")
@@ -85,6 +98,34 @@ impl Registry {
                     .all(|t| t.identifier() != identifier),
             "task `{identifier}` is registered twice"
         );
+    }
+
+    /// The files of the project that the tasks among `tasks` check, each once, in the order the
+    /// tasks name them.
+    ///
+    /// # Errors
+    ///
+    /// No task among `tasks` names a project's files, or one fails to.
+    pub fn project_files(&self, tasks: &[&str]) -> Result<Vec<std::path::PathBuf>, String> {
+        let mut named = false;
+        let mut files = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for (task, project_files) in self
+            .contributions::<ProjectFiles>()
+            .iter()
+            .filter(|(task, _)| tasks.contains(task))
+        {
+            named = true;
+            for file in project_files(self).map_err(|e| format!("{task}: {e}"))? {
+                if seen.insert(file.clone()) {
+                    files.push(file);
+                }
+            }
+        }
+        if !named {
+            return Err(format!("no task among {tasks:?} names a project's files"));
+        }
+        Ok(files)
     }
 
     /// Registers artifact `A`; its `Debug` is how a host shows it.

@@ -11,7 +11,8 @@ use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_svelte_typescript_projection::{Printed, THROWN};
 use rsvelte_typescript_check::{
-    Check, Documents, TypeScriptDocument, TypeScriptEnv, TypeScriptStandIn, TypeScriptView,
+    Check, Documents, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptEnv,
+    TypeScriptStandIn, TypeScriptView,
 };
 
 use crate::Configuration;
@@ -42,6 +43,12 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         stand_in: Some(rsvelte_svelte_typescript_projection::STAND_IN),
         imported: Some(is_script),
     });
+    if let Some(check) = &config.check {
+        reg.contribute::<MappedLanguages>(MappedLanguage {
+            extension: ".svelte",
+            content_mapper: check.content_mapper.clone(),
+        });
+    }
     let env = config
         .check
         .as_ref()
@@ -50,8 +57,10 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         typescript_view(context, env.as_ref())
     });
     reg.provide::<TypeScriptStandIn>("svelte", rsvelte_svelte_syntax::matches, |context| {
-        let component = context.get::<Parsed>().as_ref().ok()?;
-        rsvelte_svelte_typescript_projection::stand_in(component, &context.document.text)
+        let own = context.get::<Parsed>().as_ref().ok().and_then(|component| {
+            rsvelte_svelte_typescript_projection::stand_in(component, &context.document.text)
+        });
+        Some(own.unwrap_or_else(|| rsvelte_svelte_typescript_projection::STAND_IN.to_owned()))
     });
 }
 
