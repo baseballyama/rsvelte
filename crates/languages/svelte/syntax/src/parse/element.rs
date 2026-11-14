@@ -29,8 +29,25 @@ const ROOT_ONLY_META_TAGS: &[&str] = &[
     "svelte:body",
 ];
 
+/// An element the parser read, and whether a start tag closed it: upstream's `closing_tag_omitted`
+/// pops the element it is in, and the start tag opens in the element around it.
+pub(super) struct Read {
+    pub(super) element: TemplateNodeIdentifier,
+    pub(super) closed_by_start_tag: bool,
+}
+
+/// How an element's children ended.
+enum Closed {
+    /// By its own `</name>`.
+    EndTag,
+    /// By an ancestor's end tag, or by the end of the file.
+    Outside,
+    /// By a start tag that `closing_tag_omitted` says it cannot hold.
+    StartTag,
+}
+
 impl<'a> Parser<'a, '_> {
-    pub(super) fn element(&mut self, at_root: bool) -> ParseResult<Option<TemplateNodeIdentifier>> {
+    pub(super) fn element(&mut self, at_root: bool) -> ParseResult<Option<Read>> {
         let start_offset = self.position;
         self.eat_token(TokenType::TagOpen, 1);
         // Upstream's `read_until` stops at the trimmed end before it reads the name.
@@ -86,8 +103,8 @@ impl<'a> Parser<'a, '_> {
         }
         let start_tag = Span::new(start_offset as u32, self.position as u32);
         let regular = !name_text.starts_with("svelte:") && !component_name;
-        let (children, end_tag) = if self_closing || is_void(name_text) {
-            (self.empty_range(), false)
+        let (children, closed) = if self_closing || is_void(name_text) {
+            (self.empty_range(), Closed::Outside)
         } else if name_text == "textarea" {
             self.textarea_children()?
         } else if matches!(name_text, "script" | "style") {
@@ -101,16 +118,20 @@ impl<'a> Parser<'a, '_> {
             (children, self.end_tag(name_text, regular)?)
         };
         let span = Span::new(start_offset as u32, self.position as u32);
-        Ok(Some(self.push_node(TemplateNode::Element {
+        let element = self.push_node(TemplateNode::Element {
             name,
             component,
             attributes,
             children,
             start_tag,
             self_closing,
-            end_tag,
+            end_tag: matches!(closed, Closed::EndTag),
             span,
-        })))
+        });
+        Ok(Some(Read {
+            element,
+            closed_by_start_tag: matches!(closed, Closed::StartTag),
+        }))
     }
 
     /// Upstream requires `this={…}` on `<svelte:component>` while it parses.
@@ -179,11 +200,14 @@ impl<'a> Parser<'a, '_> {
         Span::new(start_offset as u32, self.position as u32)
     }
 
-    fn end_tag(&mut self, name: &str, regular: bool) -> ParseResult<bool> {
+    fn end_tag(&mut self, name: &str, regular: bool) -> ParseResult<Closed> {
         let rest = self.rest();
         let Some(after) = rest.strip_prefix("</") else {
-            // `closing_tag_omitted` stopped the children at a start tag.
-            return Ok(false);
+            return Ok(if rest.is_empty() {
+                Closed::Outside
+            } else {
+                Closed::StartTag
+            });
         };
         if self.position + 2 >= self.source_text.len() {
             return self.unexpected_eof();
@@ -191,7 +215,7 @@ impl<'a> Parser<'a, '_> {
         let closing = peek_tag_name(after);
         if closing != name {
             if regular {
-                return Ok(false);
+                return Ok(Closed::Outside);
             }
             return self.err(
                 "element_invalid_closing_tag",
@@ -205,10 +229,10 @@ impl<'a> Parser<'a, '_> {
             return self.expected_token(">");
         }
         self.eat_token(TokenType::TagEnd, 1);
-        Ok(true)
+        Ok(Closed::EndTag)
     }
 
-    fn textarea_children(&mut self) -> ParseResult<(Range, bool)> {
+    fn textarea_children(&mut self) -> ParseResult<(Range, Closed)> {
         let children_start = self.pending_children.len();
         loop {
             let rest = self.rest();
@@ -251,10 +275,10 @@ impl<'a> Parser<'a, '_> {
         self.position = end - 1;
         self.words(TokenType::Text, ignored);
         self.eat_token(TokenType::TagEnd, 1);
-        Ok((children, true))
+        Ok((children, Closed::EndTag))
     }
 
-    fn raw_children(&mut self, name: &str) -> ParseResult<(Range, bool)> {
+    fn raw_children(&mut self, name: &str) -> ParseResult<(Range, Closed)> {
         let close = match name {
             "script" => "</script>",
             "style" => "</style>",
@@ -284,7 +308,7 @@ impl<'a> Parser<'a, '_> {
         self.eat_token(TokenType::EndTagOpen, 2);
         self.tag_name();
         self.eat_token(TokenType::TagEnd, 1);
-        Ok((children, true))
+        Ok((children, Closed::EndTag))
     }
 }
 
