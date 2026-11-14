@@ -134,6 +134,34 @@ fn props_and_runes_shadowed_by_bindings() {
 }
 
 #[test]
+fn a_name_a_reactive_assignment_declares_shadows_a_rune() {
+    for (source, subscribed) in [
+        (
+            "<script>let s = {}; $: ({ state } = s); void $state;</script>",
+            true,
+        ),
+        (
+            "<script>let s = {}; $: state = s; void $state;</script>",
+            true,
+        ),
+        (
+            "<script>let s = {}; $: other = s; void $state;</script>",
+            false,
+        ),
+        (
+            "<script>function f() { $: state = 1; } void $state;</script>",
+            false,
+        ),
+    ] {
+        assert_eq!(
+            analyze(source).is_store_subscription("$state"),
+            subscribed,
+            "{source}"
+        );
+    }
+}
+
+#[test]
 fn what_a_module_rejects_is_a_syntax_error_and_template_names_are_not() {
     let clean = concat!(
         "<script module>export const shared = 1;</script>\n",
