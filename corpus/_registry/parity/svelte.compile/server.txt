@@ -1,4 +1,4 @@
-# svelte.compile/server: 36204 match
+# svelte.compile/server: 36205 match
 svelte/rsvelte-tests-core-1/accessor_default_3587/a_prop_with_no_default_and_a_legacy_accessor/b589311b97e30106.svelte	refused
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/2f3a2401df50fd2c.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_opening_an_earlier_statement_is_still_the_stopping_point/9c3eb278e6cf68fd.svelte	mismatch
@@ -357,7 +357,6 @@ svelte/rsvelte/pattern/issues/3141-const-in-svelte-self.svelte	unexpected
 svelte/rsvelte/pattern/issues/3175-legacy-derived-server-fold.svelte	refused
 svelte/rsvelte/pattern/issues/3177-module-multi-declarator.svelte	mismatch
 svelte/rsvelte/pattern/issues/3180-snapshot-position.svelte	mismatch
-svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-bind-eval.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-delete-local.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-invalid-escape.svelte	mismatch
