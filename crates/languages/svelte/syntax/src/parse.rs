@@ -108,7 +108,11 @@ fn parse_with(source_text: &str, scripts: Scripts) -> ParseResult<Component> {
         builder.leave_unchecked(ACORN_UNCHECKED_TYPESCRIPT_RULES);
         builder.read_as_acorn();
         let mut parser = Parser {
-            source_text: builder.source_text(),
+            // Upstream parses the component without its trailing whitespace, so that is where
+            // the input ends; offsets into it are offsets into the document.
+            source_text: builder
+                .source_text()
+                .trim_end_matches(is_ecmascript_whitespace),
             position: 0,
             builder,
             component: Template::new(source_text.len()),
@@ -125,6 +129,14 @@ fn parse_with(source_text: &str, scripts: Scripts) -> ParseResult<Component> {
             parser.eat_token(TokenType::ByteOrderMark, '\u{feff}'.len_utf8());
         }
         let root = parser.fragment(End::Eof);
+        // The trailing whitespace the parser does not read is still a token of the document.
+        let read = parser.source_text.len();
+        if read < source_text.len() {
+            (parser.component.tokens).push(
+                TokenType::Whitespace,
+                Span::new(read as u32, source_text.len() as u32),
+            );
+        }
         buffer_pool::give_keyed::<Parser<'static, 'static>, _>(std::mem::take(
             &mut parser.pending_children,
         ));
@@ -315,19 +327,11 @@ impl<'a> Parser<'a, '_> {
         }
     }
 
-    /// Upstream's error `code` at the current position. Upstream trims the component's trailing
-    /// whitespace before it parses, so no position is past that end.
+    /// Upstream's error `code` at the current position.
     #[cold]
     fn err<T>(&self, code: &'static str, message: impl std::fmt::Display) -> ParseResult<T> {
-        let at = self.position.min(self.trimmed_end()) as u32;
+        let at = self.position.min(self.source_text.len()) as u32;
         Self::err_at(Span::new(at, at), code, message)
-    }
-
-    /// The end of the component without its trailing whitespace.
-    fn trimmed_end(&self) -> usize {
-        self.source_text
-            .trim_end_matches(is_ecmascript_whitespace)
-            .len()
     }
 
     #[cold]
@@ -345,8 +349,6 @@ impl<'a> Parser<'a, '_> {
         self.err("expected_token", format_args!("Expected token {token}"))
     }
 
-    /// Upstream's `unexpected_eof`, at the end of the component without its trailing whitespace,
-    /// which upstream trims before it parses.
     /// Upstream `match_bracket`'s error for the brackets that start here.
     #[cold]
     fn unmatched<T>(&self, why: identifier::Unmatched) -> ParseResult<T> {
@@ -372,9 +374,10 @@ impl<'a> Parser<'a, '_> {
         }
     }
 
+    /// Upstream's `unexpected_eof`, at the end of the input.
     #[cold]
     fn unexpected_eof<T>(&self) -> ParseResult<T> {
-        let end = self.trimmed_end() as u32;
+        let end = self.source_text.len() as u32;
         Self::err_at(
             Span::new(end, end),
             "unexpected_eof",
@@ -398,7 +401,8 @@ impl<'a> Parser<'a, '_> {
 
     /// Upstream's `require_whitespace`, over the input without its trailing whitespace.
     fn require_ws(&mut self) -> ParseResult<()> {
-        if self.position >= self.trimmed_end() || !self.rest().starts_with(is_ecmascript_whitespace)
+        if self.position >= self.source_text.len()
+            || !self.rest().starts_with(is_ecmascript_whitespace)
         {
             return self.err("expected_whitespace", "Expected whitespace");
         }

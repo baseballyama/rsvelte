@@ -18,6 +18,5 @@ async () => {
     }
   }
 };
-const BoundaryFailedRest__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BoundaryFailedRest__SvelteComponent_ = ReturnType<typeof BoundaryFailedRest__SvelteComponent_>;
-export default BoundaryFailedRest__SvelteComponent_;
+const BoundaryFailedRest__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BoundaryFailedRest__SvelteComponent_>} */ (BoundaryFailedRest__SvelteComponent_);

@@ -4,7 +4,7 @@ use oxc_parser::config::TokensParserConfig;
 use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::Span;
 
-use super::{Builder, Part, options};
+use super::{Builder, Part, parentheses};
 use crate::ProgramIdentifier;
 use crate::syntax_error::{SyntaxError, acorn, syntax_error};
 
@@ -61,7 +61,7 @@ impl<'a> Builder<'a> {
         source_type: SourceType,
     ) -> Result<ProgramIdentifier, Box<(SyntaxError, Diagnostics)>> {
         let parsed = Parser::new(self.allocator, text, source_type)
-            .with_options(options())
+            .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .with_start(start)
             .parse();

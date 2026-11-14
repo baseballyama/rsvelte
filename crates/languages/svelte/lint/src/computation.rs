@@ -171,6 +171,76 @@ fn same_named_file(context: &DocumentContext<'_>) -> Option<String> {
     (component.ends_with(".svelte") && is_file(component)).then(|| real_name(component))
 }
 
+/// Whether upstream finds a `PostCSS` configuration to transform a style in `postcss` with.
+///
+/// Without one it compiles the component without that style. A host that knows its working
+/// directory can provide it; without a provider, [`PostcssConfigurationOnDisk`] searches as
+/// `postcss-load-config` does. Only the rules that compile the component ask.
+#[derive(Debug)]
+pub struct PostcssConfiguration;
+
+impl Facet for PostcssConfiguration {
+    type Output = bool;
+
+    const NAME: &'static str = "svelte.lint.postcss_configuration";
+}
+
+/// [`PostcssConfiguration`] from the process's file system, searched once.
+#[derive(Debug)]
+pub(crate) struct PostcssConfigurationOnDisk;
+
+impl Artifact for PostcssConfigurationOnDisk {
+    type Output = bool;
+
+    const NAME: &'static str = "svelte.lint.postcss_configuration_on_disk";
+
+    fn compute(_: &DocumentContext<'_>) -> Self::Output {
+        static FOUND: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        *FOUND.get_or_init(postcss_configuration_found)
+    }
+}
+
+/// `postcss-load-config` 3's search: from the working directory up to the home directory, a
+/// file in one of its places that is not empty, or a `package.json` with a `postcss` key.
+fn postcss_configuration_found() -> bool {
+    const PLACES: [&str; 10] = [
+        ".postcssrc",
+        ".postcssrc.json",
+        ".postcssrc.yaml",
+        ".postcssrc.yml",
+        ".postcssrc.ts",
+        ".postcssrc.js",
+        ".postcssrc.cjs",
+        "postcss.config.ts",
+        "postcss.config.js",
+        "postcss.config.cjs",
+    ];
+    #[derive(serde::Deserialize)]
+    struct Package {
+        postcss: Option<serde::de::IgnoredAny>,
+    }
+    let Ok(start) = std::env::current_dir() else {
+        return false;
+    };
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+    for directory in start.ancestors() {
+        let package = std::fs::read_to_string(directory.join("package.json"))
+            .ok()
+            .and_then(|text| serde_json::from_str::<Package>(&text).ok())
+            .is_some_and(|package| package.postcss.is_some());
+        let place = PLACES.iter().any(|place| {
+            std::fs::read_to_string(directory.join(place)).is_ok_and(|text| !text.trim().is_empty())
+        });
+        if package || place {
+            return true;
+        }
+        if home.as_deref() == Some(directory) {
+            break;
+        }
+    }
+    false
+}
+
 fn is_file(path: &str) -> bool {
     std::fs::metadata(path).is_ok_and(|metadata| metadata.is_file())
 }

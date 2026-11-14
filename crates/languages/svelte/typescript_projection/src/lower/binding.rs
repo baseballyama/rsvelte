@@ -22,23 +22,43 @@ const ONE_WAY: &[&str] = &[
     "naturalHeight",
 ];
 
-/// svelte2tsx's `oneWayBindingAttributesNotOnElement`: a value of this type is assigned.
-const NOT_ON_ELEMENT: &[(&str, &str)] = &[
-    ("contentRect", "null as DOMRectReadOnly"),
-    ("contentBoxSize", "null as ResizeObserverSize[]"),
-    ("borderBoxSize", "null as ResizeObserverSize[]"),
-    ("devicePixelContentBoxSize", "null as ResizeObserverSize[]"),
+/// svelte2tsx's `oneWayBindingAttributesNotOnElement`: a value of this type is assigned, with a
+/// `JSDoc` cast in JavaScript.
+const NOT_ON_ELEMENT: &[(&str, &str, &str)] = &[
+    (
+        "contentRect",
+        "null as DOMRectReadOnly",
+        "/** @type {DOMRectReadOnly} */ (null)",
+    ),
+    (
+        "contentBoxSize",
+        "null as ResizeObserverSize[]",
+        "/** @type {ResizeObserverSize[]} */ (null)",
+    ),
+    (
+        "borderBoxSize",
+        "null as ResizeObserverSize[]",
+        "/** @type {ResizeObserverSize[]} */ (null)",
+    ),
+    (
+        "devicePixelContentBoxSize",
+        "null as ResizeObserverSize[]",
+        "/** @type {ResizeObserverSize[]} */ (null)",
+    ),
     (
         "buffered",
         "null as import('svelte/elements').SvelteMediaTimeRange[]",
+        "/** @type {import('svelte/elements').SvelteMediaTimeRange[]} */ (null)",
     ),
     (
         "played",
         "null as import('svelte/elements').SvelteMediaTimeRange[]",
+        "/** @type {import('svelte/elements').SvelteMediaTimeRange[]} */ (null)",
     ),
     (
         "seekable",
         "null as import('svelte/elements').SvelteMediaTimeRange[]",
+        "/** @type {import('svelte/elements').SvelteMediaTimeRange[]} */ (null)",
     ),
 ];
 
@@ -177,8 +197,15 @@ impl Builder<'_> {
                 let target = self.one_way_target(expression);
                 return Ok(Binding::Property { target, name });
             }
-            if let Some(&(_, value)) = NOT_ON_ELEMENT.iter().find(|(n, _)| *n == directive) {
+            if let Some(&(_, typescript, javascript)) =
+                NOT_ON_ELEMENT.iter().find(|(n, ..)| *n == directive)
+            {
                 let target = self.target(at, typed);
+                let value = if self.tree.javascript {
+                    javascript
+                } else {
+                    typescript
+                };
                 let value = self.tree.push(Node::Identifier(value));
                 return Ok(Binding::Assigned { target, value });
             }

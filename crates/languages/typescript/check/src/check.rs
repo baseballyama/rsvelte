@@ -143,6 +143,8 @@ pub enum TypeScriptDocument {
         placement: Vec<(Span, u32, &'static str)>,
         /// The extension the checker reads a content-mapped projection as, such as `.ts`.
         extension: &'static str,
+        /// Each relative module specifier the document imports, by its string literal's range.
+        imports: Vec<(Span, String)>,
     },
 }
 
@@ -156,7 +158,7 @@ pub struct TypeScriptEnv {
     /// Existing declaration files to include.
     pub include: Vec<PathBuf>,
     /// `compilerOptions.paths` entries: module specifier → file.
-    pub paths: Vec<(&'static str, PathBuf)>,
+    pub paths: Vec<(String, PathBuf)>,
     /// Existing files the checker reads with this text instead, as the language's own checker
     /// reads them.
     pub replaced: Vec<(PathBuf, String)>,
@@ -267,6 +269,7 @@ struct Prepared {
     source_text: String,
     placement: Vec<(Span, u32, &'static str)>,
     extension: &'static str,
+    imports: Vec<(Span, String)>,
 }
 
 impl FinishTask for Check {
@@ -329,6 +332,7 @@ impl FinishTask for Check {
                 env,
                 placement,
                 extension,
+                imports,
             }) => Some(Box::new(Prepared {
                 path: context.document.path.clone(),
                 projection: Emitter {
@@ -341,6 +345,7 @@ impl FinishTask for Check {
                 source_text: context.source_text().to_owned(),
                 placement: placement.clone(),
                 extension,
+                imports: imports.clone(),
             })),
         }
     }
@@ -447,6 +452,15 @@ fn check_projected(
                                 a.original.end_offset - bom,
                             ),
                             ..*a
+                        })
+                        .collect(),
+                    imports: d
+                        .imports
+                        .iter()
+                        .filter(|(span, _)| span.start_offset >= bom)
+                        .map(|(span, specifier)| {
+                            let span = Span::new(span.start_offset - bom, span.end_offset - bom);
+                            (span, specifier.clone())
                         })
                         .collect(),
                 })

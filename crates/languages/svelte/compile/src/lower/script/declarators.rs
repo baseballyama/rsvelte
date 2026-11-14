@@ -132,6 +132,7 @@ pub(super) fn lower_destructured_state<'o>(
             b,
             res: hooks.rw.res,
             hooks,
+            reserved: Vec::new(),
         };
         walker.extract(&d.id, b.id(&temporary), false, &mut paths);
     }
@@ -265,6 +266,7 @@ pub(super) fn lower_destructured_derived<'o>(
             rest,
             derived: true,
         },
+        reserved: Vec::new(),
     };
     walker.extract(&d.id, value, false, &mut paths);
     for path in paths {
@@ -301,16 +303,19 @@ impl<'a, 'o> Destructure<'a, 'o> for Hooks<'_, '_, 'o> {
                 .is_some_and(|symbol| super::super::rest_reads::reads_props(rw.res, symbol, key))
     }
 
-    fn array(&mut self, value: Expression<'o>) -> Expression<'o> {
+    fn array_name(&mut self) -> String {
+        self.names.generate(self.array)
+    }
+
+    fn array(&mut self, name: &str, value: Expression<'o>) -> Expression<'o> {
         let b = self.rw.b;
-        let name = self.names.generate(self.array);
         if !self.derived {
-            self.out.push(b.declarator(b.binding(&name), Some(value)));
-            return b.id(&name);
+            self.out.push(b.declarator(b.binding(name), Some(value)));
+            return b.id(name);
         }
         let derived = b.runtime("derived", [b.arrow(b.parameters([]), value)]);
-        self.out.push(b.declarator(b.binding(&name), Some(derived)));
-        read_derived(self.rw, &name)
+        self.out.push(b.declarator(b.binding(name), Some(derived)));
+        read_derived(self.rw, name)
     }
 }
 

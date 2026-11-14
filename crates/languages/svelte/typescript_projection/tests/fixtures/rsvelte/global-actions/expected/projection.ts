@@ -24,6 +24,5 @@ async () => {
     svelteHTML.createElement("svelte:window", __sveltets_2_union(__rsvelte_action0), {});
   }
 };
-const GlobalActions__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type GlobalActions__SvelteComponent_ = ReturnType<typeof GlobalActions__SvelteComponent_>;
-export default GlobalActions__SvelteComponent_;
+const GlobalActions__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof GlobalActions__SvelteComponent_>} */ (GlobalActions__SvelteComponent_);

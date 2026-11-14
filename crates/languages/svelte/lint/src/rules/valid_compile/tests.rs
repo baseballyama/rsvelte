@@ -390,6 +390,47 @@ fn an_error_raised_only_while_generating_code_is_no_error() {
 }
 
 #[test]
+fn a_rune_out_of_place_fails_the_compile_in_runes_mode() {
+    assert_eq!(
+        first_error("<script>\n\tfunction a(x) {}\n\ta($state(1));\n</script>\n"),
+        [("state_invalid_placement".to_owned(), 3, 3)]
+    );
+    assert_eq!(
+        first_error("<script>\n\tlet a = $state(1);\n</script>\n{$derived.by(() => a)}\n"),
+        [("state_invalid_placement".to_owned(), 4, 1)]
+    );
+}
+
+/// The messages of a component with a `postcss` style, as `found` answers whether a `PostCSS`
+/// configuration exists and `settings` configure the rule.
+fn postcss_messages(found: bool, settings: LintSettings) -> Vec<String> {
+    let mut registry = Registry::new();
+    crate::register_artifacts(&mut registry);
+    registry.provide::<crate::computation::PostcssConfiguration>("test", |_| true, move |_| found);
+    let mut configuration = Configuration::new(settings);
+    configuration
+        .rule("svelte/valid-compile", Severity::Error, &[], &[])
+        .expect("configures");
+    let code = "<p>x</p>\n<style lang=\"postcss\">\n  .unused { color: red; }\n</style>\n";
+    let document = Document::new("test.svelte".to_owned(), code.to_owned()).expect("small");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    crate::lint(&context, &configuration)
+        .expect("parses")
+        .into_iter()
+        .map(|f| f.diagnostic.message)
+        .collect()
+}
+
+#[test]
+fn a_postcss_style_compiles_only_with_a_configuration_to_transform_it() {
+    assert_eq!(postcss_messages(true, LintSettings::default()).len(), 1);
+    assert_eq!(postcss_messages(false, LintSettings::default()), [""; 0]);
+    let disabled: LintSettings =
+        serde_json::from_str(r#"{"compileOptions":{"postcss":false}}"#).expect("settings");
+    assert_eq!(postcss_messages(true, disabled), [""; 0]);
+}
+
+#[test]
 fn an_await_outside_an_async_function_fails_the_parse_in_either_mode() {
     let error = vec![("js_parse_error".to_owned(), 2, 15)];
     assert_eq!(

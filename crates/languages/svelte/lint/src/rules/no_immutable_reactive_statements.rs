@@ -10,7 +10,6 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_semantic::legacy::{Legacy, Variable};
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode};
-use rsvelte_typescript_semantic::globals::global;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::legacy_reactivity::{bindings, expression_node, legacy};
@@ -75,7 +74,7 @@ impl SvelteRule for NoImmutableReactiveStatements {
                     // the statement reactive.
                     None if reference.symbol_id().is_none() => {
                         let name = name_of(resolution, id);
-                        if name.starts_with("$$") || global(name).is_none() {
+                        if name.starts_with("$$") || !file.globals().declares(name) {
                             reactive = true;
                             break;
                         }

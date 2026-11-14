@@ -94,7 +94,9 @@ impl SvelteRule for NoTopLevelBrowserGlobals {
             }
         }
         let mut candidates = Vec::new();
-        for reference in global_references_matching(semantic, is_browser_global, &["globalThis"]) {
+        for reference in
+            global_references_matching(semantic, file.globals(), is_browser_global, &["globalThis"])
+        {
             let node = reference.node;
             if !guards.is_top_level(node) {
                 continue;
