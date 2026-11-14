@@ -15,18 +15,18 @@
 use std::borrow::Cow;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{PrivateIdentifier, Program};
-use oxc_ast_visit::Visit;
+use oxc_ast::ast::{Class, ClassElement, PrivateIdentifier, Program};
+use oxc_ast_visit::{Visit, walk};
 use oxc_formatter::{BracketSameLine, JsFormatOptions, QuoteStyle};
 use oxc_formatter_core::{CoreFormatOptions, IndentStyle, IndentWidth, LineEnding, LineWidth};
 use rsvelte_document_printer::{
     Embedding, LayoutInstructionIdentifier, LayoutInstructions, Unprinted,
 };
-use rsvelte_kernel::diagnostics::Unsupported;
+use rsvelte_kernel::diagnostics::{Diagnostic, Unsupported};
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
-    Attribute, AttributeKind, AttributeValue, Component, Part, TagAttributes, TemplateNode,
+    Attribute, AttributeKind, AttributeValue, Component, Part, Script, TagAttributes, TemplateNode,
     TemplateNodeIdentifier, TokenType,
 };
 use rsvelte_typescript_tree::SyntaxError;
@@ -76,8 +76,7 @@ pub(crate) fn format(
         };
         let normalized = lone_returns_as_feeds(source_text);
         // Where the line feed breaks the parse, Prettier's parse fails too, with its own error.
-        let reparsed =
-            rsvelte_svelte_syntax::parse::parse(&normalized).map_err(|_parse_error| refused())?;
+        let reparsed = parsed(&normalized).map_err(|_parse_error| refused())?;
         let rejected = self::rejected(&reparsed, &normalized);
         let options = Options {
             end_of_line: match options.end_of_line {
@@ -93,12 +92,13 @@ pub(crate) fn format(
             "an emoji sequence oxc's printer measures otherwise than Prettier",
         ));
     }
-    let unparsed_script = rejected
-        .map(|rejected| {
-            unparsed_script(c, source_text, rejected)
-                .ok_or_else(|| Unsupported::at("code a module rejects", rejected.diagnostic.span))
-        })
-        .transpose()?;
+    let unparsed_script =
+        match rejected {
+            Some(rejected) => Some(unparsed_script(c, source_text, rejected).ok_or_else(|| {
+                Unsupported::at("code a module rejects", rejected.diagnostic.span)
+            })?),
+            None => overriding_script(c, source_text),
+        };
 
     let core = core_options(options)?;
     let printed = rsvelte_typescript_tree::with_scratch_arena(|allocator| {
@@ -129,6 +129,16 @@ pub(crate) fn format(
         printed.replace('\n', eol)
     };
     Ok(format!("{bom}{printed}"))
+}
+
+/// The component as the plugin reads it, as
+/// [`rsvelte_svelte_syntax::parsed_reading_scripts_as_typescript`] does.
+pub(crate) fn parsed(source_text: &str) -> Result<Component, Diagnostic> {
+    let component = rsvelte_svelte_syntax::parse::parse_reading_scripts_as_typescript(source_text)?;
+    if let Some(error) = component.script_typescript_errors.first() {
+        return Err(error.diagnostic.clone());
+    }
+    Ok(component)
 }
 
 /// `guessEndOfLine`: the first line ending decides.
@@ -279,11 +289,43 @@ fn unparsed_script(c: &Component, source_text: &str, rejected: &SyntaxError) -> 
         }
         code => BABEL_REJECTS.contains(&code),
     };
-    let typescript = script.attributes.iter().any(|&(name, value)| {
+    (rejects && !in_typescript(script, source_text)).then_some(script.content)
+}
+
+/// Whether the plugin reads `script` with Prettier's TypeScript parser: its `lang` starts with
+/// `ts`. Any other script goes to `babel-ts`.
+fn in_typescript(script: &Script, source_text: &str) -> bool {
+    script.attributes.iter().any(|&(name, value)| {
         name.text(source_text) == "lang"
             && value.is_some_and(|v| v.text(source_text).starts_with("ts"))
-    });
-    (rejects && !typescript).then_some(script.content)
+    })
+}
+
+/// The body of a script `babel-ts` reads that has an `override` member in a class that extends
+/// none: Babel throws on it, so the plugin keeps that body as it is. Only TypeScript has the
+/// modifier.
+fn overriding_script(c: &Component, source_text: &str) -> Option<Span> {
+    struct Find(bool);
+    impl<'a> Visit<'a> for Find {
+        fn visit_class(&mut self, it: &Class<'a>) {
+            self.0 |= it.heritage.is_none()
+                && it.body.body.iter().any(|element| match element {
+                    ClassElement::MethodDefinition(member) => member.r#override,
+                    ClassElement::PropertyDefinition(member) => member.r#override,
+                    ClassElement::AccessorProperty(member) => member.r#override,
+                    ClassElement::StaticBlock(_) | ClassElement::TSIndexSignature(_) => false,
+                });
+            walk::walk_class(self, it);
+        }
+    }
+    let script = (c.module.iter().chain(&c.instance)).find(|script| {
+        script.typescript && !in_typescript(script, source_text) && {
+            let mut find = Find(false);
+            find.visit_program(c.javascript.get_program(script.program));
+            find.0
+        }
+    })?;
+    Some(script.content)
 }
 
 /// Whether a private name starts at `offset` in `program`.
