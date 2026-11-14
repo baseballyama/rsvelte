@@ -11,21 +11,20 @@
 async () => {
   {
     svelteHTML.createElement("div", {});
-    value;
+    (value);
   }
   {
     svelteHTML.createElement("div", {});
-    $state.eager(value);
+    ($state.eager(value));
   }
   {
     svelteHTML.createElement("button", {
       "onclick": () => n++,
     });
-    e;
-    f();
-    $state.eager(n);
+    (e);
+    (f());
+    ($state.eager(n));
   }
 };
-const StateEager__SvelteComponent_ = __rsvelte_export_component<any, {}, "">();
-type StateEager__SvelteComponent_ = ReturnType<typeof StateEager__SvelteComponent_>;
-export default StateEager__SvelteComponent_;
+const StateEager__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<any, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof StateEager__SvelteComponent_>} */ (StateEager__SvelteComponent_);

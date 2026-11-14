@@ -429,3 +429,16 @@ fn a_postcss_style_compiles_only_with_a_configuration_to_transform_it() {
         serde_json::from_str(r#"{"compileOptions":{"postcss":false}}"#).expect("settings");
     assert_eq!(postcss_messages(true, disabled), [""; 0]);
 }
+
+#[test]
+fn an_await_outside_an_async_function_fails_the_parse_in_either_mode() {
+    let error = vec![("js_parse_error".to_owned(), 2, 15)];
+    assert_eq!(
+        first_error("<script lang=\"ts\">\nfunction h() { await g(); }\n</script>\n"),
+        error
+    );
+    assert_eq!(
+        first_error("<script>\nfunction h() { await g(); }\nlet a = $state(1);\n</script>\n"),
+        error
+    );
+}

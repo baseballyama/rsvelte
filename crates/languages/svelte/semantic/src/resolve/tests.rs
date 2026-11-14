@@ -134,6 +134,34 @@ fn props_and_runes_shadowed_by_bindings() {
 }
 
 #[test]
+fn a_name_a_reactive_assignment_declares_shadows_a_rune() {
+    for (source, subscribed) in [
+        (
+            "<script>let s = {}; $: ({ state } = s); void $state;</script>",
+            true,
+        ),
+        (
+            "<script>let s = {}; $: state = s; void $state;</script>",
+            true,
+        ),
+        (
+            "<script>let s = {}; $: other = s; void $state;</script>",
+            false,
+        ),
+        (
+            "<script>function f() { $: state = 1; } void $state;</script>",
+            false,
+        ),
+    ] {
+        assert_eq!(
+            analyze(source).is_store_subscription("$state"),
+            subscribed,
+            "{source}"
+        );
+    }
+}
+
+#[test]
 fn what_a_module_rejects_is_a_syntax_error_and_template_names_are_not() {
     let clean = concat!(
         "<script module>export const shared = 1;</script>\n",
@@ -160,14 +188,16 @@ fn what_a_module_rejects_is_a_syntax_error_and_template_names_are_not() {
 }
 
 #[test]
-fn the_module_may_export_any_snippet_and_nothing_else_undeclared() {
-    let snippet = "<script module>export { row };</script>{#snippet row()}x{/snippet}";
-    assert!(analyze(snippet).syntax_error().is_none());
-    // The compiler rejects a nested one as `snippet_invalid_export`.
-    let nested = "<script module>export { row };</script>{#if a}{#snippet row()}x{/snippet}{/if}";
-    assert!(analyze(nested).syntax_error().is_none());
-    let missing = "<script module>export { row };</script>";
-    assert!(analyze(missing).syntax_error().is_some());
+fn the_module_leaves_an_undeclared_export_to_the_compiler() {
+    // The compiler rejects a nested snippet as `snippet_invalid_export`, and a name nothing
+    // declares as `export_undefined`, after the template's walk.
+    for source in [
+        "<script module>export { row };</script>{#snippet row()}x{/snippet}",
+        "<script module>export { row };</script>{#if a}{#snippet row()}x{/snippet}{/if}",
+        "<script module>export { row };</script>",
+    ] {
+        assert!(analyze(source).syntax_error().is_none(), "{source}");
+    }
 }
 
 #[test]

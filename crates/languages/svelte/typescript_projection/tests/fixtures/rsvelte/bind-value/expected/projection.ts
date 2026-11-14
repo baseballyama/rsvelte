@@ -16,9 +16,8 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    name;
+    (name);
   }
 };
-const BindValue__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BindValue__SvelteComponent_ = ReturnType<typeof BindValue__SvelteComponent_>;
-export default BindValue__SvelteComponent_;
+const BindValue__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindValue__SvelteComponent_>} */ (BindValue__SvelteComponent_);

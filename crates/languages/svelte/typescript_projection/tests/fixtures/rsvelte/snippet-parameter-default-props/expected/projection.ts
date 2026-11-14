@@ -1,15 +1,15 @@
 ;
 
-const t = (p, v = p(), w = f(), z = (() => 2)()): ReturnType<import('svelte').Snippet> => {
+const t = (p, v = p(), w = f(), z = (() => 2)()) => {
   async () => {
-    v;
-    w;
-    z;
+    (v);
+    (w);
+    (z);
   };
   return __rsvelte_snippet_return;
 };
 
-	let { f }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { f } = $props();
 
 ;
 
@@ -19,6 +19,5 @@ const __rsvelte_public_props0 = __rsvelte_props({
 async () => {
   __rsvelte_ensure_snippet(t(1));
 };
-const SnippetParameterDefaultProps__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type SnippetParameterDefaultProps__SvelteComponent_ = ReturnType<typeof SnippetParameterDefaultProps__SvelteComponent_>;
-export default SnippetParameterDefaultProps__SvelteComponent_;
+const SnippetParameterDefaultProps__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SnippetParameterDefaultProps__SvelteComponent_>} */ (SnippetParameterDefaultProps__SvelteComponent_);

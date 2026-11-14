@@ -43,7 +43,7 @@ async () => {
     svelteHTML.createElement("ul", {});
     {
       for (let [, todo] of __rsvelte_each(todos)) {
-        todo.id;
+        (todo.id);
         {
           svelteHTML.createElement("li", {});
           {
@@ -81,7 +81,7 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    remaining;
+    (remaining);
   }
   {
     svelteHTML.createElement("button", {
@@ -89,6 +89,5 @@ async () => {
     });
   }
 };
-const TodoList__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type TodoList__SvelteComponent_ = ReturnType<typeof TodoList__SvelteComponent_>;
-export default TodoList__SvelteComponent_;
+const TodoList__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof TodoList__SvelteComponent_>} */ (TodoList__SvelteComponent_);

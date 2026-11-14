@@ -15,12 +15,13 @@
 use std::borrow::Cow;
 
 use oxc_allocator::Allocator;
+use oxc_ast::ast::{PrivateIdentifier, Program};
+use oxc_ast_visit::Visit;
 use oxc_formatter::{BracketSameLine, JsFormatOptions, QuoteStyle};
 use oxc_formatter_core::{CoreFormatOptions, IndentStyle, IndentWidth, LineEnding, LineWidth};
 use rsvelte_document_printer::{
     Embedding, LayoutInstructionIdentifier, LayoutInstructions, Unprinted,
 };
-pub(crate) use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
@@ -28,6 +29,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TagAttributes, TemplateNode,
     TemplateNodeIdentifier, TokenType,
 };
+use rsvelte_typescript_tree::SyntaxError;
 
 use crate::options::{EndOfLine, Options};
 
@@ -43,7 +45,7 @@ pub(crate) fn format(
     c: &Component,
     source_text: &str,
     options: &Options,
-    rejected: Option<&Diagnostic>,
+    rejected: Option<&SyntaxError>,
 ) -> R<String> {
     if let Some(name) = unported(options) {
         return Err(Unsupported::nowhere(name));
@@ -91,13 +93,12 @@ pub(crate) fn format(
             "an emoji sequence oxc's printer measures otherwise than Prettier",
         ));
     }
-    let unparsed_script = match rejected {
-        Some(rejected) => Some(
+    let unparsed_script = rejected
+        .map(|rejected| {
             unparsed_script(c, source_text, rejected)
-                .ok_or_else(|| Unsupported::at("code a module rejects", rejected.span))?,
-        ),
-        None => None,
-    };
+                .ok_or_else(|| Unsupported::at("code a module rejects", rejected.diagnostic.span))
+        })
+        .transpose()?;
 
     let core = core_options(options)?;
     let printed = rsvelte_typescript_tree::with_scratch_arena(|allocator| {
@@ -251,42 +252,51 @@ fn is_typescript(c: &Component, source_text: &str) -> bool {
 /// The body of the JavaScript script holding `rejected`, an error Babel does not recover from
 /// either, so the plugin keeps that body as it is. Babel recovers from the others, and Prettier's
 /// TypeScript parser from more.
-fn unparsed_script(c: &Component, source_text: &str, rejected: &Diagnostic) -> Option<Span> {
-    // Each is a message's start and end.
-    const BABEL_REJECTS: [(&str, &str); 11] = [
-        ("await expression not allowed in formal parameter", ""),
-        ("yield expression not allowed in formal parameter", ""),
-        ("Super calls are not permitted outside constructors", ""),
-        (
-            "Illegal 'use strict' directive in function with non-simple parameter list",
-            "",
-        ),
-        ("'super' can only be referenced in a derived class.", ""),
-        ("Illegal continue statement", ""),
-        ("Illegal break statement", ""),
-        ("Jump target cannot cross function boundary.", ""),
-        (
-            "The operand of a 'delete' operator cannot be a private identifier.",
-            "",
-        ),
-        ("Label `", "` has already been declared"),
-        ("Identifier `#", "` has already been declared"),
+fn unparsed_script(c: &Component, source_text: &str, rejected: &SyntaxError) -> Option<Span> {
+    // tsc's numbers for the errors Babel throws on instead of recovering from.
+    const BABEL_REJECTS: [u32; 10] = [
+        2524,  // `await` in a parameter
+        2523,  // `yield` in a parameter
+        2337,  // a `super` call outside a constructor
+        2335,  // `super` outside a derived class
+        1347,  // `'use strict'` beside non-simple parameters
+        1104,  // a misplaced `continue`
+        1105,  // a misplaced `break`
+        1107,  // a jump out of a function
+        18011, // `delete` of a private name
+        1114,  // a label declared twice
     ];
-    let message = rejected.message.as_str();
-    if !(BABEL_REJECTS.iter())
-        .any(|(start, end)| message.starts_with(start) && message.ends_with(end))
-    {
-        return None;
-    }
+    // A name declared twice; Babel throws only on a private one.
+    const DUPLICATE_IDENTIFIER: u32 = 2300;
+    let span = rejected.diagnostic.span;
     let script = (c.module.iter().chain(&c.instance)).find(|script| {
-        script.content.start_offset <= rejected.span.start_offset
-            && rejected.span.end_offset <= script.content.end_offset
+        script.content.start_offset <= span.start_offset
+            && span.end_offset <= script.content.end_offset
     })?;
+    let rejects = match rejected.typescript_code? {
+        DUPLICATE_IDENTIFIER => {
+            private_name_at(c.javascript.get_program(script.program), span.start_offset)
+        }
+        code => BABEL_REJECTS.contains(&code),
+    };
     let typescript = script.attributes.iter().any(|&(name, value)| {
         name.text(source_text) == "lang"
             && value.is_some_and(|v| v.text(source_text).starts_with("ts"))
     });
-    (!typescript).then_some(script.content)
+    (rejects && !typescript).then_some(script.content)
+}
+
+/// Whether a private name starts at `offset` in `program`.
+fn private_name_at(program: &Program<'_>, offset: u32) -> bool {
+    struct Find(u32, bool);
+    impl<'a> Visit<'a> for Find {
+        fn visit_private_identifier(&mut self, it: &PrivateIdentifier<'a>) {
+            self.1 |= it.span.start == self.0;
+        }
+    }
+    let mut find = Find(offset, false);
+    find.visit_program(program);
+    find.1
 }
 
 /// The plugin's `hasPragma`: `/^\s*<!--\s*@(format|prettier)\W/`.
@@ -500,7 +510,7 @@ mod tree;
 mod tests;
 
 /// The first error a module rejects in `c`, outside the artifact database.
-pub(crate) fn rejected(c: &Component, source_text: &str) -> Option<Diagnostic> {
+pub(crate) fn rejected(c: &Component, source_text: &str) -> Option<SyntaxError> {
     let lowered = rsvelte_svelte_semantic::compiler_syntax_tree::lower(c, source_text);
     rsvelte_svelte_semantic::resolve::resolve(
         &c.javascript,
@@ -508,6 +518,6 @@ pub(crate) fn rejected(c: &Component, source_text: &str) -> Option<Diagnostic> {
         c.module.as_ref().map(|s| s.program),
         &lowered,
     )
-    .syntax_error()
+    .javascript_syntax_error()
     .cloned()
 }

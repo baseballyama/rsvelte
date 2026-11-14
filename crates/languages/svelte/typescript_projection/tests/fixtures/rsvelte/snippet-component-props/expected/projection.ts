@@ -1,5 +1,5 @@
 ;
-import List from "./List.svelte"; let { children, item: outer }: typeof __rsvelte_public_props0 = $props();
+import List from "./List.svelte"; /** @type {typeof __rsvelte_public_props0} */ let { children, item: outer } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -14,7 +14,7 @@ async () => {
         async () => {
           {
             svelteHTML.createElement("span", {});
-            value;
+            (value);
           }
         };
         return __rsvelte_snippet_return;
@@ -49,6 +49,5 @@ async () => {
     List;
   }
 };
-const SnippetComponentProps__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type SnippetComponentProps__SvelteComponent_ = ReturnType<typeof SnippetComponentProps__SvelteComponent_>;
-export default SnippetComponentProps__SvelteComponent_;
+const SnippetComponentProps__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SnippetComponentProps__SvelteComponent_>} */ (SnippetComponentProps__SvelteComponent_);

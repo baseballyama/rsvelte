@@ -9,6 +9,5 @@ async () => {
     });
   }
 };
-const While__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type While__SvelteComponent_ = ReturnType<typeof While__SvelteComponent_>;
-export default While__SvelteComponent_;
+const While__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof While__SvelteComponent_>} */ (While__SvelteComponent_);

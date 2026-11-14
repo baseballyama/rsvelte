@@ -15,12 +15,12 @@ async () => {
     svelteHTML.createElement("ul", {});
     {
       for (let [, item] of __rsvelte_each(items)) {
-        item.id;
+        (item.id);
         {
           svelteHTML.createElement("li", {
             [Symbol("@attach")]: highlight(item),
           });
-          item.label;
+          (item.label);
         }
       }
     }
@@ -36,6 +36,5 @@ async () => {
     }
   }
 };
-const AttachEach__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type AttachEach__SvelteComponent_ = ReturnType<typeof AttachEach__SvelteComponent_>;
-export default AttachEach__SvelteComponent_;
+const AttachEach__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof AttachEach__SvelteComponent_>} */ (AttachEach__SvelteComponent_);

@@ -20,6 +20,7 @@ pub fn lower(c: &Component, source_text: &str) -> CompilerSyntaxTree {
         b: CompilerSyntaxTreeBuilder::new(source_text, c.nodes.len(), c.attributes.len()),
     };
     let root = b.list(c.children(c.root), None);
+    b.b.parenthesized_binds(&c.parenthesized_binds);
     b.b.finish(root)
 }
 
@@ -105,11 +106,10 @@ impl SurfaceBuilder<'_> {
                         && a.kind == syntax_tree::AttributeKind::Attribute
                         && a.name.text(source_text) == "this"
                 };
-                // `this` goes just before the element's range, so the range holds the others.
-                let this = surface
-                    .iter()
-                    .position(is_this)
-                    .map(|i| self.b.attributes([lower(i, &surface[i])]).start);
+                // The first `this` goes just before the element's range, so the range holds the
+                // others; upstream's parser takes only the first, and a second is an attribute.
+                let this_index = surface.iter().position(is_this);
+                let this = this_index.map(|i| self.b.attributes([lower(i, &surface[i])]).start);
                 let textarea = kind == ElementKind::Regular && name.text(source_text) == "textarea";
                 let content = c.children(children);
                 // Upstream's analysis moves a `<textarea>`'s content but one text into `value`.
@@ -132,7 +132,7 @@ impl SurfaceBuilder<'_> {
                     surface
                         .iter()
                         .enumerate()
-                        .filter(|(_, a)| !is_this(a))
+                        .filter(|&(i, _)| Some(i) != this_index)
                         .map(|(i, a)| lower(i, a))
                         .chain(value),
                 );

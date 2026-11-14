@@ -257,8 +257,8 @@ No issue yet.
 - Cases: `bind:value={x as T}`, `bind:this={el as HTMLElement}` and, in a script,
   `(count satisfies number) = 1` or `count!! = 1`.
 - Upstream reports the variable as never reassigned. Its scope analysis reads a reference inside
-  `TSAsExpression`, `TSSatisfiesExpression`, `TSNonNullExpression` or a type assertion as a read,
-  so the write is lost. `svelte/no-reactive-reassign` has the same gap (above).
+  `TSAsExpression`, `TSSatisfiesExpression`, `TSNonNullExpression` or a type assertion as a read
+  and misses the write. `svelte/no-reactive-reassign` has the same gap (above).
 - Correct: report nothing. Svelte writes the binding through the assertion, and TypeScript
   assigns through it, so `const` would break the code.
 - The corpus skips its 15 lint units.
@@ -458,10 +458,10 @@ Issue: [eslint-plugin-svelte #1701](https://github.com/sveltejs/eslint-plugin-sv
 No issue yet.
 
 - Case: `<div class="a"></div><style>div:is(/* l */ .a) { color: red }</style>`.
-- Upstream reports `.a` 7 columns early, the length of `/* l */`, as if the comment were not in
+- Upstream reports `.a` 7 columns before it, the length of `/* l */`, as if the comment were not in
   the source. A comment before another argument does the same: in `div:not(.a /* m */, .b)`,
   `.b` moves by its comment.
-- Correct: report `.a` where it is.
+- Correct: report `.a` at its own column.
 - The corpus skips its 5 lint units.
 
 ## Quirks of the CSS parsers that upstream uses
@@ -653,7 +653,7 @@ Issues for the rows of the table:
 - A line comment at the end of an expression: no issue yet. The error is past the end of the
   file. A guess: the comment hides a `)` or `}` that the parser adds after the expression.
 - `<template lang="pug">`: [svelte-eslint-parser #727](https://github.com/sveltejs/svelte-eslint-parser/issues/727).
-- `</script >`: no issue yet. No rule sees the script, so its names are undefined in the
+- `</script >`: no issue yet. No rule sees the script, so `no-undef` reports its names in the
   template.
 - A script after the template on one line: no issue yet. The case is
   `{#if x}<p></p>{/if}<script lang="ts">let a = 1</script>`.

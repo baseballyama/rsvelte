@@ -2,9 +2,11 @@
 //! acorn throws where it stops, and acorn-typescript where a TypeScript rule fails.
 
 use oxc_ast::AstKind;
-use oxc_ast::ast::{ClassElement, Declaration, VariableDeclarationKind, WithClauseKeyword};
+use oxc_ast::ast::{
+    ClassElement, Declaration, Statement, VariableDeclarationKind, WithClauseKeyword,
+};
 use oxc_ast_visit::Visit;
-use oxc_parser::Token;
+use oxc_parser::{Kind, Token};
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
@@ -20,6 +22,8 @@ pub(crate) enum Rejection {
     Override,
     /// `export declare global { … }`.
     ExportedGlobal,
+    /// A decorator's `@`, a character acorn does not read.
+    At,
 }
 
 impl Rejection {
@@ -31,6 +35,7 @@ impl Rejection {
                 "not extend another class."
             ),
             Self::ExportedGlobal => "'export declare' must be followed by an ambient declaration.",
+            Self::At => "Unexpected character '@'",
         }
     }
 }
@@ -72,6 +77,34 @@ fn stop(kind: AstKind<'_>, typescript: bool, tokens: &[Token]) -> Option<(u32, R
             let braces = tokens.partition_point(|token| token.start() < clause.span.start);
             unexpected(braces.checked_sub(1).map(|keyword| tokens[keyword].start()))
         }
+        // A function declared as the body of a statement: acorn reads module code, which is
+        // strict, and stops at the declaration.
+        AstKind::IfStatement(it) => unexpected(
+            [Some(&it.consequent), it.alternate.as_ref()]
+                .into_iter()
+                .flatten()
+                .find_map(declared_function),
+        ),
+        AstKind::LabeledStatement(it) => unexpected(declared_function(&it.body)),
+        AstKind::WhileStatement(it) => unexpected(declared_function(&it.body)),
+        AstKind::DoWhileStatement(it) => unexpected(declared_function(&it.body)),
+        AstKind::ForStatement(it) => unexpected(declared_function(&it.body)),
+        AstKind::ForInStatement(it) => unexpected(declared_function(&it.body)),
+        AstKind::ForOfStatement(it) => unexpected(declared_function(&it.body)),
+        AstKind::WithStatement(it) => unexpected(declared_function(&it.body)),
+        // Decorators and `accessor` fields are acorn-typescript's alone. acorn stops at the `@`,
+        // and reads `accessor` as the field's name and stops at the token after it.
+        AstKind::Decorator(decorator) if !typescript => Some((decorator.span.start, Rejection::At)),
+        AstKind::AccessorProperty(property) if !typescript => {
+            let first = tokens.partition_point(|token| token.start() < property.span.start);
+            unexpected(
+                tokens[first..]
+                    .iter()
+                    .skip_while(|token| token.kind() != Kind::Accessor)
+                    .nth(1)
+                    .map(Token::start),
+            )
+        }
         AstKind::Class(class) if typescript && class.heritage.is_none() => class
             .body
             .body
@@ -89,6 +122,14 @@ fn stop(kind: AstKind<'_>, typescript: bool, tokens: &[Token]) -> Option<(u32, R
             }
             _ => None,
         },
+        _ => None,
+    }
+}
+
+/// The start of `statement` when it declares a function.
+fn declared_function(statement: &Statement<'_>) -> Option<u32> {
+    match statement {
+        Statement::FunctionDeclaration(function) => Some(function.span.start),
         _ => None,
     }
 }
@@ -129,5 +170,9 @@ pub(crate) fn rejection((at, why): (u32, Rejection)) -> SyntaxError {
             message: std::borrow::Cow::Borrowed(message),
             at,
         }),
+        typescript_code: None,
     }
 }
+
+#[cfg(test)]
+mod tests;

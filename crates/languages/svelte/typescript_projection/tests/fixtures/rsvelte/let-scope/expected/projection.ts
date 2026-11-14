@@ -15,12 +15,12 @@ async () => {
       const {
         x,
       } = __rsvelte_instance(__rsvelte_component_0).$$slot_def.default;
-      x;
+      (x);
       {
         svelteHTML.createElement("p", {
           "slot": "a",
         });
-        x;
+        (x);
       }
       {
         const {
@@ -30,8 +30,8 @@ async () => {
           children: __rsvelte_children,
           "slot": "b",
         });
-        x;
-        y;
+        (x);
+        (y);
         C;
       }
     }
@@ -43,6 +43,5 @@ async () => {
     });
   }
 };
-const LetScope__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type LetScope__SvelteComponent_ = ReturnType<typeof LetScope__SvelteComponent_>;
-export default LetScope__SvelteComponent_;
+const LetScope__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof LetScope__SvelteComponent_>} */ (LetScope__SvelteComponent_);

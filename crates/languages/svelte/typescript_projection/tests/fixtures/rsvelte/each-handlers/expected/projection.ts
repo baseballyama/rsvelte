@@ -12,26 +12,25 @@
 async () => {
   {
     for (let [i, item] of __rsvelte_each(items)) {
-      item;
+      (item);
       {
         svelteHTML.createElement("button", {
           "onclick": () => (picked = item),
         });
-        item;
+        (item);
       }
       {
         svelteHTML.createElement("button", {
           "onclick": () => remove(item),
         });
-        i;
+        (i);
       }
     }
   }
   {
     svelteHTML.createElement("p", {});
-    picked;
+    (picked);
   }
 };
-const EachHandlers__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type EachHandlers__SvelteComponent_ = ReturnType<typeof EachHandlers__SvelteComponent_>;
-export default EachHandlers__SvelteComponent_;
+const EachHandlers__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof EachHandlers__SvelteComponent_>} */ (EachHandlers__SvelteComponent_);

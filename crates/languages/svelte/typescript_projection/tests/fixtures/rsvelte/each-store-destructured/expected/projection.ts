@@ -1,7 +1,7 @@
 ;
 
 	import { writable } from 'svelte/store';
-	const items = writable([]);;let $items!: __rsvelte_store_value<typeof items>;
+	const items = writable([]);;let $items = __rsvelte_store_get(items);
 
 
 ;
@@ -9,12 +9,12 @@
 async () => {
   {
     for (let [i, { name, icon = 1 }] of __rsvelte_each($items)) {
-      name;
+      (name);
       {
         svelteHTML.createElement("p", {});
-        name;
-        icon;
-        i;
+        (name);
+        (icon);
+        (i);
       }
     }
   }
@@ -24,8 +24,8 @@ async () => {
         svelteHTML.createElement("button", {
           "onclick": () => { a.x = 1; },
         });
-        a;
-        b;
+        (a);
+        (b);
       }
     }
   }
@@ -43,6 +43,5 @@ async () => {
     }
   }
 };
-const EachStoreDestructured__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type EachStoreDestructured__SvelteComponent_ = ReturnType<typeof EachStoreDestructured__SvelteComponent_>;
-export default EachStoreDestructured__SvelteComponent_;
+const EachStoreDestructured__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof EachStoreDestructured__SvelteComponent_>} */ (EachStoreDestructured__SvelteComponent_);

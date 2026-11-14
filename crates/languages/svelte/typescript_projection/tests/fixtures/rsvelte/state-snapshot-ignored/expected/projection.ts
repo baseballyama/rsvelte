@@ -9,9 +9,8 @@
 async () => {
   {
     svelteHTML.createElement("p", {});
-    copy.f;
+    (copy.f);
   }
 };
-const StateSnapshotIgnored__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type StateSnapshotIgnored__SvelteComponent_ = ReturnType<typeof StateSnapshotIgnored__SvelteComponent_>;
-export default StateSnapshotIgnored__SvelteComponent_;
+const StateSnapshotIgnored__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof StateSnapshotIgnored__SvelteComponent_>} */ (StateSnapshotIgnored__SvelteComponent_);

@@ -1,6 +1,6 @@
 ;
 
-	let { value = $bindable(), text = $bindable('x'), ...properties }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { value = $bindable(), text = $bindable('x'), ...properties } = $props();
 
 ;
 
@@ -14,15 +14,14 @@ async () => {
       ...(properties),
       "onclick": () => value++,
     });
-    value;
+    (value);
   }
   {
     svelteHTML.createElement("p", {
       "title": text,
     });
-    text;
+    (text);
   }
 };
-const SpreadBindable__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "value" | "text">();
-type SpreadBindable__SvelteComponent_ = ReturnType<typeof SpreadBindable__SvelteComponent_>;
-export default SpreadBindable__SvelteComponent_;
+const SpreadBindable__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "value" | "text">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SpreadBindable__SvelteComponent_>} */ (SpreadBindable__SvelteComponent_);

@@ -41,5 +41,6 @@ pub(super) fn view<'e>(
         env: Arc::clone(env),
         placement: Vec::new(),
         extension: if typescript { ".tsx" } else { ".jsx" },
+        imports: Vec::new(),
     }))
 }

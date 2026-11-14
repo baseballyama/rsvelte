@@ -175,6 +175,11 @@ fn validate_globals(
     tag: MetadataTag,
     attributes: &[super::Attribute],
 ) -> Result<(), Diagnostic> {
+    let host = match tag {
+        MetadataTag::Window => "svelte:window",
+        MetadataTag::Document => "svelte:document",
+        _ => "svelte:body",
+    };
     for attribute in attributes {
         let plain = matches!(
             attribute.value,
@@ -194,14 +199,9 @@ fn validate_globals(
                     attribute.span,
                 );
             }
-            let name = if tag == MetadataTag::Window {
-                "svelte:window"
-            } else {
-                "svelte:document"
-            };
             return invalid(
                 "illegal_element_attribute",
-                &format!("`<{name}>` does not support non-event attributes or spread attributes"),
+                &format!("`<{host}>` does not support non-event attributes or spread attributes"),
                 attribute.span,
             );
         }
@@ -211,6 +211,7 @@ fn validate_globals(
         if let AttributeValue::Bind(_) = attribute.value
             && global_binding(tag, attribute.name.text(source)).is_none()
         {
+            super::bindings::check_binding(source, host, attributes, attribute)?;
             return unsupported("this global binding", attribute.span);
         }
     }

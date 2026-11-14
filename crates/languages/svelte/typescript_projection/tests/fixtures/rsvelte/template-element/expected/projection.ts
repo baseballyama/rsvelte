@@ -10,13 +10,13 @@ async () => {
     {
       svelteHTML.createElement("b", {});
     }
-    x;
+    (x);
   }
   {
     svelteHTML.createElement("template", {});
     {
       svelteHTML.createElement("b", {});
-      x;
+      (x);
     }
   }
   {
@@ -29,6 +29,5 @@ async () => {
     }
   }
 };
-const TemplateElement__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type TemplateElement__SvelteComponent_ = ReturnType<typeof TemplateElement__SvelteComponent_>;
-export default TemplateElement__SvelteComponent_;
+const TemplateElement__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof TemplateElement__SvelteComponent_>} */ (TemplateElement__SvelteComponent_);

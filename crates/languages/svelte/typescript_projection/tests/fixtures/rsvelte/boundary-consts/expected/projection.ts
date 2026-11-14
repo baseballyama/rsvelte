@@ -18,9 +18,9 @@ async () => {
         async () => {
           {
             svelteHTML.createElement("p", {});
-            double;
-            a;
-            c;
+            (double);
+            (a);
+            (c);
           }
         };
         return __rsvelte_snippet_return;
@@ -29,7 +29,7 @@ async () => {
         async () => {
           {
             svelteHTML.createElement("i", {});
-            double;
+            (double);
           }
         };
         return __rsvelte_snippet_return;
@@ -42,8 +42,8 @@ async () => {
     }
     {
       svelteHTML.createElement("b", {});
-      double;
-      a;
+      (double);
+      (a);
     }
     __rsvelte_ensure_snippet(other());
   }
@@ -52,10 +52,9 @@ async () => {
     const x = test + 1;
     {
       svelteHTML.createElement("p", {});
-      x;
+      (x);
     }
   }
 };
-const BoundaryConsts__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BoundaryConsts__SvelteComponent_ = ReturnType<typeof BoundaryConsts__SvelteComponent_>;
-export default BoundaryConsts__SvelteComponent_;
+const BoundaryConsts__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BoundaryConsts__SvelteComponent_>} */ (BoundaryConsts__SvelteComponent_);

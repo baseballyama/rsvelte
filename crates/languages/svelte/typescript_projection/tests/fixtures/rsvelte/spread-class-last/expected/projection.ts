@@ -2,7 +2,7 @@
 
 	import { vmodel, vModelText } from './runtime.js';
 
-	let { own = 'a', ...rest }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { own = 'a', ...rest } = $props();
 	let text = $state('');
 	let attrs = $derived.by(() => ({ ...rest, title: text }));
 
@@ -35,9 +35,8 @@ async () => {
       "onclick": () => (text = 'x'),
       ...(attrs),
     });
-    text;
+    (text);
   }
 };
-const SpreadClassLast__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type SpreadClassLast__SvelteComponent_ = ReturnType<typeof SpreadClassLast__SvelteComponent_>;
-export default SpreadClassLast__SvelteComponent_;
+const SpreadClassLast__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SpreadClassLast__SvelteComponent_>} */ (SpreadClassLast__SvelteComponent_);

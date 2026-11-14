@@ -10,14 +10,13 @@
 async () => {
   {
     for (let [, person] of __rsvelte_each(people)) {
-      person.id;
+      (person.id);
       {
         svelteHTML.createElement("p", {});
-        person.name;
+        (person.name);
       }
     }
   }
 };
-const EachKeyed__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type EachKeyed__SvelteComponent_ = ReturnType<typeof EachKeyed__SvelteComponent_>;
-export default EachKeyed__SvelteComponent_;
+const EachKeyed__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof EachKeyed__SvelteComponent_>} */ (EachKeyed__SvelteComponent_);

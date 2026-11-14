@@ -21,9 +21,9 @@ async () => {
       svelteHTML.createElement("div", {
         "slot": "a",
       });
-      x;
+      (x);
     }
-    x;
+    (x);
     {
       __rsvelte_component(C)(__rsvelte_internals(), {
         "slot": "1",
@@ -34,7 +34,7 @@ async () => {
       svelteHTML.createElement("span", {
         "slot": "0",
       });
-      x;
+      (x);
     }
     C;
   }
@@ -46,7 +46,7 @@ async () => {
       });
       {
         svelteHTML.createElement("span", {});
-        x;
+        (x);
       }
     }
     {
@@ -68,7 +68,7 @@ async () => {
     });
     {
       svelteHTML.createElement("svelte:fragment", {});
-      x;
+      (x);
     }
     C;
   }
@@ -78,6 +78,5 @@ async () => {
     });
   }
 };
-const NamedSlots__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type NamedSlots__SvelteComponent_ = ReturnType<typeof NamedSlots__SvelteComponent_>;
-export default NamedSlots__SvelteComponent_;
+const NamedSlots__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof NamedSlots__SvelteComponent_>} */ (NamedSlots__SvelteComponent_);

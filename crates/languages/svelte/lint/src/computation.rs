@@ -156,12 +156,9 @@ impl Artifact for SameNamedFileOnDisk {
 /// component instead of shadowing it.
 const MODULE_EXTENSIONS: [&str; 8] = [".ts", ".tsx", ".js", ".jsx", ".mts", ".cts", ".mjs", ".cjs"];
 
-/// A document that is not a file has none.
+/// A document with a name only has none.
 fn same_named_file(context: &DocumentContext<'_>) -> Option<String> {
-    let path = context.document.path.as_str();
-    if !is_file(path) {
-        return None;
-    }
+    let path = context.document.file.as_deref()?.to_str()?;
     if rsvelte_svelte_syntax::matches(context.document) {
         return MODULE_EXTENSIONS
             .iter()

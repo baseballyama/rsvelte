@@ -1,7 +1,7 @@
 ;
 
 	import List from './List.svelte';
-	let { item, label }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { item, label } = $props();
 	let count = $state(0);
 	let items = $state([1]);
 
@@ -15,7 +15,7 @@ async () => {
   if (label) {
     {
       svelteHTML.createElement("div", {});
-      const item = (): ReturnType<import('svelte').Snippet> => {
+      const item = () => {
         async () => {
           {
             svelteHTML.createElement("b", {});
@@ -27,7 +27,7 @@ async () => {
     }
     {
       svelteHTML.createElement("p", {});
-      const count = (): ReturnType<import('svelte').Snippet> => {
+      const count = () => {
         async () => {
         };
         return __rsvelte_snippet_return;
@@ -39,13 +39,13 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => count++,
     });
-    count;
+    (count);
   }
   {
     for (let [, row] of __rsvelte_each(items)) {
       {
         svelteHTML.createElement("div", {});
-        const row = (): ReturnType<import('svelte').Snippet> => {
+        const row = () => {
           async () => {
           };
           return __rsvelte_snippet_return;
@@ -75,6 +75,5 @@ async () => {
     List;
   }
 };
-const SnippetShadows__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type SnippetShadows__SvelteComponent_ = ReturnType<typeof SnippetShadows__SvelteComponent_>;
-export default SnippetShadows__SvelteComponent_;
+const SnippetShadows__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SnippetShadows__SvelteComponent_>} */ (SnippetShadows__SvelteComponent_);

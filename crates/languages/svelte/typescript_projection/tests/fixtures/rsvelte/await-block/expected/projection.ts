@@ -1,6 +1,6 @@
 ;
 
-	let { load, other }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { load, other } = $props();
 	let count = $state(0);
 
 ;
@@ -13,7 +13,7 @@ async () => {
   {
     {
       svelteHTML.createElement("p", {});
-      count;
+      (count);
     }
     try {
       const __rsvelte_awaited = await (load(count));
@@ -21,14 +21,14 @@ async () => {
         const value = __rsvelte_awaited;
         {
           svelteHTML.createElement("p", {});
-          value;
+          (value);
         }
       }
     } catch (__rsvelte_error) {
       const error = __rsvelte_untyped_prop();
       {
         svelteHTML.createElement("p", {});
-        error.message;
+        (error.message);
       }
     }
   }
@@ -38,8 +38,8 @@ async () => {
       const { name, size = 1 } = __rsvelte_awaited;
       {
         svelteHTML.createElement("b", {});
-        name;
-        size;
+        (name);
+        (size);
       }
     }
   }
@@ -50,7 +50,7 @@ async () => {
       const e = __rsvelte_untyped_prop();
       {
         svelteHTML.createElement("i", {});
-        e;
+        (e);
       }
     }
   }
@@ -64,6 +64,5 @@ async () => {
     }
   }
 };
-const AwaitBlock__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type AwaitBlock__SvelteComponent_ = ReturnType<typeof AwaitBlock__SvelteComponent_>;
-export default AwaitBlock__SvelteComponent_;
+const AwaitBlock__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof AwaitBlock__SvelteComponent_>} */ (AwaitBlock__SvelteComponent_);

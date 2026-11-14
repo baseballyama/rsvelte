@@ -1,6 +1,6 @@
 ;
 
-let {value,...rest}: typeof __rsvelte_public_props0=$props();
+/** @type {typeof __rsvelte_public_props0} */ let {value,...rest}=$props();
 function change() { rest.other=1; rest.count++; let x; x=rest.other; return rest.other; }
 
 ;
@@ -16,11 +16,10 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    rest.other;
-    rest.value;
-    rest['other'];
+    (rest.other);
+    (rest.value);
+    (rest['other']);
   }
 };
-const OptionsCustomRestAccess__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type OptionsCustomRestAccess__SvelteComponent_ = ReturnType<typeof OptionsCustomRestAccess__SvelteComponent_>;
-export default OptionsCustomRestAccess__SvelteComponent_;
+const OptionsCustomRestAccess__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof OptionsCustomRestAccess__SvelteComponent_>} */ (OptionsCustomRestAccess__SvelteComponent_);

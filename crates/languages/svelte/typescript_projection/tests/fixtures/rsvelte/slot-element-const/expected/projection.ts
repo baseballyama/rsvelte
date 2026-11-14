@@ -13,7 +13,7 @@ async () => {
         "slot": "a",
       });
       const twice = k * 2;
-      twice;
+      (twice);
     }
     C;
   }
@@ -23,6 +23,5 @@ async () => {
     });
   }
 };
-const SlotElementConst__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type SlotElementConst__SvelteComponent_ = ReturnType<typeof SlotElementConst__SvelteComponent_>;
-export default SlotElementConst__SvelteComponent_;
+const SlotElementConst__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SlotElementConst__SvelteComponent_>} */ (SlotElementConst__SvelteComponent_);

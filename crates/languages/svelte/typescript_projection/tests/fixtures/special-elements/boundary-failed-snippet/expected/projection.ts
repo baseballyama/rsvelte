@@ -6,7 +6,7 @@ async () => {
         async () => {
           {
             svelteHTML.createElement("p", {});
-            error.message;
+            (error.message);
           }
           {
             svelteHTML.createElement("button", {
@@ -22,6 +22,5 @@ async () => {
     }
   }
 };
-const BoundaryFailedSnippet__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BoundaryFailedSnippet__SvelteComponent_ = ReturnType<typeof BoundaryFailedSnippet__SvelteComponent_>;
-export default BoundaryFailedSnippet__SvelteComponent_;
+const BoundaryFailedSnippet__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BoundaryFailedSnippet__SvelteComponent_>} */ (BoundaryFailedSnippet__SvelteComponent_);

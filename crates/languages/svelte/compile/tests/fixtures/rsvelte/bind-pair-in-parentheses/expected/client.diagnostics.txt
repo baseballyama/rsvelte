@@ -1,0 +1,2 @@
+error bind_invalid_parens 5:8-5:54 `bind:value={get, set}` must not have surrounding parentheses
+    https://svelte.dev/e/bind_invalid_parens

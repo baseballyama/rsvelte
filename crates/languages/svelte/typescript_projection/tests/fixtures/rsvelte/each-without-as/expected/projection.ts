@@ -1,6 +1,6 @@
 ;
 
-	let { items = [], count = 2 }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { items = [], count = 2 } = $props();
 	let item = $state('outer');
 
 ;
@@ -14,7 +14,7 @@ async () => {
     for (let [, ] of __rsvelte_each(items)) {
       {
         svelteHTML.createElement("p", {});
-        item;
+        (item);
       }
     }
   }
@@ -22,7 +22,7 @@ async () => {
     for (let [i, ] of __rsvelte_each(items)) {
       {
         svelteHTML.createElement("p", {});
-        i;
+        (i);
       }
     }
   }
@@ -30,7 +30,7 @@ async () => {
     for (let [i, ] of __rsvelte_each({ length: count })) {
       {
         svelteHTML.createElement("span", {});
-        i;
+        (i);
       }
     }
     {
@@ -44,6 +44,5 @@ async () => {
     }
   }
 };
-const EachWithoutAs__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type EachWithoutAs__SvelteComponent_ = ReturnType<typeof EachWithoutAs__SvelteComponent_>;
-export default EachWithoutAs__SvelteComponent_;
+const EachWithoutAs__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof EachWithoutAs__SvelteComponent_>} */ (EachWithoutAs__SvelteComponent_);

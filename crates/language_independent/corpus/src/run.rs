@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 use rsvelte_kernel::computation::pipeline::{DocumentResult, RunOptions, Sharing, run_each};
@@ -35,6 +36,9 @@ pub struct Conformance {
     registry: Registry,
     compared: Vec<Compared>,
     also_run: Vec<&'static str>,
+    out_of_scope: Option<&'static str>,
+    /// The units [`Self::out_of_scope`]'s task reported.
+    excluded: AtomicUsize,
 }
 
 #[derive(Debug)]
@@ -56,6 +60,8 @@ impl Conformance {
             registry,
             compared: Vec::new(),
             also_run: Vec::new(),
+            out_of_scope: None,
+            excluded: AtomicUsize::new(0),
         }
     }
 
@@ -103,6 +109,14 @@ impl Conformance {
     #[must_use]
     pub fn also_run(mut self, task: &'static str) -> Self {
         self.also_run.push(task);
+        self
+    }
+
+    /// Runs `task` on every unit, and leaves out of every comparison each unit it reports a
+    /// diagnostic for: a unit outside what rsvelte implements, such as a legacy component.
+    #[must_use]
+    pub const fn out_of_scope(mut self, task: &'static str) -> Self {
+        self.out_of_scope = Some(task);
         self
     }
 
@@ -156,10 +170,11 @@ impl Conformance {
             }
         }
         eprintln!(
-            "corpus {}: {units} units of {} sources in {:.2} s",
+            "corpus {}: {units} units of {} sources in {:.2} s, {} out of scope",
             self.family,
             sources.len(),
-            started.elapsed().as_secs_f64()
+            started.elapsed().as_secs_f64(),
+            self.excluded.load(Ordering::Relaxed)
         );
         let mut moved = 0;
         let mut all_moves = String::new();
@@ -240,6 +255,7 @@ impl Conformance {
             .filter(|c| c.implemented)
             .map(|c| c.task)
             .chain(self.also_run.iter().copied())
+            .chain(self.out_of_scope)
             .collect();
         let options = RunOptions {
             tasks: &tasks,
@@ -309,6 +325,16 @@ impl Conformance {
         registry: &sources::Registry,
     ) -> Result<Verdicts, String> {
         let key = source.key(&document.path);
+        let excluded = self.out_of_scope.is_some_and(|task| {
+            result
+                .outputs
+                .iter()
+                .any(|(t, out)| *t == task && !out.diagnostics.is_empty())
+        });
+        if excluded {
+            self.excluded.fetch_add(1, Ordering::Relaxed);
+            return Ok(Vec::new());
+        }
         let table = registry.units.get(&key);
         let mut out = Vec::new();
         for (i, c) in self.compared.iter().enumerate() {
@@ -390,13 +416,13 @@ fn parallel_map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Ve
     let threads = std::thread::available_parallelism()
         .map_or(1, std::num::NonZero::get)
         .min(items.len());
-    let next = std::sync::atomic::AtomicUsize::new(0);
+    let next = AtomicUsize::new(0);
     let done = Mutex::new(Vec::with_capacity(items.len()));
     std::thread::scope(|scope| {
         for _ in 0..threads {
             scope.spawn(|| {
                 loop {
-                    let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    let i = next.fetch_add(1, Ordering::Relaxed);
                     let Some(item) = items.get(i) else { break };
                     let r = f(item);
                     done.lock()

@@ -1,6 +1,6 @@
 ;
 
-	const state = { a: 1 };;let $state!: __rsvelte_store_value<typeof state>;
+	const state = { a: 1 };;let $state = __rsvelte_store_get(state);
 
 
 ;
@@ -15,10 +15,9 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => count++,
     });
-    count;
-    state.a;
+    (count);
+    (state.a);
   }
 };
-const StoreRuneSplit__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type StoreRuneSplit__SvelteComponent_ = ReturnType<typeof StoreRuneSplit__SvelteComponent_>;
-export default StoreRuneSplit__SvelteComponent_;
+const StoreRuneSplit__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof StoreRuneSplit__SvelteComponent_>} */ (StoreRuneSplit__SvelteComponent_);

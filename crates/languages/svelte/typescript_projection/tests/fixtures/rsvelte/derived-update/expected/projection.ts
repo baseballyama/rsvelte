@@ -9,11 +9,10 @@
 async () => {
   {
     svelteHTML.createElement("p", {});
-    after;
-    before;
-    count;
+    (after);
+    (before);
+    (count);
   }
 };
-const DerivedUpdate__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type DerivedUpdate__SvelteComponent_ = ReturnType<typeof DerivedUpdate__SvelteComponent_>;
-export default DerivedUpdate__SvelteComponent_;
+const DerivedUpdate__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof DerivedUpdate__SvelteComponent_>} */ (DerivedUpdate__SvelteComponent_);

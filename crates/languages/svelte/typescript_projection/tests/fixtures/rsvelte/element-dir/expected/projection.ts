@@ -7,7 +7,7 @@ async () => {
     svelteHTML.createElement("div", {
       "dir": "auto",
     });
-    count;
+    (count);
   }
   {
     svelteHTML.createElement("p", {
@@ -15,6 +15,5 @@ async () => {
     });
   }
 };
-const ElementDir__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ElementDir__SvelteComponent_ = ReturnType<typeof ElementDir__SvelteComponent_>;
-export default ElementDir__SvelteComponent_;
+const ElementDir__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof ElementDir__SvelteComponent_>} */ (ElementDir__SvelteComponent_);

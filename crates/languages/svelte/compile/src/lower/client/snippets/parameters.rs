@@ -2,6 +2,7 @@ use oxc_ast::ast::{
     BindingPattern, Expression, FormalParameter, Statement, VariableDeclarationKind,
 };
 use oxc_semantic::SymbolId;
+use oxc_span::GetSpan;
 use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
 
 use crate::lower::builder::Runtime;
@@ -50,6 +51,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     context: self,
                     declarations: &mut result.declarations,
                 },
+                reserved: Vec::new(),
             };
             match &parameter.initializer {
                 Some(fallback) => {
@@ -97,16 +99,23 @@ impl<'o> Destructure<'o, 'o> for Hooks<'_, '_, 'o> {
         self.context.rewrite(e, true)
     }
 
+    fn parentheses(&self, e: &Expression<'_>) -> u8 {
+        self.context.javascript.parentheses(e.span())
+    }
+
     fn bound(&mut self, binding: &'o oxc_ast::ast::BindingIdentifier<'o>, default: bool) {
         let read = if default { Read::Get } else { Read::Call };
         self.context.reads.insert(binding.symbol_id(), read);
     }
 
-    fn array(&mut self, value: Expression<'o>) -> Expression<'o> {
+    fn array_name(&mut self) -> String {
+        self.context.names.generate("$$array")
+    }
+
+    fn array(&mut self, name: &str, value: Expression<'o>) -> Expression<'o> {
         let b = self.context.b;
-        let name = self.context.names.generate("$$array");
         let derived = b.runtime("derived", [b.thunk(value)]);
-        (self.declarations).push(b.declare(VariableDeclarationKind::Var, &name, Some(derived)));
-        b.runtime("get", [b.id(&name)])
+        (self.declarations).push(b.declare(VariableDeclarationKind::Var, name, Some(derived)));
+        b.runtime("get", [b.id(name)])
     }
 }

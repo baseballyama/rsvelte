@@ -1,5 +1,5 @@
 ;
-let { items, children }: typeof __rsvelte_public_props0 = $props();
+/** @type {typeof __rsvelte_public_props0} */ let { items, children } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -11,12 +11,12 @@ async () => {
     svelteHTML.createElement("ul", {
       "class": "list",
     });
-    const row = (item, index = 0): ReturnType<import('svelte').Snippet> => {
+    const row = (item, index = 0) => {
       async () => {
         {
           svelteHTML.createElement("li", {});
-          index;
-          item.label;
+          (index);
+          (item.label);
         }
       };
       return __rsvelte_snippet_return;
@@ -28,12 +28,12 @@ async () => {
     }
   }
   if (items.length) {
-    const empty = ({ title, count = 1 }): ReturnType<import('svelte').Snippet> => {
+    const empty = ({ title, count = 1 }) => {
       async () => {
         {
           svelteHTML.createElement("p", {});
-          title;
-          count;
+          (title);
+          (count);
         }
       };
       return __rsvelte_snippet_return;
@@ -42,6 +42,5 @@ async () => {
   }
   __rsvelte_ensure_snippet(children?.());
 };
-const SnippetNested__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type SnippetNested__SvelteComponent_ = ReturnType<typeof SnippetNested__SvelteComponent_>;
-export default SnippetNested__SvelteComponent_;
+const SnippetNested__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SnippetNested__SvelteComponent_>} */ (SnippetNested__SvelteComponent_);

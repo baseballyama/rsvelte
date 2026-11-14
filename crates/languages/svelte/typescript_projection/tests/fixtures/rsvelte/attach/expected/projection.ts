@@ -27,7 +27,7 @@ async () => {
     svelteHTML.createElement("p", {
       [Symbol("@attach")]: color(count > 0 ? 'red' : 'blue'),
     });
-    count;
+    (count);
   }
   {
     svelteHTML.createElement("button", {
@@ -42,6 +42,5 @@ async () => {
     });
   }
 };
-const Attach__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type Attach__SvelteComponent_ = ReturnType<typeof Attach__SvelteComponent_>;
-export default Attach__SvelteComponent_;
+const Attach__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof Attach__SvelteComponent_>} */ (Attach__SvelteComponent_);

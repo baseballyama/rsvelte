@@ -1,13 +1,13 @@
 ;
-;let $page!: __rsvelte_store_value<typeof page>;
+;let $page = __rsvelte_store_get(page);
 
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
-	let { store }: typeof __rsvelte_public_props0 = $props();;let $store!: __rsvelte_store_value<typeof store>;
+	/** @type {typeof __rsvelte_public_props0} */ let { store } = $props();;let $store = __rsvelte_store_get(store);
 
-	const count = writable(0);;let $count!: __rsvelte_store_value<typeof count>;
+	const count = writable(0);;let $count = __rsvelte_store_get(count);
 
-	let obj = writable({ a: 1 });;let $obj!: __rsvelte_store_value<typeof obj>;
+	let obj = writable({ a: 1 });;let $obj = __rsvelte_store_get(obj);
 
 	function inc() { $count += 1; $count++; $obj.a = 2; $obj = { a: 3 }; }
 	let d = $derived($count * 2);
@@ -21,10 +21,10 @@ const __rsvelte_public_props0 = __rsvelte_props({
 async () => {
   {
     svelteHTML.createElement("p", {});
-    $count;
-    $store;
-    $obj.a;
-    d;
+    ($count);
+    ($store);
+    ($obj.a);
+    (d);
   }
   {
     svelteHTML.createElement("input", {
@@ -42,10 +42,9 @@ async () => {
   }
   {
     for (let [, item] of __rsvelte_each($obj.list)) {
-      item;
+      (item);
     }
   }
 };
-const StoreSubscriptions__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type StoreSubscriptions__SvelteComponent_ = ReturnType<typeof StoreSubscriptions__SvelteComponent_>;
-export default StoreSubscriptions__SvelteComponent_;
+const StoreSubscriptions__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof StoreSubscriptions__SvelteComponent_>} */ (StoreSubscriptions__SvelteComponent_);

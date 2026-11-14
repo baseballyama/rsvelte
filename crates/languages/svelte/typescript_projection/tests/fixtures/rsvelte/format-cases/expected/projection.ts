@@ -1,6 +1,6 @@
 ;
 
-let {items,title='List'}: typeof __rsvelte_public_props0=$props()
+/** @type {typeof __rsvelte_public_props0} */ let {items,title='List'}=$props()
 let total=$derived(items.length*2+1)
 
 ;
@@ -18,13 +18,13 @@ async () => {
     });
     {
       svelteHTML.createElement("h2", {});
-      title;
+      (title);
     }
     if (items.length>0) {
       {
         svelteHTML.createElement("p", {});
-        total;
-        items[0];
+        (total);
+        (items[0]);
       }
     } else {
       {
@@ -33,6 +33,5 @@ async () => {
     }
   }
 };
-const FormatCases__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type FormatCases__SvelteComponent_ = ReturnType<typeof FormatCases__SvelteComponent_>;
-export default FormatCases__SvelteComponent_;
+const FormatCases__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof FormatCases__SvelteComponent_>} */ (FormatCases__SvelteComponent_);

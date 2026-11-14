@@ -1,6 +1,6 @@
 ;
 
-	let { ...attrs }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { ...attrs } = $props();
 	let text = $state('');
 	let checked = $state(false);
 
@@ -43,10 +43,9 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    text;
-    checked;
+    (text);
+    (checked);
   }
 };
-const SpreadInput__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type SpreadInput__SvelteComponent_ = ReturnType<typeof SpreadInput__SvelteComponent_>;
-export default SpreadInput__SvelteComponent_;
+const SpreadInput__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SpreadInput__SvelteComponent_>} */ (SpreadInput__SvelteComponent_);

@@ -202,6 +202,7 @@ pub(super) fn subscribed(
     semantic: &Semantic,
     instance: ScopeId,
     instance_program: Option<ScopeId>,
+    instance_body: &[oxc_ast::ast::Statement<'_>],
     module: bool,
 ) -> Subscriptions {
     let scoping = semantic.scoping();
@@ -211,7 +212,13 @@ pub(super) fn subscribed(
         .filter(|&name| {
             let store = &name[1..];
             let Some(symbol) = scoping.find_binding(instance, store.into()) else {
-                return false;
+                // A `$:` declares what it assigns before upstream asks, without a rune initial.
+                return crate::legacy::declares_implicitly(instance_body, store, |identifier| {
+                    identifier
+                        .reference_id
+                        .get()
+                        .is_some_and(|r| scoping.get_reference(r).symbol_id().is_some())
+                });
             };
             let declaration = scoping.symbol_declaration(symbol);
             // Upstream asks before it declares any subscription, so only bindings shadow a rune.

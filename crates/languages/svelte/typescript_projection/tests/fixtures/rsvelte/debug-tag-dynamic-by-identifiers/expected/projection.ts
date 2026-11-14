@@ -13,10 +13,9 @@ async () => {
   {
     svelteHTML.createElement("p", {});
     {
-      a;
+      (a);
     }
   }
 };
-const DebugTagDynamicByIdentifiers__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type DebugTagDynamicByIdentifiers__SvelteComponent_ = ReturnType<typeof DebugTagDynamicByIdentifiers__SvelteComponent_>;
-export default DebugTagDynamicByIdentifiers__SvelteComponent_;
+const DebugTagDynamicByIdentifiers__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof DebugTagDynamicByIdentifiers__SvelteComponent_>} */ (DebugTagDynamicByIdentifiers__SvelteComponent_);

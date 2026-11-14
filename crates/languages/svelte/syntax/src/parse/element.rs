@@ -34,7 +34,7 @@ impl<'a> Parser<'a, '_> {
         let start_offset = self.position;
         self.eat_token(TokenType::TagOpen, 1);
         // Upstream's `read_until` stops at the trimmed end before it reads the name.
-        if self.position >= self.trimmed_end() {
+        if self.position >= self.source_text.len() {
             return self.unexpected_eof();
         }
         let name = self.tag_name();
@@ -185,7 +185,7 @@ impl<'a> Parser<'a, '_> {
             // `closing_tag_omitted` stopped the children at a start tag.
             return Ok(false);
         };
-        if self.position + 2 >= self.trimmed_end() {
+        if self.position + 2 >= self.source_text.len() {
             return self.unexpected_eof();
         }
         let closing = peek_tag_name(after);

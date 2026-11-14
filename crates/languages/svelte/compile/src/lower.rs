@@ -47,7 +47,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 pub(crate) use rsvelte_svelte_semantic::template::{cannot_be_set_statically, needs_clsx};
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
-use rsvelte_typescript_tree::{Acorn, SyntaxError};
+use rsvelte_typescript_tree::SyntaxError;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub use crate::input::{CompileInput, Target};
@@ -219,20 +219,17 @@ pub(crate) enum Unit {
 
 /// The first error acorn throws while upstream parses the scripts: where it stops in syntax oxc
 /// parsed, a name it declares twice that oxc lets TypeScript declare again, or what oxc's checker
-/// rejects after the parser, whichever comes first.
+/// rejects after the parser, whichever comes first. Where acorn stops is its own verdict, so it
+/// wins over a checker's error at the same place.
 pub(crate) fn javascript_error(res: &Resolution) -> Option<SyntaxError> {
-    let at = |error: &SyntaxError| match error.acorn {
-        Some(Acorn::Stops(at) | Acorn::Fails { at, .. }) => at,
-        None => error.diagnostic.span.start_offset,
-    };
     [
-        res.javascript_syntax_error().cloned(),
         res.tree().acorn_rejection(),
+        res.javascript_syntax_error().cloned(),
         res.semantic().acorn_redeclaration(),
     ]
     .into_iter()
     .flatten()
-    .min_by_key(at)
+    .min_by_key(SyntaxError::acorn_at)
 }
 
 /// The [`javascript_error`] that upstream raises as it parses, as Svelte reports it. A name the
@@ -252,10 +249,15 @@ pub(crate) fn validate_unit(
     if let Some(error) = parse_error(input, res) {
         return Err(error);
     }
+    validation::check_awaits(input)?;
     let special::SvelteOptions {
         custom_element,
         stylesheet_injected,
     } = special::validate(input)?;
+    // Upstream erases the types right after it parses, before it analyzes.
+    if unit == Unit::Component {
+        validation::check_typescript(input)?;
+    }
     let names = stores::Names::new(input, res);
     let mut errors = snippets::errors(input, res);
     if unit == Unit::Component {
@@ -269,9 +271,6 @@ pub(crate) fn validate_unit(
     if let Err(refusal) = coverage::check(input, res) {
         let script = validation::script_error(input, res, custom_element.is_some());
         return Err(script.map_or(refusal, |(_, error)| error));
-    }
-    if unit == Unit::Component {
-        validation::check_typescript(input)?;
     }
     let rest_reads = rest_reads::build(res, custom_element.is_some());
     Ok(ValidatedOptions {
@@ -330,13 +329,17 @@ pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution
         (raised, error)
     };
     let mut raised = Vec::new();
-    raised.extend(parse_error(input, res).map(parse));
+    if let Some(error) = parse_error(input, res) {
+        raised.push(parse(error));
+    } else {
+        raised.extend(validation::check_awaits(input).err().map(parse));
+    }
     raised.extend(special::validate(input).err().map(parse));
-    raised.extend(validation::template_error(input).map(|error| {
+    raised.extend(validation::template_error(input).map(|(at, error)| {
         let raised = Raised {
             phase: Phase::Walk,
             section: Section::Template,
-            at: error.span.start_offset,
+            at,
         };
         (raised, error)
     }));

@@ -1,7 +1,7 @@
 ;
 
 	import Option from './Option.svelte';
-	let { p, c }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { p, c } = $props();
 
 ;
 
@@ -39,11 +39,10 @@ async () => {
       });
       {
         svelteHTML.createElement("b", {});
-        c;
+        (c);
       }
     }
   }
 };
-const RichSelect3__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type RichSelect3__SvelteComponent_ = ReturnType<typeof RichSelect3__SvelteComponent_>;
-export default RichSelect3__SvelteComponent_;
+const RichSelect3__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof RichSelect3__SvelteComponent_>} */ (RichSelect3__SvelteComponent_);

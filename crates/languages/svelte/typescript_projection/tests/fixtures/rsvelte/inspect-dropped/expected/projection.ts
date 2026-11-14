@@ -17,9 +17,8 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => { $inspect(a); a++; },
     });
-    f();
+    (f());
   }
 };
-const InspectDropped__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type InspectDropped__SvelteComponent_ = ReturnType<typeof InspectDropped__SvelteComponent_>;
-export default InspectDropped__SvelteComponent_;
+const InspectDropped__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof InspectDropped__SvelteComponent_>} */ (InspectDropped__SvelteComponent_);

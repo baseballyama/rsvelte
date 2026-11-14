@@ -9,10 +9,9 @@ async () => {
     });
     {
       svelteHTML.createElement("p", {});
-      text;
+      (text);
     }
   }
 };
-const ElementChildren__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ElementChildren__SvelteComponent_ = ReturnType<typeof ElementChildren__SvelteComponent_>;
-export default ElementChildren__SvelteComponent_;
+const ElementChildren__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof ElementChildren__SvelteComponent_>} */ (ElementChildren__SvelteComponent_);

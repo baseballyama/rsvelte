@@ -11,6 +11,7 @@ use oxc_ast::ast::{
     Comment, Expression, FormalParameter, FormalParameters, Program, TSTypeParameterDeclaration,
     VariableDeclaration,
 };
+use oxc_diagnostics::OxcDiagnostic;
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
@@ -77,6 +78,11 @@ struct Trees<'a> {
     /// The comments of every part but the programs, which keep their own, in document order.
     comments: Vec<Comment>,
     acorn_rejection: Option<(u32, acorn_grammar::Rejection)>,
+    /// How many pairs of parentheses wrapped each node of a snippet's parameters that had any,
+    /// by span.
+    parentheses: Vec<(oxc_span::Span, u8)>,
+    unchecked: &'static [&'static str],
+    as_acorn: bool,
 }
 
 /// The trees parsed from one document, and the arena that holds them.
@@ -208,6 +214,14 @@ impl Tree {
             .map(acorn_grammar::rejection)
     }
 
+    /// Whether the host the builder read for reports `error`, an error of an analysis of the
+    /// trees whose nodes `visit` hands to [`Locator::enter`].
+    #[must_use]
+    pub fn reports(&self, error: &OxcDiagnostic, visit: impl FnOnce(&mut Locator)) -> bool {
+        let trees = self.0.borrow_dependent();
+        syntax_error::reported(error, trees.unchecked, trees.as_acorn, visit)
+    }
+
     #[must_use]
     pub fn get_program(&self, identifier: ProgramIdentifier) -> &Program<'_> {
         &self.0.borrow_dependent().programs[identifier.index()]
@@ -302,6 +316,22 @@ impl Tree {
     #[must_use]
     pub fn comments(&self) -> &[Comment] {
         &self.0.borrow_dependent().comments
+    }
+
+    /// Whether any snippet parameter had parentheses.
+    #[must_use]
+    pub fn has_parentheses(&self) -> bool {
+        !self.0.borrow_dependent().parentheses.is_empty()
+    }
+
+    /// How many pairs of parentheses the source wrapped around the node at `span` of a snippet's
+    /// parameters, which upstream keeps there and nowhere else.
+    #[must_use]
+    pub fn parentheses(&self, span: oxc_span::Span) -> u8 {
+        let parentheses = &self.0.borrow_dependent().parentheses;
+        parentheses
+            .binary_search_by_key(&(span.start, span.end), |&(s, _)| (s.start, s.end))
+            .map_or(0, |i| parentheses[i].1)
     }
 }
 

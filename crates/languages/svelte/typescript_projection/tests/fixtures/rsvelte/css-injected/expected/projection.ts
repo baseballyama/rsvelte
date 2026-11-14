@@ -1,6 +1,6 @@
 ;
 
-	let { children }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { children } = $props();
 	let x = $state(1);
 
 ;
@@ -19,10 +19,9 @@ async () => {
       "class": "a",
       "onclick": () => x++,
     });
-    x;
+    (x);
   }
   __rsvelte_ensure_snippet(children?.());
 };
-const CssInjected__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type CssInjected__SvelteComponent_ = ReturnType<typeof CssInjected__SvelteComponent_>;
-export default CssInjected__SvelteComponent_;
+const CssInjected__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof CssInjected__SvelteComponent_>} */ (CssInjected__SvelteComponent_);

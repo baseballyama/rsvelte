@@ -1,5 +1,5 @@
 ;
-let { tag, active }: typeof __rsvelte_public_props0 = $props();
+/** @type {typeof __rsvelte_public_props0} */ let { tag, active } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -11,9 +11,8 @@ async () => {
     svelteHTML.createElement(tag, {
       "class": "base",
     });
-    active;
+    (active);
   }
 };
-const ElementClassDirective__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type ElementClassDirective__SvelteComponent_ = ReturnType<typeof ElementClassDirective__SvelteComponent_>;
-export default ElementClassDirective__SvelteComponent_;
+const ElementClassDirective__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof ElementClassDirective__SvelteComponent_>} */ (ElementClassDirective__SvelteComponent_);

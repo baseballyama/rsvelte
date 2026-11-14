@@ -14,7 +14,7 @@ async () => {
     });
     w = __rsvelte_element0.clientWidth;
     item.w = __rsvelte_element0.offsetHeight;
-    w = null as DOMRectReadOnly;
+    w = /** @type {DOMRectReadOnly} */ (null);
     () => {
       // @ts-ignore
       w = __rsvelte_untyped_prop();
@@ -43,11 +43,10 @@ async () => {
   }
   {
     svelteHTML.createElement("p", {});
-    w;
-    h;
-    item.w;
+    (w);
+    (h);
+    (item.w);
   }
 };
-const ElementBindingsOnSpecialHosts__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ElementBindingsOnSpecialHosts__SvelteComponent_ = ReturnType<typeof ElementBindingsOnSpecialHosts__SvelteComponent_>;
-export default ElementBindingsOnSpecialHosts__SvelteComponent_;
+const ElementBindingsOnSpecialHosts__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof ElementBindingsOnSpecialHosts__SvelteComponent_>} */ (ElementBindingsOnSpecialHosts__SvelteComponent_);

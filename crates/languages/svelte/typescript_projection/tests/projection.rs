@@ -140,11 +140,22 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
 
 #[test]
 fn unsupported_semantics_are_reported_at_the_original_construct() {
-    let source = "<script lang=\"ts\">let a = 1;</script>{#if a}<svelte:self />{/if}";
+    let source = "<script lang=\"ts\">import C from './C.svelte';</script><C transition:fade />";
     let component = parse(source).expect("valid Svelte source");
     let error = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
-        .expect_err("a recursive component needs its own type semantics");
-    assert_eq!(error.span().text(source), "svelte:self");
+        .expect_err("a transition on a component has no type semantics yet");
+    assert_eq!(error.span().text(source), "transition:fade");
+}
+
+#[test]
+fn svelte_self_renders_a_component_whose_props_are_not_checked() {
+    let source = "<script lang=\"ts\">let a = 1;</script>{#if a}<svelte:self b={a} />{/if}";
+    let (_, output) = project(source);
+    assert!(
+        output
+            .out
+            .contains("__rsvelte_component(__rsvelte_any_component)(__rsvelte_internals(), {")
+    );
 }
 
 #[test]
@@ -188,13 +199,15 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "        \"title\": text,\n",
             "        \"data-label\": `café\n  🚀`,\n",
             "      });\n",
-            "      text;\n",
+            "      (text);\n",
             "    }\n",
             "  }\n",
             "};\n",
-            "const $$Component = __rsvelte_export_component<__rsvelte_no_props, {}, \"\">();\n",
-            "type $$Component = ReturnType<typeof $$Component>;\n",
-            "export default $$Component;\n",
+            // A component without a TypeScript script projects to JavaScript, its types in JSDoc.
+            "const $$Component = (/** @type {typeof __rsvelte_export_component<",
+            "__rsvelte_no_props, {}, \"\">} */ (__rsvelte_export_component))();\n",
+            "export default /** @type {__rsvelte_javascript_export<typeof $$Component>} */ ",
+            "($$Component);\n",
         )
     );
     for mapping in output.mappings.iter().filter(|mapping| mapping.len > 0) {
@@ -333,7 +346,8 @@ fn a_default_slot_lets_the_component_take_children_as_svelte2tsx_does() {
         ("<slot name=\"x\" />", false),
         ("<div></div>", false),
     ] {
-        let (_, output) = project(source);
+        // The widened type is TypeScript's; JavaScript writes no type arguments.
+        let (_, output) = project(&format!("<script lang=\"ts\"></script>{source}"));
         assert_eq!(
             output.out.contains(widened),
             expected,
@@ -365,7 +379,7 @@ fn a_component_s_snippets_are_props_after_its_attributes_as_svelte2tsx_passes_th
         .expect("mapped");
     assert_eq!(mapped.text(source), "head");
     // A snippet elsewhere is a constant, before the other children of its parent.
-    let source = "<div>{@render s()}{#snippet s()}{/snippet}</div>";
+    let source = "<script lang=\"ts\"></script><div>{@render s()}{#snippet s()}{/snippet}</div>";
     let (_, output) = project(source);
     let out = &output.out;
     let declared = out.find("const s = (): ReturnType<import('svelte').Snippet>");
@@ -542,16 +556,26 @@ fn a_type_a_dollar_generic_constraint_names_moves_before_the_render_function() {
     assert!(!output.out.contains("$$Generic"), "{}", output.out);
 }
 
-/// svelte2tsx writes a text expression bare, and parenthesizes one that opens with an object.
 #[test]
-fn a_text_expression_is_bare_unless_it_opens_with_an_object() {
-    let (_, output) =
-        project("<script lang=\"ts\"></script>{accessor as string}{{ a: 1 }.a}{({ b: 2 })}");
-    assert!(
-        output.out.contains("accessor as string;\n"),
-        "{}",
-        output.out
+fn a_generics_list_that_does_not_parse_is_copied_with_a_plain_export() {
+    let source = "<script lang=\"ts\" generics=\"extends string\">let x = 1;</script>{x}";
+    let component = parse(source).expect("valid Svelte source");
+    let tree = rsvelte_svelte_typescript_projection::lower_alone(&component, source)
+        .expect("supported template");
+    // The copy keeps the list's own errors, so the output is not valid TypeScript.
+    let output = rsvelte_svelte_typescript_projection::emit(&tree, source);
+    let at = output
+        .out
+        .find("function $$render<extends string>() {")
+        .expect("copied") as u32;
+    let start = at + "function $$render<".len() as u32;
+    assert_eq!(
+        output
+            .lookup_span(Span::new(start, start + 7))
+            .unwrap()
+            .text(source),
+        "extends"
     );
-    assert!(output.out.contains("({ a: 1 }.a);\n"), "{}", output.out);
-    assert!(output.out.contains("({ b: 2 });\n"), "{}", output.out);
+    assert!(output.out.contains(" = $$render();\n"));
+    assert!(!output.out.contains("$$IsomorphicComponent"));
 }

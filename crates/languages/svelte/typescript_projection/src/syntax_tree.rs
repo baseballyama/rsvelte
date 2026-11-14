@@ -29,6 +29,8 @@ pub enum Node {
         arguments: Range,
     },
     TypeAnnotation(NodeIdentifier),
+    /// A JavaScript declaration's type, in a `JSDoc` comment before it.
+    DeclaredType(NodeIdentifier),
     TypeLiteral(Range),
     TypeProperty {
         name: NodeIdentifier,
@@ -53,6 +55,9 @@ pub enum Node {
     Render {
         type_parameters: TypeParameters,
         body: Range,
+        /// The script's start tag up to the `generics` value, which svelte2tsx overwrites with
+        /// the function's name.
+        name: Option<Span>,
     },
     Return(NodeIdentifier),
     /// The default export of a generic component, whose call signature takes its type
@@ -67,6 +72,8 @@ pub enum Node {
     Expression(SourceExpression),
     Statement(NodeIdentifier),
     Identifier(&'static str),
+    /// The component `<svelte:self>` renders, whose props svelte2tsx does not check.
+    AnyComponent,
     StringLiteral(&'static str),
     /// A generated string whose findings fall on the empty range at `at`.
     StringLiteralAt {
@@ -206,6 +213,8 @@ pub struct SyntaxTree {
     pub(crate) nodes: Vec<Node>,
     pub(crate) children: Vec<NodeIdentifier>,
     pub(crate) root: Range,
+    /// Neither script is TypeScript, so the projection is JavaScript without type syntax.
+    pub(crate) javascript: bool,
 }
 
 impl Default for SyntaxTree {
@@ -214,6 +223,7 @@ impl Default for SyntaxTree {
             nodes: buffer_pool::take_keyed::<Self, _>(),
             children: buffer_pool::take_keyed::<Self, _>(),
             root: Range::default(),
+            javascript: false,
         }
     }
 }
@@ -234,6 +244,12 @@ impl SyntaxTree {
     #[must_use]
     pub fn children(&self, range: Range) -> &[NodeIdentifier] {
         range.get(&self.children)
+    }
+
+    /// The extension a checker reads the projection as: `.js` without type syntax of its own.
+    #[must_use]
+    pub const fn extension(&self) -> &'static str {
+        if self.javascript { ".js" } else { ".ts" }
     }
 
     #[must_use]

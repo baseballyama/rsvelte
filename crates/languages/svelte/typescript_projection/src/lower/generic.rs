@@ -20,6 +20,9 @@ pub(super) struct Generics {
     names: Range,
     /// Each parameter without its modifiers, which an interface or a type alias rejects.
     declared: Range,
+    /// Whether the default export takes the type parameters: not when they do not parse.
+    exported: bool,
+    name: Option<Span>,
 }
 
 impl Builder<'_> {
@@ -32,11 +35,24 @@ impl Builder<'_> {
         edits: &mut Buffer<Edit>,
     ) -> Result<Option<Generics>> {
         let aliases = DollarGenerics::of(program);
+        // svelte2tsx reads `generics` only in a TypeScript script.
         let attribute = script
             .attributes
             .iter()
+            .filter(|_| script.typescript)
             .find(|(name, _)| name.text(self.source) == "generics");
+        let mut exported = true;
+        // From after the `<` of the start tag to the value's opening quote.
+        let name = attribute
+            .and_then(|&(_, value)| value)
+            .map(|value| Span::new(script.span.start_offset + 1, value.start_offset - 1));
         let (type_parameters, names, declared) = match attribute {
+            // svelte2tsx copies a list that does not parse, so TypeScript reports its errors.
+            Some(&(_, Some(value))) if aliases.found.is_empty() && script.generics.is_none() => {
+                exported = false;
+                let none = Range::default();
+                (TypeParameters::Attribute(value), none, none)
+            }
             Some(&(attribute, _)) if aliases.found.is_empty() => {
                 self.attribute_generics(script, attribute)?
             }
@@ -55,6 +71,8 @@ impl Builder<'_> {
             type_parameters,
             names,
             declared,
+            exported,
+            name,
         }))
     }
 
@@ -216,12 +234,23 @@ impl Builder<'_> {
         self.scratch.push(self.tree.push(Node::Render {
             type_parameters: generics.type_parameters,
             body,
+            name: generics.name,
         }));
-        self.scratch.push(self.tree.push(Node::GenericExport {
-            type_parameters: generics.type_parameters,
-            names: generics.names,
-            declared: generics.declared,
-        }));
+        let export = if generics.exported {
+            Node::GenericExport {
+                type_parameters: generics.type_parameters,
+                names: generics.names,
+                declared: generics.declared,
+            }
+        } else {
+            let callee = self.tree.push(Node::Identifier("$$render"));
+            let component = self.tree.push(Node::Call {
+                callee,
+                arguments: Range::default(),
+            });
+            Node::ExportDefault(component)
+        };
+        self.scratch.push(self.tree.push(export));
     }
 }
 

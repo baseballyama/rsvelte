@@ -28,16 +28,15 @@ async () => {
       for (let [, item] of __rsvelte_each(items)) {
         {
           svelteHTML.createElement("option", {});
-          item;
+          (item);
         }
       }
     }
   }
   {
     svelteHTML.createElement("p", {});
-    choice;
+    (choice);
   }
 };
-const SelectBind__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type SelectBind__SvelteComponent_ = ReturnType<typeof SelectBind__SvelteComponent_>;
-export default SelectBind__SvelteComponent_;
+const SelectBind__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SelectBind__SvelteComponent_>} */ (SelectBind__SvelteComponent_);

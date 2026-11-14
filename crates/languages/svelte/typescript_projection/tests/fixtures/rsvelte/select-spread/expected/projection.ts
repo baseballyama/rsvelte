@@ -1,6 +1,6 @@
 ;
 
-	let { options = [], ...rest }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { options = [], ...rest } = $props();
 	let current = $state('x');
 
 ;
@@ -25,8 +25,8 @@ async () => {
           svelteHTML.createElement("option", {
             "value": option,
           });
-          option === current;
-          option;
+          (option === current);
+          (option);
         }
       }
     }
@@ -42,6 +42,5 @@ async () => {
     }
   }
 };
-const SelectSpread__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type SelectSpread__SvelteComponent_ = ReturnType<typeof SelectSpread__SvelteComponent_>;
-export default SelectSpread__SvelteComponent_;
+const SelectSpread__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SelectSpread__SvelteComponent_>} */ (SelectSpread__SvelteComponent_);

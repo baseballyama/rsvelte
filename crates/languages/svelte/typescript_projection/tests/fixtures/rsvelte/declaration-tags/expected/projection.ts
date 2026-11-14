@@ -11,8 +11,8 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => n++,
     });
-    n;
-    twice;
+    (n);
+    (twice);
   }
   if (shown) {
     let box = $state({ v: start });
@@ -21,8 +21,8 @@ async () => {
       svelteHTML.createElement("p", {
         "onclick": () => box.v++,
       });
-      label;
-      box.v;
+      (label);
+      (box.v);
     }
     {
       svelteHTML.createElement("section", {});
@@ -30,8 +30,8 @@ async () => {
       let t = $derived(twice + 1);
       {
         svelteHTML.createElement("i", {});
-        label;
-        t;
+        (label);
+        (t);
       }
     }
   }
@@ -40,11 +40,10 @@ async () => {
       let el = $state();
       {
         el = svelteHTML.createElement("b", {});
-        item;
+        (item);
       }
     }
   }
 };
-const DeclarationTags__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type DeclarationTags__SvelteComponent_ = ReturnType<typeof DeclarationTags__SvelteComponent_>;
-export default DeclarationTags__SvelteComponent_;
+const DeclarationTags__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof DeclarationTags__SvelteComponent_>} */ (DeclarationTags__SvelteComponent_);

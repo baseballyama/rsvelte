@@ -1,5 +1,5 @@
 ;
-let {tag}: typeof __rsvelte_public_props0= $props()
+/** @type {typeof __rsvelte_public_props0} */ let {tag}= $props()
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -12,6 +12,5 @@ async () => {
     });
   }
 };
-const ElementOnDirective__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type ElementOnDirective__SvelteComponent_ = ReturnType<typeof ElementOnDirective__SvelteComponent_>;
-export default ElementOnDirective__SvelteComponent_;
+const ElementOnDirective__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof ElementOnDirective__SvelteComponent_>} */ (ElementOnDirective__SvelteComponent_);

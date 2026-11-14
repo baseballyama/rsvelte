@@ -36,10 +36,9 @@ async () => {
   {
     window.__el = svelteHTML.createElement("p", {});
   }
-  a;
+  (a);
 };
-const BindingTargetsAFunctionOrAGlobal__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {
+const BindingTargetsAFunctionOrAGlobal__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {
   a: typeof a;
-}, "">();
-type BindingTargetsAFunctionOrAGlobal__SvelteComponent_ = ReturnType<typeof BindingTargetsAFunctionOrAGlobal__SvelteComponent_>;
-export default BindingTargetsAFunctionOrAGlobal__SvelteComponent_;
+}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindingTargetsAFunctionOrAGlobal__SvelteComponent_>} */ (BindingTargetsAFunctionOrAGlobal__SvelteComponent_);

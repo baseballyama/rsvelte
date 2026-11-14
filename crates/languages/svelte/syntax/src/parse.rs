@@ -49,11 +49,14 @@ const INITIAL_TOKEN_CAPACITY_LIMIT: usize = 8192;
 
 /// The TypeScript grammar rules oxc checks and acorn-typescript, upstream's parser, does not.
 ///
-/// Upstream compiles each one, or rejects it later as `typescript_invalid_feature` (1147, 1194).
-/// An optional rest parameter (1047) is not one: acorn rejects it in a function with a body.
+/// Upstream compiles each one, such as a class member without an implementation (2390, 2391),
+/// or rejects it later: as `typescript_invalid_feature` (1147, 1194), or an export nothing
+/// declares as `export_undefined` (2304). An optional rest parameter (1047) is not one: acorn
+/// checks it in some places only. An `await` outside an async function (1308) is one: acorn
+/// accepts it in an enum, so the compiler raises it only where acorn does.
 pub const ACORN_UNCHECKED_TYPESCRIPT_RULES: &[&str] = &[
     "1015", "1016", "1021", "1038", "1051", "1093", "1094", "1095", "1147", "1194", "1221", "1222",
-    "1263", "1264", "2368", "2681", "5085",
+    "1263", "1264", "1308", "2304", "2368", "2390", "2391", "2681", "5085",
 ];
 
 /// # Errors
@@ -79,9 +82,13 @@ pub fn parse_without_scripts(source_text: &str) -> ParseResult<Component> {
 fn parse_with(source_text: &str, scripts: bool) -> ParseResult<Component> {
     let (javascript, template) = Tree::build(source_text, |builder| {
         builder.leave_unchecked(ACORN_UNCHECKED_TYPESCRIPT_RULES);
-        builder.note_what_acorn_rejects();
+        builder.read_as_acorn();
         let mut parser = Parser {
-            source_text: builder.source_text(),
+            // Upstream parses the component without its trailing whitespace, so that is where
+            // the input ends; offsets into it are offsets into the document.
+            source_text: builder
+                .source_text()
+                .trim_end_matches(is_ecmascript_whitespace),
             position: 0,
             builder,
             component: Template::new(source_text.len()),
@@ -98,6 +105,14 @@ fn parse_with(source_text: &str, scripts: bool) -> ParseResult<Component> {
             parser.eat_token(TokenType::ByteOrderMark, '\u{feff}'.len_utf8());
         }
         let root = parser.fragment(End::Eof);
+        // The trailing whitespace the parser does not read is still a token of the document.
+        let read = parser.source_text.len();
+        if read < source_text.len() {
+            (parser.component.tokens).push(
+                TokenType::Whitespace,
+                Span::new(read as u32, source_text.len() as u32),
+            );
+        }
         buffer_pool::give_keyed::<Parser<'static, 'static>, _>(std::mem::take(
             &mut parser.pending_children,
         ));
@@ -183,6 +198,7 @@ struct Template {
     parts: Vec<Part>,
     modifiers: Vec<Span>,
     debug_identifiers: Vec<rsvelte_typescript_tree::ExpressionIdentifier>,
+    parenthesized_binds: Vec<rsvelte_typescript_tree::ExpressionIdentifier>,
     root: Range,
     module: Option<Script>,
     instance: Option<Script>,
@@ -199,6 +215,7 @@ impl Template {
             parts: buffer_pool::take_keyed::<Component, _>(),
             modifiers: buffer_pool::take_keyed::<Component, _>(),
             debug_identifiers: buffer_pool::take_keyed::<Component, _>(),
+            parenthesized_binds: Vec::new(),
             root: Range::default(),
             module: None,
             instance: None,
@@ -219,6 +236,7 @@ impl Template {
             parts: std::mem::take(&mut self.parts),
             modifiers: std::mem::take(&mut self.modifiers),
             debug_identifiers: std::mem::take(&mut self.debug_identifiers),
+            parenthesized_binds: std::mem::take(&mut self.parenthesized_binds),
             root: self.root,
             module: self.module.take(),
             instance: self.instance.take(),
@@ -277,25 +295,17 @@ impl<'a> Parser<'a, '_> {
     /// How the component's JavaScript parses.
     const fn source_type(&self) -> SourceType {
         if self.typescript {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         }
     }
 
-    /// Upstream's error `code` at the current position. Upstream trims the component's trailing
-    /// whitespace before it parses, so no position is past that end.
+    /// Upstream's error `code` at the current position.
     #[cold]
     fn err<T>(&self, code: &'static str, message: impl std::fmt::Display) -> ParseResult<T> {
-        let at = self.position.min(self.trimmed_end()) as u32;
+        let at = self.position.min(self.source_text.len()) as u32;
         Self::err_at(Span::new(at, at), code, message)
-    }
-
-    /// The end of the component without its trailing whitespace.
-    fn trimmed_end(&self) -> usize {
-        self.source_text
-            .trim_end_matches(is_ecmascript_whitespace)
-            .len()
     }
 
     #[cold]
@@ -313,8 +323,6 @@ impl<'a> Parser<'a, '_> {
         self.err("expected_token", format_args!("Expected token {token}"))
     }
 
-    /// Upstream's `unexpected_eof`, at the end of the component without its trailing whitespace,
-    /// which upstream trims before it parses.
     /// Upstream `match_bracket`'s error for the brackets that start here.
     #[cold]
     fn unmatched<T>(&self, why: identifier::Unmatched) -> ParseResult<T> {
@@ -340,9 +348,10 @@ impl<'a> Parser<'a, '_> {
         }
     }
 
+    /// Upstream's `unexpected_eof`, at the end of the input.
     #[cold]
     fn unexpected_eof<T>(&self) -> ParseResult<T> {
-        let end = self.trimmed_end() as u32;
+        let end = self.source_text.len() as u32;
         Self::err_at(
             Span::new(end, end),
             "unexpected_eof",
@@ -366,7 +375,8 @@ impl<'a> Parser<'a, '_> {
 
     /// Upstream's `require_whitespace`, over the input without its trailing whitespace.
     fn require_ws(&mut self) -> ParseResult<()> {
-        if self.position >= self.trimmed_end() || !self.rest().starts_with(is_ecmascript_whitespace)
+        if self.position >= self.source_text.len()
+            || !self.rest().starts_with(is_ecmascript_whitespace)
         {
             return self.err("expected_whitespace", "Expected whitespace");
         }

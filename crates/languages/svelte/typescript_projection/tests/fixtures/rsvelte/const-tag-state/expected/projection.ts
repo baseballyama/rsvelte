@@ -7,9 +7,8 @@
 async () => {
   if (n) {
     const [a] = $state([1]);
-    a;
+    (a);
   }
 };
-const ConstTagState__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ConstTagState__SvelteComponent_ = ReturnType<typeof ConstTagState__SvelteComponent_>;
-export default ConstTagState__SvelteComponent_;
+const ConstTagState__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof ConstTagState__SvelteComponent_>} */ (ConstTagState__SvelteComponent_);

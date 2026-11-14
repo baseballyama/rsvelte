@@ -5,15 +5,17 @@ use oxc_ast::ast::{
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::{Visit, VisitMut};
-use oxc_diagnostics::{Diagnostics, OxcDiagnostic};
+use oxc_diagnostics::Diagnostics;
 use oxc_parser::config::TokensParserConfig;
-use oxc_parser::{Kind, ParseOptions, Parser, Token};
+use oxc_parser::{Kind, Parser, Token};
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
-use crate::acorn_grammar::{Rejection, Unsupported};
-use crate::syntax_error::{Locator, SyntaxError, acorn, syntax_error};
+mod parentheses;
+
+use crate::acorn_grammar::{Rejection, Unsupported, rejection};
+use crate::syntax_error::{Locator, SyntaxError, acorn, reported, syntax_error};
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, Trees, TypeParametersIdentifier,
@@ -43,6 +45,7 @@ pub struct Builder<'a> {
     unchecked: &'static [&'static str],
     as_acorn: bool,
     acorn_rejection: Option<(u32, Rejection)>,
+    parentheses: Vec<(oxc_span::Span, u8)>,
 }
 
 /// The tree of a part the builder just read.
@@ -89,6 +92,7 @@ impl<'a> Builder<'a> {
             unchecked: &[],
             as_acorn: false,
             acorn_rejection: None,
+            parentheses: Vec::new(),
         }
     }
 
@@ -98,9 +102,10 @@ impl<'a> Builder<'a> {
         self.unchecked = codes;
     }
 
-    /// Records where acorn first stops in syntax oxc parses and acorn does not, for a host whose
-    /// compiler parses with acorn; [`crate::Tree::acorn_rejection`] reads it.
-    pub const fn note_what_acorn_rejects(&mut self) {
+    /// Reads the parts as acorn, which the host's compiler parses with: lets pass an error where
+    /// acorn reads the text, and records where acorn first stops in syntax oxc parses, which
+    /// [`crate::Tree::acorn_rejection`] reads.
+    pub const fn read_as_acorn(&mut self) {
         self.as_acorn = true;
     }
 
@@ -113,25 +118,30 @@ impl<'a> Builder<'a> {
         tokens: &[Token],
         (part, source_type): (Part<'_, 'a>, SourceType),
     ) -> Result<(), SyntaxError> {
-        let reported = |d: &OxcDiagnostic| {
-            d.code.scope.as_deref() != Some("TS")
-                || d.code
-                    .number
-                    .as_deref()
-                    .is_none_or(|n| !self.unchecked.contains(&n))
+        let visit = |locator: &mut Locator| part.walk(locator);
+        let first = (diagnostics.iter())
+            .position(|error| reported(error, self.unchecked, self.as_acorn, visit));
+        let stop = if self.as_acorn && (first.is_some() || self.acorn_rejection.is_none()) {
+            let mut unsupported = Unsupported::new(source_type.is_typescript(), tokens);
+            part.walk(&mut unsupported);
+            unsupported.first.map(|(at, why)| (at + shift, why))
+        } else {
+            None
         };
-        if let Some(first) = diagnostics.iter().position(reported) {
-            let visit = |locator: &mut Locator| part.walk(locator);
+        if let Some(first) = first {
             let acorn = acorn(&diagnostics[first], text, tokens, visit);
             let errors = diagnostics.into_iter().skip(first);
             let mut error = syntax_error(errors, text, fallback, shift);
             error.acorn = acorn.map(|acorn| acorn.shifted(shift));
-            return Err(error);
+            // acorn throws where it stops first, before an error oxc reports later or at the same
+            // place.
+            return Err(match stop {
+                Some(stop) if stop.0 <= error.acorn_at() => rejection(stop),
+                _ => error,
+            });
         }
-        if self.as_acorn && self.acorn_rejection.is_none() {
-            let mut unsupported = Unsupported::new(source_type.is_typescript(), tokens);
-            part.walk(&mut unsupported);
-            self.acorn_rejection = unsupported.first.map(|(at, why)| (at + shift, why));
+        if self.acorn_rejection.is_none() {
+            self.acorn_rejection = stop;
         }
         Ok(())
     }
@@ -147,6 +157,9 @@ impl<'a> Builder<'a> {
             type_parameters: self.type_parameters,
             comments: self.comments,
             acorn_rejection: self.acorn_rejection,
+            parentheses: self.parentheses,
+            unchecked: self.unchecked,
+            as_acorn: self.as_acorn,
         }
     }
 
@@ -196,7 +209,7 @@ impl<'a> Builder<'a> {
         source_type: SourceType,
     ) -> Result<ProgramIdentifier, SyntaxError> {
         let parsed = Parser::new(self.allocator, text, source_type)
-            .with_options(options())
+            .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .with_start(start)
             .parse();
@@ -263,7 +276,7 @@ impl<'a> Builder<'a> {
     ) -> Result<(Expression<'a>, u32), SyntaxError> {
         let text = &self.source_text[..limit as usize];
         let parsed = Parser::new(self.allocator, text, source_type)
-            .with_options(options())
+            .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_expression_at(start)
             .map_err(|errors| syntax_error(errors, text, start, 0))?;
@@ -302,7 +315,7 @@ impl<'a> Builder<'a> {
         source_type: SourceType,
     ) -> Result<(Statement<'a>, u32), SyntaxError> {
         let parsed = Parser::new(self.allocator, self.source_text, source_type)
-            .with_options(options())
+            .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_statement_at(start)
             .map_err(|errors| syntax_error(errors, self.source_text, start, 0))?;
@@ -386,6 +399,7 @@ impl<'a> Builder<'a> {
             source_type,
             ("function<", 2),
             (">(){}", 5),
+            false,
             ("expected type parameters", |e| {
                 matches!(e, Expression::FunctionExpression(_))
             }),
@@ -415,6 +429,7 @@ impl<'a> Builder<'a> {
             source_type,
             ("(", 1),
             (")=>0", 3),
+            true,
             ("expected a pattern", |e| {
                 matches!(e, Expression::ArrowFunctionExpression(_))
             }),
@@ -437,6 +452,7 @@ impl<'a> Builder<'a> {
         source_type: SourceType,
         (open, opening_tokens): (&str, usize),
         (close, closing_tokens): (&str, usize),
+        parenthesized: bool,
         (expected, wrapper): (&str, fn(&Expression<'a>) -> bool),
     ) -> Result<(Expression<'a>, u32), SyntaxError> {
         // The wrapped text's opening stands where the bytes before the range are.
@@ -448,11 +464,15 @@ impl<'a> Builder<'a> {
         self.wrapped.push_str(range.text(self.source_text));
         self.wrapped.push_str(close);
         let text = self.allocator.alloc_str(&self.wrapped);
-        let parsed = Parser::new(self.allocator, text, source_type)
-            .with_options(options())
+        let mut parsed = Parser::new(self.allocator, text, source_type)
+            .with_options(parentheses::options(parenthesized))
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
             .map_err(|errors| syntax_error(errors, text, 0, shift))?;
+        if parenthesized {
+            let recorded = &mut self.parentheses;
+            parentheses::strip(self.allocator, &mut parsed.expression, shift, recorded);
+        }
         let part = Part::Expression(&parsed.expression);
         self.check(
             parsed.diagnostics,
@@ -487,6 +507,12 @@ impl<'a> Builder<'a> {
     #[must_use]
     pub fn get_parameters(&self, identifier: ParametersIdentifier) -> &FormalParameters<'a> {
         &self.parameters[identifier.index()]
+    }
+
+    /// An expression kept so far, for a host that checks its shape before the tree is done.
+    #[must_use]
+    pub fn get_expression(&self, identifier: ExpressionIdentifier) -> &Expression<'a> {
+        &self.expressions[identifier.index()]
     }
 
     pub fn keep_expression(&mut self, expression: Expression<'a>) -> ExpressionIdentifier {
@@ -554,6 +580,7 @@ fn refused(message: &str, span: Span) -> SyntaxError {
     SyntaxError {
         diagnostic: Diagnostic::error("parse_error", message, span),
         acorn: None,
+        typescript_code: None,
     }
 }
 
@@ -569,14 +596,4 @@ impl VisitMut<'_> for Shift {
 
 const fn span(span: oxc_span::Span, shift: u32) -> Span {
     Span::new(span.start + shift, span.end + shift)
-}
-
-/// `ESTree` has no parentheses, and the formatter requires that they are not kept. Regular
-/// expressions are validated, as acorn validates them.
-fn options() -> ParseOptions {
-    ParseOptions {
-        preserve_parens: false,
-        parse_regular_expression: true,
-        ..ParseOptions::default()
-    }
 }

@@ -3,10 +3,13 @@ use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
 use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature};
 
+mod awaits;
 mod declarations;
 pub(super) mod markup;
 mod runes;
 
+pub(super) use awaits::check as check_awaits;
+use runes::script_and_template_errors;
 pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
 
 /// Whether oxc's `error` is a name declared again outside the scripts.
@@ -57,10 +60,28 @@ pub(super) fn check_analysis(
         };
         (raised, error)
     };
-    errors.extend(template_error(input).map(|e| walk(Section::Template, e)));
+    errors.extend(template_error(input).map(|(at, error)| {
+        let raised = Raised {
+            phase: Phase::Walk,
+            section: Section::Template,
+            at,
+        };
+        (raised, error)
+    }));
+    // The rune walk's template error, which upstream meets in the same walk as the template's.
+    let script = (errors.iter())
+        .any(|(raised, _)| raised.section == Section::Template)
+        .then(|| {
+            let (script, template) = script_and_template_errors(input, res, custom_element);
+            if let Some(error) = template.filter(|error| error.code != "unsupported") {
+                errors.push(walk(Section::Template, error));
+            }
+            script
+        });
     // A walk error waits for the scripts' first, which the later rune checks raise anyway.
     if errors.iter().any(|(raised, _)| raised.phase == Phase::Walk)
-        && let Some((module, error)) = script_error(input, res, custom_element)
+        && let Some((module, error)) =
+            script.unwrap_or_else(|| script_error(input, res, custom_element))
     {
         let section = if module {
             Section::Module
@@ -79,12 +100,16 @@ pub(super) fn check_analysis(
     errors.next().map_or(Ok(()), |(_, error)| Err(error))
 }
 
-/// The first error upstream's walk over the template raises, which it raises in either mode.
-pub(super) fn template_error(input: &CompileInput<'_>) -> Option<Diagnostic> {
-    [super::special::analysis(input), markup::check(input)]
-        .into_iter()
-        .filter_map(Result::err)
-        .min_by_key(|error| error.span.start_offset)
+/// The first error upstream's walk over the template raises, which it raises in either mode,
+/// with where the walk raises it.
+pub(super) fn template_error(input: &CompileInput<'_>) -> Option<(u32, Diagnostic)> {
+    [
+        super::special::analysis(input).map_err(|e| (e.span.start_offset, e)),
+        markup::check(input),
+    ]
+    .into_iter()
+    .filter_map(Result::err)
+    .min_by_key(|&(at, _)| at)
 }
 
 /// Upstream `legacy_props_invalid` and `legacy_rest_props_invalid` at a name no script declares.

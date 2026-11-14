@@ -12,7 +12,7 @@ async () => {
     for (let [, group] of __rsvelte_each(groups)) {
       {
         svelteHTML.createElement("h2", {});
-        group.name;
+        (group.name);
       }
       {
         svelteHTML.createElement("ul", {});
@@ -20,8 +20,8 @@ async () => {
           for (let [, item] of __rsvelte_each(group.items)) {
             {
               svelteHTML.createElement("li", {});
-              group.name;
-              item;
+              (group.name);
+              (item);
             }
           }
         }
@@ -29,6 +29,5 @@ async () => {
     }
   }
 };
-const EachNested__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type EachNested__SvelteComponent_ = ReturnType<typeof EachNested__SvelteComponent_>;
-export default EachNested__SvelteComponent_;
+const EachNested__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof EachNested__SvelteComponent_>} */ (EachNested__SvelteComponent_);

@@ -230,8 +230,8 @@
 		"not-runes-compatible:legacy_export_invalid": 1
 	},
 	"rsvelte": {
-		"admitted": 2932,
-		"claimed": 2971,
+		"admitted": 2934,
+		"claimed": 2973,
 		"duplicate": 39,
 		"rejected:module-rejected:derived_invalid_export": 1,
 		"rejected:module-rejected:dollar_prefix_invalid": 1,
@@ -295,6 +295,7 @@
 		"rejected:not-runes-compatible:svelte_meta_invalid_placement": 8,
 		"rejected:not-runes-compatible:svelte_self_invalid_placement": 3,
 		"rejected:not-runes-compatible:tag_invalid_name": 1,
+		"rejected:not-runes-compatible:throw": 1,
 		"rejected:not-runes-compatible:typescript_invalid_feature": 6,
 		"rejected:not-runes-compatible:unexpected_eof": 7
 	},

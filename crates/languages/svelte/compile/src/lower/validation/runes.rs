@@ -17,11 +17,13 @@ use crate::lower::{CompileInput, Diagnostic, Resolution, Span, Target, span_of};
 
 mod assignments;
 mod calls;
+mod errors;
 mod exports;
 mod places;
 mod references;
 
 use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
+pub(in crate::lower) use errors::{script_and_template_errors, script_error};
 use places::place_of;
 
 use super::state_invalid_placement;
@@ -100,8 +102,6 @@ struct Frame<'a> {
     rune: Option<&'static str>,
 }
 
-/// Upstream's rune and assignment checks over the scripts and the template expressions, in
-/// document order, then the runes this port does not lower.
 /// What raises `experimental_async` at an `await` that suspends rendering, outside the arrow
 /// functions of a `bind:` pair, which the rune checks always raise.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -112,6 +112,8 @@ pub(in crate::lower) enum Awaits {
     Analysis,
 }
 
+/// Upstream's rune and assignment checks over the scripts and the template expressions, in
+/// document order, then the runes this port does not lower.
 struct RuneWalk<'a> {
     res: &'a Resolution,
     target: Target,
@@ -168,8 +170,15 @@ pub(in crate::lower) fn check_runes_with(
     custom_element: bool,
     awaits: Awaits,
 ) -> Result<(), Diagnostic> {
+    walk_template(
+        input,
+        walk_scripts(input, res, target, custom_element, awaits),
+    )
+}
+
+/// Continues `walk` over the template's expressions and declarations, in document order.
+fn walk_template<'a>(input: &CompileInput<'a>, mut walk: RuneWalk<'a>) -> Result<(), Diagnostic> {
     let javascript = input.component.javascript;
-    let mut walk = walk_scripts(input, res, target, custom_element, awaits);
     // Upstream checks a binding's target where it visits the directive, before the expression.
     let tree = input.component.compiler_syntax_tree;
     let binds: FxHashMap<ExpressionIdentifier, (Span, bool)> = (tree.nodes.iter())
@@ -246,22 +255,6 @@ pub(in crate::lower) fn check_runes_with(
         (Some(error), _) | (None, Some(error)) => Err(error),
         (None, None) => Ok(()),
     }
-}
-
-/// The first upstream error the scripts raise, which upstream's analysis meets before the
-/// template, and whether the module raises it.
-pub(in crate::lower) fn script_error(
-    input: &CompileInput<'_>,
-    res: &Resolution,
-    custom_element: bool,
-) -> Option<(bool, Diagnostic)> {
-    let walk = walk_scripts(input, res, Target::Client, custom_element, Awaits::Here);
-    let error = walk.error.filter(|error| error.code != "unsupported")?;
-    let module = input.component.module.is_some_and(|module| {
-        let span = input.component.javascript.get_program(module).span;
-        (span.start..span.end).contains(&error.span.start_offset)
-    });
-    Some((module, error))
 }
 
 /// A walk over the module script, then the instance's.

@@ -6,7 +6,8 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeIdentifier, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree,
     ElementKind, MetadataTag, NodeKind,
 };
-use rustc_hash::FxHashMap;
+use rsvelte_typescript_tree::ExpressionIdentifier;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::input::CompileInput;
 
@@ -39,6 +40,9 @@ pub struct RenderPlan {
     source_regions: FxHashMap<Children, RegionIdentifier>,
     /// The slots of each component that has a child with a `slot` name.
     slots: FxHashMap<CompilerNodeIdentifier, Slots>,
+    /// The `{expression}` tags inside an element whose content is bound, which upstream's
+    /// `bound_contenteditable` writes once instead of in the render effect.
+    editable: FxHashSet<ExpressionIdentifier>,
 }
 
 impl RenderPlan {
@@ -49,6 +53,7 @@ impl RenderPlan {
             regions: IndexVector::new(),
             source_regions: FxHashMap::default(),
             slots: FxHashMap::default(),
+            editable: bound_editable_tags(input),
         };
         plan.region(
             input,
@@ -68,6 +73,12 @@ impl RenderPlan {
     #[must_use]
     pub(crate) fn named(&self, node: CompilerNodeIdentifier) -> Namespace {
         self.namespaces.named(node)
+    }
+
+    /// Whether the `{expression}` tag stands inside an element whose content is bound.
+    #[must_use]
+    pub(crate) fn in_bound_editable(&self, expression: ExpressionIdentifier) -> bool {
+        self.editable.contains(&expression)
     }
 
     /// # Panics
@@ -232,6 +243,70 @@ impl RenderPlan {
             }
         }
         identifier
+    }
+}
+
+/// Upstream's `bound_contenteditable`: the tags below a regular element that binds its content
+/// and is `contenteditable` or `contenteditable="true"`, through every nested fragment.
+fn bound_editable_tags(input: &CompileInput<'_>) -> FxHashSet<ExpressionIdentifier> {
+    let tree = input.component.compiler_syntax_tree;
+    let source_text = input.component.source_text;
+    let bound = |identifier: CompilerNodeIdentifier| {
+        let NodeKind::Element(element) = &tree.node(identifier).kind else {
+            return false;
+        };
+        let attributes = tree.attributes(element.attributes);
+        let named = |a: &&rsvelte_svelte_semantic::compiler_syntax_tree::Attribute, name: &str| {
+            a.name.text(source_text) == name
+        };
+        element.kind == ElementKind::Regular
+            && attributes.iter().any(|a| {
+                matches!(a.value, AttributeValue::Bind(_))
+                    && ["innerHTML", "innerText", "textContent"]
+                        .iter()
+                        .any(|name| named(&a, name))
+            })
+            && attributes.iter().any(|a| {
+                named(&a, "contenteditable")
+                    && match &a.value {
+                        AttributeValue::Boolean => true,
+                        AttributeValue::Static(value) => &**value == "true",
+                        _ => false,
+                    }
+            })
+    };
+    let mut tags = FxHashSet::default();
+    for (identifier, _) in tree.elements() {
+        if !bound(identifier) {
+            continue;
+        }
+        // A bound element inside another is already covered by the outer one's walk.
+        let mut ancestor = tree.node(identifier).parent;
+        let nested = std::iter::from_fn(|| {
+            let current = ancestor?;
+            ancestor = tree.node(current).parent;
+            Some(current)
+        })
+        .any(bound);
+        if !nested {
+            collect_tags(tree, identifier, &mut tags);
+        }
+    }
+    tags
+}
+
+fn collect_tags(
+    tree: &CompilerSyntaxTree,
+    node: CompilerNodeIdentifier,
+    tags: &mut FxHashSet<ExpressionIdentifier>,
+) {
+    for children in tree.child_lists(node) {
+        for &child in tree.children(children) {
+            if let NodeKind::Expression { expression } = tree.node(child).kind {
+                tags.insert(expression);
+            }
+            collect_tags(tree, child, tags);
+        }
     }
 }
 

@@ -35,7 +35,8 @@ pub(super) fn conflicting_module_names(
         let path = root.join(file);
         let source = code.map_or_else(|| read(&path), str::to_owned);
         let document = Document::new(path.to_str().expect("UTF-8 path").to_owned(), source)
-            .expect("a case is small");
+            .expect("a case is small")
+            .read_from(path.clone());
         let project = Project::on_disk(&path, None);
         let actual: Vec<(String, u32)> = match lint(&document, &configuration, project) {
             Ok(findings) => findings

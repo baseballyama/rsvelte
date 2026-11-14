@@ -62,6 +62,7 @@ impl Semantic {
                     message: message.into(),
                     at,
                 }),
+                typescript_code: None,
             }
         })
     }

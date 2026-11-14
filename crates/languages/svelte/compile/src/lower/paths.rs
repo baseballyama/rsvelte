@@ -10,7 +10,7 @@ use rsvelte_svelte_semantic::resolve::Resolution;
 
 use super::Builder;
 use super::builder::Runtime;
-use super::javascript::is_simple_expression;
+use super::javascript::is_simple_expression_in;
 
 /// What a caller of [`extract_paths`] decides: how its script reads the pattern's own
 /// expressions, and how it keeps an array the pattern destructures.
@@ -18,11 +18,20 @@ pub(super) trait Destructure<'a, 'o> {
     /// A key or a default value of the pattern, rewritten as the caller's script reads it.
     fn rewrite(&mut self, e: &'a Expression<'a>) -> Expression<'o>;
 
-    /// Declares `$.to_array(…)`, which upstream calls an insert, and returns how a path reads it.
-    fn array(&mut self, value: Expression<'o>) -> Expression<'o>;
+    /// A fresh name for an array the pattern destructures.
+    fn array_name(&mut self) -> String;
+
+    /// Declares `$.to_array(…)` as `name`, which upstream calls an insert, and returns how a path
+    /// reads it.
+    fn array(&mut self, name: &str, value: Expression<'o>) -> Expression<'o>;
 
     /// Called once `binding`'s path is read, as upstream gives a name its transform only then.
     fn bound(&mut self, _binding: &'a BindingIdentifier<'a>, _default: bool) {}
+
+    /// How many pairs of parentheses upstream keeps around `e`, which make it no simple value.
+    fn parentheses(&self, _e: &Expression<'_>) -> u8 {
+        0
+    }
 
     /// Whether `object.key` reads `$$props` instead, as upstream reads a rest prop's member.
     fn reads_props(&self, _object: &Expression<'o>, _key: &str) -> bool {
@@ -41,11 +50,28 @@ pub(super) struct Paths<'b, 'r, 'o, D> {
     pub b: &'b Builder<'o>,
     pub res: &'r Resolution,
     pub hooks: D,
+    /// The names of the pattern's arrays, last first: upstream names every one before it visits
+    /// a default value.
+    pub reserved: Vec<String>,
 }
 
 impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
     /// The paths of `pattern` read from `value`, in source order.
     pub(super) fn extract(
+        &mut self,
+        pattern: &'a BindingPattern<'a>,
+        value: Expression<'o>,
+        default: bool,
+        paths: &mut Vec<Path<'a, 'o>>,
+    ) {
+        let mut arrays = 0;
+        count_arrays(pattern, &mut arrays);
+        self.reserved = (0..arrays).map(|_| self.hooks.array_name()).collect();
+        self.reserved.reverse();
+        self.extract_paths(pattern, value, default, paths);
+    }
+
+    fn extract_paths(
         &mut self,
         pattern: &'a BindingPattern<'a>,
         value: Expression<'o>,
@@ -81,7 +107,7 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
             }
             BindingPattern::AssignmentPattern(assignment) => {
                 let value = self.fallback(&assignment.right, value);
-                self.extract(&assignment.left, value, true, paths);
+                self.extract_paths(&assignment.left, value, true, paths);
             }
         }
     }
@@ -93,13 +119,16 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
         value: Expression<'o>,
     ) -> Expression<'o> {
         let b = self.b;
-        if is_simple_expression(fallback) {
+        let parenthesized = self.hooks.parentheses(fallback) > 0;
+        let hooks = &self.hooks;
+        if is_simple_expression_in(fallback, &|e| hooks.parentheses(e) > 0) {
             return b.runtime("fallback", [value, self.hooks.rewrite(fallback)]);
         }
         // Upstream makes the thunk before it rewrites the fallback, so `() => f()` is `f`.
         let thunk = match fallback.get_inner_expression() {
             Expression::CallExpression(call)
-                if call.arguments.is_empty()
+                if !parenthesized
+                    && call.arguments.is_empty()
                     && !call.optional
                     && matches!(call.callee, Expression::Identifier(_)) =>
             {
@@ -143,11 +172,11 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
                     b.computed(object, self.hooks.rewrite(key))
                 }
             };
-            self.extract(&property.value, member, default, paths);
+            self.extract_paths(&property.value, member, default, paths);
         }
         if let Some(rest) = rest {
             let value = b.runtime("exclude_from_object", [value, b.array(excluded)]);
-            self.extract(&rest.argument, value, default, paths);
+            self.extract_paths(&rest.argument, value, default, paths);
         }
     }
 
@@ -183,17 +212,46 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, '_, 'o, D> {
         if rest.is_none() {
             arguments.push(length(elements.len()));
         }
-        let array = self.hooks.array(b.runtime("to_array", arguments));
+        let name = self
+            .reserved
+            .pop()
+            .expect("each array of the pattern has a reserved name");
+        let array = self.hooks.array(&name, b.runtime("to_array", arguments));
         for (index, element) in elements.iter().enumerate() {
             if let Some(element) = element {
                 let item = b.computed(array.clone_in(b.allocator()), length(index));
-                self.extract(element, item, default, paths);
+                self.extract_paths(element, item, default, paths);
             }
         }
         if let Some(rest) = rest {
             let value = b.call(b.member(array, "slice"), [length(elements.len())]);
-            self.extract(&rest.argument, value, default, paths);
+            self.extract_paths(&rest.argument, value, default, paths);
         }
+    }
+}
+
+/// How many arrays `pattern` destructures, its default values aside.
+fn count_arrays(pattern: &BindingPattern<'_>, count: &mut usize) {
+    match pattern {
+        BindingPattern::BindingIdentifier(_) => {}
+        BindingPattern::ObjectPattern(object) => {
+            for property in &object.properties {
+                count_arrays(&property.value, count);
+            }
+            if let Some(rest) = &object.rest {
+                count_arrays(&rest.argument, count);
+            }
+        }
+        BindingPattern::ArrayPattern(array) => {
+            *count += 1;
+            for element in array.elements.iter().flatten() {
+                count_arrays(element, count);
+            }
+            if let Some(rest) = &array.rest {
+                count_arrays(&rest.argument, count);
+            }
+        }
+        BindingPattern::AssignmentPattern(assignment) => count_arrays(&assignment.left, count),
     }
 }
 

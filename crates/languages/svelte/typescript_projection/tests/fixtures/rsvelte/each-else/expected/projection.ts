@@ -1,6 +1,6 @@
 ;
 
-	let { results }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { results } = $props();
 
 ;
 
@@ -12,7 +12,7 @@ async () => {
     for (let [, result] of __rsvelte_each(results)) {
       {
         svelteHTML.createElement("p", {});
-        result.title;
+        (result.title);
       }
     }
     {
@@ -22,6 +22,5 @@ async () => {
     }
   }
 };
-const EachElse__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type EachElse__SvelteComponent_ = ReturnType<typeof EachElse__SvelteComponent_>;
-export default EachElse__SvelteComponent_;
+const EachElse__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof EachElse__SvelteComponent_>} */ (EachElse__SvelteComponent_);

@@ -14,41 +14,41 @@
 async () => {
   {
     svelteHTML.createElement("div", {});
-    active;
+    (active);
   }
   {
     svelteHTML.createElement("div", {
       "class": "panel",
     });
-    active;
-    count > 3;
+    (active);
+    (count > 3);
   }
   {
     svelteHTML.createElement("div", {
       "class": theme,
     });
-    !active;
+    (!active);
   }
   {
     svelteHTML.createElement("div", {});
-    even(count);
-    !even(count);
+    (even(count));
+    (!even(count));
   }
   {
     svelteHTML.createElement("div", {});
-    flag;
+    (flag);
   }
   {
     svelteHTML.createElement("div", {
       "class": `a ${theme}`,
     });
-    active;
+    (active);
   }
   {
     svelteHTML.createElement("button", {
       "onclick": () => count++,
     });
-    count;
+    (count);
   }
   {
     svelteHTML.createElement("button", {
@@ -56,6 +56,5 @@ async () => {
     });
   }
 };
-const ClassDirective__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ClassDirective__SvelteComponent_ = ReturnType<typeof ClassDirective__SvelteComponent_>;
-export default ClassDirective__SvelteComponent_;
+const ClassDirective__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof ClassDirective__SvelteComponent_>} */ (ClassDirective__SvelteComponent_);

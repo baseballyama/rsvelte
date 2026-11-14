@@ -23,19 +23,18 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => { a++; one = 3; bb = 1; rest.x; c++; others = []; f++; g = 1; },
     });
-    a;
-    bb;
-    c;
-    rest;
-    one;
-    two;
-    others;
-    d;
-    e;
-    f;
-    g;
+    (a);
+    (bb);
+    (c);
+    (rest);
+    (one);
+    (two);
+    (others);
+    (d);
+    (e);
+    (f);
+    (g);
   }
 };
-const DestructuredState__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type DestructuredState__SvelteComponent_ = ReturnType<typeof DestructuredState__SvelteComponent_>;
-export default DestructuredState__SvelteComponent_;
+const DestructuredState__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof DestructuredState__SvelteComponent_>} */ (DestructuredState__SvelteComponent_);

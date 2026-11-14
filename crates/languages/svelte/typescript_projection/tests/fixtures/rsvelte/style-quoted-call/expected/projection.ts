@@ -1,6 +1,6 @@
 ;
 
-	let { f, x, items }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { f, x, items } = $props();
 	let n = $state(1);
 
 ;
@@ -32,15 +32,14 @@ async () => {
   }
   {
     for (let [, item] of __rsvelte_each(items)) {
-      item.key;
+      (item.key);
       {
         svelteHTML.createElement("span", {});
         __sveltets_2_ensureType(String, Number, `${f(item.x)}px`);
-        item.k;
+        (item.k);
       }
     }
   }
 };
-const StyleQuotedCall__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type StyleQuotedCall__SvelteComponent_ = ReturnType<typeof StyleQuotedCall__SvelteComponent_>;
-export default StyleQuotedCall__SvelteComponent_;
+const StyleQuotedCall__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof StyleQuotedCall__SvelteComponent_>} */ (StyleQuotedCall__SvelteComponent_);

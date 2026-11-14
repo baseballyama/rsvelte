@@ -23,12 +23,12 @@ async () => {
             svelteHTML.createElement("p", {
               "onclick": () => k++,
             });
-            x;
-            i;
-            a;
-            c;
-            rest.d;
-            k;
+            (x);
+            (i);
+            (a);
+            (c);
+            (rest.d);
+            (k);
           }
         }
       }
@@ -39,7 +39,7 @@ async () => {
         svelteHTML.createElement("div", {
           "slot": "named",
         });
-        x;
+        (x);
       }
       {
         const {
@@ -48,7 +48,7 @@ async () => {
         svelteHTML.createElement("svelte:fragment", {
           "slot": "f",
         });
-        z;
+        (z);
       }
       {
         const {
@@ -59,7 +59,7 @@ async () => {
           "slot": "comp",
           "foo": w,
         });
-        w;
+        (w);
         C;
       }
       {
@@ -70,7 +70,7 @@ async () => {
           "slot": "consts",
         });
         const twice = v * 2;
-        twice;
+        (twice);
       }
     }
     C;
@@ -85,7 +85,7 @@ async () => {
         v,
       } = __rsvelte_instance(__rsvelte_component_0).$$slot_def.default;
       svelteHTML.createElement("svelte:fragment", {});
-      v;
+      (v);
     }
     C;
   }
@@ -101,11 +101,10 @@ async () => {
       svelteHTML.createElement("svelte:fragment", {
         "slot": "default",
       });
-      u;
+      (u);
     }
     C;
   }
 };
-const LetDirectives__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type LetDirectives__SvelteComponent_ = ReturnType<typeof LetDirectives__SvelteComponent_>;
-export default LetDirectives__SvelteComponent_;
+const LetDirectives__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof LetDirectives__SvelteComponent_>} */ (LetDirectives__SvelteComponent_);
