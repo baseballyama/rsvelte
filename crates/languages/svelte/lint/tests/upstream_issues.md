@@ -404,6 +404,7 @@ Issue: [eslint-plugin-svelte #1700](https://github.com/sveltejs/eslint-plugin-sv
 - Correct: no report.
 - Why: `findClassesInAttribute` trims a literal part and splits it on spaces, so a part that
   holds only spaces gives one empty string.
+- The corpus skips the lint units with such a report (`corpus/_registry/units.toml`).
 
 ## The style directive fix breaks a value with a double quote
 

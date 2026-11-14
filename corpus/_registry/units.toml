@@ -145,6 +145,7 @@
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/networking-toolbox/src/lib/components/global/Icon.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
 "svelte.compile" = "upstream bug: a percentage keyframe step such as `0%` is matched as an element selector, so the elements its rule reaches get the scoping class"
 
 ["svelte/svelte-commerce/src/lib/components/nav/nav.svelte".skip]
@@ -3478,3 +3479,276 @@
 
 ["svelte/rsvelte/pattern/adversarial/text-and-entities/unicode-text-hostile.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends the lines of node locations only at `\\r\\n`, `\\r` and `\\n`, while ESLint also ends them at U+2028 and U+2029, so lines disagree within one report (svelte-eslint-parser #1002)"
+
+["svelte/edra/src/lib/edra/headless/primitives/tabs/TabsTrigger.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test02-output.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/trim-test01-input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/flowbite-svelte/src/lib/tour/Tour.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/flowbite-svelte/src/routes/admin-dashboard/utils/HighlightCompo.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/flowbite-svelte/src/routes/blocks/utils/Toc.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/flowbite-svelte/src/routes/utils/CodeWrapper.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/flowbite-svelte/src/routes/utils/Toc.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/docs/ui/row.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/collapse/content.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/menu/content.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/modal/body.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/modal/footer.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/note/note.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/projectBanner/banner.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/select/trigger.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/snippet/snippet.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/splitButton/content.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/table/body.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/tabs/tabs.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/text/text.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kampsy-ui/src/lib/text/textGradient.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kener/src/lib/components/LatencyTrendChart.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/BaseModal.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/CategoryNavigation.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/TimeTravel.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/settings/SettingsAccount.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/settings/SettingsCategories.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/settings/SettingsSyncPrivacy.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/story/CitationItem.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/story/CitationText.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/kite-public/src/lib/components/story/StoryCard.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/melt-ui/docs/src/previews/tabs.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/networking-toolbox/src/lib/components/global/SvgIcon.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-core-1/css_scoping_1237/sibling_combinator_kept_when_before_element_has_dynamic_class/4978af891d9c7d0c.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-core-3/server_empty_class_expression_4059/an_empty_static_class_is_still_dropped/cba9a77990ec7af3.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/attr_width/multi_breakable_value_breaks_first_when_later_cannot_absorb/6354b6639c25f4e1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/attr_width/multi_breakable_value_breaks_first_when_later_cannot_absorb/bd91abddec316cb5.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/attr_width/multi_interp_value_breaks_single_breakable_interpolation/2a0ccb0872a6e447.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/attr_width/multi_interp_value_is_idempotent/417e38be74b5c803.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/class_attribute_whitespace/a_whitespace_only_value_is_untouched/a784b21b0f53fbde.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/class_attribute_whitespace/whitespace_only_text_around_an_interpolation_survives/86f2768eff09025a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/class_attribute_whitespace/whitespace_only_text_around_an_interpolation_survives/91df26e9c35c9c87.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/whitespace_body_close_break/a_source_newline_body_breaks_the_same_way/915aa929cdbc3333.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/whitespace_body_close_break/an_open_tag_whose_value_was_wrapped_in_source_breaks_once_flattened/295ea0c2da6bcfac.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/whitespace_body_close_break/an_open_tag_whose_value_was_wrapped_in_source_breaks_once_flattened/816165f81f2e81dc.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/whitespace_body_close_break/the_reported_segmented_shape/4fea167a55291bd1.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte-tests-formatter/whitespace_body_close_break/the_reported_segmented_shape/ad4da3b07186574f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte/lint/no-unused-class-name/03-empty-name-quirk.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte/lint/no-unused-class-name/17-attribute-and-expression-forms.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte/lint/prefer-class-directive/10-multiple-mustaches.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte/lint/prefer-class-directive/15-adjacent-parts.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte/pattern/adversarial/css/scoped-class-merge.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/rsvelte/pattern/issues/whitespace-body-inline-element-breaks-before-close.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/skeleton/sites/plus.skeleton.dev/src/lib/components/markdown/overrides/li.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/skeleton/sites/skeleton.dev/src/components/examples/integrations/code-block/svelte/code-block.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/skeleton/sites/skeleton.dev/src/components/ui/preview.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/common/CodeBlock/CodeBlock.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/CheckboxGroup.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/Field.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/RadioButtonGroup.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/Segmented.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/SideArea.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/Tabs.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/calendar/Panel.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-core/svelte/src/components/helpers/InlineDropdown.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-grid/svelte/src/components/FooterCell.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-grid/svelte/src/components/HeaderCell.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svar-grid/svelte/src/components/print/HeaderFooter.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/docs/Sidebar.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/landing/Navbar/Navbar.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/Animations/GradualBlur/GradualBlur.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/Animations/LogoLoop/LogoLoop.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/Components/AnimatedList/AnimatedList.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/Components/BubbleMenu/BubbleMenu.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/Components/Folder/Folder.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/Components/StaggeredMenu/StaggeredMenu.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/TextAnimations/GradientText/GradientText.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/TextAnimations/TextPressure/TextPressure.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-bits/src/lib/components/library/TextAnimations/TextType/TextType.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-commerce/src/lib/components/page-blocks/blocks.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-commerce/src/lib/components/page-blocks/blocks/image-block.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-commerce/src/lib/core/components/plugins/share-button.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-commerce/src/routes/(my)/my/orders/+page.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-commerce/src/routes/(www)/products/[slug]/components/product-reviews-section.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-french-toast/src/lib/components/ToastBar.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-put/packages/preprocess-markdown/src/enhance-code-block/CodeBlockGroup.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-put/sites/docs/src/lib/components/status-badge/StatusBadge.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-put/sites/docs/src/packages/dragscroll/_page/examples/no-parameters.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/svelte-put/sites/docs/src/packages/dragscroll/_page/examples/option-axis.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
+
+["svelte/syntaxfm-website/src/lib/player/Player.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-class-name reports `Unused class \"\"` for the spaces between a class attribute's expressions, such as `class=\"{a} {b}\"` (eslint-plugin-svelte #1700)"
