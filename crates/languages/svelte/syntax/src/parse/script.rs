@@ -217,6 +217,10 @@ impl Parser<'_, '_> {
             "style" => "</style",
             _ => unreachable!("only script and style have raw top-level content"),
         };
+        // Upstream's `read_until` fails at the end of the input before it reads.
+        if self.rest().is_empty() {
+            return self.unexpected_eof();
+        }
         let start_offset = self.position;
         let mut from = 0;
         let len = loop {
@@ -224,7 +228,7 @@ impl Parser<'_, '_> {
                 memchr::memmem::find(&self.rest().as_bytes()[from..], close.as_bytes())
             else {
                 return if tag == "script" {
-                    let end = self.trimmed_end() as u32;
+                    let end = self.source_text.len() as u32;
                     Self::err_at(
                         Span::new(end, end),
                         "element_unclosed",
@@ -326,7 +330,7 @@ impl Parser<'_, '_> {
         // does not parse ends at the first closing tag, so the rest of the component still parses.
         // Svelte parses the template without its trailing whitespace, so an open sheet ends there.
         let sheet = rsvelte_stylesheet_syntax::parse_until(
-            self.source_text.trim_end_matches(is_ecmascript_whitespace),
+            self.source_text,
             self.position as u32,
             "</style",
         )

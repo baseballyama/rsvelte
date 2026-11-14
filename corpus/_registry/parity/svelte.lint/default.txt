@@ -1,4 +1,4 @@
-# svelte.lint/default: 36393 match
+# svelte.lint/default: 36394 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/create-organization/+page.svelte	mismatch
@@ -1002,7 +1002,6 @@ svelte/rsvelte-tests/rsvelte_language_server/folding/tests/no_input_panics/55ce6
 svelte/rsvelte-tests/rsvelte_language_server/folding/tests/no_input_panics/a7896b97746ed2b6.svelte	refused
 svelte/rsvelte-tests/rsvelte_language_server/folding/tests/no_input_panics/c9a7ae37433a74fd.svelte	refused
 svelte/rsvelte-tests/rsvelte_language_server/hover/tests/a_css_property_name_in_a_script_is_not_a_css_hover/52402c94c98c8d94.svelte	refused
-svelte/rsvelte-tests/rsvelte_language_server/hover/tests/at_tags_hover/1dbb24bfa4df915d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/2d584954c74f2845.svelte	refused
 svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/59adde327ea8994d.svelte	refused
 svelte/rsvelte-tests/rsvelte_language_server/selection_ranges/tests/style_selection_expands_while_scripts_remain_excluded/1ba3fc42196f334c.svelte	mismatch
