@@ -79,6 +79,7 @@ pub fn parse_without_scripts(source_text: &str) -> ParseResult<Component> {
 fn parse_with(source_text: &str, scripts: bool) -> ParseResult<Component> {
     let (javascript, template) = Tree::build(source_text, |builder| {
         builder.leave_unchecked(ACORN_UNCHECKED_TYPESCRIPT_RULES);
+        builder.note_what_acorn_rejects();
         let mut parser = Parser {
             source_text: builder.source_text(),
             position: 0,

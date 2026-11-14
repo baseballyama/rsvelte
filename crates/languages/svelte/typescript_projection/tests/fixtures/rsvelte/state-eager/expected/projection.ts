@@ -11,19 +11,19 @@
 async () => {
   {
     svelteHTML.createElement("div", {});
-    (value);
+    value;
   }
   {
     svelteHTML.createElement("div", {});
-    ($state.eager(value));
+    $state.eager(value);
   }
   {
     svelteHTML.createElement("button", {
       "onclick": () => n++,
     });
-    (e);
-    (f());
-    ($state.eager(n));
+    e;
+    f();
+    $state.eager(n);
   }
 };
 const StateEager__SvelteComponent_ = __rsvelte_export_component<any, {}, "">();

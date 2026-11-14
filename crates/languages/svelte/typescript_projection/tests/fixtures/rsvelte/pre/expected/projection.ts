@@ -7,7 +7,7 @@
 async () => {
   {
     svelteHTML.createElement("pre", {});
-    (text);
+    text;
   }
   {
     svelteHTML.createElement("pre", {});
@@ -16,7 +16,7 @@ async () => {
     svelteHTML.createElement("pre", {});
     {
       svelteHTML.createElement("code", {});
-      (text);
+      text;
     }
   }
   {

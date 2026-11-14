@@ -318,14 +318,37 @@ fn textarea_value(
 }
 
 fn modifiers(c: &Component, source_text: &str, a: &syntax_tree::Attribute) -> Modifiers {
-    c.modifiers(a.modifiers)
-        .iter()
-        .fold(Modifiers::default(), |all, m| {
-            match Modifiers::parse(m.text(source_text)) {
-                Some(one) if !all.contains(one) => all.with(one),
-                _ => all.with(Modifiers::UNKNOWN),
-            }
-        })
+    let written = c.modifiers(a.modifiers);
+    let mut all = Modifiers::default();
+    let mut event_error = None;
+    let (mut passive, mut conflict) = (false, None);
+    for m in written {
+        let one = Modifiers::parse(m.text(source_text));
+        all = match one {
+            Some(one) if !all.contains(one) => all.with(one),
+            _ => all.with(Modifiers::UNKNOWN),
+        };
+        // Upstream's `validate_element` raises the first problem in written order.
+        if event_error.is_some() || a.kind != syntax_tree::AttributeKind::On {
+            continue;
+        }
+        if !one.is_some_and(Modifiers::is_event) {
+            event_error = Some(Modifiers::NOT_AN_EVENT_MODIFIER);
+        } else if one == Some(Modifiers::PASSIVE) {
+            passive = true;
+        } else if one == Some(Modifiers::NONPASSIVE) {
+            conflict = Some(Modifiers::PASSIVE_AND_NONPASSIVE);
+        } else if one == Some(Modifiers::PREVENT_DEFAULT) {
+            conflict = Some(Modifiers::PASSIVE_AND_PREVENT_DEFAULT);
+        }
+        if event_error.is_none() && passive {
+            event_error = conflict;
+        }
+    }
+    if written.len() > 1 && a.kind == syntax_tree::AttributeKind::On {
+        all = all.with(Modifiers::MANY);
+    }
+    event_error.map_or(all, |e| all.with(e))
 }
 
 /// The one expression of a directive's value, if it has one.

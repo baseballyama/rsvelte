@@ -2,7 +2,7 @@
 
 const s = (q = 2n): ReturnType<import('svelte').Snippet> => {
   async () => {
-    (q);
+    q;
   };
   return __rsvelte_snippet_return;
 };
@@ -16,7 +16,7 @@ const __rsvelte_public_props0 = __rsvelte_props({}, {
 }, false);
 async () => {
   __rsvelte_ensure_snippet(s());
-  (p);
+  p;
 };
 const BigintFallbackIsSimple__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
 type BigintFallbackIsSimple__SvelteComponent_ = ReturnType<typeof BigintFallbackIsSimple__SvelteComponent_>;

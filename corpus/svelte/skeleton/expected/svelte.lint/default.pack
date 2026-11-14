@@ -144,6 +144,8 @@
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/skeleton-svelte/src/components/accordion/modules/provider.svelte.ts	lint.txt
+
 === 1833 packages/skeleton-svelte/src/components/app-bar/anatomy/headline.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -362,6 +364,8 @@
 34:1 34:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/avatar/modules/provider.svelte.ts	lint.txt
 
 === 1328 packages/skeleton-svelte/src/components/carousel/anatomy/autoplay-trigger.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -594,6 +598,8 @@
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/skeleton-svelte/src/components/carousel/modules/provider.svelte.ts	lint.txt
+
 === 1328 packages/skeleton-svelte/src/components/collapsible/anatomy/content.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -709,6 +715,8 @@
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/collapsible/modules/provider.svelte.ts	lint.txt
 
 === 1328 packages/skeleton-svelte/src/components/combobox/anatomy/clear-trigger.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1020,6 +1028,8 @@
 29:1 29:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 30:1 30:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 31:1 31:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/combobox/modules/provider.svelte.ts	lint.txt
 
 === 1328 packages/skeleton-svelte/src/components/date-picker/anatomy/content.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1559,6 +1569,8 @@
 29:1 29:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/skeleton-svelte/src/components/date-picker/modules/provider.svelte.ts	lint.txt
+
 === 1161 packages/skeleton-svelte/src/components/dialog/anatomy/backdrop.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -1730,6 +1742,8 @@
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/dialog/modules/provider.svelte.ts	lint.txt
 
 === 1328 packages/skeleton-svelte/src/components/file-upload/anatomy/clear-trigger.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1984,6 +1998,8 @@
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/skeleton-svelte/src/components/file-upload/modules/provider.svelte.ts	lint.txt
+
 === 1328 packages/skeleton-svelte/src/components/floating-panel/anatomy/body.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -2235,6 +2251,8 @@
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/skeleton-svelte/src/components/floating-panel/modules/provider.svelte.ts	lint.txt
+
 === 1328 packages/skeleton-svelte/src/components/listbox/anatomy/content.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -2471,6 +2489,8 @@
 34:1 34:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 35:1 35:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/skeleton-svelte/src/components/listbox/modules/provider.svelte.ts	lint.txt
+
 === 913 packages/skeleton-svelte/src/components/locale-provider/anatomy/root-context.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -2619,6 +2639,8 @@
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/marquee/modules/provider.svelte.ts	lint.txt
 
 === 1328 packages/skeleton-svelte/src/components/menu/anatomy/arrow-tip.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -3002,6 +3024,8 @@
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/menu/modules/provider.svelte.ts	lint.txt
 
 === 2083 packages/skeleton-svelte/src/components/navigation/anatomy/content.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -3469,6 +3493,8 @@
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/skeleton-svelte/src/components/pagination/modules/provider.svelte.ts	lint.txt
+
 === 1328 packages/skeleton-svelte/src/components/popover/anatomy/anchor.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -3678,6 +3704,8 @@
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/popover/modules/provider.svelte.ts	lint.txt
 
 === 2193 packages/skeleton-svelte/src/components/portal/anatomy/root.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -3904,6 +3932,8 @@
 29:1 29:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/skeleton-svelte/src/components/progress/modules/provider.svelte.ts	lint.txt
+
 === 1411 packages/skeleton-svelte/src/components/qr-code/anatomy/download-trigger.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -4036,6 +4066,8 @@
 34:1 34:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/qr-code/modules/provider.svelte.ts	lint.txt
 
 === 1328 packages/skeleton-svelte/src/components/rating-group/anatomy/control.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -4194,6 +4226,8 @@
 34:1 34:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/rating-group/modules/provider.svelte.ts	lint.txt
 
 === 1833 packages/skeleton-svelte/src/components/segmented-control/anatomy/control.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -4373,6 +4407,8 @@
 34:1 34:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/segmented-control/modules/provider.svelte.ts	lint.txt
 
 === 1328 packages/skeleton-svelte/src/components/slider/anatomy/control.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -4608,6 +4644,8 @@
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/skeleton-svelte/src/components/slider/modules/provider.svelte.ts	lint.txt
+
 === 1494 packages/skeleton-svelte/src/components/steps/anatomy/content.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -4827,6 +4865,8 @@
 27:1 27:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 28:1 28:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/skeleton-svelte/src/components/steps/modules/provider.svelte.ts	lint.txt
+
 === 1328 packages/skeleton-svelte/src/components/switch/anatomy/control.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -4958,6 +4998,8 @@
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/switch/modules/provider.svelte.ts	lint.txt
 
 === 1577 packages/skeleton-svelte/src/components/tabs/anatomy/content.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -5096,6 +5138,8 @@
 27:1 27:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 28:1 28:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 29:1 29:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/tabs/modules/provider.svelte.ts	lint.txt
 
 === 1328 packages/skeleton-svelte/src/components/tags-input/anatomy/clear-trigger.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -5347,6 +5391,8 @@
 34:1 34:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/tags-input/modules/provider.svelte.ts	lint.txt
 
 === 1328 packages/skeleton-svelte/src/components/toast/anatomy/action-trigger.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -5615,6 +5661,8 @@
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/skeleton-svelte/src/components/toggle-group/modules/provider.svelte.ts	lint.txt
+
 === 1328 packages/skeleton-svelte/src/components/tooltip/anatomy/arrow-tip.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
@@ -5761,6 +5809,8 @@
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/tooltip/modules/provider.svelte.ts	lint.txt
 
 === 1494 packages/skeleton-svelte/src/components/tree-view/anatomy/branch-content.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -6036,6 +6086,8 @@
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/skeleton-svelte/src/components/tree-view/modules/provider.svelte.ts	lint.txt
 
 === 2578 packages/skeleton-svelte/src/internal/components/calendar.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -9432,6 +9484,8 @@
 137:1 137:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 137:16 137:22 svelte/max-attributes-per-line "'lang' should be on a new line."
 138:1 138:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 sites/plus.skeleton.dev/src/lib/state/plus.svelte.ts	lint.txt
 
 === 1383 sites/plus.skeleton.dev/src/routes/(app)/+layout.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -26677,6 +26731,8 @@
 79:1 79:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 79:3 79:20 svelte/no-unused-class-name "Unused class \"pre\"."
 80:1 80:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 sites/themes.skeleton.dev/src/lib/state/generator.svelte.ts	lint.txt
 
 === 1385 sites/themes.skeleton.dev/src/routes/(app)/+layout.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

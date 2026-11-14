@@ -14,6 +14,7 @@ mod placement;
 mod slots;
 
 use placement::Ancestors;
+use rsvelte_svelte_semantic::warnings::slot_name_error;
 
 use super::super::special::invalid;
 use super::super::{
@@ -235,6 +236,13 @@ fn element<'a>(
         ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element))
     ) {
         animation(input, parent, attributes)?;
+        event_modifiers(attributes)?;
+    }
+    if el.kind.renders_component() {
+        component_attributes(attributes)?;
+    }
+    if el.kind == ElementKind::Slot {
+        slot_attributes(attributes, source)?;
     }
     // The parser has moved content but one text into a `value` after the element's own.
     let values = (attributes.iter())
@@ -309,6 +317,94 @@ fn animation(
             );
         }
         animated = true;
+    }
+    Ok(())
+}
+
+/// The `on:` modifiers an element takes, as upstream's `validate_element` checks them.
+fn event_modifiers(attributes: &[Attribute]) -> Result<(), Diagnostic> {
+    for a in attributes {
+        let AttributeValue::On { modifiers, .. } = a.value else {
+            continue;
+        };
+        if modifiers.contains(Modifiers::NOT_AN_EVENT_MODIFIER) {
+            return invalid(
+                "event_handler_invalid_modifier",
+                "Valid event modifiers are preventDefault, stopPropagation, \
+                    stopImmediatePropagation, capture, once, passive, nonpassive, self or trusted",
+                a.span,
+            );
+        }
+        for (conflict, name) in [
+            (Modifiers::PASSIVE_AND_NONPASSIVE, "nonpassive"),
+            (Modifiers::PASSIVE_AND_PREVENT_DEFAULT, "preventDefault"),
+        ] {
+            if modifiers.contains(conflict) {
+                return invalid(
+                    "event_handler_invalid_modifier_combination",
+                    &format!("The 'passive' and '{name}' modifiers cannot be used together"),
+                    a.span,
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Upstream's component checks of each directive: its kind, then an `on:` modifier but one `once`.
+fn component_attributes(attributes: &[Attribute]) -> Result<(), Diagnostic> {
+    for a in attributes {
+        match a.value {
+            AttributeValue::Use { .. }
+            | AttributeValue::Transition { .. }
+            | AttributeValue::Animate { .. }
+            | AttributeValue::Style { .. }
+            | AttributeValue::Class(_) => {
+                return invalid(
+                    "component_invalid_directive",
+                    "This type of directive is not valid on components",
+                    a.span,
+                );
+            }
+            AttributeValue::On { modifiers, .. }
+                if ![Modifiers::default(), Modifiers::ONCE].contains(&modifiers) =>
+            {
+                return invalid(
+                    "event_handler_invalid_component_modifier",
+                    "Event modifiers other than 'once' can only be used on DOM elements",
+                    a.span,
+                );
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+/// Upstream's `SlotElement`: attributes, spreads and `let:` only, and a static `name` that is not
+/// `default`.
+fn slot_attributes(attributes: &[Attribute], source: &str) -> Result<(), Diagnostic> {
+    for a in attributes {
+        match &a.value {
+            AttributeValue::Spread(_) | AttributeValue::Let(_) => {}
+            value if is_directive(value) => {
+                return invalid(
+                    "slot_element_invalid_attribute",
+                    "`<slot>` can only receive attributes and (optionally) let directives",
+                    a.span,
+                );
+            }
+            value if a.name.text(source) == "name" => {
+                let name = match value {
+                    AttributeValue::Static(text) => Some(&**text),
+                    _ => None,
+                };
+                if let Some((code, message)) = slot_name_error(name) {
+                    return invalid(code, message, a.span);
+                }
+            }
+            _ => {}
+        }
     }
     Ok(())
 }

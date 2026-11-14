@@ -14,13 +14,13 @@ async () => {
       ...(properties),
       "onclick": () => value++,
     });
-    (value);
+    value;
   }
   {
     svelteHTML.createElement("p", {
       "title": text,
     });
-    (text);
+    text;
   }
 };
 const SpreadBindable__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "value" | "text">();

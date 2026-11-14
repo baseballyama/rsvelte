@@ -159,11 +159,6 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:2 8:7 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 187 packages/svelte/tests/css/samples/comment-html/input.svelte	error.txt
-Unexpected '!'. Escaping special characters with \ may help.
-Occurred while linting packages/svelte/tests/css/samples/comment-html/input.svelte:1
-Rule: "svelte/consistent-selector-style"
-
 === 0 packages/svelte/tests/css/samples/comment-repeated/input.svelte	lint.txt
 
 === 0 packages/svelte/tests/css/samples/comment-with-apostrophe/input.svelte	lint.txt
@@ -4663,9 +4658,6 @@ Rule: "svelte/consistent-selector-style"
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 19:2 19:16 svelte/sort-attributes "Attribute 'data-three' should go before 'data-two'."
 
-=== 40 packages/svelte/tests/parser-modern/samples/const-tag-parenthesized-init/input.svelte	lint.txt
-8:56 - - "Parsing error: ')' expected."
-
 === 888 packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte	lint.txt
 3:20 3:30 svelte/consistent-selector-style "Selector should select by element type instead of class"
 6:22 6:28 svelte/consistent-selector-style "Selector should select by element type instead of ID"
@@ -5888,12 +5880,6 @@ Rule: "svelte/consistent-selector-style"
 12:30 12:35 svelte/sort-attributes "Attribute 'defer' should go before 'src'."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 53 packages/svelte/tests/runtime-browser/samples/html-tag-script-2/main.svelte	lint.txt
-4:71 - - "Parsing error: The script is unterminated"
-
-=== 53 packages/svelte/tests/runtime-browser/samples/html-tag-script/main.svelte	lint.txt
-2:71 - - "Parsing error: The script is unterminated"
-
 === 81 packages/svelte/tests/runtime-browser/samples/hydrate-large-text-node/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
@@ -7030,9 +7016,6 @@ Rule: "svelte/consistent-selector-style"
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 23:1 23:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 42 packages/svelte/tests/runtime-legacy/samples/block-expression-assign/main.svelte	lint.txt
-46:138 - - "Parsing error: ')' expected."
-
 === 1179 packages/svelte/tests/runtime-legacy/samples/block-expression-fn-call/main.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -7702,22 +7685,6 @@ Rule: "svelte/consistent-selector-style"
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:2 14:31 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 1139 packages/svelte/tests/runtime-legacy/samples/component-slot-let-scope-3/main.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:11 no-unused-vars "'count' is assigned a value but never used."
-3:6 3:11 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-11:16 11:25 svelte/max-attributes-per-line "'let:count' should be on a new line."
-12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
 === 152 packages/svelte/tests/runtime-legacy/samples/component-slot-let-scope-4/Nested.svelte	lint.txt
 1:20 1:38 svelte/max-attributes-per-line "'text' should be on a new line."
 1:39 1:41 svelte/html-self-closing "Disallow self-closing on HTML elements."
@@ -7755,10 +7722,6 @@ Rule: "svelte/consistent-selector-style"
 1:29 1:31 svelte/html-self-closing "Disallow self-closing on HTML elements."
 1:29 1:31 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
 2:1 2:2 svelte/no-trailing-spaces "Trailing spaces not allowed."
-
-=== 162 packages/svelte/tests/runtime-legacy/samples/component-slot-let-scope/main.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
 === 77 packages/svelte/tests/runtime-legacy/samples/component-slot-let-static/Nested.svelte	lint.txt
 1:18 1:20 svelte/html-self-closing "Disallow self-closing on HTML elements."
@@ -8831,9 +8794,6 @@ Rule: "svelte/consistent-selector-style"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
 === 0 packages/svelte/tests/runtime-legacy/samples/escaped-attr-3/main.svelte	lint.txt
-
-=== 53 packages/svelte/tests/runtime-legacy/samples/escaped-attr/main.svelte	lint.txt
-2:58 - - "Parsing error: The script is unterminated"
 
 === 102 packages/svelte/tests/runtime-legacy/samples/escaped-expression/main.svelte	lint.txt
 1:4 1:32 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
@@ -10112,6 +10072,9 @@ Rule: "svelte/consistent-selector-style"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 80 packages/svelte/tests/runtime-legacy/samples/state-imported-function/Data.svelte.js	lint.txt
+1:12 1:15 svelte/prefer-const "'obj' is never reassigned. Use 'const' instead."
+
 === 406 packages/svelte/tests/runtime-legacy/samples/state-imported-function/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -10508,9 +10471,6 @@ Rule: "svelte/consistent-selector-style"
 
 === 69 packages/svelte/tests/runtime-legacy/samples/textarea-content/main.svelte	lint.txt
 26:13 26:14 svelte/no-trailing-spaces "Trailing spaces not allowed."
-
-=== 53 packages/svelte/tests/runtime-legacy/samples/textarea-value-escape/main.svelte	lint.txt
-1:57 - - "Parsing error: The script is unterminated"
 
 === 750 packages/svelte/tests/runtime-legacy/samples/this-in-function-expressions/main.svelte	lint.txt
 1:1 1:44 svelte/button-has-type "Missing an explicit type attribute for button."
@@ -13713,14 +13673,6 @@ Rule: "svelte/consistent-selector-style"
 13:1 13:22 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 13:20 13:22 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 477 packages/svelte/tests/runtime-runes/samples/component-let-directive/main.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:11 no-unused-vars "'count' is assigned a value but never used."
-4:6 4:11 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
 === 81 packages/svelte/tests/runtime-runes/samples/component-prop-unescaped/Child.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
@@ -14076,6 +14028,8 @@ Rule: "svelte/consistent-selector-style"
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/svelte/tests/runtime-runes/samples/derived-dep-set-while-rendering/store.svelte.js	lint.txt
+
 === 488 packages/svelte/tests/runtime-runes/samples/derived-dependencies-2/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14380,6 +14334,8 @@ Rule: "svelte/consistent-selector-style"
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:2 20:9 no-undef "'console' is not defined."
 
+=== 0 packages/svelte/tests/runtime-runes/samples/derived-server-memoization/state.svelte.js	lint.txt
+
 === 546 packages/svelte/tests/runtime-runes/samples/derived-shadowed/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -14406,6 +14362,9 @@ Rule: "svelte/consistent-selector-style"
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:29 svelte/button-has-type "Missing an explicit type attribute for button."
+
+=== 48 packages/svelte/tests/runtime-runes/samples/derived-unowned-10/theme.svelte.js	lint.txt
+12:5 12:12 no-undef "'console' is not defined."
 
 === 263 packages/svelte/tests/runtime-runes/samples/derived-unowned-11/Child.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14769,9 +14728,6 @@ Rule: "svelte/consistent-selector-style"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected \" \" character, but found \"\\t\" character."
 7:1 7:2 svelte/indent "Expected \" \" character, but found \"\\t\" character."
-
-=== 99 packages/svelte/tests/runtime-runes/samples/directives-with-member-access/main.svelte	lint.txt
-15:9 - - "Parsing error: Expected JS Identifier, or MemberExpression, but BinaryExpression found."
 
 === 291 packages/svelte/tests/runtime-runes/samples/directives/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -16009,6 +15965,11 @@ Rule: "svelte/consistent-selector-style"
 10:1 10:29 svelte/button-has-type "Missing an explicit type attribute for button."
 11:1 11:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
+=== 140 packages/svelte/tests/runtime-runes/samples/effect-root-3/root.svelte.js	lint.txt
+4:4 4:11 no-undef "'console' is not defined."
+9:5 9:12 no-undef "'console' is not defined."
+14:4 14:11 no-undef "'console' is not defined."
+
 === 663 packages/svelte/tests/runtime-runes/samples/effect-root-4/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -17026,6 +16987,10 @@ Rule: "svelte/consistent-selector-style"
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 90 packages/svelte/tests/runtime-runes/samples/event-attribute-import/event.svelte.js	lint.txt
+2:2 2:9 no-undef "'console' is not defined."
+6:2 6:9 no-undef "'console' is not defined."
+
 === 324 packages/svelte/tests/runtime-runes/samples/event-attribute-import/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:33 svelte/button-has-type "Missing an explicit type attribute for button."
@@ -17267,6 +17232,8 @@ Rule: "svelte/consistent-selector-style"
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:3 7:10 no-undef "'console' is not defined."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/svelte/tests/runtime-runes/samples/event-import-no-param-hoisting/state.svelte.js	lint.txt
 
 === 865 packages/svelte/tests/runtime-runes/samples/event-listener-moved-outside-container/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -18406,6 +18373,9 @@ Rule: "svelte/consistent-selector-style"
 32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 32:3 32:10 no-undef "'console' is not defined."
 
+=== 39 packages/svelte/tests/runtime-runes/samples/global-variable-assignment/foo.svelte.js	lint.txt
+1:1 1:2 no-undef "'x' is not defined."
+
 === 81 packages/svelte/tests/runtime-runes/samples/global-variable-assignment/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
@@ -19199,6 +19169,8 @@ Rule: "svelte/consistent-selector-style"
 8:1 8:29 svelte/button-has-type "Missing an explicit type attribute for button."
 8:1 8:38 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
 
+=== 0 packages/svelte/tests/runtime-runes/samples/legacy-runes-ambiguous-explicit-false/test.svelte.js	lint.txt
+
 === 465 packages/svelte/tests/runtime-runes/samples/legacy-runes-ambiguous-export-const/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -19761,6 +19733,8 @@ Rule: "svelte/consistent-selector-style"
 10:1 10:46 svelte/button-has-type "Missing an explicit type attribute for button."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/svelte/tests/runtime-runes/samples/non-local-mutation-global/state.svelte.js	lint.txt
+
 === 404 packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-1/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -19779,6 +19753,8 @@ Rule: "svelte/consistent-selector-style"
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:31 8:48 svelte/max-attributes-per-line "'inc' should be on a new line."
+
+=== 0 packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/state.svelte.js	lint.txt
 
 === 243 packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/sub.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -20467,6 +20443,8 @@ Rule: "svelte/consistent-selector-style"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 packages/svelte/tests/runtime-runes/samples/props-default-value-reactivity/translations.svelte.js	lint.txt
 
 === 103 packages/svelte/tests/runtime-runes/samples/props-default-value-rest/inner.svelte	lint.txt
 2:9 2:16 no-useless-assignment "The value assigned to 'options' is not used in subsequent statements."
@@ -21469,15 +21447,6 @@ Rule: "svelte/consistent-selector-style"
 5:1 5:19 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 5:17 5:19 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 548 packages/svelte/tests/runtime-runes/samples/slot-static/main.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:13 no-unused-vars "'message' is assigned a value but never used."
-4:6 4:13 svelte/prefer-const "'message' is never reassigned. Use 'const' instead."
-7:8 7:25 svelte/shorthand-attribute "Expected shorthand attribute."
-7:26 7:37 svelte/max-attributes-per-line "'let:message' should be on a new line."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
 === 77 packages/svelte/tests/runtime-runes/samples/slot-svelte-fragment-render-tag/child.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
@@ -22005,15 +21974,6 @@ Rule: "svelte/consistent-selector-style"
 === 162 packages/svelte/tests/runtime-runes/samples/snippet-top-level/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
-=== 583 packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte	lint.txt
-1:1 2:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
 === 327 packages/svelte/tests/runtime-runes/samples/snippet-undefined/main.svelte	lint.txt
 2:7 2:12 svelte/prefer-const "'state' is never reassigned. Use 'const' instead."
@@ -23669,6 +23629,8 @@ Rule: "svelte/consistent-selector-style"
 === 81 packages/svelte/tests/runtime-runes/samples/writable-derived-2/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/svelte/tests/runtime-runes/samples/writable-derived-2/util.svelte.js	lint.txt
+
 === 81 packages/svelte/tests/runtime-runes/samples/writable-derived-3/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
@@ -24359,6 +24321,12 @@ Rule: "svelte/consistent-selector-style"
 10:15 11:2 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 260 packages/svelte/tests/snapshot/samples/destructured-assignments/index.svelte.js	lint.txt
+1:5 1:6 no-unused-vars "'a' is assigned a value but never used."
+2:5 2:6 no-unused-vars "'b' is assigned a value but never used."
+3:5 3:6 no-unused-vars "'c' is assigned a value but never used."
+4:5 4:6 no-unused-vars "'d' is assigned a value but never used."
+
 === 628 packages/svelte/tests/snapshot/samples/dynamic-attributes-casing/main.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -24376,6 +24344,8 @@ Rule: "svelte/consistent-selector-style"
 1:1 1:39 svelte/require-each-key "Each block should have a key"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:10 2:15 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
+
+=== 0 packages/svelte/tests/snapshot/samples/export-state/index.svelte.js	lint.txt
 
 === 709 packages/svelte/tests/snapshot/samples/function-prop-no-getter/index.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -24398,6 +24368,8 @@ Rule: "svelte/consistent-selector-style"
 === 144 packages/svelte/tests/snapshot/samples/imports-in-modules/index.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:11 2:17 no-unused-vars "'random' is defined but never used."
+
+=== 0 packages/svelte/tests/snapshot/samples/imports-in-modules/module.svelte.js	lint.txt
 
 === 862 packages/svelte/tests/snapshot/samples/nullish-coallescence-omittance/index.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -26340,6 +26312,10 @@ Rule: "svelte/consistent-selector-style"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 packages/svelte/tests/validator/samples/anonymous-declarations/class.svelte.js	lint.txt
+
+=== 0 packages/svelte/tests/validator/samples/anonymous-declarations/function.svelte.js	lint.txt
+
 === 283 packages/svelte/tests/validator/samples/anonymous-declarations/input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:9 2:13 no-unused-vars "'func' is defined but never used."
@@ -26882,6 +26858,15 @@ Rule: "svelte/consistent-selector-style"
 6:72 6:74 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:5 7:7 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+
+=== 487 packages/svelte/tests/validator/samples/runes-conflicting-store-in-module/input.svelte.js	lint.txt
+3:7 3:14 no-unused-vars "'derived' is assigned a value but never used."
+5:5 5:11 no-unused-vars "'effect' is assigned a value but never used."
+5:5 5:11 svelte/prefer-const "'effect' is never reassigned. Use 'const' instead."
+6:5 6:12 no-unused-vars "'inspect' is assigned a value but never used."
+6:5 6:12 svelte/prefer-const "'inspect' is never reassigned. Use 'const' instead."
+9:2 9:10 svelte/no-inspect "Do not use $inspect directive"
+12:3 12:10 no-undef "'console' is not defined."
 
 === 852 packages/svelte/tests/validator/samples/runes-legacy-syntax-warnings/input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

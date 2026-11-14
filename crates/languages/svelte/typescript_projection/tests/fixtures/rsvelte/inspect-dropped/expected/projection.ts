@@ -17,7 +17,7 @@ async () => {
     svelteHTML.createElement("button", {
       "onclick": () => { $inspect(a); a++; },
     });
-    (f());
+    f();
   }
 };
 const InspectDropped__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

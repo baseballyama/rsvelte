@@ -1,4 +1,51 @@
 # rsvelte pack 1
+=== 467 src/lib/client/localization.svelte.ts	lint.txt
+6:19 6:30 no-unused-vars "'key' is defined but never used."
+6:32 6:61 no-unused-vars "'view' is defined but never used."
+6:63 6:77 no-unused-vars "'strict' is defined but never used."
+7:17 7:18 no-redeclare "'s' is already defined."
+8:2 8:13 no-unused-vars "'key' is defined but never used."
+9:2 9:42 no-unused-vars "'view' is defined but never used."
+10:2 10:14 no-unused-vars "'strict' is defined but never used."
+12:17 12:18 no-redeclare "'s' is already defined."
+
+=== 1183 src/lib/client/storyLocalization.svelte.ts	lint.txt
+9:59 9:68 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+19:3 19:14 no-unused-vars "'key' is defined but never used."
+19:16 19:45 no-unused-vars "'view' is defined but never used."
+19:47 19:61 no-unused-vars "'strict' is defined but never used."
+20:3 20:14 no-unused-vars "'key' is defined but never used."
+20:16 20:56 no-unused-vars "'view' is defined but never used."
+20:58 20:70 no-unused-vars "'strict' is defined but never used."
+36:21 36:32 no-unused-vars "'key' is defined but never used."
+36:34 36:63 no-unused-vars "'view' is defined but never used."
+36:65 36:79 no-unused-vars "'strict' is defined but never used."
+37:11 37:20 no-redeclare "'localizer' is already defined."
+38:3 38:14 no-unused-vars "'key' is defined but never used."
+39:3 39:43 no-unused-vars "'view' is defined but never used."
+40:3 40:15 no-unused-vars "'strict' is defined but never used."
+42:11 42:20 no-redeclare "'localizer' is already defined."
+85:2 85:9 no-undef "'console' is not defined."
+91:28 91:33 no-undef "'fetch' is not defined."
+97:5 97:12 no-undef "'console' is not defined."
+102:2 102:9 no-undef "'console' is not defined."
+
+=== 957 src/lib/client/sync-settings-watcher.svelte.ts	lint.txt
+12:29 12:55 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+45:3 45:10 no-undef "'console' is not defined."
+50:3 50:10 no-undef "'console' is not defined."
+52:4 52:11 no-undef "'console' is not defined."
+58:3 58:10 no-undef "'console' is not defined."
+62:4 62:11 no-undef "'console' is not defined."
+66:5 66:12 no-undef "'console' is not defined."
+76:4 76:11 no-undef "'console' is not defined."
+85:16 85:33 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+85:16 85:33 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+98:8 98:18 no-useless-assignment "The value assigned to 'hasChanged' is not used in subsequent statements."
+107:5 107:12 no-undef "'console' is not defined."
+134:3 134:10 no-undef "'console' is not defined."
+155:3 155:10 no-undef "'console' is not defined."
+
 === 45730 src/lib/components/AppNavigation.svelte	lint.txt
 1:1 84:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -30251,6 +30298,320 @@
 128:1 128:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 129:1 129:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 130:1 130:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 273 src/lib/data/setting.svelte.ts	lint.txt
+14:10 14:44 no-unused-vars "'context' is defined but never used."
+15:10 15:18 no-unused-vars "'value' is defined but never used."
+16:12 16:28 no-unused-vars "'originalValue' is defined but never used."
+16:30 16:45 no-unused-vars "'currentValue' is defined but never used."
+
+=== 1354 src/lib/data/settings.svelte.ts	lint.txt
+196:15 196:23 no-undef "'document' is not defined."
+199:26 199:32 no-undef "'window' is not defined."
+204:25 204:33 no-undef "'document' is not defined."
+216:15 216:23 no-undef "'document' is not defined."
+300:21 300:27 no-undef "'window' is not defined."
+304:2 311:4 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+499:3 499:10 no-undef "'console' is not defined."
+504:26 504:70 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+507:3 507:10 no-undef "'console' is not defined."
+508:3 508:10 no-undef "'console' is not defined."
+509:3 509:10 no-undef "'console' is not defined."
+510:3 510:10 no-undef "'console' is not defined."
+511:3 511:10 no-undef "'console' is not defined."
+520:4 520:11 no-undef "'console' is not defined."
+521:4 521:11 no-undef "'console' is not defined."
+530:5 530:12 no-undef "'console' is not defined."
+541:3 541:10 no-undef "'console' is not defined."
+550:3 550:10 no-undef "'console' is not defined."
+637:41 637:53 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+942:21 942:27 no-undef "'window' is not defined."
+943:2 948:4 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+
+=== 310 src/lib/hooks/useCategoryManager.svelte.ts	lint.txt
+18:27 18:45 no-unused-vars "'categoryId' is defined but never used."
+19:20 19:38 no-unused-vars "'categoryId' is defined but never used."
+20:23 20:41 no-unused-vars "'categoryId' is defined but never used."
+100:19 100:27 no-undef "'document' is not defined."
+101:5 101:13 no-undef "'document' is not defined."
+
+=== 530 src/lib/hooks/useDataHandlers.svelte.ts	lint.txt
+61:21 61:39 no-unused-vars "'categoryId' is defined but never used."
+66:7 66:18 no-unused-vars "'key' is defined but never used."
+132:3 132:10 no-undef "'console' is not defined."
+165:3 165:10 no-undef "'console' is not defined."
+180:4 180:11 no-undef "'console' is not defined."
+195:4 195:11 no-undef "'console' is not defined."
+203:4 203:11 no-undef "'console' is not defined."
+216:4 216:11 no-undef "'console' is not defined."
+219:4 219:11 no-undef "'console' is not defined."
+231:4 231:11 no-undef "'console' is not defined."
+
+=== 113 src/lib/hooks/useImagePreloading.svelte.ts	lint.txt
+9:20 9:31 no-undef "'HTMLElement' is not defined."
+15:16 15:36 no-undef "'IntersectionObserver' is not defined."
+
+=== 196 src/lib/hooks/usePageDerived.svelte.ts	lint.txt
+26:3 26:10 no-undef "'console' is not defined."
+65:3 65:10 no-undef "'console' is not defined."
+146:4 146:11 no-undef "'console' is not defined."
+157:4 157:11 no-undef "'console' is not defined."
+
+=== 271 src/lib/hooks/usePageEffects.svelte.ts	lint.txt
+10:27 10:45 no-unused-vars "'categoryId' is defined but never used."
+11:25 11:41 no-unused-vars "'category' is defined but never used."
+11:43 11:61 no-unused-vars "'updateUrl' is defined but never used."
+12:23 12:39 no-unused-vars "'category' is defined but never used."
+
+=== 1715 src/lib/hooks/usePageHelpers.svelte.ts	lint.txt
+45:24 45:54 no-unused-vars "'value' is defined but never used."
+46:36 46:56 no-unused-vars "'value' is defined but never used."
+47:26 47:40 no-unused-vars "'value' is defined but never used."
+48:22 48:42 no-unused-vars "'value' is defined but never used."
+49:23 49:39 no-unused-vars "'value' is defined but never used."
+50:25 50:48 no-unused-vars "'value' is defined but never used."
+51:27 51:41 no-unused-vars "'value' is defined but never used."
+52:23 52:49 no-unused-vars "'value' is defined but never used."
+53:24 53:38 no-unused-vars "'value' is defined but never used."
+54:28 54:42 no-unused-vars "'value' is defined but never used."
+55:27 55:47 no-unused-vars "'value' is defined but never used."
+56:24 56:44 no-unused-vars "'value' is defined but never used."
+57:20 57:50 no-unused-vars "'value' is defined but never used."
+58:25 58:38 no-unused-vars "'value' is defined but never used."
+59:26 59:42 no-unused-vars "'category' is defined but never used."
+59:44 59:62 no-unused-vars "'updateUrl' is defined but never used."
+60:23 60:38 no-unused-vars "'storyId' is defined but never used."
+60:40 60:58 no-unused-vars "'updateUrl' is defined but never used."
+88:18 88:24 no-undef "'window' is not defined."
+90:5 90:11 no-undef "'window' is not defined."
+92:5 92:11 no-undef "'window' is not defined."
+139:4 139:10 no-undef "'window' is not defined."
+151:34 151:39 no-undef "'fetch' is not defined."
+176:6 176:16 no-undef "'setTimeout' is not defined."
+177:28 177:36 no-undef "'document' is not defined."
+203:5 203:12 no-undef "'console' is not defined."
+211:3 211:13 no-undef "'setTimeout' is not defined."
+215:25 215:33 no-undef "'document' is not defined."
+235:4 235:11 no-undef "'console' is not defined."
+
+=== 1739 src/lib/hooks/usePageSetup.svelte.ts	lint.txt
+16:6 16:17 no-unused-vars "'key' is defined but never used."
+17:25 17:39 no-unused-vars "'value' is defined but never used."
+18:27 18:41 no-unused-vars "'value' is defined but never used."
+19:26 19:46 no-unused-vars "'value' is defined but never used."
+37:24 37:29 no-undef "'Image' is not defined."
+41:18 41:24 no-undef "'window' is not defined."
+42:27 42:30 no-undef "'URL' is not defined."
+42:31 42:37 no-undef "'window' is not defined."
+44:4 44:10 no-undef "'window' is not defined."
+48:34 48:40 no-undef "'window' is not defined."
+55:4 55:16 no-undef "'localStorage' is not defined."
+56:4 56:16 no-undef "'localStorage' is not defined."
+62:20 62:23 no-undef "'URL' is not defined."
+62:24 62:30 no-undef "'window' is not defined."
+84:3 84:63 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+84:3 84:9 no-undef "'window' is not defined."
+88:17 88:23 no-undef "'window' is not defined."
+94:5 94:11 no-undef "'window' is not defined."
+94:43 94:49 no-undef "'window' is not defined."
+94:70 94:76 no-undef "'window' is not defined."
+98:3 98:58 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+98:3 98:9 no-undef "'window' is not defined."
+102:8 102:14 no-undef "'window' is not defined."
+108:3 108:54 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+108:3 108:9 no-undef "'window' is not defined."
+112:4 112:11 no-undef "'console' is not defined."
+118:4 118:11 no-undef "'console' is not defined."
+135:4 135:10 no-undef "'window' is not defined."
+136:4 136:10 no-undef "'window' is not defined."
+137:4 137:10 no-undef "'window' is not defined."
+
+=== 149 src/lib/hooks/usePageState.svelte.ts	lint.txt
+14:37 14:43 no-undef "'window' is not defined."
+19:40 19:51 no-undef "'HTMLElement' is not defined."
+27:40 27:46 no-undef "'window' is not defined."
+
+=== 851 src/lib/hooks/useSinglePageMode.svelte.ts	lint.txt
+11:27 11:45 no-unused-vars "'categoryId' is defined but never used."
+21:40 21:57 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+21:40 21:57 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+40:4 40:11 no-undef "'console' is not defined."
+46:6 46:13 no-undef "'console' is not defined."
+89:28 89:48 no-undef "'IntersectionObserver' is not defined."
+118:3 118:13 no-undef "'setTimeout' is not defined."
+119:19 119:27 no-undef "'document' is not defined."
+132:5 132:15 no-undef "'setTimeout' is not defined."
+161:30 161:50 no-undef "'IntersectionObserver' is not defined."
+171:43 171:54 no-undef "'HTMLElement' is not defined."
+212:3 212:13 no-undef "'setTimeout' is not defined."
+213:20 213:28 no-undef "'document' is not defined."
+
+=== 839 src/lib/hooks/useStoryFlashcards.svelte.ts	lint.txt
+25:16 25:25 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+46:4 46:14 no-undef "'setTimeout' is not defined."
+68:32 68:50 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+68:53 68:70 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+82:35 82:44 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+112:16 112:21 no-unused-vars "'_word' is assigned a value but never used."
+121:16 121:26 no-unused-vars "'_phraseKey' is assigned a value but never used."
+130:27 130:32 no-undef "'fetch' is not defined."
+141:5 141:12 no-undef "'console' is not defined."
+154:4 154:11 no-undef "'console' is not defined."
+
+=== 48 src/lib/hooks/useStorySimplification.svelte.ts	lint.txt
+63:5 63:12 no-undef "'console' is not defined."
+
+=== 194 src/lib/hooks/useStoryTTS.svelte.ts	lint.txt
+68:4 68:11 no-undef "'console' is not defined."
+80:4 80:11 no-undef "'console' is not defined."
+94:4 94:11 no-undef "'console' is not defined."
+105:4 105:11 no-undef "'console' is not defined."
+
+=== 313 src/lib/hooks/useStoryToggle.svelte.ts	lint.txt
+14:26 14:44 no-unused-vars "'categoryId' is defined but never used."
+14:46 14:64 no-unused-vars "'updateUrl' is defined but never used."
+22:23 22:53 no-unused-vars "'value' is defined but never used."
+24:19 24:49 no-unused-vars "'value' is defined but never used."
+73:5 73:12 no-undef "'console' is not defined."
+
+=== 313 src/lib/stores/categories.svelte.ts	lint.txt
+39:20 39:32 no-undef "'localStorage' is not defined."
+48:3 48:15 no-undef "'localStorage' is not defined."
+49:3 49:15 no-undef "'localStorage' is not defined."
+53:3 53:15 no-undef "'localStorage' is not defined."
+291:5 291:12 no-undef "'console' is not defined."
+314:5 314:12 no-undef "'console' is not defined."
+
+=== 48 src/lib/stores/categoryMetadata.svelte.ts	lint.txt
+48:4 48:11 no-undef "'console' is not defined."
+
+=== 203 src/lib/stores/contentFilter.svelte.ts	lint.txt
+42:19 42:31 no-undef "'localStorage' is not defined."
+53:4 53:11 no-undef "'console' is not defined."
+68:4 68:16 no-undef "'localStorage' is not defined."
+75:4 75:11 no-undef "'console' is not defined."
+
+=== 206 src/lib/stores/dataLanguage.svelte.ts	lint.txt
+18:2 18:14 no-undef "'localStorage' is not defined."
+29:17 29:29 no-undef "'localStorage' is not defined."
+52:4 52:10 no-undef "'window' is not defined."
+53:9 53:20 no-undef "'CustomEvent' is not defined."
+
+=== 304 src/lib/stores/experimental.svelte.ts	lint.txt
+28:18 28:30 no-undef "'localStorage' is not defined."
+34:3 34:10 no-undef "'console' is not defined."
+43:3 43:15 no-undef "'localStorage' is not defined."
+50:3 50:10 no-undef "'console' is not defined."
+96:5 96:17 no-undef "'localStorage' is not defined."
+98:5 98:12 no-undef "'console' is not defined."
+
+=== 412 src/lib/stores/fontSize.svelte.ts	lint.txt
+18:20 18:32 no-undef "'localStorage' is not defined."
+23:5 23:12 no-undef "'console' is not defined."
+34:18 34:26 no-undef "'document' is not defined."
+101:5 101:12 no-undef "'console' is not defined."
+108:5 108:17 no-undef "'localStorage' is not defined."
+110:5 110:12 no-undef "'console' is not defined."
+137:9 137:21 no-undef "'localStorage' is not defined."
+139:9 139:16 no-undef "'console' is not defined."
+
+=== 0 src/lib/stores/headerAnimation.svelte.ts	lint.txt
+
+=== 0 src/lib/stores/keyboardNavigation.svelte.ts	lint.txt
+
+=== 455 src/lib/stores/language.svelte.ts	lint.txt
+58:2 58:14 no-undef "'localStorage' is not defined."
+69:17 69:29 no-undef "'localStorage' is not defined."
+80:26 80:31 no-undef "'fetch' is not defined."
+87:3 87:10 no-undef "'console' is not defined."
+96:3 96:11 no-undef "'document' is not defined."
+99:23 99:32 no-undef "'navigator' is not defined."
+100:3 100:11 no-undef "'document' is not defined."
+104:2 104:8 no-undef "'window' is not defined."
+105:7 105:18 no-undef "'CustomEvent' is not defined."
+
+=== 0 src/lib/stores/pageMetadata.svelte.ts	lint.txt
+
+=== 203 src/lib/stores/preferredSources.svelte.ts	lint.txt
+12:18 12:30 no-undef "'localStorage' is not defined."
+15:3 15:10 no-undef "'console' is not defined."
+24:3 24:15 no-undef "'localStorage' is not defined."
+31:3 31:10 no-undef "'console' is not defined."
+
+=== 211 src/lib/stores/preloadingConfig.svelte.ts	lint.txt
+152:18 152:30 no-undef "'localStorage' is not defined."
+160:4 160:11 no-undef "'console' is not defined."
+171:4 171:16 no-undef "'localStorage' is not defined."
+178:4 178:11 no-undef "'console' is not defined."
+
+=== 655 src/lib/stores/sections.svelte.ts	lint.txt
+15:18 15:30 no-undef "'localStorage' is not defined."
+48:3 48:10 no-undef "'console' is not defined."
+58:3 58:10 no-undef "'console' is not defined."
+66:3 66:15 no-undef "'localStorage' is not defined."
+71:4 71:11 no-undef "'console' is not defined."
+75:3 75:10 no-undef "'console' is not defined."
+80:2 80:9 no-undef "'console' is not defined."
+82:2 82:9 no-undef "'console' is not defined."
+169:4 169:11 no-undef "'console' is not defined."
+170:19 170:31 no-undef "'localStorage' is not defined."
+171:4 171:11 no-undef "'console' is not defined."
+178:18 178:30 no-undef "'localStorage' is not defined."
+179:4 179:11 no-undef "'console' is not defined."
+
+=== 361 src/lib/stores/settings.svelte.ts	lint.txt
+36:16 36:24 no-undef "'document' is not defined."
+53:3 53:15 no-undef "'localStorage' is not defined."
+58:10 58:22 no-undef "'localStorage' is not defined."
+73:3 73:10 no-undef "'console' is not defined."
+76:24 76:36 no-undef "'localStorage' is not defined."
+155:7 155:15 no-undef "'document' is not defined."
+163:7 163:15 no-undef "'document' is not defined."
+
+=== 304 src/lib/stores/storyCount.svelte.ts	lint.txt
+16:20 16:32 no-undef "'localStorage' is not defined."
+24:5 24:12 no-undef "'console' is not defined."
+33:5 33:17 no-undef "'localStorage' is not defined."
+35:5 35:12 no-undef "'console' is not defined."
+75:9 75:21 no-undef "'localStorage' is not defined."
+77:9 77:16 no-undef "'console' is not defined."
+
+=== 736 src/lib/stores/theme.svelte.ts	lint.txt
+18:16 18:24 no-undef "'document' is not defined."
+22:7 22:13 no-undef "'window' is not defined."
+27:26 27:34 no-undef "'document' is not defined."
+33:19 33:27 no-undef "'document' is not defined."
+33:65 33:80 no-undef "'HTMLLinkElement' is not defined."
+35:32 35:38 no-undef "'window' is not defined."
+46:3 46:15 no-undef "'localStorage' is not defined."
+52:18 52:30 no-undef "'localStorage' is not defined."
+67:9 67:15 no-undef "'window' is not defined."
+85:24 85:30 no-undef "'window' is not defined."
+86:5 101:7 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+93:23 93:31 no-undef "'document' is not defined."
+95:12 95:27 no-undef "'HTMLLinkElement' is not defined."
+
+=== 0 src/lib/stores/timeTravel.svelte.ts	lint.txt
+
+=== 96 src/lib/stores/timeTravelBatch.svelte.ts	lint.txt
+44:3 44:10 no-undef "'console' is not defined."
+86:3 86:10 no-undef "'console' is not defined."
+
+=== 51 src/lib/stores/toast.svelte.ts	lint.txt
+45:4 45:14 no-undef "'setTimeout' is not defined."
+
+=== 96 src/lib/stores/ttsManager.svelte.ts	lint.txt
+32:3 32:10 no-undef "'console' is not defined."
+37:5 37:12 no-undef "'console' is not defined."
+
+=== 423 src/lib/utils/modalBehavior.svelte.ts	lint.txt
+12:16 12:22 no-undef "'window' is not defined."
+16:17 16:23 no-undef "'window' is not defined."
+19:4 19:51 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
+19:4 19:10 no-undef "'window' is not defined."
+20:17 20:23 no-undef "'window' is not defined."
+25:34 25:44 no-undef "'MouseEvent' is not defined."
+32:28 32:41 no-undef "'KeyboardEvent' is not defined."
 
 === 698 src/routes/+error.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

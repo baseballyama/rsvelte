@@ -106,6 +106,15 @@
 8:50 8:84 svelte/max-attributes-per-line "'onclick' should be on a new line."
 8:50 8:84 svelte/sort-attributes "Attribute 'onclick' should go before 'title'."
 
+=== 414 apps/docs/src/components/global-opts/globalopts.svelte.ts	lint.txt
+7:61 7:75 no-undef "'HTMLDivElement' is not defined."
+29:3 29:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+35:3 35:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+50:3 50:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+
+=== 91 apps/docs/src/components/global-opts/sltheme.svelte.ts	lint.txt
+1:12 1:26 svelte/prefer-const "'starlightTheme' is never reassigned. Use 'const' instead."
+
 === 13322 apps/docs/src/components/theming/DefineTheme.svelte	lint.txt
 1:20 1:44 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 2:1 76:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -952,6 +961,11 @@
 15:51 15:57 svelte/sort-attributes "Attribute 'ry' should go before 'width'."
 17:7 17:98 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
 
+=== 143 packages/svelte/src/doclib/interval-effect.svelte.ts	lint.txt
+1:41 1:53 no-undef "'TimerHandler' is not defined."
+4:16 4:22 no-undef "'window' is not defined."
+7:7 7:13 no-undef "'window' is not defined."
+
 === 90 packages/svelte/src/lib/CollapseStateProvider.svelte	lint.txt
 6:1 34:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
@@ -1170,6 +1184,19 @@
 257:23 257:82 svelte/max-attributes-per-line "'transition:slide' should be on a new line."
 258:33 258:40 no-undef "'console' is not defined."
 259:26 259:27 no-unused-vars "'_' is defined but never used."
+
+=== 625 packages/svelte/src/lib/attachments/update-flash.svelte.ts	lint.txt
+4:24 4:65 no-unused-vars "'flashStyle' is defined but never used."
+4:45 4:64 no-undef "'CSSStyleDeclaration' is not defined."
+6:33 6:40 no-undef "'Element' is not defined."
+6:43 6:54 no-undef "'HTMLElement' is not defined."
+6:57 6:67 no-undef "'SVGElement' is not defined."
+8:15 8:22 no-unused-vars "'node' is defined but never used."
+20:36 20:47 no-undef "'CustomEvent' is not defined."
+35:13 35:27 no-unused-vars "'HTMLAttributes' is defined but never used."
+35:38 35:49 no-undef "'EventTarget' is not defined."
+35:59 35:73 no-undef "'AriaAttributes' is not defined."
+35:75 35:88 no-undef "'DOMAttributes' is not defined."
 
 === 1420 packages/svelte/src/lib/components/ArrayView.svelte	lint.txt
 1:1 26:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -2124,6 +2151,73 @@
 6:5 6:26 svelte/sort-attributes "Attribute 'stroke' should go before 'stroke-width'."
 7:1 7:3 svelte/indent "Expected indentation of 0 spaces but found 2 spaces."
 7:10 8:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
+
+=== 86 packages/svelte/src/lib/global.svelte.ts	lint.txt
+13:7 13:26 no-unused-vars "'_componentNameRegex' is assigned a value but never used."
+
+=== 432 packages/svelte/src/lib/hello.svelte.ts	lint.txt
+1:1 - - "Unused eslint-disable directive (no problems were reported from 'no-console')."
+10:3 10:10 no-undef "'console' is not defined."
+12:28 12:35 no-undef "'console' is not defined."
+19:5 19:12 no-undef "'console' is not defined."
+21:5 21:12 no-undef "'console' is not defined."
+25:5 25:12 no-undef "'console' is not defined."
+32:12 32:21 no-undef "'navigator' is not defined."
+35:10 35:19 no-undef "'navigator' is not defined."
+
+=== 1048 packages/svelte/src/lib/options.svelte.ts	lint.txt
+179:12 179:21 no-unused-vars "'t' is defined but never used."
+278:9 278:23 no-unused-vars "'value' is defined but never used."
+279:9 279:21 no-unused-vars "'type' is defined but never used."
+280:9 280:24 no-unused-vars "'path' is defined but never used."
+288:14 288:28 no-unused-vars "'value' is defined but never used."
+288:30 288:42 no-unused-vars "'type' is defined but never used."
+288:44 288:59 no-unused-vars "'path' is defined but never used."
+296:12 296:26 no-unused-vars "'value' is defined but never used."
+296:28 296:40 no-unused-vars "'type' is defined but never used."
+296:42 296:57 no-unused-vars "'path' is defined but never used."
+302:23 302:43 no-unused-vars "'state' is defined but never used."
+481:3 481:41 no-unused-vars "'options' is defined but never used."
+487:17 487:40 no-redeclare "'setGlobalInspectOptions' is already defined."
+487:41 487:73 no-unused-vars "'options' is defined but never used."
+488:17 488:40 no-redeclare "'setGlobalInspectOptions' is already defined."
+492:5 492:12 no-undef "'console' is not defined."
+
+=== 402 packages/svelte/src/lib/state.svelte.ts	lint.txt
+1:1 1:55 @typescript-eslint/no-unused-vars "Definition for rule '@typescript-eslint/no-unused-vars' was not found."
+15:62 15:82 no-unused-vars "'value' is defined but never used."
+40:9 40:16 no-undef "'console' is not defined."
+61:9 61:16 no-undef "'console' is not defined."
+64:31 64:43 no-unused-vars "'path' is defined but never used."
+81:39 81:58 no-unused-vars "'path' is defined but never used."
+
+=== 212 packages/svelte/src/lib/typingbuffer.svelte.ts	lint.txt
+13:23 13:38 no-unused-vars "'scopeId' is defined but never used."
+19:7 19:17 no-undef "'setTimeout' is not defined."
+24:5 24:11 no-undef "'window' is not defined."
+25:31 25:37 no-undef "'window' is not defined."
+
+=== 212 packages/svelte/src/lib/util/mutation-observer.svelte.ts	lint.txt
+3:37 3:48 no-undef "'HTMLElement' is not defined."
+3:51 3:62 no-undef "'HTMLElement' is not defined."
+5:29 5:43 no-undef "'MutationRecord' is not defined."
+7:24 7:40 no-undef "'MutationObserver' is not defined."
+
+=== 755 packages/svelte/src/lib/util/persisted.svelte.ts	lint.txt
+4:66 4:72 no-undef "'window' is not defined."
+10:15 10:23 no-unused-vars "'value' is defined but never used."
+11:17 11:30 no-unused-vars "'value' is defined but never used."
+19:55 19:61 no-undef "'Window' is not defined."
+19:84 19:91 no-undef "'Storage' is not defined."
+53:14 53:26 no-undef "'VoidFunction' is not defined."
+54:11 54:23 no-undef "'VoidFunction' is not defined."
+55:15 55:35 no-unused-vars "'root' is defined but never used."
+90:14 90:21 no-undef "'Storage' is not defined."
+91:16 91:28 no-undef "'VoidFunction' is not defined."
+92:12 92:24 no-undef "'VoidFunction' is not defined."
+156:33 156:45 no-undef "'StorageEvent' is not defined."
+166:7 166:14 no-undef "'console' is not defined."
+177:7 177:14 no-undef "'console' is not defined."
 
 === 3476 packages/svelte/src/routes/(app)/+layout.svelte	lint.txt
 1:1 246:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

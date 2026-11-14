@@ -1,4 +1,16 @@
 # rsvelte pack 1
+=== 48 src/lib/apps.svelte.ts	lint.txt
+20:4 20:11 no-undef "'console' is not defined."
+
+=== 567 src/lib/command-palette.svelte.ts	lint.txt
+87:6 87:13 no-undef "'console' is not defined."
+107:5 107:12 no-undef "'console' is not defined."
+114:7 114:54 no-useless-assignment "The value assigned to 'items' is not used in subsequent statements."
+127:23 127:81 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+158:14 158:59 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+168:16 168:34 no-unused-vars "'plugin' is defined but never used."
+207:59 207:66 no-undef "'console' is not defined."
+
 === 12468 src/lib/components/AiSettingsView.svelte	lint.txt
 1:1 76:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -4687,6 +4699,21 @@
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 880 src/lib/components/extensions/store.svelte.ts	lint.txt
+23:42 23:52 no-undef "'setTimeout' is not defined."
+24:43 24:53 no-undef "'setTimeout' is not defined."
+27:22 27:39 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+27:22 27:39 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+49:3 49:15 no-undef "'clearTimeout' is not defined."
+50:3 50:15 no-undef "'clearTimeout' is not defined."
+62:32 62:42 no-undef "'setTimeout' is not defined."
+66:31 66:41 no-undef "'setTimeout' is not defined."
+81:5 81:12 no-undef "'console' is not defined."
+84:5 84:17 no-undef "'clearTimeout' is not defined."
+120:4 120:11 no-undef "'console' is not defined."
+151:26 151:79 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+154:4 154:11 no-undef "'console' is not defined."
+
 === 5486 src/lib/components/layout/Content.svelte	lint.txt
 1:1 23:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -8541,6 +8568,72 @@
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 src/lib/focus.svelte.ts	lint.txt
+
+=== 240 src/lib/frecency.svelte.ts	lint.txt
+24:4 24:11 no-undef "'console' is not defined."
+35:4 35:11 no-undef "'console' is not defined."
+44:4 44:11 no-undef "'console' is not defined."
+53:4 53:11 no-undef "'console' is not defined."
+62:4 62:11 no-undef "'console' is not defined."
+
+=== 0 src/lib/imperative.svelte.ts	lint.txt
+
+=== 48 src/lib/node.svelte.ts	lint.txt
+22:5 22:12 no-undef "'console' is not defined."
+
+=== 192 src/lib/quicklinks.svelte.ts	lint.txt
+30:4 30:11 no-undef "'console' is not defined."
+41:4 41:11 no-undef "'console' is not defined."
+54:4 54:11 no-undef "'console' is not defined."
+64:4 64:11 no-undef "'console' is not defined."
+
+=== 752 src/lib/sidecar.svelte.ts	lint.txt
+20:19 20:25 no-undef "'Buffer' is not defined."
+23:57 23:68 no-undef "'setInterval' is not defined."
+50:4 50:11 no-undef "'console' is not defined."
+63:47 63:58 no-undef "'setInterval' is not defined."
+74:4 74:11 no-undef "'console' is not defined."
+85:4 85:17 no-undef "'clearInterval' is not defined."
+95:5 95:12 no-undef "'console' is not defined."
+132:26 132:32 no-undef "'Buffer' is not defined."
+132:62 132:68 no-undef "'Buffer' is not defined."
+136:4 136:11 no-undef "'console' is not defined."
+158:6 158:13 no-undef "'console' is not defined."
+174:4 174:11 no-undef "'console' is not defined."
+180:3 180:10 no-undef "'console' is not defined."
+208:5 208:12 no-undef "'console' is not defined."
+338:3 338:10 no-undef "'console' is not defined."
+
+=== 525 src/lib/ui.svelte.ts	lint.txt
+24:24 27:5 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+66:20 66:35 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
+69:22 69:39 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+117:20 117:30 no-unused-vars "'id' is defined but never used."
+129:6 129:13 no-undef "'console' is not defined."
+235:5 235:12 no-undef "'console' is not defined."
+
+=== 300 src/lib/viewManager.svelte.ts	lint.txt
+134:23 134:26 no-undef "'URL' is not defined."
+153:8 153:15 no-undef "'console' is not defined."
+186:8 186:15 no-undef "'console' is not defined."
+196:9 196:16 no-undef "'console' is not defined."
+210:7 210:17 no-undef "'setTimeout' is not defined."
+237:4 237:11 no-undef "'console' is not defined."
+
+=== 65 src/lib/views/base.svelte.ts	lint.txt
+20:13 20:39 no-unused-vars "'nodeId' is defined but never used."
+
+=== 435 src/lib/views/grid.svelte.ts	lint.txt
+30:15 30:34 no-unused-vars "'handlerName' is defined but never used."
+30:36 30:51 no-unused-vars "'args' is defined but never used."
+271:32 271:45 no-undef "'KeyboardEvent' is not defined."
+314:27 314:70 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+320:10 322:8 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
+
+=== 55 src/lib/views/list.svelte.ts	lint.txt
+14:32 14:45 no-undef "'KeyboardEvent' is not defined."
 
 === 413 src/routes/+layout.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

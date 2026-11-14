@@ -14,7 +14,7 @@ async () => {
   }
   {
     svelteHTML.createElement("b", {});
-    (f(1));
+    f(1);
   }
 };
 const DeclaredDollarPropsIsRenamed__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

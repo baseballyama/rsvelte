@@ -7,7 +7,7 @@
 async () => {
   if (n) {
     const [a] = $state([1]);
-    (a);
+    a;
   }
 };
 const ConstTagState__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

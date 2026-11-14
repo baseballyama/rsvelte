@@ -2135,6 +2135,17 @@
 14:3 14:371 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 144 src/lib/internal/use-document-hidden.svelte.ts	lint.txt
+4:57 4:65 no-undef "'document' is not defined."
+7:13 7:21 no-undef "'document' is not defined."
+8:14 8:22 no-undef "'document' is not defined."
+
+=== 212 src/lib/toast-state.svelte.ts	lint.txt
+36:64 36:74 no-undef "'setTimeout' is not defined."
+87:4 87:14 no-undef "'setTimeout' is not defined."
+97:4 97:16 no-undef "'clearTimeout' is not defined."
+330:46 330:58 no-undef "'clearTimeout' is not defined."
+
 === 251 src/routes/+layout.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

@@ -8,7 +8,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::{Builder, Node, NodeIdentifier, Result, Unsupported};
+use super::{Builder, Node, NodeIdentifier, Result, refuse};
 
 impl Builder<'_> {
     /// Where the `children` prop maps, when the content passes one: anything but whitespace,
@@ -101,7 +101,7 @@ impl Builder<'_> {
                 continue;
             };
             if type_parameters.is_some() {
-                return Err(Unsupported::at("generic snippets", span));
+                return Err(refuse("generic snippets", span));
             }
             let javascript = &self.component.javascript;
             let name = javascript.get_expression(name).span();
@@ -147,6 +147,6 @@ impl Builder<'_> {
                 },
                 AttributeValue::True => None,
             })
-            .ok_or_else(|| Unsupported::at("svelte: elements", name))
+            .ok_or_else(|| refuse("svelte: elements", name))
     }
 }

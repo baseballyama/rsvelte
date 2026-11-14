@@ -1180,6 +1180,8 @@
 32:17 32:34 svelte/html-self-closing "Require self-closing on Svelte custom components."
 33:1 33:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 src/lib/components/store.svelte.ts	lint.txt
+
 === 11571 src/lib/components/transition.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."

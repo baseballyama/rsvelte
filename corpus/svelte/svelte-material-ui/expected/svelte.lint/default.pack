@@ -71,11 +71,6 @@
 207:34 207:48 no-undef "'HTMLDivElement' is not defined."
 219:40 219:51 no-undef "'CustomEvent' is not defined."
 
-=== 144 packages/autocomplete/src/Autocomplete.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/autocomplete/src/Autocomplete.svelte:290
-Rule: "svelte/indent"
-
 === 1160 packages/badge/src/Badge.svelte	lint.txt
 6:3 13:6 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."
 14:3 14:16 svelte/sort-attributes "Attribute 'role' should go before 'use:useActions'."
@@ -89,11 +84,6 @@ Rule: "svelte/indent"
 70:5 70:13 no-useless-assignment "The value assigned to 'children' is not used in subsequent statements."
 71:8 71:17 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
 74:16 74:31 no-undef "'HTMLSpanElement' is not defined."
-
-=== 132 packages/banner/src/Banner.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/banner/src/Banner.svelte:176
-Rule: "svelte/indent"
 
 === 940 packages/banner/src/Fixed.svelte	lint.txt
 4:3 9:4 svelte/no-unused-class-name "Unused class \"mdc-banner__fixed\"."
@@ -377,11 +367,6 @@ Rule: "svelte/indent"
 310:7 310:42 no-unused-vars "'accessor' is defined but never used."
 313:7 313:42 no-unused-vars "'accessor' is defined but never used."
 
-=== 139 packages/chip-input/src/ChipInput.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/chip-input/src/ChipInput.svelte:238
-Rule: "svelte/indent"
-
 === 976 packages/chips/src/Checkmark.svelte	lint.txt
 6:3 9:6 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."
 15:5 15:64 svelte/no-unused-class-name "Unused class \"mdc-chip__checkmark-svg\"."
@@ -528,16 +513,6 @@ Rule: "svelte/indent"
 46:9 46:27 no-useless-assignment "The value assigned to 'leadingIconClasses' is not used in subsequent statements."
 46:41 46:52 no-undef "'SvelteStore' is not defined."
 50:16 50:27 no-undef "'HTMLElement' is not defined."
-
-=== 128 packages/chips/src/Text.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/chips/src/Text.svelte:85
-Rule: "svelte/indent"
-
-=== 139 packages/chips/src/TrailingAction.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/chips/src/TrailingAction.svelte:121
-Rule: "svelte/indent"
 
 === 986 packages/chips/src/TrailingIcon.svelte	lint.txt
 3:27 3:47 svelte/max-attributes-per-line "'use:useActions' should be on a new line."
@@ -775,11 +750,6 @@ Rule: "svelte/indent"
 223:38 223:43 no-undef "'Event' is not defined."
 227:36 227:41 no-undef "'Event' is not defined."
 
-=== 139 packages/data-table/src/DataTable.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/data-table/src/DataTable.svelte:180
-Rule: "svelte/indent"
-
 === 1343 packages/data-table/src/Head.svelte	lint.txt
 3:28 3:48 svelte/max-attributes-per-line "'use:useActions' should be on a new line."
 3:63 4:3 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
@@ -905,11 +875,6 @@ Rule: "svelte/indent"
 25:9 25:17 no-useless-assignment "The value assigned to 'children' is not used in subsequent statements."
 25:22 25:31 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
 28:7 28:29 no-unassigned-vars "'element' is always 'undefined' because it's never assigned."
-
-=== 132 packages/dialog/src/Dialog.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/dialog/src/Dialog.svelte:212
-Rule: "svelte/indent"
 
 === 813 packages/dialog/src/Header.svelte	lint.txt
 9:3 9:39 svelte/sort-attributes "Attribute 'bind:this' should go before '_smuiClass'."
@@ -1117,11 +1082,6 @@ Rule: "svelte/indent"
 107:7 107:17 no-useless-assignment "The value assigned to 'inputProps' is not used in subsequent statements."
 127:7 127:42 no-unused-vars "'accessor' is defined but never used."
 130:7 130:42 no-unused-vars "'accessor' is defined but never used."
-
-=== 139 packages/form-field/src/FormField.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/form-field/src/FormField.svelte:104
-Rule: "svelte/indent"
 
 === 4184 packages/icon-button/src/IconButton.svelte	lint.txt
 5:3 5:22 svelte/sort-attributes "Attribute 'bind:this' should go before 'tag'."
@@ -1823,11 +1783,6 @@ Rule: "svelte/indent"
 39:5 39:13 no-useless-assignment "The value assigned to 'children' is not used in subsequent statements."
 40:8 40:17 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
 45:36 45:47 no-undef "'SvelteStore' is not defined."
-
-=== 132 packages/select/src/Select.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/select/src/Select.svelte:453
-Rule: "svelte/indent"
 
 === 1897 packages/select/src/helper-text/HelperText.svelte	lint.txt
 6:3 12:6 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."
@@ -3440,11 +3395,6 @@ Rule: "svelte/indent"
 === 196 packages/site/src/routes/demo/common/_ExcludeAndPrefixFilter.svelte	lint.txt
 9:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 12:7 12:15 no-useless-assignment "The value assigned to 'disabled' is not used in subsequent statements."
-
-=== 174 packages/site/src/routes/demo/common/_ExcludeAndPrefixFilterComponent.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/site/src/routes/demo/common/_ExcludeAndPrefixFilterComponent.svelte:24
-Rule: "svelte/indent"
 
 === 1096 packages/site/src/routes/demo/common/_SmuiElement.svelte	lint.txt
 9:21 9:70 svelte/max-attributes-per-line "'bind:this' should be on a new line."
@@ -6251,41 +6201,6 @@ Rule: "svelte/indent"
 31:22 31:31 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
 34:7 34:29 no-unassigned-vars "'element' is always 'undefined' because it's never assigned."
 
-=== 136 packages/snackbar/src/Snackbar.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/snackbar/src/Snackbar.svelte:134
-Rule: "svelte/indent"
-
-=== 142 packages/snackbar/src/kitchen/Kitchen.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/snackbar/src/kitchen/Kitchen.svelte:72
-Rule: "svelte/indent"
-
-=== 132 packages/switch/src/Switch.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/switch/src/Switch.svelte:176
-Rule: "svelte/indent"
-
-=== 133 packages/tab-bar/src/TabBar.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/tab-bar/src/TabBar.svelte:117
-Rule: "svelte/indent"
-
-=== 144 packages/tab-indicator/src/TabIndicator.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/tab-indicator/src/TabIndicator.svelte:92
-Rule: "svelte/indent"
-
-=== 143 packages/tab-scroller/src/TabScroller.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/tab-scroller/src/TabScroller.svelte:146
-Rule: "svelte/indent"
-
-=== 126 packages/tab/src/Tab.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/tab/src/Tab.svelte:183
-Rule: "svelte/indent"
-
 === 809 packages/textfield/src/HelperLine.svelte	lint.txt
 6:3 6:39 svelte/sort-attributes "Attribute 'bind:this' should go before '_smuiClass'."
 7:17 7:17 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
@@ -6357,11 +6272,6 @@ Rule: "svelte/indent"
 72:5 72:14 no-useless-assignment "The value assigned to 'resizable' is not used in subsequent statements."
 76:16 76:35 no-undef "'HTMLTextAreaElement' is not defined."
 77:7 77:57 svelte/prefer-const "'internalAttrs' is never reassigned. Use 'const' instead."
-
-=== 138 packages/textfield/src/Textfield.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting packages/textfield/src/Textfield.svelte:462
-Rule: "svelte/indent"
 
 === 1031 packages/textfield/src/character-counter/CharacterCounter.svelte	lint.txt
 6:3 9:6 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."

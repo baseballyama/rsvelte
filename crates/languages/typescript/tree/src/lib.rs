@@ -15,10 +15,11 @@ use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
 
+mod acorn_grammar;
 mod builder;
 pub use builder::{Builder, Recorded};
 mod syntax_error;
-pub use syntax_error::{Acorn, SyntaxError, syntax_error};
+pub use syntax_error::{Acorn, Locator, SyntaxError, analysis_error, syntax_error};
 
 pub mod scratch;
 pub use scratch::with_scratch_arena;
@@ -75,6 +76,7 @@ struct Trees<'a> {
     type_parameters: Vec<TSTypeParameterDeclaration<'a>>,
     /// The comments of every part but the programs, which keep their own, in document order.
     comments: Vec<Comment>,
+    acorn_rejection: Option<(u32, acorn_grammar::Rejection)>,
 }
 
 /// The trees parsed from one document, and the arena that holds them.
@@ -195,6 +197,15 @@ impl Tree {
     #[must_use]
     pub fn source_text(&self) -> &str {
         self.0.borrow_dependent().source_text
+    }
+
+    /// acorn's error at the first syntax oxc parsed and acorn does not, when the builder noted it.
+    #[must_use]
+    pub fn acorn_rejection(&self) -> Option<SyntaxError> {
+        self.0
+            .borrow_dependent()
+            .acorn_rejection
+            .map(acorn_grammar::rejection)
     }
 
     #[must_use]

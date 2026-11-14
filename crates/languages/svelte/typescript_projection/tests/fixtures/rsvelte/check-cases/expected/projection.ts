@@ -1,7 +1,8 @@
 ;
 
 	let n: number = 'x';
-	let { label }: { label: string } = $props();
+	type $$ComponentProps = { label: string };
+let { label }: $$ComponentProps = $props();
 	let count = $state(0);
 	let maybe: string | undefined = $state();
 
@@ -13,26 +14,26 @@ async () => {
       "type": "button",
       "onclick": () => count.toUpperCase(),
     });
-    (label.foo);
+    label.foo;
   }
   if (maybe) {
     {
       svelteHTML.createElement("p", {});
-      (maybe.length);
+      maybe.length;
     }
   } else {
     {
       svelteHTML.createElement("p", {});
-      (maybe.length);
+      maybe.length;
     }
   }
   {
     svelteHTML.createElement("p", {
       "title": `a${count.bar}b`,
     });
-    (label.baz);
+    label.baz;
   }
 };
-const CheckCases__SvelteComponent_ = __rsvelte_export_component<{ label: string }, {}, "">();
+const CheckCases__SvelteComponent_ = __rsvelte_export_component<$$ComponentProps, {}, "">();
 type CheckCases__SvelteComponent_ = ReturnType<typeof CheckCases__SvelteComponent_>;
 export default CheckCases__SvelteComponent_;

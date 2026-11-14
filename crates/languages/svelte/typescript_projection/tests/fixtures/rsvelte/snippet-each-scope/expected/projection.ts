@@ -11,7 +11,7 @@ async () => {
         async () => {
           {
             svelteHTML.createElement("p", {});
-            (x);
+            x;
           }
         };
         return __rsvelte_snippet_return;
@@ -23,11 +23,11 @@ async () => {
     for (let [, y] of __rsvelte_each([2])) {
       {
         svelteHTML.createElement("p", {});
-        (y);
+        y;
       }
     }
   }
-  (s);
+  s;
 };
 const SnippetEachScope__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
 type SnippetEachScope__SvelteComponent_ = ReturnType<typeof SnippetEachScope__SvelteComponent_>;

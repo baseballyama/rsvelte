@@ -51,6 +51,8 @@ pub struct CompileWarnings {
     pub errors: Vec<(Raised, Diagnostic)>,
     /// The `await`s that are `experimental_async` errors unless that option is on.
     pub awaits: Vec<Span>,
+    /// Whether the compiler is in runes mode, given or inferred.
+    pub runes: bool,
 }
 
 /// When the compiler raises an error: it creates every scope before it walks any tree, and it
@@ -106,6 +108,17 @@ impl CompileWarnings {
         component: &Component,
         experimental_async: bool,
     ) -> Option<Diagnostic> {
+        self.first_error_with(component, experimental_async, &[])
+    }
+
+    /// [`Self::first_error`] among these and the `others` that the compiler raises besides.
+    #[must_use]
+    pub fn first_error_with(
+        &self,
+        component: &Component,
+        experimental_async: bool,
+        others: &[(Raised, Diagnostic)],
+    ) -> Option<Diagnostic> {
         let awaits = self
             .awaits
             .iter()
@@ -121,6 +134,7 @@ impl CompileWarnings {
         let (_, first) = self
             .errors
             .iter()
+            .chain(others)
             .map(|(raised, error)| (*raised, Ok(error)))
             .chain(awaits)
             .min_by_key(|(raised, _)| *raised)?;
@@ -306,6 +320,7 @@ pub fn warnings(
     };
     deprecated_tag(component, source, &mut out.errors);
     let runes = runes(component, resolution, source, &out.awaits, options.runes);
+    out.runes = runes;
     out.errors.extend(dollar_name_errors(
         &component.javascript,
         component.instance.as_ref().map(|s| s.program),

@@ -12,24 +12,24 @@
 async () => {
   {
     for (let [i, item] of __rsvelte_each(items)) {
-      (item);
+      item;
       {
         svelteHTML.createElement("button", {
           "onclick": () => (picked = item),
         });
-        (item);
+        item;
       }
       {
         svelteHTML.createElement("button", {
           "onclick": () => remove(item),
         });
-        (i);
+        i;
       }
     }
   }
   {
     svelteHTML.createElement("p", {});
-    (picked);
+    picked;
   }
 };
 const EachHandlers__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

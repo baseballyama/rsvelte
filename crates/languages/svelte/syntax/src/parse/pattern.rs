@@ -4,7 +4,8 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_tree::PatternIdentifier;
 
 use super::identifier::match_bracket;
-use super::{ParseResult, Parser, javascript_error};
+use super::javascript::javascript_failure;
+use super::{ParseResult, Parser};
 
 impl<'a> Parser<'a, '_> {
     pub(super) fn pattern(&mut self) -> ParseResult<PatternIdentifier> {
@@ -47,7 +48,7 @@ impl<'a> Parser<'a, '_> {
         let pattern = self
             .builder
             .read_pattern(span, source_type)
-            .map_err(javascript_error)?;
+            .map_err(javascript_failure)?;
         self.javascript_region(span.start_offset, span.end_offset);
         Ok(pattern)
     }

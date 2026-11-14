@@ -4,21 +4,21 @@ let x = $state(1); let y = 2; let o = $state({a: 1});
 
 async () => {
   {
-    (x);
-    (y);
+    x;
+    y;
   }
   {
   }
   if (x) {
     {
-      (o);
+      o;
     }
   }
   {
     svelteHTML.createElement("button", {
       "onclick": () => x++,
     });
-    (x);
+    x;
   }
 };
 const DebugTags__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();

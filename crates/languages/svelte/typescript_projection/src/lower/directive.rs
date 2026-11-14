@@ -4,7 +4,7 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range};
 
-use super::{Builder, Node, NodeIdentifier, Result, SourceExpression, Unsupported};
+use super::{Builder, Node, NodeIdentifier, Result, SourceExpression, refuse};
 
 /// What an element's directives add around its `createElement` call.
 #[derive(Default)]
@@ -40,7 +40,7 @@ impl Directives {
 impl Builder<'_> {
     /// `"on:name": handler` on an element, or `undefined` for a forwarded event.
     pub(super) fn event_property(&mut self, attribute: &Attribute) -> Result<NodeIdentifier> {
-        let unsupported = || Unsupported::at("directives", attribute.span);
+        let unsupported = || refuse("directives", attribute.span);
         let name = attribute
             .directive_name(&self.component.modifiers)
             .ok_or_else(unsupported)?;
@@ -66,7 +66,7 @@ impl Builder<'_> {
 
     /// The arguments of svelte2tsx's `$on("name", handler)` for `on:` on a component.
     pub(super) fn component_event(&mut self, attribute: &Attribute) -> Result<Range> {
-        let unsupported = || Unsupported::at("directives", attribute.span);
+        let unsupported = || refuse("directives", attribute.span);
         let name = attribute
             .directive_name(&self.component.modifiers)
             .ok_or_else(unsupported)?;
@@ -92,7 +92,7 @@ impl Builder<'_> {
 
     /// `name` or `name: pattern` for `let:name={pattern}` on a component.
     pub(super) fn component_let(&mut self, attribute: &Attribute) -> Result<NodeIdentifier> {
-        let unsupported = || Unsupported::at("directives", attribute.span);
+        let unsupported = || refuse("directives", attribute.span);
         let name = attribute
             .directive_name(&self.component.modifiers)
             .ok_or_else(unsupported)?;
@@ -152,16 +152,16 @@ impl Builder<'_> {
             .iter()
             .find(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "slot");
         let Some(parent) = self.slot_parent else {
-            return slot.map_or(Ok(()), |slot| Err(Unsupported::at("directives", slot.span)));
+            return slot.map_or(Ok(()), |slot| Err(refuse("directives", slot.span)));
         };
         let name = match slot {
             None => None,
             Some(slot) => match slot.value {
                 AttributeValue::Parts(parts) => match self.component.parts(parts) {
                     &[Part::Text(text)] => Some(text),
-                    _ => return Err(Unsupported::at("directives", slot.span)),
+                    _ => return Err(refuse("directives", slot.span)),
                 },
-                AttributeValue::True => return Err(Unsupported::at("directives", slot.span)),
+                AttributeValue::True => return Err(refuse("directives", slot.span)),
             },
         };
         let properties = self.tree.list(&directives.slot_lets);
@@ -213,7 +213,7 @@ impl Builder<'_> {
         tag: Span,
         directives: &mut Directives,
     ) -> Result<()> {
-        let unsupported = || Unsupported::at("directives", attribute.span);
+        let unsupported = || refuse("directives", attribute.span);
         let name = attribute
             .directive_name(&self.component.modifiers)
             .ok_or_else(unsupported)?;

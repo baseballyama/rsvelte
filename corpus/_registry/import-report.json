@@ -230,8 +230,8 @@
 		"not-runes-compatible:legacy_export_invalid": 1
 	},
 	"rsvelte": {
-		"admitted": 2931,
-		"claimed": 2970,
+		"admitted": 2932,
+		"claimed": 2971,
 		"duplicate": 39,
 		"rejected:module-rejected:derived_invalid_export": 1,
 		"rejected:module-rejected:dollar_prefix_invalid": 1,

@@ -40,6 +40,7 @@ pub fn register(registry: &mut Registry) {
 pub fn register_artifacts(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
     rsvelte_svelte_semantic::register(registry);
+    rsvelte_svelte_compile::register_validation(registry);
     rsvelte_typescript_semantic::register(registry);
     registry
         .artifact::<ModuleSemantic>()

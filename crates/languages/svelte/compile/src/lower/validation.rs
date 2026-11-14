@@ -1,7 +1,7 @@
 use oxc_semantic::ReferenceId;
 use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
-use rsvelte_typescript_compile::features::{Feature, first_runtime_feature};
+use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature};
 
 mod declarations;
 pub(super) mod markup;
@@ -57,42 +57,33 @@ pub(super) fn check_analysis(
         };
         (raised, error)
     };
-    let template = [
-        super::special::analysis(input).map_err(|e| (e.span.start_offset, e)),
-        markup::check(input),
-    ];
-    errors.extend(
-        template
-            .into_iter()
-            .filter_map(Result::err)
-            .map(|(at, error)| {
-                let raised = Raised {
-                    phase: Phase::Walk,
-                    section: Section::Template,
-                    at,
-                };
-                (raised, error)
-            }),
-    );
-    // Only a template error needs the scripts' first and the rune walk's in the template, which
-    // the later rune checks raise anyway: upstream meets them all in one walk.
+    errors.extend(template_error(input).map(|(at, error)| {
+        let raised = Raised {
+            phase: Phase::Walk,
+            section: Section::Template,
+            at,
+        };
+        (raised, error)
+    }));
+    // The rune walk's template error, which upstream meets in the same walk as the template's.
     if errors
         .iter()
         .any(|(raised, _)| raised.section == Section::Template)
+        && let Err(error) = check_runes(input, res, Target::Client, custom_element)
+        && error.code != "unsupported"
     {
-        if let Some((module, error)) = script_error(input, res, custom_element) {
-            let section = if module {
-                Section::Module
-            } else {
-                Section::Instance
-            };
-            errors.push(walk(section, error));
-        }
-        if let Err(error) = check_runes(input, res, Target::Client, custom_element)
-            && error.code != "unsupported"
-        {
-            errors.push(walk(Section::Template, error));
-        }
+        errors.push(walk(Section::Template, error));
+    }
+    // A walk error waits for the scripts' first, which the later rune checks raise anyway.
+    if errors.iter().any(|(raised, _)| raised.phase == Phase::Walk)
+        && let Some((module, error)) = script_error(input, res, custom_element)
+    {
+        let section = if module {
+            Section::Module
+        } else {
+            Section::Instance
+        };
+        errors.push(walk(section, error));
     }
     errors.sort_by_key(|&(raised, _)| raised);
     let mut errors = errors.into_iter().peekable();
@@ -100,25 +91,55 @@ pub(super) fn check_analysis(
         return Err(error);
     }
     names.check(input, res)?;
-    check_legacy_props(res)?;
+    check_legacy_props(input, res)?;
     errors.next().map_or(Ok(()), |(_, error)| Err(error))
 }
 
+/// The first error upstream's walk over the template raises, which it raises in either mode,
+/// with where the walk raises it.
+pub(super) fn template_error(input: &CompileInput<'_>) -> Option<(u32, Diagnostic)> {
+    [
+        super::special::analysis(input).map_err(|e| (e.span.start_offset, e)),
+        markup::check(input),
+    ]
+    .into_iter()
+    .filter_map(Result::err)
+    .min_by_key(|&(at, _)| at)
+}
+
 /// Upstream `legacy_props_invalid` and `legacy_rest_props_invalid` at a name no script declares.
-fn check_legacy_props(res: &Resolution) -> Result<(), Diagnostic> {
-    let first = first_unresolved(res, |name| matches!(name, "$$props" | "$$restProps"));
-    let Some((name, span)) = first else {
-        return Ok(());
+fn check_legacy_props(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
+    // Upstream reads `$$props` first, and meets the scripts' references before the template's.
+    let javascript = input.component.javascript;
+    let scripted = |offset: u32| {
+        [input.component.module, input.component.instance]
+            .into_iter()
+            .flatten()
+            .any(|p| {
+                let span = javascript.get_program(p).span;
+                span.start <= offset && offset < span.end
+            })
     };
-    let (code, message) = if name == "$$props" {
-        ("legacy_props_invalid", "Cannot use `$$props` in runes mode")
-    } else {
+    for (name, code, message) in [
         (
+            "$$props",
+            "legacy_props_invalid",
+            "Cannot use `$$props` in runes mode",
+        ),
+        (
+            "$$restProps",
             "legacy_rest_props_invalid",
             "Cannot use `$$restProps` in runes mode",
-        )
-    };
-    super::special::invalid(code, message, span)
+        ),
+    ] {
+        let first = unbound(res, |n| n == name)
+            .flat_map(|(_, references)| references.into_iter().map(|r| res.reference_span(r)))
+            .min_by_key(|span| (!scripted(span.start), span.start));
+        if let Some(span) = first {
+            return super::special::invalid(code, message, Span::new(span.start, span.end));
+        }
+    }
+    Ok(())
 }
 
 /// The first value reference, in document order, to a name no binding declares that `wanted`
@@ -188,7 +209,7 @@ pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnosti
         .collect();
     // The parser met the scripts in document order.
     programs.sort_by_key(|p| p.span.start);
-    match programs.into_iter().find_map(first_runtime_feature) {
+    match programs.into_iter().find_map(first_svelte_runtime_feature) {
         Some((feature, span)) => Err(typescript_invalid_feature(
             feature,
             Span::new(span.start, span.end),

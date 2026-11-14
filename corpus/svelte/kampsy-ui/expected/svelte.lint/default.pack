@@ -1633,6 +1633,9 @@
 64:1 64:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 65:1 65:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 64 src/lib/choicebox/group.svelte.ts	lint.txt
+18:14 18:43 no-unused-vars "'value' is defined but never used."
+
 === 14602 src/lib/choicebox/item.svelte	lint.txt
 1:1 93:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2045,6 +2048,8 @@
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 src/lib/collapse/root.svelte.ts	lint.txt
 
 === 10386 src/lib/collapse/trigger.svelte	lint.txt
 1:1 87:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -5023,6 +5028,8 @@
 63:1 63:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 64:1 64:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 src/lib/menu/root.svelte.ts	lint.txt
+
 === 580 src/lib/modal/action.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5319,6 +5326,8 @@
 74:1 74:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 75:1 75:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 76:1 76:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 src/lib/modal/root.svelte.ts	lint.txt
 
 === 1536 src/lib/modal/subtitle.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -6200,6 +6209,8 @@
 87:1 87:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 88:1 88:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 89:1 89:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 src/lib/select/root.svelte.ts	lint.txt
 
 === 8720 src/lib/select/trigger.svelte	lint.txt
 1:1 81:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -7366,6 +7377,8 @@
 64:1 64:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 65:1 65:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 0 src/lib/switch/root.svelte.ts	lint.txt
+
 === 2833 src/lib/table/body.svelte	lint.txt
 1:1 28:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -8220,6 +8233,8 @@
 120:1 120:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 121:1 121:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 122:1 122:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 0 src/lib/themeSwitcher/themeSwitcher.svelte.ts	lint.txt
 
 === 14304 src/lib/toggle/toggle.svelte	lint.txt
 1:1 97:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

@@ -4,7 +4,7 @@ use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
 
-use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree};
+use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree, TypeParameters};
 
 /// [`emit_named`] for a component without a file, which svelte2tsx names `$$Component`.
 #[must_use]
@@ -89,10 +89,11 @@ impl Printer<'_> {
                 self.program_end();
             }
             Node::Source(expression) => self.source_expression(expression),
+            // svelte2tsx writes the expression bare, so TypeScript reads a leading word such as
+            // `accessor` or `function` as the start of a statement.
             Node::Expression(value) => {
-                self.output.push("(");
                 self.source_expression(value);
-                self.output.push(");\n");
+                self.output.push(";\n");
             }
             Node::Statement(expression) => {
                 self.node(expression);
@@ -177,6 +178,7 @@ impl Printer<'_> {
             Node::Boolean => self.output.push("true"),
             Node::String { parts, template } => self.string(parts, template),
             Node::Text(_) => unreachable!("text is printed only inside a string literal"),
+            Node::TypeParameter { .. } => unreachable!("type parameters are printed as a list"),
             node => self.contract_node(node),
         }
     }
@@ -281,19 +283,20 @@ impl Printer<'_> {
                 self.node(value);
                 self.output.push(",\n");
             }
-            Node::Const { name, value } => {
-                self.output.push("const ");
-                self.node(name);
-                self.output.push(" = ");
-                self.node(value);
-                self.output.push(";\n");
-            }
+            Node::Const { name, value } => self.declaration("const ", name, value),
+            Node::TypeAlias { name, value } => self.declaration("type ", name, value),
             Node::Render {
                 type_parameters,
                 body,
             } => {
                 self.output.push("function $$render<");
-                self.output.copy(self.source, type_parameters);
+                match type_parameters {
+                    TypeParameters::Attribute(span) => self.output.copy(self.source, span),
+                    TypeParameters::Declared(_) => {
+                        let parameters = self.type_parameters(type_parameters);
+                        self.output.push(&parameters);
+                    }
+                }
                 self.output.push(">() {\n");
                 self.body(body);
                 self.output.push("}\n");
@@ -325,6 +328,15 @@ impl Printer<'_> {
             }
             _ => unreachable!("ordinary nodes are printed by node"),
         }
+    }
+
+    /// `const name = value;` or `type name = value;`.
+    fn declaration(&mut self, keyword: &str, name: NodeIdentifier, value: NodeIdentifier) {
+        self.output.push(keyword);
+        self.node(name);
+        self.output.push(" = ");
+        self.node(value);
+        self.output.push(";\n");
     }
 
     fn component_name(&mut self) {

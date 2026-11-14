@@ -42,7 +42,11 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 			'language_independent/document_printer/src',
 			['lib', 'construct', 'printer', 'rewrite', 'tests', 'width'],
 		],
-		['typescript/check', 'languages/typescript/check/src', ['check', 'check/run']],
+		[
+			'typescript/check',
+			'languages/typescript/check/src',
+			['check', 'check/run', 'check/findings'],
+		],
 		['svelte/syntax', 'languages/svelte/syntax/src', ['syntax_tree', 'parse', 'computation']],
 		[
 			'svelte/semantic',

@@ -1,13 +1,13 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
     BindingPattern, Declaration, Expression, PropertyKey, Statement, TSNamespaceDeclaration,
-    TSNamespaceDeclarationKind, VariableDeclaration, VariableDeclarationKind,
+    TSNamespaceDeclarationKind, TSType, VariableDeclaration, VariableDeclarationKind,
 };
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
 
 use super::generic::Generics;
-use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, Span, Unsupported, span};
+use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, Span, refuse, span};
 
 pub(super) struct Edit {
     pub(super) span: Span,
@@ -27,6 +27,7 @@ impl Builder<'_> {
     /// The scripts, then the contract's value, and the generics when the template and the contract
     /// belong in a render function.
     pub(super) fn scripts(&mut self) -> Result<(NodeIdentifier, Option<Generics>)> {
+        self.module_generics()?;
         let mut edits = self.module_and_store_edits();
         let mut bindings = Buffer::new(0);
         let mut exports = Buffer::new(0);
@@ -64,18 +65,19 @@ impl Builder<'_> {
                     };
                     if self.is_rune(initializer, "$props") {
                         if props.is_some() {
-                            return Err(Unsupported::at(
+                            return Err(refuse(
                                 "multiple props declarations",
                                 span(declarator.id.span()),
                             ));
                         }
-                        let annotation = declarator
-                            .type_annotation
-                            .as_ref()
-                            .map(|a| span(a.type_annotation.span()));
+                        let annotation = declarator.type_annotation.as_ref().map(|a| {
+                            let reference = matches!(a.type_annotation, TSType::TSTypeReference(_));
+                            (span(a.type_annotation.span()), reference)
+                        });
                         props = Some(self.props(
                             &declarator.id,
                             annotation,
+                            declaration.span.start,
                             &mut bindings,
                             &mut edits,
                         )?);
@@ -176,10 +178,7 @@ impl Builder<'_> {
             }
             Statement::ExportDeclaration(export) => export,
             Statement::ExportDefaultDeclaration(export) => {
-                return Err(Unsupported::at(
-                    "instance default exports",
-                    span(export.span),
-                ));
+                return Err(refuse("instance default exports", span(export.span)));
             }
             // svelte2tsx's `handleExportDeclaration`: `export { a, b as c }` exports `a` and `c`.
             Statement::ExportNamedDeclaration(named) if named.export_kind.is_value() => {
@@ -235,10 +234,7 @@ impl Builder<'_> {
             }
             Declaration::TSEnumDeclaration(_) => None,
             _ => {
-                return Err(Unsupported::at(
-                    "instance export contracts",
-                    span(export.span),
-                ));
+                return Err(refuse("instance export contracts", span(export.span)));
             }
         };
         edits.push(Edit {
@@ -310,13 +306,14 @@ impl Builder<'_> {
     fn props(
         &mut self,
         pattern: &BindingPattern<'_>,
-        annotation: Option<Span>,
+        annotation: Option<(Span, bool)>,
+        statement: u32,
         bindings: &mut Buffer<NodeIdentifier>,
         edits: &mut Buffer<Edit>,
     ) -> Result<NodeIdentifier> {
         let BindingPattern::ObjectPattern(object) = pattern else {
-            if let Some(span) = annotation {
-                return Ok(self.tree.push(Node::SourceCopy { span }));
+            if let Some((span, reference)) = annotation {
+                return Ok(self.props_alias(span, reference, statement, edits));
             }
             // svelte2tsx names an undeclared `$$ComponentProps` here, which TypeScript reads as
             // `any`.
@@ -328,10 +325,7 @@ impl Builder<'_> {
         let siblings = Siblings::new(pattern);
         for property in &object.properties {
             if property.computed {
-                return Err(Unsupported::at(
-                    "computed props contracts",
-                    span(property.span),
-                ));
+                return Err(refuse("computed props contracts", span(property.span)));
             }
             let default = match &property.value {
                 BindingPattern::AssignmentPattern(assignment) => Some(&assignment.right),
@@ -353,8 +347,8 @@ impl Builder<'_> {
                 }
             }
         }
-        if let Some(span) = annotation {
-            return Ok(self.tree.push(Node::SourceCopy { span }));
+        if let Some((span, reference)) = annotation {
+            return Ok(self.props_alias(span, reference, statement, edits));
         }
         let name = self.props_name();
         let required = self.tree.list(&required);
@@ -577,6 +571,7 @@ impl Builder<'_> {
     }
 }
 
+mod props_alias;
 mod siblings;
 mod slot_flags;
 use siblings::Siblings;

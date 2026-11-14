@@ -9,13 +9,13 @@
 ;
 
 async () => {
-  (x);
-  (a);
+  x;
+  a;
   {
     svelteHTML.createElement("button", {
       "onclick": () => x++,
     });
-    (p);
+    p;
   }
 };
 const ExportDeclarations__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {
