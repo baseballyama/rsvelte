@@ -3,11 +3,11 @@
 This crate implements the external content mapper protocol used by native TypeScript 7.1.
 It has no language parser and no type checker.
 
-| API                                | Use                                                                            |
-| ---------------------------------- | ------------------------------------------------------------------------------ |
-| `write_mappings(mappings, output)` | Write copied byte ranges as native verbatim span tuples                        |
-| `serve_precomputed()`              | Serve saved projections without parsing their original inputs again            |
-| `serve_precomputed_or(missing)`    | Serve saved projections, and call `missing` for a file the store does not hold |
+| API                                | Use                                                                             |
+| ---------------------------------- | ------------------------------------------------------------------------------- |
+| `write_mappings(mappings, output)` | Write copied byte ranges as native verbatim span tuples                         |
+| `serve_precomputed()`              | Serve saved projections without parsing their original inputs again             |
+| `serve_precomputed_or(missing)`    | Serve saved projections, and call `missing` for any other file or with no store |
 
 The protocol uses UTF-8 byte positions. Native TypeScript converts positions for its API
 and editor features. Synthesized gaps have no original range, and the mapper writes no point
