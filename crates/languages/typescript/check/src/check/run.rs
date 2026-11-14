@@ -166,9 +166,16 @@ impl Tsc {
         let program = session
             .diagnostics(&project, DiagnosticKind::Program, None)
             .map_err(failed)?;
-        let syntactic = session
-            .diagnostics(&project, DiagnosticKind::Syntactic, Some(&files))
-            .map_err(failed)?;
+        let syntactic = match syntactic(&mut session, &project, &paths).map_err(failed)? {
+            Ok(syntactic) => syntactic,
+            Err(untransformed) => {
+                session.release(project.snapshot).map_err(failed)?;
+                return Err(format!(
+                    "{}: the content mapper could not transform:\n{}",
+                    self.checker, untransformed
+                ));
+            }
+        };
         let semantic = session
             .diagnostics(&project, DiagnosticKind::Semantic, Some(&files))
             .map_err(failed)?;
@@ -250,8 +257,35 @@ fn tsconfig_json(
     w.finish()
 }
 
+/// The syntax errors of `paths`, or else the files the content mapper could not transform, one
+/// per line. It asks for every file's, because the checker reports such a file only there.
+fn syntactic(
+    session: &mut Session,
+    project: &rsvelte_typescript_api::Project,
+    paths: &[PathBuf],
+) -> Result<Result<Vec<rsvelte_typescript_api::Diagnostic>, String>, String> {
+    let checked: std::collections::HashSet<&PathBuf> = paths.iter().collect();
+    let (untransformed, syntactic): (Vec<_>, Vec<_>) = session
+        .diagnostics(project, DiagnosticKind::Syntactic, None)?
+        .into_iter()
+        .filter(|d| {
+            d.code == TRANSFORM_FAILED || d.file_name.as_ref().is_some_and(|f| checked.contains(f))
+        })
+        .partition(|d| d.code == TRANSFORM_FAILED);
+    if untransformed.is_empty() {
+        return Ok(Ok(syntactic));
+    }
+    let files: Vec<String> = untransformed
+        .iter()
+        .filter_map(|d| d.file_name.as_ref().map(|f| f.display().to_string()))
+        .collect();
+    Ok(Err(files.join("\n")))
+}
+
 /// `DiagnosticCategory.Error`.
 const ERROR: u8 = 1;
+/// The content mapper failed to transform a file, such as one its store does not hold.
+const TRANSFORM_FAILED: u32 = 18069;
 
 /// The document and byte range of a diagnostic in one of `paths`, whose texts `lines` index. A
 /// path below `root` in the message drops that root, so the message does not depend on where the
