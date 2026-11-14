@@ -23,8 +23,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 30365351,
-	"alloc_bytes": 4463266525,
+	"allocs": 30373523,
+	"alloc_bytes": 4464044891,
 	"peak_live_growth_bytes": 3489555,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -38,9 +38,9 @@
 			"alloc_bytes": 139020414
 		},
 		"no-unused-vars": {
-			"calls": 34843,
-			"allocs": 124722,
-			"alloc_bytes": 12431282
+			"calls": 34802,
+			"allocs": 124605,
+			"alloc_bytes": 12411302
 		},
 		"svelte.analyze": {
 			"calls": 39943,
@@ -87,15 +87,30 @@
 			"allocs": 3750994,
 			"alloc_bytes": 249479811
 		},
+		"svelte.lint.legacy_reactivity": {
+			"calls": 2,
+			"allocs": 14,
+			"alloc_bytes": 842
+		},
+		"svelte.lint.style_sheet_verdict": {
+			"calls": 14,
+			"allocs": 163,
+			"alloc_bytes": 10984
+		},
 		"svelte.lint.svelte_config": {
-			"calls": 34500,
-			"allocs": 34500,
-			"alloc_bytes": 1656000
+			"calls": 34459,
+			"allocs": 34459,
+			"alloc_bytes": 1654032
+		},
+		"svelte.lint.svelte_kit": {
+			"calls": 4,
+			"allocs": 4,
+			"alloc_bytes": 192
 		},
 		"svelte.lint/default": {
 			"calls": 36865,
-			"allocs": 190531,
-			"alloc_bytes": 21645063
+			"allocs": 197089,
+			"alloc_bytes": 22263094
 		},
 		"svelte.lower.client": {
 			"calls": 36383,
@@ -147,10 +162,150 @@
 			"allocs": 222350,
 			"alloc_bytes": 18456543
 		},
+		"svelte/block-lang": {
+			"calls": 7,
+			"allocs": 85,
+			"alloc_bytes": 9332
+		},
 		"svelte/button-has-type": {
-			"calls": 34843,
-			"allocs": 8019,
-			"alloc_bytes": 2095922
+			"calls": 34802,
+			"allocs": 8026,
+			"alloc_bytes": 2096644
+		},
+		"svelte/comment-directive": {
+			"calls": 4,
+			"allocs": 14,
+			"alloc_bytes": 2116
+		},
+		"svelte/consistent-selector-style": {
+			"calls": 12,
+			"allocs": 139,
+			"alloc_bytes": 16347
+		},
+		"svelte/derived-has-same-inputs-outputs": {
+			"calls": 7,
+			"allocs": 180,
+			"alloc_bytes": 18178
+		},
+		"svelte/first-attribute-linebreak": {
+			"calls": 3,
+			"allocs": 18,
+			"alloc_bytes": 2493
+		},
+		"svelte/html-closing-bracket-new-line": {
+			"calls": 3,
+			"allocs": 26,
+			"alloc_bytes": 2855
+		},
+		"svelte/html-closing-bracket-spacing": {
+			"calls": 5,
+			"allocs": 41,
+			"alloc_bytes": 5632
+		},
+		"svelte/html-quotes": {
+			"calls": 5,
+			"allocs": 47,
+			"alloc_bytes": 4898
+		},
+		"svelte/html-self-closing": {
+			"calls": 7,
+			"allocs": 135,
+			"alloc_bytes": 16450
+		},
+		"svelte/max-attributes-per-line": {
+			"calls": 3,
+			"allocs": 18,
+			"alloc_bytes": 2547
+		},
+		"svelte/max-lines-per-block": {
+			"calls": 15,
+			"allocs": 30,
+			"alloc_bytes": 7327
+		},
+		"svelte/mustache-spacing": {
+			"calls": 6,
+			"allocs": 134,
+			"alloc_bytes": 22923
+		},
+		"svelte/no-inline-styles": {
+			"calls": 3,
+			"allocs": 11,
+			"alloc_bytes": 1871
+		},
+		"svelte/no-inner-declarations": {
+			"calls": 12,
+			"allocs": 88,
+			"alloc_bytes": 7802
+		},
+		"svelte/no-navigation-without-base": {
+			"calls": 4,
+			"allocs": 0,
+			"alloc_bytes": 0
+		},
+		"svelte/no-reactive-reassign": {
+			"calls": 2,
+			"allocs": 5,
+			"alloc_bytes": 800
+		},
+		"svelte/no-target-blank": {
+			"calls": 3,
+			"allocs": 29,
+			"alloc_bytes": 2382
+		},
+		"svelte/no-trailing-spaces": {
+			"calls": 4,
+			"allocs": 17,
+			"alloc_bytes": 2451
+		},
+		"svelte/no-unknown-style-directive-property": {
+			"calls": 6,
+			"allocs": 140,
+			"alloc_bytes": 7482
+		},
+		"svelte/no-unnecessary-state-wrap": {
+			"calls": 5,
+			"allocs": 36,
+			"alloc_bytes": 3957
+		},
+		"svelte/no-unused-class-name": {
+			"calls": 2,
+			"allocs": 18,
+			"alloc_bytes": 1516
+		},
+		"svelte/no-useless-mustaches": {
+			"calls": 3,
+			"allocs": 52,
+			"alloc_bytes": 2947
+		},
+		"svelte/prefer-class-directive": {
+			"calls": 3,
+			"allocs": 72,
+			"alloc_bytes": 4465
+		},
+		"svelte/prefer-const": {
+			"calls": 4,
+			"allocs": 70,
+			"alloc_bytes": 4501
+		},
+		"svelte/shorthand-attribute": {
+			"calls": 2,
+			"allocs": 7,
+			"alloc_bytes": 1415
+		},
+		"svelte/shorthand-directive": {
+			"calls": 4,
+			"allocs": 47,
+			"alloc_bytes": 5221
+		},
+		"svelte/sort-attributes": {
+			"calls": 4,
+			"allocs": 101,
+			"alloc_bytes": 7877
+		},
+		"svelte/spaced-html-comment": {
+			"calls": 4,
+			"allocs": 24,
+			"alloc_bytes": 3758
 		},
 		"ts.compile/default": {
 			"calls": 2682,
