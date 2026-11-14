@@ -1,0 +1,4 @@
+- message: "'generics=\"T\"' should be on a new line."
+  line: 1
+  column: 19
+  suggestions: null
