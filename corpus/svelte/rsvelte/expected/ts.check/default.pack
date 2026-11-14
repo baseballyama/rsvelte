@@ -11332,6 +11332,38 @@
 === 3 pattern/issues/title-memo-definedness.svelte	json
 []
 
+=== 179 pattern/issues/ts-bodiless-constructor-alone.svelte	json
+[
+	{
+		"code": 2390,
+		"message": "Constructor implementation is missing.",
+		"start": {
+			"line": 2,
+			"character": 2
+		},
+		"end": {
+			"line": 2,
+			"character": 13
+		}
+	}
+]
+
+=== 220 pattern/issues/ts-bodiless-method-alone.svelte	json
+[
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 2,
+			"character": 2
+		},
+		"end": {
+			"line": 2,
+			"character": 3
+		}
+	}
+]
+
 === 210 pattern/issues/type-import-value-redeclaration.svelte	json
 [
 	{

@@ -28867,6 +28867,24 @@ Rule: "no-unused-vars"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 528 pattern/issues/ts-bodiless-constructor-alone.svelte	lint.txt
+1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:8 2:9 no-unused-vars "'K' is defined but never used."
+3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+3:15 3:24 no-unused-vars "'a' is defined but never used."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 527 pattern/issues/ts-bodiless-method-alone.svelte	lint.txt
+1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:8 2:9 no-unused-vars "'K' is defined but never used."
+3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+3:5 3:14 no-unused-vars "'a' is defined but never used."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
 === 469 pattern/issues/type-import-value-redeclaration.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

@@ -99050,6 +99050,26 @@ export default function Title_memo_definedness($$anchor) {
 		);
 	});
 }
+=== 53 pattern/issues/ts-bodiless-constructor-alone.svelte	error.txt
+Cannot read properties of undefined (reading 'body')
+
+=== 288 pattern/issues/ts-bodiless-method-alone.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<b></b>`);
+
+export default function Ts_bodiless_method_alone($$anchor) {
+	class K {
+		m(a);
+	}
+
+	const v = 1;
+	var b = root();
+
+	b.textContent = '1';
+	$.append($$anchor, b);
+}
 === 249 pattern/issues/type-import-value-redeclaration.svelte	error.json
 {
 	"code": "js_parse_error",

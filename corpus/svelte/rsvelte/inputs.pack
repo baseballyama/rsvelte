@@ -47300,6 +47300,26 @@ export function unbraced(cond) {
 	<title>{format(value)} — {format('suffix')}</title>
 </svelte:head>
 
+=== 95 pattern/issues/ts-bodiless-constructor-alone.svelte	svelte	runes	rejected
+<script lang="ts">
+	class K {
+		constructor(a: number);
+	}
+	const v = 1;
+</script>
+
+<b>{v}</b>
+
+=== 93 pattern/issues/ts-bodiless-method-alone.svelte	svelte	runes	neutral
+<script lang="ts">
+	class K {
+		m(a: number): number;
+	}
+	const v = 1;
+</script>
+
+<b>{v}</b>
+
 === 116 pattern/issues/type-import-value-redeclaration.svelte	svelte	runes	rejected
 <script lang="ts">
 	import type { Thing } from './types';

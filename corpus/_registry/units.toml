@@ -3038,3 +3038,9 @@
 
 ["svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte".skip]
 "svelte.compile" = "upstream bug: @sveltejs/acorn-typescript 1.0.13 accepts `(accessor satisfies T)`, which TypeScript reads as the start of an arrow function whose parameter has a modifier and rejects"
+
+["svelte/rsvelte/pattern/issues/ts-bodiless-method-alone.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 erases a bodiless class method's types but keeps the signature, printing `m(a);`, which is not JavaScript"
+
+["svelte/rsvelte/pattern/issues/ts-bodiless-constructor-alone.svelte".skip]
+"svelte.compile" = "upstream bug: svelte 5.57.3 throws \"Cannot read properties of undefined (reading 'body')\" at a class whose constructor is a bodiless signature"
