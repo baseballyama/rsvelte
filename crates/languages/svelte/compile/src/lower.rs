@@ -46,6 +46,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 pub(crate) use rsvelte_svelte_semantic::template::{cannot_be_set_statically, needs_clsx};
+use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section};
 use rsvelte_typescript_tree::{Acorn, SyntaxError};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -275,6 +276,50 @@ pub(crate) fn validate_unit(
         hoistable,
         stores: names.subscriptions(res),
     })
+}
+
+/// The errors of [`validate`] that upstream raises in legacy mode too, with when it raises each:
+/// the scripts' syntax and `<svelte:options>` as it parses, then the first of the template walk.
+/// Apart, a TypeScript feature with a runtime meaning, which it refuses after the analysis.
+pub(crate) fn mode_independent_errors(input: &CompileInput<'_>, res: &Resolution) -> CompileErrors {
+    let parse = |error| {
+        let raised = Raised {
+            phase: Phase::Parse,
+            section: Section::Template,
+            at: 0,
+        };
+        (raised, error)
+    };
+    let mut raised = Vec::new();
+    if let Some(error) = javascript_error(res)
+        && !validation::redeclares_in_template(input, &error.diagnostic)
+    {
+        raised.push(parse(rsvelte_svelte_syntax::parse::javascript_failure(
+            error,
+        )));
+    }
+    raised.extend(special::validate(input).err().map(parse));
+    raised.extend(validation::template_error(input).map(|error| {
+        let raised = Raised {
+            phase: Phase::Walk,
+            section: Section::Template,
+            at: error.span.start_offset,
+        };
+        (raised, error)
+    }));
+    CompileErrors {
+        raised,
+        after_analysis: validation::check_typescript(input).err(),
+    }
+}
+
+/// What [`crate::compile_errors`] finds.
+#[derive(Debug, Default)]
+pub struct CompileErrors {
+    /// The errors upstream raises before or during its analysis, in no order.
+    pub raised: Vec<(Raised, Diagnostic)>,
+    /// The error it raises once the analysis passes.
+    pub after_analysis: Option<Diagnostic>,
 }
 
 pub(crate) struct Prepared<'c, 'o> {

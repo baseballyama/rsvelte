@@ -163,7 +163,12 @@ pub(super) fn apply<'a>(
         .style_error()
         .filter(|_| stripped.is_none())
         .cloned();
-    let first_error = parse_error.or_else(|| compile.first_error(component, experimental_async));
+    let first_error = parse_error.or_else(|| {
+        let others = rsvelte_svelte_compile::compile_errors(file.context, compile.runes);
+        compile
+            .first_error_with(component, experimental_async, &others.raised)
+            .or(others.after_analysis)
+    });
     if let Some(error) = first_error {
         return Applied {
             warnings: Vec::new(),
