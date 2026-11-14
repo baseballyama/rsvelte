@@ -1,6 +1,6 @@
 ;
 
-	let { items = [], count = 2 }: typeof __rsvelte_public_props0 = $props();
+	let { items = [], count = 2 } = $props();
 	let item = $state('outer');
 
 ;
@@ -44,6 +44,5 @@ async () => {
     }
   }
 };
-const EachWithoutAs__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type EachWithoutAs__SvelteComponent_ = ReturnType<typeof EachWithoutAs__SvelteComponent_>;
+const EachWithoutAs__SvelteComponent_ = __rsvelte_export_component();
 export default EachWithoutAs__SvelteComponent_;

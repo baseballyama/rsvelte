@@ -1,6 +1,6 @@
 ;
 
-const s = ({ p = q, q }, r = q, t): ReturnType<import('svelte').Snippet> => {
+const s = ({ p = q, q }, r = q, t) => {
   async () => {
     (p);
     (q);
@@ -10,7 +10,7 @@ const s = ({ p = q, q }, r = q, t): ReturnType<import('svelte').Snippet> => {
   return __rsvelte_snippet_return;
 };
 
-	let { items }: typeof __rsvelte_public_props0 = $props();
+	let { items } = $props();
 
 ;
 
@@ -46,6 +46,5 @@ async () => {
   }
   __rsvelte_ensure_snippet(s(items));
 };
-const ReadsBeforeTransform__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type ReadsBeforeTransform__SvelteComponent_ = ReturnType<typeof ReadsBeforeTransform__SvelteComponent_>;
+const ReadsBeforeTransform__SvelteComponent_ = __rsvelte_export_component();
 export default ReadsBeforeTransform__SvelteComponent_;

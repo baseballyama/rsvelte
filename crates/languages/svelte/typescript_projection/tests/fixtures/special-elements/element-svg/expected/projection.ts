@@ -9,6 +9,5 @@ async () => {
     }
   }
 };
-const ElementSvg__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ElementSvg__SvelteComponent_ = ReturnType<typeof ElementSvg__SvelteComponent_>;
+const ElementSvg__SvelteComponent_ = __rsvelte_export_component();
 export default ElementSvg__SvelteComponent_;

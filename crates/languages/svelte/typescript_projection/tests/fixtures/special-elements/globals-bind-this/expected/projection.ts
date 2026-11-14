@@ -13,6 +13,5 @@ async () => {
     body = svelteHTML.createElement("svelte:body", {});
   }
 };
-const GlobalsBindThis__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type GlobalsBindThis__SvelteComponent_ = ReturnType<typeof GlobalsBindThis__SvelteComponent_>;
+const GlobalsBindThis__SvelteComponent_ = __rsvelte_export_component();
 export default GlobalsBindThis__SvelteComponent_;

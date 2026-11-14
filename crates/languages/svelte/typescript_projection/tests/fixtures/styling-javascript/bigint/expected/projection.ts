@@ -9,6 +9,5 @@ async () => {
     });
   }
 };
-const Bigint__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type Bigint__SvelteComponent_ = ReturnType<typeof Bigint__SvelteComponent_>;
+const Bigint__SvelteComponent_ = __rsvelte_export_component();
 export default Bigint__SvelteComponent_;

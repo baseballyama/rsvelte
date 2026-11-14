@@ -1,5 +1,5 @@
 ;
-let c = $state('a'); let { p }: typeof __rsvelte_public_props0 = $props();
+let c = $state('a'); let { p } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -42,6 +42,5 @@ async () => {
     }
   }
 };
-const ScopedCustomElement__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type ScopedCustomElement__SvelteComponent_ = ReturnType<typeof ScopedCustomElement__SvelteComponent_>;
+const ScopedCustomElement__SvelteComponent_ = __rsvelte_export_component();
 export default ScopedCustomElement__SvelteComponent_;

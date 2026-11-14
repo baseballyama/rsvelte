@@ -1,7 +1,7 @@
 ;
 
 	"use strict";
-	let { a }: typeof __rsvelte_public_props0 = $props();
+	let { a } = $props();
 	let b = $state(0);
 	$effect(() => { b = a; });
 
@@ -16,6 +16,5 @@ async () => {
     (b);
   }
 };
-const ScriptDirectivePrologue__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type ScriptDirectivePrologue__SvelteComponent_ = ReturnType<typeof ScriptDirectivePrologue__SvelteComponent_>;
+const ScriptDirectivePrologue__SvelteComponent_ = __rsvelte_export_component();
 export default ScriptDirectivePrologue__SvelteComponent_;

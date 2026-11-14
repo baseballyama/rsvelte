@@ -7,7 +7,7 @@
 async () => {
   {
     for (let [, x] of __rsvelte_each([1])) {
-      const s = (): ReturnType<import('svelte').Snippet> => {
+      const s = () => {
         async () => {
           {
             svelteHTML.createElement("p", {});
@@ -29,6 +29,5 @@ async () => {
   }
   (s);
 };
-const SnippetEachScope__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type SnippetEachScope__SvelteComponent_ = ReturnType<typeof SnippetEachScope__SvelteComponent_>;
+const SnippetEachScope__SvelteComponent_ = __rsvelte_export_component();
 export default SnippetEachScope__SvelteComponent_;

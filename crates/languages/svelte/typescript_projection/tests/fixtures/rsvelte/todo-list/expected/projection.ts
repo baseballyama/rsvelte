@@ -89,6 +89,5 @@ async () => {
     });
   }
 };
-const TodoList__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type TodoList__SvelteComponent_ = ReturnType<typeof TodoList__SvelteComponent_>;
+const TodoList__SvelteComponent_ = __rsvelte_export_component();
 export default TodoList__SvelteComponent_;

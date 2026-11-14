@@ -1,6 +1,6 @@
 ;
 
-	let { href, label }: typeof __rsvelte_public_props0 = $props();
+	let { href, label } = $props();
 
 ;
 
@@ -18,6 +18,5 @@ async () => {
     (label);
   }
 };
-const Attributes__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type Attributes__SvelteComponent_ = ReturnType<typeof Attributes__SvelteComponent_>;
+const Attributes__SvelteComponent_ = __rsvelte_export_component();
 export default Attributes__SvelteComponent_;

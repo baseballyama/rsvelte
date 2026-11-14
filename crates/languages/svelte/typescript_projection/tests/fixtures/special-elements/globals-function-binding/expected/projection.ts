@@ -9,6 +9,5 @@ async () => {
     });
   }
 };
-const GlobalsFunctionBinding__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type GlobalsFunctionBinding__SvelteComponent_ = ReturnType<typeof GlobalsFunctionBinding__SvelteComponent_>;
+const GlobalsFunctionBinding__SvelteComponent_ = __rsvelte_export_component();
 export default GlobalsFunctionBinding__SvelteComponent_;

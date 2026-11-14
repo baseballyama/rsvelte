@@ -27,6 +27,5 @@ async () => {
     }
   }
 };
-const BindThisConst__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BindThisConst__SvelteComponent_ = ReturnType<typeof BindThisConst__SvelteComponent_>;
+const BindThisConst__SvelteComponent_ = __rsvelte_export_component();
 export default BindThisConst__SvelteComponent_;

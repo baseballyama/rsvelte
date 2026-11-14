@@ -1,6 +1,6 @@
 ;
 
-	let { show, list }: typeof __rsvelte_public_props0 = $props();
+	let { show, list } = $props();
 
 ;
 
@@ -24,6 +24,5 @@ async () => {
     }
   }
 };
-const EachInIf__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type EachInIf__SvelteComponent_ = ReturnType<typeof EachInIf__SvelteComponent_>;
+const EachInIf__SvelteComponent_ = __rsvelte_export_component();
 export default EachInIf__SvelteComponent_;

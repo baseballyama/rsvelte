@@ -1,5 +1,5 @@
 ;
-let { header, footer, items }: typeof __rsvelte_public_props0 = $props();
+let { header, footer, items } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -19,6 +19,5 @@ async () => {
     }
   }
 };
-const RenderDynamic__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type RenderDynamic__SvelteComponent_ = ReturnType<typeof RenderDynamic__SvelteComponent_>;
+const RenderDynamic__SvelteComponent_ = __rsvelte_export_component();
 export default RenderDynamic__SvelteComponent_;

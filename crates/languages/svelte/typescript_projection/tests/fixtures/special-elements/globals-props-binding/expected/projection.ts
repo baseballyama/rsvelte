@@ -1,5 +1,5 @@
 ;
-let { width = $bindable(), x = $bindable() }: typeof __rsvelte_public_props0 = $props();
+let { width = $bindable(), x = $bindable() } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({}, {
@@ -22,6 +22,5 @@ async () => {
     };
   }
 };
-const GlobalsPropsBinding__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "width" | "x">();
-type GlobalsPropsBinding__SvelteComponent_ = ReturnType<typeof GlobalsPropsBinding__SvelteComponent_>;
+const GlobalsPropsBinding__SvelteComponent_ = __rsvelte_export_component();
 export default GlobalsPropsBinding__SvelteComponent_;

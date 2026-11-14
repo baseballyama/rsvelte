@@ -1,6 +1,6 @@
 ;
 
-	let { load, other }: typeof __rsvelte_public_props0 = $props();
+	let { load, other } = $props();
 	let count = $state(0);
 
 ;
@@ -64,6 +64,5 @@ async () => {
     }
   }
 };
-const AwaitBlock__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type AwaitBlock__SvelteComponent_ = ReturnType<typeof AwaitBlock__SvelteComponent_>;
+const AwaitBlock__SvelteComponent_ = __rsvelte_export_component();
 export default AwaitBlock__SvelteComponent_;

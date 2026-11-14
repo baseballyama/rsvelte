@@ -29,6 +29,5 @@ async () => {
     }
   }
 };
-const TemplateElement__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type TemplateElement__SvelteComponent_ = ReturnType<typeof TemplateElement__SvelteComponent_>;
+const TemplateElement__SvelteComponent_ = __rsvelte_export_component();
 export default TemplateElement__SvelteComponent_;

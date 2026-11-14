@@ -1,6 +1,6 @@
 ;
 
-	let { items }: typeof __rsvelte_public_props0 = $props();
+	let { items } = $props();
 	let fallback = $state('n/a');
 
 ;
@@ -26,6 +26,5 @@ async () => {
     }
   }
 };
-const ConstDestructure__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type ConstDestructure__SvelteComponent_ = ReturnType<typeof ConstDestructure__SvelteComponent_>;
+const ConstDestructure__SvelteComponent_ = __rsvelte_export_component();
 export default ConstDestructure__SvelteComponent_;

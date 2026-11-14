@@ -19,6 +19,5 @@ async () => {
     (name);
   }
 };
-const BindValue__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BindValue__SvelteComponent_ = ReturnType<typeof BindValue__SvelteComponent_>;
+const BindValue__SvelteComponent_ = __rsvelte_export_component();
 export default BindValue__SvelteComponent_;

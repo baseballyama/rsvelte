@@ -21,6 +21,5 @@ async () => {
     (count);
   }
 };
-const ModuleImports__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ModuleImports__SvelteComponent_ = ReturnType<typeof ModuleImports__SvelteComponent_>;
+const ModuleImports__SvelteComponent_ = __rsvelte_export_component();
 export default ModuleImports__SvelteComponent_;

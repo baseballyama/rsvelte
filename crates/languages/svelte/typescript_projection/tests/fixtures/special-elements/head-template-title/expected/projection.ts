@@ -1,5 +1,5 @@
 ;
-let { status, error }: typeof __rsvelte_public_props0 = $props();
+let { status, error } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -16,6 +16,5 @@ async () => {
     }
   }
 };
-const HeadTemplateTitle__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type HeadTemplateTitle__SvelteComponent_ = ReturnType<typeof HeadTemplateTitle__SvelteComponent_>;
+const HeadTemplateTitle__SvelteComponent_ = __rsvelte_export_component();
 export default HeadTemplateTitle__SvelteComponent_;

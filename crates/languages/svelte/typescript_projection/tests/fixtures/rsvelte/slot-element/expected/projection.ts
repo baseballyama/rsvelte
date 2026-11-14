@@ -1,6 +1,6 @@
 ;
 
-	let { items, rest }: typeof __rsvelte_public_props0 = $props();
+	let { items, rest } = $props();
 	let count = $state(0);
 
 ;
@@ -43,6 +43,5 @@ async () => {
     });
   }
 };
-const SlotElement__SvelteComponent_ = __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">();
-type SlotElement__SvelteComponent_ = ReturnType<typeof SlotElement__SvelteComponent_>;
+const SlotElement__SvelteComponent_ = __rsvelte_export_component();
 export default SlotElement__SvelteComponent_;

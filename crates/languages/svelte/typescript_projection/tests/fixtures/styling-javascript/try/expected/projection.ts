@@ -9,6 +9,5 @@ async () => {
     });
   }
 };
-const Try__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type Try__SvelteComponent_ = ReturnType<typeof Try__SvelteComponent_>;
+const Try__SvelteComponent_ = __rsvelte_export_component();
 export default Try__SvelteComponent_;

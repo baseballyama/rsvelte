@@ -1,5 +1,5 @@
 ;
-let { pending }: typeof __rsvelte_public_props0 = $props();
+let { pending } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -15,6 +15,5 @@ async () => {
     }
   }
 };
-const BoundaryPendingAttribute__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type BoundaryPendingAttribute__SvelteComponent_ = ReturnType<typeof BoundaryPendingAttribute__SvelteComponent_>;
+const BoundaryPendingAttribute__SvelteComponent_ = __rsvelte_export_component();
 export default BoundaryPendingAttribute__SvelteComponent_;

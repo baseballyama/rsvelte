@@ -20,6 +20,5 @@ async () => {
     (pending);
   }
 };
-const ServerRuneDeclarators__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ServerRuneDeclarators__SvelteComponent_ = ReturnType<typeof ServerRuneDeclarators__SvelteComponent_>;
+const ServerRuneDeclarators__SvelteComponent_ = __rsvelte_export_component();
 export default ServerRuneDeclarators__SvelteComponent_;

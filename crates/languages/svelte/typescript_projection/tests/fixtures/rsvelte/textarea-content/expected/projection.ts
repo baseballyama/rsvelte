@@ -22,6 +22,5 @@ async () => {
     (a);
   }
 };
-const TextareaContent__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type TextareaContent__SvelteComponent_ = ReturnType<typeof TextareaContent__SvelteComponent_>;
+const TextareaContent__SvelteComponent_ = __rsvelte_export_component();
 export default TextareaContent__SvelteComponent_;

@@ -1,6 +1,6 @@
 ;
 
-	let { options = [], ...rest }: typeof __rsvelte_public_props0 = $props();
+	let { options = [], ...rest } = $props();
 	let current = $state('x');
 
 ;
@@ -42,6 +42,5 @@ async () => {
     }
   }
 };
-const SelectSpread__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type SelectSpread__SvelteComponent_ = ReturnType<typeof SelectSpread__SvelteComponent_>;
+const SelectSpread__SvelteComponent_ = __rsvelte_export_component();
 export default SelectSpread__SvelteComponent_;

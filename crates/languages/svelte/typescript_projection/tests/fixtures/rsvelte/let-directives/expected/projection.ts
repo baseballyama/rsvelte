@@ -106,6 +106,5 @@ async () => {
     C;
   }
 };
-const LetDirectives__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type LetDirectives__SvelteComponent_ = ReturnType<typeof LetDirectives__SvelteComponent_>;
+const LetDirectives__SvelteComponent_ = __rsvelte_export_component();
 export default LetDirectives__SvelteComponent_;

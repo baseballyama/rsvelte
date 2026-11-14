@@ -31,6 +31,5 @@ async () => {
     (1 ** Infinity);
   }
 };
-const GlobalFunctionsFold__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type GlobalFunctionsFold__SvelteComponent_ = ReturnType<typeof GlobalFunctionsFold__SvelteComponent_>;
+const GlobalFunctionsFold__SvelteComponent_ = __rsvelte_export_component();
 export default GlobalFunctionsFold__SvelteComponent_;

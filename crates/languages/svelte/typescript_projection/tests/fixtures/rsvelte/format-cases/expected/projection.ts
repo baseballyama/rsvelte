@@ -1,6 +1,6 @@
 ;
 
-let {items,title='List'}: typeof __rsvelte_public_props0=$props()
+let {items,title='List'}=$props()
 let total=$derived(items.length*2+1)
 
 ;
@@ -33,6 +33,5 @@ async () => {
     }
   }
 };
-const FormatCases__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type FormatCases__SvelteComponent_ = ReturnType<typeof FormatCases__SvelteComponent_>;
+const FormatCases__SvelteComponent_ = __rsvelte_export_component();
 export default FormatCases__SvelteComponent_;

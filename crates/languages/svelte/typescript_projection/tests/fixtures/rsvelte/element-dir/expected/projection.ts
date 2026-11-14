@@ -15,6 +15,5 @@ async () => {
     });
   }
 };
-const ElementDir__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ElementDir__SvelteComponent_ = ReturnType<typeof ElementDir__SvelteComponent_>;
+const ElementDir__SvelteComponent_ = __rsvelte_export_component();
 export default ElementDir__SvelteComponent_;

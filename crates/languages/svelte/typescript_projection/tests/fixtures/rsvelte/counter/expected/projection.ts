@@ -12,6 +12,5 @@ async () => {
     (count);
   }
 };
-const Counter__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type Counter__SvelteComponent_ = ReturnType<typeof Counter__SvelteComponent_>;
+const Counter__SvelteComponent_ = __rsvelte_export_component();
 export default Counter__SvelteComponent_;

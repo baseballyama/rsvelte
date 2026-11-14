@@ -1,6 +1,6 @@
 ;
 
-	const state = { a: 1 };;let $state!: __rsvelte_store_value<typeof state>;
+	const state = { a: 1 };;let $state = __rsvelte_store_get(state);
 
 	const x = $state;
 
@@ -12,6 +12,5 @@ async () => {
     (state.a);
   }
 };
-const StoreRuneBare__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type StoreRuneBare__SvelteComponent_ = ReturnType<typeof StoreRuneBare__SvelteComponent_>;
+const StoreRuneBare__SvelteComponent_ = __rsvelte_export_component();
 export default StoreRuneBare__SvelteComponent_;

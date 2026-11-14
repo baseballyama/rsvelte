@@ -1,7 +1,7 @@
 ;
 
 	import { writable } from 'svelte/store';
-	const items = writable([]);;let $items!: __rsvelte_store_value<typeof items>;
+	const items = writable([]);;let $items = __rsvelte_store_get(items);
 
 
 ;
@@ -43,6 +43,5 @@ async () => {
     }
   }
 };
-const EachStoreDestructured__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type EachStoreDestructured__SvelteComponent_ = ReturnType<typeof EachStoreDestructured__SvelteComponent_>;
+const EachStoreDestructured__SvelteComponent_ = __rsvelte_export_component();
 export default EachStoreDestructured__SvelteComponent_;

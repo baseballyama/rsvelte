@@ -12,6 +12,5 @@ async () => {
     });
   }
 };
-const ModuleShadow__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ModuleShadow__SvelteComponent_ = ReturnType<typeof ModuleShadow__SvelteComponent_>;
+const ModuleShadow__SvelteComponent_ = __rsvelte_export_component();
 export default ModuleShadow__SvelteComponent_;

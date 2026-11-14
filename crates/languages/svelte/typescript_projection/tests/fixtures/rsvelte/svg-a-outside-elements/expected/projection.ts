@@ -7,7 +7,7 @@
 async () => {
   {
     svelteHTML.createElement("svg", {});
-    const link = (): ReturnType<import('svelte').Snippet> => {
+    const link = () => {
       async () => {
         {
           svelteHTML.createElement("a", {
@@ -47,6 +47,5 @@ async () => {
     }
   }
 };
-const SvgAOutsideElements__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type SvgAOutsideElements__SvelteComponent_ = ReturnType<typeof SvgAOutsideElements__SvelteComponent_>;
+const SvgAOutsideElements__SvelteComponent_ = __rsvelte_export_component();
 export default SvgAOutsideElements__SvelteComponent_;

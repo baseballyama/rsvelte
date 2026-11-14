@@ -17,6 +17,5 @@ async () => {
     }
   }
 };
-const DebugTagDynamicByIdentifiers__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type DebugTagDynamicByIdentifiers__SvelteComponent_ = ReturnType<typeof DebugTagDynamicByIdentifiers__SvelteComponent_>;
+const DebugTagDynamicByIdentifiers__SvelteComponent_ = __rsvelte_export_component();
 export default DebugTagDynamicByIdentifiers__SvelteComponent_;

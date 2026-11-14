@@ -11,6 +11,5 @@ async () => {
     });
   }
 };
-const OptionsNamespaceExpression__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type OptionsNamespaceExpression__SvelteComponent_ = ReturnType<typeof OptionsNamespaceExpression__SvelteComponent_>;
+const OptionsNamespaceExpression__SvelteComponent_ = __rsvelte_export_component();
 export default OptionsNamespaceExpression__SvelteComponent_;

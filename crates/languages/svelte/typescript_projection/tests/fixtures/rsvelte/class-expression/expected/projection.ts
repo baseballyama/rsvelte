@@ -68,6 +68,5 @@ async () => {
     });
   }
 };
-const ClassExpression__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ClassExpression__SvelteComponent_ = ReturnType<typeof ClassExpression__SvelteComponent_>;
+const ClassExpression__SvelteComponent_ = __rsvelte_export_component();
 export default ClassExpression__SvelteComponent_;

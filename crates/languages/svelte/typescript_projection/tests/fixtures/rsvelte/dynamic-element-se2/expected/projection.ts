@@ -16,6 +16,5 @@ async () => {
     });
   }
 };
-const DynamicElementSe2__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type DynamicElementSe2__SvelteComponent_ = ReturnType<typeof DynamicElementSe2__SvelteComponent_>;
+const DynamicElementSe2__SvelteComponent_ = __rsvelte_export_component();
 export default DynamicElementSe2__SvelteComponent_;

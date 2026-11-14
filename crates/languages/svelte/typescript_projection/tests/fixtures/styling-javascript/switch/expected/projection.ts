@@ -9,6 +9,5 @@ async () => {
     });
   }
 };
-const Switch__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type Switch__SvelteComponent_ = ReturnType<typeof Switch__SvelteComponent_>;
+const Switch__SvelteComponent_ = __rsvelte_export_component();
 export default Switch__SvelteComponent_;

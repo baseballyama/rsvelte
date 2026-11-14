@@ -1,5 +1,5 @@
 ;
-let { ref = $bindable(null) }: typeof __rsvelte_public_props0 = $props();
+let { ref = $bindable(null) } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({}, {
@@ -10,6 +10,5 @@ async () => {
     ref = svelteHTML.createElement("div", {});
   }
 };
-const ElementBindThisProp__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "ref">();
-type ElementBindThisProp__SvelteComponent_ = ReturnType<typeof ElementBindThisProp__SvelteComponent_>;
+const ElementBindThisProp__SvelteComponent_ = __rsvelte_export_component();
 export default ElementBindThisProp__SvelteComponent_;

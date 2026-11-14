@@ -17,6 +17,5 @@ async () => {
     }
   }
 };
-const BoundaryFailedNested__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BoundaryFailedNested__SvelteComponent_ = ReturnType<typeof BoundaryFailedNested__SvelteComponent_>;
+const BoundaryFailedNested__SvelteComponent_ = __rsvelte_export_component();
 export default BoundaryFailedNested__SvelteComponent_;

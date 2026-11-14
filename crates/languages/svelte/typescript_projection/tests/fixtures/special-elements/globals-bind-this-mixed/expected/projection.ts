@@ -13,6 +13,5 @@ async () => {
     (n);
   }
 };
-const GlobalsBindThisMixed__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type GlobalsBindThisMixed__SvelteComponent_ = ReturnType<typeof GlobalsBindThisMixed__SvelteComponent_>;
+const GlobalsBindThisMixed__SvelteComponent_ = __rsvelte_export_component();
 export default GlobalsBindThisMixed__SvelteComponent_;

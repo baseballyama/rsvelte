@@ -17,6 +17,5 @@ async () => {
     });
   }
 };
-const BoundaryReactive__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BoundaryReactive__SvelteComponent_ = ReturnType<typeof BoundaryReactive__SvelteComponent_>;
+const BoundaryReactive__SvelteComponent_ = __rsvelte_export_component();
 export default BoundaryReactive__SvelteComponent_;

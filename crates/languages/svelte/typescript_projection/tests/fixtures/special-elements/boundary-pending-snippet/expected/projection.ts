@@ -16,6 +16,5 @@ async () => {
     }
   }
 };
-const BoundaryPendingSnippet__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BoundaryPendingSnippet__SvelteComponent_ = ReturnType<typeof BoundaryPendingSnippet__SvelteComponent_>;
+const BoundaryPendingSnippet__SvelteComponent_ = __rsvelte_export_component();
 export default BoundaryPendingSnippet__SvelteComponent_;

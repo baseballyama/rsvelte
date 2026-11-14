@@ -9,6 +9,5 @@ async () => {
     });
   }
 };
-const TemplateObject__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type TemplateObject__SvelteComponent_ = ReturnType<typeof TemplateObject__SvelteComponent_>;
+const TemplateObject__SvelteComponent_ = __rsvelte_export_component();
 export default TemplateObject__SvelteComponent_;

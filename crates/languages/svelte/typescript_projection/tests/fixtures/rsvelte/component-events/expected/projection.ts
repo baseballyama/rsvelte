@@ -27,6 +27,5 @@ async () => {
     __rsvelte_instance(__rsvelte_component_0).$on("click", f);
   }
 };
-const ComponentEvents__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ComponentEvents__SvelteComponent_ = ReturnType<typeof ComponentEvents__SvelteComponent_>;
+const ComponentEvents__SvelteComponent_ = __rsvelte_export_component();
 export default ComponentEvents__SvelteComponent_;

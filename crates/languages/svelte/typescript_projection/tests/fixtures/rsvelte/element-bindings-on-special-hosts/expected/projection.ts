@@ -14,7 +14,7 @@ async () => {
     });
     w = __rsvelte_element0.clientWidth;
     item.w = __rsvelte_element0.offsetHeight;
-    w = null as DOMRectReadOnly;
+    w = /** @type {DOMRectReadOnly} */ (null);
     () => {
       // @ts-ignore
       w = __rsvelte_untyped_prop();
@@ -48,6 +48,5 @@ async () => {
     (item.w);
   }
 };
-const ElementBindingsOnSpecialHosts__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ElementBindingsOnSpecialHosts__SvelteComponent_ = ReturnType<typeof ElementBindingsOnSpecialHosts__SvelteComponent_>;
+const ElementBindingsOnSpecialHosts__SvelteComponent_ = __rsvelte_export_component();
 export default ElementBindingsOnSpecialHosts__SvelteComponent_;

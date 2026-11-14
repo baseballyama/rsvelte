@@ -10,6 +10,5 @@ async () => {
     svelteHTML.createElement("p", {});
   }
 };
-const EmojiWidth__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type EmojiWidth__SvelteComponent_ = ReturnType<typeof EmojiWidth__SvelteComponent_>;
+const EmojiWidth__SvelteComponent_ = __rsvelte_export_component();
 export default EmojiWidth__SvelteComponent_;

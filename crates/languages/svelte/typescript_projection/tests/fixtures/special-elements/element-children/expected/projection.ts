@@ -13,6 +13,5 @@ async () => {
     }
   }
 };
-const ElementChildren__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ElementChildren__SvelteComponent_ = ReturnType<typeof ElementChildren__SvelteComponent_>;
+const ElementChildren__SvelteComponent_ = __rsvelte_export_component();
 export default ElementChildren__SvelteComponent_;

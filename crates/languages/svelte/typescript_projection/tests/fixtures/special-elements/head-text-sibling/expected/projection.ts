@@ -10,6 +10,5 @@ async () => {
     }
   }
 };
-const HeadTextSibling__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type HeadTextSibling__SvelteComponent_ = ReturnType<typeof HeadTextSibling__SvelteComponent_>;
+const HeadTextSibling__SvelteComponent_ = __rsvelte_export_component();
 export default HeadTextSibling__SvelteComponent_;

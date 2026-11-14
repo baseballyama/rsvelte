@@ -211,6 +211,8 @@ pub struct SyntaxTree {
     pub(crate) nodes: Vec<Node>,
     pub(crate) children: Vec<NodeIdentifier>,
     pub(crate) root: Range,
+    /// Neither script is TypeScript, so the projection is JavaScript without type syntax.
+    pub(crate) javascript: bool,
 }
 
 impl Default for SyntaxTree {
@@ -219,6 +221,7 @@ impl Default for SyntaxTree {
             nodes: buffer_pool::take_keyed::<Self, _>(),
             children: buffer_pool::take_keyed::<Self, _>(),
             root: Range::default(),
+            javascript: false,
         }
     }
 }

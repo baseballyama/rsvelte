@@ -1,6 +1,6 @@
 ;
 
-	let { p = 1 }: typeof __rsvelte_public_props0 = $props();
+	let { p = 1 } = $props();
 	let a = 1;
 	let s = $state(0);
 	let f = () => 1;
@@ -24,13 +24,5 @@ async () => {
     (p);
   }
 };
-const ExportSpecifiersUnwritten__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {
-  a: typeof a;
-  s: typeof s;
-  p: typeof p;
-  f: typeof f;
-  K: typeof K;
-  class: typeof _class;
-}, "">();
-type ExportSpecifiersUnwritten__SvelteComponent_ = ReturnType<typeof ExportSpecifiersUnwritten__SvelteComponent_>;
+const ExportSpecifiersUnwritten__SvelteComponent_ = __rsvelte_export_component();
 export default ExportSpecifiersUnwritten__SvelteComponent_;

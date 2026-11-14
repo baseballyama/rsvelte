@@ -19,6 +19,5 @@ async () => {
     (result);
   }
 };
-const NestedRunes__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type NestedRunes__SvelteComponent_ = ReturnType<typeof NestedRunes__SvelteComponent_>;
+const NestedRunes__SvelteComponent_ = __rsvelte_export_component();
 export default NestedRunes__SvelteComponent_;

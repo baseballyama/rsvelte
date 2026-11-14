@@ -29,6 +29,5 @@ async () => {
     }
   }
 };
-const InspectEffects__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type InspectEffects__SvelteComponent_ = ReturnType<typeof InspectEffects__SvelteComponent_>;
+const InspectEffects__SvelteComponent_ = __rsvelte_export_component();
 export default InspectEffects__SvelteComponent_;

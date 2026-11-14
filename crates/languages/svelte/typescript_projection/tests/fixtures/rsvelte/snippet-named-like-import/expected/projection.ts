@@ -6,7 +6,7 @@
 
 
 	import a from './a.js';
-const a = (): ReturnType<import('svelte').Snippet> => {
+const a = () => {
   async () => {
     {
       svelteHTML.createElement("p", {});
@@ -14,7 +14,7 @@ const a = (): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const b = (): ReturnType<import('svelte').Snippet> => {
+const b = () => {
   async () => {
     {
       svelteHTML.createElement("p", {});
@@ -22,7 +22,7 @@ const b = (): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const c = (): ReturnType<import('svelte').Snippet> => {
+const c = () => {
   async () => {
     __rsvelte_ensure_snippet(a());
   };
@@ -37,6 +37,5 @@ async () => {
   __rsvelte_ensure_snippet(b());
   __rsvelte_ensure_snippet(c());
 };
-const SnippetNamedLikeImport__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type SnippetNamedLikeImport__SvelteComponent_ = ReturnType<typeof SnippetNamedLikeImport__SvelteComponent_>;
+const SnippetNamedLikeImport__SvelteComponent_ = __rsvelte_export_component();
 export default SnippetNamedLikeImport__SvelteComponent_;

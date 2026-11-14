@@ -9,6 +9,5 @@ async () => {
     svelteHTML.createElement("p", {});
   }
 };
-const OptionsCustomTag__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type OptionsCustomTag__SvelteComponent_ = ReturnType<typeof OptionsCustomTag__SvelteComponent_>;
+const OptionsCustomTag__SvelteComponent_ = __rsvelte_export_component();
 export default OptionsCustomTag__SvelteComponent_;

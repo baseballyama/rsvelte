@@ -36,6 +36,5 @@ async () => {
     (sum);
   }
 };
-const BindNumber__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BindNumber__SvelteComponent_ = ReturnType<typeof BindNumber__SvelteComponent_>;
+const BindNumber__SvelteComponent_ = __rsvelte_export_component();
 export default BindNumber__SvelteComponent_;

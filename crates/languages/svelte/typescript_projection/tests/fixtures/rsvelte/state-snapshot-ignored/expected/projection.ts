@@ -12,6 +12,5 @@ async () => {
     (copy.f);
   }
 };
-const StateSnapshotIgnored__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type StateSnapshotIgnored__SvelteComponent_ = ReturnType<typeof StateSnapshotIgnored__SvelteComponent_>;
+const StateSnapshotIgnored__SvelteComponent_ = __rsvelte_export_component();
 export default StateSnapshotIgnored__SvelteComponent_;

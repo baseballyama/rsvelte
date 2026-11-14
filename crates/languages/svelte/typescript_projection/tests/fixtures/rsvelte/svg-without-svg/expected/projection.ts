@@ -1,6 +1,6 @@
 ;
 
-	let { x = 1, items = [], fill = 'red' }: typeof __rsvelte_public_props0 = $props();
+	let { x = 1, items = [], fill = 'red' } = $props();
 
 ;
 
@@ -54,6 +54,5 @@ async () => {
     });
   }
 };
-const SvgWithoutSvg__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type SvgWithoutSvg__SvelteComponent_ = ReturnType<typeof SvgWithoutSvg__SvelteComponent_>;
+const SvgWithoutSvg__SvelteComponent_ = __rsvelte_export_component();
 export default SvgWithoutSvg__SvelteComponent_;

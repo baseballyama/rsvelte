@@ -1,7 +1,7 @@
 ;
 
 	import C from './C.svelte';
-	let { show = true, w = 1 }: typeof __rsvelte_public_props0 = $props();
+	let { show = true, w = 1 } = $props();
 	let items = $state([1]);
 
 ;
@@ -45,6 +45,5 @@ async () => {
     }
   }
 };
-const CssPropsStandalone__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type CssPropsStandalone__SvelteComponent_ = ReturnType<typeof CssPropsStandalone__SvelteComponent_>;
+const CssPropsStandalone__SvelteComponent_ = __rsvelte_export_component();
 export default CssPropsStandalone__SvelteComponent_;

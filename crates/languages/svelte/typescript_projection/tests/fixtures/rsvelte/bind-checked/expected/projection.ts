@@ -24,6 +24,5 @@ async () => {
     }
   }
 };
-const BindChecked__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BindChecked__SvelteComponent_ = ReturnType<typeof BindChecked__SvelteComponent_>;
+const BindChecked__SvelteComponent_ = __rsvelte_export_component();
 export default BindChecked__SvelteComponent_;

@@ -63,6 +63,5 @@ async () => {
     });
   }
 };
-const SelectValue__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type SelectValue__SvelteComponent_ = ReturnType<typeof SelectValue__SvelteComponent_>;
+const SelectValue__SvelteComponent_ = __rsvelte_export_component();
 export default SelectValue__SvelteComponent_;

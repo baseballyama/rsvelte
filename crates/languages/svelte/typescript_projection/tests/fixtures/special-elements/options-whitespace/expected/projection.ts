@@ -9,6 +9,5 @@ async () => {
     svelteHTML.createElement("div", {});
   }
 };
-const OptionsWhitespace__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type OptionsWhitespace__SvelteComponent_ = ReturnType<typeof OptionsWhitespace__SvelteComponent_>;
+const OptionsWhitespace__SvelteComponent_ = __rsvelte_export_component();
 export default OptionsWhitespace__SvelteComponent_;

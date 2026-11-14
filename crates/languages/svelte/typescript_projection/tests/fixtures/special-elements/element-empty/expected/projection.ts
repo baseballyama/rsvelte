@@ -7,6 +7,5 @@ async () => {
     svelteHTML.createElement(tag, {});
   }
 };
-const ElementEmpty__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ElementEmpty__SvelteComponent_ = ReturnType<typeof ElementEmpty__SvelteComponent_>;
+const ElementEmpty__SvelteComponent_ = __rsvelte_export_component();
 export default ElementEmpty__SvelteComponent_;

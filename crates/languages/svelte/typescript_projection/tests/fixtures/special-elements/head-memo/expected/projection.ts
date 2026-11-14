@@ -16,6 +16,5 @@ async () => {
     });
   }
 };
-const HeadMemo__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type HeadMemo__SvelteComponent_ = ReturnType<typeof HeadMemo__SvelteComponent_>;
+const HeadMemo__SvelteComponent_ = __rsvelte_export_component();
 export default HeadMemo__SvelteComponent_;

@@ -16,6 +16,5 @@ async () => {
     });
   }
 };
-const GlobalOnModifiers__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type GlobalOnModifiers__SvelteComponent_ = ReturnType<typeof GlobalOnModifiers__SvelteComponent_>;
+const GlobalOnModifiers__SvelteComponent_ = __rsvelte_export_component();
 export default GlobalOnModifiers__SvelteComponent_;

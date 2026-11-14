@@ -9,6 +9,5 @@ async () => {
     });
   }
 };
-const RegexState__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type RegexState__SvelteComponent_ = ReturnType<typeof RegexState__SvelteComponent_>;
+const RegexState__SvelteComponent_ = __rsvelte_export_component();
 export default RegexState__SvelteComponent_;

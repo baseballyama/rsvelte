@@ -21,6 +21,5 @@ async () => {
     (x);
   }
 };
-const DebugTags__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type DebugTags__SvelteComponent_ = ReturnType<typeof DebugTags__SvelteComponent_>;
+const DebugTags__SvelteComponent_ = __rsvelte_export_component();
 export default DebugTags__SvelteComponent_;

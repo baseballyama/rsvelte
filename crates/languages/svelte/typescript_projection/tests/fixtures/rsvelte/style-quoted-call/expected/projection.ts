@@ -1,6 +1,6 @@
 ;
 
-	let { f, x, items }: typeof __rsvelte_public_props0 = $props();
+	let { f, x, items } = $props();
 	let n = $state(1);
 
 ;
@@ -41,6 +41,5 @@ async () => {
     }
   }
 };
-const StyleQuotedCall__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type StyleQuotedCall__SvelteComponent_ = ReturnType<typeof StyleQuotedCall__SvelteComponent_>;
+const StyleQuotedCall__SvelteComponent_ = __rsvelte_export_component();
 export default StyleQuotedCall__SvelteComponent_;

@@ -1,5 +1,5 @@
 ;
-let {}: typeof __rsvelte_public_props0=$props();let host=$host()
+let {}=$props();let host=$host()
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({}, {}, false);
@@ -14,6 +14,5 @@ async () => {
     (host);
   }
 };
-const OptionsCustomHost__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type OptionsCustomHost__SvelteComponent_ = ReturnType<typeof OptionsCustomHost__SvelteComponent_>;
+const OptionsCustomHost__SvelteComponent_ = __rsvelte_export_component();
 export default OptionsCustomHost__SvelteComponent_;

@@ -10,6 +10,5 @@ async () => {
     ($state.snapshot(items).length);
   }
 };
-const StateSnapshotInTemplate__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type StateSnapshotInTemplate__SvelteComponent_ = ReturnType<typeof StateSnapshotInTemplate__SvelteComponent_>;
+const StateSnapshotInTemplate__SvelteComponent_ = __rsvelte_export_component();
 export default StateSnapshotInTemplate__SvelteComponent_;

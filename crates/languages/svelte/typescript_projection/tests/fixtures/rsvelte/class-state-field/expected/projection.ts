@@ -16,6 +16,5 @@ async () => {
     (counter.count);
   }
 };
-const ClassStateField__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ClassStateField__SvelteComponent_ = ReturnType<typeof ClassStateField__SvelteComponent_>;
+const ClassStateField__SvelteComponent_ = __rsvelte_export_component();
 export default ClassStateField__SvelteComponent_;

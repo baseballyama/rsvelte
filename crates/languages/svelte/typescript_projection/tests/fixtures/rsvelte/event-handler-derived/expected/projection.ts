@@ -22,6 +22,5 @@ async () => {
     });
   }
 };
-const EventHandlerDerived__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type EventHandlerDerived__SvelteComponent_ = ReturnType<typeof EventHandlerDerived__SvelteComponent_>;
+const EventHandlerDerived__SvelteComponent_ = __rsvelte_export_component();
 export default EventHandlerDerived__SvelteComponent_;

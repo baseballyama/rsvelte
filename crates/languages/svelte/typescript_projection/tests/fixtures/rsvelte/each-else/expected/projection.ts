@@ -1,6 +1,6 @@
 ;
 
-	let { results }: typeof __rsvelte_public_props0 = $props();
+	let { results } = $props();
 
 ;
 
@@ -22,6 +22,5 @@ async () => {
     }
   }
 };
-const EachElse__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type EachElse__SvelteComponent_ = ReturnType<typeof EachElse__SvelteComponent_>;
+const EachElse__SvelteComponent_ = __rsvelte_export_component();
 export default EachElse__SvelteComponent_;

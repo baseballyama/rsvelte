@@ -32,6 +32,5 @@ async () => {
     (foo);
   }
 };
-const VarStateReads__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type VarStateReads__SvelteComponent_ = ReturnType<typeof VarStateReads__SvelteComponent_>;
+const VarStateReads__SvelteComponent_ = __rsvelte_export_component();
 export default VarStateReads__SvelteComponent_;

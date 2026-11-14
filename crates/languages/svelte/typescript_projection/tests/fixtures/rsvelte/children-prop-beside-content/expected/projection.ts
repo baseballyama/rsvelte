@@ -33,6 +33,5 @@ async () => {
     A;
   }
 };
-const ChildrenPropBesideContent__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ChildrenPropBesideContent__SvelteComponent_ = ReturnType<typeof ChildrenPropBesideContent__SvelteComponent_>;
+const ChildrenPropBesideContent__SvelteComponent_ = __rsvelte_export_component();
 export default ChildrenPropBesideContent__SvelteComponent_;

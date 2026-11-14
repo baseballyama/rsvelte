@@ -1,6 +1,6 @@
 ;
 
-	let { ok }: typeof __rsvelte_public_props0 = $props();
+	let { ok } = $props();
 
 ;
 
@@ -18,6 +18,5 @@ async () => {
     }
   }
 };
-const IfBlock__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type IfBlock__SvelteComponent_ = ReturnType<typeof IfBlock__SvelteComponent_>;
+const IfBlock__SvelteComponent_ = __rsvelte_export_component();
 export default IfBlock__SvelteComponent_;

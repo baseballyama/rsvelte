@@ -1,5 +1,5 @@
 ;
-let { tag, active }: typeof __rsvelte_public_props0 = $props();
+let { tag, active } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -12,6 +12,5 @@ async () => {
     (active);
   }
 };
-const ElementClassOnly__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type ElementClassOnly__SvelteComponent_ = ReturnType<typeof ElementClassOnly__SvelteComponent_>;
+const ElementClassOnly__SvelteComponent_ = __rsvelte_export_component();
 export default ElementClassOnly__SvelteComponent_;

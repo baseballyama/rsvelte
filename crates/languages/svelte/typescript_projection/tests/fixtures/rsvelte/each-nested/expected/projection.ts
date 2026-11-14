@@ -29,6 +29,5 @@ async () => {
     }
   }
 };
-const EachNested__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type EachNested__SvelteComponent_ = ReturnType<typeof EachNested__SvelteComponent_>;
+const EachNested__SvelteComponent_ = __rsvelte_export_component();
 export default EachNested__SvelteComponent_;

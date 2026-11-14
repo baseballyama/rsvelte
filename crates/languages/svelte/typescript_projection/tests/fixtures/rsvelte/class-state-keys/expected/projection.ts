@@ -28,6 +28,5 @@
 
 ;
 
-const ClassStateKeys__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ClassStateKeys__SvelteComponent_ = ReturnType<typeof ClassStateKeys__SvelteComponent_>;
+const ClassStateKeys__SvelteComponent_ = __rsvelte_export_component();
 export default ClassStateKeys__SvelteComponent_;

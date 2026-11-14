@@ -31,6 +31,5 @@ async () => {
     (flavours.join(', '));
   }
 };
-const SelectMultiple__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type SelectMultiple__SvelteComponent_ = ReturnType<typeof SelectMultiple__SvelteComponent_>;
+const SelectMultiple__SvelteComponent_ = __rsvelte_export_component();
 export default SelectMultiple__SvelteComponent_;

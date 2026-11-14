@@ -1,7 +1,7 @@
 ;
-const $$slots = __rsvelte_slot_flags<"header" | "default">();
+const $$slots = __rsvelte_slot_flags();
 
-	let { title, ...rest }: typeof __rsvelte_public_props0 = $props();
+	let { title, ...rest } = $props();
 	const named = $$slots.header ? 'with' : 'without';
 
 ;
@@ -29,6 +29,5 @@ async () => {
     __rsvelte_slots()("default", {});
   }
 };
-const SlotsObject__SvelteComponent_ = __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">();
-type SlotsObject__SvelteComponent_ = ReturnType<typeof SlotsObject__SvelteComponent_>;
+const SlotsObject__SvelteComponent_ = __rsvelte_export_component();
 export default SlotsObject__SvelteComponent_;

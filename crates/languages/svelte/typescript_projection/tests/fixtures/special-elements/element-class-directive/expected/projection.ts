@@ -1,5 +1,5 @@
 ;
-let { tag, active }: typeof __rsvelte_public_props0 = $props();
+let { tag, active } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -14,6 +14,5 @@ async () => {
     (active);
   }
 };
-const ElementClassDirective__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type ElementClassDirective__SvelteComponent_ = ReturnType<typeof ElementClassDirective__SvelteComponent_>;
+const ElementClassDirective__SvelteComponent_ = __rsvelte_export_component();
 export default ElementClassDirective__SvelteComponent_;

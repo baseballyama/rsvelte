@@ -16,6 +16,5 @@ async () => {
     svelteHTML.createElement("p", {});
   }
 };
-const HeadStatic__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type HeadStatic__SvelteComponent_ = ReturnType<typeof HeadStatic__SvelteComponent_>;
+const HeadStatic__SvelteComponent_ = __rsvelte_export_component();
 export default HeadStatic__SvelteComponent_;

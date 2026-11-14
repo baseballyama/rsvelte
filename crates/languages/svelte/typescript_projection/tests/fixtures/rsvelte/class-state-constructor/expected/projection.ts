@@ -30,6 +30,5 @@ async () => {
     (c.p);
   }
 };
-const ClassStateConstructor__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type ClassStateConstructor__SvelteComponent_ = ReturnType<typeof ClassStateConstructor__SvelteComponent_>;
+const ClassStateConstructor__SvelteComponent_ = __rsvelte_export_component();
 export default ClassStateConstructor__SvelteComponent_;

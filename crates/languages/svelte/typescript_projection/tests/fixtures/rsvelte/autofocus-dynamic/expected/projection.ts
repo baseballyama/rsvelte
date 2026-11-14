@@ -1,6 +1,6 @@
 ;
 
-	let { focus = false, a = true }: typeof __rsvelte_public_props0 = $props();
+	let { focus = false, a = true } = $props();
 	let s = $state(true);
 
 ;
@@ -46,6 +46,5 @@ async () => {
     });
   }
 };
-const AutofocusDynamic__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type AutofocusDynamic__SvelteComponent_ = ReturnType<typeof AutofocusDynamic__SvelteComponent_>;
+const AutofocusDynamic__SvelteComponent_ = __rsvelte_export_component();
 export default AutofocusDynamic__SvelteComponent_;

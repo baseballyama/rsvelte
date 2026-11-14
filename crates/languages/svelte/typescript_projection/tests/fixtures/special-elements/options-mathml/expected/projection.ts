@@ -12,6 +12,5 @@ async () => {
     svelteHTML.createElement("mi", {});
   }
 };
-const OptionsMathml__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type OptionsMathml__SvelteComponent_ = ReturnType<typeof OptionsMathml__SvelteComponent_>;
+const OptionsMathml__SvelteComponent_ = __rsvelte_export_component();
 export default OptionsMathml__SvelteComponent_;

@@ -13,7 +13,7 @@ async () => {
   }
   {
     svelteHTML.createElement("div", {});
-    const s = (): ReturnType<import('svelte').Snippet> => {
+    const s = () => {
       async () => {
       };
       return __rsvelte_snippet_return;
@@ -25,6 +25,5 @@ async () => {
     }
   }
 };
-const SnippetElementMemo__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type SnippetElementMemo__SvelteComponent_ = ReturnType<typeof SnippetElementMemo__SvelteComponent_>;
+const SnippetElementMemo__SvelteComponent_ = __rsvelte_export_component();
 export default SnippetElementMemo__SvelteComponent_;

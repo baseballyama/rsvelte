@@ -14,6 +14,5 @@ async () => {
     (count);
   }
 };
-const DerivedUpdate__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type DerivedUpdate__SvelteComponent_ = ReturnType<typeof DerivedUpdate__SvelteComponent_>;
+const DerivedUpdate__SvelteComponent_ = __rsvelte_export_component();
 export default DerivedUpdate__SvelteComponent_;

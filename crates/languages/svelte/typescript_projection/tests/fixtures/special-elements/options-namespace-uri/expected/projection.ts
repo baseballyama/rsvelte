@@ -11,6 +11,5 @@ async () => {
     });
   }
 };
-const OptionsNamespaceUri__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type OptionsNamespaceUri__SvelteComponent_ = ReturnType<typeof OptionsNamespaceUri__SvelteComponent_>;
+const OptionsNamespaceUri__SvelteComponent_ = __rsvelte_export_component();
 export default OptionsNamespaceUri__SvelteComponent_;

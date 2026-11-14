@@ -15,6 +15,5 @@ async () => {
     });
   }
 };
-const CustomElementIsSpread__SvelteComponent_ = __rsvelte_export_component<any, {}, "">();
-type CustomElementIsSpread__SvelteComponent_ = ReturnType<typeof CustomElementIsSpread__SvelteComponent_>;
+const CustomElementIsSpread__SvelteComponent_ = __rsvelte_export_component();
 export default CustomElementIsSpread__SvelteComponent_;

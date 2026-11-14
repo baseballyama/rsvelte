@@ -42,6 +42,5 @@ async () => {
     });
   }
 };
-const Attach__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type Attach__SvelteComponent_ = ReturnType<typeof Attach__SvelteComponent_>;
+const Attach__SvelteComponent_ = __rsvelte_export_component();
 export default Attach__SvelteComponent_;

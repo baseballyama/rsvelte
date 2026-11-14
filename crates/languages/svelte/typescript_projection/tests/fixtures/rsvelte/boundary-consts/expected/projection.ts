@@ -56,6 +56,5 @@ async () => {
     }
   }
 };
-const BoundaryConsts__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BoundaryConsts__SvelteComponent_ = ReturnType<typeof BoundaryConsts__SvelteComponent_>;
+const BoundaryConsts__SvelteComponent_ = __rsvelte_export_component();
 export default BoundaryConsts__SvelteComponent_;

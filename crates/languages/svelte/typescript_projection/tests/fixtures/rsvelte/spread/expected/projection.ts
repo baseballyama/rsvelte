@@ -1,6 +1,6 @@
 ;
 
-	let { children, ...rest }: typeof __rsvelte_public_props0 = $props();
+	let { children, ...rest } = $props();
 
 ;
 
@@ -32,6 +32,5 @@ async () => {
     });
   }
 };
-const Spread__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type Spread__SvelteComponent_ = ReturnType<typeof Spread__SvelteComponent_>;
+const Spread__SvelteComponent_ = __rsvelte_export_component();
 export default Spread__SvelteComponent_;

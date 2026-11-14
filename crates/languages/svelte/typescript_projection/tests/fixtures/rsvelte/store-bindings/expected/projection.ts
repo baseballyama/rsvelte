@@ -2,9 +2,9 @@
 
 	import { writable } from 'svelte/store';
 	import Child from './Child.svelte';
-	const count = writable(0);;let $count!: __rsvelte_store_value<typeof count>;
+	const count = writable(0);;let $count = __rsvelte_store_get(count);
 
-	const obj = writable({ a: 1, list: [{ v: 1 }] });;let $obj!: __rsvelte_store_value<typeof obj>;
+	const obj = writable({ a: 1, list: [{ v: 1 }] });;let $obj = __rsvelte_store_get(obj);
 
 
 ;
@@ -61,6 +61,5 @@ async () => {
     });
   }
 };
-const StoreBindings__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type StoreBindings__SvelteComponent_ = ReturnType<typeof StoreBindings__SvelteComponent_>;
+const StoreBindings__SvelteComponent_ = __rsvelte_export_component();
 export default StoreBindings__SvelteComponent_;

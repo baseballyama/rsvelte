@@ -18,6 +18,5 @@ async () => {
     }
   }
 };
-const BoundaryFailedArrayFixed__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BoundaryFailedArrayFixed__SvelteComponent_ = ReturnType<typeof BoundaryFailedArrayFixed__SvelteComponent_>;
+const BoundaryFailedArrayFixed__SvelteComponent_ = __rsvelte_export_component();
 export default BoundaryFailedArrayFixed__SvelteComponent_;

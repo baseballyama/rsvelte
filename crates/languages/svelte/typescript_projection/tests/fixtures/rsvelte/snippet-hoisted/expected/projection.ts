@@ -3,7 +3,7 @@ const greeting = "hi";
 ;
 
 import Icon from "./Icon.svelte";
-const plain = (): ReturnType<import('svelte').Snippet> => {
+const plain = () => {
   async () => {
     {
       __rsvelte_component(Icon)(__rsvelte_internals(), {});
@@ -12,7 +12,7 @@ const plain = (): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const uses_prop = (): ReturnType<import('svelte').Snippet> => {
+const uses_prop = () => {
   async () => {
     {
       svelteHTML.createElement("b", {});
@@ -21,13 +21,13 @@ const uses_prop = (): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const calls_plain = (): ReturnType<import('svelte').Snippet> => {
+const calls_plain = () => {
   async () => {
     __rsvelte_ensure_snippet(plain());
   };
   return __rsvelte_snippet_return;
 };
- let { name }: typeof __rsvelte_public_props0 = $props();
+ let { name } = $props();
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({
@@ -41,6 +41,5 @@ async () => {
   }
   __rsvelte_ensure_snippet(calls_plain());
 };
-const SnippetHoisted__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type SnippetHoisted__SvelteComponent_ = ReturnType<typeof SnippetHoisted__SvelteComponent_>;
+const SnippetHoisted__SvelteComponent_ = __rsvelte_export_component();
 export default SnippetHoisted__SvelteComponent_;

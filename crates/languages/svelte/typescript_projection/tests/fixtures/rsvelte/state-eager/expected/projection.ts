@@ -26,6 +26,5 @@ async () => {
     ($state.eager(n));
   }
 };
-const StateEager__SvelteComponent_ = __rsvelte_export_component<any, {}, "">();
-type StateEager__SvelteComponent_ = ReturnType<typeof StateEager__SvelteComponent_>;
+const StateEager__SvelteComponent_ = __rsvelte_export_component();
 export default StateEager__SvelteComponent_;

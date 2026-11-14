@@ -51,6 +51,5 @@ async () => {
     (ratio);
   }
 };
-const GlobalsBindings__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type GlobalsBindings__SvelteComponent_ = ReturnType<typeof GlobalsBindings__SvelteComponent_>;
+const GlobalsBindings__SvelteComponent_ = __rsvelte_export_component();
 export default GlobalsBindings__SvelteComponent_;

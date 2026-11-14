@@ -23,6 +23,5 @@ async () => {
     svelteHTML.createElement("p", {});
   }
 };
-const GlobalsEvents__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type GlobalsEvents__SvelteComponent_ = ReturnType<typeof GlobalsEvents__SvelteComponent_>;
+const GlobalsEvents__SvelteComponent_ = __rsvelte_export_component();
 export default GlobalsEvents__SvelteComponent_;

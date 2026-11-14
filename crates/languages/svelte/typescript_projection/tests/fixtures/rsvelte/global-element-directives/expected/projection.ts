@@ -15,6 +15,5 @@ async () => {
     (b);
   }
 };
-const GlobalElementDirectives__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type GlobalElementDirectives__SvelteComponent_ = ReturnType<typeof GlobalElementDirectives__SvelteComponent_>;
+const GlobalElementDirectives__SvelteComponent_ = __rsvelte_export_component();
 export default GlobalElementDirectives__SvelteComponent_;

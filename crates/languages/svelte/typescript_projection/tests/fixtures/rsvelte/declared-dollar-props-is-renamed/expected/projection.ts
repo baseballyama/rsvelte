@@ -17,6 +17,5 @@ async () => {
     (f(1));
   }
 };
-const DeclaredDollarPropsIsRenamed__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type DeclaredDollarPropsIsRenamed__SvelteComponent_ = ReturnType<typeof DeclaredDollarPropsIsRenamed__SvelteComponent_>;
+const DeclaredDollarPropsIsRenamed__SvelteComponent_ = __rsvelte_export_component();
 export default DeclaredDollarPropsIsRenamed__SvelteComponent_;

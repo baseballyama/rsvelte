@@ -24,6 +24,5 @@ async () => {
     }
   }
 };
-const IfInEach__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type IfInEach__SvelteComponent_ = ReturnType<typeof IfInEach__SvelteComponent_>;
+const IfInEach__SvelteComponent_ = __rsvelte_export_component();
 export default IfInEach__SvelteComponent_;

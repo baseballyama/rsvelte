@@ -82,6 +82,5 @@ async () => {
     };
   }
 };
-const BindGroup__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BindGroup__SvelteComponent_ = ReturnType<typeof BindGroup__SvelteComponent_>;
+const BindGroup__SvelteComponent_ = __rsvelte_export_component();
 export default BindGroup__SvelteComponent_;

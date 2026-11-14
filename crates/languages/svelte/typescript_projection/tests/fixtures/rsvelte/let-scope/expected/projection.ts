@@ -43,6 +43,5 @@ async () => {
     });
   }
 };
-const LetScope__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type LetScope__SvelteComponent_ = ReturnType<typeof LetScope__SvelteComponent_>;
+const LetScope__SvelteComponent_ = __rsvelte_export_component();
 export default LetScope__SvelteComponent_;

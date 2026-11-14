@@ -40,6 +40,5 @@ async () => {
     }
   }
 };
-const RichSelect2__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type RichSelect2__SvelteComponent_ = ReturnType<typeof RichSelect2__SvelteComponent_>;
+const RichSelect2__SvelteComponent_ = __rsvelte_export_component();
 export default RichSelect2__SvelteComponent_;

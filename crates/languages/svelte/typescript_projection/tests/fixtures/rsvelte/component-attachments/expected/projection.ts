@@ -2,7 +2,7 @@
 
 	import C from './C.svelte';
 	let x = $state(1);
-	let { D }: typeof __rsvelte_public_props0 = $props();
+	let { D } = $props();
 	const a = (n) => {};
 
 ;
@@ -56,6 +56,5 @@ async () => {
     });
   }
 };
-const ComponentAttachments__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type ComponentAttachments__SvelteComponent_ = ReturnType<typeof ComponentAttachments__SvelteComponent_>;
+const ComponentAttachments__SvelteComponent_ = __rsvelte_export_component();
 export default ComponentAttachments__SvelteComponent_;

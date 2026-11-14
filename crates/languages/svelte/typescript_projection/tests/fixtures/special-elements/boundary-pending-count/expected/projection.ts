@@ -8,6 +8,5 @@ async () => {
     }
   }
 };
-const BoundaryPendingCount__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BoundaryPendingCount__SvelteComponent_ = ReturnType<typeof BoundaryPendingCount__SvelteComponent_>;
+const BoundaryPendingCount__SvelteComponent_ = __rsvelte_export_component();
 export default BoundaryPendingCount__SvelteComponent_;

@@ -14,6 +14,5 @@ async () => {
     svelteHTML.createElement("circle", {});
   }
 };
-const OptionsSvg__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type OptionsSvg__SvelteComponent_ = ReturnType<typeof OptionsSvg__SvelteComponent_>;
+const OptionsSvg__SvelteComponent_ = __rsvelte_export_component();
 export default OptionsSvg__SvelteComponent_;

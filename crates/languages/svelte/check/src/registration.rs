@@ -128,14 +128,11 @@ fn typescript_view(
             });
         }
     };
-    // svelte-check reads the component as TypeScript when either script is.
-    if ![&component.instance, &component.module]
+    // svelte-check reads the component as TypeScript when either script is, else as JavaScript.
+    let typescript = [&component.instance, &component.module]
         .into_iter()
         .flatten()
-        .any(|script| script.typescript)
-    {
-        return Ok(TypeScriptDocument::Unchecked);
-    }
+        .any(|script| script.typescript);
     let projection = match context.get::<Printed>() {
         Ok(projection) => projection,
         Err(thrown) if thrown.code == THROWN => {
@@ -144,6 +141,8 @@ fn typescript_view(
                 span: thrown.span,
             });
         }
+        // A JavaScript component the projection does not cover stays unchecked.
+        Err(_) if !typescript => return Ok(TypeScriptDocument::Unchecked),
         Err(diagnostic) => return Err(diagnostic.clone()),
     };
     let env = env_of(env)?;
@@ -156,7 +155,7 @@ fn typescript_view(
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
         placement: placement::instance(component),
-        extension: ".ts",
+        extension: if typescript { ".ts" } else { ".js" },
     })
 }
 

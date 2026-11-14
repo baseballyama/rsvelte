@@ -38,8 +38,5 @@ async () => {
   }
   (a);
 };
-const BindingTargetsAFunctionOrAGlobal__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {
-  a: typeof a;
-}, "">();
-type BindingTargetsAFunctionOrAGlobal__SvelteComponent_ = ReturnType<typeof BindingTargetsAFunctionOrAGlobal__SvelteComponent_>;
+const BindingTargetsAFunctionOrAGlobal__SvelteComponent_ = __rsvelte_export_component();
 export default BindingTargetsAFunctionOrAGlobal__SvelteComponent_;

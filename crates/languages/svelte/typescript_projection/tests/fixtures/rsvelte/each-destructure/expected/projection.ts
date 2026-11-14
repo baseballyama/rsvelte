@@ -1,6 +1,6 @@
 ;
 
-	let { items, pairs, fixed }: typeof __rsvelte_public_props0 = $props();
+	let { items, pairs, fixed } = $props();
 	let fallback = $state('none');
 	const plain = [{ name: 'a', tags: ['x'] }];
 
@@ -52,6 +52,5 @@ async () => {
     }
   }
 };
-const EachDestructure__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type EachDestructure__SvelteComponent_ = ReturnType<typeof EachDestructure__SvelteComponent_>;
+const EachDestructure__SvelteComponent_ = __rsvelte_export_component();
 export default EachDestructure__SvelteComponent_;

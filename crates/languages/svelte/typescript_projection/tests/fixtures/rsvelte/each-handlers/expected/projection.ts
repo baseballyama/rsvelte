@@ -32,6 +32,5 @@ async () => {
     (picked);
   }
 };
-const EachHandlers__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type EachHandlers__SvelteComponent_ = ReturnType<typeof EachHandlers__SvelteComponent_>;
+const EachHandlers__SvelteComponent_ = __rsvelte_export_component();
 export default EachHandlers__SvelteComponent_;

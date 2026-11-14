@@ -23,6 +23,5 @@ async () => {
     });
   }
 };
-const SlotElementConst__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type SlotElementConst__SvelteComponent_ = ReturnType<typeof SlotElementConst__SvelteComponent_>;
+const SlotElementConst__SvelteComponent_ = __rsvelte_export_component();
 export default SlotElementConst__SvelteComponent_;

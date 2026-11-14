@@ -238,19 +238,7 @@ impl Printer<'_> {
                 self.output.copy(self.source, span);
                 self.output.mark(span.end_offset);
             }
-            Node::StoreSubscription(store) => {
-                let name = store.text(self.source);
-                // A type query reads no value, so this declaration can raise no finding of its own.
-                for part in [
-                    ";let $",
-                    name,
-                    "!: __rsvelte_store_value<typeof ",
-                    name,
-                    ">;\n",
-                ] {
-                    self.output.push(part);
-                }
-            }
+            Node::StoreSubscription(store) => self.store_subscription(store),
             Node::GeneratedIdentifier { prefix, index } => {
                 self.node(prefix);
                 write!(self.output.out, "{index}").expect("writing to a String cannot fail");
@@ -259,6 +247,9 @@ impl Printer<'_> {
                 self.output.push("typeof ");
                 self.node(value);
             }
+            Node::TypeArguments { callee, .. } if self.tree.javascript => self.node(callee),
+            // JavaScript has no type syntax, so nothing of a type is printed.
+            Node::TypeAnnotation(_) | Node::TypeAlias { .. } if self.tree.javascript => {}
             Node::TypeArguments { callee, arguments } => {
                 self.node(callee);
                 self.output.push("<");
@@ -300,23 +291,42 @@ impl Printer<'_> {
                 names,
                 declared,
             } => self.generic_export(type_parameters, names, declared),
-            Node::ExportDefault(value) => {
-                // svelte2tsx's runes component: a type of the same name lets an import name the
-                // instance's type.
-                self.output.push("const ");
-                self.component_name();
-                self.output.push(" = ");
-                self.node(value);
-                self.output.push(";\ntype ");
-                self.component_name();
-                self.output.push(" = ReturnType<typeof ");
-                self.component_name();
-                self.output.push(">;\nexport default ");
-                self.component_name();
-                self.output.push(";\n");
-            }
+            Node::ExportDefault(value) => self.export_default(value),
             _ => unreachable!("ordinary nodes are printed by node"),
         }
+    }
+
+    /// The store subscription `$name`, declared with the store's value type.
+    fn store_subscription(&mut self, store: Span) {
+        let name = store.text(self.source);
+        // A type query reads no value, so this declaration can raise no finding of its own.
+        let (open, close) = if self.tree.javascript {
+            (" = __rsvelte_store_get(", ")")
+        } else {
+            ("!: __rsvelte_store_value<typeof ", ">")
+        };
+        for part in [";let $", name, open, name, close, ";\n"] {
+            self.output.push(part);
+        }
+    }
+
+    /// svelte2tsx's runes component: a type of the same name lets an import name the instance's
+    /// type, which JavaScript cannot declare.
+    fn export_default(&mut self, value: NodeIdentifier) {
+        self.output.push("const ");
+        self.component_name();
+        self.output.push(" = ");
+        self.node(value);
+        if !self.tree.javascript {
+            self.output.push(";\ntype ");
+            self.component_name();
+            self.output.push(" = ReturnType<typeof ");
+            self.component_name();
+            self.output.push(">");
+        }
+        self.output.push(";\nexport default ");
+        self.component_name();
+        self.output.push(";\n");
     }
 
     /// svelte2tsx's `function $$render<type parameters>() { body }`.
@@ -442,8 +452,10 @@ impl Printer<'_> {
             Some(parameters) => self.node(parameters),
             None => self.output.push("()"),
         }
-        self.output
-            .push(": ReturnType<import('svelte').Snippet> => {\n");
+        if !self.tree.javascript {
+            self.output.push(": ReturnType<import('svelte').Snippet>");
+        }
+        self.output.push(" => {\n");
         self.indent += 1;
         self.indentation();
         self.output.push("async () => {\n");

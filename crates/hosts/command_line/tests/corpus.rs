@@ -106,6 +106,7 @@ impl Task for CountCoverage {
             Ok(projection) => {
                 let allocator = Allocator::default();
                 let result = Parser::new(&allocator, &projection.out, SourceType::ts()).parse();
+                let type_syntax = javascript_rejects(component, projection, &result);
                 let source = context.source_text();
                 let generics = component
                     .instance
@@ -143,7 +144,7 @@ impl Task for CountCoverage {
                                 })
                         });
                     !unchecked && !in_generics
-                });
+                }) || type_syntax;
                 if added {
                     self.0
                         .invalid
@@ -171,6 +172,42 @@ impl Task for CountCoverage {
             Err(_) => count(&self.0.unsupported),
         };
     }
+}
+
+/// Whether JavaScript's grammar rejects a component without a TypeScript script beyond
+/// TypeScript's: only what a script's own text holds, such as its second default export, may.
+fn javascript_rejects(
+    component: &rsvelte_svelte_syntax::syntax_tree::Component,
+    projection: &rsvelte_kernel::output::emitter::Emitter,
+    as_typescript: &oxc_parser::ParserReturn<'_>,
+) -> bool {
+    let scripts = || {
+        [&component.instance, &component.module]
+            .into_iter()
+            .flatten()
+    };
+    if scripts().any(|script| script.typescript) {
+        return false;
+    }
+    let allocator = Allocator::default();
+    let as_javascript = Parser::new(&allocator, &projection.out, SourceType::mjs()).parse();
+    let in_script = |offset: u32| {
+        projection
+            .lookup_overlap(Span::new(offset, offset))
+            .is_some_and(|at| {
+                scripts().any(|script| {
+                    (script.content.start_offset..script.content.end_offset)
+                        .contains(&at.start_offset)
+                })
+            })
+    };
+    as_javascript.diagnostics.iter().any(|d| {
+        !as_typescript
+            .diagnostics
+            .iter()
+            .any(|t| t.message == d.message && t.labels == d.labels)
+            && !d.labels.iter().any(|label| in_script(label.offset()))
+    })
 }
 
 /// Why the token table is not the source byte for byte, or a trivia token holds what its kind
