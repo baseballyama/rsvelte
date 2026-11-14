@@ -1,6 +1,6 @@
 ;
 
-	let { v }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { v } = $props();
 
 ;
 
@@ -12,7 +12,7 @@ async () => {
     const h = v;
     {
       svelteHTML.createElement("div", {});
-      const s = (): ReturnType<import('svelte').Snippet> => {
+      const s = () => {
         async () => {
           (h);
         };
@@ -27,7 +27,7 @@ async () => {
       svelteHTML.createElement("section", {});
       {
         svelteHTML.createElement("p", {});
-        const t = (): ReturnType<import('svelte').Snippet> => {
+        const t = () => {
           async () => {
             (k);
           };
@@ -38,6 +38,5 @@ async () => {
     }
   }
 };
-const ConstRepeatedInASnippetBlock__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type ConstRepeatedInASnippetBlock__SvelteComponent_ = ReturnType<typeof ConstRepeatedInASnippetBlock__SvelteComponent_>;
-export default ConstRepeatedInASnippetBlock__SvelteComponent_;
+const ConstRepeatedInASnippetBlock__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof ConstRepeatedInASnippetBlock__SvelteComponent_>} */ (ConstRepeatedInASnippetBlock__SvelteComponent_);

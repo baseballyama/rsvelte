@@ -24,6 +24,5 @@ async () => {
     (f());
   }
 };
-const Effect__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type Effect__SvelteComponent_ = ReturnType<typeof Effect__SvelteComponent_>;
-export default Effect__SvelteComponent_;
+const Effect__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof Effect__SvelteComponent_>} */ (Effect__SvelteComponent_);

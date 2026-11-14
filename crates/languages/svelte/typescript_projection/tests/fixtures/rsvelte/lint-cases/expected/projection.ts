@@ -1,7 +1,7 @@
 ;
 
 	let unused = 1;
-	let { label }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { label } = $props();
 
 ;
 
@@ -14,6 +14,5 @@ async () => {
     (label);
   }
 };
-const LintCases__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
-type LintCases__SvelteComponent_ = ReturnType<typeof LintCases__SvelteComponent_>;
-export default LintCases__SvelteComponent_;
+const LintCases__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof LintCases__SvelteComponent_>} */ (LintCases__SvelteComponent_);

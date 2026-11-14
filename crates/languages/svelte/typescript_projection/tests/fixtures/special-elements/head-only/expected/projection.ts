@@ -7,6 +7,5 @@ async () => {
     }
   }
 };
-const HeadOnly__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type HeadOnly__SvelteComponent_ = ReturnType<typeof HeadOnly__SvelteComponent_>;
-export default HeadOnly__SvelteComponent_;
+const HeadOnly__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof HeadOnly__SvelteComponent_>} */ (HeadOnly__SvelteComponent_);

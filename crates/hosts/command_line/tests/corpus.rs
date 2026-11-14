@@ -108,6 +108,7 @@ impl Task for CountCoverage {
                 // The projection exports its component, so it is a module.
                 let source_type = SourceType::ts().with_module(true);
                 let result = Parser::new(&allocator, &projection.out, source_type).parse();
+                let type_syntax = javascript_rejects(component, projection, &result);
                 let source = context.source_text();
                 let generics = component
                     .instance
@@ -153,7 +154,7 @@ impl Task for CountCoverage {
                             &own,
                             &projection.mappings,
                         )
-                });
+                }) || type_syntax;
                 if added {
                     self.0
                         .invalid
@@ -181,6 +182,42 @@ impl Task for CountCoverage {
             Err(_) => count(&self.0.unsupported),
         };
     }
+}
+
+/// Whether JavaScript's grammar rejects a component without a TypeScript script beyond
+/// TypeScript's: only what a script's own text holds, such as its second default export, may.
+fn javascript_rejects(
+    component: &rsvelte_svelte_syntax::syntax_tree::Component,
+    projection: &rsvelte_kernel::output::emitter::Emitter,
+    as_typescript: &oxc_parser::ParserReturn<'_>,
+) -> bool {
+    let scripts = || {
+        [&component.instance, &component.module]
+            .into_iter()
+            .flatten()
+    };
+    if scripts().any(|script| script.typescript) {
+        return false;
+    }
+    let allocator = Allocator::default();
+    let as_javascript = Parser::new(&allocator, &projection.out, SourceType::mjs()).parse();
+    let in_script = |offset: u32| {
+        projection
+            .lookup_overlap(Span::new(offset, offset))
+            .is_some_and(|at| {
+                scripts().any(|script| {
+                    (script.content.start_offset..script.content.end_offset)
+                        .contains(&at.start_offset)
+                })
+            })
+    };
+    as_javascript.diagnostics.iter().any(|d| {
+        !as_typescript
+            .diagnostics
+            .iter()
+            .any(|t| t.message == d.message && t.labels == d.labels)
+            && !d.labels.iter().any(|label| in_script(label.offset()))
+    })
 }
 
 /// The tsc code and source offset of each error oxc reports in the component's scripts, read as

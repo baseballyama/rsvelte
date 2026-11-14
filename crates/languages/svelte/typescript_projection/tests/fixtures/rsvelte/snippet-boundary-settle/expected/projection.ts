@@ -1,7 +1,7 @@
 ;
 
 	import Input from './Input.svelte';
-const row = (): ReturnType<import('svelte').Snippet> => {
+const row = () => {
   async () => {
     {
       svelteHTML.createElement("p", {});
@@ -48,6 +48,5 @@ async () => {
     __rsvelte_ensure_snippet(row());
   }
 };
-const SnippetBoundarySettle__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type SnippetBoundarySettle__SvelteComponent_ = ReturnType<typeof SnippetBoundarySettle__SvelteComponent_>;
-export default SnippetBoundarySettle__SvelteComponent_;
+const SnippetBoundarySettle__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SnippetBoundarySettle__SvelteComponent_>} */ (SnippetBoundarySettle__SvelteComponent_);

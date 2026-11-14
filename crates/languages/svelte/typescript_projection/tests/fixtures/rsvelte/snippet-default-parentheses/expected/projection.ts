@@ -1,6 +1,6 @@
 ;
 
-const bare = (p = obj.a): ReturnType<import('svelte').Snippet> => {
+const bare = (p = obj.a) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -9,7 +9,7 @@ const bare = (p = obj.a): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const lit = (p = 1): ReturnType<import('svelte').Snippet> => {
+const lit = (p = 1) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -18,7 +18,7 @@ const lit = (p = 1): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const unary = (p = -1): ReturnType<import('svelte').Snippet> => {
+const unary = (p = -1) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -27,7 +27,7 @@ const unary = (p = -1): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const cond = (p = obj.a ? 1 : 2): ReturnType<import('svelte').Snippet> => {
+const cond = (p = obj.a ? 1 : 2) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -36,7 +36,7 @@ const cond = (p = obj.a ? 1 : 2): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const nested = (p = obj.a ? (obj.a ? 1 : 2) : 3): ReturnType<import('svelte').Snippet> => {
+const nested = (p = obj.a ? (obj.a ? 1 : 2) : 3) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -45,7 +45,7 @@ const nested = (p = obj.a ? (obj.a ? 1 : 2) : 3): ReturnType<import('svelte').Sn
   };
   return __rsvelte_snippet_return;
 };
-const seq = (p = (obj.a, obj.a)): ReturnType<import('svelte').Snippet> => {
+const seq = (p = (obj.a, obj.a)) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -54,7 +54,7 @@ const seq = (p = (obj.a, obj.a)): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const one = (p = (obj.a)): ReturnType<import('svelte').Snippet> => {
+const one = (p = (obj.a)) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -63,7 +63,7 @@ const one = (p = (obj.a)): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const two = (p = ((obj.a))): ReturnType<import('svelte').Snippet> => {
+const two = (p = ((obj.a))) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -72,7 +72,7 @@ const two = (p = ((obj.a))): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const litp = (p = (1)): ReturnType<import('svelte').Snippet> => {
+const litp = (p = (1)) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -81,7 +81,7 @@ const litp = (p = (1)): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const arrowp = (p = (() => 1)): ReturnType<import('svelte').Snippet> => {
+const arrowp = (p = (() => 1)) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -90,7 +90,7 @@ const arrowp = (p = (() => 1)): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const condp = (p = (a ? 1 : 2)): ReturnType<import('svelte').Snippet> => {
+const condp = (p = (a ? 1 : 2)) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -99,7 +99,7 @@ const condp = (p = (a ? 1 : 2)): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const logic = (p = a ?? (b || c)): ReturnType<import('svelte').Snippet> => {
+const logic = (p = a ?? (b || c)) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -108,7 +108,7 @@ const logic = (p = a ?? (b || c)): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const seq3 = (p = (a, b, c)): ReturnType<import('svelte').Snippet> => {
+const seq3 = (p = (a, b, c)) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -117,7 +117,7 @@ const seq3 = (p = (a, b, c)): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const arr = (p = [1, (2, 3)]): ReturnType<import('svelte').Snippet> => {
+const arr = (p = [1, (2, 3)]) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -126,7 +126,7 @@ const arr = (p = [1, (2, 3)]): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const obji = (p = { k: (1, 2) }): ReturnType<import('svelte').Snippet> => {
+const obji = (p = { k: (1, 2) }) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -135,7 +135,7 @@ const obji = (p = { k: (1, 2) }): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const assign = (p = (a = 1)): ReturnType<import('svelte').Snippet> => {
+const assign = (p = (a = 1)) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -144,7 +144,7 @@ const assign = (p = (a = 1)): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const memb = (p = (obj.a).b): ReturnType<import('svelte').Snippet> => {
+const memb = (p = (obj.a).b) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -153,7 +153,7 @@ const memb = (p = (obj.a).b): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const memb2 = (p = (obj).a): ReturnType<import('svelte').Snippet> => {
+const memb2 = (p = (obj).a) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -162,7 +162,7 @@ const memb2 = (p = (obj).a): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const arrow = (p = (x) => (y)): ReturnType<import('svelte').Snippet> => {
+const arrow = (p = (x) => (y)) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -171,7 +171,7 @@ const arrow = (p = (x) => (y)): ReturnType<import('svelte').Snippet> => {
   };
   return __rsvelte_snippet_return;
 };
-const typeo = (p = typeof (a)): ReturnType<import('svelte').Snippet> => {
+const typeo = (p = typeof (a)) => {
   async () => {
     {
       svelteHTML.createElement("span", {});
@@ -208,6 +208,5 @@ async () => {
   __rsvelte_ensure_snippet(arrow());
   __rsvelte_ensure_snippet(typeo());
 };
-const SnippetDefaultParentheses__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type SnippetDefaultParentheses__SvelteComponent_ = ReturnType<typeof SnippetDefaultParentheses__SvelteComponent_>;
-export default SnippetDefaultParentheses__SvelteComponent_;
+const SnippetDefaultParentheses__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof SnippetDefaultParentheses__SvelteComponent_>} */ (SnippetDefaultParentheses__SvelteComponent_);

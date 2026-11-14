@@ -3280,6 +3280,15 @@
 ["svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/script-tag-in-style-comment-with-real-script/input.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a script empty when a `<style>` comment before it names `<script>`, which deletes the script's code"
 
+["svelte/rsvelte-tests-core-2/import_assert_newline_3198/same_line_assert_is_unchanged/5b4535faac199c0d.svelte".skip]
+"svelte.check" = "checker: TS 7 reports 2880 for an import assertion in a JavaScript file where TS 6 reports it only in TypeScript"
+
+["svelte/rsvelte/pattern/issues/3199-grammar-export-assert.svelte".skip]
+"svelte.check" = "checker: TS 7 reports 2880 for an import assertion in a JavaScript file where TS 6 reports it only in TypeScript"
+
+["svelte/rsvelte/pattern/issues/3199-grammar-import-assert.svelte".skip]
+"svelte.check" = "checker: TS 7 reports 2880 for an import assertion in a JavaScript file where TS 6 reports it only in TypeScript"
+
 ["svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/0088599d9714f97a.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 snips a style sheet only before `</style\\s*>`, so at `</style x>` it keeps none of the sheet and prints the element empty"
 

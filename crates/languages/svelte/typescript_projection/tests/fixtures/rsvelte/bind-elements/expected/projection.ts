@@ -1,6 +1,6 @@
 ;
 
-	let { open = $bindable(), w = $bindable() }: typeof __rsvelte_public_props0 = $props();
+	/** @type {typeof __rsvelte_public_props0} */ let { open = $bindable(), w = $bindable() } = $props();
 	let t = $state(0);
 	let p = $state(true);
 	let v = $state(1);
@@ -46,7 +46,7 @@ async () => {
       // @ts-ignore
       w = __rsvelte_untyped_prop();
     };
-    rect = null as import('svelte/elements').SvelteMediaTimeRange[];
+    rect = /** @type {import('svelte/elements').SvelteMediaTimeRange[]} */ (null);
   }
   {
     const __rsvelte_element0 = svelteHTML.createElement("audio", {
@@ -64,8 +64,8 @@ async () => {
     f = __rsvelte_element0.seeking;
     f = __rsvelte_element0.ended;
     h = __rsvelte_element0.readyState;
-    rect = null as import('svelte/elements').SvelteMediaTimeRange[];
-    rect = null as import('svelte/elements').SvelteMediaTimeRange[];
+    rect = /** @type {import('svelte/elements').SvelteMediaTimeRange[]} */ (null);
+    rect = /** @type {import('svelte/elements').SvelteMediaTimeRange[]} */ (null);
   }
   {
     svelteHTML.createElement("details", {
@@ -118,7 +118,7 @@ async () => {
     const __rsvelte_element0 = svelteHTML.createElement("div", {});
     w = __rsvelte_element0.clientWidth;
     h = __rsvelte_element0.offsetHeight;
-    rect = null as DOMRectReadOnly;
+    rect = /** @type {DOMRectReadOnly} */ (null);
   }
   {
     svelteHTML.createElement("div", {
@@ -224,6 +224,5 @@ async () => {
     }
   }
 };
-const BindElements__SvelteComponent_ = __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "open" | "w">();
-type BindElements__SvelteComponent_ = ReturnType<typeof BindElements__SvelteComponent_>;
-export default BindElements__SvelteComponent_;
+const BindElements__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "open" | "w">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindElements__SvelteComponent_>} */ (BindElements__SvelteComponent_);

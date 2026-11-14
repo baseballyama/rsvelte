@@ -15,6 +15,5 @@ async () => {
     };
   }
 };
-const BindUnknownName__SvelteComponent_ = __rsvelte_export_component<__rsvelte_no_props, {}, "">();
-type BindUnknownName__SvelteComponent_ = ReturnType<typeof BindUnknownName__SvelteComponent_>;
-export default BindUnknownName__SvelteComponent_;
+const BindUnknownName__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+export default /** @type {__rsvelte_javascript_export<typeof BindUnknownName__SvelteComponent_>} */ (BindUnknownName__SvelteComponent_);
