@@ -13,6 +13,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         identifier: CompilerNodeIdentifier,
         node: &str,
         frag: &mut Frag<'o>,
+        consts: Vec<Statement<'o>>,
     ) -> R<Lists<'o>> {
         let b = self.b;
         let compiler_syntax_tree = self.compiler_syntax_tree;
@@ -21,7 +22,10 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         };
         let cleaned = self.plan.fragment(el.children);
         let items = &cleaned.items;
-        let mut child = Lists::default();
+        let mut child = Lists {
+            consts,
+            ..Lists::default()
+        };
         self.hoisted_elements(&cleaned.hoisted, frag, &mut child)?;
         let use_text_content = items.iter().all(|i| match i {
             Item::Text { .. } => true,
