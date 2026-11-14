@@ -129,5 +129,6 @@ pub(crate) fn rejection((at, why): (u32, Rejection)) -> SyntaxError {
             message: std::borrow::Cow::Borrowed(message),
             at,
         }),
+        typescript_code: None,
     }
 }

@@ -146,7 +146,11 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         let (value, has_state) = self.template_chunk(seq, &mut frag.memo, false);
         let identifier = self.flush_node(st, seq.len() == 1, "text", l);
         let x = b.id(&identifier);
-        if has_state {
+        let editable = seq.iter().any(|i| match i {
+            Item::Expression(e) => self.plan.in_bound_editable(*e),
+            _ => false,
+        });
+        if has_state && !editable {
             l.update
                 .push(b.statement(b.runtime("set_text", [x, value])));
         } else {

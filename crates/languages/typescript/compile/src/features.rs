@@ -1,10 +1,10 @@
 //! The TypeScript that has a runtime value, which erasing types cannot compile.
 
 use oxc_ast::ast::{
-    AccessorProperty, Decorator, ExportDeclaration, MethodDefinition, MethodDefinitionKind,
-    Program, Statement, TSEnumDeclaration, TSExportAssignment, TSExternalModuleDeclaration,
-    TSGlobalDeclaration, TSImportEqualsDeclaration, TSModuleBlock, TSNamespaceDeclaration,
-    TSNamespaceDeclarationBody,
+    AccessorProperty, Decorator, ExportDeclaration, ExportDefaultDeclaration, MethodDefinition,
+    MethodDefinitionKind, Program, Statement, TSEnumDeclaration, TSExportAssignment,
+    TSExternalModuleDeclaration, TSGlobalDeclaration, TSImportEqualsDeclaration, TSModuleBlock,
+    TSNamespaceDeclaration, TSNamespaceDeclarationBody,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::Span;
@@ -27,17 +27,17 @@ pub fn first_runtime_feature(program: &Program<'_>) -> Option<(Feature, Span)> {
     find(program, false)
 }
 
-/// [`first_runtime_feature`] as Svelte's `remove_typescript_nodes` sees it: it checks the body of
-/// a `declare` namespace, `declare module` or `declare global` too, so a `const` there is a value.
+/// [`first_runtime_feature`] as Svelte's `remove_typescript_nodes` sees it: it keeps an import
+/// equals inside a namespace as a value, so it refuses the namespace instead.
 #[must_use]
 pub fn first_svelte_runtime_feature(program: &Program<'_>) -> Option<(Feature, Span)> {
     find(program, true)
 }
 
-fn find(program: &Program<'_>, ambient_bodies: bool) -> Option<(Feature, Span)> {
+fn find(program: &Program<'_>, svelte: bool) -> Option<(Feature, Span)> {
     let mut finder = Finder {
         found: None,
-        ambient_bodies,
+        svelte,
         namespaces: 0,
     };
     finder.visit_program(program);
@@ -46,7 +46,7 @@ fn find(program: &Program<'_>, ambient_bodies: bool) -> Option<(Feature, Span)> 
 
 struct Finder {
     found: Option<(Feature, Span)>,
-    ambient_bodies: bool,
+    svelte: bool,
     /// How many namespace bodies the walk is in.
     namespaces: u32,
 }
@@ -78,12 +78,16 @@ impl<'a> Visit<'a> for Finder {
         }
     }
 
+    // Upstream's visitor keeps a default export as it is, without visiting what it holds.
+    fn visit_export_default_declaration(&mut self, _: &ExportDefaultDeclaration<'a>) {}
+
     fn visit_ts_enum_declaration(&mut self, it: &TSEnumDeclaration<'a>) {
         self.found(Feature::Enum, it.span);
     }
 
     fn visit_ts_namespace_declaration(&mut self, it: &TSNamespaceDeclaration<'a>) {
-        if it.declare && !self.ambient_bodies {
+        // Svelte 5.57.3 refuses a value here too, though erasing the types leaves nothing.
+        if it.declare {
             return;
         }
         self.namespaces += 1;
@@ -94,27 +98,10 @@ impl<'a> Visit<'a> for Finder {
         }
     }
 
-    fn visit_ts_external_module_declaration(&mut self, it: &TSExternalModuleDeclaration<'a>) {
-        if !self.ambient_bodies {
-            return;
-        }
-        self.namespaces += 1;
-        walk::walk_ts_external_module_declaration(self, it);
-        self.namespaces -= 1;
-        if let Some(block) = &it.body {
-            self.module_block(block, it.span);
-        }
-    }
+    // Always ambient, so it holds no value.
+    fn visit_ts_external_module_declaration(&mut self, _: &TSExternalModuleDeclaration<'a>) {}
 
-    fn visit_ts_global_declaration(&mut self, it: &TSGlobalDeclaration<'a>) {
-        if !self.ambient_bodies {
-            return;
-        }
-        self.namespaces += 1;
-        walk::walk_ts_global_declaration(self, it);
-        self.namespaces -= 1;
-        self.module_block(&it.body, it.span);
-    }
+    fn visit_ts_global_declaration(&mut self, _: &TSGlobalDeclaration<'a>) {}
 
     fn visit_decorator(&mut self, it: &Decorator<'a>) {
         self.found(Feature::Decorator, it.span);
@@ -136,7 +123,7 @@ impl<'a> Visit<'a> for Finder {
 
     fn visit_ts_import_equals_declaration(&mut self, it: &TSImportEqualsDeclaration<'a>) {
         // Svelte keeps it as a value, so the namespace around it is what it refuses.
-        if self.ambient_bodies && self.namespaces > 0 {
+        if self.svelte && self.namespaces > 0 {
             return;
         }
         self.found(Feature::ImportEquals, it.span);

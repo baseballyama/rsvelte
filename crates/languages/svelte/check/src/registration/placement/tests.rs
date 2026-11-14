@@ -50,3 +50,36 @@ fn a_namespace_or_ambient_module_in_the_instance_is_refused_at_its_first_token()
         "the module script is top level upstream too"
     );
 }
+
+/// Each code and range is TypeScript's in svelte2tsx's render function.
+#[test]
+fn an_await_is_refused_when_svelte2tsx_does_not_make_its_render_function_async() {
+    let found = |script: &str| {
+        let source = format!("<script lang=\"ts\">{script}</script>");
+        let component = rsvelte_svelte_syntax::parse::parse(&source).expect("parses");
+        instance(&component)
+            .into_iter()
+            .map(|(span, code, _)| (span.start_offset - 18, span.text(&source).to_owned(), code))
+            .collect::<Vec<_>>()
+    };
+    let refused = "{ await f(); }\nfor /* a */ await (const x of y) {}\nawait using z = g();";
+    assert_eq!(
+        found(refused),
+        [
+            (2, "await".to_owned(), 1308),
+            (27, "await".to_owned(), 1103),
+            (51, "await".to_owned(), 2852)
+        ]
+    );
+    // An await expression outside every block and function makes it async.
+    assert_eq!(found(&format!("{refused}\nawait f();")), []);
+    assert_eq!(found("class A { x = await f(); }\n{ await g(); }"), []);
+    // TypeScript refuses these in the projection too.
+    assert_eq!(found("function h() { { await f(); } }"), []);
+    assert_eq!(found("{ class A { x = await f(); } }"), []);
+    assert_eq!(found("class A { static { await f(); } }"), []);
+    assert_eq!(
+        found("{ class A { [await f()] = 1; } }"),
+        [(13, "await".to_owned(), 1308)]
+    );
+}

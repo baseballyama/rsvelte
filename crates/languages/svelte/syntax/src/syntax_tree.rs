@@ -323,6 +323,8 @@ pub struct Component {
     pub modifiers: Vec<Span>,
     /// The identifiers of `{@debug}` tags.
     pub debug_identifiers: Vec<ExpressionIdentifier>,
+    /// The `bind:` expressions written inside parentheses, which [`Tree`] does not keep.
+    pub parenthesized_binds: Vec<ExpressionIdentifier>,
     pub root: Range,
     /// `<script module>`, whose program is in the same [`Tree`].
     pub module: Option<Script>,

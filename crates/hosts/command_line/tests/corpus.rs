@@ -105,7 +105,9 @@ impl Task for CountCoverage {
         match context.get::<Printed>() {
             Ok(projection) => {
                 let allocator = Allocator::default();
-                let result = Parser::new(&allocator, &projection.out, SourceType::ts()).parse();
+                // The projection exports its component, so it is a module.
+                let source_type = SourceType::ts().with_module(true);
+                let result = Parser::new(&allocator, &projection.out, source_type).parse();
                 let type_syntax = javascript_rejects(component, projection, &result);
                 let source = context.source_text();
                 let generics = component

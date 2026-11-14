@@ -51,9 +51,11 @@ const INITIAL_TOKEN_CAPACITY_LIMIT: usize = 8192;
 ///
 /// Upstream compiles each one, or rejects it later as `typescript_invalid_feature` (1147, 1194).
 /// An optional rest parameter (1047) is not one: acorn rejects it in a function with a body.
+/// An `await` outside an async function (1308) is one: acorn accepts it in an enum, so the
+/// compiler raises it only where acorn does.
 pub const ACORN_UNCHECKED_TYPESCRIPT_RULES: &[&str] = &[
     "1015", "1016", "1021", "1038", "1051", "1093", "1094", "1095", "1147", "1194", "1221", "1222",
-    "1263", "1264", "2368", "2681", "5085",
+    "1263", "1264", "1308", "2368", "2681", "5085",
 ];
 
 /// # Errors
@@ -183,6 +185,7 @@ struct Template {
     parts: Vec<Part>,
     modifiers: Vec<Span>,
     debug_identifiers: Vec<rsvelte_typescript_tree::ExpressionIdentifier>,
+    parenthesized_binds: Vec<rsvelte_typescript_tree::ExpressionIdentifier>,
     root: Range,
     module: Option<Script>,
     instance: Option<Script>,
@@ -199,6 +202,7 @@ impl Template {
             parts: buffer_pool::take_keyed::<Component, _>(),
             modifiers: buffer_pool::take_keyed::<Component, _>(),
             debug_identifiers: buffer_pool::take_keyed::<Component, _>(),
+            parenthesized_binds: Vec::new(),
             root: Range::default(),
             module: None,
             instance: None,
@@ -219,6 +223,7 @@ impl Template {
             parts: std::mem::take(&mut self.parts),
             modifiers: std::mem::take(&mut self.modifiers),
             debug_identifiers: std::mem::take(&mut self.debug_identifiers),
+            parenthesized_binds: std::mem::take(&mut self.parenthesized_binds),
             root: self.root,
             module: self.module.take(),
             instance: self.instance.take(),
@@ -277,7 +282,7 @@ impl<'a> Parser<'a, '_> {
     /// How the component's JavaScript parses.
     const fn source_type(&self) -> SourceType {
         if self.typescript {
-            SourceType::ts()
+            SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
         }
