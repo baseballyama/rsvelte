@@ -41,7 +41,9 @@ impl<'a> Builder<'a> {
             .map_err(|rejected| {
                 let errors = rejected.diagnostics.into_iter();
                 Rejected {
-                    errors: errors.map(|e| syntax_error([e], text, start, 0)).collect(),
+                    errors: errors
+                        .map(|e| syntax_error([e], text, &[], start, 0))
+                        .collect(),
                     recovered: rejected.recovered,
                 }
             })
@@ -74,8 +76,8 @@ impl<'a> Builder<'a> {
             .parse();
         if parsed.fatal_error {
             let acorn = (parsed.diagnostics.first())
-                .and_then(|first| acorn(first, text, &parsed.tokens, |_| {}));
-            let mut error = syntax_error(parsed.diagnostics.iter().cloned(), text, start, 0);
+                .and_then(|first| acorn(first, text, (&parsed.tokens, None), |_| {}));
+            let mut error = syntax_error(parsed.diagnostics.iter().cloned(), text, &[], start, 0);
             error.acorn = acorn;
             return Err(Box::new(Read {
                 error,
@@ -87,7 +89,7 @@ impl<'a> Builder<'a> {
         let rejection = match self.check(
             &parsed.diagnostics,
             (text, start, 0),
-            &parsed.tokens,
+            (&parsed.tokens, None),
             (part, source_type),
         ) {
             Ok(()) => None,
