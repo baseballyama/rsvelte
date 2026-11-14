@@ -243,7 +243,7 @@ mod mappings;
 pub use mappings::write_mappings;
 
 mod precomputed;
-pub use precomputed::serve_precomputed;
+pub use precomputed::{serve_precomputed, serve_precomputed_or};
 
 #[cfg(test)]
 mod tests;
