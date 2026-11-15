@@ -40,11 +40,19 @@ pub(crate) fn check(
     let mut findings = findings.finish()?;
     // Directive lines are `ESLint`'s, which any ECMAScript line terminator ends.
     let lines = file.context.lines(LineBreaks::Ecmascript);
-    directives::apply_javascript(&mut findings, &comments, source, lines);
-    let Some(component) = file.component() else {
-        return Ok((findings, rules));
-    };
     let on = |name: &str| rules.running(configuration, file).any(|r| r.name == name);
+    let unused = directives::apply_javascript(&mut findings, &comments, source, lines, on);
+    // The processor keeps a report without a rule, so the unused reports join after it.
+    let add_unused = |mut findings: Vec<Finding>| {
+        if !unused.is_empty() {
+            findings.extend(unused);
+            findings.sort_by_key(|f| f.diagnostic.span.start_offset);
+        }
+        findings
+    };
+    let Some(component) = file.component() else {
+        return Ok((add_unused(findings), rules));
+    };
     // Upstream's processor applies the plugin's directives after `ESLint`'s, in rule order.
     if on(comment_directive::RULE.name) {
         directives::template(component, source, lines).apply(
@@ -63,7 +71,7 @@ pub(crate) fn check(
             );
         }
     }
-    Ok((findings, rules))
+    Ok((add_unused(findings), rules))
 }
 
 /// Every JavaScript comment of the document, the scripts' and the template's, in document order.
