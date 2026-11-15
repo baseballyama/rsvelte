@@ -1,7 +1,7 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    AssignmentOperator, BindingPattern, Expression, FormalParameters, PropertyKind, Statement,
-    TSNamespaceDeclarationBody,
+    AssignmentOperator, BindingIdentifier, BindingPattern, Expression, FormalParameters,
+    PropertyKind, Statement, TSNamespaceDeclarationBody,
 };
 use oxc_semantic::{NodeId, ReferenceId, ScopeId, SymbolId};
 use oxc_span::GetSpan;
@@ -102,7 +102,8 @@ pub fn no_unused_variables<'r>(
     for node in f.nodes.iter() {
         let this = match node.kind() {
             AstKind::Function(function)
-                if !(function.body.is_some() && any_parameter_used(&f, &function.params)) =>
+                if function.this_param.is_some()
+                    && !(function.body.is_some() && any_parameter_used(&f, &function.params)) =>
             {
                 &function.this_param
             }
@@ -120,24 +121,18 @@ pub fn no_unused_variables<'r>(
 
 /// Whether a name a parameter list declares has a reference.
 fn any_parameter_used(f: &Facts<'_>, parameters: &FormalParameters<'_>) -> bool {
-    let mut used = false;
-    for item in &parameters.items {
-        for identifier in item.pattern.get_binding_identifiers() {
-            used |= identifier
-                .symbol_id
-                .get()
-                .is_some_and(|s| !f.scoping.get_resolved_reference_ids(s).is_empty());
-        }
-    }
-    if let Some(rest) = &parameters.rest {
-        for identifier in rest.rest.argument.get_binding_identifiers() {
-            used |= identifier
-                .symbol_id
-                .get()
-                .is_some_and(|s| !f.scoping.get_resolved_reference_ids(s).is_empty());
-        }
-    }
-    used
+    let mut unused = |identifier: &BindingIdentifier<'_>| {
+        identifier
+            .symbol_id
+            .get()
+            .is_none_or(|s| f.scoping.get_resolved_reference_ids(s).is_empty())
+    };
+    let mut patterns = parameters
+        .items
+        .iter()
+        .map(|item| &item.pattern)
+        .chain(parameters.rest.as_ref().map(|rest| &rest.rest.argument));
+    !patterns.all(|pattern| pattern.all_binding_identifiers(&mut unused))
 }
 
 /// The function a parameter belongs to, through its parameter list.
@@ -187,21 +182,21 @@ fn is_after_last_used_parameter(f: &Facts<'_>, parameter: NodeId) -> bool {
         return true;
     };
     let after = f.span(parameter).end;
-    let later = list
+    let mut later = list
         .items
         .iter()
         .filter(|item| item.span.start >= after)
         .map(|item| &item.pattern)
         .chain(list.rest.as_ref().map(|rest| &rest.rest.argument));
-    !later
-        .flat_map(BindingPattern::get_binding_identifiers)
-        .filter_map(|identifier| identifier.symbol_id.get())
-        .any(|symbol| {
-            !f.scoping.get_resolved_reference_ids(symbol).is_empty()
-                || f.identifiers[symbol.index()]
+    let mut unused = |identifier: &BindingIdentifier<'_>| {
+        identifier.symbol_id.get().is_none_or(|symbol| {
+            f.scoping.get_resolved_reference_ids(symbol).is_empty()
+                && !f.identifiers[symbol.index()]
                     .iter()
                     .any(|&identifier| f.written_where_declared(identifier))
         })
+    };
+    later.all(|pattern| pattern.all_binding_identifiers(&mut unused))
 }
 
 fn is_exported(f: &Facts<'_>, declaration: NodeId) -> bool {
