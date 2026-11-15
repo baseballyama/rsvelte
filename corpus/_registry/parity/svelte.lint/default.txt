@@ -1,4 +1,4 @@
-# svelte.lint/default: 37131 match
+# svelte.lint/default: 37132 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -254,7 +254,6 @@ svelte/rsvelte-tests-core-2/parse_ts_module_declaration/a_dotted_name_nests_a_mo
 svelte/rsvelte-tests-core-2/parse_ts_module_declaration/a_dotted_name_nests_a_module_declaration_where_a_block_would_be/b66a20c689b9e13b.svelte	mismatch
 svelte/rsvelte-tests-core-2/parse_ts_types/function_type_this_parameter_is_prepended/9f6d6bc356496884.svelte	mismatch
 svelte/rsvelte-tests-core-2/parser_hardening/declaration_tag_multibyte_type_annotation_does_not_panic/47244ebc480a595e.svelte	mismatch
-svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/39fb701037e389d2.svelte	mismatch
 svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/compile_module_uses_plain_acorn_diagnostics_for_a_svelte_js_module/23721d800577f5ba.svelte.js	refused
 svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/compile_module_uses_plain_acorn_diagnostics_for_a_svelte_js_module/30e95871f15ba0df.svelte.js	refused
 svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/compile_module_uses_plain_acorn_diagnostics_for_a_svelte_js_module/38c3fc0fa2638397.svelte.js	refused
