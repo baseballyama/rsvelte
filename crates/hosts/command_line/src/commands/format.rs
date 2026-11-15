@@ -37,8 +37,10 @@ pub(crate) fn format(reg: &Registry, paths: &[&str], tasks: &[&str], check: bool
     let mut failed = 0;
     let mut changed = 0;
     for (document, result) in documents.iter().zip(&results) {
+        // Prettier names a file below the current directory without `./`.
+        let shown = (document.path.strip_prefix("./")).unwrap_or(&document.path);
         if let Some(panic) = &result.panic {
-            eprintln!("{}: rsvelte panicked: {panic}", document.path);
+            eprintln!("{shown}: rsvelte panicked: {panic}");
             failed += 1;
             continue;
         }
@@ -46,7 +48,7 @@ pub(crate) fn format(reg: &Registry, paths: &[&str], tasks: &[&str], check: bool
             .flat_map(|(_, out)| &out.diagnostics)
             .find(|d| d.severity == Severity::Error);
         if let Some(error) = error {
-            eprintln!("{}: {}", document.path, error.message);
+            eprintln!("{shown}: {}", error.message);
             failed += 1;
             continue;
         }
@@ -58,7 +60,7 @@ pub(crate) fn format(reg: &Registry, paths: &[&str], tasks: &[&str], check: bool
         }
         changed += 1;
         if check {
-            println!("[warn] {}", document.path);
+            println!("[warn] {shown}");
             continue;
         }
         let file = document
@@ -66,11 +68,11 @@ pub(crate) fn format(reg: &Registry, paths: &[&str], tasks: &[&str], check: bool
             .as_deref()
             .expect("a document read from a file");
         if let Err(e) = std::fs::write(file, &text.text) {
-            eprintln!("{}: {e}", document.path);
+            eprintln!("{shown}: {e}");
             failed += 1;
             continue;
         }
-        println!("{}", document.path);
+        println!("{shown}");
     }
     if check {
         if changed == 0 {
