@@ -4152,3 +4152,15 @@
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/04bc05a5c4a48321.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/1358524331a32498.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/37e29319f0324448.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/491ea81fca3dc99b.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/5b242d82304197ec.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"

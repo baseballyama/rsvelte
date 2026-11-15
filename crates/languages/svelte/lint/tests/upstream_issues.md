@@ -632,7 +632,7 @@ Issue: [svelte-eslint-parser #1005](https://github.com/sveltejs/svelte-eslint-pa
 | --------------------------------------------------------- | ------------------------------- | ------------ |
 | `<script` in a string: `` {@html `<script>…</script>`} `` | `Parsing error`                 | 9            |
 | Components named `Script` and `Style`                     | `Parsing error: Type expected.` | 1            |
-| `use:a.b`, `transition:a.b`, `class:A.B`, `style:a-b`     | `Parsing error`                 | 12           |
+| `use:a.b`, `transition:a.b`, `class:A.B`, `style:a-b`     | `Parsing error`                 | 16           |
 | A one-line `<script>import … from '…'</script>`           | `Parsing error: ';' expected.`  | 1            |
 | Any other one-line `<script>…</script>`                   | `Parsing error: ',' expected.`  | 38           |
 | `{@const x = (y)}`                                        | `Parsing error: ')' expected.`  | 2            |
