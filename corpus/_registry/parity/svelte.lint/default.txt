@@ -1,4 +1,4 @@
-# svelte.lint/default: 37049 match
+# svelte.lint/default: 37052 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -544,8 +544,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_ty
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_type_dollar_slots_throws/fa4fcf48fd739f6d.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/utils/htmlxparser/tests/an_uppercase_tag_is_a_component_and_never_an_orphan_script/379921bcb6f806e1.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_broken_script_3232/an_unrepairable_script_still_converts/b434122470689786.svelte	refused
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dropped_whitespace_entity/a_semicolonless_entity_does_not_leak_either/227178384334514f.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_dropped_whitespace_entity/an_entity_only_if_body_does_not_leak_into_the_tsx/c621e0dcfd2a4041.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/a_typed_dispatchers_own_dispatch_calls_are_not_scanned/2d878381cb5c90fb.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/an_event_declared_by_two_typed_dispatchers_also_becomes_a_custom_event/b01fa1aa066f852e.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/every_typed_dispatcher_contributes_its_own_event_typings/8d81e5b3fe2e0e7c.svelte	refused
@@ -681,7 +679,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript-each-indexe
 svelte/svelte/packages/svelte/tests/validator/samples/bidirectional-control-characters/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/ignore-warning-dash-backwards-compat/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/module-script-reactive-declaration/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/non-empty-block-dev/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/svelte-self-deprecated/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/unknown-code/input.svelte	mismatch
 svelte/sveltekit/packages/kit/src/runtime/client/remote-functions/query-batch.svelte.js	mismatch

@@ -204,3 +204,12 @@ fn parsed_generics_are_not_checked() {
         .replace(": T", "");
     assert_eq!(reported_lines(&javascript), [2, 3]);
 }
+
+#[test]
+fn a_block_s_text_that_decodes_to_whitespace_is_not_checked() {
+    // svelte-eslint-parser trims a block's children by their decoded text; an element keeps them.
+    assert_eq!(reported_lines("{#if x}\n\t&nbsp;\n{/if}\n"), [0u32; 0]);
+    assert_eq!(reported_lines("{#if x}\n\t&amp;\n{/if}\n"), [2]);
+    assert_eq!(reported_lines("<div>\n\t&nbsp;\n</div>\n"), [2]);
+    assert_eq!(reported_lines("{#await x}\n\t&nbsp;\n{/await}\n"), [2]);
+}
