@@ -62,7 +62,8 @@ impl Found {
     }
 
     /// The warnings in emission order, the template's in `order`, equal positions in the order
-    /// they were found in, and whether a check's own `svelte-ignore` ignored each.
+    /// they were found in, and whether a check's own `svelte-ignore` ignored each; that list is
+    /// empty when no check ignored anything.
     pub(super) fn finish(mut self, order: &VisitOrder) -> (Vec<(Stage, Diagnostic)>, Vec<bool>) {
         if !order.moves.is_empty() {
             for (stage, at, _) in &mut self.items {
@@ -72,6 +73,13 @@ impl Found {
             }
         }
         self.items.sort_by_key(|(stage, at, _)| (*stage, *at));
+        // Most components silence nothing, so they need no second list.
+        if self.silenced.is_empty() {
+            let found = (self.items.into_iter())
+                .map(|(stage, _, warning)| (stage, warning))
+                .collect();
+            return (found, Vec::new());
+        }
         let silenced = &self.silenced;
         self.items
             .into_iter()
