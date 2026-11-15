@@ -76,8 +76,8 @@ return their original source range.
 - The default export also names the instance's type, as svelte2tsx does, so an import can
   annotate a variable with the component.
 - Every component renders in svelte2tsx's `$$render` function, async after a top-level `await`.
-  Its imports come first, then the types svelte2tsx hoists when the type of `$props()` reads no
-  instance value, and the root snippets that read none. A generic component's function takes its
+  Its imports come first, then the types svelte2tsx hoists when the `$props()` annotation reads
+  no instance value, and the root snippets that read none. A generic component's function takes its
   `generics`, and its default export has a call signature that takes them.
 
 Still unsupported:

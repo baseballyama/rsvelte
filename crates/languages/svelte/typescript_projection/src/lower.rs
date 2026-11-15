@@ -1,11 +1,13 @@
 mod attribute;
 mod attributes;
+mod awaits;
 mod binding;
 mod call;
 mod children;
 mod contract;
 mod directive;
 mod generic;
+mod namespace;
 pub use contract::store_reads;
 pub use generic::{UnparsedScript, unparsed_script};
 mod hoistable;

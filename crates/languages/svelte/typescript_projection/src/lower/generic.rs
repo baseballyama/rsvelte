@@ -7,7 +7,6 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
-use oxc_syntax::scope::ScopeFlags;
 use rsvelte_svelte_syntax::syntax_tree::Script;
 
 use super::contract::Edit;
@@ -207,7 +206,7 @@ impl Builder<'_> {
             previous = statement.span().end;
             // svelte2tsx moves an import inside a namespace too.
             let mut imports = Vec::new();
-            nested_imports(statement, &mut imports);
+            super::namespace::nested_imports(statement, &mut imports);
             for import in imports {
                 moved(self, import);
             }
@@ -387,12 +386,12 @@ pub fn unparsed_script(source_text: &str, content: Span, module: bool) -> Unpars
             script.imports.push(shift(span(import.span)));
         }
         let mut imports = Vec::new();
-        nested_imports(statement, &mut imports);
+        super::namespace::nested_imports(statement, &mut imports);
         script.imports.extend(imports.into_iter().map(shift));
         script
             .removed
-            .extend(super::contract::removed_export(statement).map(shift));
-        super::contract::namespace_exports(statement, &mut |at| script.removed.push(shift(at)));
+            .extend(super::namespace::removed_export(statement).map(shift));
+        super::namespace::namespace_exports(statement, &mut |at| script.removed.push(shift(at)));
     }
     script
 }
@@ -524,83 +523,4 @@ impl<'a> Visit<'a> for DollarGenerics {
         self.convention(declared, &it.id.name);
         walk::walk_ts_interface_declaration(self, it);
     }
-}
-
-/// The imports inside the namespace that `statement` declares, in source order.
-fn nested_imports(statement: &Statement<'_>, imports: &mut Vec<Span>) {
-    for nested in super::contract::namespace_body(statement).unwrap_or_default() {
-        if let Statement::ImportDeclaration(import) = nested {
-            imports.push(span(import.span));
-        }
-        nested_imports(nested, imports);
-    }
-}
-
-/// Whether `program` awaits outside every block and function, where svelte2tsx makes its render
-/// function async.
-pub(super) fn awaits_at_top_level(program: &Program<'_>) -> bool {
-    struct Awaits {
-        depth: u32,
-        found: bool,
-    }
-    impl<'a> Visit<'a> for Awaits {
-        fn visit_block_statement(&mut self, it: &oxc_ast::ast::BlockStatement<'a>) {
-            self.depth += 1;
-            walk::walk_block_statement(self, it);
-            self.depth -= 1;
-        }
-
-        fn visit_static_block(&mut self, it: &oxc_ast::ast::StaticBlock<'a>) {
-            self.depth += 1;
-            walk::walk_static_block(self, it);
-            self.depth -= 1;
-        }
-
-        fn visit_function(&mut self, it: &oxc_ast::ast::Function<'a>, flags: ScopeFlags) {
-            self.depth += 1;
-            walk::walk_function(self, it, flags);
-            self.depth -= 1;
-        }
-
-        fn visit_arrow_function_expression(
-            &mut self,
-            it: &oxc_ast::ast::ArrowFunctionExpression<'a>,
-        ) {
-            self.depth += 1;
-            walk::walk_arrow_function_expression(self, it);
-            self.depth -= 1;
-        }
-
-        // TypeScript's method node holds its key and decorators, which svelte2tsx scopes with it.
-        fn visit_method_definition(&mut self, it: &oxc_ast::ast::MethodDefinition<'a>) {
-            self.depth += 1;
-            walk::walk_method_definition(self, it);
-            self.depth -= 1;
-        }
-
-        fn visit_object_property(&mut self, it: &oxc_ast::ast::ObjectProperty<'a>) {
-            let method = it.method || it.kind != oxc_ast::ast::PropertyKind::Init;
-            self.depth += u32::from(method);
-            walk::walk_object_property(self, it);
-            self.depth -= u32::from(method);
-        }
-
-        // TypeScript reads `await` in a namespace as a name, which awaits nothing.
-        fn visit_ts_module_block(&mut self, it: &oxc_ast::ast::TSModuleBlock<'a>) {
-            self.depth += 1;
-            walk::walk_ts_module_block(self, it);
-            self.depth -= 1;
-        }
-
-        fn visit_await_expression(&mut self, it: &oxc_ast::ast::AwaitExpression<'a>) {
-            self.found |= self.depth == 0;
-            walk::walk_await_expression(self, it);
-        }
-    }
-    let mut awaits = Awaits {
-        depth: 0,
-        found: false,
-    };
-    awaits.visit_program(program);
-    awaits.found
 }

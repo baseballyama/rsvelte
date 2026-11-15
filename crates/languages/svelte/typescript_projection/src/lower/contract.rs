@@ -1,108 +1,13 @@
-use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    BindingPattern, Declaration, Expression, PropertyKey, Statement, TSNamespaceDeclarationBody,
-    TSType, VariableDeclaration, VariableDeclarationKind,
+    BindingPattern, Declaration, Expression, PropertyKey, Statement, TSType, VariableDeclaration,
+    VariableDeclarationKind,
 };
 use oxc_span::GetSpan;
-use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
 
 use super::generic::Generics;
+use super::namespace::namespace_exports;
 use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, Span, refuse, span};
-
-/// The statements of the namespace that `statement` declares, inside its dotted names.
-pub(super) fn namespace_body<'s>(statement: &'s Statement<'s>) -> Option<&'s [Statement<'s>]> {
-    let namespace = match statement {
-        Statement::TSNamespaceDeclaration(namespace) => namespace,
-        Statement::ExportDeclaration(export) => match &export.declaration {
-            Declaration::TSNamespaceDeclaration(namespace) => namespace,
-            _ => return None,
-        },
-        _ => return None,
-    };
-    let mut body = &namespace.body;
-    while let TSNamespaceDeclarationBody::TSNamespaceDeclaration(inner) = body {
-        body = &inner.body;
-    }
-    match body {
-        TSNamespaceDeclarationBody::TSModuleBlock(block) => Some(&block.body),
-        TSNamespaceDeclarationBody::TSNamespaceDeclaration(_) => None,
-    }
-}
-
-/// The export list, or the `export` of a variable, function or class, that svelte2tsx removes
-/// from `statement`.
-pub(super) fn removed_export(statement: &Statement<'_>) -> Option<Span> {
-    match statement {
-        Statement::ExportNamedDeclaration(named) => Some(span(named.span)),
-        Statement::ExportFromDeclaration(from) => Some(span(from.span)),
-        Statement::ExportDeclaration(export)
-            if matches!(
-                export.declaration,
-                Declaration::VariableDeclaration(_)
-                    | Declaration::FunctionDeclaration(_)
-                    | Declaration::ClassDeclaration(_)
-            ) =>
-        {
-            Some(Span::new(
-                export.span.start,
-                export.declaration.span().start,
-            ))
-        }
-        _ => None,
-    }
-}
-
-/// [`removed_export`] inside the namespace that `statement` declares, as svelte2tsx removes it at
-/// the top level.
-pub(super) fn namespace_exports(statement: &Statement<'_>, removed: &mut impl FnMut(Span)) {
-    for nested in namespace_body(statement).unwrap_or_default() {
-        if let Some(at) = removed_export(nested) {
-            removed(at);
-        }
-        namespace_exports(nested, removed);
-    }
-}
-
-/// Each store subscription `$x` whose store `x` a variable or an import of the instance binds, for
-/// which svelte2tsx declares `$x`: the name, the store's symbol, and whether an import binds it.
-fn subscribed_stores(
-    resolution: &Resolution,
-) -> impl Iterator<Item = (&str, oxc_syntax::symbol::SymbolId, bool)> {
-    let scoping = resolution.scoping();
-    resolution
-        .unresolved_names()
-        .filter(|name| resolution.is_store_subscription(name))
-        .filter_map(move |name| {
-            let symbol = scoping.find_binding(resolution.instance_scope(), name[1..].into())?;
-            match resolution.declaration(symbol) {
-                AstKind::VariableDeclarator(_) => Some((name, symbol, false)),
-                AstKind::ImportSpecifier(_)
-                | AstKind::ImportDefaultSpecifier(_)
-                | AstKind::ImportNamespaceSpecifier(_) => Some((name, symbol, true)),
-                _ => None,
-            }
-        })
-}
-
-/// Each store `x` that the projection reads as `$x`, by its name's range, with where the
-/// component reads `$x`.
-#[must_use]
-pub fn store_reads(resolution: &Resolution) -> Vec<(Span, Vec<Span>)> {
-    let scoping = resolution.scoping();
-    subscribed_stores(resolution)
-        .map(|(name, symbol, _)| {
-            let reads = scoping
-                .root_unresolved_references()
-                .get(name)
-                .into_iter()
-                .flatten()
-                .map(|&reference| span(resolution.reference_span(reference)))
-                .collect();
-            (span(scoping.symbol_span(symbol)), reads)
-        })
-        .collect()
-}
 
 pub(super) struct Edit {
     pub(super) span: Span,
@@ -119,15 +24,6 @@ impl Edit {
     }
 }
 
-/// Where svelte2tsx declares a store subscription.
-#[derive(Clone, Copy)]
-enum StoreAt {
-    /// After the top-level statement that ends here.
-    After(u32),
-    /// First in the instance, or before the template without one.
-    Start,
-}
-
 impl Builder<'_> {
     /// The scripts, then the contract's value and the render function's generics.
     pub(super) fn scripts(&mut self) -> Result<(NodeIdentifier, Generics)> {
@@ -141,7 +37,7 @@ impl Builder<'_> {
         if let Some(script) = &self.component.instance {
             let program = self.component.javascript.get_program(script.program);
             generics = self.generics(script, program, &mut edits)?;
-            generics.asynchronous = super::generic::awaits_at_top_level(program);
+            generics.asynchronous = super::awaits::awaits_at_top_level(program);
             generated_start = self.scratch.len();
             if let Some(snippets) = self.root_snippets.take() {
                 let after_imports = program
@@ -558,86 +454,6 @@ impl Builder<'_> {
                 .is_some()
     }
 
-    /// Pushes the module script with its store declarations, and returns the instance's.
-    /// The instance's store edits, and where the render function starts in the scratch: after the
-    /// module script.
-    fn module_and_store_edits(&mut self) -> (Buffer<Edit>, usize) {
-        let stores = self.store_subscriptions();
-        let after = |content: Span| {
-            stores.iter().filter_map(move |&(at, store)| match at {
-                StoreAt::After(end) if content.start_offset <= end && end <= content.end_offset => {
-                    Some((end, store))
-                }
-                _ => None,
-            })
-        };
-        if let Some(script) = &self.component.module {
-            let edits: Vec<Edit> = after(script.content)
-                .map(|(end, store)| self.store_edit(end, store))
-                .collect();
-            self.script_parts(script.content, &edits);
-        }
-        let render_start = self.scratch.len();
-        let mut edits = Buffer::new(0);
-        let first = stores.iter().filter(|(at, _)| matches!(at, StoreAt::Start));
-        if let Some(script) = &self.component.instance {
-            let start = script.content.start_offset;
-            for &(_, store) in first {
-                edits.push(self.store_edit(start, store));
-            }
-            for (end, store) in after(script.content) {
-                edits.push(self.store_edit(end, store));
-            }
-        } else {
-            for &(_, store) in first {
-                self.scratch
-                    .push(self.tree.push(Node::StoreSubscription(store)));
-            }
-        }
-        (edits, render_start)
-    }
-
-    /// svelte2tsx declares `$x` for each store subscription whose store `x` a variable or an import
-    /// binds: after the variable's statement, or first in the instance.
-    fn store_subscriptions(&self) -> Vec<(StoreAt, Span)> {
-        let Some(resolution) = (self.resolution)() else {
-            return Vec::new();
-        };
-        let scoping = resolution.scoping();
-        let programs = [&self.component.module, &self.component.instance];
-        let statement_end = |at: oxc_span::Span| {
-            programs
-                .iter()
-                .filter_map(|script| script.as_ref())
-                .flat_map(|script| &self.component.javascript.get_program(script.program).body)
-                .find(|statement| {
-                    let s = statement.span();
-                    s.start <= at.start && at.end <= s.end
-                })
-                .map(|statement| statement.span().end)
-        };
-        let mut out: Vec<_> = subscribed_stores(resolution)
-            .filter_map(|(_, symbol, import)| {
-                let store = scoping.symbol_span(symbol);
-                let at = if import {
-                    StoreAt::Start
-                } else {
-                    StoreAt::After(statement_end(store)?)
-                };
-                Some((at, span(store)))
-            })
-            .collect();
-        out.sort_unstable_by_key(|&(_, store)| store.start_offset);
-        out
-    }
-
-    fn store_edit(&mut self, at: u32, store: Span) -> Edit {
-        Edit {
-            span: Span::new(at, at),
-            replacement: Some(self.tree.push(Node::StoreSubscription(store))),
-        }
-    }
-
     fn script_parts(&mut self, span: Span, edits: &[Edit]) {
         if edits.is_empty() {
             self.scratch.push(self.tree.push(Node::Program { span }));
@@ -670,4 +486,6 @@ impl Builder<'_> {
 mod props_alias;
 mod siblings;
 mod slot_flags;
+mod stores;
 use siblings::Siblings;
+pub use stores::store_reads;
