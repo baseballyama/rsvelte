@@ -339,6 +339,7 @@ impl<'a> Visit<'a> for Walk<'_> {
         } = self.next;
         self.next.called = false;
         self.next.written = false;
+        let parents = self.entered.len();
         self.entered.push(place);
         let mut inner = place;
         inner.state_argument |= place.state_call_argument;
@@ -415,6 +416,21 @@ impl<'a> Visit<'a> for Walk<'_> {
             }
             AstKind::ExpressionStatement(statement) => {
                 self.component_creation(&statement.expression);
+            }
+            AstKind::LabeledStatement(labeled) if labeled.label.name == "$" && !self.runes => {
+                // Only the program is entered above a top-level statement.
+                let top = self.section == Section::Instance && parents == 1;
+                if !top {
+                    self.warn(
+                        at.start,
+                        warning(
+                            "reactive_declaration_invalid_placement",
+                            "Reactive declarations only exist at the top level of the instance \
+                                script",
+                            span(at),
+                        ),
+                    );
+                }
             }
             _ => {}
         }
@@ -548,3 +564,6 @@ impl Roots for Walk<'_> {
 
     fn leave(&mut self) {}
 }
+
+#[cfg(test)]
+mod tests;

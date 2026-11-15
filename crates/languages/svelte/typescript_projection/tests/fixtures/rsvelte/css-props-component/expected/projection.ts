@@ -1,48 +1,67 @@
 ;
+import C from './C.svelte';;
 
-	import C from './C.svelte';
+;
+
+function $$render() {
+  
+	
 	/** @type {typeof __rsvelte_public_props0} */ let { color = 'red', Dyn } = $props();
 	let n = $state(1);
 
 ;
 
-const __rsvelte_public_props0 = __rsvelte_props({
-  Dyn: __rsvelte_untyped_prop(),
-}, {
-  color: 'red',
-}, false);
-async () => {
-  {
-    __rsvelte_component(C)(__rsvelte_internals(), {
-      "--color": color,
-      "--size": "2px",
-      "a": 1,
-    });
-  }
-  {
-    svelteHTML.createElement("svg", {});
+  const __rsvelte_public_props0 = __rsvelte_props({
+    Dyn: __rsvelte_untyped_prop(),
+  }, {
+    color: 'red',
+  }, false);
+  async () => {
     {
       __rsvelte_component(C)(__rsvelte_internals(), {
-        "--fill": "blue",
-        "--w": n,
+        ...(__sveltets_2_cssProp({
+          "--color": color,
+        })),
+        ...(__sveltets_2_cssProp({
+          "--size": "2px",
+        })),
+        "a": 1,
       });
     }
-  }
-  {
-    __rsvelte_component(Dyn)(__rsvelte_internals(), {
-      children: __rsvelte_children,
-      "--x": "1",
-    });
     {
-      svelteHTML.createElement("p", {});
+      svelteHTML.createElement("svg", {});
+      {
+        __rsvelte_component(C)(__rsvelte_internals(), {
+          ...(__sveltets_2_cssProp({
+            "--fill": "blue",
+          })),
+          ...(__sveltets_2_cssProp({
+            "--w": n,
+          })),
+        });
+      }
     }
-    Dyn;
-  }
-  {
-    __rsvelte_component(Dyn)(__rsvelte_internals(), {
-      "--y": n,
-    });
-  }
-};
-const CssPropsComponent__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+    {
+      __rsvelte_component(Dyn)(__rsvelte_internals(), {
+        children: __rsvelte_children,
+        ...(__sveltets_2_cssProp({
+          "--x": "1",
+        })),
+      });
+      {
+        svelteHTML.createElement("p", {});
+      }
+      Dyn;
+    }
+    {
+      __rsvelte_component(Dyn)(__rsvelte_internals(), {
+        ...(__sveltets_2_cssProp({
+          "--y": n,
+        })),
+      });
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+}
+const CssPropsComponent__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof CssPropsComponent__SvelteComponent_>} */ (CssPropsComponent__SvelteComponent_);

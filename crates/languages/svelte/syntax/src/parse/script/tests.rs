@@ -1,35 +1,46 @@
-use super::script_is_typescript;
+use crate::parse::parse;
+
+fn reads_typescript(source: &str) -> bool {
+    let component = parse(source).expect(source);
+    let instance = component.instance.as_ref().expect(source);
+    instance.typescript
+}
 
 #[test]
-fn the_first_lang_attribute_decides() {
-    assert!(script_is_typescript(r#"<script lang="ts"></script>"#));
-    assert!(script_is_typescript("<script lang=ts></script>"));
-    assert!(!script_is_typescript(
-        r#"<script lang="js"></script><script lang="ts"></script>"#
+fn the_first_script_with_a_lang_decides() {
+    assert!(reads_typescript(r#"<script lang="ts"></script>"#));
+    assert!(reads_typescript("<script lang=ts></script>"));
+    assert!(reads_typescript(
+        r#"<script module></script><script lang="ts"></script>"#
     ));
-    assert!(!script_is_typescript(
-        r#"<script lang="typescript"></script>"#
+    assert!(!reads_typescript(
+        r#"<script module lang="js"></script><script lang="ts"></script>"#
     ));
-    assert!(!script_is_typescript(
+    assert!(!reads_typescript(r#"<script lang="typescript"></script>"#));
+    assert!(!reads_typescript(
         r#"<!-- <script lang="ts"> --><script></script>"#
     ));
-}
-
-#[test]
-fn a_quoted_value_may_hold_a_closing_bracket() {
-    assert!(script_is_typescript(
+    assert!(reads_typescript(
         r#"<script generics="T extends Record<string, unknown>" lang="ts"></script>"#
     ));
-    assert!(script_is_typescript(
-        r#"<script module generics='T extends A<B>' lang="ts"></script>"#
-    ));
 }
 
 #[test]
-fn an_unclosed_comment_does_not_hide_a_later_script() {
-    assert!(script_is_typescript(
-        r#"<p><!-- </p><script lang="ts"></script>"#
+fn text_that_looks_like_a_lang_attribute_does_not() {
+    assert!(!reads_typescript(
+        r#"<script>let s = '<script lang="ts">';</script>"#
     ));
+    let source = r#"<p>{'<script lang="ts">'}</p><p>{1 as number}</p>"#;
+    let error = parse(source).expect_err(source);
+    assert_eq!(error.code, "expected_token");
+    let at = source.find("as number").expect("the `as`") as u32;
+    assert_eq!(error.span.start_offset, at);
+}
+
+#[test]
+fn an_expression_before_the_script_reads_in_its_language() {
+    let source = r#"<p>{1 as number}</p><script lang="ts"></script>"#;
+    parse(source).expect(source);
 }
 
 /// typescript-eslint parses a `declare` field with an initializer, which oxc reports and

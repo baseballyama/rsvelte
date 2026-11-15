@@ -1,11 +1,17 @@
 mod attribute;
 mod attributes;
+mod awaits;
 mod binding;
 mod call;
 mod children;
 mod contract;
 mod directive;
 mod generic;
+mod namespace;
+pub use contract::store_reads;
+pub use generic::{UnparsedScript, unparsed_script};
+mod hoistable;
+mod root_snippets;
 mod tag;
 
 use oxc_ast::ast::Expression;
@@ -82,6 +88,8 @@ pub fn lower<'a>(
         directives: directive::Directives::default(),
         root_snippets: None,
         slot_parent: None,
+        props_hoisted: false,
+        module_snippets: None,
     };
     builder.tree.javascript = ![&component.instance, &component.module]
         .into_iter()
@@ -91,12 +99,7 @@ pub fn lower<'a>(
     // place without an instance script.
     let instance = component.instance.is_some();
     if instance {
-        let start = builder.scratch.len();
-        builder.append_matching(component.root, true)?;
-        let snippets = builder.finish_list(start);
-        if snippets.len != 0 {
-            builder.root_snippets = Some(builder.tree.push(Node::Statements(snippets)));
-        }
+        builder.root_snippets = builder.root_snippets()?;
     }
     let (contract, generics) = builder.scripts()?;
     let start = builder.scratch.len();
@@ -116,10 +119,7 @@ pub fn lower<'a>(
             .scratch
             .push(builder.tree.push(Node::Statement(value)));
     }
-    match generics {
-        Some(generics) => builder.render(contract, generics),
-        None => builder.scratch.push(contract),
-    }
+    builder.render(contract, generics);
     builder.tree.root = builder.finish_list(0);
     Ok(builder.tree)
 }
@@ -160,6 +160,10 @@ struct Builder<'a> {
     root_snippets: Option<NodeIdentifier>,
     /// The component whose children are being lowered, whose named slots their `let:` read.
     slot_parent: Option<NodeIdentifier>,
+    /// Whether `$$ComponentProps` moved before the render function.
+    props_hoisted: bool,
+    /// The root snippets svelte2tsx moves before the render function.
+    module_snippets: Option<NodeIdentifier>,
 }
 
 /// The source text at `at`, whose mapping ends at `end` when that is not its own end.

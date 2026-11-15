@@ -2,10 +2,19 @@
 
 use std::borrow::Cow;
 
+use oxc_syntax::identifier::is_identifier_name;
+use oxc_syntax::keyword::is_reserved_keyword;
 use unicode_id_start as unicode_identifier_start;
 
 #[cfg(test)]
 mod tests;
+
+/// Whether JavaScript reads `name` as an identifier. Svelte makes the whole name of a shorthand
+/// `bind:` or `class:` one, whatever JavaScript would read there.
+#[must_use]
+pub fn reads_as_identifier(name: &str) -> bool {
+    is_identifier_name(name) && !is_reserved_keyword(name)
+}
 
 /// Upstream `regex_valid_component_name`, split at its alternation (ZWNJ and ZWJ escaped):
 ///

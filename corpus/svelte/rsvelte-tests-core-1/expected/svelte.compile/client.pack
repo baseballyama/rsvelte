@@ -2231,6 +2231,53 @@ export default function _17b882a6421b1f6($$anchor) {
 	}
 ]
 
+=== 496 abstract_property_erasure_3082/an_abstract_member_is_erased_on_every_target/2433da24234ea06f.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p> </p>`);
+
+export default function _433da24234ea06f($$anchor, $$props) {
+	$.push($$props, true);
+
+	class B {
+		abstract kind;
+		abstract other;
+		kept = 'k';
+	}
+
+	const b = new (class extends B {
+		kind = 'x';
+		other = 1;
+
+		m() {}
+	})();
+
+	var p = root();
+	var text = $.only_child(p, true);
+
+	$.template_effect(() => $.set_text(text, b.kind));
+	$.append($$anchor, p);
+	$.pop();
+}
+=== 316 abstract_property_erasure_3082/an_abstract_member_is_erased_on_every_target/2433da24234ea06f.svelte	warnings.json
+[
+	{
+		"code": "perf_avoid_inline_class",
+		"message": "Avoid 'new class' — instead, declare the class at the top level scope\nhttps://svelte.dev/e/perf_avoid_inline_class",
+		"start": {
+			"line": 9,
+			"column": 11,
+			"character": 192
+		},
+		"end": {
+			"line": 13,
+			"column": 5,
+			"character": 256
+		}
+	}
+]
+
 === 667 accessor_default_3587/a_bindable_default_is_the_calls_argument/02e589973fdf898c.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -11158,6 +11205,59 @@ export default function _589ab59df8771e6($$anchor) {
 
 	$.append($$anchor, fragment);
 }
+=== 591 await_catch_transform_conformance_4111/a_catch_binding_leaks_its_transform_past_the_block/532d9524ed8007d8.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<!> `, 1);
+
+export default function _32d9524ed8007d8($$anchor, $$props) {
+	const p = Promise.resolve(1);
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	$.await(node, () => p, null, void 0, ($$anchor, code) => {
+		var text = $.text();
+
+		$.template_effect(() => $.set_text(text, $.get(code)));
+		$.append($$anchor, text);
+	});
+
+	var text_1 = $.sibling(node);
+
+	$.template_effect(() => $.set_text(text_1, ` ${$.get(code) ?? ''}`));
+	$.append($$anchor, fragment);
+}
+=== 743 await_catch_transform_conformance_4111/a_destructured_catch_binding_leaks_too/37e8d7f376ff461d.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<!> `, 1);
+
+export default function _7e8d7f376ff461d($$anchor, $$props) {
+	const p = Promise.resolve(1);
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	$.await(node, () => p, null, void 0, ($$anchor, $$source) => {
+		var $$value = $.derived(() => {
+			var { code } = $.get($$source);
+
+			return { code };
+		});
+
+		var code = $.derived(() => $.get($$value).code);
+		var text = $.text();
+
+		$.template_effect(() => $.set_text(text, $.get(code)));
+		$.append($$anchor, text);
+	});
+
+	var text_1 = $.sibling(node);
+
+	$.template_effect(() => $.set_text(text_1, ` ${$.get(code) ?? ''}`));
+	$.append($$anchor, fragment);
+}
 === 736 await_catch_transform_conformance_4111/a_destructured_then_binding_stays_scoped/42eaf6ccb9f50545.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -11234,6 +11334,38 @@ export default function _f920d8063c119e9($$anchor, $$props) {
 	$.template_effect(() => $.set_text(text_1, ` ${$$props.code ?? ''}`));
 	$.append($$anchor, fragment);
 }
+=== 772 await_catch_transform_conformance_4111/a_write_past_a_catch_block_keeps_the_outer_setter/d1af8001057a8bf0.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<!> <button>b</button>`, 1);
+
+export default function D1af8001057a8bf0($$anchor, $$props) {
+	let code = $.prop($$props, 'code', 7);
+	const p = Promise.resolve(1);
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	$.await(node, () => p, null, void 0, ($$anchor, code) => {
+		var text = $.text();
+
+		$.template_effect(() => $.set_text(text, $.get(code)));
+		$.append($$anchor, text);
+	});
+
+	var text_1 = $.sibling(node);
+	var button = $.sibling(text_1);
+
+	$.template_effect(() => $.set_text(text_1, ` ${$.get(code) ?? ''}`));
+
+	$.delegated('click', button, () => {
+		$.get(code) = 'W';
+	});
+
+	$.append($$anchor, fragment);
+}
+
+$.delegate(['click']);
 === 284 await_comment_run_relocation/a_legacy_instance_script_relocates_the_run_too/9722898dbeb88c58.svelte	error.json
 {
 	"code": "legacy_export_invalid",
@@ -13611,6 +13743,84 @@ export default function F81dcf0aeddb1510($$anchor) {
 	p.textContent = 'true';
 	$.append($$anchor, p);
 }
+=== 53 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/09511e45c2f398d2.svelte	error.txt
+BigInts have no unsigned right shift, use >> instead
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/0e3abc198418bc74.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 17 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/1c753cd80489c8fb.svelte	error.txt
+Division by zero
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/2618d0bc377704a3.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/42ac82a706464018.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 53 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/45399919d09d6ede.svelte	error.txt
+BigInts have no unsigned right shift, use >> instead
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/5692964a76de3f52.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/66376f67124b4d81.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/68629d53c79fcf5a.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 42 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/6974a5a87fbd5b68.svelte	error.txt
+Cannot convert a BigInt value to a number
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/6a936932e986470d.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/6fd16479e929dc6d.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/85ddd8c637dd1099.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 17 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/87e34b3a689f9448.svelte	error.txt
+Division by zero
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/966796ac4d297f6f.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 42 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/9de45e3b32fb9351.svelte	error.txt
+Cannot convert a BigInt value to a number
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/a13c53ad2b76b622.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/a241a352683b3e49.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/ab9c47ba37e79731.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/ad07f339dcdf112d.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/d19c15ef72770620.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/d53f03b5f885c454.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/f33536cb7a64911a.svelte	error.txt
+Cannot mix BigInt and other types, use explicit conversions
+
+=== 26 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/f38d296e65efce2f.svelte	error.txt
+Exponent must be positive
+
+=== 42 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/faf95531bc451aa2.svelte	error.txt
+Cannot convert a BigInt value to a number
+
+=== 42 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/fb93c1f8400ba356.svelte	error.txt
+Cannot convert a BigInt value to a number
+
 === 246 bigint_constant_fold_3539/the_non_bigint_folds_are_unchanged/019ac59230992ac1.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -15506,6 +15716,30 @@ export default function D7c90f4996d3f8e5($$anchor) {
 	let n = 0;
 
 	$.bind_active_element(($$value) => $.set(el, $$value, true));
+}
+=== 548 bind_host_axis_3264/legal_bindings_still_compile_on_every_host/e2b7a8af8920172b.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import C from './C.svelte';
+
+export default function E2b7a8af8920172b($$anchor) {
+	let v = 'a';
+	let o = $.proxy({ k: 1 });
+	let tag = 'div';
+	let el = null;
+	let n = 0;
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.element(node, () => tag, false, ($$element, $$anchor) => {
+		$.bind_this($$element, ($$value) => this = $$value, () => this);
+
+		var text = $.text('x');
+
+		$.append($$anchor, text);
+	});
+
+	$.append($$anchor, fragment);
 }
 === 577 bind_host_axis_3264/legal_bindings_still_compile_on_every_host/efca8442c169e07b.svelte	js
 import 'svelte/internal/disclose-version';
@@ -20750,6 +20984,51 @@ export default function _364de6ae88799d6($$anchor) {
 	p.textContent = '1';
 	$.append($$anchor, p);
 }
+=== 562 case_clause_state_3420/a_bare_case_clause_declaration_stays_reactive/4fafa621e682e581.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button> </button>`);
+
+export default function _fafa621e682e581($$anchor) {
+	let a = $.state(0);
+
+	function f(k) {
+		switch (k) {
+			case 1:
+				let s = $.state(1);
+				s++;
+				return s;
+		}
+	}
+
+	var button = root();
+	var text = $.only_child(button);
+
+	$.template_effect(($0) => $.set_text(text, `${$.get(a) ?? ''}${$0 ?? ''}`), [() => f(1)]);
+	$.delegated('click', button, () => $.update(a));
+	$.append($$anchor, button);
+}
+
+$.delegate(['click']);
+=== 356 case_clause_state_3420/a_bare_case_clause_declaration_stays_reactive/4fafa621e682e581.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `s`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 8,
+			"column": 11,
+			"character": 115
+		},
+		"end": {
+			"line": 8,
+			"column": 12,
+			"character": 116
+		}
+	}
+]
+
 === 594 case_clause_state_3420/a_braced_case_clause_declaration_stays_reactive/1d8fc12fd3a17d75.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -36046,6 +36325,72 @@ export default function Cc5a0170371ad564($$anchor) {
 		}
 	});
 }
+=== 344 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/ebed4d1b2bd8825d.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Ebed4d1b2bd8825d($$anchor, $$props) {
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+	const item = $.derived(() => $$slotProps.item);
+
+	$.slot(node, $$props, 'default', {}, null);
+	$.append($$anchor, fragment);
+}
+=== 328 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/ebed4d1b2bd8825d.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 1,
+			"column": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 1,
+			"column": 17,
+			"character": 17
+		}
+	}
+]
+
+=== 469 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/f864cc9d8fba5124.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function F864cc9d8fba5124($$anchor, $$props) {
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+	const item = $.derived(() => $$slotProps.item);
+
+	$.slot(node, $$props, 'default', {}, ($$anchor) => {
+		var text = $.text();
+
+		$.template_effect(() => $.set_text(text, $.get(item)));
+		$.append($$anchor, text);
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 328 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/f864cc9d8fba5124.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 1,
+			"column": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 1,
+			"column": 28,
+			"character": 28
+		}
+	}
+]
+
 === 321 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_needs_context_wrapper/f728ba526fb6819a.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -39697,65 +40042,6 @@ export default function _ed17f459498d7a3($$anchor, $$props) {
 	}
 
 	$.append($$anchor, fragment);
-}
-=== 373 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/25cc84cda4760858.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.with_script($.from_html(`<div><script lang="ts"></script><!></div><p></p>`, 1));
-
-export default function _5cc84cda4760858($$anchor) {
-	let x = 1;
-	var fragment = root();
-	var p = $.sibling($.first_child(fragment));
-
-	p.textContent = '1';
-	$.append($$anchor, fragment);
-}
-=== 255 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<p></p>`);
-
-export default function _5efd90757e6abdb($$anchor) {
-	let x = 1;
-	var p = root();
-
-	p.textContent = '1';
-	$.append($$anchor, p);
-}
-=== 393 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte	warnings.json
-[
-	{
-		"code": "script_unknown_attribute",
-		"message": "Unrecognised attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it\nhttps://svelte.dev/e/script_unknown_attribute",
-		"start": {
-			"line": 1,
-			"column": 8,
-			"character": 8
-		},
-		"end": {
-			"line": 1,
-			"column": 22,
-			"character": 22
-		}
-	}
-]
-
-=== 288 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/9096b19bedcfe51e.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<p></p>`);
-
-export default function _096b19bedcfe51e($$anchor) {
-	let x = 1;
-	const s = '<script lang="ts">';
-	var p = root();
-
-	p.textContent = '1';
-	$.append($$anchor, p);
 }
 === 379 component_attribute_assign_exemption/a_component_attribute_arrow_body_is_exempt/208dddb78fd72c1e.svelte	js
 import 'svelte/internal/disclose-version';
@@ -44323,6 +44609,27 @@ export default function _6c9b0ea19c14243($$anchor) {
 
 	$.append($$anchor, fragment);
 }
+=== 432 const_tag_cycle_error_span/const_tag_cycle_points_at_the_first_declaration_in_the_cycle/0be01fe38154ef62.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function _be01fe38154ef62($$anchor) {
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			const a = $.derived(() => b);
+			const b = $.derived(() => $.get(a));
+		};
+
+		$.if(node, ($$render) => {
+			if (true) $$render(consequent);
+		});
+	}
+
+	$.append($$anchor, fragment);
+}
 === 289 const_tag_missing_equals_3246/a_body_that_cannot_start_a_pattern_reports_its_own_code/5da8a1932277557c.svelte	error.json
 {
 	"code": "unexpected_reserved_word",
@@ -47737,6 +48044,22 @@ export default function _ed0bbeac2ab695c($$anchor) {
 	}
 ]
 
+=== 247 css_empty_declaration_error_span/consecutive_semicolons_span_to_the_following_block_close/6ab50de7e6515fdc.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 3,
+		"column": 22,
+		"character": 48
+	},
+	"end": {
+		"line": 4,
+		"column": 2,
+		"character": 52
+	}
+}
+
 === 246 css_empty_declaration_error_span/empty_css_declaration_span_includes_following_whitespace/0aa90a07a903e4f3.svelte	error.json
 {
 	"code": "css_empty_declaration",
@@ -49726,6 +50049,37 @@ export default function _47a3c962534c57c($$anchor) {
 			"line": 2,
 			"column": 23,
 			"character": 79
+		}
+	}
+]
+
+=== 44 css_is_where_branch/is_descendant_no_match_reports_whole/c9eaf32a044209cb.svelte	css
+/* (unused) div :is(.a, .b) { color: red }*/
+=== 254 css_is_where_branch/is_descendant_no_match_reports_whole/c9eaf32a044209cb.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div class="a svelte-1tpin1j"></div>`);
+
+export default function C9eaf32a044209cb($$anchor) {
+	var div = root();
+
+	$.append($$anchor, div);
+}
+=== 273 css_is_where_branch/is_descendant_no_match_reports_whole/c9eaf32a044209cb.svelte	warnings.json
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"div :is(.a, .b)\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 2,
+			"column": 7,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"column": 22,
+			"character": 44
 		}
 	}
 ]
@@ -51804,6 +52158,104 @@ export default function F18fd587018ddd2d($$anchor) {
 	}
 ]
 
+=== 43 css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/6e19c2606f952300.svelte	css
+
+	/* (unused) .a :has(.b) { color: red }*/
+
+=== 287 css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/6e19c2606f952300.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div class="a svelte-1p47zwl"><b class="b svelte-1p47zwl">x</b></div>`);
+
+export default function _e19c2606f952300($$anchor) {
+	var div = root();
+
+	$.append($$anchor, div);
+}
+=== 269 css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/6e19c2606f952300.svelte	warnings.json
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".a :has(.b)\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 3,
+			"column": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 3,
+			"column": 12,
+			"character": 60
+		}
+	}
+]
+
+=== 45 css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/d194f58883e60cf4.svelte	css
+
+	/* (unused) .a > :has(.b) { color: red }*/
+
+=== 287 css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/d194f58883e60cf4.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div class="a svelte-1dmffn4"><b class="b svelte-1dmffn4">x</b></div>`);
+
+export default function D194f58883e60cf4($$anchor) {
+	var div = root();
+
+	$.append($$anchor, div);
+}
+=== 271 css_pseudo_class_args/has_subject_must_satisfy_the_preceding_combinators/d194f58883e60cf4.svelte	warnings.json
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".a > :has(.b)\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 3,
+			"column": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 3,
+			"column": 14,
+			"character": 62
+		}
+	}
+]
+
+=== 256 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/12c6b8beaa21d52d.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 14,
+		"character": 44
+	},
+	"end": {
+		"line": 3,
+		"column": 14,
+		"character": 44
+	}
+}
+
+=== 256 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/1d52c2bf6295517c.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 14,
+		"character": 44
+	},
+	"end": {
+		"line": 3,
+		"column": 14,
+		"character": 44
+	}
+}
+
 === 256 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/7733d0ce2f3be523.svelte	error.json
 {
 	"code": "css_expected_identifier",
@@ -51853,6 +52305,38 @@ export default function F18fd587018ddd2d($$anchor) {
 }
 
 === 256 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/d0c7745dd73fa0f6.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 14,
+		"character": 44
+	},
+	"end": {
+		"line": 3,
+		"column": 14,
+		"character": 44
+	}
+}
+
+=== 256 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/d19e82e3c15ba56b.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 14,
+		"character": 44
+	},
+	"end": {
+		"line": 3,
+		"column": 14,
+		"character": 44
+	}
+}
+
+=== 256 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/e2a71600612d7577.svelte	error.json
 {
 	"code": "css_expected_identifier",
 	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
@@ -52962,6 +53446,54 @@ export default function _d91fc33e2dbd49e($$anchor) {
 		"line": 3,
 		"column": 12,
 		"character": 86
+	}
+}
+
+=== 221 css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/56850d42c980b1cc.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token ]\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 5,
+		"character": 79
+	},
+	"end": {
+		"line": 3,
+		"column": 5,
+		"character": 79
+	}
+}
+
+=== 254 css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/d1817713cb279f42.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 2,
+		"character": 76
+	},
+	"end": {
+		"line": 3,
+		"column": 2,
+		"character": 76
+	}
+}
+
+=== 254 css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/da7b20631d49c91b.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 2,
+		"character": 76
+	},
+	"end": {
+		"line": 3,
+		"column": 2,
+		"character": 76
 	}
 }
 
@@ -54628,6 +55160,22 @@ export default function Bd7c893b9377b83c($$anchor) {
 	}
 }
 
+=== 254 css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/6417a3f535e59cc1.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 4,
+		"character": 37
+	},
+	"end": {
+		"line": 3,
+		"column": 4,
+		"character": 37
+	}
+}
+
 === 233 css_trailing_combinator_parse/a_nested_rule_reports_its_own_brace/2408ae21c5f87718.svelte	error.json
 {
 	"code": "css_selector_invalid",
@@ -55924,6 +56472,14 @@ customElements.define('a-b', $.create_custom_element(_dc4abe7c2e33cf0, { a: { at
 	}
 }
 
+=== 186 custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/3ba1c33cb1ffa0f4.svelte	error.json
+{
+	"code": "svelte_options_invalid_tagname",
+	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
+	"start": null,
+	"end": null
+}
+
 === 465 custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/62b6c0fd181fcbc3.svelte	error.json
 {
 	"code": "svelte_options_invalid_customelement_props",
@@ -55938,5 +56494,21 @@ customElements.define('a-b', $.create_custom_element(_dc4abe7c2e33cf0, { a: { at
 		"column": 68,
 		"character": 68
 	}
+}
+
+=== 186 custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/871423b006a5dcd9.svelte	error.json
+{
+	"code": "svelte_options_invalid_tagname",
+	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
+	"start": null,
+	"end": null
+}
+
+=== 186 custom_element_option_shape/the_options_are_validated_in_upstreams_order_not_the_sources/e0eea289ca0c9bbf.svelte	error.json
+{
+	"code": "svelte_options_invalid_tagname",
+	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
+	"start": null,
+	"end": null
 }
 

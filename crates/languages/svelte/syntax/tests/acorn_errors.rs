@@ -48,6 +48,23 @@ fn acorn_reports_each_error_in_its_own_words_and_place() {
         ("{<div/>}", "Unexpected token", 1),
         ("<script>let a = (</script>", "Unexpected token", 17),
         ("<script>let a = (  </script>", "Unexpected token", 19),
+        (
+            "{#snippet row(c?: number = 5)}<p>{c}</p>{/snippet}",
+            "Unexpected token",
+            16,
+        ),
+        ("{#snippet row(a, c?)}{/snippet}", "Unexpected token", 19),
+        (
+            "<script>let v = (c?) => 0;</script>",
+            "Unexpected token",
+            19,
+        ),
+        ("<script>function f(a?) {}</script>", "Unexpected token", 20),
+        (
+            "<script>class K { m(a?) {} }</script>",
+            "Unexpected token",
+            21,
+        ),
     ] {
         let error = parse(source).expect_err(source);
         assert_eq!(error.code, "js_parse_error", "{source:?}");

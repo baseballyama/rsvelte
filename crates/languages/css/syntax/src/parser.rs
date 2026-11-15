@@ -6,7 +6,7 @@ use rsvelte_kernel::source::interning::{Atom, Interner};
 use rsvelte_kernel::source::positions::Span;
 use rustc_hash::FxHashMap;
 
-use crate::syntax_tree::{Rule, RuleIdentifier, RuleKind, StyleSheet};
+use crate::syntax_tree::{ComplexSelector, Rule, RuleIdentifier, RuleKind, StyleSheet};
 
 #[derive(Debug, Clone)]
 pub struct ParseError {
@@ -18,6 +18,9 @@ pub struct ParseError {
 
 mod declarations;
 mod selectors;
+mod tokens;
+
+pub use selectors::nth_of_selectors;
 
 type R<T> = Result<T, ParseError>;
 
@@ -33,6 +36,25 @@ pub fn parse(source_text: &str, content: Span) -> R<StyleSheet> {
         content.start_offset as usize,
         content.end_offset as usize,
         None,
+        None,
+    )
+}
+
+/// Parses a sheet that Svelte rejects as far as `PostCSS` reads its rules, for linters.
+///
+/// It skips each declaration to its `;` or `}` outside brackets and strings, and a block without
+/// a selector. With `scss`, it also skips `// …` comments and `#{…}`.
+///
+/// # Errors
+///
+/// [`ParseError`] at the first error in a selector or a brace.
+pub fn parse_for_lint(source_text: &str, content: Span, scss: bool) -> R<StyleSheet> {
+    read(
+        source_text,
+        content.start_offset as usize,
+        content.end_offset as usize,
+        None,
+        Some(scss),
     )
 }
 
@@ -51,28 +73,18 @@ pub fn parse_until(source_text: &str, start: u32, close: &str) -> R<StyleSheet> 
         start as usize,
         source_text.len(),
         Some(close.as_bytes()),
+        None,
     )
 }
 
-fn read(source_text: &str, start: usize, end: usize, close: Option<&[u8]>) -> R<StyleSheet> {
-    let mut p = P {
-        b: source_text.as_bytes(),
-        source_text,
-        position: start,
-        end,
-        close,
-        comments: Vec::new(),
-        whitespace: Vec::new(),
-        comment_closers: Vec::new(),
-        selector_count: 0,
-        relative_count: 0,
-        value_tokens: Vec::new(),
-        rule_count: 0,
-        current_rule: None,
-        selector_parent: None,
-        atoms: Interner::new(),
-        escaped: FxHashMap::default(),
-    };
+fn read(
+    source_text: &str,
+    start: usize,
+    end: usize,
+    close: Option<&[u8]>,
+    lint: Option<bool>,
+) -> R<StyleSheet> {
+    let mut p = P::new(source_text, start, end, close, lint);
     let rules = p.rules(false)?;
     Ok(StyleSheet {
         content: Span::new(start as u32, p.position as u32),
@@ -89,7 +101,41 @@ fn read(source_text: &str, start: usize, end: usize, close: Option<&[u8]>) -> R<
     })
 }
 
+impl<'a> P<'a> {
+    fn new(
+        source_text: &'a str,
+        start: usize,
+        end: usize,
+        close: Option<&'a [u8]>,
+        lint: Option<bool>,
+    ) -> Self {
+        P {
+            tolerant: lint.is_some(),
+            scss: lint == Some(true),
+            b: source_text.as_bytes(),
+            source_text,
+            position: start,
+            end,
+            close,
+            comments: Vec::new(),
+            whitespace: Vec::new(),
+            comment_closers: Vec::new(),
+            selector_count: 0,
+            relative_count: 0,
+            value_tokens: Vec::new(),
+            rule_count: 0,
+            current_rule: None,
+            selector_parent: None,
+            atoms: Interner::new(),
+            escaped: FxHashMap::default(),
+        }
+    }
+}
+
 struct P<'a> {
+    /// [`parse_for_lint`]'s reading.
+    tolerant: bool,
+    scss: bool,
     b: &'a [u8],
     source_text: &'a str,
     position: usize,
@@ -166,6 +212,10 @@ impl P<'_> {
             ("-->", 4)
         } else if rest.starts_with("/*") {
             ("*/", 2)
+        } else if self.scss && rest.starts_with("//") {
+            let line = rest.find(['\n', '\r', '\u{c}']).unwrap_or(rest.len());
+            self.position += line;
+            return Ok(true);
         } else {
             return Ok(false);
         };
@@ -179,150 +229,6 @@ impl P<'_> {
             self.comments.push(self.span(start));
         }
         Ok(true)
-    }
-
-    /// The length of the identifier character at `at`, or 0: Svelte reads ASCII letters, digits,
-    /// `_`, `-` and any code point from U+00A0.
-    fn ident_char(&self, at: usize) -> usize {
-        match self.b.get(at) {
-            Some(c) if at < self.end && (c.is_ascii_alphanumeric() || matches!(c, b'_' | b'-')) => {
-                1
-            }
-            Some(c) if at < self.end && *c >= 0x80 => self.source_text[at..]
-                .chars()
-                .next()
-                .filter(|c| *c >= '\u{a0}')
-                .map_or(0, char::len_utf8),
-            _ => 0,
-        }
-    }
-
-    /// Whether an identifier Svelte accepts starts at `at`.
-    fn starts_identifier(&self, at: usize) -> bool {
-        let digit = at + usize::from(self.b.get(at) == Some(&b'-'));
-        (self.b.get(at) == Some(&b'\\') || self.ident_char(at) > 0)
-            && !self.b.get(digit).is_some_and(u8::is_ascii_digit)
-    }
-
-    /// Svelte's identifier, which is `css_expected_identifier` when empty or when it starts with
-    /// a digit.
-    fn identifier(&mut self) -> R<Span> {
-        let start = self.position;
-        let digit = start + usize::from(self.peek() == Some(b'-'));
-        if digit < self.end && self.b[digit].is_ascii_digit() {
-            return Err(selectors::expected_identifier(start));
-        }
-        let name = self.ident();
-        if name.is_empty() {
-            return Err(selectors::expected_identifier(start));
-        }
-        Ok(name)
-    }
-
-    fn ident(&mut self) -> Span {
-        let start = self.position;
-        let mut decoded = None::<String>;
-        let mut plain = start;
-        while let Some(byte) = self.peek() {
-            if byte == b'\\' {
-                let text = decoded.get_or_insert_with(String::new);
-                text.push_str(&self.source_text[plain..self.position]);
-                self.position += 1;
-                text.push(self.escape());
-                plain = self.position;
-            } else {
-                let length = self.ident_char(self.position);
-                if length == 0 {
-                    break;
-                }
-                self.position += length;
-            }
-        }
-        let span = self.span(start);
-        if let Some(mut text) = decoded {
-            text.push_str(&self.source_text[plain..self.position]);
-            self.escaped.insert(span, self.atoms.intern(&text));
-        }
-        span
-    }
-
-    fn escape(&mut self) -> char {
-        let start = self.position;
-        let mut value = 0;
-        while self.position - start < 6 {
-            let Some(digit) = self.peek().and_then(|b| char::from(b).to_digit(16)) else {
-                break;
-            };
-            value = value * 16 + digit;
-            self.position += 1;
-        }
-        if self.position > start {
-            if self.peek().is_some_and(|b| b.is_ascii_whitespace()) {
-                let cr = self.peek() == Some(b'\r');
-                self.position += 1;
-                if cr && self.peek() == Some(b'\n') {
-                    self.position += 1;
-                }
-            }
-            return char::from_u32(value).filter(|c| *c != '\0').unwrap_or('�');
-        }
-        let Some(c) = self.source_text[self.position..self.end].chars().next() else {
-            return '�';
-        };
-        self.position += c.len_utf8();
-        c
-    }
-
-    fn string(&mut self) -> R<Span> {
-        let start = self.position;
-        let quote = self.peek().expect("a string starts with a quote");
-        self.position += 1;
-        let mut plain = self.position;
-        let mut decoded = None::<String>;
-        while let Some(byte) = self.peek() {
-            if byte == quote {
-                let end = self.position;
-                self.position += 1;
-                if let Some(mut text) = decoded {
-                    text.push_str(&self.source_text[plain..end]);
-                    let span = Span::new(start as u32 + 1, end as u32);
-                    self.escaped.insert(span, self.atoms.intern(&text));
-                }
-                return Ok(self.span(start));
-            }
-            if byte == b'\\' {
-                let text = decoded.get_or_insert_with(String::new);
-                text.push_str(&self.source_text[plain..self.position]);
-                self.position += 1;
-                if self.peek() == Some(b'*') && self.b.get(self.position + 1) == Some(&b'/') {
-                    self.comment_closers.push(Span::new(
-                        self.position as u32 + 1,
-                        self.position as u32 + 2,
-                    ));
-                }
-                if matches!(self.peek(), Some(b'\n' | b'\r')) {
-                    let cr = self.peek() == Some(b'\r');
-                    self.position += 1;
-                    if cr && self.peek() == Some(b'\n') {
-                        self.position += 1;
-                    }
-                } else {
-                    text.push(self.escape());
-                }
-                plain = self.position;
-            } else {
-                self.position += 1;
-                if byte == b'*' && self.peek() == Some(b'/') {
-                    self.comment_closers
-                        .push(Span::new(self.position as u32, self.position as u32 + 1));
-                }
-            }
-        }
-        Err(ParseError {
-            code: "unexpected_eof",
-            message: "Unexpected end of input".to_owned(),
-            span: Span::new(self.end as u32, self.end as u32),
-        })
     }
 
     fn skip_balanced_until(&mut self, stops: &[u8]) -> R<()> {
@@ -339,6 +245,12 @@ impl P<'_> {
                 self.skip_trivia()?;
                 continue;
             }
+            if self.scss && c == b'#' && self.b.get(self.position + 1) == Some(&b'{') {
+                self.position += 2;
+                self.skip_balanced_until(b"}")?;
+                self.eat(b'}');
+                continue;
+            }
             match c {
                 b'"' | b'\'' => {
                     self.string()?;
@@ -353,6 +265,92 @@ impl P<'_> {
         Ok(())
     }
 
+    /// A rule, or nothing for a declaration or a block without a selector, as `PostCSS` reads
+    /// them; a `;` or `}` after a declaration is left for the caller.
+    fn tolerant_item(&mut self) -> R<Option<Rule>> {
+        let start = self.position;
+        let end = self.tolerant_item_end();
+        if self.b.get(end) != Some(&b'{') {
+            // A `;` or `}` here ends nothing: step over it.
+            self.position = if end == start { end + 1 } else { end };
+            return Ok(None);
+        }
+        if trim(self.source_text, Span::new(start as u32, end as u32)).is_empty() {
+            self.position = end + 1;
+            self.skip_balanced_until(b"}")?;
+            self.expect(b'}')?;
+            return Ok(None);
+        }
+        // ESLint still lints a rule whose selector its parser cannot read.
+        let selectors = self.attempt(Self::rule_selectors).unwrap_or_else(|| {
+            self.position = end;
+            Vec::new()
+        });
+        self.style_rule_with(start, selectors).map(Some)
+    }
+
+    /// What `read` reads, or nothing, with the reader back where it was, on its error.
+    fn attempt<T>(&mut self, read: impl FnOnce(&mut Self) -> R<T>) -> Option<T> {
+        let mark = (
+            self.position,
+            self.comments.len(),
+            self.whitespace.len(),
+            self.comment_closers.len(),
+            self.selector_count,
+            self.relative_count,
+        );
+        let read = read(self).ok();
+        if read.is_none() {
+            self.position = mark.0;
+            self.comments.truncate(mark.1);
+            self.whitespace.truncate(mark.2);
+            self.comment_closers.truncate(mark.3);
+            self.selector_count = mark.4;
+            self.relative_count = mark.5;
+        }
+        read
+    }
+
+    /// The first `;`, `{` or `}` outside brackets, strings and comments, or the end.
+    fn tolerant_item_end(&self) -> usize {
+        let mut at = self.position;
+        let mut depth = 0usize;
+        while at < self.end {
+            let c = self.b[at];
+            let next = self.b.get(at + 1).copied();
+            match c {
+                b'\\' => at += 1,
+                b'"' | b'\'' => {
+                    at += 1;
+                    while at < self.end && self.b[at] != c {
+                        at += usize::from(self.b[at] == b'\\') + 1;
+                    }
+                }
+                b'/' if next == Some(b'*') => {
+                    at = self.source_text[at + 2..self.end]
+                        .find("*/")
+                        .map_or(self.end, |i| at + i + 3);
+                }
+                b'/' if self.scss && depth == 0 && next == Some(b'/') => {
+                    at = self.source_text[at..self.end]
+                        .find(['\n', '\r', '\u{c}'])
+                        .map_or(self.end, |i| at + i);
+                }
+                b'#' if self.scss && next == Some(b'{') => {
+                    at = self.source_text[at..self.end]
+                        .find('}')
+                        .map_or(self.end, |i| at + i);
+                }
+                b'(' | b'[' => depth += 1,
+                b')' | b']' => depth = depth.saturating_sub(1),
+                b';' | b'{' | b'}' if depth == 0 => return at,
+                _ => {}
+            }
+            at += 1;
+        }
+        self.end
+    }
+
     fn rules(&mut self, nested: bool) -> R<Vec<Rule>> {
         let mut rules = Vec::new();
         loop {
@@ -363,6 +361,11 @@ impl P<'_> {
                 None => return Err(self.expected_token("}")),
                 Some(b'}') if nested => return Ok(rules),
                 Some(b'@') => push(&mut rules, self.at_rule()?),
+                Some(_) if self.tolerant => {
+                    if let Some(rule) = self.tolerant_item()? {
+                        push(&mut rules, rule);
+                    }
+                }
                 Some(_) => push(&mut rules, self.style_rule()?),
             }
         }
@@ -371,7 +374,12 @@ impl P<'_> {
     fn at_rule(&mut self) -> R<Rule> {
         let start_offset = self.position;
         self.position += 1;
-        let name = self.identifier()?;
+        // PostCSS reads any word as the name of an at-rule.
+        let name = if self.tolerant {
+            self.ident()
+        } else {
+            self.identifier()?
+        };
         let prelude_start_offset = self.position;
         self.skip_balanced_until(b"{;}")?;
         let prelude = trim(self.source_text, self.span(prelude_start_offset));
@@ -428,13 +436,26 @@ impl P<'_> {
     }
 
     fn style_rule(&mut self) -> R<Rule> {
+        let start_offset = self.position;
+        let selectors = self.rule_selectors()?;
+        self.style_rule_with(start_offset, selectors)
+    }
+
+    fn rule_selectors(&mut self) -> R<Vec<ComplexSelector>> {
+        let previous_parent = self.selector_parent;
+        self.selector_parent = self.current_rule;
+        let selectors = self.selector_list(false);
+        self.selector_parent = previous_parent;
+        selectors
+    }
+
+    /// The block of a style rule whose selectors end at the `{`.
+    fn style_rule_with(&mut self, start_offset: usize, selectors: Vec<ComplexSelector>) -> R<Rule> {
         let identifier = RuleIdentifier::new(self.rule_count);
         self.rule_count += 1;
         let parent = self.current_rule;
         let previous_parent = self.selector_parent;
         self.selector_parent = parent;
-        let start_offset = self.position;
-        let selectors = self.selector_list(false)?;
         let block_start_offset = self.position;
         self.position += 1;
         self.current_rule = Some(identifier);

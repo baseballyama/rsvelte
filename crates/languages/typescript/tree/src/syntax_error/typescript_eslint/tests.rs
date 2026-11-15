@@ -136,6 +136,17 @@ fn a_check_typescript_eslint_makes_is_thrown_when_tsc_s_parser_finds_nothing() {
 }
 
 #[test]
+fn a_checker_error_is_left_unchecked_for_typescript_eslint() {
+    let text = "class C { static private a = 1; set x(a, b) {} }";
+    let parsed = Tree::build(text, |builder| {
+        builder.leave_unchecked(&crate::TYPESCRIPT_ESLINT_UNCHECKED);
+        let range = Span::new(0, text.len() as u32);
+        builder.program(range, SourceType::ts()).map_err(Into::into)
+    });
+    parsed.expect("typescript-eslint parses it");
+}
+
+#[test]
 fn an_abstract_field_with_an_initializer_is_thrown_at_the_initializer() {
     // What typescript-eslint 8.72.1 throws, which checks this itself.
     for (text, at) in [

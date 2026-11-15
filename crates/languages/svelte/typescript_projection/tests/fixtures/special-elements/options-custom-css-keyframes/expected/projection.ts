@@ -1,13 +1,16 @@
 ;
-async () => {
-  {
-    svelteHTML.createElement("svelte:options", {
-      "customelement": "my-element",
-    });
-  }
-  {
-    svelteHTML.createElement("p", {});
-  }
-};
-const OptionsCustomCssKeyframes__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+function $$render() {
+  async () => {
+    {
+      svelteHTML.createElement("svelte:options", {
+        "customelement": "my-element",
+      });
+    }
+    {
+      svelteHTML.createElement("p", {});
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const OptionsCustomCssKeyframes__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof OptionsCustomCssKeyframes__SvelteComponent_>} */ (OptionsCustomCssKeyframes__SvelteComponent_);

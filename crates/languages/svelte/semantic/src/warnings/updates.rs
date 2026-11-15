@@ -94,3 +94,6 @@ fn in_function(resolution: &Resolution, mut scope: ScopeId, tops: &[ScopeId]) ->
     }
     false
 }
+
+#[cfg(test)]
+mod tests;

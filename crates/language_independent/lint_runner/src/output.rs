@@ -5,7 +5,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 
-use crate::finding::Finding;
+use crate::finding::{Finding, UNUSED_DIRECTIVE};
 
 /// Bytes of one finding's pretty JSON beyond its rule and message, with room for large positions,
 /// so the output is allocated once.
@@ -90,12 +90,13 @@ pub fn render_json<'a>(
     }
     w.end_array().key("findings").begin_array();
     for d in findings.iter().map(|f| &f.diagnostic) {
-        w.begin_object()
-            .key("rule")
-            .write_string(&d.code)
-            .key("message")
-            .write_string(&d.message)
-            .key("start");
+        w.begin_object().key("rule");
+        if d.code == UNUSED_DIRECTIVE {
+            w.null();
+        } else {
+            w.write_string(&d.code);
+        }
+        w.key("message").write_string(&d.message).key("start");
         position(&mut w, positions, d.span.start_offset);
         w.key("end");
         if d.has_end {

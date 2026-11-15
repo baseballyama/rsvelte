@@ -87,10 +87,10 @@ impl<'a> Parser<'a, '_> {
                     // `style:--custom-property` has no expression; it sets the empty string.
                     return Ok(());
                 }
-                let expression = if identifier {
+                let expression = if attribute.kind == AttributeKind::Style {
                     self.name_expression(directive)?
                 } else {
-                    // Upstream reads the whole name, dots and dashes too, as one identifier.
+                    // Upstream reads the whole name as one identifier: `a.b`, `a-b` and `this` too.
                     let span = oxc_span::Span::new(directive.start_offset, directive.end_offset);
                     let name = Expression::new_identifier(span, text, &self.builder.nodes());
                     self.builder.keep_expression(name)

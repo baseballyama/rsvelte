@@ -14,6 +14,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
 use rsvelte_markup_syntax::is_void;
+use rsvelte_markup_syntax::script_language::guess_typescript;
 use rsvelte_typescript_tree::{Builder, ExpressionIdentifier, ProgramIdentifier, Tree};
 
 use crate::syntax_tree::{
@@ -29,7 +30,21 @@ type R<T> = Result<T, Diagnostic>;
 /// A `parse_error` [`Diagnostic`] at the first syntax error, or at syntax this parser does not
 /// support; `js_parse_error` or the style sheet's Svelte error from the embedded parsers.
 pub fn parse(source_text: &str) -> R<SingleFileComponent> {
-    let (javascript, (c, program)) = Tree::build(source_text, |builder| {
+    let guess = guess_typescript(source_text);
+    let (parsed, lang_read) = parse_as(source_text, guess);
+    // Without a script the component is JavaScript, unless the parse stopped before it.
+    let typescript = lang_read.unwrap_or_else(|| guess && parsed.is_err());
+    if typescript == guess {
+        return parsed;
+    }
+    parse_as(source_text, typescript).0
+}
+
+/// The component, its expressions read as TypeScript or not, and the language its script gives
+/// it once read.
+fn parse_as(source_text: &str, typescript: bool) -> (R<SingleFileComponent>, Option<bool>) {
+    let mut lang_read = None;
+    let parsed = Tree::build(source_text, |builder| {
         let mut p = P {
             source_text: builder.source_text(),
             b: source_text.as_bytes(),
@@ -42,11 +57,14 @@ pub fn parse(source_text: &str) -> R<SingleFileComponent> {
                 template: None,
                 script: None,
                 styles: Vec::new(),
-                typescript: script_is_typescript(source_text),
+                typescript,
                 tokens: Tokens::with_capacity(source_text.len() / 4),
             },
+            lang_read: None,
         };
-        p.blocks()?;
+        let blocks = p.blocks();
+        lang_read = p.lang_read;
+        blocks?;
         let program = match &p.c.script {
             Some(s) => s.program,
             None => p
@@ -55,8 +73,8 @@ pub fn parse(source_text: &str) -> R<SingleFileComponent> {
                 .map_err(javascript_error)?,
         };
         Ok((p.c, program))
-    })?;
-    Ok(SingleFileComponent {
+    });
+    let component = parsed.map(|(javascript, (c, program))| SingleFileComponent {
         javascript,
         nodes: c.nodes,
         children: c.children,
@@ -67,7 +85,8 @@ pub fn parse(source_text: &str) -> R<SingleFileComponent> {
         styles: c.styles,
         typescript: c.typescript,
         tokens: c.tokens,
-    })
+    });
+    (component, lang_read)
 }
 
 /// The component without its JavaScript, while the parser fills the arena.
@@ -90,33 +109,14 @@ fn javascript_error(e: impl Into<Diagnostic>) -> Diagnostic {
     e
 }
 
-/// The template's expressions are TypeScript when the script is: compileScript passes `isTS` to the
-/// template compiler. Read before parsing, because the template may come first.
-fn script_is_typescript(source_text: &str) -> bool {
-    let mut from = 0;
-    while let Some(i) = source_text[from..].find("<script") {
-        let at = from + i + "<script".len();
-        from = at;
-        if !source_text[at..].starts_with(|c: char| c.is_ascii_whitespace() || c == '>') {
-            continue;
-        }
-        let tag = &source_text[at..at
-            + source_text[at..]
-                .find('>')
-                .unwrap_or(source_text.len() - at)];
-        return tag
-            .split_ascii_whitespace()
-            .any(|a| matches!(a, "lang=\"ts\"" | "lang='ts'" | "lang=ts"));
-    }
-    false
-}
-
 struct P<'a, 'b> {
     source_text: &'a str,
     b: &'b [u8],
     position: usize,
     builder: &'b mut Builder<'a>,
     c: Markup,
+    /// The language the script's `lang` gives the component, once the script is read.
+    lang_read: Option<bool>,
 }
 
 impl<'a> P<'a, '_> {
@@ -234,3 +234,6 @@ impl<'a> P<'a, '_> {
 
 mod blocks;
 mod template;
+
+#[cfg(test)]
+mod tests;

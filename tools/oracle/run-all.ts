@@ -8,7 +8,7 @@ import path from 'node:path';
 import url from 'node:url';
 import { parseArgs } from 'node:util';
 import getExePath from './node_modules/typescript-7/lib/getExePath.js';
-import { CORPUS, ROOT } from './paths.ts';
+import { CARGO_TARGET, CORPUS } from './paths.ts';
 
 const options = (plugin: string, value: object) => ['--options', plugin, JSON.stringify(value)];
 const pkg = (name: string) => fs.realpathSync(path.join(import.meta.dirname, 'node_modules', name));
@@ -16,7 +16,7 @@ const pkg = (name: string) => fs.realpathSync(path.join(import.meta.dirname, 'no
 export async function main(args: string[]): Promise<void> {
 	const { values } = parseArgs({
 		args,
-		options: { binary: { type: 'string', default: path.join(ROOT, 'target/release/rsvelte') } },
+		options: { binary: { type: 'string', default: path.join(CARGO_TARGET, 'release/rsvelte') } },
 	});
 	const families = fs
 		.readdirSync(CORPUS)

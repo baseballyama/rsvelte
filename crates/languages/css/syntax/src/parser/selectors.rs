@@ -13,19 +13,26 @@ impl P<'_> {
     /// Ends before the `{` of the block, or before the `)` of a pseudo-class.
     pub(super) fn selector_list(&mut self, inside_pseudo: bool) -> R<Vec<ComplexSelector>> {
         let mut selectors = Vec::new();
+        let close = if inside_pseudo { b')' } else { b'{' };
         self.skip_trivia()?;
         loop {
-            push(&mut selectors, self.complex(inside_pseudo)?);
-            self.skip_trivia()?;
-            if self.peek() == Some(if inside_pseudo { b')' } else { b'{' }) {
+            // ESLint's selector parser reads an empty selector in a list.
+            let empty = self.tolerant && matches!(self.peek(), Some(c) if c == b',' || c == close);
+            if !empty {
+                push(&mut selectors, self.complex(inside_pseudo)?);
+                self.skip_trivia()?;
+            }
+            if self.peek() == Some(close) {
                 return Ok(selectors);
             }
             let comma = self.position as u32;
             self.expect(b',')?;
-            selectors
-                .last_mut()
-                .expect("a selector precedes the comma")
-                .comma = Some(Span::new(comma, comma + 1));
+            if !empty {
+                selectors
+                    .last_mut()
+                    .expect("a selector precedes the comma")
+                    .comma = Some(Span::new(comma, comma + 1));
+            }
             self.skip_trivia()?;
         }
     }
@@ -54,6 +61,9 @@ impl P<'_> {
                 break;
             }
             combinator = Some(self.combinators(inside_pseudo)?);
+            if self.tolerant && self.ends_selector(inside_pseudo) {
+                break;
+            }
         }
         if parts
             .iter()
@@ -130,6 +140,14 @@ impl P<'_> {
                 Some(b'+') => (Combinator::NextSibling, 1),
                 Some(b'~') => (Combinator::SubsequentSibling, 1),
                 Some(b'|') if self.at(b"||") => (Combinator::Column, 2),
+                // ESLint's selector parser reads a bar that no name follows as a combinator.
+                Some(b'|')
+                    if self.tolerant
+                        && self.b.get(self.position + 1) != Some(&b'*')
+                        && !self.starts_identifier(self.position + 1) =>
+                {
+                    (Combinator::Descendant, 1)
+                }
                 _ => break,
             };
             self.position += length;
@@ -145,7 +163,7 @@ impl P<'_> {
         if let Some(at) = comment {
             return Err(expected_identifier(at));
         }
-        if explicit.is_some() && self.ends_selector(inside_pseudo) {
+        if explicit.is_some() && self.ends_selector(inside_pseudo) && !self.tolerant {
             return Err(ParseError {
                 code: "css_selector_invalid",
                 message: "Invalid selector".to_owned(),
@@ -231,7 +249,7 @@ impl P<'_> {
             }
             b'#' => {
                 self.position += 1;
-                let name = self.identifier()?;
+                let name = self.name()?;
                 Simple::Identifier {
                     span: self.span(s),
                     name,
@@ -239,7 +257,7 @@ impl P<'_> {
             }
             b'.' => {
                 self.position += 1;
-                let name = self.identifier()?;
+                let name = self.name()?;
                 Simple::Class {
                     span: self.span(s),
                     name,
@@ -375,7 +393,12 @@ impl P<'_> {
                     }
                 }
             } else if NTH.iter().any(|nth| name.eq_ignore_ascii_case(nth)) {
-                self.selector_list(true)?;
+                if !self.tolerant {
+                    self.selector_list(true)?;
+                } else if self.attempt(|p| p.selector_list(true)).is_none() {
+                    // ESLint's selector parser reads any argument of an `nth-*` pseudo-class.
+                    self.skip_balanced_until(b")")?;
+                }
             } else {
                 self.skip_balanced_until(b")")?;
             }
@@ -399,6 +422,22 @@ impl P<'_> {
                 selectors: selectors.into_boxed_slice(),
             }
         })
+    }
+
+    /// The name of a class or an ID, which the lint's selector parser reads empty or from a digit.
+    fn name(&mut self) -> R<Span> {
+        if !self.tolerant {
+            return self.identifier();
+        }
+        let start = self.position;
+        loop {
+            self.ident();
+            // ESLint's selector parser reads a C1 control character as part of a word.
+            match self.source_text[self.position..self.end].chars().next() {
+                Some(c) if ('\u{80}'..'\u{a0}').contains(&c) => self.position += c.len_utf8(),
+                _ => return Ok(self.span(start)),
+            }
+        }
     }
 
     /// The length of an `An+B` and of the `of` after it, when the selector ends there or an
@@ -466,6 +505,41 @@ fn trivia(rest: &[u8], from: usize) -> usize {
 fn count(rest: &[u8], from: usize, f: fn(&u8) -> bool) -> usize {
     rest.get(from..)
         .map_or(0, |rest| rest.iter().take_while(|c| f(c)).count())
+}
+
+/// The selector list of the `An+B of S` argument of an `nth-*` pseudo-class, as lint reads it.
+///
+/// The tree does not keep it, so that every simple selector stays small. Its names read through
+/// the sheet's [`StyleSheet::text`](crate::StyleSheet::text), since the sheet's parse read them.
+#[must_use]
+pub fn nth_of_selectors(source_text: &str, simple: &Simple) -> Vec<ComplexSelector> {
+    let Simple::PseudoClass {
+        name,
+        arguments: Some(arguments),
+        ..
+    } = simple
+    else {
+        return Vec::new();
+    };
+    let name = name.text(source_text);
+    let of = arguments
+        .text(source_text)
+        .as_bytes()
+        .windows(2)
+        .any(|w| w.eq_ignore_ascii_case(b"of"));
+    if !of || !NTH.iter().any(|nth| name.eq_ignore_ascii_case(nth)) {
+        return Vec::new();
+    }
+    // The reader ends at the `)` after the argument.
+    let start = arguments.start_offset as usize;
+    let mut p = P::new(
+        source_text,
+        start,
+        arguments.end_offset as usize + 1,
+        None,
+        Some(false),
+    );
+    p.attempt(|p| p.selector_list(true)).unwrap_or_default()
 }
 
 const NTH: [&str; 4] = [

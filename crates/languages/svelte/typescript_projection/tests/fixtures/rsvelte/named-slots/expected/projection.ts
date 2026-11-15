@@ -1,83 +1,90 @@
 ;
+import C from './C.svelte';;
 
-	import C from './C.svelte';
+;
+
+function $$render() {
+  
+	
 	let x = $state(1);
 
 ;
 
-async () => {
-  {
-    const __rsvelte_component_0 = __rsvelte_component(C);
-    __rsvelte_component_0(__rsvelte_internals(), {
-      children: __rsvelte_children,
-      foo: () => {
-        async () => {
-        };
-        return __rsvelte_snippet_return;
-      },
-    });
-    const { foo } = __rsvelte_component_props(__rsvelte_component_0);
-    foo;
+  async () => {
     {
-      svelteHTML.createElement("div", {
-        "slot": "a",
+      const __rsvelte_component_0 = __rsvelte_component(C);
+      __rsvelte_component_0(__rsvelte_internals(), {
+        children: __rsvelte_children,
+        foo: () => {
+          async () => {
+          };
+          return __rsvelte_snippet_return;
+        },
       });
-      (x);
-    }
-    (x);
-    {
-      __rsvelte_component(C)(__rsvelte_internals(), {
-        "slot": "1",
-        "a": x,
-      });
-    }
-    {
-      svelteHTML.createElement("span", {
-        "slot": "0",
-      });
-      (x);
-    }
-    C;
-  }
-  {
-    __rsvelte_component(C)(__rsvelte_internals(), {});
-    {
-      svelteHTML.createElement("svelte:fragment", {
-        "slot": "b",
-      });
+      const { foo } = __rsvelte_component_props(__rsvelte_component_0);
+      foo;
       {
-        svelteHTML.createElement("span", {});
+        svelteHTML.createElement("div", {
+          "slot": "a",
+        });
         (x);
       }
+      (x);
+      {
+        __rsvelte_component(C)(__rsvelte_internals(), {
+          "slot": "1",
+          "a": x,
+        });
+      }
+      {
+        svelteHTML.createElement("span", {
+          "slot": "0",
+        });
+        (x);
+      }
+      C;
     }
     {
-      svelteHTML.createElement("svelte:fragment", {
-        "slot": "c",
-      });
+      __rsvelte_component(C)(__rsvelte_internals(), {});
       {
-        svelteHTML.createElement("svg", {});
+        svelteHTML.createElement("svelte:fragment", {
+          "slot": "b",
+        });
         {
-          svelteHTML.createElement("rect", {});
+          svelteHTML.createElement("span", {});
+          (x);
         }
       }
+      {
+        svelteHTML.createElement("svelte:fragment", {
+          "slot": "c",
+        });
+        {
+          svelteHTML.createElement("svg", {});
+          {
+            svelteHTML.createElement("rect", {});
+          }
+        }
+      }
+      C;
     }
-    C;
-  }
-  {
-    __rsvelte_component(C)(__rsvelte_internals(), {
-      children: __rsvelte_children,
-    });
     {
-      svelteHTML.createElement("svelte:fragment", {});
-      (x);
+      __rsvelte_component(C)(__rsvelte_internals(), {
+        children: __rsvelte_children,
+      });
+      {
+        svelteHTML.createElement("svelte:fragment", {});
+        (x);
+      }
+      C;
     }
-    C;
-  }
-  {
-    svelteHTML.createElement("button", {
-      "onclick": () => x++,
-    });
-  }
-};
-const NamedSlots__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+    {
+      svelteHTML.createElement("button", {
+        "onclick": () => x++,
+      });
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const NamedSlots__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof NamedSlots__SvelteComponent_>} */ (NamedSlots__SvelteComponent_);

@@ -93,6 +93,8 @@ pub(super) struct Function<'a> {
     pub scope: Option<ScopeId>,
     pub name: Option<SymbolId>,
     pub parameters: &'a oxc_ast::ast::FormalParameters<'a>,
+    /// A TypeScript `this` parameter, which `ESTree` puts first in `params`.
+    pub this: Option<oxc_span::Span>,
     /// Where the body starts.
     pub body: u32,
     pub span: oxc_span::Span,
@@ -107,6 +109,7 @@ impl<'a> Function<'a> {
                 scope: function.scope_id.get(),
                 name: function.id.as_ref().and_then(|id| id.symbol_id.get()),
                 parameters: &function.params,
+                this: function.this_param.as_ref().map(|this| this.span),
                 body: function.body.as_ref()?.span.start,
                 span: function.span,
                 is_async: function.r#async,
@@ -115,6 +118,7 @@ impl<'a> Function<'a> {
                 scope: arrow.scope_id.get(),
                 name: None,
                 parameters: &arrow.params,
+                this: None,
                 body: arrow.body.span().start,
                 span: arrow.span,
                 is_async: arrow.r#async,

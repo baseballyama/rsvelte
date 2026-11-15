@@ -1,17 +1,14 @@
 //! An element's own warnings: its attributes, its tag, and the deprecated special elements.
 
-use oxc_ast::ast::Expression;
 use oxc_semantic::SymbolFlags;
-use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::names::{is_mathml, is_svg};
 use rsvelte_svelte_syntax::parse::is_void;
 use rsvelte_svelte_syntax::syntax_tree::{
-    Attribute, AttributeKind, AttributeValue, Part, Range, TemplateNode,
+    AttributeKind, AttributeValue, Part, Range, TemplateNode,
 };
-use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::super::{a11y, warning};
+use super::super::{a11y, error, warning};
 use super::placement::Ancestor;
 use super::{Owner, Stage, Template, is_component};
 
@@ -93,6 +90,9 @@ impl<'a> Template<'a> {
             );
         }
         self.directives(attributes, matches!(tag, Tag::Regular | Tag::Dynamic));
+        if matches!(tag, Tag::Regular | Tag::Dynamic | Tag::Component) {
+            self.attribute_errors(span, attributes, tag != Tag::Component);
+        }
         self.attribute_texts(attributes, tag == Tag::Dynamic);
         let inner = match tag {
             Tag::Dynamic => a11y::Parent::Dynamic,
@@ -108,13 +108,11 @@ impl<'a> Template<'a> {
         };
         self.shadow_root |= tag == Tag::Regular && has("shadowrootmode");
         let slotted = matches!(tag, Tag::Regular | Tag::Dynamic) && has("slot");
+        // Upstream's `ConstTag` takes a component or `<svelte:component>`, not `<svelte:self>`.
+        let owns_consts = tag == Tag::Component && name != "svelte:self";
         let owner = if name == "svelte:head" {
             Owner::Head
-        } else if slotted
-            || matches!(name, "svelte:fragment" | "svelte:boundary")
-            // Upstream's `ConstTag` takes a component or `<svelte:component>`, not `<svelte:self>`.
-            || (tag == Tag::Component && name != "svelte:self")
-        {
+        } else if slotted || matches!(name, "svelte:fragment" | "svelte:boundary") || owns_consts {
             Owner::Declarations
         } else {
             Owner::Other
@@ -223,7 +221,7 @@ impl<'a> Template<'a> {
             && self.owner == Owner::Head
             && let Some(first) = component.attributes(attributes).first()
         {
-            let found = super::error(
+            let found = error(
                 "title_illegal_attribute",
                 "`<title>` cannot have attributes nor directives",
                 first.span,
@@ -267,128 +265,6 @@ impl<'a> Template<'a> {
         );
     }
 
-    /// `check_global_event_reference`: `{onclick}` with no `onclick` declared, which reads the
-    /// global handler.
-    pub(super) fn global_event_reference(&mut self, at: u32, attribute: &Attribute) {
-        let component = self.context.component;
-        let name = attribute.name.text(self.context.source);
-        let global = expression(attribute, component).is_some_and(|e| {
-            matches!(component.javascript.get_expression(e), Expression::Identifier(identifier)
-                if identifier.name == name && self.context.resolution.symbol(identifier).is_none())
-        });
-        if global {
-            let message = format!(
-                "You are referencing `globalThis.{name}`. Did you forget to declare a variable \
-                    with that name?"
-            );
-            self.warn(
-                at,
-                warning("attribute_global_event_reference", &message, attribute.span),
-            );
-        }
-    }
-
-    /// `validate_element`'s warnings, attribute by attribute.
-    fn validate_element(&mut self, at: u32, tag: Tag, name: &str, attributes: Range) {
-        let component = self.context.component;
-        let source = self.context.source;
-        let custom = tag == Tag::Regular
-            && (name.contains('-')
-                || component
-                    .attributes(attributes)
-                    .iter()
-                    .any(|a| a.kind == AttributeKind::Attribute && a.name.text(source) == "is"));
-        for attribute in component.attributes(attributes) {
-            if attribute.kind != AttributeKind::Attribute {
-                continue;
-            }
-            let attribute_name = attribute.name.text(source);
-            if self.context.runes && custom {
-                self.quoted(at, attribute);
-            }
-            if attribute_name.len() > 2 && attribute_name.starts_with("on") {
-                self.global_event_reference(at, attribute);
-            }
-            if attribute_name == "is" {
-                self.warn(
-                    at,
-                    warning(
-                        "attribute_avoid_is",
-                        "The \"is\" attribute is not supported cross-browser and should be avoided",
-                        attribute.span,
-                    ),
-                );
-            }
-            let right = match attribute_name {
-                "className" => Some("class"),
-                "htmlFor" => Some("for"),
-                _ => None,
-            };
-            if let Some(right) = right {
-                let message = format!(
-                    "'{attribute_name}' is not a valid HTML attribute. Did you mean '{right}'?"
-                );
-                self.warn(
-                    at,
-                    warning("attribute_invalid_property_name", &message, attribute.span),
-                );
-            }
-            self.colon(at, attribute);
-        }
-    }
-
-    /// `visit_component`'s warnings of each attribute.
-    fn validate_component(&mut self, at: u32, name: &str, attributes: Range) {
-        let component = self.context.component;
-        for attribute in component.attributes(attributes) {
-            // The parser takes `<svelte:component this>` out of the attributes.
-            let this =
-                name == "svelte:component" && attribute.name.text(self.context.source) == "this";
-            if attribute.kind != AttributeKind::Attribute || this {
-                continue;
-            }
-            if self.context.runes {
-                self.quoted(at, attribute);
-            }
-            self.colon(at, attribute);
-        }
-    }
-
-    /// `attribute_quoted`: a value that is one quoted expression.
-    fn quoted(&mut self, at: u32, attribute: &Attribute) {
-        if attribute.quoted && expression(attribute, self.context.component).is_some() {
-            self.warn(
-                at,
-                warning(
-                    "attribute_quoted",
-                    "Quoted attributes on components and custom elements will be stringified in a \
-                    future version of Svelte. If this isn't what you want, remove the quotes",
-                    attribute.span,
-                ),
-            );
-        }
-    }
-
-    /// `attribute_illegal_colon`.
-    fn colon(&mut self, at: u32, attribute: &Attribute) {
-        let name = attribute.name.text(self.context.source);
-        if name.contains(':')
-            && !["xmlns:", "xlink:", "xml:"]
-                .iter()
-                .any(|p| name.starts_with(p))
-        {
-            self.warn(
-                at,
-                warning(
-                    "attribute_illegal_colon",
-                    "Attributes should not contain ':' characters to prevent ambiguity with Svelte \
-                    directives",
-                    attribute.span,
-                ),
-            );
-        }
-    }
-
     /// `component_name_lowercase`: an element named like an import nothing references.
     fn lowercase_component(&mut self, at: u32, name: &str, span: Span) {
         let resolution = self.context.resolution;
@@ -405,79 +281,6 @@ impl<'a> Template<'a> {
             );
             self.warn(at, warning("component_name_lowercase", &message, span));
         }
-    }
-
-    /// The directives' own visitors: `on:` on an element, and `bind:`.
-    fn directives(&mut self, attributes: Range, element: bool) {
-        let component = self.context.component;
-        let source = self.context.source;
-        for attribute in component.attributes(attributes) {
-            let at = attribute.span.start_offset;
-            match attribute.kind {
-                AttributeKind::On if element && self.context.runes => {
-                    let Some(name) = attribute.directive_name(&component.modifiers) else {
-                        continue;
-                    };
-                    let name = name.text(source);
-                    let message = format!(
-                        "Using `on:{name}` to listen to the {name} event is deprecated. Use the \
-                            event attribute `on{name}` instead"
-                    );
-                    self.warn(
-                        at,
-                        warning("event_directive_deprecated", &message, attribute.span),
-                    );
-                }
-                AttributeKind::Bind => {
-                    let Some(value) = expression(attribute, component) else {
-                        continue;
-                    };
-                    let named = attribute
-                        .directive_name(&component.modifiers)
-                        .map(|n| n.text(source));
-                    if named == Some("this") {
-                        let at = component.javascript.get_expression(value).span();
-                        self.bind_this
-                            .push((Span::new(at.start, at.end), self.blocks > 0));
-                    }
-                    self.each_rest_binding(at, value);
-                }
-                _ => {}
-            }
-        }
-    }
-
-    /// `bind_invalid_each_rest`: a binding to a name an `{#each}` rest element declares.
-    fn each_rest_binding(&mut self, at: u32, value: ExpressionIdentifier) {
-        let mut object = self.context.component.javascript.get_expression(value);
-        while let Some(member) = object.as_member_expression() {
-            object = member.object();
-        }
-        let Expression::Identifier(identifier) = object else {
-            return;
-        };
-        let resolution = self.context.resolution;
-        let Some(symbol) = resolution.symbol(identifier) else {
-            return;
-        };
-        if !self.each_rest.contains(&symbol) {
-            return;
-        }
-        let scoping = resolution.scoping();
-        let declared = scoping.symbol_span(symbol);
-        let name = scoping.symbol_name(symbol);
-        let message = format!(
-            "The rest operator (...) will create a new object and binding '{name}' with the \
-                original object will not work"
-        );
-        self.warn(
-            at,
-            warning(
-                "bind_invalid_each_rest",
-                &message,
-                Span::new(declared.start, declared.end),
-            ),
-        );
     }
 
     /// `<svelte:element this="div">`: a string where an expression belongs, which the parser
@@ -505,16 +308,4 @@ impl<'a> Template<'a> {
     }
 }
 
-/// The expression of an attribute whose value is one expression.
-fn expression(
-    attribute: &Attribute,
-    component: &rsvelte_svelte_syntax::syntax_tree::Component,
-) -> Option<ExpressionIdentifier> {
-    match attribute.value {
-        AttributeValue::Parts(parts) => match component.parts(parts) {
-            [Part::Expression { expression, .. }] => Some(*expression),
-            _ => None,
-        },
-        AttributeValue::True => None,
-    }
-}
+mod attributes;

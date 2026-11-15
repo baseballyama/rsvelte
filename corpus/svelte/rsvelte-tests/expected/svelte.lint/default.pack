@@ -1383,9 +1383,6 @@
 1:13 1:18 no-unused-vars "'count' is assigned a value but never used."
 1:13 1:18 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
 
-=== 55 rsvelte_language_server/rsvelte_analysis/59adde327ea8994d.svelte	lint.txt
-2:0 - - "Parsing error: Property assignment expected."
-
 === 348 rsvelte_language_server/rsvelte_analysis/5c3763617b386a82.svelte	lint.txt
 1:8 1:9 svelte/valid-compile "Unused CSS selector \"p\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 1:32 1:37 svelte/valid-compile "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute(a11y_missing_attribute)"
@@ -4096,9 +4093,6 @@
 
 === 0 rsvelte_language_server/selection_ranges/tests/several_positions_are_answered_in_order/5f3ba257986f9f64.svelte	lint.txt
 
-=== 59 rsvelte_language_server/selection_ranges/tests/style_selection_expands_while_scripts_remain_excluded/1ba3fc42196f334c.svelte	lint.txt
-2:0 - - "Parsing error: Unexpected keyword or identifier."
-
 === 300 rsvelte_language_server/server/nested_project_tests/a_root_without_a_config_leaves_a_nested_projects_documents_to_it/0e24276274ae05ed.svelte	lint.txt
 1:1 1:6 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<p ...></p>` rather than `<p ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
 1:4 1:6 svelte/html-self-closing "Disallow self-closing on HTML elements."
@@ -4217,9 +4211,6 @@
 1:13 1:15 no-unused-vars "'no' is assigned a value but never used."
 1:13 1:15 svelte/prefer-const "'no' is never reassigned. Use 'const' instead."
 2:2 2:12 no-undef "'Components' is not defined."
-
-=== 46 rsvelte_language_server/tsgo_component_info/tests/parser_script_native_value_and_non_colon_triggers_are_rejected/91ee76e6755d0421.svelte	lint.txt
-2:0 - - "Parsing error: Identifier expected."
 
 === 48 rsvelte_language_server/tsgo_component_info/tests/projection_selects_only_exact_component_name_segments/010ab901b9c263b9.svelte	lint.txt
 1:2 1:11 no-undef "'Component' is not defined."
@@ -4352,9 +4343,6 @@
 === 104 rsvelte_language_server/tsgo_response/tests/a_generated_constructors_props_is_dropped_where_the_source_has_no_such_word/c9fb4de533aa23a4.svelte	lint.txt
 1:2 1:6 no-undef "'Comp' is not defined."
 2:13 2:18 no-unused-vars "'props' is defined but never used."
-
-=== 59 rsvelte_language_server/tsgo_response/tests/a_name_longer_than_fifty_units_is_cut/52a32249c3589343.svelte	lint.txt
-2:0 - - "Parsing error: Unexpected keyword or identifier."
 
 === 164 rsvelte_language_server/tsgo_response/tests/a_property_on_an_attribute_is_not_a_symbol_of_its_own/9ffb323ef9a6c4db.svelte	lint.txt
 1:2 1:6 no-undef "'Comp' is not defined."
@@ -4718,14 +4706,6 @@
 3:21 3:30 svelte/valid-compile "The arguments keyword cannot be used within the template or at the top level of a component\nhttps://svelte.dev/e/invalid_arguments_usage(invalid_arguments_usage)"
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:10 4:17 no-unused-vars "'regular' is defined but never used."
-
-=== 526 rsvelte_lint/rules/no_unused_svelte_ignore/tests/ignore_in_other_if_branch_is_unused/592e39911be35f02.svelte	lint.txt
-1:6 1:7 no-undef "'x' is not defined."
-1:8 3:1 svelte/valid-compile "Empty block\nhttps://svelte.dev/e/block_empty(block_empty)"
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:21 2:43 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:2 4:17 svelte/valid-compile "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute(a11y_missing_attribute)"
 
 === 235 rsvelte_lint/rules/no_unused_svelte_ignore/tests/missing_code_is_reported_at_the_comment/411b1f272780b1d8.svelte	lint.txt
 1:1 1:23 svelte/no-unused-svelte-ignore "svelte-ignore comment must include the code"
@@ -7736,9 +7716,6 @@
 1:1 1:43 svelte/valid-compile "`<svelte:self>` components can only exist inside `{#if}` blocks, `{#each}` blocks, `{#snippet}` blocks or slots passed to components\nhttps://svelte.dev/e/svelte_self_invalid_placement(svelte_self_invalid_placement)"
 1:28 1:43 svelte/html-self-closing "Require self-closing on Svelte special elements."
 
-=== 53 rsvelte_projection/svelte2tsx/utils/htmlxparser/tests/an_uppercase_tag_is_a_component_and_never_an_orphan_script/379921bcb6f806e1.svelte	lint.txt
-1:28 - - "Parsing error: The script is unterminated"
-
 === 0 rsvelte_projection/svelte2tsx/utils/htmlxparser/tests/an_uppercase_tag_is_a_component_and_never_an_orphan_script/fd5cad564d3090d6.svelte	lint.txt
 
 === 325 rsvelte_projection/svelte2tsx/utils/htmlxparser/tests/orphan_script_fast_path_accepts_templates_without_script_candidates/ec8ed73d20355d25.svelte	lint.txt
@@ -9940,9 +9917,6 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:10 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 2:9 2:10 no-undef "'T' is not defined."
-
-=== 60 rsvelte_projection/svelte2tsx_generics_attribute_parse/modifiers_and_a_trailing_comma_are_read_from_the_parse/3b62fe6ae1f4ce8d.svelte	lint.txt
-4:5 - - "Parsing error: Type alias name cannot be 'const'."
 
 === 414 rsvelte_projection/svelte2tsx_generics_attribute_parse/modifiers_and_a_trailing_comma_are_read_from_the_parse/aa547d6d710f97d1.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -12191,9 +12165,6 @@
 === 218 rsvelte_projection/svelte2tsx_reexport_2113/reexport_mixes_with_plain_named_exports_in_source_order/de9aaa4626a274d0.svelte	lint.txt
 2:7 2:12 svelte/valid-compile "Component has unused export property 'local'. If it is for external reference only, please consider using `export const local`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
 
-=== 209 rsvelte_projection/svelte2tsx_reexport_2113/reexport_of_a_local_let_still_widens_and_stays_a_prop/603d62102a5ffdc1.svelte	lint.txt
-2:7 2:8 svelte/valid-compile "Component has unused export property 'x'. If it is for external reference only, please consider using `export const x`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
-
 === 0 rsvelte_projection/svelte2tsx_reexport_2113/renamed_reexport_keeps_official_local_to_exported_mapping/f2186ac6a152b18e.svelte	lint.txt
 
 === 103 rsvelte_projection/svelte2tsx_reexport_2113/type_only_reexport_is_removed_like_official/eaaae7a32789e3f1.svelte	lint.txt
@@ -12376,20 +12347,6 @@
 === 310 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/fa274d72ddc81a76.svelte	lint.txt
 1:1 2:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:30 1:44 svelte/valid-compile "Component has unused export property 'answer'. If it is for external reference only, please consider using `export const answer`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
-
-=== 67 rsvelte_projection/svelte2tsx_script_like_component_names/script_like_component_is_not_blanked/ffe93aebb9e69b3e.svelte	lint.txt
-2:10 - - "Parsing error: Unterminated regular expression literal."
-
-=== 76 rsvelte_projection/svelte2tsx_script_like_component_names/style_like_component_is_not_blanked/64766c531adab110.svelte	lint.txt
-1:8 1:10 svelte/html-self-closing "Disallow self-closing on HTML elements."
-
-=== 209 rsvelte_projection/svelte2tsx_script_like_component_names/style_like_component_with_a_close_tag_is_not_blanked/9bd55f8f0a0e78b4.svelte	lint.txt
-1:2 1:7 no-undef "'Style' is not defined."
-1:7 3:9 svelte/html-self-closing "Require self-closing on Svelte custom components."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
-=== 67 rsvelte_projection/svelte2tsx_script_like_component_names/uppercase_script_like_component_is_not_blanked/b8ae751f2ba7fde5.svelte	lint.txt
-2:10 - - "Parsing error: Unterminated regular expression literal."
 
 === 377 rsvelte_projection/svelte2tsx_slot_attribute_prefix_rules/a_slot_takes_the_element_prefix_rule_and_not_the_component_one/014513de6d203a52.svelte	lint.txt
 1:1 1:74 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -13278,25 +13235,10 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:21 5:35 svelte/valid-compile "`<title>` cannot have attributes nor directives\nhttps://svelte.dev/e/title_illegal_attribute(title_illegal_attribute)"
 
-=== 75 rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/04bc05a5c4a48321.svelte	lint.txt
-6:11 - - "Parsing error: Expected Identifier, but MemberExpression found."
-
-=== 78 rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/1358524331a32498.svelte	lint.txt
-6:33 - - "Parsing error: Expected JS Identifier, but MemberExpression found."
-
 === 282 rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/30abe46d162e8410.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:10 6:18 svelte/prefer-destructured-store-props "Destructure a from $store for better change tracking & fewer redraws"
-
-=== 77 rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/37e29319f0324448.svelte	lint.txt
-6:8 - - "Parsing error: Expected JS Identifier, but MemberExpression found."
-
-=== 78 rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/491ea81fca3dc99b.svelte	lint.txt
-6:16 - - "Parsing error: Expected JS Identifier, but MemberExpression found."
-
-=== 77 rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/5b242d82304197ec.svelte	lint.txt
-6:9 - - "Parsing error: Expected JS Identifier, but MemberExpression found."
 
 === 287 rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/bc0ec92e33662b80.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -13894,15 +13836,6 @@
 2:8 2:17 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
 2:14 2:15 no-undef "'f' is not defined."
 2:19 2:21 no-empty "Empty block statement."
-
-=== 517 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/06a6ed83909b32c0.svelte	lint.txt
-1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:11 2:12 no-unused-vars "'N' is defined but never used."
-2:21 2:22 no-unused-vars "'a' is assigned a value but never used."
-2:25 2:30 no-undef "'await' is not defined."
-2:25 2:25 svelte/valid-compile "Cannot use await in class static initialization block\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
-2:32 2:33 no-undef "'f' is not defined."
 
 === 517 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/07302dc92c421ce9.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -14745,17 +14678,6 @@
 2:11 3:12 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
 3:1 3:6 no-undef "'fetch' is not defined."
 3:1 3:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
-
-=== 650 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ef7c2ebb965e3245.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:8 2:9 no-unused-vars "'x' is defined but never used."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:11 3:12 no-unused-vars "'N' is defined but never used."
-3:21 3:22 no-unused-vars "'a' is assigned a value but never used."
-3:25 3:30 no-undef "'await' is not defined."
-3:25 3:25 svelte/valid-compile "Cannot use await in class static initialization block\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
-3:32 3:33 no-undef "'f' is not defined."
 
 === 517 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ef94df571dba73fb.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { parseArgs } from 'node:util';
 import { TASKS, taskById } from './tasks.ts';
-import { allUnits, applies, unitKey } from './manifest.ts';
+import { allUnits, unitKey, writes } from './manifest.ts';
 import path from 'node:path';
 import { ORACLES_FILE, expectedPack } from './paths.ts';
 import { readPack, writePack, type Entry } from './pack.ts';
@@ -104,7 +104,7 @@ export async function regen({
 		for (const variant of task.variants) {
 			const sizes = new Map<string, number>();
 			for (const u of units)
-				if (applies(task, variant.id, u))
+				if (writes(task, variant.id, u))
 					sizes.set(`${u.family}/${u.source}`, (sizes.get(`${u.family}/${u.source}`) ?? 0) + 1);
 			for (const [key, s] of sources) {
 				const size = sizes.get(key) ?? 0;

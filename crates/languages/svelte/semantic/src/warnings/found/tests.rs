@@ -22,7 +22,7 @@ fn warned(code: &str) -> Vec<String> {
         context.get::<Resolved>().as_ref().expect("resolves"),
         context.get::<Analyzed>().as_ref(),
         code,
-        "Test.svelte",
+        Some("Test.svelte"),
         options,
     );
     found

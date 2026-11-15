@@ -1,2 +1,1 @@
-# svelte.compileModule/client: 2663 match
-svelte/rsvelte-tests-core-2/module_inspect_slot_3611/an_inspect_with_declarator_keeps_its_binding_and_value/6ad6a6f4f0466bcc.svelte.js	refused
+# svelte.compileModule/client: 2664 match

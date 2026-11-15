@@ -5,6 +5,8 @@ use std::sync::Arc;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
+use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_typescript_projection::{Refusal, unparsed_script};
 use rsvelte_typescript_check::{TypeScriptDocument, TypeScriptEnv};
 
 /// The document to check, or `None` when the markup does not parse either.
@@ -13,6 +15,16 @@ pub(super) fn view<'e>(
     env: impl FnOnce() -> Result<&'e Arc<TypeScriptEnv>, Diagnostic>,
 ) -> Option<Result<TypeScriptDocument, Diagnostic>> {
     let component = rsvelte_svelte_syntax::parse::parse_without_scripts(source_text).ok()?;
+    if let Some(Refusal::Thrown { message, span }) = component
+        .module
+        .as_ref()
+        .and_then(|module| unparsed_script(source_text, module.content, true).refusal)
+    {
+        return Some(Ok(TypeScriptDocument::Rejected {
+            message: message.to_owned(),
+            span,
+        }));
+    }
     let scripts = [&component.module, &component.instance];
     let typescript = scripts
         .iter()
@@ -28,10 +40,24 @@ pub(super) fn view<'e>(
         projection.copy(source_text, module.content);
         projection.push("\n");
     }
-    // The instance script runs in svelte2tsx's render function.
+    // The instance script runs in svelte2tsx's render function, after its imports.
     if let Some(instance) = &component.instance {
+        let script = unparsed_script(source_text, instance.content, false);
+        for &import in &script.imports {
+            projection.copy(source_text, import);
+            projection.push("\n");
+        }
         projection.push("function $$render() {\n");
-        projection.copy(source_text, instance.content);
+        let mut skipped: Vec<Span> = script.imports;
+        skipped.extend(script.removed);
+        skipped.sort_unstable_by_key(|at| at.start_offset);
+        let mut from = instance.content.start_offset;
+        for at in skipped {
+            // An import and a removed export are never the same text.
+            projection.copy(source_text, Span::new(from, at.start_offset));
+            from = at.end_offset;
+        }
+        projection.copy(source_text, Span::new(from, instance.content.end_offset));
         projection.push("\n}\n");
     }
     projection.push("export {};\n");
@@ -39,8 +65,8 @@ pub(super) fn view<'e>(
         projection,
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
-        placement: Vec::new(),
         extension: if typescript { ".tsx" } else { ".jsx" },
         imports: Vec::new(),
+        store_reads: Vec::new(),
     }))
 }

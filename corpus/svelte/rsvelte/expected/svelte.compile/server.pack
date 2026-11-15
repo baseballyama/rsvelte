@@ -49571,6 +49571,62 @@ export default function Type_only_imports_and_exports($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
+=== 245 pattern/bind-dashed-name.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:a-b` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 5,
+		"column": 7,
+		"character": 47
+	},
+	"end": {
+		"line": 5,
+		"column": 15,
+		"character": 55
+	}
+}
+
+=== 356 pattern/bind-dollar-store-member-name.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$store.value` is an illegal variable name. To reference a global variable called `$store.value`, use `globalThis.$store.value`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 6,
+		"column": 12,
+		"character": 114
+	},
+	"end": {
+		"line": 6,
+		"column": 24,
+		"character": 126
+	}
+}
+
+=== 245 pattern/bind-member-name.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:a.b` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 5,
+		"column": 7,
+		"character": 55
+	},
+	"end": {
+		"line": 5,
+		"column": 15,
+		"character": 63
+	}
+}
+
+=== 203 pattern/class-member-name.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Class_member_name($$renderer) {
+	let a = { b: true };
+
+	$$renderer.push(`<div${$.attr_class('', void 0, { 'a.b': a.b })}>x</div>`);
+}
 === 336 pattern/css/consecutive-and-column-combinators.svelte	css
 
 	a.svelte-1ggfu26 >> b:where(.svelte-1ggfu26) {
@@ -66592,32 +66648,6 @@ export default function Rune_local_in_a_template_function_is_not_a_plain_local($
 
 	$$renderer.push(`<button>a</button> <button>b</button> ${$.escape(prop.n)}`);
 }
-=== 189 pattern/issues/script-data-lang-ts-strips.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Script_data_lang_ts_strips($$renderer) {
-	let item = { size: 2 };
-
-	$$renderer.push(`<p>${$.escape(item.size)}</p>`);
-}
-=== 393 pattern/issues/script-data-lang-ts-strips.svelte	warnings.json
-[
-	{
-		"code": "script_unknown_attribute",
-		"message": "Unrecognised attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it\nhttps://svelte.dev/e/script_unknown_attribute",
-		"start": {
-			"line": 1,
-			"column": 8,
-			"character": 8
-		},
-		"end": {
-			"line": 1,
-			"column": 22,
-			"character": 22
-		}
-	}
-]
-
 === 474 pattern/issues/script-lang-after-quoted-gt.svelte	js
 import * as $ from 'svelte/internal/server';
 

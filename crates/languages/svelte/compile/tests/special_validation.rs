@@ -387,3 +387,28 @@ fn a_directive_named_by_a_store_member_is_an_illegal_global() {
         assert_eq!(error.as_deref(), code, "{markup}");
     }
 }
+
+#[test]
+fn a_bind_this_shorthand_compiles_on_the_server_and_is_refused_on_the_client() {
+    // svelte 5.57.3 reads the name as an identifier `this`; its client then assigns to `this`.
+    let source = "<script>let tag = $state('div');</script>\
+                  <svelte:element this={tag} bind:this>x</svelte:element>";
+    let component = rsvelte_svelte_syntax::parse::parse(source).expect("valid syntax");
+    let tree = compiler_syntax_tree::lower(&component, source);
+    let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "test.svelte");
+    let resolution = resolve::resolve(
+        &component.javascript,
+        component.instance.as_ref().map(|s| s.program),
+        component.module.as_ref().map(|s| s.program),
+        &tree,
+    );
+    let analysis = analyze::analyze(&input, &resolution);
+    let input = CompileInput::from(input);
+    let code = |target| {
+        compile_input(&input, &resolution, &analysis, target)
+            .err()
+            .map(|error| error.code)
+    };
+    assert_eq!(code(Target::Server), None);
+    assert_eq!(code(Target::Client).as_deref(), Some("unsupported"));
+}

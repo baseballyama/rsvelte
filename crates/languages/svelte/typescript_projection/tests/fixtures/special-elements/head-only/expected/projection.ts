@@ -1,11 +1,14 @@
 ;
-async () => {
-  {
-    svelteHTML.createElement("svelte:head", {});
+function $$render() {
+  async () => {
     {
-      svelteHTML.createElement("title", {});
+      svelteHTML.createElement("svelte:head", {});
+      {
+        svelteHTML.createElement("title", {});
+      }
     }
-  }
-};
-const HeadOnly__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const HeadOnly__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof HeadOnly__SvelteComponent_>} */ (HeadOnly__SvelteComponent_);

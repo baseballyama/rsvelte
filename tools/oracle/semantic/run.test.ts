@@ -9,6 +9,7 @@ import { SyntaxKind, type VariableStatement } from 'typescript-7/ast';
 import { SemanticChecker, type Projection } from './checker.ts';
 import { projections, comparePopulation } from './run.ts';
 import { TypeComparison, UnmeasuredType } from './types.ts';
+import { CARGO_TARGET } from '../paths.ts';
 
 const tools = path.resolve(import.meta.dirname, '..');
 const repository = path.resolve(tools, '../..');
@@ -17,7 +18,7 @@ const fixture = path.join(
 	'crates/languages/svelte/compile/tests/fixtures/rsvelte/ts-props',
 );
 const binary =
-	process.env.RSVELTE_SEMANTIC_PROJECTOR ?? path.join(repository, 'target/debug/examples/semantic');
+	process.env.RSVELTE_SEMANTIC_PROJECTOR ?? path.join(CARGO_TARGET, 'debug/examples/semantic');
 let checker: SemanticChecker;
 let projection: Projection;
 let source: string;

@@ -6,6 +6,9 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::edits::Edits;
 use rsvelte_kernel::source::positions::Span;
 
+/// The code of `ESLint`'s own report of an unused directive comment, which names no rule.
+pub const UNUSED_DIRECTIVE: &str = "unused-disable-directive";
+
 #[derive(Clone, Debug)]
 pub struct Finding {
     pub diagnostic: Diagnostic,
