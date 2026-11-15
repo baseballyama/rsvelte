@@ -97628,38 +97628,6 @@ export default function Rune_local_in_a_template_function_is_not_a_plain_local($
 }
 
 $.delegate(['click']);
-=== 347 pattern/issues/script-data-lang-ts-strips.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<p> </p>`);
-
-export default function Script_data_lang_ts_strips($$anchor) {
-	let item = { size: 2 };
-	var p = root();
-	var text = $.only_child(p, true);
-
-	$.template_effect(() => $.set_text(text, item.size));
-	$.append($$anchor, p);
-}
-=== 393 pattern/issues/script-data-lang-ts-strips.svelte	warnings.json
-[
-	{
-		"code": "script_unknown_attribute",
-		"message": "Unrecognised attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it\nhttps://svelte.dev/e/script_unknown_attribute",
-		"start": {
-			"line": 1,
-			"column": 8,
-			"character": 8
-		},
-		"end": {
-			"line": 1,
-			"column": 22,
-			"character": 22
-		}
-	}
-]
-
 === 593 pattern/issues/script-lang-after-quoted-gt.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';

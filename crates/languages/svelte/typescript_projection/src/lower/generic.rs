@@ -356,7 +356,8 @@ impl Builder<'_> {
 /// TypeScript.
 #[derive(Debug, Default)]
 pub struct UnparsedScript {
-    /// The error it throws for a module script, as [`Builder::module_declarations`].
+    /// The error it throws for a module script that declares `$$Generic`, `$$Events`, `$$Slots` or
+    /// `$$Props`.
     pub refusal: Option<Refusal>,
     /// The instance script's imports, which move before the render function.
     pub imports: Vec<Span>,

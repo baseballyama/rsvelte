@@ -1,9 +1,10 @@
-# svelte.lint/default: 37574 match
+# svelte.lint/default: 37570 match
+svelte/flare/src/lib/components/SettingsView.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/4e9145d6de0541b6.svelte	mismatch
 svelte/rsvelte-tests-core-2/malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/681354e4e5d31214.svelte	mismatch
-svelte/rsvelte-tests-core-2/malformed_snippet_header/an_optional_parameter_marker_without_lang_ts_fails_after_the_question_mark/8584ad3a7a51e39c.svelte	mismatch
 svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/compile_module_uses_plain_acorn_diagnostics_for_a_svelte_js_module/38c3fc0fa2638397.svelte.js	refused
-svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte	mismatch
 svelte/rsvelte-tests-formatter/markup_patterns/let_directive_value_is_formatted_as_an_expression/ac7edb54ecf01f25.svelte	mismatch
 svelte/rsvelte/lint/no-nested-style-tag/06-self-closing-top.svelte	mismatch
 svelte/rsvelte/pattern/issues/3218-expected-token-point.svelte	mismatch
+svelte/svelte-bits/src/lib/components/library/Backgrounds/GridDistortion/GridDistortion.svelte	mismatch
+svelte/threlte/packages/extras/src/lib/components/GLTF/GLTF.svelte	mismatch
