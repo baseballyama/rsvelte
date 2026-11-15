@@ -1,4 +1,4 @@
-# svelte.lint/default: 37125 match
+# svelte.lint/default: 37127 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -346,8 +346,6 @@ svelte/rsvelte-tests-core-3/track_loss_comment_runes_instance_2375/an_ignored_aw
 svelte/rsvelte-tests-core-3/ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/062bffbc050c12a5.svelte.js	refused
 svelte/rsvelte-tests-core-3/ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/57185b6704ef8913.svelte.js	refused
 svelte/rsvelte-tests-core-3/ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/752f063aec2fd0e6.svelte.js	refused
-svelte/rsvelte-tests-core-3/ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/9aefdd8665572722.svelte	mismatch
-svelte/rsvelte-tests-core-3/ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/d64ad819be5d6270.svelte	mismatch
 svelte/rsvelte-tests-core-3/ts_class_modifiers_3100_3203/a_modifier_combination_oxc_refuses_is_still_a_parse_error/e5c684ed751a28c5.svelte.js	refused
 svelte/rsvelte-tests-core-3/ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/014a524f474f7dae.svelte.js	refused
 svelte/rsvelte-tests-core-3/ts_class_modifiers_3100_3203/a_typescript_class_modifier_in_a_plain_script_stops_where_acorn_stops/05b53ee7d4abb227.svelte.js	refused
