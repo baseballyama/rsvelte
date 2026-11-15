@@ -12,6 +12,8 @@ pub use contract::store_reads;
 pub use generic::{UnparsedScript, unparsed_script};
 mod hoistable;
 mod root_snippets;
+mod script_kind;
+pub use script_kind::checked_as_typescript;
 mod tag;
 
 use oxc_ast::ast::Expression;
@@ -91,10 +93,7 @@ pub fn lower<'a>(
         props_hoisted: false,
         module_snippets: None,
     };
-    builder.tree.javascript = ![&component.instance, &component.module]
-        .into_iter()
-        .flatten()
-        .any(|script| script.typescript);
+    builder.tree.javascript = !checked_as_typescript(component, source);
     // svelte2tsx moves the root's snippets after the instance script's imports, or leaves them in
     // place without an instance script.
     let instance = component.instance.is_some();
@@ -427,6 +426,11 @@ impl Builder<'_> {
         let properties = self.finish_list(start);
         let properties = self.tree.push(Node::Object { properties });
         let (call, named) = if is_component {
+            // svelte-check reports a finding on all of a component's props at its name.
+            let properties = self.tree.push(Node::Located {
+                value: properties,
+                at: name,
+            });
             let component = match component {
                 Some(component) => self.expression_source(component, None),
                 None => self.tree.push(Node::AnyComponent),

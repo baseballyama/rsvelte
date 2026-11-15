@@ -3,9 +3,11 @@
 
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-input.svelte".skip]
 "svelte.compile" = "svelte 5.57.3 emits an import declaration that is not at the top level, which does not parse"
+"svelte.check" = "checker: TS 7 resolves the module of an `import … = require(…)` inside a function, where TS 6 reports only that the declaration is not at the top level, so TS 7 adds a 2307"
 
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-output.svelte".skip]
 "svelte.compile" = "svelte 5.57.3 emits an import declaration that is not at the top level, which does not parse"
+"svelte.check" = "checker: TS 7 resolves the module of an `import … = require(…)` inside a function, where TS 6 reports only that the declaration is not at the top level, so TS 7 adds a 2307"
 
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes04-input.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx deletes an instance-script `export { foo } from` and reads `foo` only in generated code, so svelte-check hides both the unresolved module and the unbound name"

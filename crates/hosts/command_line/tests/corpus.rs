@@ -108,7 +108,8 @@ impl Task for CountCoverage {
                 // The projection exports its component, so it is a module.
                 let source_type = SourceType::ts().with_module(true);
                 let result = Parser::new(&allocator, &projection.out, source_type).parse();
-                let type_syntax = javascript_rejects(component, projection, &result);
+                let type_syntax =
+                    javascript_rejects(component, context.source_text(), projection, &result);
                 let source = context.source_text();
                 let generics = component
                     .instance
@@ -184,39 +185,32 @@ impl Task for CountCoverage {
     }
 }
 
-/// Whether JavaScript's grammar rejects a component without a TypeScript script beyond
-/// TypeScript's: only what a script's own text holds, such as its second default export, may.
+/// Whether JavaScript's grammar rejects a projection svelte-check reads as JavaScript beyond
+/// TypeScript's: only text copied from the component, such as a script's second default export
+/// or a template expression the compiler read as TypeScript, may.
 fn javascript_rejects(
     component: &rsvelte_svelte_syntax::syntax_tree::Component,
+    source: &str,
     projection: &rsvelte_kernel::output::emitter::Emitter,
     as_typescript: &oxc_parser::ParserReturn<'_>,
 ) -> bool {
-    let scripts = || {
-        [&component.instance, &component.module]
-            .into_iter()
-            .flatten()
-    };
-    if scripts().any(|script| script.typescript) {
+    if rsvelte_svelte_typescript_projection::checked_as_typescript(component, source) {
         return false;
     }
     let allocator = Allocator::default();
     let as_javascript = Parser::new(&allocator, &projection.out, SourceType::mjs()).parse();
-    let in_script = |offset: u32| {
+    let copied = |offset: u32| {
         projection
-            .lookup_overlap(Span::new(offset, offset))
-            .is_some_and(|at| {
-                scripts().any(|script| {
-                    (script.content.start_offset..script.content.end_offset)
-                        .contains(&at.start_offset)
-                })
-            })
+            .mappings
+            .iter()
+            .any(|m| (m.generated..m.generated + m.len).contains(&offset))
     };
     as_javascript.diagnostics.iter().any(|d| {
         !as_typescript
             .diagnostics
             .iter()
             .any(|t| t.message == d.message && t.labels == d.labels)
-            && !d.labels.iter().any(|label| in_script(label.offset()))
+            && !d.labels.iter().any(|label| copied(label.offset()))
     })
 }
 

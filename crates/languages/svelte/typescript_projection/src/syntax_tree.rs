@@ -125,8 +125,7 @@ pub enum Node {
     },
     Property {
         name: Span,
-        /// svelte2tsx writes the name in lowercase.
-        lowercase: bool,
+        spelling: Spelling,
         value: NodeIdentifier,
         end: Option<u32>,
     },
@@ -160,6 +159,13 @@ pub enum Node {
         template: bool,
     },
     Text(Span),
+    /// `value`, where a finding on all of it maps to `at`, and a finding inside it as usual.
+    Located {
+        value: NodeIdentifier,
+        at: Span,
+    },
+    /// Text that needs no escape as a string literal, which a finding on the literal locates.
+    QuotedText(Span),
     /// Source text without a mapping, so neither findings nor typed lint see this copy.
     UnmappedSource(Span),
     /// A `$$Generic` alias as svelte2tsx's unmapped type parameter, `name extends constraint`.
@@ -280,4 +286,13 @@ impl SyntaxTree {
         self.children.extend_from_slice(children);
         range
     }
+}
+
+/// How svelte2tsx writes a [`Node::Property`]'s name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Spelling {
+    AsWritten,
+    Lowercase,
+    /// `on:` before the event's name, where svelte-check reports a finding on the name.
+    Event,
 }
