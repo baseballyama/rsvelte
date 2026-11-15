@@ -3277,6 +3277,7 @@
 
 ["svelte/rsvelte-tests-core-3/ts_decorators_2597/a_decorator_under_a_default_export_is_not_the_reported_error/f758f4def7740efe.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx moves the instance script into a function, so a statement allowed only at the top level (`export default`, `export import`) reports TS's error for its new place"
+"svelte.compile" = "upstream bug: acorn-typescript reads a decorated class after `export default` as a class expression, so svelte 5.57.3 ends the export at the `;` that ECMAScript and TypeScript read as an empty statement"
 
 ["svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/0681114feeabb165.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx moves the instance script into a function, so a statement allowed only at the top level (`export default`, `export import`) reports TS's error for its new place"
