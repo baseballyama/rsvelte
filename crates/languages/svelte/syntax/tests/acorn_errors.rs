@@ -61,6 +61,11 @@ fn acorn_reports_each_error_in_its_own_words_and_place() {
         ),
         ("<script>function f(a?) {}</script>", "Unexpected token", 20),
         (
+            "<script>class C { accessor x?: number; }</script>",
+            "Unexpected token",
+            27,
+        ),
+        (
             "<script>class K { m(a?) {} }</script>",
             "Unexpected token",
             21,
