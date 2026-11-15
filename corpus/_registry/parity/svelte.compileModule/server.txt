@@ -8,7 +8,6 @@ svelte/rsvelte-tests-core-2/module_compile_error_propagation/ts_decorator_now_er
 svelte/rsvelte-tests-core-2/module_compile_error_propagation/ts_module_errors_like_upstream/8310a5563c393ab6.svelte.js	mismatch
 svelte/rsvelte-tests-core-2/module_compile_ts_strip/client_rejects_ts_annotations/cce85b132666848f.svelte.js	mismatch
 svelte/rsvelte-tests-core-2/module_compile_ts_strip/server_rejects_ts_annotations/4276e78cf7fc238a.svelte.js	mismatch
-svelte/rsvelte-tests-core-2/module_destructure_state_assign/same_named_plain_values_are_not_signals/2f896a111888b079.svelte.js	mismatch
 svelte/rsvelte-tests-core-2/module_inspect_slot_3611/an_inspect_with_declarator_keeps_its_binding_and_value/5ec595030be1bb54.svelte.js	refused
 svelte/rsvelte-tests-core-2/module_inspect_slot_3611/an_inspect_with_declarator_keeps_its_binding_and_value/6ad6a6f4f0466bcc.svelte.js	refused
 svelte/rsvelte-tests-core-2/module_inspect_slot_3611/the_other_server_rune_lowerings_are_unchanged/dc1e292e8acf5fe8.svelte.js	mismatch
@@ -96,4 +95,3 @@ svelte/rsvelte-tests-core-3/ts_namespace_3244/compile_module_rejects_every_names
 svelte/rsvelte/pattern/adversarial/modules/module-class-expressions.svelte.js	mismatch
 svelte/rsvelte/pattern/adversarial/modules/module-default-class-tail.svelte.js	mismatch
 svelte/rsvelte/pattern/issues/3069-export-default-class-semicolon.svelte.js	mismatch
-svelte/rsvelte/pattern/issues/3180-snapshot-position.svelte.js	mismatch
