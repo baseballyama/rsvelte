@@ -85,7 +85,11 @@ pub fn analysis_error(
 /// The number of `error`'s tsc diagnostic.
 fn typescript_code(error: &OxcDiagnostic) -> Option<u32> {
     if error.code.scope.as_deref() != Some("TS") {
-        return None;
+        // oxc gives tsc's scanner error no code.
+        return error
+            .message
+            .starts_with("Invalid Character `")
+            .then_some(1127);
     }
     error.code.number.as_deref()?.parse().ok()
 }

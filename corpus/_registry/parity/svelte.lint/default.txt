@@ -1,4 +1,4 @@
-# svelte.lint/default: 37207 match
+# svelte.lint/default: 37209 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -362,8 +362,6 @@ svelte/rsvelte-tests/rsvelte_language_server/folding/tests/no_input_panics/55ce6
 svelte/rsvelte-tests/rsvelte_language_server/folding/tests/no_input_panics/a7896b97746ed2b6.svelte	refused
 svelte/rsvelte-tests/rsvelte_language_server/tsgo_overlay/tests/an_unparseable_shadow_still_finds_the_render_return_type_slot/204de4961e65fda8.svelte	refused
 svelte/rsvelte-tests/rsvelte_language_server/tsgo_overlay/tests/source_map_supplies_a_fallback_for_rewritten_markup/bed5dd654034d2b1.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_language_server/tsgo_response/tests/prospective_shadow_alias_uses_old_projection_and_new_visible_uri/bf3cf11d49c306d5.svelte	refused
-svelte/rsvelte-tests/rsvelte_language_server/tsgo_response/tests/semantic_tokens_decode_map_filter_sort_and_reencode_utf16/ac0b9b0db711bce6.svelte	refused
 svelte/rsvelte-tests/rsvelte_lint/rules/no_undef/tests/typeof_option_and_arguments_match_eslint_semantics/2e1b52bcaf5ad094.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/ignore_in_other_if_branch_is_unused/592e39911be35f02.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/nodes/snippet_hoisting/tests/duplicate_name_self_reference_does_not_inherit_blocked_peer/7a63d4879226079a.svelte	mismatch

@@ -141,3 +141,11 @@ fn a_checker_error_is_left_unchecked_for_typescript_eslint() {
     });
     parsed.expect("typescript-eslint parses it");
 }
+
+#[test]
+fn an_invalid_character_is_tsc_s() {
+    assert_eq!(
+        thrown("const 💡 = 1;"),
+        Some(("Invalid character.".to_owned(), 6))
+    );
+}

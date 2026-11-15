@@ -8,7 +8,7 @@ use super::SyntaxError;
 
 /// The message of a code, where `{0}` stands for the name or token oxc's message quotes. Those of
 /// 1070, 1071, 1090, 2404, 2483 and 2499 are typescript-eslint's words, the others tsc's.
-const MESSAGES: [(u32, &str); 28] = [
+const MESSAGES: [(u32, &str); 29] = [
     (1005, "'{0}' expected."),
     (
         1024,
@@ -30,6 +30,7 @@ const MESSAGES: [(u32, &str); 28] = [
     (1099, "Type argument list cannot be empty."),
     (1109, "Expression expected."),
     (1110, "Type expected."),
+    (1127, "Invalid character."),
     (1161, "Unterminated regular expression literal."),
     (1172, "'extends' clause already seen."),
     (1173, "'extends' clause must precede 'implements' clause."),
