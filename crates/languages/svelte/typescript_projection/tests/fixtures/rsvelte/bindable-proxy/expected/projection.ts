@@ -1,6 +1,9 @@
 ;
 
 	/** @type {typeof __rsvelte_public_props0} */ let { items = $bindable([]), config = $bindable({ open: false }) } = $props();
+items;
+config;
+
 
 ;
 

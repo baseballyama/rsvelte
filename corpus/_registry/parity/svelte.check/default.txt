@@ -201,4 +201,3 @@ svelte/svelteui/apps/docs/src/lib/components/homepage/AllComponents.svelte	misma
 svelte/svelteui/apps/docs/src/lib/components/mainpages/NextSteps.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/rapier/attractor/AdvancedScene.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/rapier/collision-groups/App.svelte	mismatch
-svelte/threlte/packages/extras/src/lib/components/Svg/Svg.svelte	mismatch

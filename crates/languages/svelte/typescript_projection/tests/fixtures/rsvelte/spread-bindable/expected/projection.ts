@@ -1,6 +1,9 @@
 ;
 
 	/** @type {typeof __rsvelte_public_props0} */ let { value = $bindable(), text = $bindable('x'), ...properties } = $props();
+value;
+text;
+
 
 ;
 
