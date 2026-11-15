@@ -503,7 +503,12 @@ impl P<'_> {
     fn at_rule(&mut self) -> R<Rule> {
         let start_offset = self.position;
         self.position += 1;
-        let name = self.identifier()?;
+        // PostCSS reads any word as the name of an at-rule.
+        let name = if self.tolerant {
+            self.ident()
+        } else {
+            self.identifier()?
+        };
         let prelude_start_offset = self.position;
         self.skip_balanced_until(b"{;}")?;
         let prelude = trim(self.source_text, self.span(prelude_start_offset));
