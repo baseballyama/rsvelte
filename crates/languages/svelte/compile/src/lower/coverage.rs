@@ -2,6 +2,7 @@
 //! target meets it.
 
 use oxc_ast::ast::Expression;
+use oxc_syntax::keyword::is_reserved_keyword;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, ElementKind, MetadataTag, Name, StyleValue,
 };
@@ -44,7 +45,7 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
                 }
                 _ => None,
             }),
-            // Upstream's `slot_snippet_conflict`.
+            // A custom element may mix them, which upstream compiles and this port does not lower.
             NodeKind::Element(el) if el.kind == ElementKind::Slot && renders => {
                 Some("a `<slot>` beside a `{@render}` tag")
             }
@@ -66,15 +67,6 @@ pub(super) fn check(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Di
         if let Some(what) = what {
             return unsupported(what, node.span);
         }
-    }
-    // Upstream's `slot_snippet_conflict`.
-    if let Some(render) = tree
-        .nodes
-        .iter()
-        .find(|node| matches!(node.kind, NodeKind::Render { .. }))
-        .filter(|_| super::uses_slots(res))
-    {
-        return unsupported("`$$slots` beside a `{@render}` tag", render.span);
     }
     Ok(())
 }
@@ -99,6 +91,16 @@ pub(super) fn check_for(input: &CompileInput<'_>, target: Target) -> Result<(), 
                 .find(|a| matches!(a.value, AttributeValue::Let(_)))
         {
             return unsupported("a `let:` directive", a.span);
+        }
+        // Upstream's client assigns to the name, `this = $$value`, which does not parse.
+        if let NodeKind::Element(el) = &node.kind
+            && let Some(a) = tree.attributes(el.attributes).iter().find(|a| {
+                matches!(a.value, AttributeValue::Bind(target)
+                    if matches!(input.component.javascript.get_expression(target),
+                        Expression::Identifier(name) if is_reserved_keyword(&name.name)))
+            })
+        {
+            return unsupported("a `bind:` shorthand named by a reserved word", a.span);
         }
     }
     Ok(())

@@ -1,6 +1,6 @@
 use oxc_ast::ast::Expression;
 use oxc_span::SourceType;
-use oxc_syntax::identifier::is_identifier_name;
+use rsvelte_svelte_syntax::names::reads_as_identifier;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Component, Part};
 use rsvelte_typescript_tree::Tree;
 
@@ -32,8 +32,9 @@ pub(super) fn rejection(component: &Component) -> Option<(String, u32)> {
             };
             let expression = tree.get_expression(expression);
             let found = match expression {
-                // Svelte takes a name like `a.b` as one identifier; the parser reads it as code.
-                Expression::Identifier(name) if !is_identifier_name(&name.name) => {
+                // Svelte takes a name like `a.b` or `this` as one identifier; the parser reads it
+                // as code.
+                Expression::Identifier(name) if !reads_as_identifier(&name.name) => {
                     reread_type(&name.name)?
                 }
                 _ => estree_type(expression)?,

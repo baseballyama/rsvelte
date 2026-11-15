@@ -38,6 +38,9 @@ pub(super) fn place_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Place {
 
 /// Where `kind`, a child of `frame`, sits, given where `frame` sits.
 fn parent_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Parent {
+    if let Some(parent) = inspect_parent(frame, kind) {
+        return parent;
+    }
     let parent = frame.place.parent;
     let is = |span: oxc_span::Span| kind.span() == span;
     match (frame.kind, parent) {
@@ -108,18 +111,6 @@ fn parent_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Parent {
         ) if matches!(kind, AstKind::ExpressionStatement(_)) => Parent::LoneStatement,
         (AstKind::ExpressionStatement(_), Parent::LoneStatement) => Parent::LoneExpression,
         (AstKind::ExpressionStatement(_), _) => Parent::Statement(None),
-        (AstKind::CallExpression(call), Parent::Statement(statement))
-            if is(call.callee.span())
-                && matches!(kind, AstKind::StaticMemberExpression(m) if m.property.name == "with") =>
-        {
-            Parent::InspectWith(statement)
-        }
-        (AstKind::StaticMemberExpression(_), Parent::InspectWith(statement))
-            if matches!(kind, AstKind::CallExpression(c)
-                if matches!(&c.callee, Expression::Identifier(i) if i.name == "$inspect")) =>
-        {
-            Parent::Statement(statement)
-        }
         (
             AstKind::AssignmentExpression(assign),
             Parent::Statement(Some((
@@ -141,6 +132,46 @@ fn parent_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Parent {
         }
         _ => Parent::Other,
     }
+}
+
+/// The places of the `.with` callee and the `$inspect(…)` in an `$inspect(…).with(…)` statement
+/// or top-level initializer.
+fn inspect_parent(frame: &Frame<'_>, kind: AstKind<'_>) -> Option<Parent> {
+    let is = |span: oxc_span::Span| kind.span() == span;
+    let parent = match (frame.kind, frame.place.parent) {
+        (AstKind::CallExpression(call), Parent::Statement(statement))
+            if is(call.callee.span())
+                && matches!(kind, AstKind::StaticMemberExpression(m) if m.property.name == "with") =>
+        {
+            Parent::InspectWith(statement)
+        }
+        (
+            AstKind::CallExpression(call),
+            Parent::Initializer {
+                top: true,
+                named: true,
+                ..
+            },
+        ) if is(call.callee.span())
+            && matches!(kind, AstKind::StaticMemberExpression(m) if m.property.name == "with") =>
+        {
+            Parent::InitializerWith
+        }
+        (AstKind::StaticMemberExpression(_), Parent::InitializerWith)
+            if matches!(kind, AstKind::CallExpression(c)
+                if matches!(&c.callee, Expression::Identifier(i) if i.name == "$inspect")) =>
+        {
+            Parent::InitializerInspect
+        }
+        (AstKind::StaticMemberExpression(_), Parent::InspectWith(statement))
+            if matches!(kind, AstKind::CallExpression(c)
+                if matches!(&c.callee, Expression::Identifier(i) if i.name == "$inspect")) =>
+        {
+            Parent::Statement(statement)
+        }
+        _ => return None,
+    };
+    Some(parent)
 }
 
 /// Upstream's `this.x`, `this.#x` or `this[<literal>]`.

@@ -31,7 +31,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 /// What upstream's transforms call a `$$props` the source declares.
 const SANITIZED_PROPS: &str = "$$sanitized_props";
-use statements::{Inspect, inspect, is_effect};
+use statements::{Inspect, inspect, inspects_with, is_effect};
 pub(super) use writes::mutates_signal;
 
 use super::names::Names;
@@ -391,6 +391,9 @@ impl<'o> VisitMut<'o> for ScriptRewrite<'_, 'o> {
     }
 
     fn visit_variable_declaration(&mut self, it: &mut VariableDeclaration<'o>) {
+        if self.target == Target::Client {
+            it.declarations.retain(|d| !inspects_with(self.res, d));
+        }
         if !declarators::lower_destructured_declaration(self, it) {
             walk_mut::walk_variable_declaration(self, it);
         }

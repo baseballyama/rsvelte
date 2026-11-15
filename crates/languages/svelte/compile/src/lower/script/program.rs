@@ -7,7 +7,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_compile::strip::is_type_only;
 
-use super::statements::{Inspect, inspect, is_effect};
+use super::statements::{Inspect, declares_nothing, inspect, inspects_with, is_effect};
 use super::{Export, ScriptRewrite, declarators, exports, props};
 use crate::lower::names::Names;
 use crate::lower::{Target, span_of, unsupported};
@@ -142,7 +142,12 @@ pub(in crate::lower) fn lower_script<'t, 'o>(
                     out.extend([empty(), empty()]);
                 }
             }
-            _ => out.push(rw.statement(statement)),
+            _ => {
+                let lowered = rw.statement(statement);
+                if !declares_nothing(&lowered) {
+                    out.push(lowered);
+                }
+            }
         }
     }
     Ok(out)
@@ -195,8 +200,9 @@ fn lower_declarator<'o>(
         .as_ref()
         .and_then(|init| rw.res.rune(init))
         .map(|(rune, _)| rune);
-    // Upstream declares `$props.id()` first in the component instead.
-    if rune == Some("$props.id") {
+    // Upstream declares `$props.id()` first in the component instead, and its client declares
+    // nothing for `$inspect().with` outside development.
+    if rune == Some("$props.id") || rw.target == Target::Client && inspects_with(rw.res, d) {
         return;
     }
     if !d.id.is_binding_identifier() {

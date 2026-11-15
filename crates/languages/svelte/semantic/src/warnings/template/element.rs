@@ -111,13 +111,11 @@ impl<'a> Template<'a> {
         };
         self.shadow_root |= tag == Tag::Regular && has("shadowrootmode");
         let slotted = matches!(tag, Tag::Regular | Tag::Dynamic) && has("slot");
+        // Upstream's `ConstTag` takes a component or `<svelte:component>`, not `<svelte:self>`.
+        let owns_consts = tag == Tag::Component && name != "svelte:self";
         let owner = if name == "svelte:head" {
             Owner::Head
-        } else if slotted
-            || matches!(name, "svelte:fragment" | "svelte:boundary")
-            // Upstream's `ConstTag` takes a component or `<svelte:component>`, not `<svelte:self>`.
-            || (tag == Tag::Component && name != "svelte:self")
-        {
+        } else if slotted || matches!(name, "svelte:fragment" | "svelte:boundary") || owns_consts {
             Owner::Declarations
         } else {
             Owner::Other

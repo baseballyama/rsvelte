@@ -230,8 +230,8 @@
 		"not-runes-compatible:legacy_export_invalid": 1
 	},
 	"rsvelte": {
-		"admitted": 2934,
-		"claimed": 2973,
+		"admitted": 2938,
+		"claimed": 2977,
 		"duplicate": 39,
 		"rejected:module-rejected:derived_invalid_export": 1,
 		"rejected:module-rejected:dollar_prefix_invalid": 1,
@@ -239,7 +239,7 @@
 		"rejected:not-runes-compatible:animation_invalid_placement": 6,
 		"rejected:not-runes-compatible:attribute_duplicate": 3,
 		"rejected:not-runes-compatible:attribute_invalid_event_handler": 1,
-		"rejected:not-runes-compatible:bind_invalid_name": 2,
+		"rejected:not-runes-compatible:bind_invalid_name": 4,
 		"rejected:not-runes-compatible:bind_invalid_target": 3,
 		"rejected:not-runes-compatible:bind_invalid_value": 2,
 		"rejected:not-runes-compatible:bindable_invalid_location": 1,
@@ -263,7 +263,7 @@
 		"rejected:not-runes-compatible:element_unclosed": 1,
 		"rejected:not-runes-compatible:expected_token": 11,
 		"rejected:not-runes-compatible:experimental_async": 2,
-		"rejected:not-runes-compatible:global_reference_invalid": 1,
+		"rejected:not-runes-compatible:global_reference_invalid": 2,
 		"rejected:not-runes-compatible:host_invalid_placement": 2,
 		"rejected:not-runes-compatible:illegal_element_attribute": 1,
 		"rejected:not-runes-compatible:import_svelte_internal_forbidden": 11,
