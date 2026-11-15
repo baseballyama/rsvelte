@@ -1,5 +1,8 @@
 use oxc_ast::ast::Expression;
+use oxc_span::SourceType;
+use oxc_syntax::identifier::is_identifier_name;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Component, Part};
+use rsvelte_typescript_tree::Tree;
 
 /// What svelte-eslint-parser throws for the first directive name it reads as another expression
 /// than it expects, and where.
@@ -28,13 +31,33 @@ pub(super) fn rejection(component: &Component) -> Option<(String, u32)> {
                 _ => return None,
             };
             let expression = tree.get_expression(expression);
-            let found = estree_type(expression)?;
+            let found = match expression {
+                // Svelte takes a name like `a.b` as one identifier; the parser reads it as code.
+                Expression::Identifier(name) if !is_identifier_name(&name.name) => {
+                    reread_type(&name.name)?
+                }
+                _ => estree_type(expression)?,
+            };
             (found != "Identifier").then(|| {
                 let at = oxc_span::GetSpan::span(expression).start;
                 (format!("Expected {expected}, but {found} found."), at)
             })
         })
         .min_by_key(|&(_, at)| at)
+}
+
+/// The `ESTree` type of `text` read as one expression; `None` if it is not one.
+fn reread_type(text: &str) -> Option<&'static str> {
+    let (_, found) = Tree::build(text, |builder| {
+        let read = builder.read_expression_at(0, SourceType::mjs());
+        Ok(read.ok().and_then(|(expression, end)| {
+            (end as usize == text.len())
+                .then(|| estree_type(&expression))
+                .flatten()
+        }))
+    })
+    .ok()?;
+    found
 }
 
 /// The `ESTree` type of `expression`, for the kinds a directive name can be; `None` otherwise.
