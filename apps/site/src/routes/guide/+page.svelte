@@ -135,19 +135,21 @@
 				<p>ソースの問題を探します。</p>
 				<GuideCode code={guideExamples.lint} label="ソースの検査" />
 				<p>
-					結果は <code>// svelte.lint/default lint.json</code> の後に JSON で出ます。<code
-						>rules</code
+					ESLint と同じ形で、問題ごとに位置（行と列）、重大度（error か
+					warning）、内容、ルール名が出ます。問題がなければ何も出ません。エラーが残ると、終了コードは
+					1 です。ディレクトリを渡すと、その下のファイルをまとめて検査します。<code
+						>node_modules</code
 					>
-					は使ったルール、<code>findings</code> は見つかった問題の一覧です。<code>findings</code>
-					が空なら、問題は見つかっていません。
+					は読みません。
 				</p>
 				<p>
 					たとえば例のボタンから <code>type="button"</code> を消すと、<code
 						>svelte/button-has-type</code
 					>
-					の指摘が出ます。ボタンの種類を指定していない、という指摘です。各指摘の
-					<code>rule</code>、<code>message</code>、<code>start</code>、<code>end</code>
-					を見てソースを直します。位置の行と列は 1 から数えます。
+					の指摘が出ます。ボタンの種類を指定していない、という指摘です。
+				</p>
+				<p>
+					<code>run</code> に <code>--task svelte.lint/default</code> を渡すと、同じ結果が JSON で出ます。
 				</p>
 				<p>整形と検査を一度に実行するときは、<code>--task</code> を繰り返します。</p>
 				<GuideCode code={guideExamples.combined} label="整形と検査をまとめて実行" />
