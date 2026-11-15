@@ -15,6 +15,7 @@ use rustc_hash::FxHashSet;
 
 use super::globals::Declared;
 use crate::semantic::Semantic;
+use crate::static_value::StaticValues;
 
 /// A use of a tracked name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -172,10 +173,19 @@ enum Value<'a> {
 /// How a tracker tells a tracked name: from a list, or by a predicate.
 trait Names<'s, 'a> {
     fn find(&self, name: &'s str) -> Option<&'a str>;
+
+    /// [`Names::find`] for a name the code computes, which no tree holds.
+    fn find_computed(&self, _name: &str) -> Option<&'a str> {
+        None
+    }
 }
 
 impl<'s, 'a> Names<'s, 'a> for [&'a str] {
     fn find(&self, name: &'s str) -> Option<&'a str> {
+        self.find_computed(name)
+    }
+
+    fn find_computed(&self, name: &str) -> Option<&'a str> {
         self.iter().copied().find(|tracked| *tracked == name)
     }
 }
@@ -196,24 +206,10 @@ enum Target<'s> {
     Symbol(Option<SymbolId>),
 }
 
-/// The name a property key asks for (`getPropertyName`): `a` in `{ a }` or `{ "a": b }`, or a
-/// constant string in brackets.
-fn property_key<'s>(key: &'s PropertyKey<'s>, computed: bool) -> Option<&'s str> {
-    match key {
-        PropertyKey::StaticIdentifier(id) if !computed => Some(id.name.as_str()),
-        PropertyKey::StringLiteral(s) => s.value.as_str(),
-        PropertyKey::TemplateLiteral(t) if computed => template_text(t),
-        _ => None,
-    }
-}
-
-/// The name a computed member asks for: a constant string in brackets.
-fn computed_key<'s>(key: &'s Expression<'s>) -> Option<&'s str> {
-    match key {
-        Expression::StringLiteral(s) => s.value.as_str(),
-        Expression::TemplateLiteral(t) => template_text(t),
-        _ => None,
-    }
+/// A member's name, as written or as the code computes it.
+enum Key<'s> {
+    Written(&'s str),
+    Computed(String),
 }
 
 fn template_text<'s>(t: &'s TemplateLiteral<'s>) -> Option<&'s str> {
@@ -227,6 +223,8 @@ struct Tracker<'s, 'a, 'n, N: Names<'s, 'a> + ?Sized> {
     scoping: &'s Scoping,
     nodes: &'s AstNodes<'s>,
     names: &'n N,
+    /// What a key in brackets evaluates to (`getStringIfConstant`, which upstream gives no scope).
+    keys: StaticValues<'s>,
     /// The member path from the starting value to the object whose members are tracked.
     prefix: &'n [&'n str],
     /// Expressions still to follow, with their value and whether to report them.
@@ -242,6 +240,7 @@ impl<'s, 'a, 'n, N: Names<'s, 'a> + ?Sized> Tracker<'s, 'a, 'n, N> {
             scoping: semantic.scoping(),
             nodes: semantic.nodes(),
             names,
+            keys: StaticValues::without_names(semantic),
             prefix: &[],
             pending: Vec::new(),
             visited: FxHashSet::default(),
@@ -262,14 +261,43 @@ impl<'s, 'a, 'n, N: Names<'s, 'a> + ?Sized> Tracker<'s, 'a, 'n, N> {
 
     /// The value of the member `key` of a `value`, and whether it is a use to report, when
     /// anything is tracked through it.
-    fn member(&self, value: Value<'a>, key: Option<&'s str>) -> Option<(Value<'a>, bool)> {
+    fn member(&self, value: Value<'a>, key: Option<Key<'s>>) -> Option<(Value<'a>, bool)> {
         let key = key?;
+        let text = match &key {
+            Key::Written(text) => text,
+            Key::Computed(text) => text.as_str(),
+        };
         match value {
-            Value::Object => self.names.find(key).map(|name| (Value::Name(name), true)),
-            Value::Prefix(depth) if self.prefix[depth] == key => {
+            Value::Object => match &key {
+                Key::Written(text) => self.names.find(text),
+                Key::Computed(text) => self.names.find_computed(text),
+            }
+            .map(|name| (Value::Name(name), true)),
+            Value::Prefix(depth) if self.prefix[depth] == text => {
                 Some((self.member_of(Some(depth)), false))
             }
             _ => None,
+        }
+    }
+
+    /// The name a computed member asks for (`getPropertyName`).
+    fn computed_key(&self, key: &'s Expression<'s>) -> Option<Key<'s>> {
+        match key {
+            Expression::StringLiteral(s) => s.value.as_str().map(Key::Written),
+            Expression::TemplateLiteral(t) if t.expressions.is_empty() => {
+                template_text(t).map(Key::Written)
+            }
+            key => self.keys.string(key).map(Key::Computed),
+        }
+    }
+
+    /// The name a property key asks for (`getPropertyName`): `a` in `{ a }` or `{ "a": b }`, or
+    /// what the key in brackets evaluates to.
+    fn property_key(&self, key: &'s PropertyKey<'s>, computed: bool) -> Option<Key<'s>> {
+        match key {
+            PropertyKey::StaticIdentifier(id) if !computed => Some(Key::Written(id.name.as_str())),
+            PropertyKey::StringLiteral(s) => s.value.as_str().map(Key::Written),
+            key => self.computed_key(key.as_expression()?),
         }
     }
 
@@ -291,7 +319,7 @@ impl<'s, 'a, 'n, N: Names<'s, 'a> + ?Sized> Tracker<'s, 'a, 'n, N> {
     fn property(
         &mut self,
         node: NodeId,
-        key: Option<&'s str>,
+        key: Option<Key<'s>>,
         target: Target<'s>,
         value: Value<'a>,
     ) {
@@ -322,7 +350,7 @@ impl<'s, 'a, 'n, N: Names<'s, 'a> + ?Sized> Tracker<'s, 'a, 'n, N> {
             BindingPattern::BindingIdentifier(id) => self.follow(id.symbol_id.get(), value, false),
             BindingPattern::ObjectPattern(object) if !matches!(value, Value::Name(_)) => {
                 for p in &object.properties {
-                    let key = property_key(&p.key, p.computed);
+                    let key = self.property_key(&p.key, p.computed);
                     self.property(p.node_id(), key, Target::Binding(&p.value), value);
                 }
             }
@@ -344,12 +372,12 @@ impl<'s, 'a, 'n, N: Names<'s, 'a> + ?Sized> Tracker<'s, 'a, 'n, N> {
                     match p {
                         AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(p) => {
                             let reference = self.scoping.get_reference(p.binding.reference_id());
-                            let key = Some(p.binding.name.as_str());
+                            let key = Some(Key::Written(p.binding.name.as_str()));
                             let target = Target::Symbol(reference.symbol_id());
                             self.property(p.node_id(), key, target, value);
                         }
                         AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => {
-                            let key = property_key(&p.name, p.computed);
+                            let key = self.property_key(&p.name, p.computed);
                             let target = match &p.binding {
                                 AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(d) => {
                                     &d.binding
@@ -415,13 +443,14 @@ impl<'s, 'a, 'n, N: Names<'s, 'a> + ?Sized> Tracker<'s, 'a, 'n, N> {
             let Some(parent) = parent else { continue };
             match nodes.kind(parent) {
                 AstKind::StaticMemberExpression(m) if m.object.node_id() == top => {
-                    if let Some((next, report)) = self.member(value, Some(m.property.name.as_str()))
-                    {
+                    let key = Some(Key::Written(m.property.name.as_str()));
+                    if let Some((next, report)) = self.member(value, key) {
                         self.pending.push((parent, next, report));
                     }
                 }
                 AstKind::ComputedMemberExpression(m) if m.object.node_id() == top => {
-                    if let Some((next, report)) = self.member(value, computed_key(&m.expression)) {
+                    let key = self.computed_key(&m.expression);
+                    if let Some((next, report)) = self.member(value, key) {
                         self.pending.push((parent, next, report));
                     }
                 }

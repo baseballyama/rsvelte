@@ -225,6 +225,24 @@ fn built_parameters_are_kept() {
     assert!(tree.get_parameters(kept).items.is_empty());
 }
 
+/// The host lets 1263 pass, which typescript-eslint throws.
+const UNCHECKED: &[&str] = &["1263"];
+
+#[test]
+fn the_tree_keeps_the_errors_the_host_lets_pass() {
+    let text = "let x!: number = 1;";
+    let (tree, _) = Tree::build(text, |builder| {
+        builder.leave_unchecked(&UNCHECKED);
+        let range = Span::new(0, text.len() as u32);
+        builder.program(range, SourceType::ts()).map_err(Into::into)
+    })
+    .expect("the host lets the error pass");
+    let codes: Vec<_> = (tree.unchecked_errors().iter())
+        .map(|error| error.typescript_code)
+        .collect();
+    assert_eq!(codes, [Some(1263)]);
+}
+
 #[test]
 fn an_expression_records_the_parentheses_around_its_root_sequence_only() {
     for (source, pairs) in [

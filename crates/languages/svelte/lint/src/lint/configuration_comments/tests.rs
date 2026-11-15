@@ -33,6 +33,11 @@ fn a_comment_reads_as_eslint_parses_json_like_text() {
         ["a Warning [\"2\"]", "b off"]
     );
     assert_eq!(read(r#"/* eslint a: ["warn"] */"#), ["a Warning []"]);
+    // `levn` reads a string with a `:` that the fallback would quote apart.
+    assert_eq!(
+        read(r#"/* eslint a: ["warn", { "match": "/^on:/u" }] */"#),
+        [r#"a Warning ["{ \"match\": \"/^on:/u\" }"]"#]
+    );
 }
 
 #[test]

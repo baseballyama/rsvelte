@@ -124,7 +124,7 @@ fn parse_as(
 ) -> (ParseResult<Component>, Option<bool>) {
     let mut lang_read = None;
     let parsed = Tree::build(source_text, |builder| {
-        builder.leave_unchecked(ACORN_UNCHECKED_TYPESCRIPT_RULES);
+        builder.leave_unchecked(&ACORN_UNCHECKED_TYPESCRIPT_RULES);
         builder.read_as_acorn();
         let mut parser = Parser {
             // Upstream parses the component without its trailing whitespace, so that is where
@@ -195,7 +195,7 @@ pub fn parse_module(
     source_type: SourceType,
 ) -> ParseResult<(Tree, rsvelte_typescript_tree::ProgramIdentifier)> {
     Tree::build(source_text, |builder| {
-        builder.leave_unchecked(ACORN_UNCHECKED_TYPESCRIPT_RULES);
+        builder.leave_unchecked(&ACORN_UNCHECKED_TYPESCRIPT_RULES);
         builder.read_as_acorn();
         let range = Span::new(0, builder.source_text().len() as u32);
         (builder.program(range, source_type)).map_err(|e| acorn_position(javascript_failure(e)))

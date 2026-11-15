@@ -17,6 +17,7 @@ pub use rsvelte_svelte_syntax::syntax_tree::Part;
 use rsvelte_svelte_syntax::syntax_tree::{TemplateNodeIdentifier, decode_text};
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
+    TypeParametersIdentifier,
 };
 
 newtype_index!(
@@ -198,6 +199,8 @@ impl Await {
 pub struct Snippet {
     /// An identifier.
     pub name: ExpressionIdentifier,
+    /// `<T>` after the name, when it parses.
+    pub generics: Option<TypeParametersIdentifier>,
     /// `None` for `{#snippet name()}`.
     pub parameters: Option<ParametersIdentifier>,
     pub body: Children,

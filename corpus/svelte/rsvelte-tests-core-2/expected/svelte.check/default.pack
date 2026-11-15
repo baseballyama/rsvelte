@@ -15794,22 +15794,6 @@
 	}
 ]
 
-=== 193 parser_hardening/declaration_tag_multibyte_type_annotation_does_not_panic/47244ebc480a595e.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
-		"start": {
-			"line": 0,
-			"character": 19
-		},
-		"end": {
-			"line": 0,
-			"character": 19
-		}
-	}
-]
-
 === 3 parser_hardening/empty_style_selector_reports_css_expected_identifier/b88d5f3115712610.svelte	json
 []
 

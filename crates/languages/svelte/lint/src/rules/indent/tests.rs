@@ -181,3 +181,43 @@ fn ignored_nodes_selectors_are_refused() {
         Err("rule `svelte/indent`: `ignoredNodes` selectors are not supported".to_owned())
     );
 }
+
+#[test]
+fn a_getter_and_setter_binding_is_not_checked() {
+    // Upstream only checks the `}` of a function binding, as `bind:value={[...]}` checks all.
+    let pair = "<Input\n  bind:value={\n        () => a,\n   (v) => {\n b = v;\n          }\n    \
+        }\n/>\n";
+    assert_eq!(reported_lines(pair), [7]);
+    let array = pair
+        .replace("{\n        ()", "{\n        [()")
+        .replace("}\n    }", "}]\n    }");
+    assert_eq!(reported_lines(&array), [3, 4, 5, 6, 7]);
+}
+
+#[test]
+fn parsed_generics_are_not_checked() {
+    let source = "<script\n      generics=\"T\"\n      lang=\"ts\"\n>\n  let a: T;\n</script>\n";
+    assert_eq!(reported_lines(source), [3]);
+    // Upstream converts generics only for TypeScript.
+    let javascript = source
+        .replace("lang=\"ts\"", "foo=\"x\"")
+        .replace(": T", "");
+    assert_eq!(reported_lines(&javascript), [2, 3]);
+}
+
+#[test]
+fn a_block_s_text_that_decodes_to_whitespace_is_not_checked() {
+    // svelte-eslint-parser trims a block's children by their decoded text; an element keeps them.
+    assert_eq!(reported_lines("{#if x}\n\t&nbsp;\n{/if}\n"), [0u32; 0]);
+    assert_eq!(reported_lines("{#if x}\n\t&amp;\n{/if}\n"), [2]);
+    assert_eq!(reported_lines("<div>\n\t&nbsp;\n</div>\n"), [2]);
+    assert_eq!(reported_lines("{#await x}\n\t&nbsp;\n{/await}\n"), [2]);
+}
+
+#[test]
+fn a_top_level_text_that_starts_with_whitespace_is_not_checked() {
+    assert_eq!(reported_lines("<div></div>\nx\n\ty\n"), [0u32; 0]);
+    assert_eq!(reported_lines("<div></div>\n x\n"), [0u32; 0]);
+    assert_eq!(reported_lines("<div></div>x\n\ty\n"), [2]);
+    assert_eq!(reported_lines("x\n\ty\n"), [2]);
+}

@@ -11662,10 +11662,6 @@
 1:27 1:30 no-undef "'tag' is not defined."
 1:30 1:32 svelte/mustache-spacing "Expected no space before '}', but found."
 
-=== 304 svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte	lint.txt
-1:17 1:28 svelte/valid-compile "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this(svelte_element_invalid_this)"
-1:29 1:38 svelte/max-attributes-per-line "'class' should be on a new line."
-
 === 228 svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte	lint.txt
 1:17 1:40 svelte/valid-compile "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this(svelte_element_invalid_this)"
 
@@ -12246,9 +12242,6 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:6 6:16 no-unused-vars "'value' is defined but never used."
 
-=== 41 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/0072c9b1c27c3e21.svelte	lint.txt
-10:19 - - "Parsing error: ',' expected."
-
 === 834 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/1458440f726e6416.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12316,9 +12309,6 @@
 5:6 5:15 no-unused-vars "'type' is defined but never used."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:6 6:16 no-unused-vars "'value' is defined but never used."
-
-=== 41 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/59e91fdef56ed90e.svelte	lint.txt
-10:20 - - "Parsing error: ',' expected."
 
 === 937 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/7273d81f57781274.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -12458,9 +12448,6 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:6 6:16 no-unused-vars "'value' is defined but never used."
 9:1 9:38 svelte/require-each-key "Each block should have a key"
-
-=== 41 wrapper_only_parse_error_fmt_4083/every_host_keeps_a_modifier_named_head_verbatim/ff14a907a86b8623.svelte	lint.txt
-10:20 - - "Parsing error: ',' expected."
 
 === 874 wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/00b9f98ed10382e1.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
