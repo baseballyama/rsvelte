@@ -34680,6 +34680,58 @@
 	}
 ]
 
+=== 685 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	json
+[
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 0,
+			"character": 69
+		},
+		"end": {
+			"line": 0,
+			"character": 75
+		}
+	},
+	{
+		"code": 1005,
+		"message": "'=>' expected.",
+		"start": {
+			"line": 0,
+			"character": 76
+		},
+		"end": {
+			"line": 0,
+			"character": 78
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'satisfies' implicitly has an 'any' type.",
+		"start": {
+			"line": 0,
+			"character": 50
+		},
+		"end": {
+			"line": 0,
+			"character": 68
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'string' implicitly has an 'any' type.",
+		"start": {
+			"line": 0,
+			"character": 69
+		},
+		"end": {
+			"line": 0,
+			"character": 75
+		}
+	}
+]
+
 === 685 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ad65fdf7d6a621fb.svelte	json
 [
 	{
@@ -34731,6 +34783,9 @@
 		}
 	}
 ]
+
+=== 3 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte	json
+[]
 
 === 3 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/c4d11c011f319b87.svelte	json
 []

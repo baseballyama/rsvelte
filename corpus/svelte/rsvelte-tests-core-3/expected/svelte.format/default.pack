@@ -39166,6 +39166,20 @@ https://svelte.dev/e/js_parse_error
 > 1 | <script>let a;</script><p>{a +}</p>
     |                                    ^
 
+=== 86 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	svelte
+<script lang="ts">
+  let accessor: any;
+</script>
+
+<p>{accessor satisfies string}</p>
+
+=== 100 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte	svelte
+<script lang="ts">
+  let accessor: any;
+</script>
+
+{#each accessor satisfies string as z}{z}{/each}
+
 === 91 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/c4d11c011f319b87.svelte	svelte
 <script lang="ts">
   let foo: any;
