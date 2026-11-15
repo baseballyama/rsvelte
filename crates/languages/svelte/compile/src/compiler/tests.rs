@@ -116,7 +116,8 @@ fn a_module_file_store_subscription_is_the_module_error() {
         assert_eq!(error.code, "store_invalid_subscription_module");
         assert_eq!(
             error.message,
-            "Cannot reference store value outside a `.svelte` file\nhttps://svelte.dev/e/store_invalid_subscription_module"
+            "Cannot reference store value outside a `.svelte` file\nhttps://svelte.dev/e/\
+             store_invalid_subscription_module"
         );
         assert_eq!((error.span.start_offset, error.span.end_offset), (48, 54));
         // A rune is not a subscription, even when the module declares its name.
