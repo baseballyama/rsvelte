@@ -10539,9 +10539,6 @@ https://svelte.dev/e/const_tag_invalid_expression
 > 1 | {@const a = b, c = d}
     |            ^^^^^^^^
 
-=== 24 special_tag_bracket_scan/const_tag_comment_with_brace/ddfdc4445d644eab.svelte	svelte
-{@const x = a) /* } */}
-
 === 20 special_tag_bracket_scan/const_tag_parenthesized_sequence_is_allowed/037fe7256f948e1d.svelte	svelte
 {@const a = (b, c)}
 
@@ -10550,9 +10547,6 @@ https://svelte.dev/e/const_tag_invalid_expression
 
 === 18 special_tag_bracket_scan/const_tag_regex_with_brace/8b3128787b9b4c0f.svelte	svelte
 {@const re = /}/}
-
-=== 13 special_tag_bracket_scan/debug_tag_comment_with_brace/55705dc7a048ab7a.svelte	svelte
-{@debug foo}
 
 === 157 special_tag_bracket_scan/debug_tag_string_stops_at_real_close/65bafeb89e407813.svelte	error.txt
 {@debug ...} arguments must be identifiers, not arbitrary expressions
@@ -17091,26 +17085,6 @@ https://svelte.dev/e/expected_token
 > 1 | <div>y</div x>
     |            ^
 
-=== 20 tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/0088599d9714f97a.svelte	svelte
-x>
-
-<style></style>
-
-=== 22 tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/1bb2b4aed0a9a6d2.svelte	svelte
-x y>
-
-<style></style>
-
-=== 25 tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/70dafcc981faebbf.svelte	svelte
-x>after
-
-<style></style>
-
-=== 30 tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/cfe410676d33493a.svelte	svelte
-x><b>sib</b>
-
-<style></style>
-
 === 22 tag_scanning_3393_3395_3450/the_rest_of_the_closer_table_is_unchanged/08a99587e4e27856.svelte	svelte
 <p>a</p>
 <div>b</div>
@@ -19920,9 +19894,6 @@ https://svelte.dev/e/js_parse_error
   }}
 </p>
 
-=== 11 template_expr_trailing_line_comment_3287/controls_still_compile/92d5f5e4654c0d78.svelte	svelte
-<p>{1}</p>
-
 === 22 template_expr_trailing_line_comment_3287/controls_still_compile/cf6d2d8316049de7.svelte	svelte
 <p>
   {// c
@@ -19936,47 +19907,10 @@ https://svelte.dev/e/expected_token
     |                ^
   2 | }{/each}
 
-=== 18 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/10e19b15170f3a84.svelte	svelte
-{@html String(1)}
-
-=== 38 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/19b64d511d2a58f9.svelte	svelte
-{#each [1] as q (q)}<p>{q}</p>{/each}
-
-=== 24 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/27c87aa51582232b.svelte	svelte
-{#if true}<p>x</p>{/if}
-
-=== 35 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/2e3ad48ee43c8bdc.svelte	svelte
-<div class={f ? "a" : "b"}>x</div>
-
-=== 11 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/357dfc3d4748dea5.svelte	svelte
-<p>{1}</p>
-
-=== 23 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/7774b278d017cb9c.svelte	svelte
-<p {...{ a: 1 }}>x</p>
-
 === 46 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/858cc2723134379e.svelte	svelte
 {#snippet s(
   a, // c
 )}<p>{a}</p>{/snippet}
-
-=== 19 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/9b7916838f5442fb.svelte	svelte
-<p title={1}>x</p>
-
-=== 28 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/9e6bf0cb719e5b0d.svelte	svelte
-<p>
-  {1 + // a
-    2}
-</p>
-
-=== 33 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/dcc440a866db1d34.svelte	svelte
-<div {@attach (n) => {}}>x</div>
-
-=== 43 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/e25c21d94a883fc2.svelte	svelte
-<button onclick={() => sink(1)}>x</button>
-
-=== 49 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/e36998062761fd6b.svelte	svelte
-{#if true}{@const c = 1)} // c
-  <p>{c}</p>{/if}
 
 === 100 template_expression_comment_3112/a_comment_written_before_the_script_is_skipped/bcfd111e5a2fa7a7.svelte	svelte
 <script>
@@ -19989,17 +19923,6 @@ https://svelte.dev/e/expected_token
 === 16 template_expression_comment_3112/a_component_without_a_script_carries_no_comment/c8e54ae1fe370029.svelte	svelte
 {/* dead */ 42}
 
-=== 108 template_expression_comment_3112/client_flushes_a_folded_tags_comment_onto_the_next_located_node/4608f068c893d659.svelte	svelte
-<script>
-  let n = $state(0);
-  const f = (x) => x + 1;
-</script>
-
-<div>
-  {n}
-  <span>{f(n)}</span>
-</div>
-
 === 93 template_expression_comment_3112/server_keeps_a_leading_comment_inside_the_expression/85909bb36d338577.svelte	svelte
 <script>
   let n = $state(0);
@@ -20010,36 +19933,6 @@ https://svelte.dev/e/expected_token
 
 === 31 template_expression_comments_3112_3214/a_component_with_no_instance_script_drops_the_comment/16e6884e1dec2571.svelte	svelte
 <div title={/* c */ s}>x</div>
-
-=== 51 template_expression_comments_3112_3214/a_component_with_no_instance_script_drops_the_comment/27a6648756f94a5a.svelte	svelte
-<script module>
-  let z = 1;
-</script>
-
-<p>{q}</p>
-
-=== 11 template_expression_comments_3112_3214/a_component_with_no_instance_script_drops_the_comment/e7d549d35aaad31b.svelte	svelte
-<p>{q}</p>
-
-=== 126 template_expression_comments_3112_3214/a_folded_expression_hands_its_comment_to_the_next_one/74399290a1000cda.svelte	svelte
-<script>
-  let s = "a";
-  let n = 0;
-  const f = (x) => x + 1;
-  const h = () => {};
-</script>
-
-<p>{n}<span>{f(n)}</span></p>
-
-=== 107 template_expression_comments_3112_3214/a_folded_expression_with_no_successor_drops_its_comment/d001ee7ad70af135.svelte	svelte
-<script>
-  let s = "a";
-  let n = 0;
-  const f = (x) => x + 1;
-  const h = () => {};
-</script>
-
-<p>{n}</p>
 
 === 122 template_expression_comments_3112_3214/interior_comments_survive_expression_rewrites/2ae8af3a4b8f7341.svelte	svelte
 <script>
@@ -20060,19 +19953,6 @@ https://svelte.dev/e/expected_token
 </script>
 
 <p>{f(/* c */ n)}</p>
-
-=== 137 template_expression_comments_3112_3214/the_carried_comment_keeps_its_source_line_distance/8f4164f9f70311b4.svelte	svelte
-<script>
-  let s = "a";
-  let n = 0;
-  const f = (x) => x + 1;
-  const h = () => {};
-</script>
-
-<div>
-  {n}
-  <span>{f(n)}</span>
-</div>
 
 === 127 template_expression_comments_3112_3214/the_placement_does_not_depend_on_the_attribute/2b2d4fbdb0671b1b.svelte	svelte
 <script>
@@ -25328,20 +25208,6 @@ b`;
 </script>
 
 {#each [1] as n ("}")}<span>{n}</span>{/each}
-
-=== 110 template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/85602f44f89a6d2f.svelte	svelte
-<script>
-  const obj = { a: 1 };
-</script>
-
-{#await Promise.resolve(obj.a)}p{:then v}<span>{v}</span>{/await}
-
-=== 110 template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/c12f26de3001c722.svelte	svelte
-<script>
-  const obj = { a: 1 };
-</script>
-
-{#await Promise.resolve(obj.a)}p{:then v}<span>{v}</span>{/await}
 
 === 112 template_scan_lexical_state_3708_3709_3711/a_division_is_still_a_division/18604fb529fe4683.svelte	svelte
 <script>
@@ -31690,106 +31556,6 @@ https://svelte.dev/e/expected_token
   4 | </script>
   5 |
   6 | {#each rows as r // c
-
-=== 130 trailing_line_comment_3602/await_head_expression_survives/cbb6b349ed958d11.svelte	svelte
-<script>
-  let flag = $state(true);
-  let rows = $state([1]);
-</script>
-
-{#await Promise.resolve(1) then v}
-  <b>{v}</b>
-{/await}
-
-=== 150 trailing_line_comment_3602/const_tag_destructuring_initializer_survives/1bbc1da7f91ecf2f.svelte	svelte
-<script>
-  let flag = $state(true);
-  let rows = $state([1]);
-</script>
-
-{#each rows as r (r)}
-  {@const { a } = { a: r })} // c
-  <b>{a}</b>
-{/each}
-
-=== 143 trailing_line_comment_3602/const_tag_initializer_survives/7c1cca8553798b5f.svelte	svelte
-<script>
-  let flag = $state(true);
-  let rows = $state([1]);
-</script>
-
-{#each rows as r (r)}
-  {@const x = r * 2)} // c
-  <b>{x}</b>
-{/each}
-
-=== 128 trailing_line_comment_3602/every_rejecting_host_compiles/2954fb9e5fcf630f.svelte	svelte
-<script>
-  let flag = $state(true);
-  let rows = $state([1]);
-</script>
-
-{#if flag}
-  <b>a</b>
-{:else if flag}
-  <b>b</b>
-{/if}
-
-=== 101 trailing_line_comment_3602/every_rejecting_host_compiles/295f6086c1ed3366.svelte	svelte
-<script>
-  let flag = $state(true);
-  let rows = $state([1]);
-</script>
-
-{#if flag}
-  <b>a</b>
-{/if}
-
-=== 100 trailing_line_comment_3602/every_rejecting_host_compiles/2ccd099fc932f111.svelte	svelte
-<script>
-  let flag = $state(true);
-  let rows = $state([1]);
-</script>
-
-<div data-a={flag}>a</div>
-
-=== 103 trailing_line_comment_3602/every_rejecting_host_compiles/44f1ee907b033ac7.svelte	svelte
-<script>
-  let flag = $state(true);
-  let rows = $state([1]);
-</script>
-
-{#key flag}
-  <b>a</b>
-{/key}
-
-=== 135 trailing_line_comment_3602/every_rejecting_host_compiles/5b33fa9fbc93a011.svelte	svelte
-<script>
-  let flag = $state(true);
-  let rows = $state([1]);
-</script>
-
-{#snippet body(n)}
-  <b>{n}</b>
-{/snippet}
-
-{@render body(1)}
-
-=== 92 trailing_line_comment_3602/every_rejecting_host_compiles/7f6f89d2d564d872.svelte	svelte
-<script>
-  let flag = $state(true);
-  let rows = $state([1]);
-</script>
-
-{@html "<i>x</i>"}
-
-=== 87 trailing_line_comment_3602/every_rejecting_host_compiles/c388dd61e1e7a2bd.svelte	svelte
-<script>
-  let flag = $state(true);
-  let rows = $state([1]);
-</script>
-
-<b>{flag}</b>
 
 === 105 trailing_script_comment_2727/trailing_line_comment_stays_outside_the_generated_setter/a55e99832dcd22d5.svelte	svelte
 <script>
@@ -39399,27 +39165,6 @@ Unexpected token
 https://svelte.dev/e/js_parse_error
 > 1 | <script>let a;</script><p>{a +}</p>
     |                                    ^
-
-=== 86 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	svelte
-<script lang="ts">
-  let accessor: any;
-</script>
-
-<p>{accessor satisfies string}</p>
-
-=== 99 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ad65fdf7d6a621fb.svelte	svelte
-<script lang="ts">
-let accessor: any; const q = (accessor satisfies string);
-</script>
-
-<p>{q}</p>
-
-=== 100 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte	svelte
-<script lang="ts">
-  let accessor: any;
-</script>
-
-{#each accessor satisfies string as z}{z}{/each}
 
 === 91 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/c4d11c011f319b87.svelte	svelte
 <script lang="ts">

@@ -12096,25 +12096,6 @@ export default function _a3abe45512b2ac5($$anchor) {
 	$.template_effect(($0) => $.set_text(text, $0), [() => f(1)]);
 	$.append($$anchor, b);
 }
-=== 439 dollar_props_binding_3192/each_item_read_is_renamed/d92b90ba1f8fb787.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function D92b90ba1f8fb787($$anchor) {
-	var fragment = $.comment();
-	var node = $.first_child(fragment);
-
-	$.each(node, 16, () => [1], $.index, ($$anchor, $$props) => {
-		$.next();
-
-		var text = $.text();
-
-		$.template_effect(() => $.set_text(text, $$sanitized_props));
-		$.append($$anchor, text);
-	});
-
-	$.append($$anchor, fragment);
-}
 === 386 dollar_props_binding_3192/script_parameter_and_its_read_are_renamed_on_the_client/357d807117345746.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -12131,22 +12112,6 @@ export default function _57d807117345746($$anchor) {
 
 	$.template_effect(($0) => $.set_text(text, $0), [() => f(1)]);
 	$.append($$anchor, b);
-}
-=== 339 dollar_props_binding_3192/snippet_parameter_read_is_renamed_and_not_read_wrapped/fe951f21ace861f4.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-const s = ($$anchor, $$props = $.noop) => {
-	$.next();
-
-	var text = $.text();
-
-	$.template_effect(() => $.set_text(text, $$sanitized_props));
-	$.append($$anchor, text);
-};
-
-export default function Fe951f21ace861f4($$anchor) {
-	s($$anchor, () => 2);
 }
 === 267 dollar_props_rename_is_by_reference/a_string_holding_the_token_is_not_a_reference_either/e8462cbc71e8e962.svelte	error.json
 {
@@ -17543,19 +17508,6 @@ export default function _6ca4c2258da7b2c($$anchor, $$props) {
 
 	$.user_effect(() => {
 		console.log("x");
-	});
-
-	$.pop();
-}
-=== 221 effect_rune_pin/h121_effect_pending_lowers_in_component_scope/e5b94d7d6021b531.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function E5b94d7d6021b531($$anchor, $$props) {
-	$.push($$props, true);
-
-	$.user_effect(() => {
-		p;
 	});
 
 	$.pop();
@@ -24321,125 +24273,6 @@ const s = ($$anchor, x = $.noop) => {
 export default function F30d0f135cb4d1f6($$anchor) {
 	s($$anchor, () => 1);
 }
-=== 375 for_head_rune_reads_3300/derived_declared_in_a_for_head_keeps_every_read_transform/44abeca9c53d077e.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<p>ok</p>`);
-
-export default function _4abeca9c53d077e($$anchor) {
-	let base = 1;
-	let out = 0;
-
-	for (let d = $.derived(() => base + 1); d < 4; out += d) {
-		out += d;
-
-		const read = () => d;
-
-		read();
-
-		break;
-	}
-
-	var p = root();
-
-	$.append($$anchor, p);
-}
-=== 1056 for_head_rune_reads_3300/derived_declared_in_a_for_head_keeps_every_read_transform/44abeca9c53d077e.svelte	warnings.json
-[
-	{
-		"code": "state_referenced_locally",
-		"message": "This reference only captures the initial value of `d`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
-		"start": {
-			"line": 4,
-			"column": 33,
-			"character": 77
-		},
-		"end": {
-			"line": 4,
-			"column": 34,
-			"character": 78
-		}
-	},
-	{
-		"code": "state_referenced_locally",
-		"message": "This reference only captures the initial value of `d`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
-		"start": {
-			"line": 4,
-			"column": 47,
-			"character": 91
-		},
-		"end": {
-			"line": 4,
-			"column": 48,
-			"character": 92
-		}
-	},
-	{
-		"code": "state_referenced_locally",
-		"message": "This reference only captures the initial value of `d`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
-		"start": {
-			"line": 5,
-			"column": 8,
-			"character": 104
-		},
-		"end": {
-			"line": 5,
-			"column": 9,
-			"character": 105
-		}
-	}
-]
-
-=== 298 for_head_rune_reads_3300/state_declared_in_a_for_head_keeps_every_reference_transform/bfcd6f317efed0e6.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<p>ok</p>`);
-
-export default function Bfcd6f317efed0e6($$anchor) {
-	let log = [];
-
-	for (let i = $.state(0); i < 3; i++) {
-		log.push(i);
-	}
-
-	var p = root();
-
-	$.append($$anchor, p);
-}
-=== 705 for_head_rune_reads_3300/state_declared_in_a_for_head_keeps_every_reference_transform/bfcd6f317efed0e6.svelte	warnings.json
-[
-	{
-		"code": "state_referenced_locally",
-		"message": "This reference only captures the initial value of `i`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
-		"start": {
-			"line": 3,
-			"column": 24,
-			"character": 47
-		},
-		"end": {
-			"line": 3,
-			"column": 25,
-			"character": 48
-		}
-	},
-	{
-		"code": "state_referenced_locally",
-		"message": "This reference only captures the initial value of `i`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
-		"start": {
-			"line": 4,
-			"column": 10,
-			"character": 71
-		},
-		"end": {
-			"line": 4,
-			"column": 11,
-			"character": 72
-		}
-	}
-]
-
 === 263 function_this_param_shape/a_declaration_carries_a_rest_parameter_with_no_this_parameter/ebac0860ec46bff0.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -28835,12 +28668,6 @@ export default function Ff346e48e783afcf($$anchor) {
 	u.textContent = 'AB';
 	$.append($$anchor, u);
 }
-=== 27 globals_table_3617/two_shapes_stay_unfolded_on_purpose/181620c5ec25570d.svelte	error.txt
-Invalid code point 1114112
-
-=== 22 globals_table_3617/two_shapes_stay_unfolded_on_purpose/90b344717c29bda3.svelte	error.txt
-Invalid code point -1
-
 === 285 globals_table_3617/two_shapes_stay_unfolded_on_purpose/b92ebc973a8bd640.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -28854,9 +28681,6 @@ export default function B92ebc973a8bd640($$anchor) {
 	u.textContent = '�';
 	$.append($$anchor, u);
 }
-=== 23 globals_table_3617/two_shapes_stay_unfolded_on_purpose/f971de0d0c72cc7f.svelte	error.txt
-Invalid code point 1.5
-
 === 348 handler_comment_only_body/a_capture_handler_keeps_a_comment_that_is_its_whole_body/3e4d41d028f69f44.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -29232,22 +29056,6 @@ export default function _876e04c22d66b2c($$anchor) {
 	}
 }
 
-=== 203 import_assert_newline_3198/typescript_newline_assert_compiles_and_keeps_the_clause/76ce4ca3fb098a26.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-import d from "./d.json" with { type: "json" };
-
-export default function _6ce4ca3fb098a26($$anchor) {
-	let z = d;
-}
-=== 202 import_assert_newline_3198/typescript_newline_assert_compiles_and_keeps_the_clause/f05849b6cba14213.svelte	js
-import 'svelte/internal/disclose-version';
-import d from "./d.json" with { type: "json" };
-import * as $ from 'svelte/internal/client';
-
-let z = d;
-
-export default function F05849b6cba14213($$anchor) {}
 === 203 import_assert_newline_3198/with_clause_on_a_new_line_compiles_everywhere/c5fab37875c13350.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -30845,21 +30653,6 @@ export default function _f202a01bac611a6($$anchor) {
 
 	p.textContent = '1';
 	$.append($$anchor, p);
-}
-=== 278 inspect_operand_slot_3441/a_with_inspect_initializer_on_server_dev/c295403bf92ffd40.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<b>x</b>`);
-
-export default function C295403bf92ffd40($$anchor, $$props) {
-	$.push($$props, true);
-
-	let a = 1;
-	var b = root();
-
-	$.append($$anchor, b);
-	$.pop();
 }
 === 284 inspect_operand_slot_3441/an_inspect_statement_on_client_prod/7f7e4bdcd5af5736.svelte	js
 import 'svelte/internal/disclose-version';
@@ -36245,44 +36038,6 @@ export default function _9a552b34008b0ea($$anchor) {
 
 	$.append($$anchor, p);
 }
-=== 77 keyframe_percentage_scoping/a_step_under_an_at_rule_scopes_every_element/2a3cfd5ac73bdf57.svelte	css
-
-	@media screen {
-		@keyframes svelte-rt7544-k {
-			0% { opacity: 0 }
-		}
-	}
-
-=== 314 keyframe_percentage_scoping/a_step_under_an_at_rule_scopes_every_element/2a3cfd5ac73bdf57.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<div class="wrapper svelte-rt7544"></div> <p class="svelte-rt7544"></p>`, 1);
-
-export default function _a3cfd5ac73bdf57($$anchor) {
-	var fragment = root();
-
-	$.next(2);
-	$.append($$anchor, fragment);
-}
-=== 54 keyframe_percentage_scoping/a_top_level_step_scopes_every_element/706368196c7e4643.svelte	css
-
-	@keyframes svelte-mnc6sj-k {
-		0% { opacity: 0 }
-	}
-
-=== 314 keyframe_percentage_scoping/a_top_level_step_scopes_every_element/706368196c7e4643.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<div class="wrapper svelte-mnc6sj"></div> <p class="svelte-mnc6sj"></p>`, 1);
-
-export default function _06368196c7e4643($$anchor) {
-	var fragment = root();
-
-	$.next(2);
-	$.append($$anchor, fragment);
-}
 === 40 keyframe_percentage_scoping/an_ordinary_matching_rule_still_scopes/68cea914be27eb48.svelte	css
 
 	.wrapper.svelte-u56g43 { color: red }
@@ -38041,22 +37796,6 @@ customElements.define('', $.create_custom_element(_b0bcbfea058b467, {}, [], [], 
 	}
 ]
 
-=== 186 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/0d00c068ccca4cea.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
-=== 186 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/148e1f2f7435ded8.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
 === 336 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/46c6b788c5c62faa.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -38087,22 +37826,6 @@ customElements.define('my-el', $.create_custom_element(_6c6b788c5c62faa, {}, [],
 		}
 	}
 ]
-
-=== 186 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/73a10a2fef873026.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
-=== 186 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/9f5cf48cdd4d0a71.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
 
 === 331 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/c576047cfd8ac35e.svelte	js
 import 'svelte/internal/disclose-version';
@@ -40466,22 +40189,6 @@ export default function F4120cad1616bb13($$anchor) {
 
 	$.append($$anchor, textarea);
 }
-=== 221 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/2cd944404c6f582d.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 3,
-		"column": 5,
-		"character": 54
-	},
-	"end": {
-		"line": 3,
-		"column": 5,
-		"character": 54
-	}
-}
-
 === 235 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/2e89c1157ec74951.svelte	error.json
 {
 	"code": "js_parse_error",
@@ -40607,38 +40314,6 @@ export default function F4120cad1616bb13($$anchor) {
 		"line": 1,
 		"column": 43,
 		"character": 43
-	}
-}
-
-=== 223 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/b6bcad46807ea3c1.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 2,
-		"column": 32,
-		"character": 60
-	},
-	"end": {
-		"line": 2,
-		"column": 32,
-		"character": 60
-	}
-}
-
-=== 221 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/c5bc4d862a4fa46e.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 2,
-		"column": 5,
-		"character": 26
-	},
-	"end": {
-		"line": 2,
-		"column": 5,
-		"character": 26
 	}
 }
 
@@ -42722,34 +42397,6 @@ export default function D7c11f02fbdc40c5($$anchor, $$props) {
 
 	class K extends B {
 		['private'] = 1;
-	}
-
-	const r = new K().m();
-	var p = root();
-	var text = $.only_child(p, true);
-
-	$.template_effect(() => $.set_text(text, r));
-	$.append($$anchor, p);
-	$.pop();
-}
-=== 456 module_ts_class_modifier_3538/a_keyword_that_is_not_a_modifier_still_compiles/df32a9aa45fc0a00.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<p> </p>`);
-
-export default function Df32a9aa45fc0a00($$anchor, $$props) {
-	$.push($$props, true);
-
-	class B {
-		m() {
-			return 1;
-		}
-	}
-
-	class K extends B {
-		static;
-		a = 1;
 	}
 
 	const r = new K().m();
@@ -46416,9 +46063,6 @@ export default function Af2f23194c7e58b5($$anchor) {
 	p.textContent = '1x';
 	$.append($$anchor, p);
 }
-=== 60 number_of_bigint_3654/the_operators_still_refuse_a_bigint/0e1a967c0600006c.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
 === 297 on_directive_attribute_header/plain_string_event_handler_remains_invalid/5f02410e51f6b513.svelte	error.json
 {
 	"code": "directive_invalid_value",
@@ -52457,54 +52101,6 @@ export default function _e23f07220a667cb($$anchor) {}
 	}
 }
 
-=== 698 parse_ts_module_declaration/declare_and_global_are_present_only_when_true/0fa7602557ab055a.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 1,
-		"column": 18,
-		"character": 18
-	},
-	"end": {
-		"line": 1,
-		"column": 58,
-		"character": 58
-	}
-}
-
-=== 698 parse_ts_module_declaration/declare_and_global_are_present_only_when_true/16a0e803d134a0dd.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 1,
-		"column": 18,
-		"character": 18
-	},
-	"end": {
-		"line": 1,
-		"column": 53,
-		"character": 53
-	}
-}
-
-=== 698 parse_ts_module_declaration/declare_and_global_are_present_only_when_true/74d81e52718629cd.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 1,
-		"column": 18,
-		"character": 18
-	},
-	"end": {
-		"line": 1,
-		"column": 57,
-		"character": 57
-	}
-}
-
 === 142 parse_ts_module_declaration/declare_and_global_are_present_only_when_true/9ceb6c1444ee1a15.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -52956,22 +52552,6 @@ import * as $ from 'svelte/internal/client';
 export default function _215117bda90deb3($$anchor) {
 	let x = y;
 }
-=== 223 parser_hardening/declaration_tag_multibyte_type_annotation_does_not_panic/47244ebc480a595e.svelte	error.json
-{
-	"code": "expected_token",
-	"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
-	"start": {
-		"line": 1,
-		"column": 19,
-		"character": 19
-	},
-	"end": {
-		"line": 1,
-		"column": 19,
-		"character": 19
-	}
-}
-
 === 252 parser_hardening/empty_style_selector_reports_css_expected_identifier/b88d5f3115712610.svelte	error.json
 {
 	"code": "css_expected_identifier",
@@ -57709,29 +57289,6 @@ export default function _7f46055c16ac73b($$anchor, $$props) {
 
 	$.delegated('click', button, () => a(2));
 	$.append($$anchor, button);
-}
-
-$.delegate(['click']);
-=== 625 props_numeric_key_3229/a_numeric_key_is_excluded_from_rest_props_as_a_number/0cdac3e7036fbd2c.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 1, 'x']);
-var root = $.from_html(`<button> </button>`);
-
-export default function _cdac3e7036fbd2c($$anchor, $$props) {
-	$.push($$props, true);
-
-	let a = $.prop($$props, 1, 7),
-		rest = $.rest_props($$props, rest_excludes);
-
-	var button = root();
-	var text = $.only_child(button);
-
-	$.template_effect(() => $.set_text(text, `${$$props.x ?? ''}${$$props.z ?? ''}`));
-	$.delegated('click', button, () => a(2));
-	$.append($$anchor, button);
-	$.pop();
 }
 
 $.delegate(['click']);

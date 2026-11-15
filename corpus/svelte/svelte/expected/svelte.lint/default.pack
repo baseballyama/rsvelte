@@ -4617,12 +4617,6 @@
 1:8 1:14 no-undef "'things' is not defined."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 313 packages/svelte/tests/parser-legacy/samples/whitespace-after-script-tag/input.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:9 8:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 5 line breaks found."
-3:9 3:14 svelte/no-trailing-spaces "Trailing spaces not allowed."
-10:12 10:16 no-undef "'name' is not defined."
-
 === 187 packages/svelte/tests/parser-legacy/samples/whitespace-after-style-tag/input.svelte	lint.txt
 7:8 12:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 5 line breaks found."
 7:8 7:13 svelte/no-trailing-spaces "Trailing spaces not allowed."
@@ -9549,10 +9543,6 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:24 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 127 packages/svelte/tests/runtime-legacy/samples/module-context-export/Foo.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:3 6:10 no-undef "'console' is not defined."
-
 === 81 packages/svelte/tests/runtime-legacy/samples/module-context/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
@@ -11521,26 +11511,6 @@
 13:1 13:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1480 packages/svelte/tests/runtime-runes/samples/async-nested-top-level/main.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:1 7:2 svelte/no-trailing-spaces "Trailing spaces not allowed."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-11:1 11:37 svelte/button-has-type "Missing an explicit type attribute for button."
-12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-15:1 15:43 svelte/button-has-type "Missing an explicit type attribute for button."
-16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-21:7 21:9 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
-22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-28:1 28:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-29:1 29:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
 === 81 packages/svelte/tests/runtime-runes/samples/async-no-pending-attributes/Child.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
@@ -11664,33 +11634,6 @@
 
 === 81 packages/svelte/tests/runtime-runes/samples/async-static-prop-after-await/Child.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
-=== 1074 packages/svelte/tests/runtime-runes/samples/async-top-level-error-nested-obsolete/main.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-11:1 11:40 svelte/button-has-type "Missing an explicit type attribute for button."
-14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-17:1 17:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
-=== 824 packages/svelte/tests/runtime-runes/samples/async-top-level-error-nested/main.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:1 6:40 svelte/button-has-type "Missing an explicit type attribute for button."
-9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
 === 1073 packages/svelte/tests/runtime-runes/samples/async-top-level-in-if/main.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -23301,29 +23244,6 @@
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1694 packages/svelte/tests/runtime-runes/samples/typescript-as-expression/main.svelte	lint.txt
-1:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:11 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:12 svelte/prefer-const "'double' is never reassigned. Use 'const' instead."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:6 6:13 svelte/prefer-const "'element' is never reassigned. Use 'const' instead."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:6 7:24 svelte/prefer-const "'element_with_state' is never reassigned. Use 'const' instead."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:6 8:16 svelte/prefer-const "'with_state' is never reassigned. Use 'const' instead."
-9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:6 9:19 svelte/prefer-const "'without_state' is never reassigned. Use 'const' instead."
-11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-18:28 18:39 no-undef "'HTMLElement' is not defined."
-19:39 19:50 no-undef "'HTMLElement' is not defined."
-20:22 20:70 svelte/max-attributes-per-line "'bind:value' should be on a new line."
-21:22 21:83 svelte/max-attributes-per-line "'bind:value' should be on a new line."
-
 === 764 packages/svelte/tests/runtime-runes/samples/typescript-const1/main.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -23341,16 +23261,6 @@
 2:6 2:13 svelte/prefer-const "'letters' is never reassigned. Use 'const' instead."
 5:1 5:32 svelte/require-each-key "Each block should have a key"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
-=== 659 packages/svelte/tests/runtime-runes/samples/typescript-non-null-expression/main.svelte	lint.txt
-1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:11 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:12 svelte/prefer-const "'double' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:13 svelte/prefer-const "'binding' is never reassigned. Use 'const' instead."
-9:22 9:43 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 
 === 6888 packages/svelte/tests/runtime-runes/samples/typescript/main.svelte	lint.txt
 1:1 56:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

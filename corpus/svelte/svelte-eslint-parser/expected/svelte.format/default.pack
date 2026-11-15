@@ -1319,14 +1319,6 @@
   </svelte:fragment>
 </Widget>
 
-=== 106 tests/fixtures/parser/ast/each-with-comment-input.svelte	svelte
-<script>
-  import Foo from "./foo.svelte";
-</script>
-
-{#each Array(//comment
-) as i}<Foo>{i}</Foo>{/each}
-
 === 67 tests/fixtures/parser/ast/empty-elements01-input.svelte	svelte
 <script></script>
 

@@ -8150,22 +8150,6 @@ export default function _0d89f4d1b284ae7($$anchor) {
 	$.set_attribute(button, 'title', global.p);
 	$.append($$anchor, button);
 }
-=== 223 markup_cast_head_parens/declaration_name_head_matches_oracle/011aebbaa3dfa3f0.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 3,
-		"column": 13,
-		"character": 42
-	},
-	"end": {
-		"line": 3,
-		"column": 13,
-		"character": 42
-	}
-}
-
 === 246 markup_cast_head_parens/declaration_name_head_matches_oracle/01356af444c5f3b5.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -10674,22 +10658,6 @@ export default function _d5d422ffda3d092($$anchor) {
 	$.set_attribute(button, 'title', foo.p);
 	$.append($$anchor, button);
 }
-=== 223 markup_cast_head_parens/declaration_name_head_matches_oracle/2d77964ecb1f570d.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 3,
-		"column": 21,
-		"character": 50
-	},
-	"end": {
-		"line": 3,
-		"column": 21,
-		"character": 50
-	}
-}
-
 === 287 markup_cast_head_parens/declaration_name_head_matches_oracle/2d91722675af6afa.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -12622,22 +12590,6 @@ export default function _4114ee5051db3f5($$anchor) {
 	$.attribute_effect(button, () => ({ ...satisfies }));
 	$.append($$anchor, button);
 }
-=== 223 markup_cast_head_parens/declaration_name_head_matches_oracle/54557b00a714b2a9.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 3,
-		"column": 24,
-		"character": 53
-	},
-	"end": {
-		"line": 3,
-		"column": 24,
-		"character": 53
-	}
-}
-
 === 292 markup_cast_head_parens/declaration_name_head_matches_oracle/54cd2474da546edb.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -16118,22 +16070,6 @@ export default function _d5d337925f9ca4c($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 223 markup_cast_head_parens/declaration_name_head_matches_oracle/8d74744ba580b1a1.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 3,
-		"column": 14,
-		"character": 43
-	},
-	"end": {
-		"line": 3,
-		"column": 14,
-		"character": 43
-	}
-}
-
 === 446 markup_cast_head_parens/declaration_name_head_matches_oracle/8de5f0224cd860f3.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -32947,30 +32883,6 @@ export default function _c1844527413cb24($$anchor) {
 		}
 	});
 }
-=== 469 markup_patterns/let_directive_value_is_formatted_as_an_expression/ac7edb54ecf01f25.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function Ac7edb54ecf01f25($$anchor) {
-	Component($$anchor, {
-		children: $.invalid_default_snippet,
-		$$slots: {
-			default: ($$anchor, $$slotProps) => {
-				const item = $.derived(() => {
-					let { a: [b = 'x'], c: { d } = {} } = $$slotProps.item;
-
-					return {};
-				});
-
-				$.next();
-
-				var text = $.text('y');
-
-				$.append($$anchor, text);
-			}
-		}
-	});
-}
 === 462 markup_patterns/let_directive_with_destructuring/fff13bc784d99ae2.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -37152,40 +37064,6 @@ export default function _4d293009f22b9cd($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 364 svelte_element_this_chunks/expression_then_text_keeps_the_whole_value/c9f317fe9e598e4e.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function C9f317fe9e598e4e($$anchor) {
-	var fragment = $.comment();
-	var node = $.first_child(fragment);
-
-	$.element(node, () => tag, false, ($$element, $$anchor) => {
-		var text = $.text('x');
-
-		$.append($$anchor, text);
-	});
-
-	$.append($$anchor, fragment);
-}
-=== 366 svelte_element_this_chunks/expression_then_text_keeps_the_whole_value/c9f317fe9e598e4e.svelte	warnings.json
-[
-	{
-		"code": "svelte_element_invalid_this",
-		"message": "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this",
-		"start": {
-			"line": 1,
-			"column": 16,
-			"character": 16
-		},
-		"end": {
-			"line": 1,
-			"column": 30,
-			"character": 30
-		}
-	}
-]
-
 === 364 svelte_element_this_chunks/single_chunk_values_are_still_formatted/5d22401724c21d5a.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -37252,76 +37130,6 @@ export default function E936c409d65e1d00($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 399 svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function D364396ec9b25275($$anchor) {
-	var fragment = $.comment();
-	var node = $.first_child(fragment);
-
-	$.element(node, () => 'h', false, ($$element, $$anchor) => {
-		$.set_class($$element, 0, 'a');
-
-		var text = $.text('x');
-
-		$.append($$anchor, text);
-	});
-
-	$.append($$anchor, fragment);
-}
-=== 366 svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte	warnings.json
-[
-	{
-		"code": "svelte_element_invalid_this",
-		"message": "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this",
-		"start": {
-			"line": 1,
-			"column": 16,
-			"character": 16
-		},
-		"end": {
-			"line": 1,
-			"column": 27,
-			"character": 27
-		}
-	}
-]
-
-=== 364 svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function _a8bc92bcc84cfb8($$anchor) {
-	var fragment = $.comment();
-	var node = $.first_child(fragment);
-
-	$.element(node, () => 'h', false, ($$element, $$anchor) => {
-		var text = $.text('x');
-
-		$.append($$anchor, text);
-	});
-
-	$.append($$anchor, fragment);
-}
-=== 366 svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte	warnings.json
-[
-	{
-		"code": "svelte_element_invalid_this",
-		"message": "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this",
-		"start": {
-			"line": 1,
-			"column": 16,
-			"character": 16
-		},
-		"end": {
-			"line": 1,
-			"column": 39,
-			"character": 39
-		}
-	}
-]
-
 === 1108 tab_visual_width/space_indent_pre_block_reformat_keeps_element_direct_tabs_and_configured_spaces/e9786825fd1dc85f.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';

@@ -4947,22 +4947,6 @@ import * as $ from 'svelte/internal/server';
 export default function _0d89f4d1b284ae7($$renderer) {
 	$$renderer.push(`<button${$.attr('title', global.p)}>x</button>`);
 }
-=== 223 markup_cast_head_parens/declaration_name_head_matches_oracle/011aebbaa3dfa3f0.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 3,
-		"column": 13,
-		"character": 42
-	},
-	"end": {
-		"line": 3,
-		"column": 13,
-		"character": 42
-	}
-}
-
 === 150 markup_cast_head_parens/declaration_name_head_matches_oracle/01356af444c5f3b5.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -6217,22 +6201,6 @@ import * as $ from 'svelte/internal/server';
 export default function _d5d422ffda3d092($$renderer) {
 	$$renderer.push(`<button${$.attr('title', foo.p)}>x</button>`);
 }
-=== 223 markup_cast_head_parens/declaration_name_head_matches_oracle/2d77964ecb1f570d.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 3,
-		"column": 21,
-		"character": 50
-	},
-	"end": {
-		"line": 3,
-		"column": 21,
-		"character": 50
-	}
-}
-
 === 170 markup_cast_head_parens/declaration_name_head_matches_oracle/2d91722675af6afa.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -7199,22 +7167,6 @@ import * as $ from 'svelte/internal/server';
 export default function _4114ee5051db3f5($$renderer) {
 	$$renderer.push(`<button${$.attributes({ ...satisfies })}>x</button>`);
 }
-=== 223 markup_cast_head_parens/declaration_name_head_matches_oracle/54557b00a714b2a9.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 3,
-		"column": 24,
-		"character": 53
-	},
-	"end": {
-		"line": 3,
-		"column": 24,
-		"character": 53
-	}
-}
-
 === 170 markup_cast_head_parens/declaration_name_head_matches_oracle/54cd2474da546edb.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -8955,22 +8907,6 @@ export default function _d5d337925f9ca4c($$renderer) {
 
 	$$renderer.push(`<!--]-->`);
 }
-=== 223 markup_cast_head_parens/declaration_name_head_matches_oracle/8d74744ba580b1a1.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 3,
-		"column": 14,
-		"character": 43
-	},
-	"end": {
-		"line": 3,
-		"column": 14,
-		"character": 43
-	}
-}
-
 === 236 markup_cast_head_parens/declaration_name_head_matches_oracle/8de5f0224cd860f3.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -20263,32 +20199,6 @@ export default function _4d293009f22b9cd($$renderer) {
 		'--x': `calc(${$.stringify(some_long_variable_name - another_long_variable_name_here)}px - var(--pad))`
 	})}></div>`);
 }
-=== 175 svelte_element_this_chunks/expression_then_text_keeps_the_whole_value/c9f317fe9e598e4e.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function C9f317fe9e598e4e($$renderer) {
-	$.element($$renderer, tag, void 0, () => {
-		$$renderer.push(`x`);
-	});
-}
-=== 366 svelte_element_this_chunks/expression_then_text_keeps_the_whole_value/c9f317fe9e598e4e.svelte	warnings.json
-[
-	{
-		"code": "svelte_element_invalid_this",
-		"message": "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this",
-		"start": {
-			"line": 1,
-			"column": 16,
-			"character": 16
-		},
-		"end": {
-			"line": 1,
-			"column": 30,
-			"character": 30
-		}
-	}
-]
-
 === 175 svelte_element_this_chunks/single_chunk_values_are_still_formatted/5d22401724c21d5a.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -20331,65 +20241,6 @@ export default function E936c409d65e1d00($$renderer) {
 		$$renderer.push(`x`);
 	});
 }
-=== 227 svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function D364396ec9b25275($$renderer) {
-	$.element(
-		$$renderer,
-		'h',
-		() => {
-			$$renderer.push(` class="a"`);
-		},
-		() => {
-			$$renderer.push(`x`);
-		}
-	);
-}
-=== 366 svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte	warnings.json
-[
-	{
-		"code": "svelte_element_invalid_this",
-		"message": "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this",
-		"start": {
-			"line": 1,
-			"column": 16,
-			"character": 16
-		},
-		"end": {
-			"line": 1,
-			"column": 27,
-			"character": 27
-		}
-	}
-]
-
-=== 175 svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _a8bc92bcc84cfb8($$renderer) {
-	$.element($$renderer, 'h', void 0, () => {
-		$$renderer.push(`x`);
-	});
-}
-=== 366 svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte	warnings.json
-[
-	{
-		"code": "svelte_element_invalid_this",
-		"message": "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this",
-		"start": {
-			"line": 1,
-			"column": 16,
-			"character": 16
-		},
-		"end": {
-			"line": 1,
-			"column": 39,
-			"character": 39
-		}
-	}
-]
-
 === 462 tab_visual_width/space_indent_pre_block_reformat_keeps_element_direct_tabs_and_configured_spaces/e9786825fd1dc85f.svelte	js
 import * as $ from 'svelte/internal/server';
 

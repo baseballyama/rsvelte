@@ -7869,9 +7869,6 @@ https://svelte.dev/e/expected_identifier
 === 31 block_header_pattern_validation/legal_neighbours_still_compile/824d2ef051f4a25f.svelte	svelte
 {#each arr as [, b]}{b}{/each}
 
-=== 31 block_header_pattern_validation/legal_neighbours_still_compile/8a80c229fe285e83.svelte	svelte
-{#each arr as { a }}{a}{/each}
-
 === 31 block_header_pattern_validation/legal_neighbours_still_compile/92c0e721dd16e0bd.svelte	svelte
 {#await p}w{:catch}bad{/await}
 
@@ -7892,9 +7889,6 @@ https://svelte.dev/e/expected_identifier
 
 === 26 block_header_pattern_validation/legal_neighbours_still_compile/de5bf4a0c8e7b43c.svelte	svelte
 {#await p catch}w{/await}
-
-=== 27 block_header_pattern_validation/legal_neighbours_still_compile/f4a2e74dbb010935.svelte	svelte
-{#each arr as x}{x}{/each}
 
 === 36 block_header_pattern_validation/legal_neighbours_still_compile/fc5c33c0b6dd4754.svelte	svelte
 {#await p}w{:then { a }}{a}{/await}
@@ -8819,16 +8813,6 @@ class C extends B { f = () => { super(); }; }
 </script>
 
 <div title={/* c */ s}>x</div>
-
-=== 119 client_attribute_expression_comments_3214/a_comment_on_the_tag_name_line_is_the_first_arguments_trailing_comment/0513ceac25c38cb6.svelte	svelte
-<script>
-  let s = "a";
-  let n = 0;
-  const f = (x) => x + 1;
-  const h = () => {};
-</script>
-
-<div title={s}>x</div>
 
 === 127 client_attribute_expression_comments_3214/a_comment_on_the_tag_name_line_is_the_first_arguments_trailing_comment/e4b15c7fb4b6a674.svelte	svelte
 <script>
@@ -9764,13 +9748,6 @@ class C extends B { f = () => { super(); }; }
 
 <p>{x}</p>
 
-=== 99 comment_cursor_3603_await_snippet/client_await_header_comments_stay_with_the_promise_expression/7c2ca4397a1154e9.svelte	svelte
-<script>
-  let pending = Promise.resolve(1);
-</script>
-
-{#await pending then value}{value}{/await}
-
 === 113 comment_cursor_3603_await_snippet/client_await_header_comments_stay_with_the_promise_expression/da0094d1a142b2a8.svelte	svelte
 <script>
   let pending = Promise.resolve(1);
@@ -10320,13 +10297,6 @@ class C extends B { f = () => { super(); }; }
     color: red;
   }
 </style>
-
-=== 60 compile_result_legacy_ast_3295/compilation_rebuilds_legacy_comment_locations_at_the_json_boundary/3e5801f545086334.svelte	svelte
-<script>
-  // script comment
-</script>
-
-<button>ok</button>
 
 === 182 compile_result_legacy_ast_3295/compilation_rebuilds_legacy_expression_locations_at_the_json_boundary/97783ac0a4553537.svelte	svelte
 {#each items as item}{item}{@const local =
@@ -18352,15 +18322,6 @@ https://svelte.dev/e/js_parse_error
 	}
 </style>
 
-=== 55 css_block_item_progress/empty_block_item_selector_terminates_with_the_upstream_error/6ee0cd37bd59cda7.svelte	svelte
-<div class="a"></div>
-
-<style>
-	.a {
-		{ }
-	}
-</style>
-
 === 238 css_chain_ancestry_guard_1735/dynamic_element_between_ancestor_and_subject_still_pruned/b65814e06cba39e8.svelte	svelte
 <script>
   let tag = "div";
@@ -18596,19 +18557,6 @@ https://svelte.dev/e/js_parse_error
 <style>
   :not(pre) code {
     color: red;
-  }
-</style>
-
-=== 120 css_custom_property_block_3052/a_custom_property_accepts_balanced_curly_and_square_blocks/1b6e89246c55c577.svelte	svelte
-<p>x</p>
-
-<style>
-  p {
-    --tpl: {
-      color: red;
-    };
-    --nested: [a; {b: c;}];
-    color: blue;
   }
 </style>
 
@@ -22303,23 +22251,6 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 175 css_keyframes_property_case_folding/kelvin_sign_in_webkit_prefix_still_renames_the_keyframe_reference/76689b0d4197a426.svelte	svelte
-<div class="a"></div>
-
-<style>
-  @keyframes fade {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-  .a {
-    -webkit-animation: fade 1s;
-  }
-</style>
-
 === 167 css_keyframes_property_case_folding/lowercase_animation_renames_the_keyframe_reference/990826b4a6074e83.svelte	svelte
 <div class="a"></div>
 
@@ -23927,13 +23858,6 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 100 css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/214ad01217b359a0.svelte	svelte
-<div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
-
-<style>
-	{ color: red }
-</style>
-
 === 111 css_selector_parse_3404_3405_3406/an_empty_selector_list_entry_is_rejected/381ba85d95b7646f.svelte	svelte
 <div class="card"><a class="a" x="y"><b class="b">t</b></a></div>
 
@@ -24101,15 +24025,6 @@ p { color: { red }; background: blue; }
   }
 </style>
 
-=== 88 css_selector_syntax_5_56_10/a_scoped_pseudo_class_keeps_its_source_spelling/da31ac17065cbeab.svelte	svelte
-<li class="a"></li>
-
-<style>
-  li:nth-child(2n of.a, .b) {
-    color: red;
-  }
-</style>
-
 === 101 css_selector_syntax_5_56_10/escape_sequences_print_canonically/4eabb314d5d1ea25.svelte	svelte
 <div></div>
 
@@ -24119,20 +24034,6 @@ p { color: { red }; background: blue; }
   }
   #\31 23 {
     color: green;
-  }
-</style>
-
-=== 67 css_selector_syntax_5_56_10/nth_of_accepts_a_selector_list/a82807863802368f.svelte	svelte
-<style>
-  li:nth-child(2n of.a, .b) {
-    color: red;
-  }
-</style>
-
-=== 71 css_selector_syntax_5_56_10/nth_of_parses_without_whitespace_after_of/6ffbf7e8271d0509.svelte	svelte
-<style>
-  li:nth-child(2n of.important) {
-    color: red;
   }
 </style>
 

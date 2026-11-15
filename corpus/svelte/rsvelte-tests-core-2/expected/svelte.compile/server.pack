@@ -10143,22 +10143,6 @@ export default function F12d6afbad4e8f3c($$renderer) {
 
 	$$renderer.push(`<div></div>`);
 }
-=== 328 dollar_parameter_is_not_a_store/a_dollar_local_is_assigned_directly_on_the_server/05162353f0734d2f.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _5162353f0734d2f($$renderer) {
-	const viewport = {
-		update(fn) {
-			fn({ distance: 1 });
-		}
-	};
-
-	viewport.update(($viewport) => {
-		$.store_mutate($$store_subs ??= {}, '$viewport', viewport, $viewport.distance = 42);
-	});
-
-	$$renderer.push(`<p>ok</p>`);
-}
 === 294 dollar_parameter_is_not_a_store/a_dollar_local_is_assigned_directly_on_the_server/1cc21818076d4209.svelte	error.json
 {
 	"code": "dollar_prefix_invalid",
@@ -10175,28 +10159,6 @@ export default function _5162353f0734d2f($$renderer) {
 	}
 }
 
-=== 602 dollar_parameter_is_not_a_store/a_dollar_local_is_assigned_directly_on_the_server/e20ca243f0bb5ea1.svelte	js
-import * as $ from 'svelte/internal/server';
-import { writable } from 'svelte/store';
-
-export default function E20ca243f0bb5ea1($$renderer, $$props) {
-	$$renderer.component(($$renderer) => {
-		var $$store_subs;
-		const viewport = writable({ distance: 0 });
-
-		function update(fn) {
-			fn({ distance: 1 });
-		}
-
-		update(($viewport) => {
-			$.store_mutate($$store_subs ??= {}, '$viewport', viewport, $viewport.distance = 42);
-		});
-
-		$$renderer.push(`<p>${$.escape($.store_get($$store_subs ??= {}, '$viewport', viewport).distance)}</p>`);
-
-		if ($$store_subs) $.unsubscribe_stores($$store_subs);
-	});
-}
 === 241 dollar_parameter_is_not_a_store/the_brake_cell_agrees_with_upstream_on_both_targets/377f213e55b88826.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -10221,22 +10183,6 @@ export default function _a3abe45512b2ac5($$renderer) {
 
 	$$renderer.push(`<b>${$.escape(f(1))}</b>`);
 }
-=== 398 dollar_props_binding_3192/each_item_read_is_renamed/d92b90ba1f8fb787.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function D92b90ba1f8fb787($$renderer) {
-	$$renderer.push(`<!--[-->`);
-
-	const each_array = $.ensure_array_like([1]);
-
-	for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
-		let $$props = each_array[$$index];
-
-		$$renderer.push(`<!---->${$.escape($$sanitized_props)}`);
-	}
-
-	$$renderer.push(`<!--]-->`);
-}
 === 213 dollar_props_binding_3192/script_parameter_and_its_read_are_renamed_on_the_client/357d807117345746.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -10246,16 +10192,6 @@ export default function _57d807117345746($$renderer) {
 	}
 
 	$$renderer.push(`<b>${$.escape(f(1))}</b>`);
-}
-=== 217 dollar_props_binding_3192/snippet_parameter_read_is_renamed_and_not_read_wrapped/fe951f21ace861f4.svelte	js
-import * as $ from 'svelte/internal/server';
-
-function s($$renderer, $$props) {
-	$$renderer.push(`<!---->${$.escape($$sanitized_props)}`);
-}
-
-export default function Fe951f21ace861f4($$renderer) {
-	s($$renderer, 2);
 }
 === 267 dollar_props_rename_is_by_reference/a_string_holding_the_token_is_not_a_reference_either/e8462cbc71e8e962.svelte	error.json
 {
@@ -14691,14 +14627,6 @@ import * as $ from 'svelte/internal/server';
 
 export default function _6ca4c2258da7b2c($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {});
-}
-=== 174 effect_rune_pin/h121_effect_pending_lowers_in_component_scope/e5b94d7d6021b531.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function E5b94d7d6021b531($$renderer, $$props) {
-	$$renderer.component(($$renderer) => {
-		let p = void 0;
-	});
 }
 === 144 effect_rune_pin/h122_user_dollar_prefix_param_shadows_rune/b0e727aaa8a0c76c.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -23460,12 +23388,6 @@ export default function Ff346e48e783afcf($$renderer) {
 
 	$$renderer.push(`<u>AB</u>`);
 }
-=== 27 globals_table_3617/two_shapes_stay_unfolded_on_purpose/181620c5ec25570d.svelte	error.txt
-Invalid code point 1114112
-
-=== 22 globals_table_3617/two_shapes_stay_unfolded_on_purpose/90b344717c29bda3.svelte	error.txt
-Invalid code point -1
-
 === 175 globals_table_3617/two_shapes_stay_unfolded_on_purpose/b92ebc973a8bd640.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -23474,9 +23396,6 @@ export default function B92ebc973a8bd640($$renderer) {
 
 	$$renderer.push(`<u>�</u>`);
 }
-=== 23 globals_table_3617/two_shapes_stay_unfolded_on_purpose/f971de0d0c72cc7f.svelte	error.txt
-Invalid code point 1.5
-
 === 155 handler_comment_only_body/a_capture_handler_keeps_a_comment_that_is_its_whole_body/3e4d41d028f69f44.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -23726,20 +23645,6 @@ export default function _876e04c22d66b2c($$renderer) {
 	}
 }
 
-=== 162 import_assert_newline_3198/typescript_newline_assert_compiles_and_keeps_the_clause/76ce4ca3fb098a26.svelte	js
-import * as $ from 'svelte/internal/server';
-import d from "./d.json" with { type: "json" };
-
-export default function _6ce4ca3fb098a26($$renderer) {
-	let z = d;
-}
-=== 161 import_assert_newline_3198/typescript_newline_assert_compiles_and_keeps_the_clause/f05849b6cba14213.svelte	js
-import * as $ from 'svelte/internal/server';
-import d from "./d.json" with { type: "json" };
-
-let z = d;
-
-export default function F05849b6cba14213($$renderer) {}
 === 162 import_assert_newline_3198/with_clause_on_a_new_line_compiles_everywhere/c5fab37875c13350.svelte	js
 import * as $ from 'svelte/internal/server';
 import d from "./d.json" with { type: "json" };
@@ -29320,32 +29225,6 @@ import * as $ from 'svelte/internal/server';
 export default function _9a552b34008b0ea($$renderer) {
 	$$renderer.push(`<p>hi</p>`);
 }
-=== 77 keyframe_percentage_scoping/a_step_under_an_at_rule_scopes_every_element/2a3cfd5ac73bdf57.svelte	css
-
-	@media screen {
-		@keyframes svelte-rt7544-k {
-			0% { opacity: 0 }
-		}
-	}
-
-=== 195 keyframe_percentage_scoping/a_step_under_an_at_rule_scopes_every_element/2a3cfd5ac73bdf57.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _a3cfd5ac73bdf57($$renderer) {
-	$$renderer.push(`<div class="wrapper svelte-rt7544"></div> <p class="svelte-rt7544"></p>`);
-}
-=== 54 keyframe_percentage_scoping/a_top_level_step_scopes_every_element/706368196c7e4643.svelte	css
-
-	@keyframes svelte-mnc6sj-k {
-		0% { opacity: 0 }
-	}
-
-=== 195 keyframe_percentage_scoping/a_top_level_step_scopes_every_element/706368196c7e4643.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _06368196c7e4643($$renderer) {
-	$$renderer.push(`<div class="wrapper svelte-mnc6sj"></div> <p class="svelte-mnc6sj"></p>`);
-}
 === 40 keyframe_percentage_scoping/an_ordinary_matching_rule_still_scopes/68cea914be27eb48.svelte	css
 
 	.wrapper.svelte-u56g43 { color: red }
@@ -30673,22 +30552,6 @@ export default function _b0bcbfea058b467($$renderer) {
 	}
 ]
 
-=== 186 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/0d00c068ccca4cea.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
-=== 186 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/148e1f2f7435ded8.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
 === 136 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/46c6b788c5c62faa.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -30712,22 +30575,6 @@ export default function _6c6b788c5c62faa($$renderer) {
 		}
 	}
 ]
-
-=== 186 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/73a10a2fef873026.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
-=== 186 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/9f5cf48cdd4d0a71.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
 
 === 136 legacy_error_parity_3274_3276/custom_element_tag_must_be_a_string_literal/c576047cfd8ac35e.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -32747,22 +32594,6 @@ import * as $ from 'svelte/internal/server';
 export default function F4120cad1616bb13($$renderer) {
 	$$renderer.push(`<textarea>a</textarea>`);
 }
-=== 221 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/2cd944404c6f582d.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 3,
-		"column": 5,
-		"character": 54
-	},
-	"end": {
-		"line": 3,
-		"column": 5,
-		"character": 54
-	}
-}
-
 === 235 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/2e89c1157ec74951.svelte	error.json
 {
 	"code": "js_parse_error",
@@ -32888,38 +32719,6 @@ export default function F4120cad1616bb13($$renderer) {
 		"line": 1,
 		"column": 43,
 		"character": 43
-	}
-}
-
-=== 223 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/b6bcad46807ea3c1.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 2,
-		"column": 32,
-		"character": 60
-	},
-	"end": {
-		"line": 2,
-		"column": 32,
-		"character": 60
-	}
-}
-
-=== 221 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/c5bc4d862a4fa46e.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 2,
-		"column": 5,
-		"character": 26
-	},
-	"end": {
-		"line": 2,
-		"column": 5,
-		"character": 26
 	}
 }
 
@@ -34467,27 +34266,6 @@ export default function D7c11f02fbdc40c5($$renderer, $$props) {
 
 		class K extends B {
 			['private'] = 1;
-		}
-
-		const r = new K().m();
-
-		$$renderer.push(`<p>${$.escape(r)}</p>`);
-	});
-}
-=== 319 module_ts_class_modifier_3538/a_keyword_that_is_not_a_modifier_still_compiles/df32a9aa45fc0a00.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Df32a9aa45fc0a00($$renderer, $$props) {
-	$$renderer.component(($$renderer) => {
-		class B {
-			m() {
-				return 1;
-			}
-		}
-
-		class K extends B {
-			static;
-			a = 1;
 		}
 
 		const r = new K().m();
@@ -37167,9 +36945,6 @@ import * as $ from 'svelte/internal/server';
 export default function Af2f23194c7e58b5($$renderer) {
 	$$renderer.push(`<p>1x</p>`);
 }
-=== 60 number_of_bigint_3654/the_operators_still_refuse_a_bigint/0e1a967c0600006c.svelte	error.txt
-Cannot mix BigInt and other types, use explicit conversions
-
 === 297 on_directive_attribute_header/plain_string_event_handler_remains_invalid/5f02410e51f6b513.svelte	error.json
 {
 	"code": "directive_invalid_value",
@@ -41478,54 +41253,6 @@ export default function _e23f07220a667cb($$renderer) {}
 	}
 }
 
-=== 698 parse_ts_module_declaration/declare_and_global_are_present_only_when_true/0fa7602557ab055a.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 1,
-		"column": 18,
-		"character": 18
-	},
-	"end": {
-		"line": 1,
-		"column": 58,
-		"character": 58
-	}
-}
-
-=== 698 parse_ts_module_declaration/declare_and_global_are_present_only_when_true/16a0e803d134a0dd.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 1,
-		"column": 18,
-		"character": 18
-	},
-	"end": {
-		"line": 1,
-		"column": 53,
-		"character": 53
-	}
-}
-
-=== 698 parse_ts_module_declaration/declare_and_global_are_present_only_when_true/74d81e52718629cd.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 1,
-		"column": 18,
-		"character": 18
-	},
-	"end": {
-		"line": 1,
-		"column": 57,
-		"character": 57
-	}
-}
-
 === 101 parse_ts_module_declaration/declare_and_global_are_present_only_when_true/9ceb6c1444ee1a15.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -41930,22 +41657,6 @@ import * as $ from 'svelte/internal/server';
 export default function _215117bda90deb3($$renderer) {
 	let x = y;
 }
-=== 223 parser_hardening/declaration_tag_multibyte_type_annotation_does_not_panic/47244ebc480a595e.svelte	error.json
-{
-	"code": "expected_token",
-	"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
-	"start": {
-		"line": 1,
-		"column": 19,
-		"character": 19
-	},
-	"end": {
-		"line": 1,
-		"column": 19,
-		"character": 19
-	}
-}
-
 === 252 parser_hardening/empty_style_selector_reports_css_expected_identifier/b88d5f3115712610.svelte	error.json
 {
 	"code": "css_expected_identifier",
