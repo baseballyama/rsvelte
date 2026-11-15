@@ -270,9 +270,9 @@ impl Parser<'_, '_> {
         self.eat_token(TokenType::TagEnd, 1);
     }
 
-    /// The script's program as Prettier's Svelte plugin reads it: as the compiler reads it, else
-    /// as TypeScript, else empty, keeping the first such script's TypeScript errors; and whether
-    /// it is TypeScript.
+    /// The script's program as Prettier's Svelte plugin and svelte-eslint-parser read it: as the
+    /// compiler reads it, else as TypeScript, else what oxc recovered of it, else empty, keeping
+    /// the first such script's TypeScript errors; and whether it is TypeScript.
     fn program_read_as_typescript(
         &mut self,
         content: Span,
@@ -287,12 +287,16 @@ impl Parser<'_, '_> {
                 Err(_) => self.builder.program_or_errors(content, typescript),
             }
         };
-        let errors = match read {
+        let rejected = match read {
             Ok(program) => return Ok((program, true)),
-            Err(errors) => errors,
+            Err(rejected) => rejected,
         };
         if self.component.script_typescript_errors.is_empty() {
-            self.component.script_typescript_errors = errors;
+            self.component.script_typescript_errors = rejected.errors;
+        }
+        // typescript-eslint tolerates some of oxc's errors, and the rules read the rest.
+        if let Some(program) = rejected.recovered {
+            return Ok((program, true));
         }
         let end = content.end_offset;
         let program = self.builder.program(Span::new(end, end), source_type)?;

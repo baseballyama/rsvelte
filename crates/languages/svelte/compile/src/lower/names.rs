@@ -47,10 +47,17 @@ impl<'r> Names<'r> {
         let preferred: Cow<'_, str> = if preferred.chars().all(valid) {
             Cow::Borrowed(preferred)
         } else {
+            // Upstream's regular expression replaces each UTF-16 unit.
             Cow::Owned(
-                preferred
-                    .chars()
-                    .map(|c| if valid(c) { c } else { '_' })
+                (preferred.chars())
+                    .flat_map(|c| {
+                        let (c, n) = if valid(c) {
+                            (c, 1)
+                        } else {
+                            ('_', c.len_utf16())
+                        };
+                        std::iter::repeat_n(c, n)
+                    })
                     .collect(),
             )
         };

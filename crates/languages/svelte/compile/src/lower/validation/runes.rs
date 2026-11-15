@@ -126,7 +126,8 @@ struct RuneWalk<'a> {
     root: Place,
     frames: Vec<Frame<'a>>,
     error: Option<Diagnostic>,
-    /// The first rune this port does not lower, refused only when upstream raises nothing later.
+    /// The first rune or `for await` this port does not lower, refused only when upstream raises
+    /// nothing later.
     refused: Option<Diagnostic>,
     /// The state fields of the classes the walk is inside, innermost last.
     classes: Vec<ClassFields>,
@@ -384,13 +385,9 @@ impl<'a> RuneWalk<'a> {
         Ok(())
     }
 
-    /// Checks the node `kind`, a child of `parent`; a declarator returns the rune it calls.
-    fn check(
-        &mut self,
-        kind: AstKind<'a>,
-        parent: Option<AstKind<'a>>,
-        place: Place,
-    ) -> Result<Option<&'static str>, Diagnostic> {
+    /// Raises `experimental_async` at an `await` that suspends rendering, and keeps it as the
+    /// refusal at a `for await`.
+    fn check_await(&mut self, kind: AstKind<'a>, place: Place) -> Result<(), Diagnostic> {
         // A `for await` suspends rendering as an `await` does; upstream prints it into a
         // function that is not async.
         let suspends = match kind {
@@ -408,14 +405,44 @@ impl<'a> RuneWalk<'a> {
             matches!(function.map(|f| f.kind), Some(AstKind::ArrowFunctionExpression(arrow))
                 if self.bind_arrows.contains(&Some(arrow.span.start)))
         };
-        if suspends && ((self.awaits == Awaits::Here && place.rendering) || in_bind_arrow()) {
-            return crate::lower::special::invalid(
+        // Upstream suspends at a `$derived(…)` argument in any script, up to the nearest function.
+        let in_derived = || {
+            self.frames.iter().rev().find_map(|f| match f.kind {
+                AstKind::Function(_) | AstKind::ArrowFunctionExpression(_) => Some(false),
+                AstKind::CallExpression(call) => {
+                    (self.res.rune_of_call(call) == Some("$derived")).then_some(true)
+                }
+                _ => None,
+            }) == Some(true)
+        };
+        if suspends
+            && ((self.awaits == Awaits::Here && (place.rendering || in_derived()))
+                || in_bind_arrow())
+        {
+            let error = crate::lower::special::error(
                 "experimental_async",
                 "Cannot use `await` in deriveds and template expressions, or at the top level of a \
                     component, unless the `experimental.async` compiler option is `true`",
                 span_of(&kind),
             );
+            // Upstream's analysis does not see a `for await`, so its later errors come first.
+            if matches!(kind, AstKind::ForOfStatement(_)) {
+                self.refused.get_or_insert(error);
+            } else {
+                return Err(error);
+            }
         }
+        Ok(())
+    }
+
+    /// Checks the node `kind`, a child of `parent`; a declarator returns the rune it calls.
+    fn check(
+        &mut self,
+        kind: AstKind<'a>,
+        parent: Option<AstKind<'a>>,
+        place: Place,
+    ) -> Result<Option<&'static str>, Diagnostic> {
+        self.check_await(kind, place)?;
         let res = self.res;
         match kind {
             AstKind::LabeledStatement(statement)

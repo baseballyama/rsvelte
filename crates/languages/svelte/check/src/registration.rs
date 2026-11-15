@@ -11,7 +11,8 @@ use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_svelte_typescript_projection::{Printed, THROWN};
 use rsvelte_typescript_check::{
-    Check, Documents, TypeScriptDocument, TypeScriptEnv, TypeScriptStandIn, TypeScriptView,
+    Check, Documents, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptEnv,
+    TypeScriptStandIn, TypeScriptView,
 };
 
 use crate::Configuration;
@@ -42,6 +43,12 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         stand_in: Some(rsvelte_svelte_typescript_projection::STAND_IN),
         imported: Some(is_script),
     });
+    if let Some(check) = &config.check {
+        reg.contribute::<MappedLanguages>(MappedLanguage {
+            extension: ".svelte",
+            content_mapper: check.content_mapper.clone(),
+        });
+    }
     let env = config
         .check
         .as_ref()
@@ -50,8 +57,10 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         typescript_view(context, env.as_ref())
     });
     reg.provide::<TypeScriptStandIn>("svelte", rsvelte_svelte_syntax::matches, |context| {
-        let component = context.get::<Parsed>().as_ref().ok()?;
-        rsvelte_svelte_typescript_projection::stand_in(component, &context.document.text)
+        let own = context.get::<Parsed>().as_ref().ok().and_then(|component| {
+            rsvelte_svelte_typescript_projection::stand_in(component, &context.document.text)
+        });
+        Some(own.unwrap_or_else(|| rsvelte_svelte_typescript_projection::STAND_IN.to_owned()))
     });
 }
 
@@ -133,16 +142,18 @@ fn typescript_view(
                 return document;
             }
             // svelte2tsx throws Svelte's parse error, which svelte-check reports as it is.
-            return Ok(TypeScriptDocument::Rejected {
-                message: error.message.clone(),
-                span: if error.has_end {
-                    error.span
-                } else {
-                    Span::new(error.span.start_offset, error.span.start_offset)
-                },
-            });
+            return Ok(rejected(error));
         }
     };
+    // Svelte's parser also rejects the template's JavaScript; svelte2tsx blanks the scripts first.
+    if let Some(error) = rsvelte_svelte_semantic::javascript_error(context)
+        && !rsvelte_svelte_syntax::parse::in_script_content(
+            &context.document.text,
+            error.span.start_offset,
+        )
+    {
+        return Ok(rejected(&error));
+    }
     // svelte-check reads the component as TypeScript when either script is, else as JavaScript.
     let typescript = [&component.instance, &component.module]
         .into_iter()
@@ -173,6 +184,18 @@ fn typescript_view(
         extension: if typescript { ".ts" } else { ".js" },
         imports: relative_imports(component),
     })
+}
+
+/// What svelte-check reports for the parse error svelte2tsx throws.
+fn rejected(error: &Diagnostic) -> TypeScriptDocument {
+    TypeScriptDocument::Rejected {
+        message: error.message.clone(),
+        span: if error.has_end {
+            error.span
+        } else {
+            Span::new(error.span.start_offset, error.span.start_offset)
+        },
+    }
 }
 
 /// Each relative module specifier the scripts import or re-export from, by its string literal.

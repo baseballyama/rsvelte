@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
-use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::registry::{ProjectFiles, Registry};
 use rsvelte_plugin_interface::{CallError, Extension, Settings, TaskKind, program_path};
 use serde::Deserialize;
 
-use crate::{Check, Documents, Tsc, TypeChecker};
+use crate::{Check, Documents, MappedLanguages, Tsc, TypeChecker};
 
 pub static EXTENSION: Extension = Extension {
     identifier: "typescript.check",
@@ -34,6 +34,14 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
     let tsc = type_checker(settings, runs)?;
     if runs && tsc.is_none() {
         return Err(settings.missing(TASK, NEEDS_TYPE_CHECKER));
+    }
+    if let Some(tsc) = tsc.clone() {
+        registry.contribute::<ProjectFiles>((
+            TASK,
+            Box::new(move |registry: &Registry| {
+                tsc.project_files(registry.contributions::<MappedLanguages>())
+            }),
+        ));
     }
     registry.finish_task(Check {
         identifier: TASK,

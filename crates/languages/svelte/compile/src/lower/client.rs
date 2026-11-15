@@ -63,7 +63,7 @@ type R<T> = Result<T, Diagnostic>;
 /// Upstream `normalize_attribute`.
 #[must_use]
 pub(super) fn normalize_attribute(name: &str) -> String {
-    let lower = name.to_ascii_lowercase();
+    let lower = name.to_lowercase();
     rsvelte_markup_syntax::property_name(&lower).map_or(lower, str::to_owned)
 }
 

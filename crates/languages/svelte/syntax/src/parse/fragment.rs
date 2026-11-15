@@ -55,8 +55,19 @@ impl Parser<'_, '_> {
                     {
                         return Ok(self.finish_children(children_start));
                     }
-                    match self.element(matches!(end, End::Eof))? {
-                        Some(element) => element,
+                    // Upstream checks a start tag against the element it is in, once: the start
+                    // tag that closed a child opens here, whatever this element holds.
+                    let mut read = self.element(matches!(end, End::Eof))?;
+                    while let Some(element::Read {
+                        element,
+                        closed_by_start_tag: true,
+                    }) = read
+                    {
+                        self.pending_children.push(element);
+                        read = self.element(matches!(end, End::Eof))?;
+                    }
+                    match read {
+                        Some(read) => read.element,
                         None => continue,
                     }
                 }
@@ -152,3 +163,6 @@ impl Parser<'_, '_> {
         }))
     }
 }
+
+#[cfg(test)]
+mod tests;

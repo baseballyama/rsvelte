@@ -475,14 +475,13 @@ fn directives(
             );
         }
         if let AttributeValue::Bind(target) = a.value
-            && matches!(
-                input.component.javascript.get_expression(target),
-                Expression::SequenceExpression(_)
-            )
+            && let pair @ Expression::SequenceExpression(_) =
+                input.component.javascript.get_expression(target)
             && input
                 .component
-                .compiler_syntax_tree
-                .is_parenthesized_bind(target)
+                .javascript
+                .parentheses(oxc_span::GetSpan::span(pair))
+                > 0
         {
             return invalid(
                 "bind_invalid_parens",
