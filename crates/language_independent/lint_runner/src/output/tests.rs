@@ -62,3 +62,11 @@ fn the_estimate_holds_the_whole_report() {
         json.len()
     );
 }
+
+#[test]
+fn an_unused_directive_report_names_no_rule() {
+    let lines = LineIndex::new("x");
+    let unused = Diagnostic::warning(UNUSED_DIRECTIVE, "message", Span::new(0, 0)).without_end();
+    let json = render_json(Positions::new(&lines, "x"), ["r"], &[unused.into()]);
+    assert!(json.contains("\"rule\": null"), "{json}");
+}
