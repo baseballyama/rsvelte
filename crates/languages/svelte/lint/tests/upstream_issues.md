@@ -1031,3 +1031,19 @@ their `svelte.compile` skip gives.
 [empty]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/1-parse/read/style.js#L486-L488
 [prune]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/2-analyze/css/css-prune.js#L702-L706
 [combinator]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/1-parse/read/style.js#L388-L398
+
+## A directive name Svelte compiles fails the parse (svelte-eslint-parser)
+
+| Input                                  | Upstream parse error                                 |
+| -------------------------------------- | ---------------------------------------------------- |
+| `<div class:a.b>x</div>`               | `Expected Identifier, but MemberExpression found.`    |
+| `<div transition:a.b>x</div>`          | `Expected JS Identifier, but MemberExpression found.` |
+| `<svelte:element this={t} bind:this>`  | `Expected Identifier, but ThisExpression found.`      |
+
+Svelte compiles these. It reads a shorthand `bind:` or `class:` name as one identifier, dots
+and dashes too. The parser svelte-eslint-parser reads the name again as code and
+[throws](https://github.com/sveltejs/svelte-eslint-parser/blob/ec08553b5086b79ed88aefe9faa852a1ab5ab5cf/src/parser/converts/attr.ts#L1011-L1022)
+when the type differs. It also
+[needs](https://github.com/sveltejs/svelte-eslint-parser/blob/ec08553b5086b79ed88aefe9faa852a1ab5ab5cf/src/parser/converts/attr.ts#L1060-L1071)
+an identifier for the name of a transition or animation. This crate parses these files, and the
+corpus skips their lint units.

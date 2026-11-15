@@ -271,6 +271,7 @@
 
 ["svelte/rsvelte-tests-core-1/bind_host_axis_3264/legal_bindings_still_compile_on_every_host/e2b7a8af8920172b.svelte".skip]
 "svelte.compile/client" = "upstream bug: svelte 5.57.3 turns a `bind:this` shorthand on `<svelte:element>` into an assignment to `this`, which does not parse"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/rsvelte-tests-core-1/abstract_property_erasure_3082/an_abstract_member_is_erased_on_every_target/2433da24234ea06f.svelte".skip]
 "svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (10:11)"
@@ -1318,28 +1319,28 @@
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
 
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-animate-with-expr-input.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-class-with-expr-input.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-in-with-exxpr-input.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-out-with-expr-input.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-transition-with-expr-input.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-use-with-expr01-input.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-use-with-expr02-input.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/error/name01-input.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/svelte/packages/svelte/tests/parser-modern/samples/const-tag-parenthesized-init/input.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `{@const}` whose initializer is in parentheses, which Svelte compiles"
@@ -1361,7 +1362,7 @@
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
 
 ["svelte/svelte/packages/svelte/tests/runtime-runes/samples/directives-with-member-access/main.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/syntaxfm-website/src/routes/(site)/show/[show_number]/[slug]/+layout.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a `<script` inside a markup string, such as an `{@html}` template literal or an attribute value, which Svelte compiles as text"
@@ -1410,11 +1411,11 @@
 
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/error/shorthand02-input.svelte".skip]
 "svelte.compile" = "upstream bug: a `style:` shorthand whose name is no identifier is read as an expression (`style:max-width` sets `max - width`), and the server lowercases the key the client keeps"
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-style-with-expr-input.svelte".skip]
 "svelte.compile" = "upstream bug: a `style:` shorthand whose name is no identifier is read as an expression (`style:max-width` sets `max - width`), and the server lowercases the key the client keeps"
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_reexport_2113/named_reexport_is_hoisted_out_of_render_body/ef9d513487cc4903.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 exports `x` from an instance-script `export { x } from`, which binds no local `x`, so the component throws a ReferenceError"
@@ -4255,19 +4256,19 @@
 "svelte.lint" = "upstream bug: svelte/consistent-selector-style reports a selector after a comment as many columns early as the comment is long"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/04bc05a5c4a48321.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/1358524331a32498.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/37e29319f0324448.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/491ea81fca3dc99b.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/5b242d82304197ec.svelte".skip]
-"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+"svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
 
 ["svelte/svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.svelte".skip]
 "svelte.lint" = "upstream bug: postcss-selector-parser ends a hex escape before a tab or a line break, and after six digits before a space, so `#line\\a` and the name after it are two selectors"
