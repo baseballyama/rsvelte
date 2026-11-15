@@ -7,6 +7,7 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
+use oxc_syntax::scope::ScopeFlags;
 use rsvelte_svelte_syntax::syntax_tree::Script;
 
 use super::contract::Edit;
@@ -204,6 +205,12 @@ impl Builder<'_> {
                 }
             }
             previous = statement.span().end;
+            // svelte2tsx moves an import inside a namespace too.
+            let mut imports = Vec::new();
+            nested_imports(statement, &mut imports);
+            for import in imports {
+                moved(self, import);
+            }
             match statement {
                 Statement::ImportDeclaration(import) => moved(self, span(import.span)),
                 // A type export would leave the render function; svelte2tsx moves it out.
@@ -485,6 +492,16 @@ impl<'a> Visit<'a> for DollarGenerics {
     }
 }
 
+/// The imports inside the namespace that `statement` declares, in source order.
+fn nested_imports(statement: &Statement<'_>, imports: &mut Vec<Span>) {
+    for nested in super::contract::namespace_body(statement).unwrap_or_default() {
+        if let Statement::ImportDeclaration(import) = nested {
+            imports.push(span(import.span));
+        }
+        nested_imports(nested, imports);
+    }
+}
+
 /// Whether `program` awaits outside every block and function, where svelte2tsx makes its render
 /// function async.
 pub(super) fn awaits_at_top_level(program: &Program<'_>) -> bool {
@@ -499,10 +516,39 @@ pub(super) fn awaits_at_top_level(program: &Program<'_>) -> bool {
             self.depth -= 1;
         }
 
-        fn visit_function_body(&mut self, it: &oxc_ast::ast::FunctionBody<'a>) {
+        fn visit_static_block(&mut self, it: &oxc_ast::ast::StaticBlock<'a>) {
             self.depth += 1;
-            walk::walk_function_body(self, it);
+            walk::walk_static_block(self, it);
             self.depth -= 1;
+        }
+
+        fn visit_function(&mut self, it: &oxc_ast::ast::Function<'a>, flags: ScopeFlags) {
+            self.depth += 1;
+            walk::walk_function(self, it, flags);
+            self.depth -= 1;
+        }
+
+        fn visit_arrow_function_expression(
+            &mut self,
+            it: &oxc_ast::ast::ArrowFunctionExpression<'a>,
+        ) {
+            self.depth += 1;
+            walk::walk_arrow_function_expression(self, it);
+            self.depth -= 1;
+        }
+
+        // TypeScript's method node holds its key and decorators, which svelte2tsx scopes with it.
+        fn visit_method_definition(&mut self, it: &oxc_ast::ast::MethodDefinition<'a>) {
+            self.depth += 1;
+            walk::walk_method_definition(self, it);
+            self.depth -= 1;
+        }
+
+        fn visit_object_property(&mut self, it: &oxc_ast::ast::ObjectProperty<'a>) {
+            let method = it.method || it.kind != oxc_ast::ast::PropertyKind::Init;
+            self.depth += u32::from(method);
+            walk::walk_object_property(self, it);
+            self.depth -= u32::from(method);
         }
 
         // TypeScript reads `await` in a namespace as a name, which awaits nothing.

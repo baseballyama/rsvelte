@@ -1,13 +1,65 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    BindingPattern, Declaration, Expression, PropertyKey, Statement, TSType, VariableDeclaration,
-    VariableDeclarationKind,
+    BindingPattern, Declaration, Expression, PropertyKey, Statement, TSNamespaceDeclarationBody,
+    TSType, VariableDeclaration, VariableDeclarationKind,
 };
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
 
 use super::generic::Generics;
 use super::{Buffer, Builder, Node, NodeIdentifier, Range, Result, Span, refuse, span};
+
+/// The statements of the namespace that `statement` declares, inside its dotted names.
+pub(super) fn namespace_body<'s>(statement: &'s Statement<'s>) -> Option<&'s [Statement<'s>]> {
+    let namespace = match statement {
+        Statement::TSNamespaceDeclaration(namespace) => namespace,
+        Statement::ExportDeclaration(export) => match &export.declaration {
+            Declaration::TSNamespaceDeclaration(namespace) => namespace,
+            _ => return None,
+        },
+        _ => return None,
+    };
+    let mut body = &namespace.body;
+    while let TSNamespaceDeclarationBody::TSNamespaceDeclaration(inner) = body {
+        body = &inner.body;
+    }
+    match body {
+        TSNamespaceDeclarationBody::TSModuleBlock(block) => Some(&block.body),
+        TSNamespaceDeclarationBody::TSNamespaceDeclaration(_) => None,
+    }
+}
+
+/// svelte2tsx removes an export list and the `export` of a variable, function or class inside a
+/// namespace, as at the top level.
+fn namespace_exports(statement: &Statement<'_>, edits: &mut Buffer<Edit>) {
+    for nested in namespace_body(statement).unwrap_or_default() {
+        match nested {
+            Statement::ExportNamedDeclaration(named) => edits.push(Edit {
+                span: span(named.span),
+                replacement: None,
+            }),
+            Statement::ExportFromDeclaration(from) => edits.push(Edit {
+                span: span(from.span),
+                replacement: None,
+            }),
+            Statement::ExportDeclaration(export)
+                if matches!(
+                    export.declaration,
+                    Declaration::VariableDeclaration(_)
+                        | Declaration::FunctionDeclaration(_)
+                        | Declaration::ClassDeclaration(_)
+                ) =>
+            {
+                edits.push(Edit {
+                    span: Span::new(export.span.start, export.declaration.span().start),
+                    replacement: None,
+                });
+            }
+            _ => {}
+        }
+        namespace_exports(nested, edits);
+    }
+}
 
 pub(super) struct Edit {
     pub(super) span: Span,
@@ -54,6 +106,7 @@ impl Builder<'_> {
                 edits.push(flags);
             }
             for statement in &program.body {
+                namespace_exports(statement, &mut edits);
                 let Some(declaration) =
                     self.instance_export(statement, &mut exports, &mut edits)?
                 else {
