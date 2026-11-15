@@ -4,7 +4,9 @@ use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
 
-use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree, TypeParameters};
+use crate::syntax_tree::{
+    Node, NodeIdentifier, SourceExpression, Spelling, SyntaxTree, TypeParameters,
+};
 
 /// [`emit_named`] for a component without a file, which svelte2tsx names `$$Component`.
 #[must_use]
@@ -41,6 +43,7 @@ struct Printer<'a> {
 mod component;
 mod generic;
 mod javascript;
+mod string;
 
 impl Printer<'_> {
     fn children(&mut self, range: Range) {
@@ -50,16 +53,27 @@ impl Printer<'_> {
         }
     }
 
-    fn property(&mut self, name: Span, lowercase: bool, value: NodeIdentifier, end: Option<u32>) {
+    fn property(
+        &mut self,
+        name: Span,
+        spelling: Spelling,
+        value: NodeIdentifier,
+        end: Option<u32>,
+    ) {
         // svelte2tsx quotes every name, and a finding on it covers the name without quotes.
         let start = self.output.out.len() as u32;
         self.output.push("\"");
-        if lowercase {
-            for c in name.text(self.source).chars().flat_map(char::to_lowercase) {
-                self.output.push_char(c);
+        match spelling {
+            Spelling::AsWritten => self.output.push(name.text(self.source)),
+            Spelling::Lowercase => {
+                for c in name.text(self.source).chars().flat_map(char::to_lowercase) {
+                    self.output.push_char(c);
+                }
             }
-        } else {
-            self.output.push(name.text(self.source));
+            Spelling::Event => {
+                self.output.push("on:");
+                self.output.push(name.text(self.source));
+            }
         }
         self.output.push("\"");
         self.output.atom_since(start, name);
@@ -124,7 +138,7 @@ impl Printer<'_> {
                 body,
             } => self.for_of(binding, iterable, body),
             Node::Assignment { target, value } => self.assignment(target, value),
-            Node::Object { properties } => self.object(properties),
+            Node::Object { properties } => self.object(properties, None),
             Node::Block { body } => {
                 self.output.push("{\n");
                 self.body(body);
@@ -137,10 +151,10 @@ impl Printer<'_> {
             } => self.branch(test, consequent, alternate),
             Node::Property {
                 name,
-                lowercase,
+                spelling,
                 value,
                 end,
-            } => self.property(name, lowercase, value, end),
+            } => self.property(name, spelling, value, end),
             node @ (Node::SnippetProperty { .. }
             | Node::SnippetNames { .. }
             | Node::ImplicitChildren(_)) => self.component_part(node),
@@ -200,6 +214,17 @@ impl Printer<'_> {
                 self.output.copy(self.source, span);
                 self.output.mark(span.end_offset);
             }
+            Node::QuotedText(span) => {
+                let start = self.output.out.len() as u32;
+                for part in ["\"", span.text(self.source), "\""] {
+                    self.output.push(part);
+                }
+                self.output.atom_since(start, span);
+            }
+            Node::Located { value, at } => match self.tree.node(value) {
+                Node::Object { properties } => self.object(properties, Some(at)),
+                _ => self.node(value),
+            },
             Node::StoreSubscription(store) => self.store_subscription(store),
             Node::GeneratedIdentifier { prefix, index } => {
                 self.node(prefix);
@@ -459,13 +484,19 @@ impl Printer<'_> {
         self.indentation();
     }
 
-    fn object(&mut self, properties: Range) {
+    /// The object of `properties`, whose braces map to `at`, so that a finding on all of it does.
+    fn object(&mut self, properties: Range, at: Option<Span>) {
+        let brace = |output: &mut Emitter, text: &str| match at {
+            Some(at) => output.atom(text, at),
+            None => output.push(text),
+        };
         if self.tree.children(properties).is_empty() {
-            self.output.push("{}");
+            brace(&mut self.output, "{}");
         } else {
-            self.output.push("{\n");
+            brace(&mut self.output, "{");
+            self.output.push("\n");
             self.body(properties);
-            self.output.push("}");
+            brace(&mut self.output, "}");
         }
     }
 
@@ -517,64 +548,8 @@ impl Printer<'_> {
         self.output.push("\n");
     }
 
-    fn node_string_literal(&mut self, value: &str) {
-        self.output.push("\"");
-        for ch in value.chars() {
-            self.character(ch, false);
-        }
-        self.output.push("\"");
-    }
-
-    fn string(&mut self, parts: Range, template: bool) {
-        let quote = if template { "`" } else { "\"" };
-        self.output.push(quote);
-        for &part in self.tree.children(parts) {
-            if let Node::Text(span) = self.tree.node(part) {
-                self.text(span, template);
-            } else {
-                self.output.push("${");
-                self.node(part);
-                self.output.push("}");
-            }
-        }
-        self.output.push(quote);
-    }
-
     fn source_expression(&mut self, expression: SourceExpression) {
         self.output.copy(self.source, expression.span);
         self.output.mark(expression.end);
-    }
-
-    fn text(&mut self, span: Span, template: bool) {
-        let special: &[char] = if template {
-            &['`', '\\', '$', '\n', '\r']
-        } else {
-            &['"', '\\', '\n', '\r']
-        };
-        let text = span.text(self.source);
-        if !text.contains(special) {
-            self.output.copy(self.source, span);
-            return;
-        }
-        for (offset, ch) in text.char_indices() {
-            self.output.mark(span.start_offset + offset as u32);
-            self.character(ch, template);
-        }
-    }
-
-    fn character(&mut self, ch: char, template: bool) {
-        match ch {
-            '\n' => self.output.push("\\n"),
-            '\r' => self.output.push("\\r"),
-            '\\' | '"' if !template => {
-                self.output.push_char('\\');
-                self.output.push_char(ch);
-            }
-            '\\' | '`' | '$' if template => {
-                self.output.push_char('\\');
-                self.output.push_char(ch);
-            }
-            c => self.output.push_char(c),
-        }
     }
 }
