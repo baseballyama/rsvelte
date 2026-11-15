@@ -213,3 +213,11 @@ fn a_block_s_text_that_decodes_to_whitespace_is_not_checked() {
     assert_eq!(reported_lines("<div>\n\t&nbsp;\n</div>\n"), [2]);
     assert_eq!(reported_lines("{#await x}\n\t&nbsp;\n{/await}\n"), [2]);
 }
+
+#[test]
+fn a_top_level_text_that_starts_with_whitespace_is_not_checked() {
+    assert_eq!(reported_lines("<div></div>\nx\n\ty\n"), [0u32; 0]);
+    assert_eq!(reported_lines("<div></div>\n x\n"), [0u32; 0]);
+    assert_eq!(reported_lines("<div></div>x\n\ty\n"), [2]);
+    assert_eq!(reported_lines("x\n\ty\n"), [2]);
+}

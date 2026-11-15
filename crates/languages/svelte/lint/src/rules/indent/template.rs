@@ -3,7 +3,7 @@
 use oxc_ast_visit::Visit;
 use oxc_parser::Kind;
 use oxc_span::{GetSpan, Span as OxcSpan};
-use rsvelte_kernel::source::characters::trim_ecmascript;
+use rsvelte_kernel::source::characters::{is_ecmascript_whitespace, trim_ecmascript};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     Component, Range, Script as ScriptElement, TemplateNode, TemplateNodeIdentifier, TokenType,
@@ -107,6 +107,16 @@ impl<'a> Template<'_, 'a> {
                 Top::Style(span, _) => span,
                 Top::Node(n) => component.node(n).span(),
             };
+            // Upstream starts a text at its first token, which is a whitespace token when the
+            // text begins with whitespace; its words then have no indentation to check.
+            if let Top::Node(n) = *top
+                && let TemplateNode::Text { span } = component.node(n)
+                && span
+                    .text(self.source())
+                    .starts_with(is_ecmascript_whitespace)
+            {
+                continue;
+            }
             let first = self.first(span);
             self.script.layout.start(first, 0);
         }

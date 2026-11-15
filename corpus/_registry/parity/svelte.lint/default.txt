@@ -1,4 +1,4 @@
-# svelte.lint/default: 37052 match
+# svelte.lint/default: 37054 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -658,8 +658,6 @@ svelte/svar-grid/svelte/src/components/Layout.svelte	mismatch
 svelte/svelte-bits/src/lib/components/library/Backgrounds/GridDistortion/GridDistortion.svelte	mismatch
 svelte/svelte-inspect-value/packages/svelte/src/lib/components/HTMLViewSimple.svelte	mismatch
 svelte/svelte-inspect-value/packages/svelte/src/lib/components/Preview.svelte	mismatch
-svelte/svelte/packages/svelte/tests/migrate/samples/is-not-where-has/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/migrate/samples/is-not-where-has/output.svelte	mismatch
 svelte/svelte/packages/svelte/tests/migrate/samples/svelte-ignore/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/migrate/samples/svelte-ignore/output.svelte	mismatch
 svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte	mismatch
