@@ -181,3 +181,26 @@ fn ignored_nodes_selectors_are_refused() {
         Err("rule `svelte/indent`: `ignoredNodes` selectors are not supported".to_owned())
     );
 }
+
+#[test]
+fn a_getter_and_setter_binding_is_not_checked() {
+    // Upstream only checks the `}` of a function binding, as `bind:value={[...]}` checks all.
+    let pair = "<Input\n  bind:value={\n        () => a,\n   (v) => {\n b = v;\n          }\n    \
+        }\n/>\n";
+    assert_eq!(reported_lines(pair), [7]);
+    let array = pair
+        .replace("{\n        ()", "{\n        [()")
+        .replace("}\n    }", "}]\n    }");
+    assert_eq!(reported_lines(&array), [3, 4, 5, 6, 7]);
+}
+
+#[test]
+fn parsed_generics_are_not_checked() {
+    let source = "<script\n      generics=\"T\"\n      lang=\"ts\"\n>\n  let a: T;\n</script>\n";
+    assert_eq!(reported_lines(source), [3]);
+    // Upstream converts generics only for TypeScript.
+    let javascript = source
+        .replace("lang=\"ts\"", "foo=\"x\"")
+        .replace(": T", "");
+    assert_eq!(reported_lines(&javascript), [2, 3]);
+}

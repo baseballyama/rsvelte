@@ -147,6 +147,10 @@ impl<'a> Template<'_, 'a> {
         self.start_tag(start_tag, &attributes);
         for (span, name, _) in &attributes {
             self.attribute(*span, *name, &[], true);
+            // svelte-eslint-parser turns parsed generics into a node upstream does not know.
+            if script.generics.is_some() && name.text(self.source()) == "generics" {
+                self.script.layout.ignore(*span);
+            }
         }
         for directive in &program.directives {
             self.script.visit_directive(directive);
