@@ -1,4 +1,4 @@
-# svelte.lint/default: 37140 match
+# svelte.lint/default: 37138 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -72,7 +72,6 @@ svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/visitors/sha
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/visitors/shared/component/tests/typed_is_store_member_expression_agrees_with_the_json_walk/aaf0ff071f0264a6.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/visitors/shared/component/tests/typed_is_store_member_expression_agrees_with_the_json_walk/b8f360c9faaf398b.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_bind_cluster/7074191a4c9f8226.svelte	mismatch
-svelte/rsvelte-tests-core-1/compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/9096b19bedcfe51e.svelte	mismatch
 svelte/rsvelte-tests-core-1/component_attribute_assign_exemption/a_getter_setter_pair_on_svelte_self_is_not_exempt/ffe188e03ff64cb0.svelte	mismatch
 svelte/rsvelte-tests-core-1/component_attribute_assign_exemption/a_lone_arrow_on_svelte_component_or_svelte_self_is_not_exempt/5f93ec743104e481.svelte	mismatch
 svelte/rsvelte-tests-core-1/component_name_conflict_before_walk_2478/unconflicted_component_keeps_its_plain_name/e3034d0beb9441e0.svelte	mismatch

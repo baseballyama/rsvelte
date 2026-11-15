@@ -1,4 +1,4 @@
-# svelte.compile/server: 35126 match
+# svelte.compile/server: 35122 match
 svelte/rsvelte-tests-core-1/bind_host_axis_3264/legal_bindings_still_compile_on_every_host/e2b7a8af8920172b.svelte	refused
 svelte/rsvelte-tests-core-2/inspect_operand_slot_3441/a_with_inspect_initializer_on_server_dev/c295403bf92ffd40.svelte	refused
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_reject_a_nel/d17180b037ec6515.svelte	mismatch

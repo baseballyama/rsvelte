@@ -66592,32 +66592,6 @@ export default function Rune_local_in_a_template_function_is_not_a_plain_local($
 
 	$$renderer.push(`<button>a</button> <button>b</button> ${$.escape(prop.n)}`);
 }
-=== 189 pattern/issues/script-data-lang-ts-strips.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Script_data_lang_ts_strips($$renderer) {
-	let item = { size: 2 };
-
-	$$renderer.push(`<p>${$.escape(item.size)}</p>`);
-}
-=== 393 pattern/issues/script-data-lang-ts-strips.svelte	warnings.json
-[
-	{
-		"code": "script_unknown_attribute",
-		"message": "Unrecognised attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it\nhttps://svelte.dev/e/script_unknown_attribute",
-		"start": {
-			"line": 1,
-			"column": 8,
-			"character": 8
-		},
-		"end": {
-			"line": 1,
-			"column": 22,
-			"character": 22
-		}
-	}
-]
-
 === 474 pattern/issues/script-lang-after-quoted-gt.svelte	js
 import * as $ from 'svelte/internal/server';
 

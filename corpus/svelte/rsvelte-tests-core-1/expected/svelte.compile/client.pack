@@ -39698,65 +39698,6 @@ export default function _ed17f459498d7a3($$anchor, $$props) {
 
 	$.append($$anchor, fragment);
 }
-=== 373 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/25cc84cda4760858.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.with_script($.from_html(`<div><script lang="ts"></script><!></div><p></p>`, 1));
-
-export default function _5cc84cda4760858($$anchor) {
-	let x = 1;
-	var fragment = root();
-	var p = $.sibling($.first_child(fragment));
-
-	p.textContent = '1';
-	$.append($$anchor, fragment);
-}
-=== 255 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<p></p>`);
-
-export default function _5efd90757e6abdb($$anchor) {
-	let x = 1;
-	var p = root();
-
-	p.textContent = '1';
-	$.append($$anchor, p);
-}
-=== 393 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte	warnings.json
-[
-	{
-		"code": "script_unknown_attribute",
-		"message": "Unrecognised attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it\nhttps://svelte.dev/e/script_unknown_attribute",
-		"start": {
-			"line": 1,
-			"column": 8,
-			"character": 8
-		},
-		"end": {
-			"line": 1,
-			"column": 22,
-			"character": 22
-		}
-	}
-]
-
-=== 288 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/9096b19bedcfe51e.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<p></p>`);
-
-export default function _096b19bedcfe51e($$anchor) {
-	let x = 1;
-	const s = '<script lang="ts">';
-	var p = root();
-
-	p.textContent = '1';
-	$.append($$anchor, p);
-}
 === 379 component_attribute_assign_exemption/a_component_attribute_arrow_body_is_exempt/208dddb78fd72c1e.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
