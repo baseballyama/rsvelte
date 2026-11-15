@@ -344,3 +344,46 @@ fn an_each_context_named_state_or_derived_raises_state_invalid_placement() {
         compiled(source).unwrap_or_else(|error| panic!("{source}: {error:?}"));
     }
 }
+
+#[test]
+fn a_directive_named_by_a_store_member_is_an_illegal_global() {
+    let script =
+        "<script>import { writable } from 'svelte/store'; const store = writable({});</script>";
+    for (markup, code) in [
+        (
+            "<div class:$store.action>x</div>",
+            Some("global_reference_invalid"),
+        ),
+        ("<div class:$Store.x>x</div>", None),
+        ("<div class:a.b>x</div>", None),
+        (
+            "<input bind:$store.value />",
+            Some("global_reference_invalid"),
+        ),
+        ("<input bind:$Store.value />", Some("bind_invalid_name")),
+        ("<input bind:a.b />", Some("bind_invalid_name")),
+        ("<input bind:a-b />", Some("bind_invalid_name")),
+    ] {
+        let source = format!("{script}{markup}");
+        let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid syntax");
+        let tree = compiler_syntax_tree::lower(&component, &source);
+        let input =
+            rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
+        let resolution = resolve::resolve(
+            &component.javascript,
+            component.instance.as_ref().map(|s| s.program),
+            component.module.as_ref().map(|s| s.program),
+            &tree,
+        );
+        let analysis = analyze::analyze(&input, &resolution);
+        let error = compile_input(
+            &CompileInput::from(input),
+            &resolution,
+            &analysis,
+            Target::Client,
+        )
+        .err()
+        .map(|error| error.code);
+        assert_eq!(error.as_deref(), code, "{markup}");
+    }
+}

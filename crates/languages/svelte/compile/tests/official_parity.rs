@@ -414,6 +414,23 @@ fn an_await_in_a_for_await_is_reported_before_the_loop() {
 }
 
 #[test]
+fn a_second_intro_or_outro_is_a_duplicate_or_a_conflict_whatever_its_modifiers() {
+    for (markup, code) in [
+        ("<div in:a|global in:b>x</div>", "transition_duplicate"),
+        (
+            "<div transition:a out:b|local>x</div>",
+            "transition_conflict",
+        ),
+        ("<div in:a out:b>x</div>", ""),
+    ] {
+        let found = compile_at(markup, Target::Client)
+            .err()
+            .map(|(code, _)| code);
+        assert_eq!(found.as_deref().unwrap_or(""), code, "{markup}");
+    }
+}
+
+#[test]
 fn a_byte_order_mark_is_no_text() {
     assert!(squashed("\u{feff}<p>a</p>", Target::Server).contains("`<p>a</p>`"));
 }
