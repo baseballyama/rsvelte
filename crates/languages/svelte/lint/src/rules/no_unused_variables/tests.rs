@@ -413,3 +413,32 @@ fn a_snippet_declares_its_type_parameters_in_its_own_scope() {
         ["'T' is defined but never used."]
     );
 }
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0: its scopes merge what Svelte's keep apart.
+#[test]
+fn a_name_declared_twice_in_one_upstream_scope_is_one_variable() {
+    assert_eq!(
+        unused_at("<script>let row = 1;</script>\n{#snippet row()}<b>x</b>{/snippet}"),
+        [("'row' is assigned a value but never used.".to_owned(), 1)]
+    );
+    assert_eq!(
+        unused("{#snippet row(item)}{@const item = 1}{item}{/snippet}{@render row(1)}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("{#each [1] as it}{@const it = 1}x{/each}"),
+        ["'it' is assigned a value but never used."]
+    );
+    assert_eq!(
+        unused("<script>let n = 0;</script>{#snippet count()}<b>{n}</b>{/snippet}<p>{$count}</p>"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script module>export const nm = 1;</script>{@const nm = 1}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("{#await p then v}{@const v = 1}x{:catch e}{@const e = 2}{e}{/await}"),
+        ["'v' is assigned a value but never used."]
+    );
+}

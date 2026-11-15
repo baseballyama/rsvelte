@@ -1,4 +1,4 @@
-# svelte.lint/default: 37088 match
+# svelte.lint/default: 37092 match
 svelte/bits-ui/tests/src/tests/checkbox/checkbox-group-test.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-svelte4-input.svelte	mismatch
@@ -127,7 +127,6 @@ svelte/rsvelte-tests-core-2/direct_component_parent_3141/svelte_self_owns_the_sl
 svelte/rsvelte-tests-core-2/directive_shorthand_loc/shorthand_directive_expression_has_no_loc_and_an_explicit_one_keeps_it/1d75f30307ff3530.svelte	mismatch
 svelte/rsvelte-tests-core-2/directive_shorthand_loc/shorthand_directive_expression_has_no_loc_and_an_explicit_one_keeps_it/983174459eefeddb.svelte	mismatch
 svelte/rsvelte-tests-core-2/directive_shorthand_loc/shorthand_directive_expression_has_no_loc_and_an_explicit_one_keeps_it/b6e587a37951ebc4.svelte	mismatch
-svelte/rsvelte-tests-core-2/each_fallback_const_scope_3377/a_body_const_reusing_the_item_name_is_still_a_duplicate/7a32d86a9055b1e1.svelte	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/early_errors_reach_a_typescript_script_too/1f4d960367ca688a.svelte	mismatch
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/1592ab866ba0bb0c.svelte	refused
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/6a26782d79102a88.svelte.js	refused
@@ -279,9 +278,6 @@ svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_store_subscription_on_a_t
 svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_title_const_still_reports_the_title_content_error/c90ac9231e215b1c.svelte	mismatch
 svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_top_level_snippet_still_collides_with_an_instance_function/cf7b340969c77945.svelte	mismatch
 svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_top_level_snippet_still_collides_with_an_instance_let/1cea4daa6117daa8.svelte	mismatch
-svelte/rsvelte-tests-core-3/root_fragment_scope_3375/the_placement_wins_over_every_collision_kind/6c82b4027961912f.svelte	mismatch
-svelte/rsvelte-tests-core-3/root_fragment_scope_3375/the_placement_wins_over_every_collision_kind/9e048826486160a0.svelte	mismatch
-svelte/rsvelte-tests-core-3/root_fragment_scope_3375/the_placement_wins_over_every_collision_kind/e35c5d5ab3dc2e38.svelte	mismatch
 svelte/rsvelte-tests-core-3/root_fragment_scope_3375/two_root_consts_of_one_name_still_collide/5742ac3e859f4c5a.svelte	mismatch
 svelte/rsvelte-tests-core-3/root_fragment_scope_3375/two_top_level_snippets_of_one_name_still_collide/849419d2be3f574a.svelte	mismatch
 svelte/rsvelte-tests-core-3/server_global_fold_fns_3388/an_out_of_range_code_point_is_not_folded/7d852d86356c29fe.svelte	mismatch
