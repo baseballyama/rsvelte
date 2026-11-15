@@ -678,6 +678,7 @@ svelte/rsvelte/pattern/issues/4046-scss-line-comment-before-unclosed-atrule.svel
 svelte/rsvelte/pattern/issues/acorn-reserved-word-opens-an-earlier-statement.svelte	refused
 svelte/rsvelte/pattern/issues/acorn-unchecked-ts-grammar-rule-in-a-template.svelte	refused
 svelte/rsvelte/pattern/issues/css-interpolation-empty-declaration-end.svelte	refused
+svelte/rsvelte/pattern/javascript-accessor-optional-field.svelte	refused
 svelte/runed/sites/docs/src/lib/components/blueprint.svelte	mismatch
 svelte/shadcn-svelte-extras/src/lib/components/docs/installation-setup-tabs.svelte	mismatch
 svelte/shadcn-svelte-extras/src/lib/components/ui/chart/chart-tooltip.svelte	mismatch

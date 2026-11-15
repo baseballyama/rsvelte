@@ -45718,6 +45718,13 @@ unknown node type: UnaryExpression
   </i>
 </div>
 
+=== 56 pattern/javascript-accessor-optional-field.svelte	svelte
+<script>
+	class C {
+		accessor x?: number;
+	}
+</script>
+
 === 585 pattern/leading-line-comment-destructure-init.svelte	svelte
 <script>
   export let focusIndex = -1;
