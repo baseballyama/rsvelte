@@ -145,3 +145,17 @@ fn an_inspect_with_initializer_is_the_inspector_on_the_server_and_nothing_on_the
         Some("unsupported")
     );
 }
+
+#[test]
+fn an_inspect_in_an_event_handler_is_dropped_with_the_handler_on_the_server() {
+    // From svelte 5.57.3, whose client prints `() => ;` for the first handler.
+    let source = "<script>let v = $state(1);</script>\
+                  <button onclick={() => $inspect(v)}>a</button><p>{v}</p>";
+    let server = squashed(source, Target::Server);
+    assert!(server.contains("<button>a</button>"), "{server}");
+    assert!(!server.contains("inspect"), "{server}");
+    assert_eq!(
+        compile(source, Target::Client).err().as_deref(),
+        Some("unsupported")
+    );
+}

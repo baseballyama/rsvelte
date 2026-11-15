@@ -8,7 +8,9 @@ use oxc_ast::ast::{
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 use rsvelte_kernel::performance::stack::grow;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, NodeKind};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
+    AttributeValue, ElementKind, MetadataTag, NodeKind,
+};
 use rsvelte_typescript_tree::ExpressionIdentifier;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -201,6 +203,18 @@ fn walk_template<'a>(input: &CompileInput<'a>, mut walk: RuneWalk<'a>) -> Result
             _ => None,
         })
         .collect();
+    // The server prints no event attribute of an element, so it lowers nothing in one.
+    let dropped: FxHashSet<ExpressionIdentifier> = (tree.elements())
+        .filter(|(_, el)| {
+            walk.target == Target::Server
+                && matches!(
+                    el.kind,
+                    ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element))
+                )
+        })
+        .flat_map(|(_, el)| tree.attributes(el.attributes))
+        .filter_map(|a| crate::lower::template::event_attribute(input.component.source_text, a))
+        .collect();
     let tags: FxHashMap<ExpressionIdentifier, Span> = (tree.nodes.iter())
         .filter_map(|n| match n.kind {
             NodeKind::Expression { expression } => Some((expression, n.span)),
@@ -249,7 +263,11 @@ fn walk_template<'a>(input: &CompileInput<'a>, mut walk: RuneWalk<'a>) -> Result
                     }
                     _ => [None; 2],
                 };
+                let refused = walk.refused.is_some();
                 walk.visit_expression(e);
+                if !refused && dropped.contains(&identifier) {
+                    walk.refused = None;
+                }
             }
             Root::Declaration(d) => {
                 walk.tag = None;
