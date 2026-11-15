@@ -67,3 +67,18 @@ fn relative_path_targets_start_from_the_paths_base() {
         [("$lib/*".to_owned(), vec![PathBuf::from("/p/./src/lib/*")])]
     );
 }
+
+#[test]
+fn node_resolution_is_node16_or_nodenext_or_what_module_implies() {
+    let resolution = |options: &str| {
+        let parsed: ParsedCommandLine =
+            serde_json::from_str(&format!(r#"{{"options": {options}}}"#)).unwrap();
+        parsed.options.node_resolution()
+    };
+    assert!(resolution(r#"{"module": 199, "moduleResolution": 99}"#));
+    assert!(resolution(r#"{"moduleResolution": 3}"#));
+    assert!(resolution(r#"{"module": 100}"#));
+    assert!(!resolution(r#"{"module": 199, "moduleResolution": 100}"#));
+    assert!(!resolution(r#"{"module": 99}"#));
+    assert!(!resolution("{}"));
+}

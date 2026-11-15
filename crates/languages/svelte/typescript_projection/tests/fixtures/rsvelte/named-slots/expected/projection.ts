@@ -17,6 +17,7 @@ async () => {
       },
     });
     const { foo } = __rsvelte_component_props(__rsvelte_component_0);
+    foo;
     {
       svelteHTML.createElement("div", {
         "slot": "a",

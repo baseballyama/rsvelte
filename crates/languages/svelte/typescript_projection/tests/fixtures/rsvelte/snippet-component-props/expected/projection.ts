@@ -27,6 +27,8 @@ async () => {
       },
     });
     const { item, children } = __rsvelte_component_props(__rsvelte_component_0);
+    item;
+    children;
     List;
   }
   {
@@ -43,6 +45,7 @@ async () => {
       },
     });
     const { header } = __rsvelte_component_props(__rsvelte_component_0);
+    header;
     {
       svelteHTML.createElement("p", {});
     }

@@ -37,7 +37,7 @@ use rsvelte_kernel::source::document::Document;
 
 pub(crate) struct Options {
     rounds: usize,
-    every: usize,
+    every: u64,
     json: Option<PathBuf>,
     pub(crate) tools: Vec<rsvelte_plugin_interface::Tool>,
 }
@@ -77,36 +77,6 @@ impl Options {
     }
 }
 
-/// One document in `every`, by a hash of its output directory below its root, so that adding a
-/// document never changes which of the others are kept.
-fn sample(docs: Vec<Document>, dirs: &[PathBuf], roots: &[&Path], every: usize) -> Vec<Document> {
-    let every = every as u64;
-    // A corpus root's documents are below its canonical path, a plain directory's below itself.
-    let bases: Vec<PathBuf> = roots
-        .iter()
-        .flat_map(|root| [Some(root.to_path_buf()), std::fs::canonicalize(root).ok()])
-        .flatten()
-        .collect();
-    docs.into_iter()
-        .zip(dirs)
-        .filter(|(_, dir)| {
-            let root = bases
-                .iter()
-                .find(|base| dir.starts_with(base))
-                .expect("a document's directory is inside its root");
-            fnv1a(crate::input::relative(root, dir).as_bytes()).is_multiple_of(every)
-        })
-        .map(|(doc, _)| doc)
-        .collect()
-}
-
-/// FNV-1a, as `DefaultHasher` may change between Rust releases and the sample must not.
-fn fnv1a(bytes: &[u8]) -> u64 {
-    bytes.iter().fold(0xCBF2_9CE4_8422_2325, |hash, &byte| {
-        (hash ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01B3)
-    })
-}
-
 pub(crate) fn performance(
     reg: &Registry,
     roots: &[PathBuf],
@@ -114,13 +84,10 @@ pub(crate) fn performance(
     options: &Options,
 ) -> ExitCode {
     let roots: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
-    let (mut docs, dirs, skipped) = match crate::load(reg, &roots) {
+    let (docs, _, skipped) = match crate::input::load_sample(reg, &roots, options.every) {
         Ok(loaded) => loaded,
         Err(error) => return crate::usage(&error),
     };
-    if options.every > 1 {
-        docs = sample(docs, &dirs, &roots, options.every);
-    }
     if docs.is_empty() {
         eprintln!("rsvelte performance: no units below the given directories");
         return ExitCode::FAILURE;

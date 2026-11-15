@@ -29,6 +29,8 @@ pub(crate) struct CheckRequest {
     pub stand_ins: Vec<(String, String)>,
     /// `compilerOptions.paths` entries: module specifier → file.
     pub paths: Vec<(String, PathBuf)>,
+    /// See [`super::TypeScriptEnv::script_modules`].
+    pub script_modules: Vec<&'static str>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -141,9 +143,11 @@ impl Tsc {
         let mut session = Session::start(&self.checker.program, &self.checker.arguments, &root)
             .map_err(failed)?;
         // The project's own root files, as its tsconfig selects them; the overlay keeps them.
-        let own = base_project(&mut session, base.as_deref(), req, &overlay, &mut layer)
+        let mut own = base_project(&mut session, base.as_deref(), req, &overlay, &mut layer)
             .map_err(failed)?;
-        let mut roots = own.roots;
+        let mut roots = std::mem::take(&mut own.roots);
+        own.script_modules =
+            own.node_resolution && script_module::add(&mut layer, &roots, &paths, req);
         if own.untyped {
             let declaration = untyped::options_declaration(&overlay);
             roots.push(declaration.0.clone());
@@ -155,7 +159,7 @@ impl Tsc {
         let config = overlay.join("tsconfig.json");
         layer.files.push((
             config.clone(),
-            tsconfig_json(base.as_deref(), req, &own.paths, &roots, &store),
+            tsconfig_json(base.as_deref(), req, &own, &roots, &store),
         ));
         let project = session.open(&[&config], &layer).map_err(failed)?.remove(0);
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
@@ -206,7 +210,7 @@ impl Tsc {
 fn tsconfig_json(
     base: Option<&Path>,
     req: &CheckRequest,
-    project_paths: &[(String, Vec<PathBuf>)],
+    own: &BaseProject,
     roots: &[PathBuf],
     store: &Path,
 ) -> String {
@@ -221,8 +225,12 @@ fn tsconfig_json(
         .write_boolean(true)
         .key("skipLibCheck")
         .write_boolean(true);
+    if own.script_modules {
+        // A script module's declaration has the name of a document, such as `x.d.svelte.ts`.
+        w.key("allowArbitraryExtensions").write_boolean(true);
+    }
     w.key("paths").begin_object();
-    for (spec, targets) in project_paths {
+    for (spec, targets) in &own.paths {
         if req.paths.iter().any(|(own, _)| own == spec) {
             continue;
         }
@@ -261,6 +269,10 @@ struct BaseProject {
     /// Whether the options make an import of JavaScript untyped. Without a tsconfig,
     /// `noImplicitAny` is off and such an import stays quiet.
     untyped: bool,
+    /// Whether modules resolve as `node16` or `nodenext` do.
+    node_resolution: bool,
+    /// Whether the file layer holds a declaration of a script module, such as `x.d.svelte.ts`.
+    script_modules: bool,
 }
 
 fn base_project(
@@ -289,6 +301,8 @@ fn base_project(
         roots: project.root_files,
         paths: project.paths,
         untyped,
+        node_resolution: project.node_resolution,
+        script_modules: false,
     })
 }
 
@@ -341,5 +355,6 @@ fn unlocated(checker: &TypeChecker, d: &rsvelte_typescript_api::Diagnostic) -> S
 
 mod mapped;
 mod project;
+mod script_module;
 mod untyped;
 pub(crate) use mapped::ContentMappedInput;
