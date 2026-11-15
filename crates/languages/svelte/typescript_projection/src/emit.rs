@@ -219,6 +219,12 @@ impl Printer<'_> {
                 self.output.push(" } = __rsvelte_component_props(");
                 self.node(component);
                 self.output.push(");\n");
+                // svelte-check drops findings on this declaration, such as an unused snippet.
+                for &name in self.tree.children(names) {
+                    self.indentation();
+                    self.node(name);
+                    self.output.push(";\n");
+                }
             }
             Node::ImplicitChildren(at) => {
                 // svelte2tsx's `children` has no source text, so a finding on it lands where its
