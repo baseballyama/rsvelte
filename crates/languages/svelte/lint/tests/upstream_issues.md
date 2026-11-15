@@ -660,6 +660,33 @@ No issue yet. `analyzePropsScope` adds a read of `spec.local` for every specifie
 - Correct: report the unused `x` and `q`. This crate does.
 - The corpus skips their 2 lint units.
 
+## An each block's context with a type annotation (`svelte/require-each-key`)
+
+No issue yet. The rule ends its range at the token after the index, or after the context when
+there is no index
+([require-each-key.ts](https://github.com/sveltejs/eslint-plugin-svelte/blob/24201e06a1a8e270c1143d1fb460e6ae635719d8/packages/eslint-plugin-svelte/src/rules/require-each-key.ts#L21)).
+
+- Case: `{#each xs as x: string}`. The context ends at `x`, so the token after it is the `:` of
+  the annotation, and upstream reports `{#each xs as x:`.
+- Case: `{#each xs as x: string, i}`. svelte-eslint-parser finds the index by searching its name
+  from the end of the context
+  ([block.ts](https://github.com/sveltejs/svelte-eslint-parser/blob/467f843e0c74a08b694e0d1b5676a10931023a2f/src/parser/converts/block.ts#L287-L295)),
+  and finds the `i` of `string`. Upstream's range then ends inside the annotation.
+- Correct: the range ends at the `}` of the opening tag. This crate reports it so.
+- The corpus skips their 2 lint units.
+
+## The last `</textarea` of a textarea's end tag starts it (svelte-eslint-parser)
+
+No issue yet. svelte-eslint-parser starts an end tag at the last `<` before the element's end
+([element.ts](https://github.com/sveltejs/svelte-eslint-parser/blob/467f843e0c74a08b694e0d1b5676a10931023a2f/src/parser/converts/element.ts#L977)).
+
+- Case: `<textarea>a</textarea\n\n\n</textarea\n\n>`. Svelte reads one end tag from the first
+  `</textarea` to the `>`. Upstream starts it at the second, so the tag reads as one line, and
+  `svelte/html-closing-bracket-new-line` reports the line breaks before its `>`.
+- Correct: the end tag spans several lines, and the rule never adds a line break to an end tag.
+  This crate reports nothing.
+- The corpus skips its lint unit.
+
 ## The `this` attribute of `<svelte:element>` (svelte-eslint-parser)
 
 No issue yet. `processThisAttribute` finds the parts of `this=` by searching the text

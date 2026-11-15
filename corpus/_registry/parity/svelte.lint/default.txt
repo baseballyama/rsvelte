@@ -533,7 +533,6 @@ svelte/rsvelte/pattern/issues/3692-declaration-tag-keyword.svelte	mismatch
 svelte/rsvelte/pattern/issues/4046-scss-value-scan-eof.svelte	mismatch
 svelte/rsvelte/pattern/issues/4046-scss-value-scan-paren-brace.svelte	mismatch
 svelte/rsvelte/pattern/issues/4046-svelte-self-bind-member-dev-assign.svelte	mismatch
-svelte/rsvelte/pattern/issues/4133-binding-pattern-type-annotation.svelte	mismatch
 svelte/rsvelte/pattern/issues/bind-this-host-that-bypasses-the-bind-directive-visitor.svelte	mismatch
 svelte/rsvelte/pattern/issues/scss-comma-atrule-interpolation.svelte	mismatch
 svelte/rsvelte/pattern/issues/scss-line-comment-apostrophe.svelte	mismatch
@@ -572,7 +571,6 @@ svelte/svelte/packages/svelte/tests/migrate/samples/is-not-where-has/input.svelt
 svelte/svelte/packages/svelte/tests/migrate/samples/is-not-where-has/output.svelte	mismatch
 svelte/svelte/packages/svelte/tests/migrate/samples/svelte-ignore/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/migrate/samples/svelte-ignore/output.svelte	mismatch
-svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/parser-modern/samples/comment-before-function-binding/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.svelte	mismatch
@@ -580,7 +578,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-current-time-remo
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-getter-setter/Child.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-getter-setter/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/not-actual-runes/main.svelte	mismatch
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript-each-indexed/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/bidirectional-control-characters/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/ignore-warning-dash-backwards-compat/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/module-script-reactive-declaration/input.svelte	mismatch
