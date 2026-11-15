@@ -88,10 +88,6 @@ pub const TYPESCRIPT_ESLINT_UNCHECKED: &[&str] = &[
     "2681", "5085", "18010",
 ];
 
-/// The codes of the errors that typescript-eslint throws from its own check of the tree, which tsc
-/// reports from its checker and a host may let pass.
-pub const TYPESCRIPT_ESLINT_CHECKS: [u32; 6] = [1039, 1221, 1222, 1263, 1264, 1267];
-
 /// The codes of TypeScript 6.0.3's parser and scanner, whose first error typescript-eslint throws
 /// before it checks anything itself.
 const PARSER_CODES: [u32; 141] = [
@@ -178,6 +174,10 @@ fn first_quoted(message: &str) -> Option<&str> {
         .map(|(at, c)| (c, &message[at + 1..]))?;
     rest.split_once(open).map(|(quoted, _)| quoted)
 }
+
+mod checks;
+pub(crate) use checks::checks;
+pub use checks::typescript_eslint_check;
 
 #[cfg(test)]
 mod tests;

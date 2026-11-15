@@ -21,8 +21,8 @@ mod builder;
 pub use builder::{Builder, Recorded, Rejected};
 mod syntax_error;
 pub use syntax_error::{
-    Acorn, Locator, SyntaxError, TYPESCRIPT_ESLINT_CHECKS, TYPESCRIPT_ESLINT_UNCHECKED,
-    analysis_error, syntax_error, typescript_eslint_error,
+    Acorn, Locator, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, analysis_error, syntax_error,
+    typescript_eslint_check, typescript_eslint_error,
 };
 
 pub mod scratch;
@@ -231,7 +231,7 @@ impl Tree {
     }
 
     /// The syntax errors oxc reported in the parts that the host the builder read for lets pass,
-    /// of the codes of [`TYPESCRIPT_ESLINT_CHECKS`].
+    /// that typescript-eslint checks itself, which [`typescript_eslint_check`] reads.
     #[must_use]
     pub fn unchecked_errors(&self) -> &[SyntaxError] {
         self.0
