@@ -5,6 +5,8 @@
 //! project, and labels each output with its file.
 //! `rsvelte lint [<path>...] [--task <identifier>]...` lints the files below the paths, by default
 //! the current directory, and prints the problems as `ESLint` does.
+//! `rsvelte format [<path>...] [--check]` formats the files below the paths, by default the
+//! current directory, and writes the ones that change; `--check` only lists them.
 //! `rsvelte check [--task <identifier>]...` runs the tasks, by default `ts.check/default`, over
 //! the files of the project they check, as its checker selects them from the tsconfig.
 //! `rsvelte benchmark <dir> [--task <identifier>]... [rounds=N] [json=<file>]` measures the
@@ -31,9 +33,9 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use commands::corpus::corpus;
-use commands::lint;
 use commands::run::{run_file, run_files, run_project};
 use commands::{benchmark, performance};
+use commands::{format, lint};
 use input::load;
 use rsvelte_kernel::computation::registry::Registry;
 
@@ -71,10 +73,15 @@ fn main() -> ExitCode {
     let mut overrides = Vec::new();
     let mut positional = Vec::new();
     let mut fix = false;
+    let mut check = false;
     let mut it = arguments.iter();
     while let Some(a) = it.next() {
         if a == "--fix" {
             fix = true;
+            continue;
+        }
+        if a == "--check" {
+            check = true;
             continue;
         }
         if a == "--options" {
@@ -107,6 +114,10 @@ fn main() -> ExitCode {
         rsvelte_plugin_interface::Selection::Named(
             lint::TASKS.iter().map(|&t| t.to_owned()).collect(),
         )
+    } else if positional.first() == Some(&"format") {
+        rsvelte_plugin_interface::Selection::Named(
+            format::TASKS.iter().map(|&t| t.to_owned()).collect(),
+        )
     } else if positional.first() == Some(&"check") {
         rsvelte_plugin_interface::Selection::Named(vec![PROJECT_CHECK.to_owned()])
     } else if matches!(positional.first(), Some(&("corpus" | "run"))) {
@@ -124,7 +135,10 @@ fn main() -> ExitCode {
     if fix && positional.first() != Some(&"run") {
         return usage("--fix applies to `run` only");
     }
-    dispatch(&reg, &positional, &tasks, tools, fix)
+    if check && positional.first() != Some(&"format") {
+        return usage("--check applies to `format` only");
+    }
+    dispatch(&reg, &positional, &tasks, tools, (fix, check))
 }
 
 /// Installs every plugin with its options, and returns the programs its tasks will run. Every
@@ -167,7 +181,7 @@ fn dispatch(
     positional: &[&str],
     tasks: &[&str],
     tools: Vec<rsvelte_plugin_interface::Tool>,
-    fix: bool,
+    (fix, check): (bool, bool),
 ) -> ExitCode {
     match positional {
         ["corpus", dirs @ ..] if !dirs.is_empty() => {
@@ -180,6 +194,16 @@ fn dispatch(
             reg,
             if paths.is_empty() { &["."] } else { paths },
             if tasks.is_empty() { lint::TASKS } else { tasks },
+        ),
+        ["format", paths @ ..] => format::format(
+            reg,
+            if paths.is_empty() { &["."] } else { paths },
+            if tasks.is_empty() {
+                format::TASKS
+            } else {
+                tasks
+            },
+            check,
         ),
         ["check"] if !fix => run_project(
             reg,
@@ -204,7 +228,7 @@ fn dispatch(
             Err(e) => usage(&e),
         },
         _ => usage(concat!(
-            "expected `corpus <dir>...`, `run <file>...`, `lint [<path>...]`, `check`, ",
+            "expected `corpus <dir>...`, `run <file>...`, `lint [<path>...]`, `format [<path>...]`, `check`, ",
             "`benchmark <dir>` or `performance <dir>...`"
         )),
     }

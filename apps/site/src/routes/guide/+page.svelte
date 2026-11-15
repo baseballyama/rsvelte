@@ -122,11 +122,14 @@
 
 			<section id="format">
 				<h2>{guideSections[3].title}</h2>
-				<p>整形したソースを表示します。</p>
+				<p>ソースを整形して、ファイルに書き戻します。</p>
 				<GuideCode code={guideExamples.format} label="ソースの整形" />
 				<p>
-					<code>// svelte.format/default svelte</code>
-					の後に整形結果が出ます。ファイルを上書きするオプションはありません。結果を確かめてから、見出しの行を除いて入力ファイルに写してください。出力を同じファイルへリダイレクトすると、読む前に中身が消えます。
+					書き換えたファイルの名前が出ます。<code>--check</code>
+					を付けると、ファイルは書き換えず、整形が必要なファイルを一覧にして終了コード 1 を返します。ディレクトリを渡すと、その下のファイルをまとめて整形します。<code
+						>node_modules</code
+					>
+					は読みません。
 				</p>
 			</section>
 
