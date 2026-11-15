@@ -407,3 +407,19 @@ fn a_missing_node_at_a_scripts_end_is_reported_after_the_last_token() {
         (1, 17),
     );
 }
+
+/// svelte-eslint-parser hands Svelte's parser the template with the blocks' content blanked out.
+#[test]
+fn the_template_is_parsed_with_the_blocks_blanked_out() {
+    assert_parse_error(
+        "<script>let x = 1; const s = '<script lang=\"ts\">';</script><p>{x as number}</p>\n",
+        "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token",
+        (1, 65),
+    );
+    assert_parse_error(
+        "<b class=\"host\">a</b>\n\n<style>\n\t.host { color: red; </style> }\n</style>\n",
+        "Parsing error: `</style>` attempted to close an element that was not open\n\
+         https://svelte.dev/e/element_invalid_closing_tag",
+        (5, 0),
+    );
+}

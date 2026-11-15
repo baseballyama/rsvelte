@@ -182,6 +182,9 @@ fn parse_verdict<'a>(context: &'a DocumentContext<'_>) -> Verdict<'a> {
             Verdict::Throws(message, at)
         });
     }
+    if let Some(error) = blocks::template_error(context.source_text()) {
+        return Verdict::Throws(Cow::Owned(error.message), error.span.start_offset);
+    }
     let javascript_error;
     let (error, component) = match context.get::<rsvelte_svelte_syntax::Parsed>() {
         Err(error) => (error, None),
@@ -355,6 +358,7 @@ fn positions<'a>(context: &'a DocumentContext<'_>) -> rsvelte_lint_runner::outpu
     )
 }
 
+mod blocks;
 mod directive_names;
 mod grammar;
 
