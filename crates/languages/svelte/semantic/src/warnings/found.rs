@@ -96,6 +96,13 @@ impl VisitOrder {
             let Some(&first) = children.first() else {
                 continue;
             };
+            // Without a named slot the visit is source order, so build nothing.
+            let named = |child: &_| {
+                slot_of(component, source, component.node(*child)).is_some_and(|s| s != "default")
+            };
+            if !children.iter().any(named) {
+                continue;
+            }
             // Upstream files a comment with the child after it.
             let mut groups: Vec<Vec<u32>> = vec![Vec::new()];
             let mut index = FxHashMap::from_iter([("default", 0)]);
