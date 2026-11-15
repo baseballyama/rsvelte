@@ -356,6 +356,13 @@ fn a_directive_named_by_a_store_member_is_an_illegal_global() {
         ),
         ("<div class:$Store.x>x</div>", None),
         ("<div class:a.b>x</div>", None),
+        (
+            "<input bind:$store.value />",
+            Some("global_reference_invalid"),
+        ),
+        ("<input bind:$Store.value />", Some("bind_invalid_name")),
+        ("<input bind:a.b />", Some("bind_invalid_name")),
+        ("<input bind:a-b />", Some("bind_invalid_name")),
     ] {
         let source = format!("{script}{markup}");
         let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid syntax");
