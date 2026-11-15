@@ -33,7 +33,7 @@ mod template;
 mod tests;
 mod updates;
 
-use exports::unused_exports;
+use exports::{state_exports, unused_exports};
 use found::Found;
 pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
 pub use runes::dollar_name_errors;
@@ -381,6 +381,7 @@ pub fn warnings(
         updates::non_reactive_updates(component, resolution, &bind_this, exported, &mut found);
     } else {
         unused_exports(component, resolution, source, &mut found);
+        state_exports(component, resolution, &mut out.errors);
     }
     if let Some(Ok(sheet)) = component.style.as_ref().map(|s| &s.sheet)
         && let Some(found) = stylesheet_analysis::first_error(&sheet.rules, source)

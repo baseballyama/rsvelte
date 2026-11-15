@@ -1,13 +1,15 @@
-//! `export_let_unused`: legacy mode's exports that nothing reads or writes.
+//! Legacy mode's exports: `export_let_unused` for those nothing reads or writes, and
+//! `state_invalid_export` for a reassigned `export const` that the template reads.
 
 use oxc_ast::ast::{Declaration, ModuleExportName, Statement};
 use oxc_semantic::{ReferenceId, SymbolId};
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Component, TemplateNode};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::found::{Found, Stage};
-use super::{span, warning};
+use super::{Phase, Raised, Section, error, span, warning};
 use crate::resolve::Resolution;
 
 /// `export_let_unused`: in legacy mode, an `export let` nothing reads or writes.
@@ -116,6 +118,74 @@ pub(super) fn unused_exports(
                     span(name),
                 ),
             );
+        }
+    }
+}
+
+/// `state_invalid_export`: in legacy mode, upstream turns a reassigned top-level binding that the
+/// template or a `$:` statement reads into state, and an exported state must not be reassigned.
+pub(super) fn state_exports(
+    component: &Component,
+    resolution: &Resolution,
+    out: &mut Vec<(Raised, Diagnostic)>,
+) {
+    let Some(instance) = &component.instance else {
+        return;
+    };
+    let scoping = resolution.scoping();
+    let body = &component.javascript.get_program(instance.program).body;
+    let reactive: Vec<oxc_span::Span> = body
+        .iter()
+        .filter_map(|statement| match statement {
+            Statement::LabeledStatement(labeled) if labeled.label.name == "$" => Some(labeled.span),
+            _ => None,
+        })
+        .collect();
+    let scripts: Vec<Span> = component
+        .module
+        .iter()
+        .chain(&component.instance)
+        .map(|script| script.span)
+        .collect();
+    let promoted = |symbol: SymbolId| {
+        scoping.get_resolved_reference_ids(symbol).iter().any(|&r| {
+            let at = resolution.reference_span(r);
+            let inside = |s: oxc_span::Span| s.start <= at.start && at.end <= s.end;
+            let in_script = scripts
+                .iter()
+                .any(|s| s.start_offset <= at.start && at.end <= s.end_offset);
+            !in_script || reactive.iter().any(|&s| inside(s))
+        })
+    };
+    for statement in body {
+        let Statement::ExportDeclaration(export) = statement else {
+            continue;
+        };
+        let Declaration::VariableDeclaration(declaration) = &export.declaration else {
+            continue;
+        };
+        // `export let` and `export var` are props.
+        if !declaration.kind.is_const() {
+            continue;
+        }
+        let state = declaration
+            .declarations
+            .iter()
+            .flat_map(|declarator| declarator.id.get_binding_identifiers())
+            .filter_map(|identifier| identifier.symbol_id.get())
+            .any(|symbol| resolution.reassigned(symbol) && promoted(symbol));
+        if state {
+            let raised = Raised {
+                phase: Phase::Walk,
+                section: Section::Instance,
+                at: export.span.start,
+            };
+            let message = "Cannot export state from a module if it is reassigned. Either export a \
+                function returning the state value or only mutate the state value's properties";
+            out.push((
+                raised,
+                error("state_invalid_export", message, span(export.span)),
+            ));
         }
     }
 }

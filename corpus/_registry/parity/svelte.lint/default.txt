@@ -1,4 +1,4 @@
-# svelte.lint/default: 37134 match
+# svelte.lint/default: 37146 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -118,18 +118,6 @@ svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_wher
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/da266f625312c031.svelte	refused
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/e6f48eb60e9a7548.svelte.js	refused
 svelte/rsvelte-tests-core-2/early_errors_3243/the_analyze_phase_duplicate_check_is_still_reachable/d6fd0ea8bba6d45d.svelte	mismatch
-svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/export_const_write_matches_official/12d9e70e8e151a2f.svelte	mismatch
-svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/export_const_write_matches_official/1853aff487739f5e.svelte	mismatch
-svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/export_const_write_matches_official/25cb511bfb70988d.svelte	mismatch
-svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/export_const_write_matches_official/58da321e4b11543c.svelte	mismatch
-svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/export_const_write_matches_official/5d4a0fce9808de5d.svelte	mismatch
-svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/export_const_write_matches_official/64dd51361cc31e8e.svelte	mismatch
-svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/export_const_write_matches_official/692e83ba0013506a.svelte	mismatch
-svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/export_const_write_matches_official/6c71c57536ffa78d.svelte	mismatch
-svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/export_const_write_matches_official/7fef3816ceac4564.svelte	mismatch
-svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/export_const_write_matches_official/d06ddb4fbb1971ba.svelte	mismatch
-svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/export_const_write_matches_official/d8ad19f864659181.svelte	mismatch
-svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/export_const_write_matches_official/ea1a8e928929f8d3.svelte	mismatch
 svelte/rsvelte-tests-core-2/exported_class_unused_warning/an_export_specifier_alone_does_not_count_as_a_use/4d1d5a84bd51a3d6.svelte	mismatch
 svelte/rsvelte-tests-core-2/function_this_param_shape/a_template_this_parameter_is_erased_from_compiled_output/0cf009fb2a2a65c0.svelte	mismatch
 svelte/rsvelte-tests-core-2/globals_table_3617/two_shapes_stay_unfolded_on_purpose/181620c5ec25570d.svelte	mismatch

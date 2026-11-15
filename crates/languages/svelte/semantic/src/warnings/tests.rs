@@ -283,7 +283,7 @@ fn a_declaration_tag_reads_its_own_state_locally() {
 #[test]
 fn the_selectors_of_a_global_block_are_used() {
     let source = "<div></div>\n<style>\n  div :global:is(html.x *) { color: red; }\n</style>\n";
-    assert_eq!(texts("css_unused_selector", source), [""; 0]);
+    assert_eq!(texts("css_unused_selector", source), Vec::<String>::new());
 }
 
 #[test]
@@ -318,7 +318,10 @@ fn store_rune_conflicts_come_name_by_name() {
 #[test]
 fn a_props_fallback_does_not_read_state_locally() {
     let source = "<script>\n  let { a, b = a } = $props();\n</script>\n";
-    assert_eq!(texts("state_referenced_locally", source), [""; 0]);
+    assert_eq!(
+        texts("state_referenced_locally", source),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -569,4 +572,22 @@ fn an_unused_export_spans_the_type_annotation() {
         .map(|(_, text, _)| text)
         .collect();
     assert_eq!(texts, ["a: string", "b: number"]);
+}
+
+#[test]
+fn a_reassigned_export_const_the_template_reads_is_state_in_legacy_mode() {
+    let errors = |code: &str| compiled_with_errors(code, None).1;
+    let script = "<script>\n  export const a = 1;\n  function f() { a = 2; }\n</script>\n";
+    assert_eq!(
+        errors(&format!("{script}<button onclick={{f}}>{{a}}</button>\n")),
+        ["state_invalid_export"]
+    );
+    assert_eq!(
+        errors(&format!("{script}<button onclick={{f}}>x</button>\n")),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        errors("<script>\n  export const a = 1;\n</script>\n<input bind:value={a} />\n"),
+        ["state_invalid_export"]
+    );
 }
