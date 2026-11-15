@@ -151,6 +151,10 @@ const UNUSED: &[(&str, &[&str])] = &[
         ],
     ),
     (
+        "namespace A.B.C { const a = 1; }",
+        &["'a' is assigned a value but never used.@24-25"],
+    ),
+    (
         "function g<T>() {} g();",
         &["'T' is defined but never used.@11-12"],
     ),
