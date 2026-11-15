@@ -192,20 +192,23 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
     assert_eq!(
         output.out,
         concat!(
-            ";\nasync () => {\n",
-            "  if (ready) {\n",
-            "    {\n",
-            "      svelteHTML.createElement(\"p\", {\n",
-            "        \"title\": text,\n",
-            "        \"data-label\": `café\n  🚀`,\n",
-            "      });\n",
-            "      (text);\n",
+            ";\nfunction $$render() {\n",
+            "  async () => {\n",
+            "    if (ready) {\n",
+            "      {\n",
+            "        svelteHTML.createElement(\"p\", {\n",
+            "          \"title\": text,\n",
+            "          \"data-label\": `café\n  🚀`,\n",
+            "        });\n",
+            "        (text);\n",
+            "      }\n",
             "    }\n",
-            "  }\n",
-            "};\n",
+            "  };\n",
             // A component without a TypeScript script projects to JavaScript, its types in JSDoc.
-            "const $$Component = (/** @type {typeof __rsvelte_export_component<",
+            "  return (/** @type {typeof __rsvelte_export_component<",
             "__rsvelte_no_props, {}, \"\">} */ (__rsvelte_export_component))();\n",
+            "}\n",
+            "const $$Component = $$render();\n",
             "export default /** @type {__rsvelte_javascript_export<typeof $$Component>} */ ",
             "($$Component);\n",
         )
@@ -218,14 +221,19 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
 }
 
 fn template_nodes(tree: &SyntaxTree) -> &[NodeIdentifier] {
-    for &identifier in tree.children(tree.root()) {
-        if let Node::Statement(value) = tree.node(identifier)
-            && let Node::Template(body) = tree.node(value)
-        {
-            return tree.children(body);
+    for &part in tree.children(tree.root()) {
+        let Node::Render { body, .. } = tree.node(part) else {
+            continue;
+        };
+        for &identifier in tree.children(body) {
+            if let Node::Statement(value) = tree.node(identifier)
+                && let Node::Template(body) = tree.node(value)
+            {
+                return tree.children(body);
+            }
         }
     }
-    panic!("the template has a deferred function");
+    panic!("the render function has a deferred template function");
 }
 
 #[test]
@@ -284,11 +292,8 @@ fn a_store_subscription_is_declared_where_svelte2tsx_declares_it() {
                   {$m}{$i}{$w}{$f}{$p}{$a}";
     let (_, output) = project(source);
     let out = &output.out;
-    let declaration = |name: &str| {
-        out.find(&format!(
-            ";let ${name}!: __rsvelte_store_value<typeof {name}>;"
-        ))
-    };
+    let declaration =
+        |name: &str| out.find(&format!(";let ${name} = __sveltets_2_store_get({name});"));
     let declared = |name: &str| declaration(name).unwrap_or_else(|| panic!("${name}\n{out}"));
     let at = |text: &str| out.find(text).unwrap_or_else(|| panic!("{text}\n{out}"));
     // After the statement that binds the store, and an import's first in the instance.

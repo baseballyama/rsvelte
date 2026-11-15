@@ -1,5 +1,6 @@
 ;
-
+function $$render() {
+  
 	let items = $state([{ id: 1 }]);
 	let els = $state({});
 	let refs = $state([]);
@@ -7,25 +8,27 @@
 
 ;
 
-async () => {
-  {
-    for (let [i, item] of __rsvelte_each(items)) {
-      const key = item.id;
-      const k2 = key + n;
-      {
-        els[key] = svelteHTML.createElement("div", {});
-      }
-      {
-        refs[k2][i] = svelteHTML.createElement("p", {});
-      }
-      if (n) {
-        const inner = item.id;
+  async () => {
+    {
+      for (let [i, item] of __rsvelte_each(items)) {
+        const key = item.id;
+        const k2 = key + n;
         {
-          els[inner] = svelteHTML.createElement("span", {});
+          els[key] = svelteHTML.createElement("div", {});
+        }
+        {
+          refs[k2][i] = svelteHTML.createElement("p", {});
+        }
+        if (n) {
+          const inner = item.id;
+          {
+            els[inner] = svelteHTML.createElement("span", {});
+          }
         }
       }
     }
-  }
-};
-const BindThisConst__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const BindThisConst__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof BindThisConst__SvelteComponent_>} */ (BindThisConst__SvelteComponent_);

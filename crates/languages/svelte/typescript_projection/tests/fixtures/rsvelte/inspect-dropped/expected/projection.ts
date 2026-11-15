@@ -1,5 +1,6 @@
 ;
-
+function $$render() {
+  
 	let a = $state(1);
 	let b = $derived(a * 2);
 	$inspect(a, b);
@@ -12,13 +13,15 @@
 
 ;
 
-async () => {
-  {
-    svelteHTML.createElement("button", {
-      "onclick": () => { $inspect(a); a++; },
-    });
-    (f());
-  }
-};
-const InspectDropped__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  async () => {
+    {
+      svelteHTML.createElement("button", {
+        "onclick": () => { $inspect(a); a++; },
+      });
+      (f());
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const InspectDropped__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof InspectDropped__SvelteComponent_>} */ (InspectDropped__SvelteComponent_);

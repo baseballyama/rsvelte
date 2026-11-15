@@ -12,15 +12,27 @@
 		}
 	},
 	{
-		"code": 2307,
-		"message": "Cannot find module 'mod' or its corresponding type declarations.",
+		"code": 1233,
+		"message": "An export declaration can only be used at the top level of a namespace or module.",
 		"start": {
 			"line": 2,
-			"character": 15
+			"character": 1
 		},
 		"end": {
 			"line": 2,
-			"character": 20
+			"character": 7
+		}
+	},
+	{
+		"code": 1233,
+		"message": "An export declaration can only be used at the top level of a namespace or module.",
+		"start": {
+			"line": 3,
+			"character": 1
+		},
+		"end": {
+			"line": 3,
+			"character": 7
 		}
 	},
 	{

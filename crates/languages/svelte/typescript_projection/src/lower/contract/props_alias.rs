@@ -21,12 +21,14 @@ impl Builder<'_> {
         } else {
             self.tree.push(Node::Identifier("$$ComponentProps"))
         };
-        let value = self.tree.push(Node::SourceCopy { span: annotation });
-        let alias = self.tree.push(Node::TypeAlias { name, value });
-        edits.push(Edit {
-            span: Span::new(statement, statement),
-            replacement: Some(alias),
-        });
+        if reference || !self.props_hoisted {
+            let value = self.tree.push(Node::SourceCopy { span: annotation });
+            let alias = self.tree.push(Node::TypeAlias { name, value });
+            edits.push(Edit {
+                span: Span::new(statement, statement),
+                replacement: Some(alias),
+            });
+        }
         edits.push(Edit {
             span: annotation,
             replacement: Some(name),

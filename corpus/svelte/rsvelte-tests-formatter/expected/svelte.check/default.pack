@@ -31581,34 +31581,6 @@
 === 3 render_neutral_divergences/a_script_close_tag_keeps_its_internal_whitespace/6898cde9d10db12f.svelte	json
 []
 
-=== 343 render_neutral_divergences/a_style_close_tag_keeps_its_internal_whitespace/f9b7f23dbe8da7ae.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'}' expected.",
-		"start": {
-			"line": 4,
-			"character": 7
-		},
-		"end": {
-			"line": 4,
-			"character": 8
-		}
-	},
-	{
-		"code": 1381,
-		"message": "Unexpected token. Did you mean `{'}'}` or `&rbrace;`?",
-		"start": {
-			"line": 5,
-			"character": 1
-		},
-		"end": {
-			"line": 5,
-			"character": 2
-		}
-	}
-]
-
 === 3 render_neutral_divergences/an_array_elision_carries_no_space/740b00344fab42b7.svelte	json
 []
 

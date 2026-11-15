@@ -1,60 +1,67 @@
 ;
+import C from './C.svelte';;
 
-	import C from './C.svelte';
+;
+
+function $$render() {
+  
+	
 	let x = $state(1);
 	/** @type {typeof __rsvelte_public_props0} */ let { D } = $props();
 	const a = (n) => {};
 
 ;
 
-const __rsvelte_public_props0 = __rsvelte_props({
-  D: __rsvelte_untyped_prop(),
-}, {}, false);
-async () => {
-  {
-    __rsvelte_component(C)(__rsvelte_internals(), {
-      [Symbol("@attach")]: a,
-    });
-  }
-  {
-    __rsvelte_component(C)(__rsvelte_internals(), {
-      "a": 1,
-      [Symbol("@attach")]: (n) => console.log(n, x),
-      "b": x,
-      [Symbol("@attach")]: a,
-    });
-  }
-  {
-    __rsvelte_component(D)(__rsvelte_internals(), {
-      children: __rsvelte_children,
-      [Symbol("@attach")]: a,
-    });
-    D;
-  }
-  {
-    __rsvelte_component(D)(__rsvelte_internals(), {
-      [Symbol("@attach")]: a,
-    });
-  }
-  if (x) {
+  const __rsvelte_public_props0 = __rsvelte_props({
+    D: __rsvelte_untyped_prop(),
+  }, {}, false);
+  async () => {
     {
       __rsvelte_component(C)(__rsvelte_internals(), {
-        ...({ y: 1 }),
         [Symbol("@attach")]: a,
       });
     }
-  }
-  {
-    svelteHTML.createElement("button", {
-      "onclick": () => x++,
-    });
-  }
-  {
-    __rsvelte_component(C)(__rsvelte_internals(), {
-      [Symbol("@attach")]: x > 1 ? a : null,
-      [Symbol("@attach")]: (n) => a(n, x),
-    });
-  }
-};
-const ComponentAttachments__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+    {
+      __rsvelte_component(C)(__rsvelte_internals(), {
+        "a": 1,
+        [Symbol("@attach")]: (n) => console.log(n, x),
+        "b": x,
+        [Symbol("@attach")]: a,
+      });
+    }
+    {
+      __rsvelte_component(D)(__rsvelte_internals(), {
+        children: __rsvelte_children,
+        [Symbol("@attach")]: a,
+      });
+      D;
+    }
+    {
+      __rsvelte_component(D)(__rsvelte_internals(), {
+        [Symbol("@attach")]: a,
+      });
+    }
+    if (x) {
+      {
+        __rsvelte_component(C)(__rsvelte_internals(), {
+          ...({ y: 1 }),
+          [Symbol("@attach")]: a,
+        });
+      }
+    }
+    {
+      svelteHTML.createElement("button", {
+        "onclick": () => x++,
+      });
+    }
+    {
+      __rsvelte_component(C)(__rsvelte_internals(), {
+        [Symbol("@attach")]: x > 1 ? a : null,
+        [Symbol("@attach")]: (n) => a(n, x),
+      });
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+}
+const ComponentAttachments__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof ComponentAttachments__SvelteComponent_>} */ (ComponentAttachments__SvelteComponent_);
