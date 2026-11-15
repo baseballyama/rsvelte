@@ -598,3 +598,24 @@ fn a_spaced_html_tag_is_an_error_only_in_runes_mode() {
     assert_eq!(errors(None), Vec::<String>::new());
     assert_eq!(errors(Some(true)), ["block_unexpected_character"]);
 }
+
+#[test]
+fn a_reactive_statement_off_the_instance_top_level_warns_in_legacy_mode() {
+    let codes = |code: &str| -> Vec<String> {
+        compiled_with_errors(code, None)
+            .0
+            .into_iter()
+            .map(|(code, ..)| code)
+            .collect()
+    };
+    let placement = ["reactive_declaration_invalid_placement"];
+    assert_eq!(codes("<script module>\n$: x = 1;\n</script>\n"), placement);
+    assert_eq!(
+        codes("<script>\nfunction f() { $: x = 1; }\n</script>\n"),
+        placement
+    );
+    assert_eq!(
+        codes("<script>\nlet y = 1;\n$: x = y;\n</script>\n{x}\n"),
+        Vec::<String>::new()
+    );
+}

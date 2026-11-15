@@ -1,4 +1,4 @@
-# svelte.lint/default: 37152 match
+# svelte.lint/default: 37157 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -17,7 +17,6 @@ svelte/kampsy-ui/src/routes/collapse/+page.svelte	mismatch
 svelte/kampsy-ui/src/routes/installation/+page.svelte	mismatch
 svelte/kite-public/src/lib/components/story/CitationTooltip.svelte	mismatch
 svelte/kite-public/src/routes/+layout.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/svelte/testfiles/diagnostics-module.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/export-list/input.svelte	mismatch
 svelte/layercake/src/_components/SharedTooltip.html.svelte	mismatch
 svelte/layercake/src/_components/SharedTooltip.percent-range.html.svelte	mismatch
@@ -39,8 +38,6 @@ svelte/rsvelte-tests-core-1/bind_host_axis_3264/legal_bindings_still_compile_on_
 svelte/rsvelte-tests-core-1/binding_ownership_ignore_4401/an_ignore_on_a_wrapping_block_reaches_the_binding/5634adef671c9d7a.svelte	mismatch
 svelte/rsvelte-tests-core-1/binding_ownership_ignore_4401/an_ignore_on_a_wrapping_block_reaches_the_binding/d891684fc76e80f3.svelte	mismatch
 svelte/rsvelte-tests-core-1/binding_ownership_ignore_4401/the_same_ignore_does_not_reach_bind_this/c31cbb1c8cb33407.svelte	mismatch
-svelte/rsvelte-tests-core-1/compiler/phases/phase2_analyze/visitors/class_declaration/tests/module_legacy_label_does_not_make_a_top_level_class_nested/e42001e531eec750.svelte	mismatch
-svelte/rsvelte-tests-core-1/compiler/phases/phase2_analyze/visitors/class_declaration/tests/nested_legacy_label_only_warns_once_for_the_class/714931f8a934cd2e.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/tests/await_reactivity_loss_is_wrapped_unless_ignored/1e71c11f95d6ba25.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/tests/await_reactivity_loss_is_wrapped_unless_ignored/d13cedb330028daf.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_bind_cluster/7074191a4c9f8226.svelte	mismatch
@@ -372,7 +369,6 @@ svelte/rsvelte-tests-core-3/ts_namespace_3244/compile_module_rejects_every_names
 svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/3dc5b24e8a5754bb.svelte	unexpected
 svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/45b1a6d91ed20a95.svelte	unexpected
 svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/d22c0680b437e04a.svelte	unexpected
-svelte/rsvelte-tests-core-3/validator_message_wording/module_level_reactive_declaration_says_only_exist/131c68437332f115.svelte	mismatch
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/every_host_accepts_what_upstream_accepts/37afe1d05a47e6a8.svelte	mismatch
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	mismatch
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte	mismatch
@@ -567,7 +563,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/state-snapshot-unclone
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript-each-indexed/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/bidirectional-control-characters/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/ignore-warning-dash-backwards-compat/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/module-script-reactive-declaration/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/non-empty-block-dev/input.svelte	mismatch
 svelte/sveltekit/packages/kit/src/runtime/client/remote-functions/query-batch.svelte.js	mismatch
 svelte/sveltekit/packages/kit/src/runtime/components/root.svelte	mismatch
