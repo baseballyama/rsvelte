@@ -4174,3 +4174,6 @@
 
 ["svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser places the end tag of a `<textarea>` at its last `</textarea`, where Svelte ends the content at the first"
+
+["svelte/layerchart/docs/src/examples/components/Partition/flame-graph.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads a comment in a tag inside a block as tokens, which svelte/indent indents as an attribute"

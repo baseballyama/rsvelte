@@ -19,7 +19,6 @@ svelte/language-tools/packages/language-server/test/plugins/svelte/testfiles/dia
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/export-list/input.svelte	mismatch
 svelte/layercake/src/_components/SharedTooltip.html.svelte	mismatch
 svelte/layercake/src/_components/SharedTooltip.percent-range.html.svelte	mismatch
-svelte/layerchart/docs/src/examples/components/Partition/flame-graph.svelte	mismatch
 svelte/layerchart/packages/layerchart/src/lib/components/Chart/Chart.base.svelte	mismatch
 svelte/mode-watcher/packages/mode-watcher/src/lib/components/mode-watcher-full.svelte	mismatch
 svelte/originui-svelte/src/lib/hooks/use-local-storage.svelte.ts	mismatch
