@@ -180,7 +180,7 @@ impl<'a> Template<'a> {
                 .any(|c| c == code)
         });
         if ignored {
-            return;
+            self.found.silence(span, code);
         }
         let runs: Vec<(usize, usize)> = runs.collect();
         for (start, end) in runs {

@@ -63,3 +63,11 @@ fn an_ignore_before_the_style_sees_its_unused_selectors() {
         [(2, 20)]
     );
 }
+
+// The oracle reports only the second: the first ignores the control characters of the text.
+#[test]
+fn an_ignore_before_a_text_sees_its_control_characters() {
+    let code = "<!-- svelte-ignore bidirectional_control_characters -->\n\u{2067}a\u{2069}\n\
+                <!-- svelte-ignore bidirectional_control_characters -->\n<p>b</p>\n";
+    assert_eq!(lint(code), [(3, 20)]);
+}

@@ -1,6 +1,7 @@
 //! Warnings in the order the compiler emits them.
 
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
 
 use super::Section;
 
@@ -30,6 +31,8 @@ impl Stage {
 #[derive(Default)]
 pub(super) struct Found {
     items: Vec<(Stage, u64, Diagnostic)>,
+    /// The places where a check read a `svelte-ignore` itself, with the code it ignored there.
+    silenced: Vec<(Span, &'static str)>,
 }
 
 impl Found {
@@ -44,12 +47,27 @@ impl Found {
         self.items.push((stage, u64::from(at) * 4 + 1, warning));
     }
 
-    /// The warnings in emission order; equal positions keep the order they were found in.
-    pub(super) fn finish(mut self) -> Vec<(Stage, Diagnostic)> {
+    /// A check that reads `svelte-ignore` itself ignored `code` in `span`; its warnings there
+    /// are kept, marked ignored.
+    pub(super) fn silence(&mut self, span: Span, code: &'static str) {
+        self.silenced.push((span, code));
+    }
+
+    /// The warnings in emission order, equal positions in the order they were found in, and
+    /// whether a check's own `svelte-ignore` ignored each.
+    pub(super) fn finish(mut self) -> (Vec<(Stage, Diagnostic)>, Vec<bool>) {
         self.items.sort_by_key(|(stage, at, _)| (*stage, *at));
+        let silenced = &self.silenced;
         self.items
             .into_iter()
-            .map(|(stage, _, warning)| (stage, warning))
-            .collect()
+            .map(|(stage, _, warning)| {
+                let ignored = silenced.iter().any(|&(span, code)| {
+                    &*warning.code == code
+                        && span.start_offset <= warning.span.start_offset
+                        && warning.span.end_offset <= span.end_offset
+                });
+                ((stage, warning), ignored)
+            })
+            .unzip()
     }
 }

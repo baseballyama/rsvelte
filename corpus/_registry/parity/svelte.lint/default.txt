@@ -1,4 +1,4 @@
-# svelte.lint/default: 37120 match
+# svelte.lint/default: 37121 match
 svelte/bits-ui/tests/src/tests/checkbox/checkbox-group-test.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-svelte4-input.svelte	mismatch
@@ -564,7 +564,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-current-time-remo
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-getter-setter/Child.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-getter-setter/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/not-actual-runes/main.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/bidirectional-control-characters/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/non-empty-block-dev/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/svelte-self-deprecated/input.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/extras/cube-camera/App.svelte	mismatch
