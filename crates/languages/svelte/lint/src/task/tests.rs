@@ -353,3 +353,27 @@ fn a_private_name_in_an_optional_chain_fails_the_parse() {
         (4, 20),
     );
 }
+
+/// typescript-eslint throws an ambient initializer of a variable, not of a class property.
+#[test]
+fn an_ambient_initializer_fails_the_parse_only_on_a_variable() {
+    let document = Document::new(
+        "a.svelte.js".to_owned(),
+        "declare let x = 1;\nclass K {\n\tdeclare a = 1;\n}\n".to_owned(),
+    )
+    .expect("a small document");
+    let (json, _) = lint_with("svelte/no-svelte-internal", &document, |_| {});
+    let finding = &json["findings"][0];
+    assert_eq!(
+        finding["message"].as_str(),
+        Some("Parsing error: Initializers are not permitted in ambient contexts.")
+    );
+    assert_eq!(finding["start"]["column"].as_u64(), Some(12));
+    let document = Document::new(
+        "a.svelte.js".to_owned(),
+        "class K {\n\tdeclare a = 1;\n}\nexport { K };\n".to_owned(),
+    )
+    .expect("a small document");
+    let (json, _) = lint_with("svelte/no-svelte-internal", &document, |_| {});
+    assert_eq!(json["findings"].as_array().map(Vec::len), Some(0), "{json}");
+}
