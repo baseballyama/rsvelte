@@ -1,4 +1,4 @@
-# svelte.lint/default: 37140 match
+# svelte.lint/default: 37141 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -517,7 +517,6 @@ svelte/rsvelte/pattern/adversarial/css/css-selector-modern-features.svelte	misma
 svelte/rsvelte/pattern/adversarial/css/rejected-global-keyframes-selector.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/expressions/rejected-snippet-rest.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/legacy/legacy-export-renames-and-const.svelte	mismatch
-svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/special-elements/svelte-self-licensed-parents.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/typescript/ts-decorator-and-modifiers.svelte	mismatch
 svelte/rsvelte/pattern/css/empty-declaration.svelte	mismatch
