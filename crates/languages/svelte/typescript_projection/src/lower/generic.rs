@@ -367,16 +367,21 @@ pub struct UnparsedScript {
 /// [`UnparsedScript`] for the script at `content` in `source_text`.
 #[must_use]
 pub fn unparsed_script(source_text: &str, content: Span, module: bool) -> UnparsedScript {
-    let allocator = oxc_allocator::Allocator::default();
     let text = &source_text[content.start_offset as usize..content.end_offset as usize];
-    let program = oxc_parser::Parser::new(&allocator, text, oxc_span::SourceType::ts())
-        .parse()
-        .program;
-    let offset = content.start_offset;
+    rsvelte_typescript_tree::with_scratch_arena(|allocator| {
+        let program = oxc_parser::Parser::new(allocator, text, oxc_span::SourceType::ts())
+            .parse()
+            .program;
+        read_unparsed(&program, content.start_offset, module)
+    })
+}
+
+/// [`unparsed_script`] of the parsed `program`, whose spans are `offset` bytes into the component.
+fn read_unparsed(program: &Program<'_>, offset: u32, module: bool) -> UnparsedScript {
     let shift = |at: Span| Span::new(at.start_offset + offset, at.end_offset + offset);
     if module {
         return UnparsedScript {
-            refusal: instance_only(&program, offset),
+            refusal: instance_only(program, offset),
             ..UnparsedScript::default()
         };
     }
