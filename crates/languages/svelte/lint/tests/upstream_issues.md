@@ -288,6 +288,12 @@ literal.` here. Its end tag patterns, such as `/<\/style>/giu`, ignore case too,
 `</STYLE>` in a string of the style sheet ends the block. This crate reads the tags as Svelte
 does.
 
+The same search decides which text the parser blanks before it hands the template to Svelte's
+parser. A `<script lang="ts">` inside a string of the script then reads as a block, and so does
+the text up to a `</style>` inside a style rule. Svelte's parser then fails at a place it does not
+fail on the file itself. This crate parses the file once, as Svelte does, and the corpus skips
+these 2 lint units.
+
 ## `svelte/prefer-const` treats a `<script module>` export as a prop
 
 Issue: [svelte-eslint-parser #992](https://github.com/sveltejs/svelte-eslint-parser/issues/992).

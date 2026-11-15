@@ -1808,6 +1808,7 @@
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_bare_terminator_inside_a_rule_is_a_css_error/ff8caef21871e90a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds the <script> and <style> blocks with a regular expression, so it blanks text Svelte does not read as a block and Svelte's parser fails elsewhere"
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_comment_is_a_comment/4af889e4d7e202d4.svelte".skip]
@@ -4695,3 +4696,6 @@
 
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/ast/each-with-comment-input.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines, so the line after a line comment in it loses its indent and the closing parenthesis lands at the header's column; we keep that break inside the arguments' indent"
+
+["svelte/rsvelte-tests-core-1/compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/9096b19bedcfe51e.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser finds the <script> and <style> blocks with a regular expression, so it blanks text Svelte does not read as a block and Svelte's parser fails elsewhere"
