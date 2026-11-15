@@ -5,22 +5,22 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 /// that finds differently from Svelte's parser is parsed again.
 pub(super) fn template_error(source_text: &str) -> Option<Diagnostic> {
     let bytes = source_text.as_bytes();
-    let blocks = blocks(bytes)?;
-    let differs = blocks.iter().any(|&(start, end)| {
+    let mut nested = false;
+    blocks(bytes, |start, end| {
         let content = &bytes[start..end];
-        find(content, b"<script").is_some() || find(content, b"</script").is_some()
-    }) || count(bytes, b"</style>") > count(bytes, b"<style");
-    if !differs {
+        nested |= find(content, b"<script").is_some() || find(content, b"</script").is_some();
+    })?;
+    if !nested && count(bytes, b"</style>") <= count(bytes, b"<style") {
         return None;
     }
     let mut blanked = bytes.to_vec();
-    for &(start, end) in &blocks {
+    blocks(bytes, |start, end| {
         for byte in &mut blanked[start..end] {
             if !matches!(byte, b'\n' | b'\r') {
                 *byte = b' ';
             }
         }
-    }
+    })?;
     let blanked = String::from_utf8(blanked).ok()?;
     rsvelte_svelte_syntax::parse::parse(&blanked).err()
 }
@@ -28,8 +28,9 @@ pub(super) fn template_error(source_text: &str) -> Option<Diagnostic> {
 /// The content ranges of the `<script>` and `<style>` blocks svelte-eslint-parser finds, which a
 /// case-insensitive search for the tags and their first end tag gives; `None` when it finds a
 /// self-closing one or none, or a `<template>`, which it reads in ways this does not follow.
-fn blocks(bytes: &[u8]) -> Option<Vec<(usize, usize)>> {
-    let mut blocks = Vec::new();
+// A callback, not a list, so the common document, which is not parsed again, allocates nothing.
+fn blocks(bytes: &[u8], mut each: impl FnMut(usize, usize)) -> Option<()> {
+    let mut found_any = false;
     let mut at = 0;
     while let Some(found) = bytes[at..].iter().position(|&byte| byte == b'<') {
         let start = at + found;
@@ -59,10 +60,11 @@ fn blocks(bytes: &[u8]) -> Option<Vec<(usize, usize)>> {
             return None;
         }
         let end = open_end + find_end_tag(&bytes[open_end..], tag)?;
-        blocks.push((open_end, end));
+        each(open_end, end);
+        found_any = true;
         at = end + tag.len() + 3;
     }
-    (!blocks.is_empty()).then_some(blocks)
+    found_any.then_some(())
 }
 
 /// The length of a start tag's rest up to and with its `>`, outside quoted values.
