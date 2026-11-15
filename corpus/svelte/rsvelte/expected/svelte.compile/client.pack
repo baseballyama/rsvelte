@@ -75236,6 +75236,67 @@ export default function Type_only_imports_and_exports($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
+=== 245 pattern/bind-dashed-name.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:a-b` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 5,
+		"column": 7,
+		"character": 47
+	},
+	"end": {
+		"line": 5,
+		"column": 15,
+		"character": 55
+	}
+}
+
+=== 356 pattern/bind-dollar-store-member-name.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$store.value` is an illegal variable name. To reference a global variable called `$store.value`, use `globalThis.$store.value`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 6,
+		"column": 12,
+		"character": 114
+	},
+	"end": {
+		"line": 6,
+		"column": 24,
+		"character": 126
+	}
+}
+
+=== 245 pattern/bind-member-name.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:a.b` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 5,
+		"column": 7,
+		"character": 55
+	},
+	"end": {
+		"line": 5,
+		"column": 15,
+		"character": 63
+	}
+}
+
+=== 314 pattern/class-member-name.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div>x</div>`);
+
+export default function Class_member_name($$anchor) {
+	let a = $.proxy({ b: true });
+	var div = root();
+
+	$.set_class(div, 1, '', null, {}, { 'a.b': a.b });
+	$.append($$anchor, div);
+}
 === 336 pattern/css/consecutive-and-column-combinators.svelte	css
 
 	a.svelte-1ggfu26 >> b:where(.svelte-1ggfu26) {

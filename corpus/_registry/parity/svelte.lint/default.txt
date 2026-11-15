@@ -1,4 +1,4 @@
-# svelte.lint/default: 37141 match
+# svelte.lint/default: 37146 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -450,7 +450,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/s
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/style_like_component_with_a_close_tag_is_not_blanked/9bd55f8f0a0e78b4.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/uppercase_script_like_component_is_not_blanked/b8ae751f2ba7fde5.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_slots_reflection_2161/object_key_is_never_substituted/5a210d59b14880c1.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/04bc05a5c4a48321.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/1358524331a32498.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/37e29319f0324448.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/491ea81fca3dc99b.svelte	mismatch

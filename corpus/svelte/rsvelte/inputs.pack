@@ -35720,6 +35720,35 @@ export const pair = $state({ a: 1, b: "two" });
   {@render body(labelled)}
 {/if}
 
+=== 59 pattern/bind-dashed-name.svelte	svelte	runes	rejected
+<script>
+	let a = $state(0);
+</script>
+
+<input bind:a-b />
+
+=== 130 pattern/bind-dollar-store-member-name.svelte	svelte	runes	rejected
+<script>
+	import { writable } from 'svelte/store';
+	const store = writable({ value: '' });
+</script>
+
+<input bind:$store.value />
+
+=== 67 pattern/bind-member-name.svelte	svelte	runes	rejected
+<script>
+	let a = $state({ b: '' });
+</script>
+
+<input bind:a.b />
+
+=== 73 pattern/class-member-name.svelte	svelte	runes	runes
+<script>
+	let a = $state({ b: true });
+</script>
+
+<div class:a.b>x</div>
+
 === 312 pattern/css/consecutive-and-column-combinators.svelte	svelte	runes	neutral
 <table>
 	<colgroup><col class="c" /></colgroup>
