@@ -24702,6 +24702,22 @@ export default function _b4030735b476bf2($$anchor) {
 	}
 }
 
+=== 268 rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_declaration_outside_the_allow_list_keeps_its_export/a7c2da5fe5fdef8f.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+import ie = require('m');
+
+export default function A7c2da5fe5fdef8f($$anchor) {
+	let k = 1;
+
+	$.next();
+
+	var text = $.text();
+
+	text.nodeValue = '1';
+	$.append($$anchor, text);
+}
 === 672 rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_declaration_outside_the_allow_list_keeps_its_export/e78084eb26a40016.svelte	error.json
 {
 	"code": "typescript_invalid_feature",
@@ -29682,6 +29698,22 @@ export default function B26df51ce73034ac($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
+=== 697 rsvelte_projection/svelte2tsx_namespace_export_3257/nested_namespaces_and_ambient_modules_are_walked_too/2fb80e651772bf87.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 2,
+		"column": 0,
+		"character": 19
+	},
+	"end": {
+		"line": 2,
+		"column": 48,
+		"character": 67
+	}
+}
+
 === 698 rsvelte_projection/svelte2tsx_namespace_export_3257/nested_namespaces_and_ambient_modules_are_walked_too/6c001a51139f5b51.svelte	error.json
 {
 	"code": "typescript_invalid_feature",
@@ -30958,6 +30990,88 @@ export default function Fdd2fa3721015c43($$anchor) {
 	}
 ]
 
+=== 308 rsvelte_projection/svelte2tsx_reexport_2113/named_reexport_is_hoisted_out_of_render_body/ef9d513487cc4903.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p>hi</p>`);
+
+export default function Ef9d513487cc4903($$anchor, $$props) {
+	$.push($$props, true);
+
+	var $$exports = { x };
+	var p = root();
+
+	$.append($$anchor, p);
+
+	return $.pop($$exports);
+}
+=== 424 rsvelte_projection/svelte2tsx_reexport_2113/reexport_mixes_with_plain_named_exports_in_source_order/de9aaa4626a274d0.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p>hi</p>`);
+
+export default function De9aaa4626a274d0($$anchor, $$props) {
+	$.push($$props, true);
+
+	let local = 1;
+
+	var $$exports = {
+		get local() {
+			return local;
+		},
+
+		set local($$value) {
+			local = $$value;
+		},
+		x,
+		z: y
+	};
+
+	var p = root();
+
+	$.append($$anchor, p);
+
+	return $.pop($$exports);
+}
+=== 310 rsvelte_projection/svelte2tsx_reexport_2113/reexport_of_a_local_let_still_widens_and_stays_a_prop/603d62102a5ffdc1.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function _03d62102a5ffdc1($$anchor, $$props) {
+	$.push($$props, true);
+
+	let x = 1;
+
+	var $$exports = {
+		get y() {
+			return x;
+		},
+
+		set y($$value) {
+			x = $$value;
+		}
+	};
+
+	return $.pop($$exports);
+}
+=== 311 rsvelte_projection/svelte2tsx_reexport_2113/renamed_reexport_keeps_official_local_to_exported_mapping/f2186ac6a152b18e.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p>hi</p>`);
+
+export default function F2186ac6a152b18e($$anchor, $$props) {
+	$.push($$props, true);
+
+	var $$exports = { y: x };
+	var p = root();
+
+	$.append($$anchor, p);
+
+	return $.pop($$exports);
+}
 === 221 rsvelte_projection/svelte2tsx_reexport_2113/type_only_reexport_is_removed_like_official/eaaae7a32789e3f1.svelte	error.json
 {
 	"code": "js_parse_error",
@@ -38392,6 +38506,38 @@ export default function _fd2e410c07c101d($$anchor) {
 	}
 }
 
+=== 260 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/06a6ed83909b32c0.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Cannot use await in class static initialization block\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 24,
+		"character": 43
+	},
+	"end": {
+		"line": 2,
+		"column": 24,
+		"character": 43
+	}
+}
+
+=== 697 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/070bec3752f0534a.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 2,
+		"column": 0,
+		"character": 19
+	},
+	"end": {
+		"line": 2,
+		"column": 41,
+		"character": 60
+	}
+}
+
 === 365 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/07302dc92c421ce9.svelte	error.json
 {
 	"code": "experimental_async",
@@ -39012,6 +39158,19 @@ export default function _8a6d07dd145067a($$anchor) {
 	}
 }
 
+=== 252 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/60997a38b3c5b08f.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p>x</p>`);
+
+export default function _0997a38b3c5b08f($$anchor) {
+	for await (const x of y) {}
+
+	var p = root();
+
+	$.append($$anchor, p);
+}
 === 672 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/617dffd9150d4302.svelte	error.json
 {
 	"code": "typescript_invalid_feature",
@@ -40065,6 +40224,22 @@ export default function _8a6d07dd145067a($$anchor) {
 		"line": 3,
 		"column": 11,
 		"character": 46
+	}
+}
+
+=== 260 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ef7c2ebb965e3245.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Cannot use await in class static initialization block\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 3,
+		"column": 24,
+		"character": 62
+	},
+	"end": {
+		"line": 3,
+		"column": 24,
+		"character": 62
 	}
 }
 

@@ -17516,6 +17516,44 @@ export default function _1_basic($$anchor) {
 	}
 }
 
+=== 435 lint/no-inspect/03-template.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button>debug</button> <p></p>`, 1);
+
+export default function _3_template($$anchor) {
+	let v = 1;
+
+	void 0;
+
+	var fragment = root();
+	var button = $.first_child(fragment);
+	var p = $.sibling(button, 2);
+
+	p.textContent = '1';
+	$.delegated('click', button, () => ;);
+	$.append($$anchor, fragment);
+}
+
+$.delegate(['click']);
+=== 302 lint/no-inspect/04-template-literal-interp.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p></p>`);
+
+export default function _4_template_literal_interp($$anchor) {
+	let v = 1;
+	const s = `value: ${;}`;
+
+	void s;
+
+	var p = root();
+
+	p.textContent = '1';
+	$.append($$anchor, p);
+}
 === 261 lint/no-inspect/05-member.svelte	error.json
 {
 	"code": "rune_missing_parentheses",
@@ -33467,6 +33505,64 @@ export default function _5_snippet_param_shadow($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
+=== 1288 lint/require-store-reactive-access/16-await-shadow.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { writable } from 'svelte/store';
+
+var root = $.from_html(`<p> </p>`);
+var root_1 = $.from_html(`<p>loading</p>`);
+var root_2 = $.from_html(`<!> <!> <!>`, 1);
+
+export default function _6_await_shadow($$anchor, $$props) {
+	$.push($$props, true);
+
+	const s = writable(0);
+	const p = Promise.resolve(1);
+	var fragment = root_2();
+	var node = $.first_child(fragment);
+
+	$.await(node, () => p, null, ($$anchor, s) => {
+		var p_1 = root();
+		var text = $.only_child(p_1, true);
+
+		$.template_effect(() => $.set_text(text, $.get(s) + 1));
+		$.append($$anchor, p_1);
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	$.await(
+		node_1,
+		() => p,
+		($$anchor) => {
+			var p_3 = root_1();
+
+			$.append($$anchor, p_3);
+		},
+		void 0,
+		($$anchor, s) => {
+			var p_2 = root();
+			var text_1 = $.only_child(p_2, true);
+
+			$.template_effect(() => $.set_text(text_1, $.get(s) + 2));
+			$.append($$anchor, p_2);
+		}
+	);
+
+	var node_2 = $.sibling(node_1, 2);
+
+	$.await(node_2, () => p, null, ($$anchor, ok) => {
+		var p_4 = root();
+		var text_2 = $.only_child(p_4, true);
+
+		$.template_effect(() => $.set_text(text_2, $.get(s) + $.get(ok)));
+		$.append($$anchor, p_4);
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
 === 743 lint/require-store-reactive-access/17-handler-inner-block-let.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -34592,6 +34688,20 @@ export default function _6_template_only_rune_rule_in_legacy($$anchor, $$props) 
 
 	$.append($$anchor, p);
 	$$cleanup();
+}
+=== 353 lint/runes-mode/07-template-only-rune-rule-in-runes.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p> </p>`);
+
+export default function _7_template_only_rune_rule_in_runes($$anchor) {
+	let count = 0;
+	var p = root();
+	var text = $.only_child(p, true);
+
+	$.template_effect(($0) => $.set_text(text, $0), [() => ;]);
+	$.append($$anchor, p);
 }
 === 802 lint/shorthand-attribute/01-basic-longform.svelte	js
 import 'svelte/internal/disclose-version';
@@ -79832,6 +79942,22 @@ export default function _128_options_runes_false_store_subs($$anchor) {
 	$.append($$anchor, p);
 	$$cleanup();
 }
+=== 254 pattern/issues/3129-comment-between-compounds.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 4,
+		"column": 4,
+		"character": 53
+	},
+	"end": {
+		"line": 4,
+		"column": 4,
+		"character": 53
+	}
+}
+
 === 317 pattern/issues/3130-nth-of-in-any-pseudo-class.svelte	css
 
   .a.svelte-w4v67j:is(2n:where(.svelte-w4v67j)) {
@@ -82623,6 +82749,46 @@ export default function _190_double_dollar_slots_legal($$anchor, $$props) {
 	}
 }
 
+=== 926 pattern/issues/3192-dollar-props-binding.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+const s = ($$anchor, $$props = $.noop) => {
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, $$sanitized_props));
+	$.append($$anchor, text);
+};
+
+var root = $.from_html(`<b> </b> <!> <!>`, 1);
+
+export default function _192_dollar_props_binding($$anchor) {
+	function f($$sanitized_props) {
+		return $$sanitized_props;
+	}
+
+	var fragment_1 = root();
+	var b = $.first_child(fragment_1);
+	var text_1 = $.only_child(b, true);
+	var node = $.sibling(b, 2);
+
+	$.each(node, 16, () => [1], $.index, ($$anchor, $$props) => {
+		$.next();
+
+		var text_2 = $.text();
+
+		$.template_effect(() => $.set_text(text_2, $$sanitized_props));
+		$.append($$anchor, text_2);
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	s(node_1, () => 2);
+	$.template_effect(($0) => $.set_text(text_1, $0), [() => f(1)]);
+	$.append($$anchor, fragment_1);
+}
 === 223 pattern/issues/3194-strict-annex-b-function.svelte	error.json
 {
 	"code": "js_parse_error",
@@ -84361,6 +84527,25 @@ export default function _235_rune_name_member_property($$anchor) {
 	}
 }
 
+=== 469 pattern/issues/3256-class-case-clsx.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div></div> <div></div>`, 1);
+
+export default function _256_class_case_clsx($$anchor) {
+	let classes = $.proxy(['active']);
+	var fragment = root();
+	var div = $.first_child(fragment);
+	var div_1 = $.sibling(div, 2);
+
+	$.template_effect(() => {
+		$.set_class(div, 1, classes);
+		$.set_class(div_1, 1, $.clsx(classes));
+	});
+
+	$.append($$anchor, fragment);
+}
 === 266 pattern/issues/3256-concatenated-is.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -99029,6 +99214,26 @@ export default function Title_memo_definedness($$anchor) {
 			[() => format(value), () => format('suffix')]
 		);
 	});
+}
+=== 53 pattern/issues/ts-bodiless-constructor-alone.svelte	error.txt
+Cannot read properties of undefined (reading 'body')
+
+=== 288 pattern/issues/ts-bodiless-method-alone.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<b></b>`);
+
+export default function Ts_bodiless_method_alone($$anchor) {
+	class K {
+		m(a);
+	}
+
+	const v = 1;
+	var b = root();
+
+	b.textContent = '1';
+	$.append($$anchor, b);
 }
 === 249 pattern/issues/type-import-value-redeclaration.svelte	error.json
 {
