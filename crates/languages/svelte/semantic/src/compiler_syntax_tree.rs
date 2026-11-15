@@ -42,8 +42,6 @@ pub struct CompilerSyntaxTree {
     component_references: Vec<(CompilerNodeIdentifier, ExpressionIdentifier)>,
     /// Every `slot="…"` with a static value, in order (upstream `determine_slot`).
     static_slots: Vec<AttributeIdentifier>,
-    /// The `bind:` expressions written inside parentheses, which the JavaScript tree drops.
-    parenthesized_binds: Vec<ExpressionIdentifier>,
     pub root: Children,
 }
 
@@ -344,12 +342,6 @@ impl CompilerSyntaxTree {
     #[must_use]
     pub fn children(&self, c: Children) -> &[CompilerNodeIdentifier] {
         &self.children[c.start as usize..(c.start + c.len) as usize]
-    }
-
-    /// Whether the `bind:` expression `e` was written inside parentheses.
-    #[must_use]
-    pub fn is_parenthesized_bind(&self, e: ExpressionIdentifier) -> bool {
-        self.parenthesized_binds.contains(&e)
     }
 
     #[must_use]

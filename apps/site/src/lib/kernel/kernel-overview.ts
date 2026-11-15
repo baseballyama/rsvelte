@@ -57,7 +57,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/layers',
 		source: {
 			path: 'crates/languages/svelte/semantic/src/computation.rs',
-			line: 139,
+			line: 160,
 			text: 'reg.artifact::<Resolved>()',
 		},
 		box: { x: 32, y: 262, w: 188, h: height },
@@ -311,7 +311,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [134, 82],
 		source: {
 			path: 'crates/languages/svelte/semantic/src/computation.rs',
-			line: 136,
+			line: 157,
 			text: 'pub fn register(reg: &mut Registry) {',
 		},
 	},
@@ -380,8 +380,8 @@ export const overviewEdges: OverviewEdge[] = [
 		path: 'M220 210 H262 V280 H306',
 		at: [226, 246],
 		source: {
-			path: 'crates/languages/svelte/lint/src/rule.rs',
-			line: 161,
+			path: 'crates/languages/svelte/lint/src/computation.rs',
+			line: 65,
 			text: 'self.context.get::<Lowered>()',
 		},
 	},

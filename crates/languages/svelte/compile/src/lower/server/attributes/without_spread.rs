@@ -71,7 +71,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 _ => {}
             }
             let name = if self.plan.named(identifier) == crate::render_plan::Namespace::Html {
-                raw_name.to_ascii_lowercase()
+                raw_name.to_lowercase()
             } else {
                 raw_name.to_owned()
             };

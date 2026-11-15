@@ -1,7 +1,7 @@
 use oxc_semantic::ReferenceId;
 use oxc_syntax::symbol::SymbolFlags;
 use rsvelte_svelte_semantic::warnings::{Phase, Raised, Section, dollar_name_errors};
-use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature};
+use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature_where};
 
 mod awaits;
 mod declarations;
@@ -11,20 +11,6 @@ mod runes;
 pub(super) use awaits::check as check_awaits;
 use runes::script_and_template_errors;
 pub(super) use runes::{Awaits, check_runes, check_runes_with, rejects_binding, script_error};
-
-/// Whether oxc's `error` is a name declared again outside the scripts.
-pub(super) fn redeclares_in_template(input: &CompileInput<'_>, error: &Diagnostic) -> bool {
-    let javascript = input.component.javascript;
-    let start = error.span.start_offset;
-    error.message.ends_with("has already been declared")
-        && !(input
-            .component
-            .module
-            .into_iter()
-            .chain(input.component.instance))
-        .map(|program| javascript.get_program(program).span)
-        .any(|span| span.start <= start && start < span.end)
-}
 
 use super::{CompileInput, Diagnostic, Resolution, Span};
 
@@ -206,15 +192,35 @@ fn state_invalid_placement<T>(rune: &str, span: Span) -> Result<T, Diagnostic> {
     )
 }
 
+/// Upstream's refusal of a TypeScript feature with a runtime value, which it raises as it erases
+/// the types, before it analyzes.
 pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
+    first_typescript_feature(input, |feature| !port_refuses(feature))
+}
+
+/// This port's refusal of a TypeScript feature upstream keeps and prints, which waits for every
+/// error upstream raises.
+pub(super) fn refuse_typescript(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
+    first_typescript_feature(input, port_refuses)
+}
+
+/// What upstream keeps as it is and this compiler does not lower.
+const fn port_refuses(feature: Feature) -> bool {
+    matches!(feature, Feature::ImportEquals | Feature::ExportAssignment)
+}
+
+fn first_typescript_feature(
+    input: &CompileInput<'_>,
+    wanted: fn(Feature) -> bool,
+) -> Result<(), Diagnostic> {
     let javascript = input.component.javascript;
-    let mut programs: Vec<_> = (input.component.module.into_iter())
-        .chain(input.component.instance)
-        .map(|p| javascript.get_program(p))
-        .collect();
+    let mut programs = [input.component.module, input.component.instance]
+        .map(|p| p.map(|p| javascript.get_program(p)));
     // The parser met the scripts in document order.
-    programs.sort_by_key(|p| p.span.start);
-    match programs.into_iter().find_map(first_svelte_runtime_feature) {
+    programs.sort_by_key(|p| p.map(|p| p.span.start));
+    match (programs.into_iter().flatten())
+        .find_map(|program| first_svelte_runtime_feature_where(program, wanted))
+    {
         Some((feature, span)) => Err(typescript_invalid_feature(
             feature,
             Span::new(span.start, span.end),

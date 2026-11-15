@@ -8,7 +8,7 @@ use super::SyntaxError;
 
 /// The message of a code, where `{0}` stands for the name or token oxc's message quotes. Those of
 /// 1070, 1071, 1090, 2404, 2483 and 2499 are typescript-eslint's words, the others tsc's.
-const MESSAGES: [(u32, &str); 28] = [
+const MESSAGES: [(u32, &str); 29] = [
     (1005, "'{0}' expected."),
     (
         1024,
@@ -30,6 +30,7 @@ const MESSAGES: [(u32, &str); 28] = [
     (1099, "Type argument list cannot be empty."),
     (1109, "Expression expected."),
     (1110, "Type expected."),
+    (1127, "Invalid character."),
     (1161, "Unterminated regular expression literal."),
     (1172, "'extends' clause already seen."),
     (1173, "'extends' clause must precede 'implements' clause."),
@@ -71,6 +72,17 @@ const MESSAGES: [(u32, &str); 28] = [
         "Interface declaration can only extend an identifier/qualified name with optional type \
          arguments.",
     ),
+];
+
+/// The codes of errors oxc reports that typescript-eslint does not throw from the parse.
+///
+/// tsc's checker reports them, and typescript-eslint lets most through; it throws 1039 and 1267
+/// from its own check of the tree, which a host that reads a program as typescript-eslint makes itself.
+/// Such a host leaves them unchecked.
+pub const TYPESCRIPT_ESLINT_UNCHECKED: &[&str] = &[
+    "1015", "1016", "1021", "1029", "1038", "1039", "1047", "1049", "1051", "1093", "1094", "1095",
+    "1096", "1147", "1194", "1243", "1257", "1267", "1276", "1308", "2304", "2368", "2390", "2391",
+    "2681", "5085", "18010",
 ];
 
 /// The codes of TypeScript 6.0.3's parser and scanner, whose first error typescript-eslint throws

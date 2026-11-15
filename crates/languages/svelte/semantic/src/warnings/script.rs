@@ -31,9 +31,13 @@ struct Place {
     function: bool,
     /// The functions around the node, below the section's program.
     functions: u32,
-    /// Upstream's `function_depth` below the section's program: one for each function, and one
-    /// for each `$derived(…)`, `$inspect(…)` or `$props()` pattern around the node.
+    /// Upstream's `function_depth` below `program`: one for each function, and one for each
+    /// `$derived(…)`, `$inspect(…)` or `$props()` pattern around the node.
     depth: u32,
+    /// The scope whose top-level bindings `depth` 0 reads at their own depth: a script's program,
+    /// or the scope a template expression's outermost function is in, since upstream gives the
+    /// template a scope of its own that no script binding shares.
+    program: Option<ScopeId>,
     /// Below an argument of `$state(…)` or `$state.raw(…)`; upstream does not count the
     /// argument itself.
     state_argument: bool,
@@ -45,6 +49,7 @@ const TOP: Place = Place {
     function: false,
     functions: 0,
     depth: 0,
+    program: None,
     state_argument: false,
     state_call_argument: false,
 };
@@ -63,9 +68,6 @@ struct Walk<'w> {
     /// The bindings `export { … }` marks reassigned, from the specifier's start on.
     exported: &'w FxHashMap<SymbolId, u32>,
     section: Section,
-    /// The scope of the section's program, whose top-level bindings the walk's depth is 1 for
-    /// (0 for the module).
-    program: Option<ScopeId>,
     /// In a template's `{let …}` tag, the scope its bindings live in: upstream walks the tag at
     /// that scope's depth.
     declaration_scope: Option<ScopeId>,
@@ -107,7 +109,6 @@ pub(super) fn walk(
         conflicts: Vec::new(),
         exported,
         section: Section::Module,
-        program: None,
         declaration_scope: None,
         found,
         place: TOP,
@@ -117,16 +118,17 @@ pub(super) fn walk(
     let scoping = resolution.scoping();
     for (section, script) in scripts.sections() {
         walk.section = section;
-        walk.program = Some(match section {
-            Section::Instance => resolution.instance_scope(),
-            _ => scoping.root_scope_id(),
-        });
-        walk.place = TOP;
+        walk.place = Place {
+            program: Some(match section {
+                Section::Instance => resolution.instance_scope(),
+                _ => scoping.root_scope_id(),
+            }),
+            ..TOP
+        };
         walk.visit_program(scripts.javascript.get_program(script.program));
     }
     if let Some(template) = template {
         walk.section = Section::Template;
-        walk.program = None;
         crate::resolve::walk(template, template.root, &mut walk);
     }
     let mut conflicts = std::mem::take(&mut walk.conflicts);
@@ -166,7 +168,7 @@ impl Walk<'_> {
         let declared_scope = scoping.symbol_scope_id(symbol);
         // The declarator's visitor gives a binding its rune kind, so earlier reads see a plain one.
         let declared_before = scoping.symbol_span(symbol).start < at.start;
-        let same_depth = match (self.program, self.declaration_scope) {
+        let same_depth = match (self.place.program, self.declaration_scope) {
             (Some(program), _) => {
                 self.function_depth(declared_scope, program) == Some(self.place.depth)
             }
@@ -337,6 +339,7 @@ impl<'a> Visit<'a> for Walk<'_> {
         } = self.next;
         self.next.called = false;
         self.next.written = false;
+        let parents = self.entered.len();
         self.entered.push(place);
         let mut inner = place;
         inner.state_argument |= place.state_call_argument;
@@ -363,6 +366,15 @@ impl<'a> Visit<'a> for Walk<'_> {
                 None => self.string(element.value.raw.as_str(), at),
             },
             AstKind::Function(_) | AstKind::ArrowFunctionExpression(_) => {
+                if inner.program.is_none() {
+                    let scope = match kind {
+                        AstKind::Function(function) => function.scope_id.get(),
+                        AstKind::ArrowFunctionExpression(arrow) => arrow.scope_id.get(),
+                        _ => None,
+                    };
+                    inner.program =
+                        scope.and_then(|scope| self.resolution.scoping().scope_parent_id(scope));
+                }
                 inner.function = true;
                 inner.functions += 1;
                 inner.depth += 1;
@@ -405,20 +417,20 @@ impl<'a> Visit<'a> for Walk<'_> {
             AstKind::ExpressionStatement(statement) => {
                 self.component_creation(&statement.expression);
             }
-            // A statement of the program's body has entered the program and itself.
-            AstKind::LabeledStatement(statement)
-                if statement.label.name == "$"
-                    && !self.runes
-                    && !(self.section == Section::Instance && self.entered.len() == 2) =>
-            {
-                self.warn(
-                    at.start,
-                    warning(
-                        "reactive_declaration_invalid_placement",
-                        "Reactive declarations only exist at the top level of the instance script",
-                        span(at),
-                    ),
-                );
+            AstKind::LabeledStatement(labeled) if labeled.label.name == "$" && !self.runes => {
+                // Only the program is entered above a top-level statement.
+                let top = self.section == Section::Instance && parents == 1;
+                if !top {
+                    self.warn(
+                        at.start,
+                        warning(
+                            "reactive_declaration_invalid_placement",
+                            "Reactive declarations only exist at the top level of the instance \
+                                script",
+                            span(at),
+                        ),
+                    );
+                }
             }
             _ => {}
         }

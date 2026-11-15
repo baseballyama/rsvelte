@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use oxc_ast::AstKind;
 use oxc_ast::ast::{BindingPattern, Expression};
 use oxc_span::Span;
@@ -6,13 +8,13 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, Range, TemplateNode, TemplateNodeIdentifier,
+    decode_attribute,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 
 use super::element_kind::{ElementKind, element_kind};
 use super::nodes;
-use super::style_sheet::{StyleVerdict, verdict};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -80,7 +82,7 @@ type Element = TemplateNodeIdentifier;
 /// or ends with.
 #[derive(Default)]
 struct Selections<'a> {
-    exact: FxHashMap<&'a str, Vec<Element>>,
+    exact: FxHashMap<Cow<'a, str>, Vec<Element>>,
     /// By the text a value starts with, with the text it ends with when known; looked up by each
     /// prefix of a name, so that a name does not scan every element.
     by_prefix: FxHashMap<String, Vec<(Option<String>, Element)>>,
@@ -142,10 +144,7 @@ struct Template<'a> {
 impl SvelteRule for ConsistentSelectorStyle {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        let StyleVerdict::Parsed = verdict(file) else {
-            return;
-        };
-        let Some(Ok(sheet)) = component.style.as_ref().map(|s| &s.sheet) else {
+        let Some(sheet) = super::style_sheet::sheet(file) else {
             return;
         };
         let mut template = Template {
@@ -254,7 +253,11 @@ impl Template<'_> {
                     .expect("a directive has a name")
                     .text(source);
                 self.directives.insert(name);
-                self.classes.exact.entry(name).or_default().push(element);
+                self.classes
+                    .exact
+                    .entry(Cow::Borrowed(name))
+                    .or_default()
+                    .push(element);
                 continue;
             }
             if attribute.kind != AttributeKind::Attribute {
@@ -272,13 +275,17 @@ impl Template<'_> {
             for part in self.component.parts(parts) {
                 match *part {
                     Part::Text(span) => {
-                        let text = span.text(source);
-                        if split {
-                            for class in split_ecmascript_whitespace(text) {
-                                selections.exact.entry(class).or_default().push(element);
+                        // Upstream matches the decoded value, so `&#97;` is `a`.
+                        let mut add =
+                            |value| selections.exact.entry(value).or_default().push(element);
+                        match decode_attribute(span.text(source)) {
+                            Cow::Borrowed(text) if split => {
+                                split_ecmascript_whitespace(text)
+                                    .for_each(|v| add(Cow::Borrowed(v)));
                             }
-                        } else {
-                            selections.exact.entry(text).or_default().push(element);
+                            Cow::Owned(text) if split => split_ecmascript_whitespace(&text)
+                                .for_each(|v| add(Cow::Owned(v.to_owned()))),
+                            text => add(text),
                         }
                     }
                     Part::Expression { expression, .. } => {
@@ -430,10 +437,14 @@ impl<'r> Check<'r, '_, '_> {
                     Simple::NamespacedType { span, name } if name.text(source) != "*" => {
                         self.check(Selected::Type, *span, name.text(source));
                     }
-                    Simple::PseudoClass { selectors, .. }
-                    | Simple::PseudoElement { selectors, .. }
+                    Simple::PseudoClass { selectors, nth, .. }
                         if self.rule.check_global || !simple.is_pseudo(source, &["global"]) =>
                     {
+                        for selector in selectors.iter().chain(nth) {
+                            self.selector(selector);
+                        }
+                    }
+                    Simple::PseudoElement { selectors, .. } => {
                         for selector in selectors {
                             self.selector(selector);
                         }

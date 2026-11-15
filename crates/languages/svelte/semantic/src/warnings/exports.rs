@@ -1,13 +1,16 @@
-//! `export_let_unused`: legacy mode's exports that nothing reads or writes.
+//! Legacy mode's exports: `export_let_unused` for those nothing reads or writes, and
+//! `state_invalid_export` for a reassigned `export const` that the template reads.
 
+use oxc_ast::AstKind;
 use oxc_ast::ast::{Declaration, ModuleExportName, Statement};
 use oxc_semantic::{ReferenceId, SymbolId};
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Component, TemplateNode};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::found::{Found, Stage};
-use super::{span, warning};
+use super::{Phase, Raised, Section, error, span, warning};
 use crate::resolve::Resolution;
 
 /// `export_let_unused`: in legacy mode, an `export let` nothing reads or writes.
@@ -24,26 +27,17 @@ pub(super) fn unused_exports(
     // Legacy props: `export let` and `export var`, and a `let` or `var` an `export { … }` names.
     let mut props: Vec<SymbolId> = Vec::new();
     let mut specifiers: FxHashSet<ReferenceId> = FxHashSet::default();
-    // Acorn-typescript's identifier of a declared name ends where its type annotation does.
-    let mut annotated: FxHashMap<SymbolId, u32> = FxHashMap::default();
-    for statement in &component.javascript.get_program(instance.program).body {
-        let declaration = match statement {
-            Statement::VariableDeclaration(declaration) => Some(&**declaration),
-            Statement::ExportDeclaration(export) => match &export.declaration {
-                Declaration::VariableDeclaration(declaration) => Some(&**declaration),
-                _ => None,
-            },
-            _ => None,
-        };
-        for declarator in declaration.iter().flat_map(|d| &d.declarations) {
-            if let (Some(identifier), Some(annotation)) = (
-                declarator.id.get_binding_identifier(),
-                &declarator.type_annotation,
-            ) && let Some(symbol) = identifier.symbol_id.get()
-            {
-                annotated.insert(symbol, annotation.span.end);
-            }
-        }
+    // Upstream declares a class as a `let`.
+    let is_prop = |symbol| {
+        scoping.symbol_scope_id(symbol) == resolution.instance_scope()
+            && (resolution
+                .variable_kind(symbol)
+                .is_some_and(|kind| !kind.is_const())
+                || matches!(resolution.declaration(symbol), AstKind::Class(_)))
+    };
+    let body = &component.javascript.get_program(instance.program).body;
+    let annotated = annotation_ends(body);
+    for statement in body {
         match statement {
             Statement::ExportDeclaration(export) => {
                 let Declaration::VariableDeclaration(declaration) = &export.declaration else {
@@ -67,14 +61,20 @@ pub(super) fn unused_exports(
                         continue;
                     }
                     specifiers.extend(local.reference_id.get());
-                    if let Some(symbol) = resolution.symbol(local)
-                        && scoping.symbol_scope_id(symbol) == resolution.instance_scope()
-                        && resolution
-                            .variable_kind(symbol)
-                            .is_some_and(|kind| !kind.is_const())
-                    {
-                        props.push(symbol);
+                    props.extend(resolution.symbol(local).filter(|&s| is_prop(s)));
+                }
+            }
+            // Upstream looks a re-exported name up in the instance as well.
+            Statement::ExportFromDeclaration(export) if !export.export_kind.is_type() => {
+                for specifier in &export.specifiers {
+                    let ModuleExportName::IdentifierName(local) = &specifier.local else {
+                        continue;
+                    };
+                    if specifier.export_kind.is_type() {
+                        continue;
                     }
+                    let symbol = scoping.get_binding(resolution.instance_scope(), local.name);
+                    props.extend(symbol.filter(|&s| is_prop(s)));
                 }
             }
             _ => {}
@@ -116,6 +116,100 @@ pub(super) fn unused_exports(
                     span(name),
                 ),
             );
+        }
+    }
+}
+
+/// Where acorn-typescript ends the identifier of each top-level name `body` declares with a type
+/// annotation: where the annotation does.
+fn annotation_ends(body: &[Statement<'_>]) -> FxHashMap<SymbolId, u32> {
+    let mut ends = FxHashMap::default();
+    for statement in body {
+        let declaration = match statement {
+            Statement::VariableDeclaration(declaration) => &**declaration,
+            Statement::ExportDeclaration(export) => match &export.declaration {
+                Declaration::VariableDeclaration(declaration) => &**declaration,
+                _ => continue,
+            },
+            _ => continue,
+        };
+        for declarator in &declaration.declarations {
+            if let (Some(identifier), Some(annotation)) = (
+                declarator.id.get_binding_identifier(),
+                &declarator.type_annotation,
+            ) && let Some(symbol) = identifier.symbol_id.get()
+            {
+                ends.insert(symbol, annotation.span.end);
+            }
+        }
+    }
+    ends
+}
+
+/// `state_invalid_export`: in legacy mode, upstream turns a reassigned top-level binding that the
+/// template or a `$:` statement reads into state, and an exported state must not be reassigned.
+pub(super) fn state_exports(
+    component: &Component,
+    resolution: &Resolution,
+    out: &mut Vec<(Raised, Diagnostic)>,
+) {
+    let Some(instance) = &component.instance else {
+        return;
+    };
+    let scoping = resolution.scoping();
+    let body = &component.javascript.get_program(instance.program).body;
+    let reactive: Vec<oxc_span::Span> = body
+        .iter()
+        .filter_map(|statement| match statement {
+            Statement::LabeledStatement(labeled) if labeled.label.name == "$" => Some(labeled.span),
+            _ => None,
+        })
+        .collect();
+    let scripts: Vec<Span> = component
+        .module
+        .iter()
+        .chain(&component.instance)
+        .map(|script| script.span)
+        .collect();
+    let promoted = |symbol: SymbolId| {
+        scoping.get_resolved_reference_ids(symbol).iter().any(|&r| {
+            let at = resolution.reference_span(r);
+            let inside = |s: oxc_span::Span| s.start <= at.start && at.end <= s.end;
+            let in_script = scripts
+                .iter()
+                .any(|s| s.start_offset <= at.start && at.end <= s.end_offset);
+            !in_script || reactive.iter().any(|&s| inside(s))
+        })
+    };
+    for statement in body {
+        let Statement::ExportDeclaration(export) = statement else {
+            continue;
+        };
+        let Declaration::VariableDeclaration(declaration) = &export.declaration else {
+            continue;
+        };
+        // `export let` and `export var` are props.
+        if !declaration.kind.is_const() {
+            continue;
+        }
+        let state = declaration
+            .declarations
+            .iter()
+            .flat_map(|declarator| declarator.id.get_binding_identifiers())
+            .filter_map(|identifier| identifier.symbol_id.get())
+            .any(|symbol| resolution.reassigned(symbol) && promoted(symbol));
+        if state {
+            let raised = Raised {
+                phase: Phase::Walk,
+                section: Section::Instance,
+                at: export.span.start,
+            };
+            let message = "Cannot export state from a module if it is reassigned. Either export a \
+                function returning the state value or only mutate the state value's properties";
+            out.push((
+                raised,
+                error("state_invalid_export", message, span(export.span)),
+            ));
         }
     }
 }

@@ -1,5 +1,5 @@
 use oxc_ast::AstKind;
-use oxc_ast::ast::{BindingIdentifier, BindingPattern, Expression, Statement};
+use oxc_ast::ast::{BindingIdentifier, BindingPattern, Expression, ModuleExportName, Statement};
 use oxc_semantic::{AstNodes, NodeId, Reference, ReferenceId, ScopeId, Scoping, SymbolId};
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
@@ -39,14 +39,15 @@ impl SvelteRule for NoUnusedVariables {
 }
 
 /// The core rule, without the names `svelte-eslint-parser` marks used: `$bindable()` props,
-/// subscribed stores, snippets passed to a component, and one of two top-level names the scripts
-/// share. Its reads include the scripts' references to top-level snippets.
+/// names a re-export lists, subscribed stores, snippets passed to a component, and one of two
+/// top-level names the scripts share. Its reads include the scripts' references to top-level snippets.
 fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let mut skipped = FxHashSet::default();
     let runes = runes(file) != Some(false);
     if runes {
         bindable_props(file, &mut skipped);
     }
+    reexported_names(file, &mut skipped);
     let mut reads = subscribed_stores(file, runes, &mut skipped);
     script_snippets(file, &mut reads);
     component_snippets(file, &mut skipped);
@@ -215,6 +216,33 @@ fn bindable_props(file: &File<'_>, out: &mut FxHashSet<SymbolId>) {
                                 .find_map(|&scope| scoping.get_binding(scope, identifier.name)),
                         );
                     });
+                }
+            }
+        }
+    }
+}
+
+/// `export { a } from '…'` gets a virtual read of the top-level `a`, as a legacy prop does,
+/// although the re-export does not refer to it.
+fn reexported_names(file: &File<'_>, out: &mut FxHashSet<SymbolId>) {
+    let Some(resolution) = file.resolution() else {
+        return;
+    };
+    let scoping = resolution.scoping();
+    let scopes = [resolution.instance_scope(), scoping.root_scope_id()];
+    let tree = file.javascript();
+    for program in file.programs() {
+        for statement in &tree.get_program(program).body {
+            let Statement::ExportFromDeclaration(export) = statement else {
+                continue;
+            };
+            for specifier in &export.specifiers {
+                if let ModuleExportName::IdentifierName(local) = &specifier.local {
+                    out.extend(
+                        scopes
+                            .iter()
+                            .find_map(|&scope| scoping.get_binding(scope, local.name)),
+                    );
                 }
             }
         }

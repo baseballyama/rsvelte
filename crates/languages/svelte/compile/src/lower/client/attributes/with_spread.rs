@@ -26,7 +26,8 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         // A `<svelte:element>` has no template to hold its `is`.
         let is = (tag != "svelte:element")
             .then(|| self.template_is(identifier, attributes))
-            .flatten();
+            .flatten()
+            .map(|(a, _)| a);
         for a in attributes {
             if is.is_some_and(|is| std::ptr::eq(is, a)) {
                 continue;

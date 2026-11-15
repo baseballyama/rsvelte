@@ -37,10 +37,11 @@ impl From<SyntaxError> for Diagnostic {
 }
 
 /// The first error, at the place oxc labels `shift` bytes later, or at `fallback` when it labels
-/// none. `text` is what oxc read, which the labels index.
+/// none. `text` is what oxc read, which the labels index, and `tokens` what it read of it.
 pub fn syntax_error(
     errors: impl IntoIterator<Item = OxcDiagnostic>,
     text: &str,
+    tokens: &[Token],
     fallback: u32,
     shift: u32,
 ) -> SyntaxError {
@@ -65,7 +66,7 @@ pub fn syntax_error(
     );
     SyntaxError {
         diagnostic: Diagnostic::error("parse_error", error.message.to_string(), span),
-        acorn: acorn(&error, text, &[], |_| {}).map(|acorn| acorn.shifted(shift)),
+        acorn: acorn(&error, text, (tokens, None), |_| {}).map(|acorn| acorn.shifted(shift)),
         typescript_code: typescript_code(&error),
     }
 }
@@ -77,15 +78,19 @@ pub fn analysis_error(
     text: &str,
     visit: impl FnOnce(&mut Locator),
 ) -> SyntaxError {
-    let mut syntax_error = syntax_error([error.clone()], text, 0, 0);
-    syntax_error.acorn = acorn(error, text, &[], visit);
+    let mut syntax_error = syntax_error([error.clone()], text, &[], 0, 0);
+    syntax_error.acorn = acorn(error, text, (&[], None), visit);
     syntax_error
 }
 
 /// The number of `error`'s tsc diagnostic.
 fn typescript_code(error: &OxcDiagnostic) -> Option<u32> {
     if error.code.scope.as_deref() != Some("TS") {
-        return None;
+        // oxc gives tsc's scanner error no code.
+        return error
+            .message
+            .starts_with("Invalid Character `")
+            .then_some(1127);
     }
     error.code.number.as_deref()?.parse().ok()
 }
@@ -146,19 +151,21 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
     }
 }
 
-/// What acorn reports for `error`, in the part whose text is `text`, whose tokens are `tokens` and
-/// whose tree `visit` walks; `None` for an error whose code does not say, or that acorn accepts.
+/// What acorn reports for `error`, in the part whose text is `text`, whose tokens are `tokens`,
+/// followed by the token after the part that ended it, and whose tree `visit` walks; `None` for an
+/// error whose code does not say, or that acorn accepts.
 #[cold]
 pub(crate) fn acorn(
     error: &OxcDiagnostic,
     text: &str,
-    tokens: &[Token],
+    (tokens, next): (&[Token], Option<Token>),
     visit: impl FnOnce(&mut Locator),
 ) -> Option<Acorn> {
     let label = error.labels.first()?;
     let (start, end) = (label.offset(), label.offset() + label.len());
+    let read = || tokens.iter().copied().chain(next);
     let kind_at = |at: u32| {
-        let token = tokens.get(tokens.partition_point(|token| token.start() < at))?;
+        let token = read().nth(tokens.partition_point(|token| token.start() < at))?;
         (token.start() == at).then(|| token.kind())
     };
     // A script is a module, so acorn reads every reserved word in a binding as an error of its own.
@@ -174,11 +181,10 @@ pub(crate) fn acorn(
         return reserved(start).filter(|_| kind_at(start) == Some(Kind::Enum));
     }
     let token = |after: u32, kind: Option<Kind>| {
-        tokens
-            .iter()
+        read()
             .filter(|token| token.start() >= after)
             .find(|token| kind.is_none_or(|kind| token.kind() == kind))
-            .map(Token::start)
+            .map(|token| token.start())
     };
     let number = error.code.number.as_deref()?;
     match number {
@@ -201,8 +207,11 @@ pub(crate) fn acorn(
         // A parameter's modifier is a binding to acorn, so a reserved one fails where it starts.
         "8012" if reserved(start).is_some() => reserved(start),
         // A modifier: acorn reads it as the member's name and fails at the token after it. So it
-        // does after a lone name that a token on its line follows.
-        "8009" | "8012" | "1434" | "1435" => Some(fails("Unexpected token", token(end, None)?)),
+        // does after a lone name that a token on its line follows, and after a declaration's
+        // binding that has no initializer.
+        "8009" | "8012" | "1434" | "1435" | "1155" | "1182" => {
+            Some(fails("Unexpected token", token(end, None)?))
+        }
         // `enum` where an expression belongs: acorn reads it as a reserved name.
         "1109" if kind_at(start) == Some(Kind::Enum) => reserved(start),
         // `()`: oxc labels both parentheses, and acorn fails at the closing one.
@@ -252,10 +261,9 @@ pub(crate) fn acorn(
         "1010" => Some(fails("Unterminated comment", start)),
         "1499" => Some(fails(
             "Invalid regular expression flag",
-            tokens
-                .iter()
-                .rev()
-                .find(|token| token.start() <= start)?
+            read()
+                .take_while(|token| token.start() <= start)
+                .last()?
                 .start()
                 + 1,
         )),
@@ -292,11 +300,17 @@ fn early_error(
         "2300" => {
             let (at, name) = second()?;
             let end = at + name.len() as u32;
-            if locate(at, end, Find::Parameters, visit).is_some() {
-                return Some(fails("Argument name clash", at));
-            }
+            let first = error.labels.first()?;
+            let first = oxc_span::Span::sized(first.offset(), first.len());
+            let message = match locate(at, end, Find::Redeclared { first }, visit) {
+                Some((_, AstType::FormalParameters)) => {
+                    return Some(fails("Argument name clash", at));
+                }
+                Some(_) => format!("type '{name}' has already been declared."),
+                None => format!("Identifier '{name}' has already been declared"),
+            };
             Some(Acorn::Fails {
-                message: Cow::Owned(format!("Identifier '{name}' has already been declared")),
+                message: Cow::Owned(message),
                 at,
             })
         }
@@ -406,7 +420,7 @@ const fn fails(message: &'static str, at: u32) -> Acorn {
 mod locator;
 mod typescript_eslint;
 
-pub use typescript_eslint::typescript_eslint_error;
+pub use typescript_eslint::{TYPESCRIPT_ESLINT_UNCHECKED, typescript_eslint_error};
 
 #[cfg(test)]
 mod tests;

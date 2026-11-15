@@ -133,7 +133,8 @@ Issue: [svelte-eslint-parser #1002](https://github.com/sveltejs/svelte-eslint-pa
 
 Issue: [eslint-plugin-svelte #1689](https://github.com/sveltejs/eslint-plugin-svelte/issues/1689).
 
-- Case: `valid-compile/invalid/invalid-svelte-ignore03-input.svelte`
+- Case: `valid-compile/invalid/invalid-svelte-ignore03-input.svelte`. The corpus skips the units
+  of this shape for `svelte.lint`.
 - Upstream reports `Empty block` (`block_empty`) at 2:30 and 14:30, on `{#await …}` blocks whose
   pending branch holds only `<!-- svelte-ignore … -->`.
 - Correct: no `block_empty`. `svelte compile` on the file does not warn, because the branch holds a
@@ -236,6 +237,56 @@ Input:
 The rule throws `source.isSpaceBetweenTokens is not a function`, a `SourceCode` method that
 ESLint 10 removed, while it builds the report. This crate reports the statement as upstream's
 tests expect.
+
+## A crash in `svelte/indent` on an `enum` in a script without `lang`
+
+Input:
+
+```svelte
+<script>
+	enum E { A }
+</script>
+```
+
+The rule throws `Cannot read properties of null (reading 'range')` from `getFirstAndLastTokens`,
+which `setOffsetElementList` calls from the `TSEnumDeclaration` handler in
+`indent-helpers/ts.ts`. The same `enum` in `<script lang="ts">` does not throw. This crate
+indents the `enum` as in a TypeScript script. Test in `task/tests.rs`:
+`an_enum_in_a_plain_script_is_indented`.
+
+## A parse error at a position of the generated code (svelte-eslint-parser)
+
+Input:
+
+```svelte
+<script>x</script>
+```
+
+The svelte-eslint-parser package (1.10.0) parses code it generates from the scripts and the template with
+typescript-eslint (`parseScriptWithoutAnalyzeScopeFromVCode` and `analyzeTypeScriptInSvelte`
+in `parser/script.js`). When that code fails, ESLint reports the error at its line and column in
+the generated code: `Unexpected keyword or identifier.` at 2:0 here, a line the file does not
+have. `{(a) /* c */}`, `let x = $;` and `generics="const T extends string"` fail the same way. This
+crate does not reproduce them. The corpus skips each unit whose expected error is past the
+end of its file.
+
+## `<Script>` and `<Style>` read as blocks (svelte-eslint-parser)
+
+Input:
+
+```svelte
+<Script>
+	<p>hello</p>
+</Script>
+```
+
+The svelte-eslint-parser package (1.10.0) finds the blocks in `context/index.js` with
+`/<!--[\s\S]*?-->|<(script|style|template)([\s>])/giu`, which ignores case. Svelte reads
+`<Script>` and `<Style>` as components and `<SCRIPT>` as an element, but the parser parses their
+content as a script or a style sheet, and ESLint reports `Unterminated regular expression
+literal.` here. Its end tag patterns, such as `/<\/style>/giu`, ignore case too, so a
+`</STYLE>` in a string of the style sheet ends the block. This crate reads the tags as Svelte
+does.
 
 ## `svelte/prefer-const` treats a `<script module>` export as a prop
 
@@ -393,6 +444,7 @@ Issue: [eslint-plugin-svelte #1698](https://github.com/sveltejs/eslint-plugin-sv
 - Correct: the rule reports both. The `{:else}` branch of an each block renders at most once.
 - Why: `elementOccurrenceCount` multiplies the else block's count by the count of its parent each
   block, which is `ZeroToInf`.
+- The corpus skips the lint units that hold such a branch.
 
 ## A space beside an expression names an empty class
 
@@ -461,9 +513,11 @@ No issue yet.
 - Case: `<div class="a"></div><style>div:is(/* l */ .a) { color: red }</style>`.
 - Upstream reports `.a` 7 columns before it, the length of `/* l */`, as if the comment were not in
   the source. A comment before another argument does the same: in `div:not(.a /* m */, .b)`,
-  `.b` moves by its comment.
+  `.b` moves by its comment. So does a comment between the selectors of a rule: in
+  `.a /* c */, .b`, upstream reports `.b` 7 columns before it. So does a comment between compounds,
+  as in `p > /* c */ .a` and `.a /* mid */ .b`.
 - Correct: report `.a` at its own column.
-- The corpus skips its 5 lint units.
+- The corpus skips its 8 lint units.
 
 ## Quirks of the CSS parsers that upstream uses
 
@@ -492,6 +546,13 @@ repository, and no lint case covers these quirks.
   The corpus skips its 3 lint units.
 - An at-rule in an inline style, such as `style="@media x"`, has no end, and `convertChild`
   throws. This crate does not convert that style.
+- `postcss-selector-parser` 7.2.0 ends a hex escape with a space only, and only after fewer than six
+  digits
+  ([`consumeEscape`](https://github.com/postcss/postcss-selector-parser/blob/7591d8d67f42fde79490d5e9c8fac0b8deb43fa2/src/tokenize.js#L71-L93)).
+  CSS Syntax 3 lets one whitespace of any kind end it, a tab or a line break too, and so does
+  Svelte. So upstream reads `#line\a` and `break` in `#line\a⏎break`, where Svelte reads one ID,
+  `line⏎break`. `svelte/consistent-selector-style` then reports `#line\a`. The corpus skips the
+  two lint units that hold such escapes.
 
 ## The SvelteKit navigation rules: `$app/paths` through a namespace, a constant or a pattern
 
@@ -625,25 +686,25 @@ No issues yet. The corpus skips the lint units of each.
 
 - `svelte/no-inspect` visits every `Identifier`
   ([no-inspect.ts](https://github.com/sveltejs/eslint-plugin-svelte/blob/24201e06a1a8e270c1143d1fb460e6ae635719d8/packages/eslint-plugin-svelte/src/rules/no-inspect.ts#L27)),
-  and ESTree has two over the one token of `const { $inspect } = o`, `import { $inspect }` and
-  `export { $inspect }`. Upstream reports them twice. This crate reports each token once.
+  and the syntax tree has two over the one token of `const { $inspect } = o`,
+  `import { $inspect }` and `export { $inspect }`. Upstream reports them twice. This crate reports each token once.
 - `hasUsefulStringEscape` does not count `\0`
   ([prefer-attribute-interpolation.ts](https://github.com/sveltejs/eslint-plugin-svelte/blob/24201e06a1a8e270c1143d1fb460e6ae635719d8/packages/eslint-plugin-svelte/src/rules/prefer-attribute-interpolation.ts#L15)),
-  so upstream reports `` data-a={`a\0${b}`} ``, whose NUL no attribute text can hold. This
+  so upstream reports `` data-a={`a\0${b}`} ``, whose null character no attribute text can hold. This
   crate does not.
 - `svelte/no-inner-declarations` gives the core rule a proxy node
   ([no-inner-declarations.ts](https://github.com/sveltejs/eslint-plugin-svelte/blob/24201e06a1a8e270c1143d1fb460e6ae635719d8/packages/eslint-plugin-svelte/src/rules/no-inner-declarations.ts#L29-L36)).
   `getScope` does not know the proxy, so `.upper` is the global scope for
   `if (a) function g() {}` at the top of a script, and upstream reports the strict code as
   sloppy. This crate does not report it.
-- eslint-utils' `ReferenceTracker` stops a cycle with a stack, not a set of the variables it has
+- The `ReferenceTracker` of `@eslint-community/eslint-utils` stops a cycle with a stack, not a set of the variables it has
   seen. For `const { ['derived']: d = ns.derived } = ns; d()`, it reaches `d` through the key
   and through the default, and `svelte/require-stores-init` reports `d()` twice.
-- svelte-eslint-parser takes a `}` inside a comment for the end of an `{#await}` head:
+- The svelte-eslint-parser package takes a `}` inside a comment for the end of an `{#await}` head:
   `{#await p /* } */}` gives `svelte/mustache-spacing` the space before the comment's `}`.
-- svelte-eslint-parser drops the attributes of a `<style>` whose closing tag is `</style >`, so
+- The svelte-eslint-parser package drops the attributes of a `<style>` whose closing tag is `</style >`, so
   `svelte/block-lang` and `svelte/first-attribute-linebreak` see no `lang`.
-- svelte-eslint-parser reads `// c` in a start tag inside a block, such as
+- The svelte-eslint-parser package reads `// c` in a start tag inside a block, such as
   `{#if a}<div // c\n>{/if}`, as a token for each character, not as a comment. Upstream then takes
   the comment's last character as the token before `>`.
 
@@ -666,9 +727,9 @@ No issue yet. The rule ends its range at the token after the index, or after the
 there is no index
 ([require-each-key.ts](https://github.com/sveltejs/eslint-plugin-svelte/blob/24201e06a1a8e270c1143d1fb460e6ae635719d8/packages/eslint-plugin-svelte/src/rules/require-each-key.ts#L21)).
 
-- Case: `{#each xs as x: string}`. The context ends at `x`, so the token after it is the `:` of
+- Case: `{#each xs as x: string}`. The context ends at `x`, so the next token is the `:` of
   the annotation, and upstream reports `{#each xs as x:`.
-- Case: `{#each xs as x: string, i}`. svelte-eslint-parser finds the index by searching its name
+- Case: `{#each xs as x: string, i}`. The svelte-eslint-parser package finds the index by searching its name
   from the end of the context
   ([block.ts](https://github.com/sveltejs/svelte-eslint-parser/blob/467f843e0c74a08b694e0d1b5676a10931023a2f/src/parser/converts/block.ts#L287-L295)),
   and finds the `i` of `string`. Upstream's range then ends inside the annotation.
@@ -677,13 +738,13 @@ there is no index
 
 ## The last `</textarea` of a textarea's end tag starts it (svelte-eslint-parser)
 
-No issue yet. svelte-eslint-parser starts an end tag at the last `<` before the element's end
+No issue yet. The svelte-eslint-parser package starts an end tag at the last `<` before the element's end
 ([element.ts](https://github.com/sveltejs/svelte-eslint-parser/blob/467f843e0c74a08b694e0d1b5676a10931023a2f/src/parser/converts/element.ts#L977)).
 
 - Case: `<textarea>a</textarea\n\n\n</textarea\n\n>`. Svelte reads one end tag from the first
   `</textarea` to the `>`. Upstream starts it at the second, so the tag reads as one line, and
   `svelte/html-closing-bracket-new-line` reports the line breaks before its `>`.
-- Correct: the end tag spans several lines, and the rule never adds a line break to an end tag.
+- Correct: the end tag spans more than one line, and the rule never adds a line break to an end tag.
   This crate reports nothing.
 - The corpus skips its lint unit.
 
@@ -711,7 +772,7 @@ No issue yet. `processThisAttribute` finds the parts of `this=` by searching the
   for `svelte/no-spaces-around-equal-signs-in-attribute`, and names `'this '` in the message of
   `svelte/max-attributes-per-line`.
 - Case: `<svelte:element this="{'div'}">` and `<svelte:element this='h{n}'>`. A string value
-  that does not start with `{` becomes a static attribute whose value is as long as the string
+  that does not start with `{` becomes a static attribute. Its value is as long as the string
   Svelte read, measured from after the quote, so `this="{'div'}"` ends at `{'di`. Upstream
   reports nothing for `svelte/html-quotes` and gives other rules the short range.
 - Correct: the key is `this`, and the value is the whole quoted text. This crate reads them so.
@@ -725,7 +786,8 @@ No issue yet.
 - Upstream reports nothing for `svelte/prefer-svelte-reactivity`. `nestIfBlock` gives the scope of
   the `{#if}` branch the whole `SvelteIfBlock` as its block
   ([script-let.ts](https://github.com/sveltejs/svelte-eslint-parser/blob/467f843e0c74a08b694e0d1b5676a10931023a2f/src/context/script-let.ts#L502-L509)),
-  and the `{:else}` scope is its sibling. eslint-utils' `getInnermostScope` stops at the first
+  and the `{:else}` scope is its sibling. The `getInnermostScope` of
+  `@eslint-community/eslint-utils` stops at the first
   child scope whose block holds the node, so `findVariable` never reaches the `{:else}` scope.
 - Correct: report `new Set()`, as for the same code in the `{#if}` branch. This crate does.
 - The corpus skips its lint unit.
@@ -746,8 +808,8 @@ Issue: [svelte-eslint-parser #1005](https://github.com/sveltejs/svelte-eslint-pa
 | --------------------------------------------------------- | ------------------------------- | ------------ |
 | `<script` in a string: `` {@html `<script>…</script>`} `` | `Parsing error`                 | 9            |
 | Components named `Script` and `Style`                     | `Parsing error: Type expected.` | 1            |
+| `use:a.b`, `transition:a.b`, `class:A.B`, `style:a-b`     | `Parsing error`                 | 16           |
 | A component named `Style` in a file without that error    | read as a `<style>` element     | 3            |
-| `use:a.b`, `transition:a.b`, `class:A.B`, `style:a-b`     | `Parsing error`                 | 11           |
 | A one-line `<script>import … from '…'</script>`           | `Parsing error: ';' expected.`  | 1            |
 | Any other one-line `<script>…</script>`                   | `Parsing error: ',' expected.`  | 38           |
 | `{@const x = (y)}`                                        | `Parsing error: ')' expected.`  | 2            |
@@ -756,6 +818,8 @@ Issue: [svelte-eslint-parser #1005](https://github.com/sveltejs/svelte-eslint-pa
 | `<template lang="pug">` with a `{a}`                      | no reference to `a`             | 2            |
 | A closing tag with a space: `</script >`                  | no script                       | 3            |
 | A one-line file whose script follows the template         | no script                       | 1            |
+| A line comment after a call: `{#await f(a) // }`          | the head ends inside it         | 1            |
+| `</textarea` twice, the first not closed by `>`           | the end tag at the second       | 1            |
 
 Issues for the rows of the table:
 
@@ -774,9 +838,62 @@ Issues for the rows of the table:
   template.
 - A script after the template on one line: no issue yet. The case is
   `{#if x}<p></p>{/if}<script lang="ts">let a = 1</script>`.
+- A line comment after a call: no issue yet. Without the call, `{#await a // }` is the
+  `Parsing error` above. With it, the tokens read `//` as two `/` and the
+  `}` after them as the end of the head, so the next line's `}` is text to `svelte/indent`.
+- `</textarea`: no issue yet. In `<textarea>a</textarea⏎⏎</textarea⏎>`, Svelte ends the content
+  at the first `</textarea`, whose end tag runs to the `>`. The svelte-eslint-parser package starts the end tag
+  at the second `</textarea`, and the text between belongs to no node.
 
 Svelte 5.57.3 compiles every one of them, so this crate lints them. The corpus skips their lint
 units (`corpus/_registry/units.toml`).
+
+## A `<script>` inside the markup joins the component's script (svelte-eslint-parser)
+
+With svelte-eslint-parser 1.10.1 and `svelte/indent` at its defaults.
+
+```svelte
+<script>
+  import { dev } from '$app/environment'
+</script>
+
+<svelte:head>
+  {#if !dev}
+    <script>
+      window.a = 1
+    </script>
+  {/if}
+</svelte:head>
+```
+
+Upstream reports every line from 3 to 11, for example line 5: `Expected indentation of 4 spaces
+but found 0 spaces.` The `ImportDeclaration` ends at 8:18, the end of `window.a = 1`.
+[`extractBlocks`](https://github.com/sveltejs/svelte-eslint-parser/blob/e7e70142ca0b211ff849057e0b1d68eba460fb4b/src/context/index.ts#L395-L396)
+finds `<script>` elements with a regular expression over the whole file, and
+[the loop](https://github.com/sveltejs/svelte-eslint-parser/blob/e7e70142ca0b211ff849057e0b1d68eba460fb4b/src/context/index.ts#L233)
+adds the content of each one to the component's script code, a nested one too. Svelte reads the
+nested element as markup. The corpus skips the lint unit.
+
+## A comment in a tag inside a block is not a comment (svelte-eslint-parser)
+
+No issue yet. With svelte-eslint-parser 1.10.1 and `svelte/indent` at its defaults.
+
+```svelte
+{#if a}
+  <div
+    class="a"
+    // c
+  ></div>
+{/if}
+```
+
+Upstream reports nothing. Put `<div>` and `</div>` in place of the block, and it reports line 4
+as indented by 4 spaces where it expects 2 spaces. To find the tag of each comment,
+[the loop](https://github.com/sveltejs/svelte-eslint-parser/blob/e7e70142ca0b211ff849057e0b1d68eba460fb4b/src/parser/converts/root.ts#L186-L229)
+walks only elements whose parents are elements, so it skips a comment in a tag inside a block.
+[The fallback](https://github.com/sveltejs/svelte-eslint-parser/blob/e7e70142ca0b211ff849057e0b1d68eba460fb4b/src/parser/index.ts#L359-L360)
+then makes a token of each character of the comment. The `svelte/indent` rule indents those
+tokens as an attribute. `main` (2352dd6eac) has the same loop. The corpus skips the lint unit.
 
 ## Rules that throw (`svelte/indent`, `svelte/consistent-selector-style`, `no-unused-vars`)
 
@@ -786,17 +903,44 @@ units (`corpus/_registry/units.toml`).
   (Svelte's `css/samples/comment-html`).
 - Issues: the `svelte/indent` crash comes from a mapped type in a `$props()` annotation, and [eslint-plugin-svelte #970](https://github.com/sveltejs/eslint-plugin-svelte/issues/970) fixes it on `main`, not yet released. [eslint-plugin-svelte #1699](https://github.com/sveltejs/eslint-plugin-svelte/issues/1699) is the `consistent-selector-style` crash.
 - `svelte/consistent-selector-style` also throws on any selector `postcss-selector-parser`
-  rejects, such as `*|`, a bare `:`, `[  ]` or an unterminated `[x^]` (7 units).
+  rejects (7 units). Examples are `*|`, a bare `:` and `[  ]`. So is `[x^]`, an attribute
+  operator with no value.
 - `svelte/indent` throws `Column number out of range` when a line starts with U+2028 or U+2029
   (2 units). `svelte-eslint-parser` counts token columns as if neither breaks a line, while
   ESLint's `sourceCode.lines` splits on both, and the fix calls `getIndexFromLoc` with that
   column on an empty line:
-  [indent-helpers/index.js](https://github.com/sveltejs/eslint-plugin-svelte/blob/24201e06a1a8e270c1143d1fb460e6ae635719d8/packages/eslint-plugin-svelte/src/rules/indent-helpers/index.ts).
+  [`indent-helpers/index.ts`](https://github.com/sveltejs/eslint-plugin-svelte/blob/24201e06a1a8e270c1143d1fb460e6ae635719d8/packages/eslint-plugin-svelte/src/rules/indent-helpers/index.ts).
 - ESLint's `no-unused-vars` throws `Node must be provided when reporting error if location is
-  not provided` on an unused enum member with a string-literal name, `enum E { 'a-b' }` (2 units):
+  not provided` on an unused `enum` member with a string-literal name, `enum E { 'a-b' }` (2 units):
   the `typescript-eslint` variable has a definition but no identifier to report at.
 - ESLint then reports nothing for the file. This crate reports every rule, and the corpus skips
   these lint units.
+
+## `svelte/indent`: a mapped type moves unrelated lines when the script uses a rune
+
+With eslint-plugin-svelte 3.24.1, svelte-eslint-parser 1.10.1 and default options.
+
+```svelte
+<script lang="ts">
+  const e: { [K in keyof typeof h]: K } = {}
+  let s = $state(1)
+</script>
+
+<div>
+  <p title="a"></p>
+  <!-- the same line 15 more times -->
+</div>
+```
+
+Upstream reports lines 3 to 6 and every `<p>`: `Expected indentation of 4 spaces but found 2
+spaces.` and the like. With a rune or a store, svelte-eslint-parser parses virtual code. It then
+fixes node locations, but not the deprecated alias `TSMappedType.typeParameter`, which keeps its
+virtual-code range (here `[391, 410]` for a type at `[30, 58]`).
+[`TSMappedType`](https://github.com/sveltejs/eslint-plugin-svelte/blob/a18a0e43f1d31a01f102208e75249ce5d401e983/packages/eslint-plugin-svelte/src/rules/indent-helpers/ts.ts#L269-L274)
+lays out that range as an element, so it sets offsets on whatever tokens sit there. When the
+range holds no token, the rule throws (the section above). PR
+[#970](https://github.com/sveltejs/eslint-plugin-svelte/pull/970), merged on `main` and not yet
+released, reads `key` and `constraint` instead. The corpus skips these lint units.
 
 ## Svelte's compiler: what `svelte.compile` warns, which `svelte/valid-compile` reports
 
@@ -825,3 +969,59 @@ output (`corpus/**/expected/svelte.compile/client.warnings.json`).
 - Correct: the comment leads the next node only, and warns once, as in any other fragment. This
   crate reads the fragment as written.
   Test: `warnings::tests::a_comment_in_a_default_slot_warns_once`.
+
+## `svelte/valid-compile`: a literal after another one skips the bidirectional character check
+
+An issue for Svelte, not for eslint-plugin-svelte.
+
+- Case: none upstream; rsvelte's own corpus units under
+  `rsvelte-tests-core-1/bidi_every_occurrence_3344/`, such as
+  `<script>let a = "x‮y"; let b = "p‮q"; let c = "m‮n";</script>`, where upstream
+  warns only about `b`.
+- Svelte 5.57.3 tests each string literal and template element with the `test` of a global
+  regular expression. The code is in [`patterns.js`](https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/patterns.js#L24-L25),
+  [`Literal.js`](https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/2-analyze/visitors/Literal.js#L10),
+  [`TemplateElement.js`](https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/2-analyze/visitors/TemplateElement.js#L9).
+  `test` starts at the `lastIndex` that the call before left, even one in another file, so a
+  match moves the start of the next test and a failed test resets it.
+- Correct: warn about every literal that holds such a character, as rsvelte does. The corpus
+  skips these units for `svelte.lint` as it does for `svelte.compile`.
+
+## `svelte/valid-compile`: a dotted namespace crashes the compiler
+
+An issue for Svelte, not for eslint-plugin-svelte.
+
+- Case: none upstream; rsvelte's own corpus units such as
+  `<script lang="ts">namespace A.B { const a = 1; }</script>`, where upstream reports
+  `node.body.body.map is not a function` at 1:1.
+- Svelte 5.57.3 removes a namespace's types by mapping over `node.body.body`
+  ([`remove_typescript_nodes.js`](https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/1-parse/remove_typescript_nodes.js#L168-L178)).
+  In `namespace A.B {}` the body of `A` is the declaration of `B`, which has no `body` array.
+- Correct: walk into the inner declaration and refuse the namespace when it holds a value, as
+  rsvelte does with `typescript_invalid_feature`. The corpus skips these units for `svelte.lint`
+  as it does for `svelte.compile`.
+
+## `svelte/valid-compile`: compiler bugs that `svelte.compile` already skips
+
+Issues for Svelte or acorn-typescript, not for eslint-plugin-svelte. The `svelte/valid-compile` rule reports
+what the compiler reports, so the corpus skips these units for `svelte.lint` with the reason
+their `svelte.compile` skip gives.
+
+- Svelte folds `String.fromCodePoint` as it analyzes and throws on an invalid code point
+  ([`scope.js`][fold]).
+- Svelte reads `An+B` with a pattern that misses `-2n-1`, `2N` and `-1` ([`style.js`][nth]).
+- Svelte reads no namespace prefix in an attribute selector such as `[svg|a]`
+  ([`style.js`][namespace]).
+- Svelte refuses the empty declaration between two semicolons ([`style.js`][empty]).
+- Svelte matches an empty `~=` or `^=` value, which selects nothing ([`css-prune.js`][prune]).
+- The acorn-typescript parser reads an `await` in a namespace as one in a class static block.
+- Svelte skips only whitespace after a combinator, so it reads a comment there as the next
+  compound selector and fails to read a name ([`style.js`][combinator]).
+  The `svelte/consistent-selector-style` rule then reads the selector at the wrong place.
+
+[fold]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/scope.js#L72
+[nth]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/1-parse/read/style.js#L13-L14
+[namespace]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/1-parse/read/style.js#L272-L274
+[empty]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/1-parse/read/style.js#L486-L488
+[prune]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/2-analyze/css/css-prune.js#L702-L706
+[combinator]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/1-parse/read/style.js#L388-L398

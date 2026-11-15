@@ -224,8 +224,77 @@ fn variable_declaration<'s, 'a>(
     }
 }
 
+/// The errors of the scripts' declarations: an instance name that a module import declares,
+/// then runes' placement in runes mode or their calls outside it.
+pub(super) fn declaration_errors(
+    component: &Component,
+    resolution: &Resolution,
+    runes: bool,
+    out: &mut Vec<(Raised, Diagnostic)>,
+) {
+    module_import_conflicts(component, out);
+    if runes {
+        rune_placement(component, resolution, out);
+    } else {
+        legacy_rune_calls(component, resolution, out);
+    }
+}
+
+/// `declaration_duplicate_module_import`: a top-level instance declarator that binds a name a
+/// `<script module>` import declares.
+fn module_import_conflicts(component: &Component, out: &mut Vec<(Raised, Diagnostic)>) {
+    let (Some(module), Some(instance)) = (&component.module, &component.instance) else {
+        return;
+    };
+    let javascript = &component.javascript;
+    // Upstream erases type imports before it analyzes.
+    let imports: FxHashSet<&str> = (javascript.get_program(module.program).body.iter())
+        .filter_map(|statement| match statement {
+            Statement::ImportDeclaration(import) if !import.import_kind.is_type() => {
+                import.specifiers.as_ref()
+            }
+            _ => None,
+        })
+        .flatten()
+        .filter(|specifier| {
+            !matches!(specifier, oxc_ast::ast::ImportDeclarationSpecifier::ImportSpecifier(s)
+                if s.import_kind.is_type())
+        })
+        .map(|specifier| specifier.local().name.as_str())
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    for statement in &javascript.get_program(instance.program).body {
+        let Some((declaration, _)) = variable_declaration(statement) else {
+            continue;
+        };
+        for declarator in &declaration.declarations {
+            let conflicts = declarator
+                .id
+                .get_binding_identifiers()
+                .iter()
+                .any(|id| imports.contains(id.name.as_str()));
+            if conflicts {
+                let at = span(oxc_span::GetSpan::span(&declarator.id));
+                let raised = Raised {
+                    phase: Phase::Walk,
+                    section: Section::Instance,
+                    at: at.start_offset,
+                };
+                let message = "Cannot declare a variable with the same name as an import from \
+                    `<script module>`";
+                out.push((
+                    raised,
+                    error("declaration_duplicate_module_import", message, at),
+                ));
+            }
+        }
+    }
+}
+
 /// Runes mode's `legacy_export_invalid`, `props_duplicate` and `props_invalid_placement`.
-pub(super) fn rune_placement(
+fn rune_placement(
     component: &Component,
     resolution: &Resolution,
     out: &mut Vec<(Raised, Diagnostic)>,
@@ -269,7 +338,8 @@ pub(super) fn rune_placement(
                     "Cannot use `export let` in runes mode — use `$props()` instead",
                     at,
                 );
-                out.push((walk(section, at.start_offset), found));
+                // Upstream checks an export after its declaration, so errors inside it come first.
+                out.push((walk(section, at.end_offset - 1), found));
             }
         }
         for (i, call) in props_calls(resolution, program).into_iter().enumerate() {
@@ -292,6 +362,56 @@ pub(super) fn rune_placement(
                 out.push((walk(section, at.start_offset), found));
             }
         }
+    }
+}
+
+/// `rune_invalid_usage`: outside runes mode, a declarator whose initializer calls `$state`,
+/// `$derived` or `$props` that is not a store subscription, such as a parameter of that name.
+fn legacy_rune_calls(
+    component: &Component,
+    resolution: &Resolution,
+    out: &mut Vec<(Raised, Diagnostic)>,
+) {
+    struct Calls<'r> {
+        resolution: &'r Resolution,
+        section: Section,
+        out: &'r mut Vec<(Raised, Diagnostic)>,
+    }
+    impl<'a> Visit<'a> for Calls<'_> {
+        fn visit_variable_declarator(&mut self, it: &oxc_ast::ast::VariableDeclarator<'a>) {
+            if let Some(Expression::CallExpression(call)) = &it.init
+                && let Expression::Identifier(callee) = &call.callee
+                && let name = callee.name.as_str()
+                && matches!(name, "$state" | "$derived" | "$props")
+                && (self.resolution.symbol(callee).is_some()
+                    || !self.resolution.is_store_subscription(name))
+            {
+                let at = span(call.span);
+                let raised = Raised {
+                    phase: Phase::Walk,
+                    section: self.section,
+                    at: at.start_offset,
+                };
+                let message = format!("Cannot use `{name}` rune in non-runes mode");
+                self.out
+                    .push((raised, error("rune_invalid_usage", &message, at)));
+            }
+            walk::walk_variable_declarator(self, it);
+        }
+    }
+    for (section, script) in [
+        (Section::Module, &component.module),
+        (Section::Instance, &component.instance),
+    ] {
+        let Some(script) = script else {
+            continue;
+        };
+        let mut calls = Calls {
+            resolution,
+            section,
+            out,
+        };
+        calls.visit_program(component.javascript.get_program(script.program));
     }
 }
 

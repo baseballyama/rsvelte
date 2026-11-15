@@ -4,21 +4,17 @@
 //! tell "not warned" from "not checked". [`CompileWarnings::warnings`] holds every warning;
 //! [`CompileWarnings::compiled`] leaves out the ones a `svelte-ignore` comment ignores.
 
-use oxc_ast::AstKind;
-use oxc_ast_visit::Visit;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Component, Script, TemplateNode};
-use rsvelte_typescript_tree::{
-    DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
-    ProgramIdentifier, Tree,
-};
+use rsvelte_typescript_tree::{ProgramIdentifier, Tree};
 
 use crate::analyze::Analysis;
 use crate::compiler_syntax_tree::CompilerSyntaxTree;
-use crate::resolve::{Resolution, Roots, TemplateName, TemplateScope};
+use crate::resolve::Resolution;
 
 mod a11y;
+mod awaits;
 mod exports;
 mod found;
 mod fuzzymatch;
@@ -33,12 +29,12 @@ mod template;
 mod tests;
 mod updates;
 
-use exports::unused_exports;
-use found::Found;
+use exports::{state_exports, unused_exports};
+use found::{Found, VisitOrder};
 pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
 pub use runes::dollar_name_errors;
 pub(crate) use runes::svelte_option;
-use runes::{custom_element, rune_placement, runes};
+use runes::{custom_element, declaration_errors, runes};
 use selectors::unused_selectors;
 use template::Template;
 
@@ -71,6 +67,8 @@ pub enum Phase {
     Parse,
     Scopes,
     Walk,
+    /// The checks of the whole component after the walks.
+    Component,
     /// The compiler analyzes the style sheet after it walks every tree.
     Stylesheet,
 }
@@ -304,8 +302,8 @@ impl Options {
     }
 }
 
-/// The warnings of `component` from the file `filename`; `analysis` is needed only for its
-/// style sheet.
+/// The warnings of `component` from the file `filename`, `None` when the caller names no file;
+/// `analysis` is needed only for its style sheet.
 #[must_use]
 pub fn warnings(
     component: &Component,
@@ -313,11 +311,11 @@ pub fn warnings(
     resolution: &Resolution,
     analysis: Option<&Analysis>,
     source: &str,
-    filename: &str,
+    filename: Option<&str>,
     options: Options,
 ) -> CompileWarnings {
     let mut out = CompileWarnings {
-        awaits: top_level_awaits(component, compiler_syntax_tree),
+        awaits: awaits::suspending_awaits(component, compiler_syntax_tree, resolution),
         ..CompileWarnings::default()
     };
     deprecated_tag(component, source, &mut out.errors);
@@ -330,9 +328,7 @@ pub fn warnings(
         resolution,
         runes,
     ));
-    if runes {
-        rune_placement(component, resolution, &mut out.errors);
-    }
+    declaration_errors(component, resolution, runes, &mut out.errors);
     let mut found = Found::default();
     let custom_options = svelte_option(component, source, "customElement").is_some();
     let none = rustc_hash::FxHashMap::default();
@@ -352,8 +348,17 @@ pub fn warnings(
         &mut found,
     );
     custom_element(component, resolution, source, &mut found);
-    let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
-    let name = rsvelte_svelte_syntax::names::component_name(filename);
+    // Upstream names an unknown file `Self.svelte`.
+    let (name, basename) = filename.map_or_else(
+        || ("Self".to_owned(), "Self.svelte"),
+        |filename| {
+            let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
+            (
+                rsvelte_svelte_syntax::names::component_name(filename),
+                basename,
+            )
+        },
+    );
     let mut template = Template::new(
         template::Context {
             component,
@@ -369,10 +374,23 @@ pub fn warnings(
     );
     template.fragment(component.root, a11y::Parent::None);
     let bind_this = std::mem::take(&mut template.bind_this);
+    let first_slot = template.first_slot.map(|(_, at)| at);
+    component_errors(
+        component,
+        resolution,
+        source,
+        template
+            .event_directive
+            .filter(|_| template.event_attributes),
+        first_slot,
+        custom_options || options.custom_element,
+        &mut out.errors,
+    );
     if runes {
         updates::non_reactive_updates(component, resolution, &bind_this, exported, &mut found);
     } else {
         unused_exports(component, resolution, source, &mut found);
+        state_exports(component, resolution, &mut out.errors);
     }
     if let Some(Ok(sheet)) = component.style.as_ref().map(|s| &s.sheet)
         && let Some(found) = stylesheet_analysis::first_error(&sheet.rules, source)
@@ -384,22 +402,83 @@ pub fn warnings(
         };
         out.errors.push((raised, found));
     }
-    if let (Some(style), Some(analysis)) = (&component.style, analysis)
-        && let Ok(sheet) = &style.sheet
-    {
-        if selectors::ignored(component, source, runes, &mut found) {
-            found.silence(style.span, "css_unused_selector");
-        }
-        unused_selectors(&sheet.rules, analysis, source, &mut found);
+    if let Some(analysis) = analysis {
+        stylesheet_warnings(component, analysis, source, runes, &mut found);
     }
     let regions = ignore::regions(component, compiler_syntax_tree, source, runes, &mut found);
-    let (found, silenced) = found.finish();
+    let (found, silenced) = found.finish(&VisitOrder::of(component, source));
     out.ignored = ignore::ignored(&found, &regions);
     for (ignored, silenced) in out.ignored.iter_mut().zip(silenced) {
         *ignored |= silenced;
     }
     out.warnings = found.into_iter().map(|(_, warning)| warning).collect();
     out
+}
+
+/// `css_unused_selector`, kept and marked ignored when the comment before `<style>` ignores it.
+fn stylesheet_warnings(
+    component: &Component,
+    analysis: &Analysis,
+    source: &str,
+    runes: bool,
+    found: &mut Found,
+) {
+    if let Some(style) = &component.style
+        && let Ok(sheet) = &style.sheet
+    {
+        if selectors::ignored(component, source, runes, found) {
+            found.silence(style.span, "css_unused_selector");
+        }
+        unused_selectors(&sheet.rules, analysis, source, found);
+    }
+}
+
+/// The checks upstream makes once the walks end: `mixed_event_handler_syntaxes`, an element's
+/// `on:` directive beside an element's event attribute, then `slot_snippet_conflict`, a
+/// `{@render}` beside a `<slot>` or beside `$$slots`.
+fn component_errors(
+    component: &Component,
+    resolution: &Resolution,
+    source: &str,
+    event_directive: Option<(Span, Span)>,
+    first_slot: Option<Span>,
+    custom_element: bool,
+    out: &mut Vec<(Raised, Diagnostic)>,
+) {
+    let raised = |at| Raised {
+        phase: Phase::Component,
+        section: Section::Template,
+        at,
+    };
+    if let Some((at, name)) = event_directive {
+        let name = name.text(source);
+        let message = format!(
+            "Mixing old (on:{name}) and new syntaxes for event handling is not allowed. Use only \
+                the on{name} syntax"
+        );
+        let found = error("mixed_event_handler_syntaxes", &message, at);
+        // Upstream checks it first, so it sorts before the slot conflict wherever that is.
+        out.push((raised(0), found));
+    }
+    let renders = component
+        .nodes
+        .iter()
+        .any(|node| matches!(node, TemplateNode::Render { .. }));
+    let uses_slots = resolution.unresolved_names().any(|name| name == "$$slots");
+    if !renders || !(uses_slots || (!custom_element && first_slot.is_some())) {
+        return;
+    }
+    let at = first_slot.unwrap_or_else(|| {
+        // Upstream points at the text `$$slot`, which a `$$slots` read holds.
+        let at = source.find("$$slot").map_or(0, |at| at as u32);
+        Span::new(at, at)
+    });
+    let message = "Cannot use `<slot>` syntax and `{@render ...}` tags in the same component. \
+        Migrate towards `{@render ...}` tags completely";
+    out.push((
+        raised(at.start_offset),
+        error("slot_snippet_conflict", message, at),
+    ));
 }
 
 /// Upstream `analyze_module`'s warnings for a `.svelte.js` or `.svelte.ts` module: its script
@@ -432,7 +511,7 @@ pub fn module_warnings(
         &mut found,
     );
     let regions = ignore::module_regions(&scripts, source, &mut found);
-    let (found, _) = found.finish();
+    let (found, _) = found.finish(&VisitOrder::default());
     CompileWarnings {
         ignored: ignore::ignored(&found, &regions),
         warnings: found.into_iter().map(|(_, warning)| warning).collect(),
@@ -512,69 +591,4 @@ fn deprecated_tag(component: &Component, source: &str, out: &mut Vec<(Raised, Di
             }
         }
     }
-}
-
-/// `await` at the top level of the instance script or of a template expression.
-fn top_level_awaits(component: &Component, compiler_syntax_tree: &CompilerSyntaxTree) -> Vec<Span> {
-    struct Awaits<'t> {
-        tree: &'t Tree,
-        functions: u32,
-        out: Vec<Span>,
-    }
-    impl<'a> Visit<'a> for Awaits<'_> {
-        fn enter_node(&mut self, kind: AstKind<'a>) {
-            match kind {
-                AstKind::Function(_) | AstKind::ArrowFunctionExpression(_) => self.functions += 1,
-                AstKind::AwaitExpression(e) if self.functions == 0 => self.out.push(span(e.span)),
-                _ => {}
-            }
-        }
-
-        fn leave_node(&mut self, kind: AstKind<'a>) {
-            if matches!(
-                kind,
-                AstKind::Function(_) | AstKind::ArrowFunctionExpression(_)
-            ) {
-                self.functions -= 1;
-            }
-        }
-    }
-    impl Roots for Awaits<'_> {
-        fn expression(&mut self, expression: ExpressionIdentifier) {
-            self.visit_expression(self.tree.get_expression(expression));
-        }
-
-        fn bound(&mut self, expression: ExpressionIdentifier) {
-            self.expression(expression);
-        }
-
-        fn declaration(&mut self, declaration: DeclarationIdentifier) {
-            self.visit_variable_declaration(self.tree.get_declaration(declaration));
-        }
-
-        fn pattern(&mut self, pattern: PatternIdentifier) {
-            self.visit_formal_parameter(self.tree.get_pattern(pattern));
-        }
-
-        fn parameters(&mut self, parameters: ParametersIdentifier) {
-            self.visit_formal_parameters(self.tree.get_parameters(parameters));
-        }
-
-        fn name(&mut self, _: TemplateName) {}
-
-        fn enter(&mut self, _: TemplateScope) {}
-
-        fn leave(&mut self) {}
-    }
-    let tree = &component.javascript;
-    let mut awaits = Awaits {
-        tree,
-        functions: 0,
-        out: Vec::new(),
-    };
-    if let Some(instance) = &component.instance {
-        awaits.visit_program(tree.get_program(instance.program));
-    }
-    crate::resolve::walk(compiler_syntax_tree, compiler_syntax_tree.root, &mut awaits);
-    awaits.out
 }

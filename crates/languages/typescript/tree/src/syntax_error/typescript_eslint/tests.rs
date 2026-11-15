@@ -101,7 +101,7 @@ fn thrown_of_all(text: &str) -> Option<(String, u32)> {
         .parse()
         .diagnostics
         .into_iter()
-        .map(|error| crate::syntax_error([error], text, 0, 0))
+        .map(|error| crate::syntax_error([error], text, &[], 0, 0))
         .collect();
     let error = super::typescript_eslint_error(&errors)?;
     let message = error.typescript_eslint_message()?.into_owned();
@@ -128,5 +128,24 @@ fn a_check_typescript_eslint_makes_is_thrown_when_tsc_s_parser_finds_nothing() {
             "'public' modifier cannot appear on a type member".to_owned(),
             14
         ))
+    );
+}
+
+#[test]
+fn a_checker_error_is_left_unchecked_for_typescript_eslint() {
+    let text = "class C { static private a = 1; set x(a, b) {} }";
+    let parsed = Tree::build(text, |builder| {
+        builder.leave_unchecked(crate::TYPESCRIPT_ESLINT_UNCHECKED);
+        let range = Span::new(0, text.len() as u32);
+        builder.program(range, SourceType::ts()).map_err(Into::into)
+    });
+    parsed.expect("typescript-eslint parses it");
+}
+
+#[test]
+fn an_invalid_character_is_tsc_s() {
+    assert_eq!(
+        thrown("const 💡 = 1;"),
+        Some(("Invalid character.".to_owned(), 6))
     );
 }
