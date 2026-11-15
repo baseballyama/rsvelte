@@ -1,4 +1,4 @@
-# svelte.lint/default: 37160 match
+# svelte.lint/default: 37163 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -17,7 +17,6 @@ svelte/kampsy-ui/src/routes/collapse/+page.svelte	mismatch
 svelte/kampsy-ui/src/routes/installation/+page.svelte	mismatch
 svelte/kite-public/src/lib/components/story/CitationTooltip.svelte	mismatch
 svelte/kite-public/src/routes/+layout.svelte	mismatch
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/export-list/input.svelte	mismatch
 svelte/layercake/src/_components/SharedTooltip.html.svelte	mismatch
 svelte/layercake/src/_components/SharedTooltip.percent-range.html.svelte	mismatch
 svelte/layerchart/docs/src/examples/components/Partition/flame-graph.svelte	mismatch
@@ -103,7 +102,6 @@ svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_wher
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/da266f625312c031.svelte	refused
 svelte/rsvelte-tests-core-2/early_errors_3243/every_early_error_is_rejected_where_acorn_rejects_it/e6f48eb60e9a7548.svelte.js	refused
 svelte/rsvelte-tests-core-2/early_errors_3243/the_analyze_phase_duplicate_check_is_still_reachable/d6fd0ea8bba6d45d.svelte	mismatch
-svelte/rsvelte-tests-core-2/exported_class_unused_warning/an_export_specifier_alone_does_not_count_as_a_use/4d1d5a84bd51a3d6.svelte	mismatch
 svelte/rsvelte-tests-core-2/function_this_param_shape/a_template_this_parameter_is_erased_from_compiled_output/0cf009fb2a2a65c0.svelte	mismatch
 svelte/rsvelte-tests-core-2/import_export_parser_shapes/a_quoted_enum_member_name_is_a_literal/4bfcd601713582f5.svelte	unexpected
 svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/26f7bc47509f509a.svelte	unexpected
@@ -458,7 +456,6 @@ svelte/rsvelte/pattern/adversarial/css/css-comment-positions.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/css/css-scope-hostile.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/css/css-selector-modern-features.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/css/rejected-global-keyframes-selector.svelte	mismatch
-svelte/rsvelte/pattern/adversarial/legacy/legacy-export-renames-and-const.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/typescript/ts-decorator-and-modifiers.svelte	mismatch
 svelte/rsvelte/pattern/css/empty-declaration.svelte	mismatch

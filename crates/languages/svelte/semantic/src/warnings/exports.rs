@@ -1,6 +1,7 @@
 //! Legacy mode's exports: `export_let_unused` for those nothing reads or writes, and
 //! `state_invalid_export` for a reassigned `export const` that the template reads.
 
+use oxc_ast::AstKind;
 use oxc_ast::ast::{Declaration, ModuleExportName, Statement};
 use oxc_semantic::{ReferenceId, SymbolId};
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -69,11 +70,13 @@ pub(super) fn unused_exports(
                         continue;
                     }
                     specifiers.extend(local.reference_id.get());
+                    // Upstream declares a class as a `let`.
                     if let Some(symbol) = resolution.symbol(local)
                         && scoping.symbol_scope_id(symbol) == resolution.instance_scope()
-                        && resolution
+                        && (resolution
                             .variable_kind(symbol)
                             .is_some_and(|kind| !kind.is_const())
+                            || matches!(resolution.declaration(symbol), AstKind::Class(_)))
                     {
                         props.push(symbol);
                     }

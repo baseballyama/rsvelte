@@ -619,3 +619,22 @@ fn a_reactive_statement_off_the_instance_top_level_warns_in_legacy_mode() {
         Vec::<String>::new()
     );
 }
+
+#[test]
+fn an_exported_class_nothing_uses_is_an_unused_export_in_legacy_mode() {
+    let codes = |code: &str| -> Vec<String> {
+        compiled_with_errors(code, None)
+            .0
+            .into_iter()
+            .map(|(code, ..)| code)
+            .collect()
+    };
+    assert_eq!(
+        codes("<script>class K {} export { K as C };</script>\n"),
+        ["export_let_unused"]
+    );
+    assert_eq!(
+        codes("<script>function f() {} export { f };</script>\n"),
+        Vec::<String>::new()
+    );
+}
