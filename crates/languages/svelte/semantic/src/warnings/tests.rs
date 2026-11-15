@@ -570,3 +570,17 @@ fn an_unused_export_spans_the_type_annotation() {
         .collect();
     assert_eq!(texts, ["a: string", "b: number"]);
 }
+
+// `svelte.compile` 5.57.3 warns the first, second and fourth.
+#[test]
+fn a_reactive_statement_below_the_instance_top_level_is_misplaced() {
+    let source = "<script context=\"module\">$: m = 1;</script><script>function foo() { $: x = 1; } \
+                  foo; $: y = 2; if (true) { $: z = 3; }</script>{y}";
+    let (warnings, _) = compiled_with_errors(source, None);
+    let texts: Vec<_> = warnings
+        .into_iter()
+        .filter(|(c, ..)| c == "reactive_declaration_invalid_placement")
+        .map(|(_, text, _)| text)
+        .collect();
+    assert_eq!(texts, ["$: m = 1;", "$: x = 1;", "$: z = 3;"]);
+}

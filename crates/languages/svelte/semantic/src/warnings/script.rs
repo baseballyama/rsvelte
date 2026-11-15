@@ -405,6 +405,21 @@ impl<'a> Visit<'a> for Walk<'_> {
             AstKind::ExpressionStatement(statement) => {
                 self.component_creation(&statement.expression);
             }
+            // A statement of the program's body has entered the program and itself.
+            AstKind::LabeledStatement(statement)
+                if statement.label.name == "$"
+                    && !self.runes
+                    && !(self.section == Section::Instance && self.entered.len() == 2) =>
+            {
+                self.warn(
+                    at.start,
+                    warning(
+                        "reactive_declaration_invalid_placement",
+                        "Reactive declarations only exist at the top level of the instance script",
+                        span(at),
+                    ),
+                );
+            }
             _ => {}
         }
         self.place = inner;

@@ -1,4 +1,4 @@
-# svelte.lint/default: 37112 match
+# svelte.lint/default: 37120 match
 svelte/bits-ui/tests/src/tests/checkbox/checkbox-group-test.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-svelte4-input.svelte	mismatch
@@ -9,7 +9,6 @@ svelte/kampsy-ui/src/routes/button/+page.svelte	mismatch
 svelte/kampsy-ui/src/routes/checkbox/+page.svelte	mismatch
 svelte/kampsy-ui/src/routes/collapse/+page.svelte	mismatch
 svelte/kampsy-ui/src/routes/installation/+page.svelte	mismatch
-svelte/language-tools/packages/language-server/test/plugins/svelte/testfiles/diagnostics-module.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/export-list/input.svelte	mismatch
 svelte/melt-ui/docs/src/components/preview.svelte	mismatch
 svelte/originui-svelte/src/lib/components/ui/data-table/flex-render.svelte	mismatch
@@ -42,8 +41,6 @@ svelte/rsvelte-tests-core-1/bind_validation_host_product_3264/duplicate_this_is_
 svelte/rsvelte-tests-core-1/compiler/phases/phase2_analyze/store_subscriptions/tests/test_module_function_does_not_cause_false_scoped_subscription/7bcf85f48f7f2473.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase2_analyze/tests/snippet_parameter_assignment_uses_the_assignment_or_binding_span/616b5b20e305a1bc.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase2_analyze/tests/snippet_parameter_assignment_uses_the_assignment_or_binding_span/db91063a0140ebb8.svelte	mismatch
-svelte/rsvelte-tests-core-1/compiler/phases/phase2_analyze/visitors/class_declaration/tests/module_legacy_label_does_not_make_a_top_level_class_nested/e42001e531eec750.svelte	mismatch
-svelte/rsvelte-tests-core-1/compiler/phases/phase2_analyze/visitors/class_declaration/tests/nested_legacy_label_only_warns_once_for_the_class/714931f8a934cd2e.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/visitors/shared/component/tests/typed_is_store_member_expression_agrees_with_the_json_walk/1764e6cbf99c9c6d.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/visitors/shared/component/tests/typed_is_store_member_expression_agrees_with_the_json_walk/1a010d2f89dd0ee9.svelte	mismatch
 svelte/rsvelte-tests-core-1/compiler/phases/phase3_transform/client/visitors/shared/component/tests/typed_is_store_member_expression_agrees_with_the_json_walk/41f4bee6cdf15d66.svelte	mismatch
@@ -406,7 +403,6 @@ svelte/rsvelte-tests-core-3/ts_namespace_3244/compile_module_rejects_every_names
 svelte/rsvelte-tests-core-3/ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/a741abe5fab89b04.svelte.js	refused
 svelte/rsvelte-tests-core-3/ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/e2a752406ba26629.svelte.js	refused
 svelte/rsvelte-tests-core-3/ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/fb9aac17933af83e.svelte.js	refused
-svelte/rsvelte-tests-core-3/validator_message_wording/module_level_reactive_declaration_says_only_exist/131c68437332f115.svelte	mismatch
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/every_host_accepts_what_upstream_accepts/37afe1d05a47e6a8.svelte	mismatch
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	mismatch
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte	mismatch
@@ -561,8 +557,6 @@ svelte/svelte/packages/svelte/tests/css/samples/siblings-combinator-each-else/in
 svelte/svelte/packages/svelte/tests/css/samples/unicode-identifier/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/migrate/samples/is-not-where-has/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/migrate/samples/is-not-where-has/output.svelte	mismatch
-svelte/svelte/packages/svelte/tests/migrate/samples/svelte-ignore/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/migrate/samples/svelte-ignore/output.svelte	mismatch
 svelte/svelte/packages/svelte/tests/parser-modern/samples/comment-before-function-binding/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.svelte	mismatch
@@ -571,8 +565,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-getter-setter/Chi
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-getter-setter/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/not-actual-runes/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/bidirectional-control-characters/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/ignore-warning-dash-backwards-compat/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/module-script-reactive-declaration/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/non-empty-block-dev/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/svelte-self-deprecated/input.svelte	mismatch
 svelte/threlte/apps/docs/src/examples/extras/cube-camera/App.svelte	mismatch

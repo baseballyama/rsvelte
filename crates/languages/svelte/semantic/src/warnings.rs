@@ -221,6 +221,7 @@ impl CompileWarnings {
         "options_missing_custom_element",
         "perf_avoid_inline_class",
         "perf_avoid_nested_class",
+        "reactive_declaration_invalid_placement",
         "script_context_deprecated",
         "script_unknown_attribute",
         "slot_element_deprecated",
