@@ -23,8 +23,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 30363024,
-	"alloc_bytes": 4469921942,
+	"allocs": 30363028,
+	"alloc_bytes": 4469922014,
 	"peak_live_growth_bytes": 3489483,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -50,17 +50,17 @@
 		"svelte.compile.warnings": {
 			"calls": 73730,
 			"allocs": 1186591,
-			"alloc_bytes": 94157437
+			"alloc_bytes": 94157433
 		},
 		"svelte.compile/client": {
 			"calls": 36865,
 			"allocs": 93121,
-			"alloc_bytes": 13192693
+			"alloc_bytes": 13192691
 		},
 		"svelte.compile/server": {
 			"calls": 36865,
 			"allocs": 93123,
-			"alloc_bytes": 13192569
+			"alloc_bytes": 13192567
 		},
 		"svelte.compileModule/client": {
 			"calls": 2680,
@@ -85,7 +85,7 @@
 		"svelte.format/default": {
 			"calls": 36865,
 			"allocs": 3756519,
-			"alloc_bytes": 249828452
+			"alloc_bytes": 249828450
 		},
 		"svelte.lint.compiler_syntax_tree_as_typescript": {
 			"calls": 105,
@@ -120,7 +120,7 @@
 		"svelte.lint/default": {
 			"calls": 36865,
 			"allocs": 197233,
-			"alloc_bytes": 22295177
+			"alloc_bytes": 22295169
 		},
 		"svelte.lower.client": {
 			"calls": 36374,
@@ -139,13 +139,13 @@
 		},
 		"svelte.parse": {
 			"calls": 36865,
-			"allocs": 574629,
-			"alloc_bytes": 177322416
+			"allocs": 574631,
+			"alloc_bytes": 177322467
 		},
 		"svelte.parse.typescript": {
 			"calls": 2141,
-			"allocs": 23031,
-			"alloc_bytes": 4360718
+			"allocs": 23033,
+			"alloc_bytes": 4360769
 		},
 		"svelte.render_plan": {
 			"calls": 34729,
@@ -160,17 +160,17 @@
 		"svelte.typescript_projection.ast": {
 			"calls": 36865,
 			"allocs": 104721,
-			"alloc_bytes": 6874378
+			"alloc_bytes": 6874376
 		},
 		"svelte.typescript_projection.emit": {
 			"calls": 36865,
 			"allocs": 401685,
-			"alloc_bytes": 232007117
+			"alloc_bytes": 232007115
 		},
 		"svelte.typescript_projection/default": {
 			"calls": 36865,
 			"allocs": 346183,
-			"alloc_bytes": 433529955
+			"alloc_bytes": 433529953
 		},
 		"svelte.validate": {
 			"calls": 34729,
@@ -345,17 +345,17 @@
 		"vuelte.check": {
 			"calls": 71594,
 			"allocs": 99037,
-			"alloc_bytes": 15017777
+			"alloc_bytes": 15017775
 		},
 		"vuelte.compile/client": {
 			"calls": 36865,
 			"allocs": 74856,
-			"alloc_bytes": 8503665
+			"alloc_bytes": 8503663
 		},
 		"vuelte.compile/server": {
 			"calls": 36865,
 			"allocs": 74856,
-			"alloc_bytes": 8503665
+			"alloc_bytes": 8503663
 		},
 		"vuelte.translate": {
 			"calls": 53368,
