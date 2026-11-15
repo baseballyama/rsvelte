@@ -6,6 +6,7 @@ use rsvelte_kernel::source::positions::Span;
 
 use super::{Builder, Part, parentheses};
 use crate::ProgramIdentifier;
+use crate::acorn_grammar::{rejection, whitespace};
 use crate::syntax_error::{SyntaxError, acorn, syntax_error, typescript_eslint_at};
 
 impl<'a> Builder<'a> {
@@ -85,6 +86,12 @@ impl<'a> Builder<'a> {
                 .and_then(|first| acorn(first, text, (&parsed.tokens, None), |_| {}));
             let mut error = syntax_error(parsed.diagnostics.iter().cloned(), text, &[], start, 0);
             error.acorn = acorn;
+            let stop = (self.as_acorn)
+                .then(|| whitespace(text, &parsed.irregular_whitespaces, 0))
+                .flatten();
+            if let Some(stop) = stop.filter(|stop| stop.0 <= error.acorn_at()) {
+                error = rejection(stop);
+            }
             return Err(Box::new(Read {
                 error,
                 diagnostics: parsed.diagnostics,
@@ -95,7 +102,7 @@ impl<'a> Builder<'a> {
         let rejection = match self.check(
             &parsed.diagnostics,
             (text, start, 0),
-            (&parsed.tokens, None),
+            (&parsed.tokens, None, &parsed.irregular_whitespaces),
             (part, source_type),
         ) {
             Ok(()) => None,

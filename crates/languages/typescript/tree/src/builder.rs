@@ -5,13 +5,13 @@ use oxc_ast::ast::{
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::{Visit, VisitMut};
-use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, Parser, Token};
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
+mod check;
 mod parentheses;
 mod program;
 pub use program::Rejected;
@@ -19,11 +19,8 @@ pub use program::Rejected;
 /// No rule unchecked: the list a host starts with.
 const NOTHING: &[&str] = &[];
 
-use crate::acorn_grammar::{Rejection, Unsupported, rejection};
-use crate::syntax_error::{
-    Locator, SyntaxError, TYPESCRIPT_ESLINT_CHECKS, acorn, reported, syntax_error, typescript_code,
-    typescript_eslint_at,
-};
+use crate::acorn_grammar::Rejection;
+use crate::syntax_error::SyntaxError;
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
     ProgramIdentifier, Trees, TypeParametersIdentifier,
@@ -119,55 +116,6 @@ impl<'a> Builder<'a> {
         self.as_acorn = true;
     }
 
-    /// The first error of a part oxc read the host reports, if any; `text`, `tokens` and `part`
-    /// are the part's, for what acorn reports.
-    fn check(
-        &mut self,
-        diagnostics: &[OxcDiagnostic],
-        (text, fallback, shift): (&str, u32, u32),
-        (tokens, next_token): (&[Token], Option<Token>),
-        (part, source_type): (Part<'_, 'a>, SourceType),
-    ) -> Result<(), SyntaxError> {
-        let visit = |locator: &mut Locator| part.walk(locator);
-        let first = (diagnostics.iter())
-            .position(|error| reported(error, self.unchecked, self.as_acorn, visit));
-        let stop = if self.as_acorn && (first.is_some() || self.acorn_rejection.is_none()) {
-            let mut unsupported = Unsupported::new(source_type.is_typescript(), tokens);
-            part.walk(&mut unsupported);
-            unsupported.first.map(|(at, why)| (at + shift, why))
-        } else {
-            None
-        };
-        if let Some(first) = first {
-            // acorn may fail at the token after the part, which the parser read to end it.
-            let acorn = acorn(&diagnostics[first], text, (tokens, next_token), visit);
-            let errors = diagnostics.iter().skip(first).cloned();
-            let mut error = syntax_error(errors, text, &[], fallback, shift);
-            error.acorn = acorn.map(|acorn| acorn.shifted(shift));
-            error.typescript_eslint_at =
-                typescript_eslint_at(&diagnostics[first], visit).map(|at| at + shift);
-            // acorn throws where it stops first, before an error oxc reports later or at the same
-            // place.
-            return Err(match stop {
-                Some(stop) if stop.0 <= error.acorn_at() => rejection(stop),
-                _ => error,
-            });
-        }
-        if self.acorn_rejection.is_none() {
-            self.acorn_rejection = stop;
-        }
-        // typescript-eslint throws some of what this host lets pass, from its own checks.
-        (self.unchecked_errors).extend(
-            (diagnostics.iter())
-                .filter(|error| {
-                    typescript_code(error)
-                        .is_some_and(|code| TYPESCRIPT_ESLINT_CHECKS.contains(&code))
-                })
-                .map(|error| syntax_error([error.clone()], text, tokens, fallback, shift)),
-        );
-        Ok(())
-    }
-
     pub(crate) fn finish(self) -> Trees<'a> {
         Trees {
             source_text: self.source_text,
@@ -260,12 +208,16 @@ impl<'a> Builder<'a> {
             .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_expression_at(start)
-            .map_err(|error| syntax_error(error.diagnostics, text, &error.tokens, start, 0))?;
+            .map_err(|error| self.fatal(error, text, start, 0))?;
         let part = Part::Expression(&parsed.expression);
         self.check(
             &parsed.diagnostics,
             (text, start, 0),
-            (&parsed.tokens, parsed.next_token),
+            (
+                &parsed.tokens,
+                parsed.next_token,
+                &parsed.irregular_whitespaces,
+            ),
             (part, source_type),
         )?;
         // Upstream refuses a sequence as an attribute's value unless parentheses wrap it.
@@ -308,14 +260,16 @@ impl<'a> Builder<'a> {
             .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_statement_at(start)
-            .map_err(|error| {
-                syntax_error(error.diagnostics, self.source_text, &error.tokens, start, 0)
-            })?;
+            .map_err(|error| self.fatal(error, self.source_text, start, 0))?;
         let part = Part::Statement(&parsed.statement);
         self.check(
             &parsed.diagnostics,
             (self.source_text, start, 0),
-            (&parsed.tokens, parsed.next_token),
+            (
+                &parsed.tokens,
+                parsed.next_token,
+                &parsed.irregular_whitespaces,
+            ),
             (part, source_type),
         )?;
         self.record(&parsed.tokens, &parsed.comments, 0);
@@ -460,7 +414,7 @@ impl<'a> Builder<'a> {
             .with_options(parentheses::options(parenthesized))
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
-            .map_err(|error| syntax_error(error.diagnostics, text, &error.tokens, 0, shift))?;
+            .map_err(|error| self.fatal(error, text, 0, shift))?;
         if parenthesized {
             let recorded = &mut self.parentheses;
             parentheses::strip(self.allocator, &mut parsed.expression, shift, recorded);
@@ -469,7 +423,11 @@ impl<'a> Builder<'a> {
         self.check(
             &parsed.diagnostics,
             (text, 0, shift),
-            (&parsed.tokens, parsed.next_token),
+            (
+                &parsed.tokens,
+                parsed.next_token,
+                &parsed.irregular_whitespaces,
+            ),
             (part, source_type),
         )?;
         if !wrapper(&parsed.expression) {
