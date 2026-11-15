@@ -165,3 +165,156 @@ fn an_error_at_a_scripts_end_is_refused() {
     Lint { modules: false }.run(&context, &mut out);
     assert_eq!((out.files.len(), out.diagnostics.len()), (0, 1));
 }
+
+/// Upstream's `svelte/indent` throws on this enum; this crate indents it as in a TypeScript script.
+#[test]
+fn an_enum_in_a_plain_script_is_indented() {
+    let document = Document::new(
+        "App.svelte".to_owned(),
+        "<script>\n\tenum E { A }\n</script>\n".to_owned(),
+    )
+    .expect("a small document");
+    let (json, _) = lint_with("svelte/indent", &document, |_| {});
+    assert_eq!(json["findings"].as_array().map(Vec::len), Some(1), "{json}");
+    assert_eq!(json["findings"][0]["start"]["line"].as_u64(), Some(2));
+}
+
+/// typescript-eslint reads every module as TypeScript, and lets checker errors through.
+#[test]
+fn a_module_is_read_as_typescript_eslint_reads_it() {
+    let report = |source: &str| {
+        let document =
+            Document::new("a.svelte.js".to_owned(), source.to_owned()).expect("a small document");
+        lint_with("svelte/no-svelte-internal", &document, |_| {}).0
+    };
+    let json = report("import 'svelte/internal';\nclass C { private #a = 1; }\n");
+    assert_eq!(json["findings"].as_array().map(Vec::len), Some(1), "{json}");
+    assert_eq!(
+        json["findings"][0]["rule"].as_str(),
+        Some("svelte/no-svelte-internal")
+    );
+    let json = report("foo(a b);\n");
+    assert!(json["findings"][0]["rule"].is_null(), "{json}");
+    assert_eq!(
+        json["findings"][0]["message"].as_str(),
+        Some("Parsing error: ',' expected.")
+    );
+}
+
+/// svelte-eslint-parser needs an identifier where Svelte reads a directive's name as one.
+#[test]
+fn a_directive_name_that_is_not_an_identifier_fails_the_parse() {
+    for (source, message, column) in [
+        (
+            "<div class:a.b>x</div>",
+            "Parsing error: Expected Identifier, but MemberExpression found.",
+            11,
+        ),
+        (
+            "<div transition:a.b>x</div>",
+            "Parsing error: Expected JS Identifier, but MemberExpression found.",
+            16,
+        ),
+        (
+            "<svelte:element this={t} bind:this>x</svelte:element>",
+            "Parsing error: Expected Identifier, but ThisExpression found.",
+            30,
+        ),
+    ] {
+        let document =
+            Document::new("App.svelte".to_owned(), source.to_owned()).expect("a small document");
+        let (json, _) = lint_with("svelte/valid-compile", &document, |_| {});
+        let finding = &json["findings"][0];
+        assert_eq!(finding["message"].as_str(), Some(message), "{source}");
+        assert_eq!(
+            finding["start"]["column"].as_u64(),
+            Some(column),
+            "{source}"
+        );
+    }
+}
+
+/// Svelte lets these TypeScript grammar errors pass; typescript-eslint throws them at the
+/// declaration.
+#[test]
+fn a_grammar_error_svelte_lets_pass_fails_the_parse() {
+    for (source, message, column) in [
+        (
+            "<script lang=\"ts\">\nlet x!: number = 1;\n</script>\n",
+            "Parsing error: Declarations with initializers cannot also have definite assignment \
+             assertions.",
+            4,
+        ),
+        (
+            "<script lang=\"ts\">\ndeclare function* g(): void;\n</script>\n",
+            "Parsing error: Generators are not allowed in an ambient context.",
+            0,
+        ),
+    ] {
+        let document =
+            Document::new("App.svelte".to_owned(), source.to_owned()).expect("a small document");
+        let (json, _) = lint_with("svelte/valid-compile", &document, |_| {});
+        let finding = &json["findings"][0];
+        assert_eq!(finding["message"].as_str(), Some(message), "{source}");
+        assert_eq!(finding["start"]["line"].as_u64(), Some(2), "{source}");
+        assert_eq!(
+            finding["start"]["column"].as_u64(),
+            Some(column),
+            "{source}"
+        );
+    }
+}
+
+/// tsc's scanner rejects what the compiler rejects only in its analysis, in its own words.
+#[test]
+fn a_legacy_octal_or_a_source_import_fails_the_parse() {
+    for (script, message, column) in [
+        ("let e = '\\8';", "Escape sequence '\\8' is not allowed.", 9),
+        (
+            "let e = 'abc\\251def';",
+            "Octal escape sequences are not allowed. Use the syntax '\\xa9'.",
+            12,
+        ),
+        (
+            "let e = 0755;",
+            "Octal literals are not allowed. Use the syntax '0o755'.",
+            8,
+        ),
+        ("import source w from './w.js';", "'=' expected.", 14),
+    ] {
+        let source = format!("<script>\n{script}\n</script>\n<b>x</b>\n");
+        let document = Document::new("App.svelte".to_owned(), source).expect("a small document");
+        let (json, _) = lint_with("svelte/valid-compile", &document, |_| {});
+        let finding = &json["findings"][0];
+        let expected = format!("Parsing error: {message}");
+        assert_eq!(finding["message"].as_str(), Some(&*expected), "{script}");
+        assert_eq!(
+            finding["start"]["column"].as_u64(),
+            Some(column),
+            "{script}"
+        );
+    }
+}
+
+/// typescript-eslint throws on an abstract property's initializer at the initializer.
+#[test]
+fn an_abstract_initializer_fails_the_parse_at_the_initializer() {
+    for (path, source, column) in [
+        ("a.svelte.js", "class K {\n\tabstract a = 1;\n}\n", 14),
+        (
+            "App.svelte",
+            "<script>\nclass K {\n\tabstract a = 1;\n}\n</script>\n<p>{K}</p>\n",
+            14,
+        ),
+    ] {
+        let document = Document::new(path.to_owned(), source.to_owned()).expect("a small document");
+        let (json, _) = lint_with("svelte/no-svelte-internal", &document, |_| {});
+        let finding = &json["findings"][0];
+        assert_eq!(
+            finding["message"].as_str(),
+            Some("Parsing error: Abstract property cannot have an initializer."),
+            "{path}"
+        );
+        assert_eq!(finding["start"]["column"].as_u64(), Some(column), "{path}");
+    }
+}

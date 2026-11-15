@@ -21,7 +21,8 @@ mod builder;
 pub use builder::{Builder, Recorded, Rejected};
 mod syntax_error;
 pub use syntax_error::{
-    Acorn, Locator, SyntaxError, analysis_error, syntax_error, typescript_eslint_error,
+    Acorn, Locator, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, analysis_error, syntax_error,
+    typescript_eslint_error,
 };
 
 pub mod scratch;
@@ -90,6 +91,8 @@ struct Trees<'a> {
     /// Boxed, so that a document with neither costs one pointer in every tree.
     rare: Option<Box<Rare>>,
     unchecked: &'static [&'static str],
+    /// The errors oxc reported in the parts that the host lets pass, in order.
+    unchecked_errors: Vec<SyntaxError>,
     as_acorn: bool,
 }
 
@@ -219,6 +222,12 @@ impl Tree {
         (self.0.borrow_dependent().rare.as_ref())
             .and_then(|rare| rare.acorn_rejection)
             .map(acorn_grammar::rejection)
+    }
+
+    /// The syntax errors oxc reported in the parts that the host the builder read for lets pass.
+    #[must_use]
+    pub fn unchecked_errors(&self) -> &[SyntaxError] {
+        &self.0.borrow_dependent().unchecked_errors
     }
 
     /// Whether the host the builder read for reports `error`, an error of an analysis of the

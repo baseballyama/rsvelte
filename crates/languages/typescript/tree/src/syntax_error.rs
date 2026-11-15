@@ -86,7 +86,11 @@ pub fn analysis_error(
 /// The number of `error`'s tsc diagnostic.
 fn typescript_code(error: &OxcDiagnostic) -> Option<u32> {
     if error.code.scope.as_deref() != Some("TS") {
-        return None;
+        // oxc gives tsc's scanner error no code.
+        return error
+            .message
+            .starts_with("Invalid Character `")
+            .then_some(1127);
     }
     error.code.number.as_deref()?.parse().ok()
 }
@@ -410,7 +414,7 @@ const fn fails(message: &'static str, at: u32) -> Acorn {
 mod locator;
 mod typescript_eslint;
 
-pub use typescript_eslint::typescript_eslint_error;
+pub use typescript_eslint::{TYPESCRIPT_ESLINT_UNCHECKED, typescript_eslint_error};
 
 #[cfg(test)]
 mod tests;
