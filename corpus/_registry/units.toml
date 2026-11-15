@@ -3344,6 +3344,7 @@
 "svelte.format" = "upstream bug: Prettier 3.9.10 prints a hex escape's terminating space and a descendant combinator as one space, which joins the two selectors into one name"
 
 ["svelte/svelte/packages/svelte/tests/css/samples/unicode-identifier/input.svelte".skip]
+"svelte.lint" = "upstream bug: postcss-selector-parser ends a hex escape before a tab or a line break, and after six digits before a space, so `#line\\a` and the name after it are two selectors"
 "svelte.format" = "upstream bug: Prettier 3.9.10 prints a hex escape's terminating space and a descendant combinator as one space, which joins the two selectors into one name"
 
 ["svelte/rsvelte-tests-core-1/css_selector_syntax_5_56_10/a_scoped_pseudo_class_keeps_its_source_spelling/da31ac17065cbeab.svelte".skip]
@@ -4164,3 +4165,6 @@
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/5b242d82304197ec.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B` or `style:max-width`"
+
+["svelte/svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.svelte".skip]
+"svelte.lint" = "upstream bug: postcss-selector-parser ends a hex escape before a tab or a line break, and after six digits before a space, so `#line\\a` and the name after it are two selectors"

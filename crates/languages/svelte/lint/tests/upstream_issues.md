@@ -489,6 +489,13 @@ repository, and no lint case covers these quirks.
   source's end, 9.
 - An at-rule in an inline style, such as `style="@media x"`, has no end, and `convertChild`
   throws. This crate does not convert that style.
+- `postcss-selector-parser` 7.2.0 ends a hex escape with a space only, and only after fewer than six
+  digits
+  ([`consumeEscape`](https://github.com/postcss/postcss-selector-parser/blob/7591d8d67f42fde79490d5e9c8fac0b8deb43fa2/src/tokenize.js#L71-L93)).
+  CSS Syntax 3 lets one whitespace of any kind end it, a tab or a line break too, and so does
+  Svelte. So upstream reads `#line\a` and `break` in `#line\a⏎break`, where Svelte reads one ID,
+  `line⏎break`. `svelte/consistent-selector-style` then reports `#line\a`. The corpus skips the
+  two lint units that hold such escapes.
 
 ## The SvelteKit navigation rules: `$app/paths` through a namespace, a constant or a pattern
 
