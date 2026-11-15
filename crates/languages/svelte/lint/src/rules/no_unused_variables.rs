@@ -1,11 +1,15 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{BindingIdentifier, BindingPattern, Expression, Statement};
-use oxc_semantic::{Reference, ReferenceId, ScopeId, Scoping, SymbolId};
+use oxc_semantic::{AstNodes, NodeId, Reference, ReferenceId, ScopeId, Scoping, SymbolId};
+use oxc_span::GetSpan;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, NodeKind};
+use rsvelte_svelte_semantic::legacy::{TopLevel, Variable};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use super::legacy_reactivity::legacy;
 use super::nodes;
 use super::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
@@ -55,6 +59,84 @@ fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
         |symbol| bodies.get(&symbol).copied(),
         reporter,
     );
+    reactive_declarations(file, reporter);
+}
+
+/// `analyzeReactiveScope`: a top-level `$: name = …` that assigns an undeclared name declares it,
+/// with the first assigned identifier as its definition.
+fn reactive_declarations(file: &File<'_>, reporter: &mut Reporter<'_>) {
+    // Most components have no `$:`, and then need no legacy facts.
+    let tree = file.javascript();
+    let reactive = file.programs().into_iter().any(|program| {
+        tree.get_program(program).body.iter().any(|statement| {
+            matches!(statement, Statement::LabeledStatement(labeled) if labeled.label.name == "$")
+        })
+    });
+    if !reactive {
+        return;
+    }
+    let legacy = legacy(file);
+    if legacy.implicit.is_empty() {
+        return;
+    }
+    let semantic = file.semantic();
+    let (scoping, nodes) = (semantic.scoping(), semantic.nodes());
+    let mut used = vec![false; legacy.implicit.len()];
+    let mut last_write: Vec<Option<oxc_span::Span>> = vec![None; legacy.implicit.len()];
+    for (index, top) in legacy.references.iter().enumerate() {
+        let Some(TopLevel {
+            variable: Variable::Implicit(variable),
+            ..
+        }) = *top
+        else {
+            continue;
+        };
+        let variable = variable as usize;
+        let reference = scoping.get_reference(ReferenceId::from_usize(index));
+        let node = reference.node_id();
+        let at = nodes.kind(node).span();
+        if at == legacy.implicit[variable].identifier {
+            continue;
+        }
+        if reference.is_write() && last_write[variable].is_none_or(|w| w.start < at.start) {
+            last_write[variable] = Some(at);
+        }
+        used[variable] |= reference.is_read() && !updates_itself(nodes, node);
+    }
+    for ((implicit, used), write) in legacy.implicit.iter().zip(used).zip(last_write) {
+        if used {
+            continue;
+        }
+        let (action, at) = write.map_or(("defined", implicit.identifier), |w| {
+            ("assigned a value", w)
+        });
+        reporter.range(
+            format!("'{}' is {action} but never used.", implicit.name),
+            Span::new(at.start, at.end),
+        );
+    }
+}
+
+/// `isReadForItself`: `x += 1` or `x++` as a statement, or `x` in the value of `x = …`.
+fn updates_itself(nodes: &AstNodes<'_>, identifier: NodeId) -> bool {
+    let name = match nodes.kind(identifier) {
+        AstKind::IdentifierReference(reference) => reference.name,
+        _ => return false,
+    };
+    let parent = nodes.parent_id(identifier);
+    match nodes.kind(parent) {
+        AstKind::AssignmentExpression(_) | AstKind::UpdateExpression(_) => {
+            return matches!(nodes.parent_kind(parent), AstKind::ExpressionStatement(_));
+        }
+        _ => {}
+    }
+    nodes.ancestor_kinds(identifier).any(|kind| {
+        matches!(
+            kind,
+            AstKind::AssignmentExpression(assignment)
+                if assignment.left.get_identifier_name() == Some(name.as_str())
+        )
+    })
 }
 
 /// The scope of each snippet's parameters and body, where `svelte-eslint-parser`'s function for

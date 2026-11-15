@@ -442,3 +442,39 @@ fn a_name_declared_twice_in_one_upstream_scope_is_one_variable() {
         ["'v' is assigned a value but never used."]
     );
 }
+
+// ESLint 10.14.0 with svelte-eslint-parser 1.10.0.
+#[test]
+fn a_reactive_assignment_declares_an_undeclared_name() {
+    assert_eq!(
+        unused("<script>$: x = f();</script>"),
+        ["'x' is defined but never used."]
+    );
+    assert_eq!(
+        unused("<script>$: x = f();</script>{x}"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>$: x = 1; x;</script>"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused("<script>$: x = 1; function g() { return x; } g;</script>"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        unused_at("<script>$: x = 1;\n$: x = 2;</script>"),
+        [("'x' is assigned a value but never used.".to_owned(), 2)]
+    );
+    assert_eq!(
+        unused("<script>$: x = 1; $: x = x + 1;</script>"),
+        ["'x' is assigned a value but never used."]
+    );
+    assert_eq!(
+        unused("<script>$: [a, b] = f(); $: c += 1; a;</script>"),
+        [
+            "'b' is defined but never used.",
+            "'c' is defined but never used."
+        ]
+    );
+}
