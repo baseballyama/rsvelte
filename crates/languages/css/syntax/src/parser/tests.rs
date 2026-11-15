@@ -1,5 +1,5 @@
 use super::*;
-use crate::syntax_tree::RuleKind;
+use crate::syntax_tree::{RuleKind, Simple};
 
 fn prelude(stylesheet: &str) -> &str {
     let sheet = parse(stylesheet, Span::new(0, stylesheet.len() as u32)).expect("parses");
@@ -217,7 +217,7 @@ fn a_css_sheet_for_lint_keeps_a_rule_whose_selector_it_cannot_read() {
 
 #[test]
 fn a_css_sheet_for_lint_reads_selectors_as_postcss_selector_parser_does() {
-    let source = ".a., #1a, .b:nth-child(2e), p >, , .c { } @1a (x) { }";
+    let source = ".a., #1a, .b:nth-child(2e), p >, , .c\u{85} | .d { } @1a (x) { }";
     let content = Span::new(0, source.len() as u32);
     parse(source, content).unwrap_err();
     let sheet = parse_for_lint(source, content, false).expect("parses");
@@ -227,4 +227,9 @@ fn a_css_sheet_for_lint_reads_selectors_as_postcss_selector_parser_does() {
     };
     assert_eq!(selectors.len(), 5);
     assert_eq!(selectors[0].parts[0].simple.iter().count(), 2);
+    assert_eq!(selectors[4].parts.len(), 2);
+    let Simple::Class { name, .. } = selectors[4].parts[0].simple.iter().next().unwrap() else {
+        panic!("a class");
+    };
+    assert_eq!(name.text(source), ".c\u{85}".get(1..).unwrap());
 }

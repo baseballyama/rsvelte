@@ -140,6 +140,14 @@ impl P<'_> {
                 Some(b'+') => (Combinator::NextSibling, 1),
                 Some(b'~') => (Combinator::SubsequentSibling, 1),
                 Some(b'|') if self.at(b"||") => (Combinator::Column, 2),
+                // ESLint's selector parser reads a bar that no name follows as a combinator.
+                Some(b'|')
+                    if self.tolerant
+                        && self.b.get(self.position + 1) != Some(&b'*')
+                        && !self.starts_identifier(self.position + 1) =>
+                {
+                    (Combinator::Descendant, 1)
+                }
                 _ => break,
             };
             self.position += length;
@@ -422,10 +430,17 @@ impl P<'_> {
 
     /// The name of a class or an ID, which the lint's selector parser reads empty or from a digit.
     fn name(&mut self) -> R<Span> {
-        if self.tolerant {
-            Ok(self.ident())
-        } else {
-            self.identifier()
+        if !self.tolerant {
+            return self.identifier();
+        }
+        let start = self.position;
+        loop {
+            self.ident();
+            // ESLint's selector parser reads a C1 control character as part of a word.
+            match self.source_text[self.position..self.end].chars().next() {
+                Some(c) if ('\u{80}'..'\u{a0}').contains(&c) => self.position += c.len_utf8(),
+                _ => return Ok(self.span(start)),
+            }
         }
     }
 
