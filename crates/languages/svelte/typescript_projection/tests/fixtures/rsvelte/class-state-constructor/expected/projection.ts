@@ -1,5 +1,6 @@
 ;
-
+function $$render() {
+  
 	class Counter {
 		count = $state(0);
 		#priv = $state.raw({ a: 1 });
@@ -20,15 +21,17 @@
 
 ;
 
-async () => {
-  {
-    svelteHTML.createElement("button", {
-      "onclick": () => c.inc(),
-    });
-    (c.count);
-    (c.doubled);
-    (c.p);
-  }
-};
-const ClassStateConstructor__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  async () => {
+    {
+      svelteHTML.createElement("button", {
+        "onclick": () => c.inc(),
+      });
+      (c.count);
+      (c.doubled);
+      (c.p);
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const ClassStateConstructor__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof ClassStateConstructor__SvelteComponent_>} */ (ClassStateConstructor__SvelteComponent_);

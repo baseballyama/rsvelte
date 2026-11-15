@@ -6,9 +6,11 @@ use oxc_ast::ast::{
     TSTypeAliasDeclaration, TSTypeName,
 };
 use oxc_ast_visit::{Visit, walk};
+use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::Script;
 
 use super::contract::Edit;
+use super::hoistable::{Hoisted, hoisted};
 use super::{Buffer, Builder, Node, NodeIdentifier, Range, Refusal, Result, Span, refuse, span};
 use crate::syntax_tree::TypeParameters;
 
@@ -16,13 +18,32 @@ use crate::syntax_tree::TypeParameters;
 #[derive(Clone, Copy)]
 pub(super) struct Generics {
     pub(super) start: usize,
-    type_parameters: TypeParameters,
+    /// None for a component without generics.
+    type_parameters: Option<TypeParameters>,
+    pub(super) asynchronous: bool,
     names: Range,
     /// Each parameter without its modifiers, which an interface or a type alias rejects.
     declared: Range,
     /// Whether the default export takes the type parameters: not when they do not parse.
     exported: bool,
     name: Option<Span>,
+}
+
+impl Generics {
+    /// A component's render function without type parameters.
+    pub(super) const NONE: Self = Self {
+        start: 0,
+        type_parameters: None,
+        asynchronous: false,
+        names: Range { start: 0, len: 0 },
+        declared: Range { start: 0, len: 0 },
+        exported: false,
+        name: None,
+    };
+
+    pub(super) const fn is_generic(&self) -> bool {
+        self.type_parameters.is_some()
+    }
 }
 
 impl Builder<'_> {
@@ -33,7 +54,7 @@ impl Builder<'_> {
         script: &Script,
         program: &Program<'_>,
         edits: &mut Buffer<Edit>,
-    ) -> Result<Option<Generics>> {
+    ) -> Result<Generics> {
         let aliases = DollarGenerics::of(program);
         // svelte2tsx reads `generics` only in a TypeScript script.
         let attribute = script
@@ -62,18 +83,22 @@ impl Builder<'_> {
                      the generics attribute is present on the script tag",
                 ));
             }
-            None if aliases.found.is_empty() => return Ok(None),
+            None if aliases.found.is_empty() => {
+                self.hoist(program, &aliases, false, edits)?;
+                return Ok(Generics::NONE);
+            }
             None => self.alias_generics(&aliases, edits)?,
         };
-        self.hoist(program, &aliases, edits)?;
-        Ok(Some(Generics {
+        self.hoist(program, &aliases, true, edits)?;
+        Ok(Generics {
             start: 0,
-            type_parameters,
+            type_parameters: Some(type_parameters),
+            asynchronous: false,
             names,
             declared,
             exported,
             name,
-        }))
+        })
     }
 
     /// The `generics` attribute's parameters, their names and the parameters without modifiers.
@@ -143,12 +168,14 @@ impl Builder<'_> {
         Ok((TypeParameters::Declared(declared), names, declared))
     }
 
-    /// Moves the imports, and each type a constraint names, before the render function, which
-    /// would otherwise read the type before declaring it.
+    /// Moves the imports before the render function, then for a generic component each type a
+    /// constraint names, which it would otherwise read before declaring it, and for another
+    /// svelte2tsx's hoistable types.
     fn hoist(
         &mut self,
         program: &Program<'_>,
         aliases: &DollarGenerics,
+        generic: bool,
         edits: &mut Buffer<Edit>,
     ) -> Result<()> {
         let start = self.scratch.len();
@@ -162,19 +189,35 @@ impl Builder<'_> {
                 replacement: None,
             });
         };
+        let mut previous = program.span.start;
         for statement in &program.body {
+            let start = statement.span().start;
+            let import = matches!(statement, Statement::ImportDeclaration(_));
+            // svelte2tsx moves an import's leading comments with it. TypeScript 6 reads a JSDoc
+            // `@import` in a function, as TypeScript 7 does only at the top level.
+            for comment in &program.comments {
+                if previous <= comment.span.start
+                    && comment.span.end <= start
+                    && (import || span(comment.span).text(self.source).contains("@import"))
+                {
+                    moved(self, span(comment.span));
+                }
+            }
+            previous = statement.span().end;
             match statement {
                 Statement::ImportDeclaration(import) => moved(self, span(import.span)),
                 // A type export would leave the render function; svelte2tsx moves it out.
                 Statement::ExportDeclaration(export)
-                    if matches!(
-                        export.declaration,
-                        Declaration::TSTypeAliasDeclaration(_)
-                            | Declaration::TSInterfaceDeclaration(_)
-                    ) && !aliases
-                        .found
-                        .iter()
-                        .any(|alias| alias.span == span(export.span)) =>
+                    if generic
+                        && matches!(
+                            export.declaration,
+                            Declaration::TSTypeAliasDeclaration(_)
+                                | Declaration::TSInterfaceDeclaration(_)
+                        )
+                        && !aliases
+                            .found
+                            .iter()
+                            .any(|alias| alias.span == span(export.span)) =>
                 {
                     return Err(refuse("generic component contracts", span(export.span)));
                 }
@@ -201,12 +244,59 @@ impl Builder<'_> {
                 moved(self, declaration);
             }
         }
+        if !generic {
+            for hoisted in self.hoistable(program) {
+                match hoisted {
+                    Hoisted::Statement(at) => moved(self, at),
+                    Hoisted::ComponentProps(annotation) => {
+                        let name = self.tree.push(Node::Identifier("$$ComponentProps"));
+                        let value = self.tree.push(Node::SourceCopy { span: annotation });
+                        let alias = self.tree.push(Node::TypeAlias { name, value });
+                        self.scratch.push(alias);
+                        self.props_hoisted = true;
+                    }
+                }
+            }
+        }
+        if let Some(snippets) = self.module_snippets.take() {
+            self.scratch.push(snippets);
+        }
         if self.scratch.len() > start {
             let parts = self.finish_list(start);
             self.scratch
                 .push(self.tree.push(Node::ProgramParts { parts }));
         }
         Ok(())
+    }
+
+    /// svelte2tsx's hoistable types of a component whose instance is `program`.
+    fn hoistable(&self, program: &Program<'_>) -> Vec<Hoisted> {
+        let module = self
+            .component
+            .module
+            .as_ref()
+            .map(|script| self.component.javascript.get_program(script.program));
+        let props = program.body.iter().find_map(|statement| {
+            let Statement::VariableDeclaration(declaration) = statement else {
+                return None;
+            };
+            declaration.declarations.iter().find_map(|declarator| {
+                let initializer = declarator.init.as_ref()?;
+                self.is_rune(initializer, "$props")
+                    .then_some(declarator.type_annotation.as_ref())?
+                    .map(|annotation| &annotation.type_annotation)
+            })
+        });
+        let stores: Vec<&str> = (self.resolution)()
+            .map(|resolution| {
+                resolution
+                    .unresolved_names()
+                    .filter(|name| resolution.is_store_subscription(name))
+                    .map(|name| &name[1..])
+                    .collect()
+            })
+            .unwrap_or_default();
+        hoisted(module, program, props, &stores)
     }
 
     /// svelte2tsx rejects a `$$Generic` alias in the module script.
@@ -233,12 +323,15 @@ impl Builder<'_> {
         let body = self.finish_list(generics.start);
         self.scratch.push(self.tree.push(Node::Render {
             type_parameters: generics.type_parameters,
+            asynchronous: generics.asynchronous,
             body,
             name: generics.name,
         }));
-        let export = if generics.exported {
+        let export = if let Some(type_parameters) = generics.type_parameters
+            && generics.exported
+        {
             Node::GenericExport {
-                type_parameters: generics.type_parameters,
+                type_parameters,
                 names: generics.names,
                 declared: generics.declared,
             }
@@ -248,6 +341,12 @@ impl Builder<'_> {
                 callee,
                 arguments: Range::default(),
             });
+            // svelte2tsx awaits an async render function at the top level.
+            let component = if generics.asynchronous {
+                self.tree.push(Node::Await(component))
+            } else {
+                component
+            };
             Node::ExportDefault(component)
         };
         self.scratch.push(self.tree.push(export));
@@ -337,7 +436,7 @@ impl<'a> Visit<'a> for DollarGenerics {
                     .type_arguments
                     .iter()
                     .flat_map(|arguments| &arguments.params)
-                    .map(|argument| span(oxc_span::GetSpan::span(argument)))
+                    .map(|argument| span(argument.span()))
                     .collect(),
             });
         }
@@ -350,4 +449,44 @@ impl<'a> Visit<'a> for DollarGenerics {
         self.name(declared, it.id.span);
         walk::walk_ts_interface_declaration(self, it);
     }
+}
+
+/// Whether `program` awaits outside every block and function, where svelte2tsx makes its render
+/// function async.
+pub(super) fn awaits_at_top_level(program: &Program<'_>) -> bool {
+    struct Awaits {
+        depth: u32,
+        found: bool,
+    }
+    impl<'a> Visit<'a> for Awaits {
+        fn visit_block_statement(&mut self, it: &oxc_ast::ast::BlockStatement<'a>) {
+            self.depth += 1;
+            walk::walk_block_statement(self, it);
+            self.depth -= 1;
+        }
+
+        fn visit_function_body(&mut self, it: &oxc_ast::ast::FunctionBody<'a>) {
+            self.depth += 1;
+            walk::walk_function_body(self, it);
+            self.depth -= 1;
+        }
+
+        // TypeScript reads `await` in a namespace as a name, which awaits nothing.
+        fn visit_ts_module_block(&mut self, it: &oxc_ast::ast::TSModuleBlock<'a>) {
+            self.depth += 1;
+            walk::walk_ts_module_block(self, it);
+            self.depth -= 1;
+        }
+
+        fn visit_await_expression(&mut self, it: &oxc_ast::ast::AwaitExpression<'a>) {
+            self.found |= self.depth == 0;
+            walk::walk_await_expression(self, it);
+        }
+    }
+    let mut awaits = Awaits {
+        depth: 0,
+        found: false,
+    };
+    awaits.visit_program(program);
+    awaits.found
 }

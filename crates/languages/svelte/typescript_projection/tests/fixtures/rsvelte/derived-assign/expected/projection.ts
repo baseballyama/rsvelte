@@ -1,5 +1,6 @@
 ;
-
+function $$render() {
+  
 	let a = $state(1);
 	let d = $derived(a * 2);
 	let e = $derived.by(() => a);
@@ -11,14 +12,16 @@
 
 ;
 
-async () => {
-  {
-    svelteHTML.createElement("button", {
-      "onclick": () => (d = !d),
-    });
-    (d);
-    (e);
-  }
-};
-const DerivedAssign__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  async () => {
+    {
+      svelteHTML.createElement("button", {
+        "onclick": () => (d = !d),
+      });
+      (d);
+      (e);
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const DerivedAssign__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof DerivedAssign__SvelteComponent_>} */ (DerivedAssign__SvelteComponent_);

@@ -1,47 +1,50 @@
 ;
-
+function $$render() {
+  
 	/** @type {typeof __rsvelte_public_props0} */ let { items, rest } = $props();
 	let count = $state(0);
 
 ;
 
-const __rsvelte_public_props0 = __rsvelte_props({
-  items: __rsvelte_untyped_prop(),
-  rest: __rsvelte_untyped_prop(),
-}, {}, false);
-async () => {
-  {
-    svelteHTML.createElement("ul", {});
+  const __rsvelte_public_props0 = __rsvelte_props({
+    items: __rsvelte_untyped_prop(),
+    rest: __rsvelte_untyped_prop(),
+  }, {}, false);
+  async () => {
     {
-      __rsvelte_slots()("default", {});
+      svelteHTML.createElement("ul", {});
+      {
+        __rsvelte_slots()("default", {});
+      }
     }
-  }
-  {
-    __rsvelte_slots()("header", {
-      "title": "Hi",
-      count,
-      "total": items.length,
-      "first": items.at(0),
-      ...(rest),
-    });
     {
-      svelteHTML.createElement("p", {});
-      (count);
+      __rsvelte_slots()("header", {
+        "title": "Hi",
+        count,
+        "total": items.length,
+        "first": items.at(0),
+        ...(rest),
+      });
+      {
+        svelteHTML.createElement("p", {});
+        (count);
+      }
     }
-  }
-  {
-    svelteHTML.createElement("div", {});
     {
-      __rsvelte_slots()("footer", {
-        "label": `a ${count} b`,
+      svelteHTML.createElement("div", {});
+      {
+        __rsvelte_slots()("footer", {
+          "label": `a ${count} b`,
+        });
+      }
+    }
+    {
+      svelteHTML.createElement("button", {
+        "onclick": () => count++,
       });
     }
-  }
-  {
-    svelteHTML.createElement("button", {
-      "onclick": () => count++,
-    });
-  }
-};
-const SlotElement__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">} */ (__rsvelte_export_component))();
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">} */ (__rsvelte_export_component))();
+}
+const SlotElement__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof SlotElement__SvelteComponent_>} */ (SlotElement__SvelteComponent_);

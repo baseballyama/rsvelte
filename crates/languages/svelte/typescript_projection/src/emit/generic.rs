@@ -27,12 +27,14 @@ impl Printer<'_> {
             // those of svelte2tsx's copies of the generics, which map to no source.
             "// @ts-ignore\nclass __rsvelte_Render<",
             parameters,
-            "> { props(): Parameters<ReturnType<typeof $$render<",
+            // `Awaited` reads an async render function's component.
+            "> { props(): Parameters<Awaited<ReturnType<typeof $$render<",
             arguments,
-            ">>>[1] { return null as any; } exports(): ReturnType<ReturnType<typeof $$render<",
+            ">>>>[1] { return null as any; } exports(): ReturnType<Awaited<ReturnType<typeof \
+                $$render<",
             arguments,
-            ">>> { return null as any; } }\n// @ts-ignore\ninterface __rsvelte_generic_component { \
-                <",
+            ">>>> { return null as any; } }\n// @ts-ignore\n",
+            "interface __rsvelte_generic_component { <",
             plain,
             ">(internals: Parameters<import('svelte').Component>[0], props: \
                 ReturnType<__rsvelte_Render<",

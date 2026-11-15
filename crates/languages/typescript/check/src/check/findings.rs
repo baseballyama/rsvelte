@@ -58,24 +58,12 @@ pub(super) fn write_findings(
                 generated,
                 span,
                 code: f.code,
-                message: f.message,
+                message: match d.env.notes.iter().find(|(code, _)| *code == f.code) {
+                    Some((_, note)) => format!("{}\n{note}", f.message),
+                    None => f.message,
+                },
             });
         }
-    }
-    for (d, keyed) in docs.iter().zip(&mut per_doc) {
-        let bom = byte_order_mark(&d.source_text);
-        keyed.extend(d.placement.iter().filter_map(|&(span, code, message)| {
-            Some(Finding {
-                semantic: true,
-                generated: generated_offset(&d.projection, span.start_offset),
-                span: Span::new(
-                    span.start_offset.checked_sub(bom)?,
-                    span.end_offset.checked_sub(bom)?,
-                ),
-                code,
-                message: message.to_owned(),
-            })
-        }));
     }
     // svelte-check and vue-tsc count positions in the text TypeScript reads: without the mark.
     for (((d, out), mut keyed), unmapped) in docs.iter().zip(outs).zip(per_doc).zip(unmapped) {

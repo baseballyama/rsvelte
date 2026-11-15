@@ -1,5 +1,6 @@
 ;
-
+function $$render() {
+  
 	class A {
 		#count = 5;
 		count = $state();
@@ -32,5 +33,7 @@
 
 ;
 
-const ClassStatePrivate__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const ClassStatePrivate__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof ClassStatePrivate__SvelteComponent_>} */ (ClassStatePrivate__SvelteComponent_);

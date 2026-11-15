@@ -1,7 +1,7 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    BindingPattern, Declaration, Expression, PropertyKey, Statement, TSNamespaceDeclaration,
-    TSNamespaceDeclarationKind, TSType, VariableDeclaration, VariableDeclarationKind,
+    BindingPattern, Declaration, Expression, PropertyKey, Statement, TSType, VariableDeclaration,
+    VariableDeclarationKind,
 };
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
@@ -24,19 +24,19 @@ enum StoreAt {
 }
 
 impl Builder<'_> {
-    /// The scripts, then the contract's value, and the generics when the template and the contract
-    /// belong in a render function.
-    pub(super) fn scripts(&mut self) -> Result<(NodeIdentifier, Option<Generics>)> {
+    /// The scripts, then the contract's value and the render function's generics.
+    pub(super) fn scripts(&mut self) -> Result<(NodeIdentifier, Generics)> {
         self.module_generics()?;
-        let mut edits = self.module_and_store_edits();
+        let (mut edits, render_start) = self.module_and_store_edits();
         let mut bindings = Buffer::new(0);
         let mut exports = Buffer::new(0);
         let mut props = None;
-        let mut generics = None;
-        let mut generated_start = self.scratch.len();
+        let mut generics = Generics::NONE;
+        let mut generated_start = render_start;
         if let Some(script) = &self.component.instance {
             let program = self.component.javascript.get_program(script.program);
             generics = self.generics(script, program, &mut edits)?;
+            generics.asynchronous = super::generic::awaits_at_top_level(program);
             generated_start = self.scratch.len();
             if let Some(snippets) = self.root_snippets.take() {
                 let after_imports = program
@@ -109,7 +109,7 @@ impl Builder<'_> {
             let parts = self.tree.list(&bindings);
             self.tree.push(Node::TypeUnion(parts))
         };
-        let helper = self.tree.push(Node::Identifier(if generics.is_some() {
+        let helper = self.tree.push(Node::Identifier(if generics.is_generic() {
             "__rsvelte_export_generic"
         } else {
             "__rsvelte_export_component"
@@ -123,11 +123,8 @@ impl Builder<'_> {
             callee,
             arguments: Range::default(),
         });
-        if let Some(generics) = &mut generics {
-            generics.start = generated_start;
-            return Ok((value, Some(*generics)));
-        }
-        Ok((self.tree.push(Node::ExportDefault(value)), None))
+        generics.start = generated_start;
+        Ok((value, generics))
     }
 
     /// svelte2tsx's `slots` has a `default` key: a `<slot>` without a `name`, or named `default`.
@@ -163,19 +160,6 @@ impl Builder<'_> {
     ) -> Result<Option<&'s VariableDeclaration<'s>>> {
         let export = match statement {
             Statement::VariableDeclaration(declaration) => return Ok(Some(&**declaration)),
-            // In svelte2tsx's render function TypeScript refuses an augmentation (TS1234, which
-            // the check reports) and merges nothing from it, so this top-level copy is left out.
-            Statement::TSGlobalDeclaration(_) | Statement::TSExternalModuleDeclaration(_) => {
-                edits.push(Edit {
-                    span: span(statement.span()),
-                    replacement: None,
-                });
-                return Ok(None);
-            }
-            Statement::TSNamespaceDeclaration(namespace) => {
-                self.namespace_keyword(namespace, edits);
-                return Ok(None);
-            }
             Statement::ExportDeclaration(export) => export,
             Statement::ExportDefaultDeclaration(export) => {
                 return Err(refuse("instance default exports", span(export.span)));
@@ -193,6 +177,21 @@ impl Builder<'_> {
                 }
                 edits.push(Edit {
                     span: span(named.span),
+                    replacement: None,
+                });
+                return Ok(None);
+            }
+            // svelte2tsx removes every other export list, a type-only or a re-exporting one too.
+            Statement::ExportNamedDeclaration(named) => {
+                edits.push(Edit {
+                    span: span(named.span),
+                    replacement: None,
+                });
+                return Ok(None);
+            }
+            Statement::ExportFromDeclaration(from) => {
+                edits.push(Edit {
+                    span: span(from.span),
                     replacement: None,
                 });
                 return Ok(None);
@@ -218,21 +217,13 @@ impl Builder<'_> {
                 }
                 Some(&**declaration)
             }
-            Declaration::TSTypeAliasDeclaration(_) | Declaration::TSInterfaceDeclaration(_) => {
-                return Ok(None);
-            }
-            Declaration::TSGlobalDeclaration(_) | Declaration::TSExternalModuleDeclaration(_) => {
-                edits.push(Edit {
-                    span: span(export.span),
-                    replacement: None,
-                });
-                return Ok(None);
-            }
-            Declaration::TSNamespaceDeclaration(namespace) => {
-                self.namespace_keyword(namespace, edits);
-                None
-            }
-            Declaration::TSEnumDeclaration(_) => None,
+            // svelte2tsx keeps `export` on these, which TypeScript refuses in the render function.
+            Declaration::TSTypeAliasDeclaration(_)
+            | Declaration::TSInterfaceDeclaration(_)
+            | Declaration::TSEnumDeclaration(_)
+            | Declaration::TSGlobalDeclaration(_)
+            | Declaration::TSExternalModuleDeclaration(_)
+            | Declaration::TSNamespaceDeclaration(_) => return Ok(None),
             _ => {
                 return Err(refuse("instance export contracts", span(export.span)));
             }
@@ -242,27 +233,6 @@ impl Builder<'_> {
             replacement: None,
         });
         Ok(declaration)
-    }
-
-    /// In svelte2tsx's render function TypeScript reports a namespace written `module` only as
-    /// misplaced (TS1235), so the top-level copy says `namespace` and draws no TS1540.
-    fn namespace_keyword(
-        &mut self,
-        namespace: &TSNamespaceDeclaration<'_>,
-        edits: &mut Buffer<Edit>,
-    ) {
-        if namespace.kind != TSNamespaceDeclarationKind::Module {
-            return;
-        }
-        let keyword = if namespace.declare {
-            "declare namespace "
-        } else {
-            "namespace "
-        };
-        edits.push(Edit {
-            span: Span::new(namespace.span.start, namespace.id.span.start),
-            replacement: Some(self.tree.push(Node::Identifier(keyword))),
-        });
     }
 
     fn export_pattern(
@@ -468,7 +438,7 @@ impl Builder<'_> {
     }
 
     /// Whether `e`, without its TypeScript wrappers, calls the rune `name` in its scope.
-    fn is_rune(&self, mut e: &Expression<'_>, name: &str) -> bool {
+    pub(super) fn is_rune(&self, mut e: &Expression<'_>, name: &str) -> bool {
         while let Expression::TSAsExpression(_)
         | Expression::TSSatisfiesExpression(_)
         | Expression::TSNonNullExpression(_)
@@ -483,7 +453,9 @@ impl Builder<'_> {
     }
 
     /// Pushes the module script with its store declarations, and returns the instance's.
-    fn module_and_store_edits(&mut self) -> Buffer<Edit> {
+    /// The instance's store edits, and where the render function starts in the scratch: after the
+    /// module script.
+    fn module_and_store_edits(&mut self) -> (Buffer<Edit>, usize) {
         let stores = self.store_subscriptions();
         let after = |content: Span| {
             stores.iter().filter_map(move |&(at, store)| match at {
@@ -499,6 +471,7 @@ impl Builder<'_> {
                 .collect();
             self.script_parts(script.content, &edits);
         }
+        let render_start = self.scratch.len();
         let mut edits = Buffer::new(0);
         let first = stores.iter().filter(|(at, _)| matches!(at, StoreAt::Start));
         if let Some(script) = &self.component.instance {
@@ -515,7 +488,7 @@ impl Builder<'_> {
                     .push(self.tree.push(Node::StoreSubscription(store)));
             }
         }
-        edits
+        (edits, render_start)
     }
 
     /// svelte2tsx declares `$x` for each store subscription whose store `x` a variable or an import

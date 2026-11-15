@@ -34,7 +34,6 @@ pub fn register(registry: &mut Registry) {
             projection,
             map_back: Emitter::lookup_overlap,
             env: Arc::clone(&env),
-            placement: Vec::new(),
             extension: ".ts",
             imports: Vec::new(),
         })

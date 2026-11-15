@@ -101,6 +101,10 @@ fn typescript_env(
             .collect(),
         replaced: vec![(types, without_any_component_module(text))],
         script_modules: vec![".svelte"],
+        notes: vec![(
+            1184,
+            "If this is a declare statement, move it into <script context=\"module\">..</script>",
+        )],
     })
 }
 
@@ -181,7 +185,6 @@ fn typescript_view(
         },
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
-        placement: placement::instance(component),
         extension: if typescript { ".ts" } else { ".js" },
         imports: relative_imports(component),
     })
@@ -234,7 +237,6 @@ fn env_of(
         .map_err(|why| Diagnostic::error("check_unconfigured", why, Span::new(0, 0)))
 }
 
-mod placement;
 mod script_syntax;
 
 #[cfg(test)]

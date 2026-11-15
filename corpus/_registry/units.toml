@@ -4334,3 +4334,6 @@
 
 ["svelte/rsvelte-tests-core-2/module_server_comment_ownership_2307/a_default_parameter_initializer_comment_is_dropped/5bd0d879f6bac971.svelte.js".skip]
 "svelte.compileModule" = "upstream bug: svelte 5.57.3 drops a comment in a default parameter's initializer"
+
+["svelte/rsvelte/lint/no-svelte-internal/14-deep-subpaths.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx writes an instance-script `export { default as x } from` as the prop `{x: default}`, which does not parse, so TypeScript skips its grammar checks and svelte-check hides the misplaced `export * as` beside it"

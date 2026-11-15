@@ -39,7 +39,6 @@ pub(super) fn view<'e>(
         projection,
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
-        placement: Vec::new(),
         extension: if typescript { ".tsx" } else { ".jsx" },
         imports: Vec::new(),
     }))

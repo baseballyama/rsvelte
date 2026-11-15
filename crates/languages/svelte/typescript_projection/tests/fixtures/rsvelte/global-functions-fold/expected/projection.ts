@@ -1,5 +1,6 @@
 ;
-
+function $$render() {
+  
 	let n = $state(1);
 	const a = Number.parseInt(" -0x1f");
 	const b = Number.parseInt("z", 36);
@@ -13,23 +14,25 @@
 
 ;
 
-async () => {
-  {
-    svelteHTML.createElement("p", {});
-    (a);
-    (b);
-    (c);
-    (d);
-    (e);
-    (f);
-    (g);
-    (h);
-    (i);
-  }
-  {
-    svelteHTML.createElement("p", {});
-    (1 ** Infinity);
-  }
-};
-const GlobalFunctionsFold__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  async () => {
+    {
+      svelteHTML.createElement("p", {});
+      (a);
+      (b);
+      (c);
+      (d);
+      (e);
+      (f);
+      (g);
+      (h);
+      (i);
+    }
+    {
+      svelteHTML.createElement("p", {});
+      (1 ** Infinity);
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const GlobalFunctionsFold__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof GlobalFunctionsFold__SvelteComponent_>} */ (GlobalFunctionsFold__SvelteComponent_);

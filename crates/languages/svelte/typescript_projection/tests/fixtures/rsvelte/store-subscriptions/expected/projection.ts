@@ -1,8 +1,14 @@
 ;
-;let $page = __rsvelte_store_get(page);
+import { writable } from 'svelte/store';;
+import { page } from '$app/stores';;
 
-	import { writable } from 'svelte/store';
-	import { page } from '$app/stores';
+;
+
+function $$render() {
+  ;let $page = __rsvelte_store_get(page);
+
+	
+	
 	/** @type {typeof __rsvelte_public_props0} */ let { store } = $props();;let $store = __rsvelte_store_get(store);
 
 	const count = writable(0);;let $count = __rsvelte_store_get(count);
@@ -15,36 +21,38 @@
 
 ;
 
-const __rsvelte_public_props0 = __rsvelte_props({
-  store: __rsvelte_untyped_prop(),
-}, {}, false);
-async () => {
-  {
-    svelteHTML.createElement("p", {});
-    ($count);
-    ($store);
-    ($obj.a);
-    (d);
-  }
-  {
-    svelteHTML.createElement("input", {
-      "bind:value": $count,
-    });
-    () => {
-      // @ts-ignore
-      $count = __rsvelte_untyped_prop();
-    };
-  }
-  {
-    svelteHTML.createElement("button", {
-      "onclick": () => $count = 5,
-    });
-  }
-  {
-    for (let [, item] of __rsvelte_each($obj.list)) {
-      (item);
+  const __rsvelte_public_props0 = __rsvelte_props({
+    store: __rsvelte_untyped_prop(),
+  }, {}, false);
+  async () => {
+    {
+      svelteHTML.createElement("p", {});
+      ($count);
+      ($store);
+      ($obj.a);
+      (d);
     }
-  }
-};
-const StoreSubscriptions__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+    {
+      svelteHTML.createElement("input", {
+        "bind:value": $count,
+      });
+      () => {
+        // @ts-ignore
+        $count = __rsvelte_untyped_prop();
+      };
+    }
+    {
+      svelteHTML.createElement("button", {
+        "onclick": () => $count = 5,
+      });
+    }
+    {
+      for (let [, item] of __rsvelte_each($obj.list)) {
+        (item);
+      }
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+}
+const StoreSubscriptions__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof StoreSubscriptions__SvelteComponent_>} */ (StoreSubscriptions__SvelteComponent_);
