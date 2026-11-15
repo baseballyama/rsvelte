@@ -1,4 +1,4 @@
-# svelte.lint/default: 37068 match
+# svelte.lint/default: 37069 match
 svelte/bits-ui/tests/src/tests/checkbox/checkbox-group-test.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/valid/pug01-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-input.svelte	mismatch
@@ -580,7 +580,6 @@ svelte/rsvelte/lint/require-optimized-style-attribute/13-comment-shapes.svelte	m
 svelte/rsvelte/lint/require-store-reactive-access/06-directives.svelte	mismatch
 svelte/rsvelte/lint/require-stores-init/10-destructured-namespace.svelte	mismatch
 svelte/rsvelte/lint/shorthand-directive/opt-key-prefer-always-explicit.svelte	mismatch
-svelte/rsvelte/lint/sort-attributes/06-custom-order-modifiers.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/components/component-callee-shapes.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/components/component-self-and-recursion.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/css/css-comment-positions.svelte	mismatch
