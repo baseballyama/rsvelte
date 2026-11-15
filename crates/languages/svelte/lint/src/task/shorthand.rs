@@ -4,8 +4,8 @@
 use oxc_allocator::Allocator;
 use oxc_ast::ast::Expression;
 use oxc_span::SourceType;
-use oxc_syntax::identifier::is_identifier_name;
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_syntax::names::reads_as_identifier;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Component};
 
 /// What svelte-eslint-parser throws at the first such directive, with where: Svelte makes the
@@ -18,7 +18,7 @@ pub(super) fn error(
     let name = (component.attributes.iter())
         .filter(|a| a.shorthand && matches!(a.kind, AttributeKind::Bind | AttributeKind::Class))
         .filter_map(|a| a.directive_name(&component.modifiers))
-        .find(|name| !is_identifier_name(name.text(source)))?;
+        .find(|name| !reads_as_identifier(name.text(source)))?;
     let allocator = Allocator::default();
     let read = oxc_parser::Parser::new(&allocator, name.text(source), SourceType::mjs())
         .parse_expression();
@@ -27,6 +27,8 @@ pub(super) fn error(
             "MemberExpression"
         }
         Ok(Expression::BinaryExpression(_)) => "BinaryExpression",
+        Ok(Expression::ThisExpression(_)) => "ThisExpression",
+        Ok(Expression::BooleanLiteral(_) | Expression::NullLiteral(_)) => "Literal",
         _ => {
             return Some(Err(Diagnostic::error(
                 "unsupported",

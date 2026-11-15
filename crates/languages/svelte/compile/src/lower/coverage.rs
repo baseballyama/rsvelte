@@ -2,6 +2,7 @@
 //! target meets it.
 
 use oxc_ast::ast::Expression;
+use oxc_syntax::keyword::is_reserved_keyword;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, ElementKind, MetadataTag, Name, StyleValue,
 };
@@ -90,6 +91,16 @@ pub(super) fn check_for(input: &CompileInput<'_>, target: Target) -> Result<(), 
                 .find(|a| matches!(a.value, AttributeValue::Let(_)))
         {
             return unsupported("a `let:` directive", a.span);
+        }
+        // Upstream's client assigns to the name, `this = $$value`, which does not parse.
+        if let NodeKind::Element(el) = &node.kind
+            && let Some(a) = tree.attributes(el.attributes).iter().find(|a| {
+                matches!(a.value, AttributeValue::Bind(target)
+                    if matches!(input.component.javascript.get_expression(target),
+                        Expression::Identifier(name) if is_reserved_keyword(&name.name)))
+            })
+        {
+            return unsupported("a `bind:` shorthand named by a reserved word", a.span);
         }
     }
     Ok(())

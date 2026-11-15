@@ -15,6 +15,7 @@ oxc_ast.workspace = true
 oxc_ast_visit.workspace = true
 oxc_parser.workspace = true
 oxc_span.workspace = true
+oxc_syntax.workspace = true
 rsvelte_stylesheet_syntax.workspace = true
 rsvelte_markup_syntax.workspace = true
 unicode-id-start.workspace = true
