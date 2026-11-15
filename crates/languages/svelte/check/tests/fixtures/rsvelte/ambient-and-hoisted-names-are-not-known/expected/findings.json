@@ -1,0 +1,50 @@
+[
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 1,
+			"character": 1
+		},
+		"end": {
+			"line": 1,
+			"character": 8
+		}
+	},
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 2,
+			"character": 1
+		},
+		"end": {
+			"line": 2,
+			"character": 8
+		}
+	},
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 3,
+			"character": 1
+		},
+		"end": {
+			"line": 3,
+			"character": 8
+		}
+	},
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 4,
+			"character": 1
+		},
+		"end": {
+			"line": 4,
+			"character": 8
+		}
+	}
+]

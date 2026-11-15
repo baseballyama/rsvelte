@@ -51,7 +51,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 AttributeValue::Bind(e) => {
                     // `prepare_element_spread_object` keeps every binding.
                     let value = if all {
-                        Some((raw_name.to_ascii_lowercase(), self.bound(e)))
+                        Some((raw_name.to_lowercase(), self.bound(e)))
                     } else {
                         self.bound_value(tag, list, a)
                     };
@@ -91,7 +91,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 _ => {}
             }
             let mut name = if self.plan.named(identifier) == crate::render_plan::Namespace::Html {
-                raw_name.to_ascii_lowercase()
+                raw_name.to_lowercase()
             } else {
                 raw_name.to_owned()
             };

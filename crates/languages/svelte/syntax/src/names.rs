@@ -297,13 +297,14 @@ pub fn sanitize_identifier(name: &str) -> Cow<'_, str> {
 
 fn sanitize_chars(chars: impl Iterator<Item = char>, capacity: usize) -> String {
     let mut out = String::with_capacity(capacity);
-    out.extend(chars.map(|c| {
+    for c in chars {
         if c.is_ascii_alphanumeric() || c == '_' || c == '$' {
-            c
+            out.push(c);
         } else {
-            '_'
+            // Upstream's regular expression replaces each UTF-16 unit.
+            out.extend(std::iter::repeat_n('_', c.len_utf16()));
         }
-    }));
+    }
     if out.starts_with(|c: char| c.is_ascii_digit()) {
         out.replace_range(0..1, "_");
     }

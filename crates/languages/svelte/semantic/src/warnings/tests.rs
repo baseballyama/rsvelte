@@ -88,6 +88,34 @@ fn only_a_reference_below_a_state_argument_suggests_a_derived() {
 }
 
 #[test]
+fn state_in_a_template_function_is_read_locally_at_that_function_depth() {
+    // As svelte 5.57.3 warns: in that function, not a nested one, and never the template's reads.
+    for (template, expected) in [
+        (
+            "<b onclick={() => { let x = $derived(v); v = x; }}>{v}</b>",
+            &["x"][..],
+        ),
+        (
+            "{#each [1] as i}<b onclick={() => { let y = $state(i); y = 2; f(y); }}></b>{/each}",
+            &["y"],
+        ),
+        (
+            "<b onclick={() => { let x = $state(1); x = 2; return () => f(x); }}></b>",
+            &[],
+        ),
+        ("<b onclick={() => v}>{v}</b>", &[]),
+    ] {
+        let source =
+            format!("<script>let v = $state(1); v = 2; const f = (a) => a;</script>{template}");
+        assert_eq!(
+            texts("state_referenced_locally", &source),
+            expected,
+            "{template}"
+        );
+    }
+}
+
+#[test]
 fn state_is_read_locally_at_its_own_function_depth() {
     let source = "<script>\n  console.log(a);\n  var a = $state(1);\n  a = 2;\n  function f() \
         {\n    let b = $state(1);\n    b = 2;\n    b;\n    () => b;\n  }\n  export { a \
@@ -637,13 +665,6 @@ fn an_exported_class_nothing_uses_is_an_unused_export_in_legacy_mode() {
         codes("<script>function f() {} export { f };</script>\n"),
         Vec::<String>::new()
     );
-}
-
-#[test]
-fn a_derived_a_template_function_declares_is_referenced_locally_there() {
-    let source = "<script>\n  let v = $state(1);\n</script>\n<b onclick={() => { let x = \
-        $derived(v); v = x; }}>{v}</b>\n";
-    assert_eq!(texts("state_referenced_locally", source), ["x"]);
 }
 
 #[test]

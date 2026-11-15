@@ -20,7 +20,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         if el.kind != ElementKind::Regular {
             return self.special_element(identifier, template);
         }
-        let tag = el.name.text(self.source_text).to_ascii_lowercase();
+        let tag = el.name.text(self.source_text).to_lowercase();
         let namespace = self.plan.namespace(identifier);
         let tag = if namespace == crate::render_plan::Namespace::Html {
             tag

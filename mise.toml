@@ -26,6 +26,8 @@ run = [
   "cargo clippy --offline --workspace --all-targets --all-features",
   # The rustdoc lints only run under `cargo doc`.
   "cargo doc --offline --workspace --no-deps --all-features",
+  # The lint workload is its own workspace, so the commands above never build it.
+  "cargo check --locked --offline --manifest-path tools/performance/workloads/svelte-lint/Cargo.toml --all-features",
 ]
 
 [tasks.buildtime]

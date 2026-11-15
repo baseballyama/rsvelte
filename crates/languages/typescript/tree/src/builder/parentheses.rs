@@ -1,4 +1,5 @@
-//! The parentheses of a snippet's parameters, which upstream's parser keeps there alone.
+//! The parentheses upstream's parser keeps: in a snippet's parameters, and around a `bind:`
+//! value.
 
 use oxc_allocator::{Allocator, TakeIn};
 use oxc_ast::ast::Expression;
@@ -7,7 +8,16 @@ use oxc_parser::ParseOptions;
 use oxc_span::GetSpan;
 
 /// `ESTree` has no parentheses, and the formatter requires that they are not kept, so a part
-/// keeps them only to [`strip`] them. Regular expressions are validated, as acorn validates them.
+/// keeps them only to `strip` them. Regular expressions are validated, as acorn validates them.
+impl super::Builder<'_> {
+    /// Records that the source wrapped the node at `span` in `pairs` pairs of parentheses, which
+    /// the tree drops.
+    pub fn record_parentheses(&mut self, span: oxc_span::Span, pairs: u8) {
+        // Sorted once, when the trees are finished.
+        self.parentheses.push((span, pairs));
+    }
+}
+
 pub(super) fn options(parenthesized: bool) -> ParseOptions {
     ParseOptions {
         preserve_parens: parenthesized,
@@ -17,22 +27,19 @@ pub(super) fn options(parenthesized: bool) -> ParseOptions {
 }
 
 /// Removes every parenthesized expression from `expression`, and records how many pairs wrapped
-/// each node that had any, at its span `shift` bytes later, in span order.
+/// each node that had any, at its span `shift` bytes later.
 pub(super) fn strip<'a>(
     allocator: &'a Allocator,
     expression: &mut Expression<'a>,
     shift: u32,
     recorded: &mut Vec<(oxc_span::Span, u8)>,
 ) {
-    let from = recorded.len();
     Strip {
         allocator,
         shift,
         recorded,
     }
     .visit_expression(expression);
-    // The parts come in document order, so sorting each keeps the whole list in order.
-    recorded[from..].sort_unstable_by_key(|&(span, _)| (span.start, span.end));
 }
 
 struct Strip<'a, 'r> {
