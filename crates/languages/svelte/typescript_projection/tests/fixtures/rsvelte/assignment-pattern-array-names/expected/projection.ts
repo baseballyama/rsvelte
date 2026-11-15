@@ -1,5 +1,6 @@
 ;
-
+function $$render() {
+  
 	let cheese = $state(['a', 'b']);
 	let other = [1, [2, 3]];
 	function swap(a, b) {
@@ -11,17 +12,19 @@
 
 ;
 
-async () => {
-  {
-    for (let [, cheese] of __rsvelte_each(cheese)) {
-      {
-        svelteHTML.createElement("li", {});
-        (cheese);
+  async () => {
+    {
+      for (let [, cheese] of __rsvelte_each(cheese)) {
+        {
+          svelteHTML.createElement("li", {});
+          (cheese);
+        }
       }
     }
-  }
-};
-const AssignmentPatternArrayNames__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {
-  swap: typeof swap;
-}, "">} */ (__rsvelte_export_component))();
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {
+    swap: typeof swap;
+  }, "">} */ (__rsvelte_export_component))();
+}
+const AssignmentPatternArrayNames__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof AssignmentPatternArrayNames__SvelteComponent_>} */ (AssignmentPatternArrayNames__SvelteComponent_);

@@ -241,9 +241,10 @@ impl Printer<'_> {
             Node::TypeAlias { name, value } => self.declaration("type ", name, value),
             Node::Render {
                 type_parameters,
+                asynchronous,
                 body,
                 name,
-            } => self.render(type_parameters, body, name),
+            } => self.render(type_parameters, asynchronous, body, name),
             Node::Return(value) => {
                 self.output.push("return ");
                 self.node(value);
@@ -262,15 +263,19 @@ impl Printer<'_> {
     /// The store subscription `$name`, declared with the store's value type.
     fn store_subscription(&mut self, store: Span) {
         let name = store.text(self.source);
-        // A type query reads no value, so this declaration can raise no finding of its own.
-        let (open, close) = if self.tree.javascript {
-            (" = __rsvelte_store_get(", ")")
-        } else {
-            ("!: __rsvelte_store_value<typeof ", ">")
-        };
-        for part in [";let $", name, open, name, close, ";\n"] {
-            self.output.push(part);
+        self.output.push(";let $");
+        self.output.push(name);
+        if self.tree.javascript {
+            for part in [" = __rsvelte_store_get(", name, ");\n"] {
+                self.output.push(part);
+            }
+            return;
         }
+        // svelte-check copies a finding on the store to each read of `$x`; the store's name
+        // locates it.
+        self.output.push(" = __sveltets_2_store_get(");
+        self.output.atom(name, store);
+        self.output.push(");\n");
     }
 
     /// svelte2tsx's runes component: a type of the same name lets an import name its type.
@@ -291,22 +296,39 @@ impl Printer<'_> {
         self.output.push(";\n");
     }
 
-    /// svelte2tsx's `function $$render<type parameters>() { body }`.
-    fn render(&mut self, type_parameters: TypeParameters, body: Range, name: Option<Span>) {
-        self.output.push("function ");
+    /// svelte2tsx's `function $$render<type parameters>() { body }`, async after a top-level
+    /// `await`.
+    fn render(
+        &mut self,
+        type_parameters: Option<TypeParameters>,
+        asynchronous: bool,
+        body: Range,
+        name: Option<Span>,
+    ) {
+        self.output.push(if asynchronous {
+            "async function "
+        } else {
+            "function "
+        });
         match name {
             Some(name) => self.output.atom("$$render", name),
             None => self.output.push("$$render"),
         }
-        self.output.push("<");
         match type_parameters {
-            TypeParameters::Attribute(span) => self.output.copy(self.source, span),
-            TypeParameters::Declared(_) => {
-                let parameters = self.type_parameters(type_parameters);
-                self.output.push(&parameters);
+            Some(TypeParameters::Attribute(span)) => {
+                self.output.push("<");
+                self.output.copy(self.source, span);
+                self.output.push(">");
             }
+            Some(parameters @ TypeParameters::Declared(_)) => {
+                let parameters = self.type_parameters(parameters);
+                self.output.push("<");
+                self.output.push(&parameters);
+                self.output.push(">");
+            }
+            None => {}
         }
-        self.output.push(">() {\n");
+        self.output.push("() {\n");
         self.body(body);
         self.output.push("}\n");
     }

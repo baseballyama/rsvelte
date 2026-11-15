@@ -53,7 +53,10 @@ pub enum Node {
     /// svelte2tsx's `$$render` of a generic component: the instance script and the template in a
     /// function of the type parameters, which returns the contract.
     Render {
-        type_parameters: TypeParameters,
+        /// None for a component without generics, whose render function takes no parameters.
+        type_parameters: Option<TypeParameters>,
+        /// Whether the instance awaits outside every block and function, as svelte2tsx checks.
+        asynchronous: bool,
         body: Range,
         /// The script's start tag up to the `generics` value, which svelte2tsx overwrites with
         /// the function's name.

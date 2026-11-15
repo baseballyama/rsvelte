@@ -139,13 +139,13 @@ pub enum TypeScriptDocument {
         projection: Emitter,
         map_back: MapBack,
         env: Arc<TypeScriptEnv>,
-        /// What the checker reports where the upstream projection places code differently from
-        /// this one, by source range, code and message.
-        placement: Vec<(Span, u32, &'static str)>,
         /// The extension the checker reads a content-mapped projection as, such as `.ts`.
         extension: &'static str,
         /// Each relative module specifier the document imports, by its string literal's range.
         imports: Vec<(Span, String)>,
+        /// Each Svelte store by its name's range, with where the component reads `$store`:
+        /// svelte-check reports a store that is no store at each of those reads.
+        store_reads: Vec<(Span, Vec<Span>)>,
     },
 }
 
@@ -166,6 +166,8 @@ pub struct TypeScriptEnv {
     /// Suffixes, such as `.svelte`, that an import of `x<suffix>` also reaches as the script
     /// `x<suffix>.ts` when no such document exists, as the language's own checker resolves it.
     pub script_modules: Vec<&'static str>,
+    /// A line the language's own checker appends to TypeScript's message of each code.
+    pub notes: Vec<(u32, &'static str)>,
 }
 
 impl TypeScriptEnv {
@@ -214,6 +216,13 @@ impl TypeScriptEnv {
         for suffix in &other.script_modules {
             if !self.script_modules.contains(suffix) {
                 self.script_modules.push(suffix);
+            }
+        }
+        for note in &other.notes {
+            match self.notes.iter().find(|x| x.0 == note.0) {
+                None => self.notes.push(*note),
+                Some(x) if x.1 == note.1 => {}
+                Some(_) => return Err(format!("two languages note TS{} differently", note.0)),
             }
         }
         Ok(())
@@ -293,9 +302,9 @@ struct Prepared {
     map_back: MapBack,
     env: Arc<TypeScriptEnv>,
     source_text: String,
-    placement: Vec<(Span, u32, &'static str)>,
     extension: &'static str,
     imports: Vec<(Span, String)>,
+    store_reads: Vec<(Span, Vec<Span>)>,
 }
 
 impl FinishTask for Check {
@@ -356,9 +365,9 @@ impl FinishTask for Check {
                 projection,
                 map_back,
                 env,
-                placement,
                 extension,
                 imports,
+                store_reads,
             }) => Some(Box::new(Prepared {
                 path: context.document.path.clone(),
                 projection: Emitter {
@@ -369,9 +378,9 @@ impl FinishTask for Check {
                 map_back: *map_back,
                 env: Arc::clone(env),
                 source_text: context.source_text().to_owned(),
-                placement: placement.clone(),
                 extension,
                 imports: imports.clone(),
+                store_reads: store_reads.clone(),
             })),
         }
     }

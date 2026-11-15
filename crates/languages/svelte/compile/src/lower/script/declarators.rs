@@ -23,11 +23,12 @@ pub(super) fn lower_value_declarator<'o>(
     let Some((rune, argument)) = rw.res.rune(init.get_inner_expression()) else {
         return false;
     };
-    // Upstream's server declares these as their argument, which is what the server reads anyway;
+    // Upstream's server declares these as their argument, which is what the server reads anyway
+    // (for `$inspect(x).with(f)`, the inspector `f`);
     // its `$state.snapshot` (an alias, not a copy) and `$effect.pending` (`undefined`, not `0`)
     // there are bugs this port does not repeat.
     if rw.target == Target::Server
-        && matches!(rune, "$state.eager" | "$host")
+        && matches!(rune, "$state.eager" | "$host" | "$inspect().with")
         && d.id.is_binding_identifier()
     {
         let mut value = rune_argument(rw, d);

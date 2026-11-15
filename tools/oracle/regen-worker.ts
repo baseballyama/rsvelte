@@ -1,7 +1,7 @@
 // One regen worker: runs a task's oracle over a slice of one source's units.
 import { parentPort } from 'node:worker_threads';
 import { taskById } from './tasks.ts';
-import { allUnits, applies, unitKey } from './manifest.ts';
+import { allUnits, applies, unitKey, writes } from './manifest.ts';
 import type { Entry } from './pack.ts';
 import { parseJs } from './canonical.ts';
 import type { Artifact } from './types.ts';
@@ -36,7 +36,7 @@ async function run(job: Job): Promise<JobResult> {
 	const all = allUnits([job.source], [job.family]);
 	const chosen = job.paths && new Set(job.paths);
 	const units = all
-		.filter((u) => applies(task, variant.id, u))
+		.filter((u) => writes(task, variant.id, u))
 		.filter((u) => !chosen || chosen.has(u.path))
 		.slice(job.from, job.to);
 	let results: Map<string, Record<string, Artifact>>;
@@ -60,8 +60,10 @@ async function run(job: Job): Promise<JobResult> {
 		const artifacts = results.get(unit.path);
 		if (!artifacts) throw new Error(`${job.task}: no result for ${unitKey(unit)}`);
 		if (artifacts.error) errors++;
+		// A unit kept only for a reader is never compared as code, so its code may not parse.
+		const compared = applies(task, variant.id, unit);
 		for (const art of Object.values(artifacts)) {
-			if (art.compare === 'js-ast') {
+			if (compared && art.compare === 'js-ast') {
 				try {
 					parseJs(art.text);
 				} catch (e) {

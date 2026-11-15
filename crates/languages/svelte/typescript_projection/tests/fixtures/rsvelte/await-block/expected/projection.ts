@@ -1,68 +1,71 @@
 ;
-
+function $$render() {
+  
 	/** @type {typeof __rsvelte_public_props0} */ let { load, other } = $props();
 	let count = $state(0);
 
 ;
 
-const __rsvelte_public_props0 = __rsvelte_props({
-  load: __rsvelte_untyped_prop(),
-  other: __rsvelte_untyped_prop(),
-}, {}, false);
-async () => {
-  {
+  const __rsvelte_public_props0 = __rsvelte_props({
+    load: __rsvelte_untyped_prop(),
+    other: __rsvelte_untyped_prop(),
+  }, {}, false);
+  async () => {
     {
-      svelteHTML.createElement("p", {});
-      (count);
-    }
-    try {
-      const __rsvelte_awaited = await (load(count));
-      {
-        const value = __rsvelte_awaited;
-        {
-          svelteHTML.createElement("p", {});
-          (value);
-        }
-      }
-    } catch (__rsvelte_error) {
-      const error = __rsvelte_untyped_prop();
       {
         svelteHTML.createElement("p", {});
-        (error.message);
+        (count);
+      }
+      try {
+        const __rsvelte_awaited = await (load(count));
+        {
+          const value = __rsvelte_awaited;
+          {
+            svelteHTML.createElement("p", {});
+            (value);
+          }
+        }
+      } catch (__rsvelte_error) {
+        const error = __rsvelte_untyped_prop();
+        {
+          svelteHTML.createElement("p", {});
+          (error.message);
+        }
       }
     }
-  }
-  {
-    const __rsvelte_awaited = await (other);
     {
-      const { name, size = 1 } = __rsvelte_awaited;
+      const __rsvelte_awaited = await (other);
       {
-        svelteHTML.createElement("b", {});
-        (name);
-        (size);
+        const { name, size = 1 } = __rsvelte_awaited;
+        {
+          svelteHTML.createElement("b", {});
+          (name);
+          (size);
+        }
       }
     }
-  }
-  {
-    try {
-      await (other);
-    } catch (__rsvelte_error) {
-      const e = __rsvelte_untyped_prop();
-      {
-        svelteHTML.createElement("i", {});
-        (e);
-      }
-    }
-  }
-  {
-    svelteHTML.createElement("div", {});
     {
-      {
-        svelteHTML.createElement("span", {});
+      try {
+        await (other);
+      } catch (__rsvelte_error) {
+        const e = __rsvelte_untyped_prop();
+        {
+          svelteHTML.createElement("i", {});
+          (e);
+        }
       }
-      await (other);
     }
-  }
-};
-const AwaitBlock__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+    {
+      svelteHTML.createElement("div", {});
+      {
+        {
+          svelteHTML.createElement("span", {});
+        }
+        await (other);
+      }
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+}
+const AwaitBlock__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof AwaitBlock__SvelteComponent_>} */ (AwaitBlock__SvelteComponent_);

@@ -3780,9 +3780,6 @@
 === 3 lint/no-svelte-internal/13-side-effect-import.svelte	json
 []
 
-=== 3 lint/no-svelte-internal/14-deep-subpaths.svelte	json
-[]
-
 === 3 lint/no-svelte-internal/15-dynamic-in-template.svelte	json
 []
 
@@ -7577,6 +7574,18 @@
 []
 
 === 3 pattern/adversarial/typescript/type-only-imports-and-exports.svelte	json
+[]
+
+=== 3 pattern/bind-dashed-name.svelte	json
+[]
+
+=== 3 pattern/bind-dollar-store-member-name.svelte	json
+[]
+
+=== 3 pattern/bind-member-name.svelte	json
+[]
+
+=== 3 pattern/class-member-name.svelte	json
 []
 
 === 3 pattern/css/consecutive-and-column-combinators.svelte	json

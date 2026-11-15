@@ -136,10 +136,20 @@ impl UnitTable {
     }
 }
 
+/// A task that compares one file of another task's official output (`readers.toml`).
+#[derive(Deserialize, Debug)]
+pub(crate) struct Reader {
+    /// The `<task>/<variant>` whose pack holds the file.
+    pub(crate) pack: String,
+    pub(crate) file: String,
+}
+
 /// The shared files of the corpus.
 pub(crate) struct Registry {
     pub(crate) dir: PathBuf,
     pub(crate) units: BTreeMap<String, UnitTable>,
+    /// Each reader task by name.
+    pub(crate) readers: BTreeMap<String, Reader>,
 }
 
 impl Registry {
@@ -150,6 +160,25 @@ impl Registry {
             std::fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()))
         };
         let units = toml::from_str(&read("units.toml")?).map_err(|e| format!("units.toml: {e}"))?;
-        Ok(Self { dir, units })
+        let readers =
+            toml::from_str(&read("readers.toml")?).map_err(|e| format!("readers.toml: {e}"))?;
+        Ok(Self {
+            dir,
+            units,
+            readers,
+        })
+    }
+
+    /// Whether `table` skips `pack`'s task and every task that reads one of its files.
+    pub(crate) fn skips_every_reader(&self, table: &UnitTable, pack: &str) -> bool {
+        table.skips(pack)
+            && self
+                .readers
+                .iter()
+                .filter(|(_, r)| r.pack == pack)
+                .all(|(task, _)| table.skips(task))
     }
 }
+
+#[cfg(test)]
+mod tests;

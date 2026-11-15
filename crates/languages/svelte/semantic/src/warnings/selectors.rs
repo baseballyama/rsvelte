@@ -83,3 +83,6 @@ pub(super) fn unused_selector(
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

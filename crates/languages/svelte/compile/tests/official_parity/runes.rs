@@ -1,6 +1,6 @@
 use rsvelte_svelte_compile::Target;
 
-use super::compile_at;
+use super::{compile, compile_at, squashed};
 
 #[test]
 fn a_rune_read_without_a_call_raises_upstreams_error_on_both_targets() {
@@ -129,4 +129,33 @@ fn svelte_4_syntax_in_runes_mode_raises_upstreams_first_error_on_both_targets() 
             );
         }
     }
+}
+
+#[test]
+fn an_inspect_with_initializer_is_the_inspector_on_the_server_and_nothing_on_the_client() {
+    // From svelte 5.57.3, outside development.
+    let source = "<script>let a = $state(1); const t = $inspect(a).with(console.log);</script>\
+                  <b>{t}</b>";
+    assert!(squashed(source, Target::Server).contains("constt=console.log;"));
+    assert!(!squashed(source, Target::Client).contains("constt"));
+    // A plain `$inspect(…)` initializer prints broken code upstream, so it stays refused.
+    let plain = "<script>let a = $state(1); let v = $inspect(a);</script><b>{v}</b>";
+    assert_eq!(
+        compile(plain, Target::Server).err().as_deref(),
+        Some("unsupported")
+    );
+}
+
+#[test]
+fn an_inspect_in_an_event_handler_is_dropped_with_the_handler_on_the_server() {
+    // From svelte 5.57.3, whose client prints `() => ;` for the first handler.
+    let source = "<script>let v = $state(1);</script>\
+                  <button onclick={() => $inspect(v)}>a</button><p>{v}</p>";
+    let server = squashed(source, Target::Server);
+    assert!(server.contains("<button>a</button>"), "{server}");
+    assert!(!server.contains("inspect"), "{server}");
+    assert_eq!(
+        compile(source, Target::Client).err().as_deref(),
+        Some("unsupported")
+    );
 }

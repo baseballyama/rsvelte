@@ -19834,9 +19834,6 @@
 2:7 2:23 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 2:26 2:27 no-undef "'y' is not defined."
 
-=== 80 parser_hardening/declaration_tag_multibyte_type_annotation_does_not_panic/47244ebc480a595e.svelte	lint.txt
-1:19 - - "Parsing error: Expected token =\nhttps://svelte.dev/e/expected_token"
-
 === 134 parser_hardening/empty_style_selector_reports_css_expected_identifier/b88d5f3115712610.svelte	lint.txt
 1:8 1:8 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
 

@@ -1,7 +1,7 @@
 //! The statements upstream removes outside development or on the server.
 
 use oxc_allocator::Vec as ArenaVec;
-use oxc_ast::ast::Statement;
+use oxc_ast::ast::{Declaration, Statement, VariableDeclarator};
 use oxc_ast_visit::VisitMut;
 use rsvelte_svelte_semantic::resolve::Resolution;
 
@@ -56,5 +56,23 @@ pub(super) fn inspect(res: &Resolution, statement: &Statement<'_>) -> Option<Ins
         "$inspect" | "$inspect().with" => Some(Inspect::Value),
         "$inspect.trace" => Some(Inspect::Trace),
         _ => None,
+    }
+}
+
+/// A declarator of `$inspect(…).with(…)`, which upstream's client does not declare outside
+/// development.
+pub(super) fn inspects_with(res: &Resolution, d: &VariableDeclarator<'_>) -> bool {
+    (d.init.as_ref())
+        .is_some_and(|init| res.rune(init).is_some_and(|(r, _)| r == "$inspect().with"))
+}
+
+/// A declaration left with no declarator, which upstream replaces with nothing.
+pub(super) fn declares_nothing(statement: &Statement<'_>) -> bool {
+    match statement {
+        Statement::VariableDeclaration(d) => d.declarations.is_empty(),
+        Statement::ExportDeclaration(export) => {
+            matches!(&export.declaration, Declaration::VariableDeclaration(d) if d.declarations.is_empty())
+        }
+        _ => false,
     }
 }

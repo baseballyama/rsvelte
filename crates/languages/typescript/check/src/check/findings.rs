@@ -8,6 +8,10 @@ use rsvelte_kernel::source::positions::{LineIndex, Span};
 
 use super::{Prepared, TypeScriptDiagnostic};
 
+const NO_OVERLOAD_MATCHES_CALL: u32 = 2769;
+const ARGUMENT_NOT_ASSIGNABLE: u32 = 2345;
+const USED_BEFORE_ASSIGNED: u32 = 2454;
+
 /// A finding located in its document, with what orders it.
 struct Finding {
     semantic: bool,
@@ -50,6 +54,37 @@ pub(super) fn write_findings(
                 ))
             })
         };
+        // svelte-check's `mapAndFilterDiagnostics`: the call that reads `$store` fails at the
+        // store, a finding it hides and repeats at each read.
+        if let Some(span) = mapped
+            && (f.code == NO_OVERLOAD_MATCHES_CALL || f.code == ARGUMENT_NOT_ASSIGNABLE)
+            && let Some((_, reads)) = d.store_reads.iter().find(|(store, _)| *store == span)
+        {
+            let store = span.text(&d.source_text[bom as usize..]);
+            for &read in reads {
+                per_doc[f.file].push(Finding {
+                    semantic: true,
+                    // svelte-check lists the copies where the failing call is, in read order.
+                    generated,
+                    span: read,
+                    code: f.code,
+                    message: format!(
+                        "Cannot use '{store}' as a store. '{store}' needs to be an object with a \
+                         subscribe method on it.\n\n{}",
+                        f.message
+                    ),
+                });
+            }
+            continue;
+        }
+        // A declaration is never read before it is assigned: the read is svelte2tsx's, which
+        // svelte-check hides.
+        if let Some(span) = mapped
+            && f.code == USED_BEFORE_ASSIGNED
+            && d.store_reads.iter().any(|(store, _)| *store == span)
+        {
+            continue;
+        }
         if let Some(span) = mapped {
             per_doc[f.file].push(Finding {
                 // TypeScript 7 parses some grammar errors that TypeScript 6 checks, such as
@@ -58,24 +93,12 @@ pub(super) fn write_findings(
                 generated,
                 span,
                 code: f.code,
-                message: f.message,
+                message: match d.env.notes.iter().find(|(code, _)| *code == f.code) {
+                    Some((_, note)) => format!("{}\n{note}", f.message),
+                    None => f.message,
+                },
             });
         }
-    }
-    for (d, keyed) in docs.iter().zip(&mut per_doc) {
-        let bom = byte_order_mark(&d.source_text);
-        keyed.extend(d.placement.iter().filter_map(|&(span, code, message)| {
-            Some(Finding {
-                semantic: true,
-                generated: generated_offset(&d.projection, span.start_offset),
-                span: Span::new(
-                    span.start_offset.checked_sub(bom)?,
-                    span.end_offset.checked_sub(bom)?,
-                ),
-                code,
-                message: message.to_owned(),
-            })
-        }));
     }
     // svelte-check and vue-tsc count positions in the text TypeScript reads: without the mark.
     for (((d, out), mut keyed), unmapped) in docs.iter().zip(outs).zip(per_doc).zip(unmapped) {

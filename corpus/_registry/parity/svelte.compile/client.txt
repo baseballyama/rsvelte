@@ -1,4 +1,2 @@
-# svelte.compile/client: 35126 match
+# svelte.compile/client: 35132 match
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/4e9145d6de0541b6.svelte	mismatch
-svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelte	mismatch
-svelte/rsvelte/pattern/issues/3124-slot-snippet-conflict-span.svelte	mismatch

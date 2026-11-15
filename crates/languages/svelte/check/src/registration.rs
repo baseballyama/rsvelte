@@ -7,9 +7,10 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::Resolved;
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
-use rsvelte_svelte_typescript_projection::{Printed, THROWN};
+use rsvelte_svelte_typescript_projection::{Printed, THROWN, store_reads};
 use rsvelte_typescript_check::{
     Check, Documents, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptEnv,
     TypeScriptStandIn, TypeScriptView,
@@ -101,6 +102,10 @@ fn typescript_env(
             .collect(),
         replaced: vec![(types, without_any_component_module(text))],
         script_modules: vec![".svelte"],
+        notes: vec![(
+            1184,
+            "If this is a declare statement, move it into <script context=\"module\">..</script>",
+        )],
     })
 }
 
@@ -181,9 +186,13 @@ fn typescript_view(
         },
         map_back: Emitter::lookup_span,
         env: Arc::clone(env),
-        placement: placement::instance(component),
         extension: if typescript { ".ts" } else { ".js" },
         imports: relative_imports(component),
+        store_reads: context
+            .get::<Resolved>()
+            .as_ref()
+            .map(store_reads)
+            .unwrap_or_default(),
     })
 }
 
@@ -234,7 +243,6 @@ fn env_of(
         .map_err(|why| Diagnostic::error("check_unconfigured", why, Span::new(0, 0)))
 }
 
-mod placement;
 mod script_syntax;
 
 #[cfg(test)]

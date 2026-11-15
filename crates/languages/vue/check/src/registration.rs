@@ -64,6 +64,7 @@ fn typescript_env(vue: &std::path::Path) -> TypeScriptEnv {
         include: Vec::new(),
         replaced: Vec::new(),
         script_modules: Vec::new(),
+        notes: Vec::new(),
         paths: vec![
             ("vue".to_owned(), vue.join("dist/vue.d.mts")),
             (
@@ -104,9 +105,9 @@ fn typescript_view(
                 projection,
                 map_back: Emitter::lookup_overlap,
                 env: Arc::clone(env),
-                placement: Vec::new(),
                 extension: ".ts",
                 imports: Vec::new(),
+                store_reads: Vec::new(),
             })
         }
     }

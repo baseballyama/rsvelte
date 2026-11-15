@@ -9,9 +9,11 @@ import { SyntaxKind, SpanMapFeature, SpanMapFidelity } from 'typescript-7/ast';
 
 import { ProjectTypeInfo } from '@rsvelte-experimental/type-information';
 
+import { CARGO_TARGET } from '../paths.ts';
+
 const repository = path.resolve(import.meta.dirname, '../../..');
 const tools = path.join(repository, 'tools/oracle');
-const binary = path.join(repository, 'target/debug/rsvelte-svelte-content-mapper');
+const binary = path.join(CARGO_TARGET, 'debug/rsvelte-svelte-content-mapper');
 
 before(() => {
 	const built = spawnSync(
@@ -200,9 +202,10 @@ test('component props and bind:this retain their real types', () => {
 		['value={1}', 'HTMLInputElement', [2740]],
 	] as const) {
 		project(
-			`<script lang="ts">
+			`<script module lang="ts">
 import type { Component } from 'svelte';
 declare const Action: Component<{ value: number }>;
+</script><script lang="ts">
 let el = $state<${binding}>();
 </script><Action ${props}/><div bind:this={el}></div>`,
 			(api, config, file) => {
@@ -227,10 +230,11 @@ let el = $state<${binding}>();
 
 test('each accepts unions of collection types and readonly tuples', () => {
 	project(
-		`<script lang="ts">
+		`<script module lang="ts">
+declare const dynamic: any;
+</script><script lang="ts">
 const choices: string[] | number[] = Math.random() > 0.5 ? ['ok'] : [1];
 const tuple = ['ok', 1] as const;
-declare const dynamic: any;
 </script>
 {#each choices as choice}<p>{typeof choice === 'string' ? choice.toUpperCase() : choice.toFixed()}</p>{/each}
 {#each dynamic as choice}<p>{choice.arbitrary()}</p>{/each}
@@ -251,11 +255,12 @@ declare const dynamic: any;
 
 test('component calls preserve generic signatures and require all union props', () => {
 	project(
-		`<script lang="ts">
+		`<script module lang="ts">
 import type { Component } from 'svelte';
 declare function Generic<T>(internals: Parameters<Component>[0], props: { value: T; select: (value: T) => void }): {};
 declare const First: Component<{ one: number }>;
 declare const Second: Component<{ two: string }>;
+</script><script lang="ts">
 const Choice = Math.random() > 0.5 ? First : Second;
 </script>
 <Generic value={42} select={(value) => value.toFixed()}/>

@@ -11275,6 +11275,57 @@ export default function Chat_list($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
+=== 428 src/lib/components/ui/chat/loading-dots.svelte	css
+
+	span.svelte-k2x6sv {
+		animation-name: svelte-k2x6sv-loading-dots;
+		animation-duration: 1.4s;
+		animation-iteration-count: infinite;
+		animation-fill-mode: both;
+	}
+
+	span.svelte-k2x6sv:nth-of-type(2) {
+		animation-delay: 0.2s;
+	}
+
+	span.svelte-k2x6sv:nth-of-type(3) {
+		animation-delay: 0.4s;
+	}
+
+	@keyframes svelte-k2x6sv-loading-dots {
+		0% {
+			opacity: 0.2;
+		}
+		20% {
+			opacity: 1;
+		}
+		to {
+			opacity: 0.2;
+		}
+	}
+
+=== 726 src/lib/components/ui/chat/loading-dots.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<span class="bg-primary inline-block size-(--loading-dots-size) rounded-full svelte-k2x6sv"></span>`);
+var root_1 = $.from_html(`<div class="inline-flex items-center gap-1 svelte-k2x6sv"></div>`);
+
+export default function Loading_dots($$anchor, $$props) {
+	let size = $.prop($$props, 'size', 3, 4);
+	var div = root_1();
+	let styles;
+
+	$.each(div, 20, () => ({ length: 3 }), $.index, ($$anchor, _) => {
+		var span = root();
+
+		$.append($$anchor, span);
+	});
+
+	$.reset(div);
+	$.template_effect(() => styles = $.set_style(div, '', styles, { '--loading-dots-size': `${size() ?? ''}px` }));
+	$.append($$anchor, div);
+}
 === 2933 src/lib/components/ui/checkbox/checkbox.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';

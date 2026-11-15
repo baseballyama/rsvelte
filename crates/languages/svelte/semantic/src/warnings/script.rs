@@ -564,3 +564,6 @@ impl Roots for Walk<'_> {
 
     fn leave(&mut self) {}
 }
+
+#[cfg(test)]
+mod tests;

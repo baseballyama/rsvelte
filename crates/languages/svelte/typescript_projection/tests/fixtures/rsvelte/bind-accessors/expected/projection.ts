@@ -1,52 +1,59 @@
 ;
+import C from './C.svelte';;
 
-	import C from './C.svelte';
-const s = () => {
-  async () => {
-    {
-      svelteHTML.createElement("i", {});
-      (v);
-    }
+;
+
+function $$render() {
+  
+	
+  const s = () => {
+    async () => {
+      {
+        svelteHTML.createElement("i", {});
+        (v);
+      }
+    };
+    return __rsvelte_snippet_return;
   };
-  return __rsvelte_snippet_return;
-};
 
 	let v = $state(1);
 	let rest = {};
 
 ;
 
-async () => {
-  {
-    svelteHTML.createElement("p", {});
-  }
-  {
-    __rsvelte_component(C)(__rsvelte_internals(), {
-      "a": 1,
-      "value": __rsvelte_get_set(() => v, (x) => (v = x)),
-      ...(rest),
-      "other": v,
-      "b": 2,
-    });
-    () => {
-      // @ts-ignore
-      v = __rsvelte_untyped_prop();
-    };
-  }
-  if (v) {
+  async () => {
     {
-      svelteHTML.createElement("span", {});
+      svelteHTML.createElement("p", {});
     }
     {
       __rsvelte_component(C)(__rsvelte_internals(), {
-        children: __rsvelte_children,
-        "open": __rsvelte_get_set(() => v, (x) => (v = x)),
+        "a": 1,
+        "value": __rsvelte_get_set(() => v, (x) => (v = x)),
+        ...(rest),
+        "other": v,
+        "b": 2,
       });
-      (v);
-      C;
+      () => {
+        // @ts-ignore
+        v = __rsvelte_untyped_prop();
+      };
     }
-  }
-  __rsvelte_ensure_snippet(s());
-};
-const BindAccessors__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+    if (v) {
+      {
+        svelteHTML.createElement("span", {});
+      }
+      {
+        __rsvelte_component(C)(__rsvelte_internals(), {
+          children: __rsvelte_children,
+          "open": __rsvelte_get_set(() => v, (x) => (v = x)),
+        });
+        (v);
+        C;
+      }
+    }
+    __rsvelte_ensure_snippet(s());
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const BindAccessors__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof BindAccessors__SvelteComponent_>} */ (BindAccessors__SvelteComponent_);
