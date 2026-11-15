@@ -72,6 +72,8 @@ pub(super) enum Find {
     /// The innermost method, class field, static block or other function around the label, which
     /// decides whether acorn allows `super` there.
     SuperHome,
+    /// The initializer of the class field whose key is the label.
+    Initializer,
 }
 
 impl Locator {
@@ -172,6 +174,10 @@ impl Locator {
                     && it.value.body.is_none() =>
             {
                 it.span.start
+            }
+            (Find::Initializer, AstKind::PropertyDefinition(it)) if it.key.span() == self.label => {
+                let Some(value) = &it.value else { return };
+                value.span().start
             }
             (Find::Function, AstKind::Function(_) | AstKind::ArrowFunctionExpression(_))
             | (

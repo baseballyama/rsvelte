@@ -3,6 +3,10 @@ use rsvelte_kernel::source::positions::Span;
 
 use crate::Tree;
 
+fn thrown_at(error: &crate::SyntaxError) -> u32 {
+    (error.typescript_eslint_at).unwrap_or(error.diagnostic.span.start_offset)
+}
+
 /// What typescript-eslint throws for `text`, a TypeScript program, and at which byte.
 fn thrown(text: &str) -> Option<(String, u32)> {
     let mut thrown = None;
@@ -11,7 +15,7 @@ fn thrown(text: &str) -> Option<(String, u32)> {
         builder.program(range, SourceType::ts()).map_err(|error| {
             thrown = error
                 .typescript_eslint_message()
-                .map(|message| (message.into_owned(), error.diagnostic.span.start_offset));
+                .map(|message| (message.into_owned(), thrown_at(&error)));
             error.into()
         })
     });
@@ -129,4 +133,22 @@ fn a_check_typescript_eslint_makes_is_thrown_when_tsc_s_parser_finds_nothing() {
             14
         ))
     );
+}
+
+#[test]
+fn an_abstract_field_with_an_initializer_is_thrown_at_the_initializer() {
+    // What typescript-eslint 8.72.1 throws, which checks this itself.
+    for (text, at) in [
+        ("class K {\n\tabstract a = 1;\n}", 24),
+        ("abstract class K { abstract a: number = f(); }", 40),
+    ] {
+        assert_eq!(
+            thrown(text),
+            Some((
+                "Abstract property cannot have an initializer.".to_owned(),
+                at
+            )),
+            "{text:?}"
+        );
+    }
 }

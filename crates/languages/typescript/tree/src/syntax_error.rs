@@ -18,6 +18,8 @@ pub struct SyntaxError {
     pub acorn: Option<Acorn>,
     /// The number of tsc's diagnostic for it, when oxc gives one.
     pub typescript_code: Option<u32>,
+    /// Where typescript-eslint throws it, when that is not where oxc labels it.
+    pub typescript_eslint_at: Option<u32>,
 }
 
 /// What acorn, which knows no TypeScript, does with the text oxc rejected.
@@ -55,6 +57,7 @@ pub fn syntax_error(
             ),
             acorn: None,
             typescript_code: None,
+            typescript_eslint_at: None,
         };
     };
     let span = error.labels.first().map_or_else(
@@ -68,6 +71,7 @@ pub fn syntax_error(
         diagnostic: Diagnostic::error("parse_error", error.message.to_string(), span),
         acorn: acorn(&error, text, (tokens, None), |_| {}).map(|acorn| acorn.shifted(shift)),
         typescript_code: typescript_code(&error),
+        typescript_eslint_at: None,
     }
 }
 
@@ -409,6 +413,7 @@ const fn fails(message: &'static str, at: u32) -> Acorn {
 mod locator;
 mod typescript_eslint;
 
+pub(crate) use typescript_eslint::typescript_eslint_at;
 pub use typescript_eslint::typescript_eslint_error;
 
 #[cfg(test)]
