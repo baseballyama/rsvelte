@@ -237,6 +237,22 @@ The rule throws `source.isSpaceBetweenTokens is not a function`, a `SourceCode` 
 ESLint 10 removed, while it builds the report. This crate reports the statement as upstream's
 tests expect.
 
+## A crash in `svelte/indent` on an enum in a script without `lang`
+
+Input:
+
+```svelte
+<script>
+	enum E { A }
+</script>
+```
+
+The rule throws `Cannot read properties of null (reading 'range')` from `getFirstAndLastTokens`,
+which `setOffsetElementList` calls from the `TSEnumDeclaration` handler in
+`indent-helpers/ts.ts`. The same enum in `<script lang="ts">` does not throw. This crate indents
+the enum as in a TypeScript script. Test in `task/tests.rs`:
+`an_enum_in_a_plain_script_is_indented`.
+
 ## `svelte/prefer-const` treats a `<script module>` export as a prop
 
 Issue: [svelte-eslint-parser #992](https://github.com/sveltejs/svelte-eslint-parser/issues/992).

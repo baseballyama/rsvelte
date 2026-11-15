@@ -3,7 +3,6 @@
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_stylesheet_syntax::postcss::{self, Dialect, SyntaxError};
-use rsvelte_svelte_syntax::Parsed;
 
 use crate::rule::File;
 
@@ -25,9 +24,7 @@ impl Artifact for StyleSheetVerdict {
     const NAME: &'static str = "svelte.lint.style_sheet_verdict";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let Some(style) = context
-            .get::<Parsed>()
-            .as_ref()
+        let Some(style) = crate::computation::component(context)
             .ok()
             .and_then(|component| component.style.as_ref())
         else {

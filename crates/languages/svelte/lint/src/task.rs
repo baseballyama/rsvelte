@@ -11,7 +11,7 @@ use rsvelte_kernel::source::positions::LineBreaks;
 use crate::Configuration;
 use crate::computation::{
     ConditionTypes, LegacyReactivity, LintConfiguration, ModuleSemantic, NativeConditionTypes,
-    PostcssConfigurationOnDisk, SameNamedFileOnDisk,
+    PostcssConfigurationOnDisk, SameNamedFileOnDisk, TypeScriptAnalysis,
 };
 use crate::rules::style_attribute::InlineStyles;
 use crate::rules::style_sheet::StyleSheetVerdict;
@@ -49,6 +49,7 @@ pub fn register_artifacts(registry: &mut Registry) {
         .artifact::<StyleSheetVerdict>()
         .artifact::<NativeConditionTypes>()
         .artifact::<LegacyReactivity>()
+        .artifact::<TypeScriptAnalysis>()
         .artifact::<SameNamedFileOnDisk>()
         .artifact::<PostcssConfigurationOnDisk>();
 }

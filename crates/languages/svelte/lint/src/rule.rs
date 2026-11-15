@@ -5,11 +5,10 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Contribution;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_lint_runner::rule::Reporter;
+use rsvelte_svelte_semantic::Warned;
 use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_semantic::warnings::CompileWarnings;
-use rsvelte_svelte_semantic::{Lowered, Resolved, Warned};
-use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_semantic::globals::Declared;
 use rsvelte_typescript_semantic::semantic::Semantic;
@@ -90,7 +89,7 @@ impl<'a> File<'a> {
         globals: &'a Declared,
     ) -> Result<Self, Diagnostic> {
         let parsed = if rsvelte_svelte_syntax::matches(context.document) {
-            Source::Component(context.get::<Parsed>().as_ref().map_err(Clone::clone)?)
+            Source::Component(crate::computation::component(context).map_err(Clone::clone)?)
         } else {
             Source::Module(
                 context
@@ -158,7 +157,7 @@ impl<'a> File<'a> {
     #[must_use]
     pub fn normalized(&self) -> Option<&'a CompilerSyntaxTree> {
         self.component()?;
-        self.context.get::<Lowered>().as_ref()
+        crate::computation::lowered(self.context)
     }
 
     /// The compiler's warnings and analysis errors of the component; `None` for a module.
@@ -172,7 +171,7 @@ impl<'a> File<'a> {
     #[must_use]
     pub fn resolution(&self) -> Option<&'a Resolution> {
         self.component()?;
-        self.context.get::<Resolved>().as_ref()
+        crate::computation::resolution(self.context)
     }
 
     /// The JavaScript of the document: a component's scripts and template expressions, or a

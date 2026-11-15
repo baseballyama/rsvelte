@@ -39,6 +39,10 @@ struct ValidCompile {
 impl SvelteRule for ValidCompile {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let Some(compile) = file.compile_warnings() else {
+            // Lint reads a script the compiler rejects, whose error the compile throws.
+            if let Err(error) = file.context.get::<rsvelte_svelte_syntax::Parsed>() {
+                report(reporter, error, &error.message, &error.code);
+            }
             return;
         };
         let component = file.component().expect("a component rule");

@@ -114,3 +114,47 @@ fn a_syntax_error_in_the_template_fails_the_parse() {
         "{twice}"
     );
 }
+
+/// typescript-eslint parses a script the compiler rejects, so the rules run on it and
+/// `svelte/valid-compile` reports the compiler's error.
+#[test]
+fn a_script_only_the_compiler_rejects_is_linted() {
+    let mut configuration = Configuration::new(LintSettings::default());
+    for rule in ["svelte/valid-compile", "no-unused-vars"] {
+        configuration
+            .rule(rule, Severity::Error, &[], &[])
+            .expect("a built-in rule");
+    }
+    let mut registry = Registry::new();
+    register_with_configuration(&mut registry, configuration);
+    let source = "<script>const y = <string>() => 1;</script><p>{y}</p>";
+    let document =
+        Document::new("App.svelte".to_owned(), source.to_owned()).expect("a small document");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let mut out = TaskOutput::default();
+    Lint { modules: false }.run(&context, &mut out);
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    let json: serde_json::Value =
+        serde_json::from_str(&out.files[0].text).expect("the report is JSON");
+    let rules: Vec<_> = (json["findings"].as_array().into_iter().flatten())
+        .map(|finding| finding["rule"].as_str())
+        .collect();
+    assert_eq!(
+        rules,
+        [Some("svelte/valid-compile"), Some("no-unused-vars")],
+        "{json}"
+    );
+}
+
+/// Upstream's `svelte/indent` throws on this enum; this crate indents it as in a TypeScript script.
+#[test]
+fn an_enum_in_a_plain_script_is_indented() {
+    let document = Document::new(
+        "App.svelte".to_owned(),
+        "<script>\n\tenum E { A }\n</script>\n".to_owned(),
+    )
+    .expect("a small document");
+    let (json, _) = lint_with("svelte/indent", &document, |_| {});
+    assert_eq!(json["findings"].as_array().map(Vec::len), Some(1), "{json}");
+    assert_eq!(json["findings"][0]["start"]["line"].as_u64(), Some(2));
+}

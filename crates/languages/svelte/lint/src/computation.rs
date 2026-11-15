@@ -1,9 +1,13 @@
 use std::path::Path;
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
-use rsvelte_svelte_semantic::Resolved;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerSyntaxTree, lower};
 use rsvelte_svelte_semantic::legacy::Legacy;
-use rsvelte_svelte_syntax::Parsed;
+use rsvelte_svelte_semantic::resolve::{Resolution, resolve};
+use rsvelte_svelte_semantic::{Lowered, Resolved};
+use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_svelte_syntax::{Parsed, ParsedAsTypeScript};
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::ProgramIdentifier;
 
@@ -42,14 +46,8 @@ impl Artifact for NativeConditionTypes {
     const NAME: &'static str = "svelte.lint.native_condition_types";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let component = context
-            .get::<Parsed>()
-            .as_ref()
-            .expect("lint requests types after parsing");
-        let resolution = context
-            .get::<Resolved>()
-            .as_ref()
-            .expect("a parsed component resolves");
+        let component = component(context).expect("lint requests types of a component it reads");
+        let resolution = resolution(context).expect("a component lint reads resolves");
         TypeFacts::infer(component, resolution, context.source_text())
     }
 }
@@ -65,14 +63,9 @@ impl Artifact for LegacyReactivity {
     const NAME: &'static str = "svelte.lint.legacy_reactivity";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let component = context
-            .get::<Parsed>()
-            .as_ref()
-            .expect("lint requests legacy reactivity after parsing");
-        let resolution = context
-            .get::<Resolved>()
-            .as_ref()
-            .expect("a parsed component resolves");
+        let component =
+            component(context).expect("lint requests legacy reactivity of a component it reads");
+        let resolution = resolution(context).expect("a component lint reads resolves");
         let programs: Vec<ProgramIdentifier> = component
             .module
             .iter()
@@ -80,6 +73,75 @@ impl Artifact for LegacyReactivity {
             .map(|script| script.program)
             .collect();
         Legacy::new(resolution, &programs)
+    }
+}
+
+/// The component lint reads: the compiler's, or, when the compiler rejects a script only and
+/// typescript-eslint reads it, the component with its scripts read as TypeScript, as
+/// svelte-eslint-parser reads them.
+///
+/// # Errors
+///
+/// The compiler's parse error.
+pub(crate) fn component<'a>(
+    context: &'a DocumentContext<'_>,
+) -> Result<&'a Component, &'a Diagnostic> {
+    let error = match context.get::<Parsed>() {
+        Ok(component) => return Ok(component),
+        Err(error) => error,
+    };
+    let in_script = || {
+        rsvelte_svelte_syntax::parse::in_script_content(
+            context.source_text(),
+            error.span.start_offset,
+        )
+    };
+    match context.get::<ParsedAsTypeScript>() {
+        Ok(component) if component.script_typescript_errors.is_empty() && in_script() => {
+            Ok(component)
+        }
+        _ => Err(error),
+    }
+}
+
+/// The compiler tree of [`component`]; `None` when lint does not read it.
+pub(crate) fn lowered<'a>(context: &'a DocumentContext<'_>) -> Option<&'a CompilerSyntaxTree> {
+    if context.get::<Parsed>().is_ok() {
+        return context.get::<Lowered>().as_ref();
+    }
+    (context.get::<TypeScriptAnalysis>().as_ref()).map(|(lowered, _)| lowered)
+}
+
+/// The resolution of [`component`]; `None` when lint does not read it.
+pub(crate) fn resolution<'a>(context: &'a DocumentContext<'_>) -> Option<&'a Resolution> {
+    if context.get::<Parsed>().is_ok() {
+        return context.get::<Resolved>().as_ref();
+    }
+    (context.get::<TypeScriptAnalysis>().as_ref()).map(|(_, resolution)| resolution)
+}
+
+/// The compiler tree and the resolution of a component [`component`] reads as TypeScript.
+#[derive(Debug)]
+pub(crate) struct TypeScriptAnalysis;
+
+impl Artifact for TypeScriptAnalysis {
+    type Output = Option<(CompilerSyntaxTree, Resolution)>;
+
+    const NAME: &'static str = "svelte.lint.typescript_analysis";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        if context.get::<Parsed>().is_ok() {
+            return None;
+        }
+        let c = component(context).ok()?;
+        let lowered = lower(c, context.source_text());
+        let resolution = resolve(
+            &c.javascript,
+            c.instance.as_ref().map(|s| s.program),
+            c.module.as_ref().map(|s| s.program),
+            &lowered,
+        );
+        Some((lowered, resolution))
     }
 }
 
