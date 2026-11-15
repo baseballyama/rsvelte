@@ -235,3 +235,6 @@ pub(super) fn let_shadows<'a>(
     }
     out
 }
+
+#[cfg(test)]
+mod tests;

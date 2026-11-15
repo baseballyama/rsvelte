@@ -4788,9 +4788,6 @@
 7:6 7:7 no-unused-vars "'n' is assigned a value but never used."
 7:6 7:7 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
 
-=== 73 bind_host_axis_3264/legal_bindings_still_compile_on_every_host/e2b7a8af8920172b.svelte	lint.txt
-9:32 - - "Parsing error: Expected Identifier, but ThisExpression found."
-
 === 1133 bind_host_axis_3264/legal_bindings_still_compile_on_every_host/efca8442c169e07b.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:9 2:10 no-unused-vars "'C' is defined but never used."

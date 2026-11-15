@@ -23,8 +23,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 30367511,
-	"alloc_bytes": 4470233620,
+	"allocs": 30367503,
+	"alloc_bytes": 4470235248,
 	"peak_live_growth_bytes": 3489483,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -38,9 +38,9 @@
 			"alloc_bytes": 139004050
 		},
 		"no-unused-vars": {
-			"calls": 34884,
-			"allocs": 98880,
-			"alloc_bytes": 12271026
+			"calls": 34901,
+			"allocs": 98947,
+			"alloc_bytes": 12280414
 		},
 		"svelte.analyze": {
 			"calls": 39928,
@@ -108,9 +108,9 @@
 			"alloc_bytes": 10984
 		},
 		"svelte.lint.svelte_config": {
-			"calls": 34541,
-			"allocs": 34541,
-			"alloc_bytes": 1657968
+			"calls": 34558,
+			"allocs": 34558,
+			"alloc_bytes": 1658784
 		},
 		"svelte.lint.svelte_kit": {
 			"calls": 4,
@@ -119,8 +119,8 @@
 		},
 		"svelte.lint/default": {
 			"calls": 36869,
-			"allocs": 197284,
-			"alloc_bytes": 22301025
+			"allocs": 197191,
+			"alloc_bytes": 22292403
 		},
 		"svelte.lower.client": {
 			"calls": 36376,
@@ -183,9 +183,9 @@
 			"alloc_bytes": 9545
 		},
 		"svelte/button-has-type": {
-			"calls": 34884,
-			"allocs": 8025,
-			"alloc_bytes": 2096598
+			"calls": 34901,
+			"allocs": 8026,
+			"alloc_bytes": 2096644
 		},
 		"svelte/comment-directive": {
 			"calls": 4,
