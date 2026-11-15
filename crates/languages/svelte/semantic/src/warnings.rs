@@ -38,7 +38,7 @@ use found::Found;
 pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
 pub use runes::dollar_name_errors;
 pub(crate) use runes::svelte_option;
-use runes::{custom_element, legacy_rune_calls, rune_placement, runes};
+use runes::{custom_element, rune_errors, runes};
 use selectors::unused_selectors;
 use template::Template;
 
@@ -331,11 +331,7 @@ pub fn warnings(
         resolution,
         runes,
     ));
-    if runes {
-        rune_placement(component, resolution, &mut out.errors);
-    } else {
-        legacy_rune_calls(component, resolution, &mut out.errors);
-    }
+    rune_errors(component, resolution, runes, &mut out.errors);
     let mut found = Found::default();
     let custom_options = svelte_option(component, source, "customElement").is_some();
     let none = rustc_hash::FxHashMap::default();
@@ -381,12 +377,15 @@ pub fn warnings(
     );
     template.fragment(component.root, a11y::Parent::None);
     let bind_this = std::mem::take(&mut template.bind_this);
-    let first_slot = template.first_slot;
-    slot_snippet_conflict(
+    let first_slot = template.first_slot.map(|(_, at)| at);
+    component_errors(
         component,
         resolution,
         source,
-        first_slot.map(|(_, at)| at),
+        template
+            .event_directive
+            .filter(|_| template.event_attributes),
+        first_slot,
         custom_options || options.custom_element,
         &mut out.errors,
     );
@@ -419,15 +418,33 @@ pub fn warnings(
     out
 }
 
-/// `slot_snippet_conflict`: `{@render}` beside a `<slot>`, or beside `$$slots`.
-fn slot_snippet_conflict(
+/// The checks upstream makes once the walks end: `mixed_event_handler_syntaxes`, an element's
+/// `on:` directive beside an element's event attribute, then `slot_snippet_conflict`, a
+/// `{@render}` beside a `<slot>` or beside `$$slots`.
+fn component_errors(
     component: &Component,
     resolution: &Resolution,
     source: &str,
+    event_directive: Option<(Span, Span)>,
     first_slot: Option<Span>,
     custom_element: bool,
     out: &mut Vec<(Raised, Diagnostic)>,
 ) {
+    let raised = |at| Raised {
+        phase: Phase::Component,
+        section: Section::Template,
+        at,
+    };
+    if let Some((at, name)) = event_directive {
+        let name = name.text(source);
+        let message = format!(
+            "Mixing old (on:{name}) and new syntaxes for event handling is not allowed. Use only \
+                the on{name} syntax"
+        );
+        let found = error("mixed_event_handler_syntaxes", &message, at);
+        // Upstream checks it first, so it sorts before the slot conflict wherever that is.
+        out.push((raised(0), found));
+    }
     let renders = component
         .nodes
         .iter()
@@ -441,14 +458,12 @@ fn slot_snippet_conflict(
         let at = source.find("$$slot").map_or(0, |at| at as u32);
         Span::new(at, at)
     });
-    let raised = Raised {
-        phase: Phase::Component,
-        section: Section::Template,
-        at: at.start_offset,
-    };
     let message = "Cannot use `<slot>` syntax and `{@render ...}` tags in the same component. \
         Migrate towards `{@render ...}` tags completely";
-    out.push((raised, error("slot_snippet_conflict", message, at)));
+    out.push((
+        raised(at.start_offset),
+        error("slot_snippet_conflict", message, at),
+    ));
 }
 
 /// Upstream `analyze_module`'s warnings for a `.svelte.js` or `.svelte.ts` module: its script

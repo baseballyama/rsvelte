@@ -682,3 +682,16 @@ fn a_const_tag_directly_in_svelte_self_is_misplaced() {
         ["const_tag_invalid_placement"]
     );
 }
+
+#[test]
+fn an_event_directive_beside_an_event_attribute_is_mixed_syntax() {
+    let errors = |code: &str| compiled_with_errors(code, None).1;
+    assert_eq!(
+        errors("<button on:click={f}>x</button>\n<button onclick={f}>y</button>\n"),
+        ["mixed_event_handler_syntaxes"]
+    );
+    assert_eq!(
+        errors("<Widget on:click={f} />\n<button onclick={f}>y</button>\n"),
+        Vec::<String>::new()
+    );
+}

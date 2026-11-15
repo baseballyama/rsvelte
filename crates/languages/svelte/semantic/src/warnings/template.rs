@@ -48,6 +48,10 @@ pub(super) struct Template<'a> {
     /// Upstream's first entry of `slot_names`: the first `<slot>` name, and the last `<slot>`
     /// with that name.
     pub(super) first_slot: Option<(&'a str, Span)>,
+    /// The first `on:` directive of an element, with its event name.
+    pub(super) event_directive: Option<(Span, Span)>,
+    /// An element has an event attribute, such as `onclick={…}`.
+    pub(super) event_attributes: bool,
     /// The identifiers an `{#each}` context declares inside a rest element.
     each_rest: FxHashSet<SymbolId>,
     /// The nearest enclosing element with its own end tag, which closes the open ones inside.
@@ -86,6 +90,8 @@ impl<'a> Template<'a> {
             blocks: 0,
             bind_this: Vec::new(),
             first_slot: None,
+            event_directive: None,
+            event_attributes: false,
             each_rest: FxHashSet::default(),
             closer: None,
             parent_element: None,

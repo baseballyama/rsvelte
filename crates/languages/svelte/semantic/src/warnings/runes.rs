@@ -224,8 +224,22 @@ fn variable_declaration<'s, 'a>(
     }
 }
 
+/// The errors of runes: their placement in runes mode, their calls outside it.
+pub(super) fn rune_errors(
+    component: &Component,
+    resolution: &Resolution,
+    runes: bool,
+    out: &mut Vec<(Raised, Diagnostic)>,
+) {
+    if runes {
+        rune_placement(component, resolution, out);
+    } else {
+        legacy_rune_calls(component, resolution, out);
+    }
+}
+
 /// Runes mode's `legacy_export_invalid`, `props_duplicate` and `props_invalid_placement`.
-pub(super) fn rune_placement(
+fn rune_placement(
     component: &Component,
     resolution: &Resolution,
     out: &mut Vec<(Raised, Diagnostic)>,
@@ -298,7 +312,7 @@ pub(super) fn rune_placement(
 
 /// `rune_invalid_usage`: outside runes mode, a declarator whose initializer calls `$state`,
 /// `$derived` or `$props` that is not a store subscription, such as a parameter of that name.
-pub(super) fn legacy_rune_calls(
+fn legacy_rune_calls(
     component: &Component,
     resolution: &Resolution,
     out: &mut Vec<(Raised, Diagnostic)>,

@@ -1,4 +1,4 @@
-# svelte.lint/default: 37173 match
+# svelte.lint/default: 37174 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -422,7 +422,6 @@ svelte/rsvelte/lint/no-inspect/13-destructure-shorthand.svelte	mismatch
 svelte/rsvelte/lint/no-inspect/17-import-export-specifier.svelte	mismatch
 svelte/rsvelte/lint/no-nested-style-tag/06-self-closing-top.svelte	mismatch
 svelte/rsvelte/lint/no-nested-style-tag/14-component-lookalike.svelte	mismatch
-svelte/rsvelte/lint/no-not-function-handler/04-const-chain.svelte	mismatch
 svelte/rsvelte/lint/no-shorthand-style-property-overrides/13-case-and-hacks.svelte	mismatch
 svelte/rsvelte/lint/no-spaces-around-equal-signs-in-attribute/07-special-this.svelte	mismatch
 svelte/rsvelte/lint/no-spaces-around-equal-signs-in-attribute/11-this-exotic-ws-eq.svelte	mismatch

@@ -413,6 +413,9 @@ impl<'a> Template<'a> {
         let source = self.context.source;
         for attribute in component.attributes(attributes) {
             let at = attribute.span.start_offset;
+            if element {
+                self.event_syntaxes(attribute);
+            }
             match attribute.kind {
                 AttributeKind::On if element && self.context.runes => {
                     let Some(name) = attribute.directive_name(&component.modifiers) else {
@@ -444,6 +447,28 @@ impl<'a> Template<'a> {
                 }
                 _ => {}
             }
+        }
+    }
+
+    /// Upstream's `event_directive_node` and `uses_event_attributes`, on an element's attribute.
+    fn event_syntaxes(&mut self, attribute: &Attribute) {
+        let component = self.context.component;
+        match attribute.kind {
+            AttributeKind::On => {
+                if self.event_directive.is_none()
+                    && let Some(name) = attribute.directive_name(&component.modifiers)
+                {
+                    self.event_directive = Some((attribute.span, name));
+                }
+            }
+            AttributeKind::Attribute
+                if attribute.name.text(self.context.source).starts_with("on")
+                    && matches!(attribute.value, AttributeValue::Parts(parts)
+                        if matches!(component.parts(parts), [Part::Expression { .. }])) =>
+            {
+                self.event_attributes = true;
+            }
+            _ => {}
         }
     }
 
