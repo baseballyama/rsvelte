@@ -171,7 +171,10 @@ impl Walk<'_> {
                 self.function_depth(declared_scope, program) == Some(self.place.depth)
             }
             (None, Some(scope)) => declared_scope == scope && self.place.depth == 0,
-            (None, None) => false,
+            // In the template, only a binding a function there declares can share its depth.
+            (None, None) => self
+                .function_depth(declared_scope, resolution.instance_scope())
+                .is_some_and(|depth| depth > 0 && depth == self.place.depth),
         };
         if !declared_before || !same_depth {
             return;

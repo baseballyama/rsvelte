@@ -638,3 +638,10 @@ fn an_exported_class_nothing_uses_is_an_unused_export_in_legacy_mode() {
         Vec::<String>::new()
     );
 }
+
+#[test]
+fn a_derived_a_template_function_declares_is_referenced_locally_there() {
+    let source = "<script>\n  let v = $state(1);\n</script>\n<b onclick={() => { let x = \
+        $derived(v); v = x; }}>{v}</b>\n";
+    assert_eq!(texts("state_referenced_locally", source), ["x"]);
+}
