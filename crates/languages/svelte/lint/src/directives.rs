@@ -2,8 +2,9 @@
 //! JavaScript), and eslint-plugin-svelte's processor (`<!-- eslint-disable -->` in the template,
 //! the rules `settings.svelte.ignoreWarnings` names outside `<script>`).
 
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::{LineColumn, LineIndex, Span};
-use rsvelte_lint_runner::finding::Finding;
+use rsvelte_lint_runner::finding::{Finding, UNUSED_DIRECTIVE};
 use rsvelte_svelte_syntax::syntax_tree::{Component, Script, TemplateNode};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -100,114 +101,212 @@ pub(crate) fn justification_start(value: &str) -> Option<usize> {
     })
 }
 
-/// Removes findings that `ESLint`'s own directive comments, in JavaScript comments, turn off.
+/// One rule name of a directive comment, or every rule (`None`), at `ESLint`'s position: a line
+/// and a 1-based column, where column 0 comes before the line's first finding.
+struct Applied {
+    at: (u32, u32),
+    disable: bool,
+    comment: usize,
+    rule: Option<usize>,
+}
+
+/// The rules a directive comment names, each with whether it turned a finding off.
+type Rules<'a> = Vec<(&'a str, bool)>;
+
+/// A JavaScript directive comment.
+struct Comment<'a> {
+    start: u32,
+    disable: bool,
+    rules: Rules<'a>,
+}
+
+/// Removes findings that `ESLint`'s own directive comments, in JavaScript comments, turn off, and
+/// returns `ESLint`'s reports of the disable directives that turned nothing off. It reports only
+/// what it can tell: a rule name that `running` says runs, whose findings are all here.
 pub(crate) fn apply_javascript(
     findings: &mut Vec<Finding>,
     comments: &[Span],
     source: &str,
     lines: &LineIndex,
-) {
-    let mut blocks: Vec<(u32, bool, Vec<&str>)> = Vec::new();
-    let mut disabled_lines: FxHashMap<u32, Vec<Vec<&str>>> = FxHashMap::default();
-    for &comment in comments {
-        let text = comment.text(source);
-        let (block, value) = text.strip_prefix("/*").map_or_else(
-            || (false, text.strip_prefix("//").unwrap_or(text)),
-            |inner| (true, inner.strip_suffix("*/").unwrap_or(inner)),
-        );
-        let part = value[..justification_start(value).unwrap_or(value.len())].trim();
-        let Some((kind, rest)) = [
-            Kind::DisableNextLine,
-            Kind::DisableLine,
-            Kind::Disable,
-            Kind::Enable,
-        ]
-        .into_iter()
-        .find_map(|kind| {
-            let rest = part.strip_prefix(kind.keyword())?;
-            (rest.is_empty() || rest.starts_with(is_javascript_space)).then_some((kind, rest))
-        }) else {
+    running: impl Fn(&str) -> bool,
+) -> Vec<Finding> {
+    let mut parsed: Vec<Comment<'_>> = Vec::new();
+    let mut blocks: Vec<Applied> = Vec::new();
+    let mut line_directives: Vec<Applied> = Vec::new();
+    for &span in comments {
+        let Some((kind, block, rules)) = javascript_directive(span.text(source)) else {
             continue;
         };
-        // `parseListConfig`: commas separate names, which may be quoted.
-        let rules: Vec<&str> = rest
-            .split(',')
-            .map(|name| {
-                let name = name.trim();
-                ['"', '\'']
-                    .into_iter()
-                    .find_map(|q| name.strip_prefix(q)?.strip_suffix(q))
-                    .unwrap_or(name)
-            })
-            .filter(|name| !name.is_empty())
-            .collect();
-        let start = lines.line_column(comment.start_offset).line;
-        match kind {
-            Kind::Disable | Kind::Enable if block => {
-                blocks.push((comment.start_offset, kind == Kind::Disable, rules));
+        let start = lines.line_column(span.start_offset);
+        let line = match kind {
+            Kind::Disable | Kind::Enable if block => None,
+            Kind::DisableLine if start.line == lines.line_column(span.end_offset).line => {
+                Some(start.line)
             }
-            Kind::DisableLine if start == lines.line_column(comment.end_offset).line => {
-                disabled_lines.entry(start).or_default().push(rules);
+            Kind::DisableNextLine => Some(lines.line_column(span.end_offset).line + 1),
+            _ => continue,
+        };
+        let comment = parsed.len();
+        let every = std::iter::once(None).filter(|_| rules.is_empty());
+        for rule in (0..rules.len()).map(Some).chain(every) {
+            let applied = |at, disable| Applied {
+                at,
+                disable,
+                comment,
+                rule,
+            };
+            match line {
+                None => blocks.push(applied(
+                    (start.line, start.column + 1),
+                    kind == Kind::Disable,
+                )),
+                Some(line) => {
+                    line_directives.push(applied((line, 1), true));
+                    line_directives.push(applied((line + 1, 0), false));
+                }
             }
-            Kind::DisableNextLine => {
-                disabled_lines
-                    .entry(lines.line_column(comment.end_offset).line + 1)
-                    .or_default()
-                    .push(rules);
-            }
-            _ => {}
         }
+        parsed.push(Comment {
+            start: span.start_offset,
+            disable: kind != Kind::Enable,
+            rules,
+        });
     }
-    if blocks.is_empty() && disabled_lines.is_empty() {
-        return;
+    if parsed.is_empty() {
+        return Vec::new();
     }
-    // `apply-disable-directives`: walk the findings in order, applying each directive at or
-    // before them; a rule enabled after `eslint-disable` stays on.
-    let mut next = 0;
-    let mut all_disabled = false;
-    let mut disabled: FxHashSet<&str> = FxHashSet::default();
-    let mut enabled: FxHashSet<&str> = FxHashSet::default();
-    findings.retain(|finding| {
-        let at = finding.diagnostic.span.start_offset;
-        while let Some((_, disable, rules)) = blocks.get(next).filter(|b| b.0 <= at) {
-            next += 1;
-            match (*disable, rules.is_empty()) {
-                (true, true) => {
-                    all_disabled = true;
-                    disabled.clear();
-                    enabled.clear();
-                }
-                (false, true) => {
-                    all_disabled = false;
-                    disabled.clear();
-                }
-                (true, false) => {
-                    for rule in rules {
-                        enabled.remove(rule);
-                        disabled.insert(rule);
-                    }
-                }
-                (false, false) => {
-                    for rule in rules {
-                        if all_disabled {
-                            enabled.insert(rule);
-                        }
-                        disabled.remove(rule);
-                    }
-                }
-            }
-        }
-        let rule = &*finding.diagnostic.code;
-        if disabled.contains(&rule) || (all_disabled && !enabled.contains(&rule)) {
-            return false;
-        }
-        let line = lines.line_column(at).line;
-        !disabled_lines.get(&line).is_some_and(|directives| {
-            directives
-                .iter()
-                .any(|rules| rules.is_empty() || rules.contains(&rule))
+    line_directives.sort_by_key(|d| d.at);
+    let at: Vec<(u32, u32)> = findings
+        .iter()
+        .map(|f| {
+            let at = lines.line_column(f.diagnostic.span.start_offset);
+            (at.line, at.column + 1)
         })
-    });
+        .collect();
+    let mut suppressed = vec![false; findings.len()];
+    // `apply-disable-directives`: block directives first, then line ones.
+    for pass in [&blocks, &line_directives] {
+        credit(pass, findings, &at, &mut parsed, &mut suppressed);
+    }
+    let mut keep = suppressed.into_iter();
+    findings.retain(|_| !keep.next().expect("one verdict per finding"));
+    parsed
+        .iter()
+        .filter(|comment| comment.disable)
+        .flat_map(|comment| unused(comment, &running))
+        .collect()
+}
+
+/// A directive comment's kind, whether it is a block comment, and the rules it names.
+fn javascript_directive(text: &str) -> Option<(Kind, bool, Rules<'_>)> {
+    let (block, value) = text.strip_prefix("/*").map_or_else(
+        || (false, text.strip_prefix("//").unwrap_or(text)),
+        |inner| (true, inner.strip_suffix("*/").unwrap_or(inner)),
+    );
+    let part = value[..justification_start(value).unwrap_or(value.len())].trim();
+    let (kind, rest) = [
+        Kind::DisableNextLine,
+        Kind::DisableLine,
+        Kind::Disable,
+        Kind::Enable,
+    ]
+    .into_iter()
+    .find_map(|kind| {
+        let rest = part.strip_prefix(kind.keyword())?;
+        (rest.is_empty() || rest.starts_with(is_javascript_space)).then_some((kind, rest))
+    })?;
+    // `parseListConfig`: commas separate names, which may be quoted; a repeated name is one.
+    let mut rules: Rules<'_> = Vec::new();
+    for name in rest.split(',') {
+        let name = name.trim();
+        let name = ['"', '\'']
+            .into_iter()
+            .find_map(|q| name.strip_prefix(q)?.strip_suffix(q))
+            .unwrap_or(name);
+        if !name.is_empty() && !rules.iter().any(|&(r, _)| r == name) {
+            rules.push((name, false));
+        }
+    }
+    Some((kind, block, rules))
+}
+
+/// One pass of `applyDirectives`: the latest directive at or before a finding that names its
+/// rule or every rule decides, and a disable one is credited unless an earlier pass was.
+fn credit(
+    pass: &[Applied],
+    findings: &[Finding],
+    at: &[(u32, u32)],
+    parsed: &mut [Comment<'_>],
+    suppressed: &mut [bool],
+) {
+    let mut next = 0;
+    let mut all: Option<usize> = None;
+    let mut named: FxHashMap<&str, usize> = FxHashMap::default();
+    for (i, finding) in findings.iter().enumerate() {
+        while let Some(directive) = pass.get(next).filter(|d| d.at <= at[i]) {
+            match directive.rule {
+                None => all = Some(next),
+                Some(rule) => {
+                    named.insert(parsed[directive.comment].rules[rule].0, next);
+                }
+            }
+            next += 1;
+        }
+        let latest = all.max(named.get(&*finding.diagnostic.code).copied());
+        let Some(directive) = latest.map(|latest| &pass[latest]) else {
+            continue;
+        };
+        if !directive.disable {
+            continue;
+        }
+        if !suppressed[i]
+            && let Some(rule) = directive.rule
+        {
+            parsed[directive.comment].rules[rule].1 = true;
+        }
+        suppressed[i] = true;
+    }
+}
+
+/// `processUnusedDirectives` for one disable comment: one report naming every rule when none
+/// turned anything off, else one per unused rule.
+fn unused(comment: &Comment<'_>, running: &impl Fn(&str) -> bool) -> Vec<Finding> {
+    let mut unused = comment.rules.iter().filter(|&&(_, used)| !used).peekable();
+    // An unnamed directive also covers rules rsvelte does not run, which may have used it.
+    if unused.peek().is_none() {
+        return Vec::new();
+    }
+    let report = |description: &str| {
+        let message = format!(
+            "Unused eslint-disable directive (no problems were reported from {description})."
+        );
+        let at = Span::new(comment.start, comment.start);
+        Finding::from(Diagnostic::warning(UNUSED_DIRECTIVE, message, at).without_end())
+    };
+    let all_run = comment.rules.iter().all(|&(rule, _)| running(rule));
+    let any_used = comment.rules.iter().any(|&(_, used)| used);
+    if all_run && !any_used {
+        let names: Vec<String> = comment
+            .rules
+            .iter()
+            .map(|(rule, _)| format!("'{rule}'"))
+            .collect();
+        let description = match names.as_slice() {
+            [.., last] if names.len() > 2 => {
+                format!("{}, or {last}", names[..names.len() - 1].join(", "))
+            }
+            _ => names.join(" or "),
+        };
+        return vec![report(&description)];
+    }
+    // An unknown or non-running rule may have used it, which decides one report or one per rule.
+    if !any_used {
+        return Vec::new();
+    }
+    unused
+        .filter(|&&(rule, _)| running(rule))
+        .map(|(rule, _)| report(&format!("'{rule}'")))
+        .collect()
 }
 
 /// Which rules a directive of the processor applies to.
