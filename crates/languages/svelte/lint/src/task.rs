@@ -161,6 +161,21 @@ impl Task for Lint {
                 TypescriptEslint::Parses => {}
             }
         }
+        if rsvelte_svelte_syntax::matches(context.document)
+            && let Ok(component) = context.get::<rsvelte_svelte_syntax::Parsed>()
+            && let Some(verdict) = shorthand::error(component, context.source_text())
+        {
+            match verdict {
+                Ok((message, at)) => rsvelte_lint_runner::output::report_parse_error(
+                    out,
+                    positions(context),
+                    &message,
+                    at,
+                ),
+                Err(error) => out.diagnostics.push(error),
+            }
+            return;
+        }
         let (file, findings, rules) = match crate::rule::File::new(context, configuration.globals())
             .and_then(|file| {
                 let (findings, rules) = crate::lint::check(&file, configuration)?;
@@ -235,5 +250,6 @@ fn positions<'a>(context: &'a DocumentContext<'_>) -> rsvelte_lint_runner::outpu
     )
 }
 
+mod shorthand;
 #[cfg(test)]
 mod tests;
