@@ -6,6 +6,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part};
 
 use super::{Builder, Node, NodeIdentifier, SourceExpression};
+use crate::syntax_tree::Spelling;
 
 /// svelte2tsx's `numberOnlyAttributes`: an element's static value for one of these is a number.
 const NUMBER_ONLY: &[&str] = &[
@@ -231,8 +232,13 @@ impl Builder<'_> {
             _ if attribute.shorthand => Node::Shorthand(value),
             _ => Node::Property {
                 name: attribute.name,
-                lowercase: intrinsic
-                    && lowercased(attribute.name.text(self.source), custom_element),
+                spelling: if intrinsic
+                    && lowercased(attribute.name.text(self.source), custom_element)
+                {
+                    Spelling::Lowercase
+                } else {
+                    Spelling::AsWritten
+                },
                 value,
                 end: (!matches!(attribute.value, AttributeValue::True))
                     .then_some(attribute.name.end_offset),

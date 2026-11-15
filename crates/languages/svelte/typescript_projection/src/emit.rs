@@ -4,7 +4,9 @@ use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
 
-use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree, TypeParameters};
+use crate::syntax_tree::{
+    Node, NodeIdentifier, SourceExpression, Spelling, SyntaxTree, TypeParameters,
+};
 
 /// [`emit_named`] for a component without a file, which svelte2tsx names `$$Component`.
 #[must_use]
@@ -50,16 +52,27 @@ impl Printer<'_> {
         }
     }
 
-    fn property(&mut self, name: Span, lowercase: bool, value: NodeIdentifier, end: Option<u32>) {
+    fn property(
+        &mut self,
+        name: Span,
+        spelling: Spelling,
+        value: NodeIdentifier,
+        end: Option<u32>,
+    ) {
         // svelte2tsx quotes every name, and a finding on it covers the name without quotes.
         let start = self.output.out.len() as u32;
         self.output.push("\"");
-        if lowercase {
-            for c in name.text(self.source).chars().flat_map(char::to_lowercase) {
-                self.output.push_char(c);
+        match spelling {
+            Spelling::AsWritten => self.output.push(name.text(self.source)),
+            Spelling::Lowercase => {
+                for c in name.text(self.source).chars().flat_map(char::to_lowercase) {
+                    self.output.push_char(c);
+                }
             }
-        } else {
-            self.output.push(name.text(self.source));
+            Spelling::Event => {
+                self.output.push("on:");
+                self.output.push(name.text(self.source));
+            }
         }
         self.output.push("\"");
         self.output.atom_since(start, name);
@@ -137,10 +150,10 @@ impl Printer<'_> {
             } => self.branch(test, consequent, alternate),
             Node::Property {
                 name,
-                lowercase,
+                spelling,
                 value,
                 end,
-            } => self.property(name, lowercase, value, end),
+            } => self.property(name, spelling, value, end),
             node @ (Node::SnippetProperty { .. }
             | Node::SnippetNames { .. }
             | Node::ImplicitChildren(_)) => self.component_part(node),

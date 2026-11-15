@@ -125,8 +125,7 @@ pub enum Node {
     },
     Property {
         name: Span,
-        /// svelte2tsx writes the name in lowercase.
-        lowercase: bool,
+        spelling: Spelling,
         value: NodeIdentifier,
         end: Option<u32>,
     },
@@ -280,4 +279,13 @@ impl SyntaxTree {
         self.children.extend_from_slice(children);
         range
     }
+}
+
+/// How svelte2tsx writes a [`Node::Property`]'s name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Spelling {
+    AsWritten,
+    Lowercase,
+    /// `on:` before the event's name, where svelte-check reports a finding on the name.
+    Event,
 }
