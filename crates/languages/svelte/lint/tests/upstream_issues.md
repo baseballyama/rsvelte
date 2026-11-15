@@ -687,6 +687,19 @@ No issue yet. svelte-eslint-parser starts an end tag at the last `<` before the 
   This crate reports nothing.
 - The corpus skips its lint unit.
 
+## The last of several codes is dropped without a separator after it (`svelte/no-unused-svelte-ignore`)
+
+No issue yet. `extractSvelteIgnore` takes each code up to the separator after it, and keeps the
+text after the last separator only when it found no code before
+([ignore-comment.ts](https://github.com/sveltejs/eslint-plugin-svelte/blob/24201e06a1a8e270c1143d1fb460e6ae635719d8/packages/eslint-plugin-svelte/src/shared/svelte-compile-warns/ignore-comment.ts#L103-L126)).
+
+- Case: `<!--svelte-ignore a11y_missing_attribute a11y_distracting_elements-->` before an
+  `<img>` without `alt`. Upstream never checks `a11y_distracting_elements`, and reports nothing.
+  With a space before `-->`, it reports the code as unused.
+- Case: `// svelte-ignore state_referenced_locally TODO`, where the last word is a note.
+- Correct: Svelte reads every code of the list. This crate checks the last one too.
+- The corpus skips their 4 lint units.
+
 ## The `this` attribute of `<svelte:element>` (svelte-eslint-parser)
 
 No issue yet. `processThisAttribute` finds the parts of `this=` by searching the text

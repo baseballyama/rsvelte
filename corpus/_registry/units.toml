@@ -2916,6 +2916,7 @@
 "svelte.check" = "checker: TS 7 prints a union's literal members in its own order where TS 6 keeps the written order, so the message lists them differently"
 
 ["svelte/svelte-inspect-value/packages/svelte/src/lib/components/HTMLViewSimple.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore drops the last of several codes when no separator follows it."
 "svelte.check" = "checker: TS 7 reports only the last overload of a call that no overload matches where TS 6 reports each overload"
 
 ["svelte/svelte/packages/svelte/tests/manual/each-stress-test/main.svelte".skip]
@@ -4279,3 +4280,12 @@
 
 ["svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser starts a textarea end tag at its last </textarea, so it reads as one line."
+
+["svelte/kite-public/src/routes/+layout.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore drops the last of several codes when no separator follows it."
+
+["svelte/rsvelte/lint/no-unused-svelte-ignore/12-no-trailing-space-codes.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore drops the last of several codes when no separator follows it."
+
+["svelte/svelte-inspect-value/packages/svelte/src/lib/components/Preview.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore drops the last of several codes when no separator follows it."

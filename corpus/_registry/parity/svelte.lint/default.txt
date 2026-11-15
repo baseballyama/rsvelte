@@ -9,7 +9,6 @@ svelte/kampsy-ui/src/routes/button/+page.svelte	mismatch
 svelte/kampsy-ui/src/routes/checkbox/+page.svelte	mismatch
 svelte/kampsy-ui/src/routes/collapse/+page.svelte	mismatch
 svelte/kampsy-ui/src/routes/installation/+page.svelte	mismatch
-svelte/kite-public/src/routes/+layout.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/svelte/testfiles/diagnostics-module.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/export-list/input.svelte	mismatch
 svelte/melt-ui/docs/src/components/preview.svelte	mismatch
@@ -493,7 +492,6 @@ svelte/rsvelte/lint/no-at-debug-tags/13-spaced-tag.svelte	mismatch
 svelte/rsvelte/lint/no-nested-style-tag/06-self-closing-top.svelte	mismatch
 svelte/rsvelte/lint/no-not-function-handler/04-const-chain.svelte	mismatch
 svelte/rsvelte/lint/no-spaces-around-equal-signs-in-attribute/02-directives.svelte	mismatch
-svelte/rsvelte/lint/no-unused-svelte-ignore/12-no-trailing-space-codes.svelte	mismatch
 svelte/rsvelte/lint/no-useless-children-snippet/15-params-forms.svelte	mismatch
 svelte/rsvelte/lint/require-store-reactive-access/06-directives.svelte	mismatch
 svelte/rsvelte/lint/shorthand-directive/opt-key-prefer-always-explicit.svelte	mismatch
@@ -553,8 +551,6 @@ svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/docs/template-synt
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/function-binding-with-comment01-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/function-binding-with-comment02-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/non-function-binding02-input.svelte	mismatch
-svelte/svelte-inspect-value/packages/svelte/src/lib/components/HTMLViewSimple.svelte	mismatch
-svelte/svelte-inspect-value/packages/svelte/src/lib/components/Preview.svelte	mismatch
 svelte/svelte-material-ui/packages/checkbox/src/Checkbox.svelte	mismatch
 svelte/svelte-material-ui/packages/radio/src/Radio.svelte	mismatch
 svelte/svelte-material-ui/packages/slider/src/Slider.svelte	mismatch
