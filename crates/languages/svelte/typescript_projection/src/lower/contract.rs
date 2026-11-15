@@ -29,41 +29,53 @@ pub(super) fn namespace_body<'s>(statement: &'s Statement<'s>) -> Option<&'s [St
     }
 }
 
-/// svelte2tsx removes an export list and the `export` of a variable, function or class inside a
-/// namespace, as at the top level.
-fn namespace_exports(statement: &Statement<'_>, edits: &mut Buffer<Edit>) {
-    for nested in namespace_body(statement).unwrap_or_default() {
-        match nested {
-            Statement::ExportNamedDeclaration(named) => edits.push(Edit {
-                span: span(named.span),
-                replacement: None,
-            }),
-            Statement::ExportFromDeclaration(from) => edits.push(Edit {
-                span: span(from.span),
-                replacement: None,
-            }),
-            Statement::ExportDeclaration(export)
-                if matches!(
-                    export.declaration,
-                    Declaration::VariableDeclaration(_)
-                        | Declaration::FunctionDeclaration(_)
-                        | Declaration::ClassDeclaration(_)
-                ) =>
-            {
-                edits.push(Edit {
-                    span: Span::new(export.span.start, export.declaration.span().start),
-                    replacement: None,
-                });
-            }
-            _ => {}
+/// The export list, or the `export` of a variable, function or class, that svelte2tsx removes
+/// from `statement`.
+pub(super) fn removed_export(statement: &Statement<'_>) -> Option<Span> {
+    match statement {
+        Statement::ExportNamedDeclaration(named) => Some(span(named.span)),
+        Statement::ExportFromDeclaration(from) => Some(span(from.span)),
+        Statement::ExportDeclaration(export)
+            if matches!(
+                export.declaration,
+                Declaration::VariableDeclaration(_)
+                    | Declaration::FunctionDeclaration(_)
+                    | Declaration::ClassDeclaration(_)
+            ) =>
+        {
+            Some(Span::new(
+                export.span.start,
+                export.declaration.span().start,
+            ))
         }
-        namespace_exports(nested, edits);
+        _ => None,
+    }
+}
+
+/// [`removed_export`] inside the namespace that `statement` declares, as svelte2tsx removes it at
+/// the top level.
+pub(super) fn namespace_exports(statement: &Statement<'_>, removed: &mut impl FnMut(Span)) {
+    for nested in namespace_body(statement).unwrap_or_default() {
+        if let Some(at) = removed_export(nested) {
+            removed(at);
+        }
+        namespace_exports(nested, removed);
     }
 }
 
 pub(super) struct Edit {
     pub(super) span: Span,
     pub(super) replacement: Option<NodeIdentifier>,
+}
+
+impl Edit {
+    /// Removes the text at `span`.
+    const fn removal(span: Span) -> Self {
+        Self {
+            span,
+            replacement: None,
+        }
+    }
 }
 
 /// Where svelte2tsx declares a store subscription.
@@ -106,7 +118,7 @@ impl Builder<'_> {
                 edits.push(flags);
             }
             for statement in &program.body {
-                namespace_exports(statement, &mut edits);
+                namespace_exports(statement, &mut |at| edits.push(Edit::removal(at)));
                 let Some(declaration) =
                     self.instance_export(statement, &mut exports, &mut edits)?
                 else {

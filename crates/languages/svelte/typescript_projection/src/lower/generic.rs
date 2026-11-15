@@ -353,14 +353,48 @@ impl Builder<'_> {
     }
 }
 
-/// [`Builder::module_declarations`] for a module script that Svelte does not parse, at `content`
-/// in `source_text`, which svelte2tsx still reads as TypeScript.
+/// What svelte2tsx does to a script that Svelte does not parse, which it still reads as
+/// TypeScript.
+#[derive(Debug, Default)]
+pub struct UnparsedScript {
+    /// The error it throws for a module script, as [`Builder::module_declarations`].
+    pub refusal: Option<Refusal>,
+    /// The instance script's imports, which move before the render function.
+    pub imports: Vec<Span>,
+    /// The export lists and `export` keywords it removes from the instance script.
+    pub removed: Vec<Span>,
+}
+
+/// [`UnparsedScript`] for the script at `content` in `source_text`.
 #[must_use]
-pub fn unparsed_module_refusal(source_text: &str, content: Span) -> Option<Refusal> {
+pub fn unparsed_script(source_text: &str, content: Span, module: bool) -> UnparsedScript {
     let allocator = oxc_allocator::Allocator::default();
     let text = &source_text[content.start_offset as usize..content.end_offset as usize];
-    let parsed = oxc_parser::Parser::new(&allocator, text, oxc_span::SourceType::ts()).parse();
-    instance_only(&parsed.program, content.start_offset)
+    let program = oxc_parser::Parser::new(&allocator, text, oxc_span::SourceType::ts())
+        .parse()
+        .program;
+    let offset = content.start_offset;
+    let shift = |at: Span| Span::new(at.start_offset + offset, at.end_offset + offset);
+    if module {
+        return UnparsedScript {
+            refusal: instance_only(&program, offset),
+            ..UnparsedScript::default()
+        };
+    }
+    let mut script = UnparsedScript::default();
+    for statement in &program.body {
+        if let Statement::ImportDeclaration(import) = statement {
+            script.imports.push(shift(span(import.span)));
+        }
+        let mut imports = Vec::new();
+        nested_imports(statement, &mut imports);
+        script.imports.extend(imports.into_iter().map(shift));
+        script
+            .removed
+            .extend(super::contract::removed_export(statement).map(shift));
+        super::contract::namespace_exports(statement, &mut |at| script.removed.push(shift(at)));
+    }
+    script
 }
 
 /// The error for the first declaration in `program` that only the instance script may make, with

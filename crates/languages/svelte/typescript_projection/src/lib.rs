@@ -4,7 +4,7 @@ mod buffers;
 pub mod content_mapper;
 mod lower;
 pub mod syntax_tree;
-pub use lower::{Refusal, Resolve, lower, lower_alone, unparsed_module_refusal};
+pub use lower::{Refusal, Resolve, UnparsedScript, lower, lower_alone, unparsed_script};
 mod emit;
 pub use emit::{emit, emit_named};
 mod computation;
