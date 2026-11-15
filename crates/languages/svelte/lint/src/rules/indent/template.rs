@@ -3,9 +3,11 @@
 use oxc_ast_visit::Visit;
 use oxc_parser::Kind;
 use oxc_span::{GetSpan, Span as OxcSpan};
+use rsvelte_kernel::source::characters::{is_ecmascript_whitespace, trim_ecmascript};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     Component, Range, Script as ScriptElement, TemplateNode, TemplateNodeIdentifier, TokenType,
+    decode_text,
 };
 use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier, Tree};
 
@@ -105,6 +107,16 @@ impl<'a> Template<'_, 'a> {
                 Top::Style(span, _) => span,
                 Top::Node(n) => component.node(n).span(),
             };
+            // Upstream starts a text at its first token, which is a whitespace token when the
+            // text begins with whitespace; its words then have no indentation to check.
+            if let Top::Node(n) = *top
+                && let TemplateNode::Text { span } = component.node(n)
+                && span
+                    .text(self.source())
+                    .starts_with(is_ecmascript_whitespace)
+            {
+                continue;
+            }
             let first = self.first(span);
             self.script.layout.start(first, 0);
         }
@@ -147,6 +159,10 @@ impl<'a> Template<'_, 'a> {
         self.start_tag(start_tag, &attributes);
         for (span, name, _) in &attributes {
             self.attribute(*span, *name, &[], true);
+            // svelte-eslint-parser turns parsed generics into a node upstream does not know.
+            if script.generics.is_some() && name.text(self.source()) == "generics" {
+                self.script.layout.ignore(*span);
+            }
         }
         for directive in &program.directives {
             self.script.visit_directive(directive);
@@ -322,6 +338,29 @@ impl<'a> Template<'_, 'a> {
         }
     }
 
+    /// [`Self::block_children`] of a block that svelte-eslint-parser trims: it drops the text at
+    /// either end that is only whitespace once decoded, such as `&nbsp;`, with its tokens.
+    fn trimmed_block_children(&mut self, range: Range, open: Option<Token>) {
+        self.block_children(range, open);
+        let component = self.component;
+        let source = self.source();
+        let blank = |&&child: &&TemplateNodeIdentifier| match component.node(child) {
+            TemplateNode::Text { span } => {
+                trim_ecmascript(&decode_text(span.text(source))).is_empty()
+            }
+            _ => false,
+        };
+        let children = self.children(range);
+        let leading = children.iter().take_while(blank).count();
+        let trailing = children[leading..].iter().rev().take_while(blank).count();
+        for &child in children[..leading]
+            .iter()
+            .chain(&children[children.len() - trailing..])
+        {
+            self.script.layout.ignore(component.node(child).span());
+        }
+    }
+
     fn visit_children(&mut self, range: Range) {
         for (i, &child) in self.children(range).iter().enumerate() {
             self.node(child, i == 0);
@@ -434,7 +473,7 @@ impl<'a> Template<'_, 'a> {
                     self.offset(close, 0, open);
                     close
                 };
-                self.block_children(body, open);
+                self.trimmed_block_children(body, open);
                 let else_open = if has_fallback {
                     let end = self.region_end(body, tag_close);
                     let else_open = end.and_then(|e| self.tokens().after_offset(e));
@@ -465,7 +504,7 @@ impl<'a> Template<'_, 'a> {
                 self.offset(expression_tokens.map(|(f, _)| f), 1, keyword);
                 let close = self.after(expression_tokens.map(|(_, l)| l));
                 self.offset(close, 0, open);
-                self.block_children(body, open);
+                self.trimmed_block_children(body, open);
                 self.closing(span, open);
                 self.visit_expression(expression);
                 self.visit_children(body);
@@ -520,7 +559,7 @@ impl<'a> Template<'_, 'a> {
                 }
                 let close = self.after(right);
                 self.offset(close, 0, open);
-                self.block_children(body, open);
+                self.trimmed_block_children(body, open);
                 self.closing(span, open);
                 self.visit_expression(name);
                 if let Some(parameters) = parameters {
