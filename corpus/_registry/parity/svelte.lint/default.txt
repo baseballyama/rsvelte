@@ -76,7 +76,6 @@ svelte/rsvelte-tests-core-1/css_selector_syntax_5_56_10/nth_of_parses_without_wh
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_combinator_before_the_lists_comma_is_reported_at_the_comma/d75326b91cf774f6.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/469f9ee6fb52670c.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/63726b51828a2ed1.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/6417a3f535e59cc1.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_nested_rule_reports_its_own_brace/2408ae21c5f87718.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_nested_rule_reports_its_own_brace/fb4cc5dedb6650c0.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_pseudo_class_argument_is_reported_at_its_closing_paren/8cbb31b173f99158.svelte	mismatch
@@ -443,7 +442,6 @@ svelte/rsvelte/pattern/adversarial/css/css-selector-modern-features.svelte	misma
 svelte/rsvelte/pattern/adversarial/css/rejected-global-keyframes-selector.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/typescript/ts-decorator-and-modifiers.svelte	mismatch
 svelte/rsvelte/pattern/css/empty-declaration.svelte	mismatch
-svelte/rsvelte/pattern/issues/3129-comment-between-compounds.svelte	mismatch
 svelte/rsvelte/pattern/issues/3189-unbound-dollar-still-rejected.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-invalid-escape.svelte	mismatch

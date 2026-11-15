@@ -2088,9 +2088,11 @@
 
 ["svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/6417a3f535e59cc1.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
+"svelte.lint" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
 
 ["svelte/rsvelte/pattern/issues/3129-comment-between-compounds.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
+"svelte.lint" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ef7c2ebb965e3245.svelte".skip]
 "svelte.compile" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
