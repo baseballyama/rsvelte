@@ -300,11 +300,17 @@ fn early_error(
         "2300" => {
             let (at, name) = second()?;
             let end = at + name.len() as u32;
-            if locate(at, end, Find::Parameters, visit).is_some() {
-                return Some(fails("Argument name clash", at));
-            }
+            let first = error.labels.first()?;
+            let first = oxc_span::Span::sized(first.offset(), first.len());
+            let message = match locate(at, end, Find::Redeclared { first }, visit) {
+                Some((_, AstType::FormalParameters)) => {
+                    return Some(fails("Argument name clash", at));
+                }
+                Some(_) => format!("type '{name}' has already been declared."),
+                None => format!("Identifier '{name}' has already been declared"),
+            };
             Some(Acorn::Fails {
-                message: Cow::Owned(format!("Identifier '{name}' has already been declared")),
+                message: Cow::Owned(message),
                 at,
             })
         }

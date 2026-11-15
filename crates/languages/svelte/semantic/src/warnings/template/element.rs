@@ -11,7 +11,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 };
 use rsvelte_typescript_tree::ExpressionIdentifier;
 
-use super::super::{a11y, warning};
+use super::super::{a11y, error, span, warning};
 use super::placement::Ancestor;
 use super::{Owner, Stage, Template, is_component};
 
@@ -93,6 +93,9 @@ impl<'a> Template<'a> {
             );
         }
         self.directives(attributes, matches!(tag, Tag::Regular | Tag::Dynamic));
+        if matches!(tag, Tag::Regular | Tag::Dynamic | Tag::Component) {
+            self.attribute_errors(span, attributes, tag != Tag::Component);
+        }
         self.attribute_texts(attributes, tag == Tag::Dynamic);
         let inner = match tag {
             Tag::Dynamic => a11y::Parent::Dynamic,
@@ -112,7 +115,8 @@ impl<'a> Template<'a> {
             Owner::Head
         } else if slotted
             || matches!(name, "svelte:fragment" | "svelte:boundary")
-            || tag == Tag::Component
+            // Upstream does not let `{@const}` stand directly in `<svelte:self>`.
+            || (tag == Tag::Component && name != "svelte:self")
         {
             Owner::Declarations
         } else {
@@ -222,7 +226,7 @@ impl<'a> Template<'a> {
             && self.owner == Owner::Head
             && let Some(first) = component.attributes(attributes).first()
         {
-            let found = super::error(
+            let found = error(
                 "title_illegal_attribute",
                 "`<title>` cannot have attributes nor directives",
                 first.span,
@@ -412,6 +416,9 @@ impl<'a> Template<'a> {
         let source = self.context.source;
         for attribute in component.attributes(attributes) {
             let at = attribute.span.start_offset;
+            if element {
+                self.event_syntaxes(attribute);
+            }
             match attribute.kind {
                 AttributeKind::On if element && self.context.runes => {
                     let Some(name) = attribute.directive_name(&component.modifiers) else {
@@ -443,6 +450,102 @@ impl<'a> Template<'a> {
                 }
                 _ => {}
             }
+        }
+    }
+
+    /// The first attribute error upstream's `validate_element` (for an element) or
+    /// `visit_component` raises: `attribute_invalid_sequence_expression` in runes mode, for a
+    /// comma-separated value whose nearest `(` or `{` before it is the `{`, and on an element
+    /// `transition_duplicate` or `transition_conflict`.
+    fn attribute_errors(&mut self, at: Span, attributes: Range, element: bool) {
+        let component = self.context.component;
+        let bytes = self.context.source.as_bytes();
+        // The directions an earlier transition directive runs in, by their kind.
+        let (mut intro, mut outro): (Option<&str>, Option<&str>) = (None, None);
+        for attribute in component.attributes(attributes) {
+            let found = match attribute.kind {
+                AttributeKind::Attribute if self.context.runes => {
+                    let Some(value) = expression(attribute, component) else {
+                        continue;
+                    };
+                    let Expression::SequenceExpression(sequence) =
+                        component.javascript.get_expression(value)
+                    else {
+                        continue;
+                    };
+                    let start = sequence.span.start as usize;
+                    let opener = bytes[..start]
+                        .iter()
+                        .rev()
+                        .find(|&&b| b == b'(' || b == b'{');
+                    (opener == Some(&b'{')).then(|| {
+                        error(
+                            "attribute_invalid_sequence_expression",
+                            "Comma-separated expressions are not allowed as attribute/directive \
+                                values in runes mode, unless wrapped in parentheses",
+                            span(sequence.span),
+                        )
+                    })
+                }
+                AttributeKind::Transition {
+                    intro: is_intro,
+                    outro: is_outro,
+                } if element => {
+                    let kind = match (is_intro, is_outro) {
+                        (true, true) => "transition",
+                        (true, false) => "in",
+                        _ => "out",
+                    };
+                    let existing =
+                        if is_intro { intro } else { None }.or(if is_outro { outro } else { None });
+                    if is_intro {
+                        intro = Some(kind);
+                    }
+                    if is_outro {
+                        outro = Some(kind);
+                    }
+                    existing.map(|existing| {
+                        if existing == kind {
+                            let message = format!(
+                                "Cannot use multiple `{kind}:` directives on a single element"
+                            );
+                            error("transition_duplicate", &message, attribute.span)
+                        } else {
+                            let message = format!(
+                                "Cannot use `{existing}:` alongside existing `{kind}:` directive"
+                            );
+                            error("transition_conflict", &message, attribute.span)
+                        }
+                    })
+                }
+                _ => None,
+            };
+            if let Some(found) = found {
+                self.error(at, found);
+                return;
+            }
+        }
+    }
+
+    /// Upstream's `event_directive_node` and `uses_event_attributes`, on an element's attribute.
+    fn event_syntaxes(&mut self, attribute: &Attribute) {
+        let component = self.context.component;
+        match attribute.kind {
+            AttributeKind::On => {
+                if self.event_directive.is_none()
+                    && let Some(name) = attribute.directive_name(&component.modifiers)
+                {
+                    self.event_directive = Some((attribute.span, name));
+                }
+            }
+            AttributeKind::Attribute
+                if attribute.name.text(self.context.source).starts_with("on")
+                    && matches!(attribute.value, AttributeValue::Parts(parts)
+                        if matches!(component.parts(parts), [Part::Expression { .. }])) =>
+            {
+                self.event_attributes = true;
+            }
+            _ => {}
         }
     }
 

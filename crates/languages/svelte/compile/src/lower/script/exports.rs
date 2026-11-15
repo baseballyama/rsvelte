@@ -1,8 +1,8 @@
 //! The names the instance script exports, which become the component's exports.
 
 use oxc_ast::ast::{
-    Declaration, ExportFromDeclaration, ExportNamedDeclaration, ModuleExportName, Statement,
-    VariableDeclarationKind,
+    Declaration, ExportDefaultDeclarationKind, ExportFromDeclaration, ExportNamedDeclaration,
+    ModuleExportName, Statement, VariableDeclarationKind,
 };
 use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -26,8 +26,10 @@ pub(in crate::lower) fn default_exports(
     .into_iter()
     .filter_map(|(section, program)| Some((section, program?)))
     .flat_map(move |(section, program)| {
-        (component.javascript.get_program(program).body.iter())
-            .filter(|statement| match statement {
+        let body = &component.javascript.get_program(program).body;
+        body.iter()
+            .enumerate()
+            .filter(|(_, statement)| match statement {
                 Statement::ExportDefaultDeclaration(_) => true,
                 Statement::ExportNamedDeclaration(export) => export
                     .specifiers
@@ -35,8 +37,21 @@ pub(in crate::lower) fn default_exports(
                     .any(|specifier| specifier.exported.name() == "default"),
                 _ => false,
             })
-            .map(move |statement| {
-                let span = span_of(statement);
+            .map(move |(index, statement)| {
+                let mut span = span_of(statement);
+                // acorn-typescript reads a decorated class after `default` as an expression,
+                // whose statement takes the `;` that follows.
+                if let Statement::ExportDefaultDeclaration(export) = statement
+                    && let ExportDefaultDeclarationKind::ClassDeclaration(class) =
+                        &export.declaration
+                    && class
+                        .decorators
+                        .first()
+                        .is_some_and(|d| d.span.start > export.span.start)
+                    && let Some(Statement::EmptyStatement(semicolon)) = body.get(index + 1)
+                {
+                    span.end_offset = semicolon.span.end;
+                }
                 let raised = Raised {
                     phase: Phase::Walk,
                     section,

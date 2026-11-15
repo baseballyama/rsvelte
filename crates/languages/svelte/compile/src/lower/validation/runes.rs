@@ -376,10 +376,11 @@ impl<'a> RuneWalk<'a> {
             && self.res.symbol(name).is_none()
             && !self.res.is_store_subscription(&name.name)
         {
+            // Upstream strips TypeScript wrappers first, so it points at the name.
             return crate::lower::special::invalid(
                 "bind_invalid_value",
                 "Can only bind to state or props",
-                span_of(e),
+                span_of(&**name),
             );
         }
         Ok(())

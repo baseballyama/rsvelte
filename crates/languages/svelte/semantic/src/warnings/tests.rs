@@ -666,3 +666,123 @@ fn an_exported_class_nothing_uses_is_an_unused_export_in_legacy_mode() {
         Vec::<String>::new()
     );
 }
+
+#[test]
+fn a_rune_parameter_called_in_a_declarator_is_an_error_in_legacy_mode() {
+    let errors = |code: &str| compiled_with_errors(code, None).1;
+    assert_eq!(
+        errors("<script>\nfunction f($derived) { const x = $derived(1); }\n</script>\n"),
+        ["rune_invalid_usage"]
+    );
+    assert_eq!(
+        errors("<script>\nimport { state } from './s.js';\nlet a = $state(0);\n</script>\n"),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn a_slot_beside_a_render_tag_is_a_conflict() {
+    let errors = |code: &str| compiled_with_errors(code, None).1;
+    let render = "{#snippet s()}x{/snippet}\n{@render s()}\n";
+    assert_eq!(
+        errors(&format!("<slot />\n{render}")),
+        ["slot_snippet_conflict"]
+    );
+    assert_eq!(
+        errors(&format!("{{$$slots.a}}\n{render}")),
+        ["slot_snippet_conflict"]
+    );
+    assert_eq!(errors(render), Vec::<String>::new());
+}
+
+#[test]
+fn a_const_tag_directly_in_svelte_self_is_misplaced() {
+    let errors = |code: &str| compiled_with_errors(code, None).1;
+    assert_eq!(
+        errors("{#if true}<svelte:self>{@const a = 1}{a}</svelte:self>{/if}\n"),
+        ["const_tag_invalid_placement"]
+    );
+}
+
+#[test]
+fn an_event_directive_beside_an_event_attribute_is_mixed_syntax() {
+    let errors = |code: &str| compiled_with_errors(code, None).1;
+    assert_eq!(
+        errors("<button on:click={f}>x</button>\n<button onclick={f}>y</button>\n"),
+        ["mixed_event_handler_syntaxes"]
+    );
+    assert_eq!(
+        errors("<Widget on:click={f} />\n<button onclick={f}>y</button>\n"),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn an_unparenthesized_sequence_attribute_is_an_error_in_runes_mode() {
+    let errors = |code: &str| compiled_with_errors(code, Some(true)).1;
+    let script = "<script>let { x, y } = $props();</script>\n";
+    for markup in ["<span foo={x, y}></span>", "<Child foo={x, y} />"] {
+        assert_eq!(
+            errors(&format!("{script}{markup}\n")),
+            ["attribute_invalid_sequence_expression"]
+        );
+    }
+    assert_eq!(
+        errors(&format!("{script}<span foo={{(x, y)}}></span>\n")),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn two_transitions_in_one_direction_conflict() {
+    let errors = |code: &str| compiled_with_errors(code, None).1;
+    assert_eq!(
+        errors("<div transition:fade in:fade>x</div>\n"),
+        ["transition_conflict"]
+    );
+    assert_eq!(
+        errors("<div in:fade in:fly>x</div>\n"),
+        ["transition_duplicate"]
+    );
+    assert_eq!(
+        errors("<div in:fade out:fly>x</div>\n"),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn an_instance_name_a_module_import_declares_is_a_duplicate() {
+    let errors = |code: &str| compiled_with_errors(code, None).1;
+    let module = "<script module>\n  import { FOO } from './a.js';\n</script>\n";
+    assert_eq!(
+        errors(&format!(
+            "{module}<script>\n  let FOO;\n</script>\n{{FOO}}\n"
+        )),
+        ["declaration_duplicate_module_import"]
+    );
+    assert_eq!(
+        errors(&format!(
+            "{module}<script>\n  let BAR;\n</script>\n{{FOO}}{{BAR}}\n"
+        )),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn a_local_let_a_re_export_names_is_an_unused_export_in_legacy_mode() {
+    let codes = |code: &str| -> Vec<String> {
+        compiled_with_errors(code, None)
+            .0
+            .into_iter()
+            .map(|(code, ..)| code)
+            .collect()
+    };
+    assert_eq!(
+        codes("<script>let x = 1; export { x as y } from './mod';</script>\n"),
+        ["export_let_unused"]
+    );
+    assert_eq!(
+        codes("<script>export { x as y } from './mod';</script>\n"),
+        Vec::<String>::new()
+    );
+}

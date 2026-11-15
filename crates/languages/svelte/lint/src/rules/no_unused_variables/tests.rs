@@ -81,6 +81,14 @@ fn exported_declarations_are_not_unused() {
     assert!(got.ends_with(want), "{got}");
 }
 
+#[test]
+fn a_name_a_re_export_lists_is_used() {
+    assert_eq!(
+        unused("<script>\n\tlet x = 1;\n\tlet z = 1;\n\texport { x as y } from './m';\n</script>"),
+        ["'z' is assigned a value but never used."]
+    );
+}
+
 /// Each finding's message and start line.
 fn unused_at(source_text: &str) -> Vec<(String, u32)> {
     let got = lint(source_text);

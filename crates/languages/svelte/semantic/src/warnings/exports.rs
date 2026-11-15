@@ -27,26 +27,17 @@ pub(super) fn unused_exports(
     // Legacy props: `export let` and `export var`, and a `let` or `var` an `export { … }` names.
     let mut props: Vec<SymbolId> = Vec::new();
     let mut specifiers: FxHashSet<ReferenceId> = FxHashSet::default();
-    // Acorn-typescript's identifier of a declared name ends where its type annotation does.
-    let mut annotated: FxHashMap<SymbolId, u32> = FxHashMap::default();
-    for statement in &component.javascript.get_program(instance.program).body {
-        let declaration = match statement {
-            Statement::VariableDeclaration(declaration) => Some(&**declaration),
-            Statement::ExportDeclaration(export) => match &export.declaration {
-                Declaration::VariableDeclaration(declaration) => Some(&**declaration),
-                _ => None,
-            },
-            _ => None,
-        };
-        for declarator in declaration.iter().flat_map(|d| &d.declarations) {
-            if let (Some(identifier), Some(annotation)) = (
-                declarator.id.get_binding_identifier(),
-                &declarator.type_annotation,
-            ) && let Some(symbol) = identifier.symbol_id.get()
-            {
-                annotated.insert(symbol, annotation.span.end);
-            }
-        }
+    // Upstream declares a class as a `let`.
+    let is_prop = |symbol| {
+        scoping.symbol_scope_id(symbol) == resolution.instance_scope()
+            && (resolution
+                .variable_kind(symbol)
+                .is_some_and(|kind| !kind.is_const())
+                || matches!(resolution.declaration(symbol), AstKind::Class(_)))
+    };
+    let body = &component.javascript.get_program(instance.program).body;
+    let annotated = annotation_ends(body);
+    for statement in body {
         match statement {
             Statement::ExportDeclaration(export) => {
                 let Declaration::VariableDeclaration(declaration) = &export.declaration else {
@@ -70,16 +61,20 @@ pub(super) fn unused_exports(
                         continue;
                     }
                     specifiers.extend(local.reference_id.get());
-                    // Upstream declares a class as a `let`.
-                    if let Some(symbol) = resolution.symbol(local)
-                        && scoping.symbol_scope_id(symbol) == resolution.instance_scope()
-                        && (resolution
-                            .variable_kind(symbol)
-                            .is_some_and(|kind| !kind.is_const())
-                            || matches!(resolution.declaration(symbol), AstKind::Class(_)))
-                    {
-                        props.push(symbol);
+                    props.extend(resolution.symbol(local).filter(|&s| is_prop(s)));
+                }
+            }
+            // Upstream looks a re-exported name up in the instance as well.
+            Statement::ExportFromDeclaration(export) if !export.export_kind.is_type() => {
+                for specifier in &export.specifiers {
+                    let ModuleExportName::IdentifierName(local) = &specifier.local else {
+                        continue;
+                    };
+                    if specifier.export_kind.is_type() {
+                        continue;
                     }
+                    let symbol = scoping.get_binding(resolution.instance_scope(), local.name);
+                    props.extend(symbol.filter(|&s| is_prop(s)));
                 }
             }
             _ => {}
@@ -123,6 +118,32 @@ pub(super) fn unused_exports(
             );
         }
     }
+}
+
+/// Where acorn-typescript ends the identifier of each top-level name `body` declares with a type
+/// annotation: where the annotation does.
+fn annotation_ends(body: &[Statement<'_>]) -> FxHashMap<SymbolId, u32> {
+    let mut ends = FxHashMap::default();
+    for statement in body {
+        let declaration = match statement {
+            Statement::VariableDeclaration(declaration) => &**declaration,
+            Statement::ExportDeclaration(export) => match &export.declaration {
+                Declaration::VariableDeclaration(declaration) => &**declaration,
+                _ => continue,
+            },
+            _ => continue,
+        };
+        for declarator in &declaration.declarations {
+            if let (Some(identifier), Some(annotation)) = (
+                declarator.id.get_binding_identifier(),
+                &declarator.type_annotation,
+            ) && let Some(symbol) = identifier.symbol_id.get()
+            {
+                ends.insert(symbol, annotation.span.end);
+            }
+        }
+    }
+    ends
 }
 
 /// `state_invalid_export`: in legacy mode, upstream turns a reassigned top-level binding that the

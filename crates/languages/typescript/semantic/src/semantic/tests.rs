@@ -145,3 +145,30 @@ fn acorn_reads_a_class_accessor_without_a_body_and_an_export_it_does_not_check()
     .expect("parses");
     assert!(Semantic::program(tree, program).syntax_error().is_some());
 }
+
+#[test]
+fn a_type_alias_declared_again_fails_with_the_plugins_message() {
+    let alias = |at| Some(("type 'T' has already been declared.".to_owned(), at));
+    let name = |message: &str, at| Some((message.to_owned(), at));
+    for (text, expected) in [
+        ("type T = 1; type T = 2;", alias(17)),
+        ("interface T {} type T = 1;", alias(20)),
+        ("function f() { type T = 1; type T = 2; }", alias(32)),
+        ("namespace N { type T = 1; type T = 2; }", alias(31)),
+        ("type T<A> = 1; type T = 2;", alias(20)),
+        (
+            "let x = 1; let x = 2;",
+            name("Identifier 'x' has already been declared", 15),
+        ),
+    ] {
+        assert_eq!(
+            acorn_reports(text, SourceType::ts(), &[]),
+            expected,
+            "{text:?}"
+        );
+    }
+    assert_eq!(
+        acorn_reports("function f(a, a) {}", SourceType::mjs(), &[]),
+        name("Argument name clash", 14)
+    );
+}
