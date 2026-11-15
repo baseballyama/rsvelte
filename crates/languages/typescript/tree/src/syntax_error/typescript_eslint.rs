@@ -73,6 +73,14 @@ const MESSAGES: [(u32, &str); 28] = [
     ),
 ];
 
+/// The codes of errors oxc reports and typescript-eslint parses without throwing.
+///
+/// tsc's checker reports them, and typescript-eslint makes no check of its own for them. A host
+/// that reads a program as typescript-eslint does leaves them unchecked.
+pub const TYPESCRIPT_ESLINT_UNCHECKED: &[&str] = &[
+    "1029", "1047", "1049", "1096", "1243", "1257", "1276", "18010",
+];
+
 /// The codes of TypeScript 6.0.3's parser and scanner, whose first error typescript-eslint throws
 /// before it checks anything itself.
 const PARSER_CODES: [u32; 141] = [

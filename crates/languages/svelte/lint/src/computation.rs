@@ -1,7 +1,9 @@
 use std::path::Path;
 
+use oxc_span::SourceType;
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerSyntaxTree, lower};
 use rsvelte_svelte_semantic::legacy::Legacy;
 use rsvelte_svelte_semantic::resolve::{Resolution, resolve};
@@ -9,7 +11,9 @@ use rsvelte_svelte_semantic::{Lowered, Resolved};
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_svelte_syntax::{Parsed, ParsedAsTypeScript};
 use rsvelte_typescript_semantic::semantic::Semantic;
-use rsvelte_typescript_tree::ProgramIdentifier;
+use rsvelte_typescript_tree::{
+    ProgramIdentifier, Script, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, Tree,
+};
 
 use crate::project::SvelteKitProject;
 use crate::types::TypeFacts;
@@ -145,6 +149,43 @@ impl Artifact for TypeScriptAnalysis {
     }
 }
 
+/// The module lint reads: the one the shared tasks parse, or, when that fails, the module read as
+/// TypeScript, as typescript-eslint reads every module.
+///
+/// # Errors
+///
+/// The shared parse's error.
+pub(crate) fn module<'a>(context: &'a DocumentContext<'_>) -> Result<&'a Script, &'a Diagnostic> {
+    match context.get::<rsvelte_typescript_tree::Parsed>() {
+        Ok(script) => Ok(script),
+        Err(error) => (context.get::<ModuleAsTypeScript>().as_ref()).or(Err(error)),
+    }
+}
+
+/// A module the shared parse rejects, read as TypeScript, or every error oxc reports in it.
+#[derive(Debug)]
+pub(crate) struct ModuleAsTypeScript;
+
+impl Artifact for ModuleAsTypeScript {
+    type Output = Result<Script, Vec<SyntaxError>>;
+
+    const NAME: &'static str = "svelte.lint.module_as_typescript";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        let path = Path::new(&context.document.path);
+        let source_type = SourceType::from_path(path).unwrap_or_default();
+        // typescript-eslint reads a JavaScript file's JSX.
+        let source_type = (source_type.with_jsx(source_type.is_javascript())).with_typescript(true);
+        let range = Span::new(0, context.source_text().len() as u32);
+        let (tree, read) = Tree::build(context.source_text(), |builder| {
+            builder.leave_unchecked(TYPESCRIPT_ESLINT_UNCHECKED);
+            Ok(builder.program_or_errors(range, source_type))
+        })
+        .expect("the parse hands back its errors");
+        read.map(|root| Script { tree, root })
+    }
+}
+
 /// The scopes of a JavaScript or TypeScript module, which only lint reads.
 #[derive(Debug)]
 pub(crate) struct ModuleSemantic;
@@ -155,10 +196,7 @@ impl Artifact for ModuleSemantic {
     const NAME: &'static str = "svelte.lint.module_semantic";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let script = context
-            .get::<rsvelte_typescript_tree::Parsed>()
-            .as_ref()
-            .expect("lint analyzes a module after parsing it");
+        let script = module(context).expect("lint analyzes a module it reads");
         Semantic::program(script.tree.clone(), script.root)
     }
 }

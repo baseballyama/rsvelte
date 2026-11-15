@@ -10,8 +10,8 @@ use rsvelte_kernel::source::positions::LineBreaks;
 
 use crate::Configuration;
 use crate::computation::{
-    ConditionTypes, LegacyReactivity, LintConfiguration, ModuleSemantic, NativeConditionTypes,
-    PostcssConfigurationOnDisk, SameNamedFileOnDisk, TypeScriptAnalysis,
+    ConditionTypes, LegacyReactivity, LintConfiguration, ModuleAsTypeScript, ModuleSemantic,
+    NativeConditionTypes, PostcssConfigurationOnDisk, SameNamedFileOnDisk, TypeScriptAnalysis,
 };
 use crate::rules::style_attribute::InlineStyles;
 use crate::rules::style_sheet::StyleSheetVerdict;
@@ -50,6 +50,7 @@ pub fn register_artifacts(registry: &mut Registry) {
         .artifact::<NativeConditionTypes>()
         .artifact::<LegacyReactivity>()
         .artifact::<TypeScriptAnalysis>()
+        .artifact::<ModuleAsTypeScript>()
         .artifact::<SameNamedFileOnDisk>()
         .artifact::<PostcssConfigurationOnDisk>();
 }
@@ -125,6 +126,15 @@ impl Task for Lint {
         // refused.
         let javascript_error;
         let parse_error = if !rsvelte_svelte_syntax::matches(context.document) {
+            if let Some((message, at)) = module_rejection(context) {
+                rsvelte_lint_runner::output::report_parse_error(
+                    out,
+                    positions(context),
+                    &message,
+                    at,
+                );
+                return;
+            }
             None
         } else if let Err(error) = context.get::<rsvelte_svelte_syntax::Parsed>() {
             Some(error)
@@ -202,6 +212,20 @@ fn typescript_eslint_rejection<'a>(
         return None;
     }
     Some((error.typescript_eslint_message()?, at))
+}
+
+/// What typescript-eslint throws for a module that neither the shared parse nor TypeScript reads.
+fn module_rejection<'a>(context: &'a DocumentContext<'_>) -> Option<(Cow<'a, str>, u32)> {
+    context
+        .get::<rsvelte_typescript_tree::Parsed>()
+        .as_ref()
+        .err()?;
+    let errors = context.get::<ModuleAsTypeScript>().as_ref().err()?;
+    let error = rsvelte_typescript_tree::typescript_eslint_error(errors)?;
+    Some((
+        error.typescript_eslint_message()?,
+        error.diagnostic.span.start_offset,
+    ))
 }
 
 fn positions<'a>(context: &'a DocumentContext<'_>) -> rsvelte_lint_runner::output::Positions<'a> {

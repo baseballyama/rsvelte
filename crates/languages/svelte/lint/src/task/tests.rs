@@ -158,3 +158,25 @@ fn an_enum_in_a_plain_script_is_indented() {
     assert_eq!(json["findings"].as_array().map(Vec::len), Some(1), "{json}");
     assert_eq!(json["findings"][0]["start"]["line"].as_u64(), Some(2));
 }
+
+/// typescript-eslint reads every module as TypeScript, and lets checker errors through.
+#[test]
+fn a_module_is_read_as_typescript_eslint_reads_it() {
+    let report = |source: &str| {
+        let document =
+            Document::new("a.svelte.js".to_owned(), source.to_owned()).expect("a small document");
+        lint_with("svelte/no-svelte-internal", &document, |_| {}).0
+    };
+    let json = report("import 'svelte/internal';\nclass C { private #a = 1; }\n");
+    assert_eq!(json["findings"].as_array().map(Vec::len), Some(1), "{json}");
+    assert_eq!(
+        json["findings"][0]["rule"].as_str(),
+        Some("svelte/no-svelte-internal")
+    );
+    let json = report("foo(a b);\n");
+    assert!(json["findings"][0]["rule"].is_null(), "{json}");
+    assert_eq!(
+        json["findings"][0]["message"].as_str(),
+        Some("Parsing error: ',' expected.")
+    );
+}

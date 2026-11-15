@@ -406,7 +406,7 @@ const fn fails(message: &'static str, at: u32) -> Acorn {
 mod locator;
 mod typescript_eslint;
 
-pub use typescript_eslint::typescript_eslint_error;
+pub use typescript_eslint::{TYPESCRIPT_ESLINT_UNCHECKED, typescript_eslint_error};
 
 #[cfg(test)]
 mod tests;
