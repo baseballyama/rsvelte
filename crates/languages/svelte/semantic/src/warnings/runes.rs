@@ -502,3 +502,6 @@ pub(super) fn custom_element(
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

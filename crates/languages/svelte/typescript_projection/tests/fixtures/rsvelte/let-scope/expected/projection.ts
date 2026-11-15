@@ -1,47 +1,54 @@
 ;
+import C from "./C.svelte";;
 
-	import C from "./C.svelte";
+;
+
+function $$render() {
+  
+	
 	let x = $state(1);
 
 ;
 
-async () => {
-  {
-    const __rsvelte_component_0 = __rsvelte_component(C);
-    __rsvelte_component_0(__rsvelte_internals(), {
-      children: __rsvelte_children,
-    });
+  async () => {
     {
-      const {
-        x,
-      } = __rsvelte_instance(__rsvelte_component_0).$$slot_def.default;
-      (x);
-      {
-        svelteHTML.createElement("p", {
-          "slot": "a",
-        });
-        (x);
-      }
+      const __rsvelte_component_0 = __rsvelte_component(C);
+      __rsvelte_component_0(__rsvelte_internals(), {
+        children: __rsvelte_children,
+      });
       {
         const {
-          y,
-        } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["b"];
-        __rsvelte_component(C)(__rsvelte_internals(), {
-          children: __rsvelte_children,
-          "slot": "b",
-        });
+          x,
+        } = __rsvelte_instance(__rsvelte_component_0).$$slot_def.default;
         (x);
-        (y);
-        C;
+        {
+          svelteHTML.createElement("p", {
+            "slot": "a",
+          });
+          (x);
+        }
+        {
+          const {
+            y,
+          } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["b"];
+          __rsvelte_component(C)(__rsvelte_internals(), {
+            children: __rsvelte_children,
+            "slot": "b",
+          });
+          (x);
+          (y);
+          C;
+        }
       }
+      C;
     }
-    C;
-  }
-  {
-    svelteHTML.createElement("button", {
-      "onclick": () => x++,
-    });
-  }
-};
-const LetScope__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+    {
+      svelteHTML.createElement("button", {
+        "onclick": () => x++,
+      });
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const LetScope__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof LetScope__SvelteComponent_>} */ (LetScope__SvelteComponent_);

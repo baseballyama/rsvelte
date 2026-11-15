@@ -1,100 +1,20 @@
 use oxc_span::SourceType;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_markup_syntax::script_language::is_typescript;
 use rsvelte_typescript_tree::{ProgramIdentifier, SyntaxError};
 
 use super::javascript::javascript_failure;
 use super::{ParseResult, Parser, Scripts};
 use crate::syntax_tree::{Script, Style, TagAttributes, TokenType};
 
-/// Ports upstream's `regex_lang_attribute` (1-parse/index.js): the first `<script …lang=…>` outside
-/// a comment decides, and only the exact value `ts` means TypeScript.
-pub(super) fn script_is_typescript(source_text: &str) -> bool {
-    let mut from = 0;
-    loop {
-        let rest = &source_text[from..];
-        let Some(i) = memchr::memchr(b'<', rest.as_bytes()) else {
-            return false;
-        };
-        let at = &rest[i..];
-        if let Some(body) = at.strip_prefix("<!--")
-            && let Some(end) = memchr::memmem::find(body.as_bytes(), b"-->")
-        {
-            from += i + 4 + end + 3;
-            continue;
-        }
-        from += i + 1;
-        if let Some(after) = at.strip_prefix("<script")
-            && let Some(lang) = lang_attribute(after)
-        {
-            return lang == "ts";
-        }
-    }
-}
-
-/// The `lang` value the regex matches in a script tag, `after` being the text after `<script`:
-/// either `lang=` in the text before the first `>`, the last one first, or after a run of
-/// `name=value` attributes whose quoted values may hold a `>`.
-fn lang_attribute(after: &str) -> Option<&str> {
-    let attributes = after.trim_start_matches(is_ecmascript_whitespace);
-    if attributes.len() == after.len() {
-        return None;
-    }
-    let tag = &attributes[..attributes.find('>').unwrap_or(attributes.len())];
-    tag.rmatch_indices("lang=")
-        .find_map(|(at, _)| lang_value(&attributes[at..]))
-        .or_else(|| after_attributes(attributes))
-}
-
-/// `(?:[^=>'"/]+=(?:"[^"]*"|'[^']*'|[^>\s]+)\s+)*lang=…`, trying the most attributes first.
-fn after_attributes(text: &str) -> Option<&str> {
-    let name = text.find(['=', '>', '\'', '"', '/']).filter(|&end| end > 0);
-    if let Some(end) = name
-        && text[end..].starts_with('=')
-    {
-        let value = &text[end + 1..];
-        let quoted = |quote: char| {
-            value
-                .strip_prefix(quote)
-                .and_then(|inner| inner.find(quote).map(|close| end + 1 + close + 2))
-        };
-        let unquoted = value
-            .find(|c: char| c == '>' || is_ecmascript_whitespace(c))
-            .unwrap_or(value.len());
-        let ends = [
-            quoted('"'),
-            quoted('\''),
-            (unquoted > 0).then_some(end + 1 + unquoted),
-        ];
-        for next in ends.into_iter().flatten() {
-            let following = text[next..].trim_start_matches(is_ecmascript_whitespace);
-            if following.len() < text.len() - next
-                && let Some(lang) = after_attributes(following)
-            {
-                return Some(lang);
-            }
-        }
-    }
-    lang_value(text)
-}
-
-/// `lang=(["'])?([^"' >]+)\1[^>]*>` at the start of `text`.
-fn lang_value(text: &str) -> Option<&str> {
-    let value = text.strip_prefix("lang=")?;
-    let (quote, value) = match value.chars().next() {
-        Some(quote @ ('"' | '\'')) => (Some(quote), &value[1..]),
-        _ => (None, value),
-    };
-    let end = value.find(['"', '\'', ' ', '>']).unwrap_or(value.len());
-    if end == 0 {
-        return None;
-    }
-    let rest = &value[end..];
-    let rest = match quote {
-        Some(quote) => rest.strip_prefix(quote)?,
-        None => rest,
-    };
-    rest.contains('>').then_some(&value[..end])
+/// The language a script element's attributes give it: `Some(true)` for `lang="ts"`, `None`
+/// without a `lang`.
+fn lang_is_typescript(source_text: &str, attributes: &[TagAttributes]) -> Option<bool> {
+    let (_, value) = attributes
+        .iter()
+        .find(|(name, _)| name.text(source_text) == "lang")?;
+    Some(value.is_some_and(|v| is_typescript(v.text(source_text))))
 }
 
 /// Whether `offset` is in the content of a `<script>` element. svelte-eslint-parser reads those
@@ -305,6 +225,9 @@ impl Parser<'_, '_> {
 
     fn script(&mut self, start_offset: usize, attributes: Vec<TagAttributes>) -> ParseResult<()> {
         let module = is_module(self.source_text, &attributes);
+        if self.lang_read.is_none() {
+            self.lang_read = lang_is_typescript(self.source_text, &attributes);
+        }
         let typescript = self.typescript;
         let content = self.raw_text("script")?;
         let duplicate = if module {

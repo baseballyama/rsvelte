@@ -1,60 +1,67 @@
 ;
+import Flaky from './Flaky.svelte';;
 
-	import Flaky from './Flaky.svelte';
+;
+
+function $$render() {
+  
+	
 	let test = $state(1);
 	let o = $state({ a: 1, b: [2] });
 
 ;
 
-async () => {
-  {
-    svelteHTML.createElement("button", {
-      "onclick": () => test++,
-    });
-  }
-  {
-    svelteHTML.createElement("svelte:boundary", {
-      failed: () => {
-        async () => {
-          {
-            svelteHTML.createElement("p", {});
-            (double);
-            (a);
-            (c);
-          }
-        };
-        return __rsvelte_snippet_return;
-      },
-      other: () => {
-        async () => {
-          {
-            svelteHTML.createElement("i", {});
-            (double);
-          }
-        };
-        return __rsvelte_snippet_return;
-      },
-    });
-    const double = test * 2;
-    const { a, b: [c] } = o;
+  async () => {
     {
-      __rsvelte_component(Flaky)(__rsvelte_internals(), {});
+      svelteHTML.createElement("button", {
+        "onclick": () => test++,
+      });
     }
     {
-      svelteHTML.createElement("b", {});
-      (double);
-      (a);
+      svelteHTML.createElement("svelte:boundary", {
+        failed: () => {
+          async () => {
+            {
+              svelteHTML.createElement("p", {});
+              (double);
+              (a);
+              (c);
+            }
+          };
+          return __rsvelte_snippet_return;
+        },
+        other: () => {
+          async () => {
+            {
+              svelteHTML.createElement("i", {});
+              (double);
+            }
+          };
+          return __rsvelte_snippet_return;
+        },
+      });
+      const double = test * 2;
+      const { a, b: [c] } = o;
+      {
+        __rsvelte_component(Flaky)(__rsvelte_internals(), {});
+      }
+      {
+        svelteHTML.createElement("b", {});
+        (double);
+        (a);
+      }
+      __rsvelte_ensure_snippet(other());
     }
-    __rsvelte_ensure_snippet(other());
-  }
-  {
-    svelteHTML.createElement("svelte:boundary", {});
-    const x = test + 1;
     {
-      svelteHTML.createElement("p", {});
-      (x);
+      svelteHTML.createElement("svelte:boundary", {});
+      const x = test + 1;
+      {
+        svelteHTML.createElement("p", {});
+        (x);
+      }
     }
-  }
-};
-const BoundaryConsts__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const BoundaryConsts__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof BoundaryConsts__SvelteComponent_>} */ (BoundaryConsts__SvelteComponent_);

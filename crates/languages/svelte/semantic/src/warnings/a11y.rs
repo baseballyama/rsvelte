@@ -14,6 +14,8 @@ mod elements;
 mod handlers;
 mod roles;
 mod tables;
+#[cfg(test)]
+mod tests;
 mod values;
 
 use elements::has_content;

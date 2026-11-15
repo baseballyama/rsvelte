@@ -7,7 +7,9 @@ pub use locator::Locator;
 use locator::{Find, Holder, Reading, locate};
 use oxc_ast::AstType;
 use oxc_diagnostics::OxcDiagnostic;
-use oxc_parser::{Kind, Token};
+use oxc_parser::config::TokensParserConfig;
+use oxc_parser::{Kind, Parser, Token};
+use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
@@ -242,7 +244,7 @@ pub(crate) fn acorn(
         // A missing token: acorn fails at the next token from where oxc labels it, or at the end.
         "1005" => Some(fails(
             "Unexpected token",
-            token(start, None).unwrap_or(text.len() as u32),
+            missing(error, (text, start), read).unwrap_or(text.len() as u32),
         )),
         // An arrow function's type parameters, where acorn fails at the `<`.
         "8004" => Some(fails(
@@ -426,6 +428,47 @@ fn early_error(
         )),
         _ => None,
     }
+}
+/// The token acorn fails at where oxc finds one missing at `start`. In a parenthesized expression
+/// acorn reads an optional parameter's `?` as a conditional, so it fails at the token after it.
+fn missing<I: Iterator<Item = Token>>(
+    error: &OxcDiagnostic,
+    (text, start): (&str, u32),
+    read: impl Fn() -> I,
+) -> Option<u32> {
+    let question = read()
+        .find(|token| token.start() == start)
+        .is_some_and(|token| token.kind() == Kind::Question);
+    let conditional = question
+        && error.labels.get(1).is_some_and(|open| {
+            let before = read().take_while(|token| token.start() < open.offset());
+            before
+                .last()
+                .is_none_or(|token| !token.kind().is_identifier_name())
+        });
+    if !conditional {
+        return read()
+            .find(|token| token.start() >= start)
+            .map(|token| token.start());
+    }
+    read()
+        .find(|token| token.start() > start)
+        .map(|token| token.start())
+        .or_else(|| token_after(text, start + 1))
+}
+
+/// The start of the first token from `at`, which oxc stopped before reading.
+#[cold]
+fn token_after(text: &str, at: u32) -> Option<u32> {
+    crate::scratch::with_scratch_arena(|allocator| {
+        let parser =
+            Parser::new(allocator, text, SourceType::mjs()).with_config(TokensParserConfig);
+        let tokens = match parser.parse_expression_at(at) {
+            Ok(parsed) => parsed.tokens,
+            Err(error) => error.tokens,
+        };
+        tokens.first().map(Token::start)
+    })
 }
 
 /// What acorn does with a rest element whose `?` is `question..end`: `Ok` where it reads one.

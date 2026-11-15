@@ -1,5 +1,6 @@
 ;
-
+function $$render() {
+  
 	console.log(foo, double);
 	var foo = $state(10);
 	var double = $derived(foo * 2);
@@ -25,12 +26,14 @@
 
 ;
 
-async () => {
-  {
-    svelteHTML.createElement("p", {});
-    (double);
-    (foo);
-  }
-};
-const VarStateReads__SvelteComponent_ = (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  async () => {
+    {
+      svelteHTML.createElement("p", {});
+      (double);
+      (foo);
+    }
+  };
+  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+}
+const VarStateReads__SvelteComponent_ = $$render();
 export default /** @type {__rsvelte_javascript_export<typeof VarStateReads__SvelteComponent_>} */ (VarStateReads__SvelteComponent_);

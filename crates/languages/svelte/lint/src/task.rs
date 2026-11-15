@@ -225,9 +225,7 @@ fn unchecked_verdict(component: &Component) -> Verdict<'static> {
         let message = "An optional chain cannot contain private identifiers.";
         return Verdict::Throws(Cow::Borrowed(message), at);
     }
-    directive_names::rejection(component).map_or(Verdict::Parses, |(message, at)| {
-        Verdict::Throws(Cow::Owned(message), at)
-    })
+    Verdict::Parses
 }
 
 /// What typescript-eslint does with the scripts when the compiler rejects one.
@@ -362,7 +360,6 @@ fn positions<'a>(context: &'a DocumentContext<'_>) -> rsvelte_lint_runner::outpu
     )
 }
 
-mod directive_names;
 mod grammar;
 
 #[cfg(test)]

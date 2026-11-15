@@ -15552,34 +15552,6 @@
 === 3 rsvelte_projection/svelte2tsx_store_directive_name/directive_name_store_subscribes_for_every_kind_but_style_and_on/aed0fa5fd4daa019.svelte	json
 []
 
-=== 835 rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/0747857e339aa28c.svelte	json
-[
-	{
-		"code": 2307,
-		"message": "Cannot find module './a' or its corresponding type declarations.",
-		"start": {
-			"line": 1,
-			"character": 25
-		},
-		"end": {
-			"line": 1,
-			"character": 30
-		}
-	},
-	{
-		"code": 2769,
-		"message": "Cannot use 'canWrite' as a store. 'canWrite' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.\n    Argument of type 'number' is not assignable to parameter of type 'SvelteStore<any>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'number' is not assignable to parameter of type 'SvelteStore<any>'.",
-		"start": {
-			"line": 6,
-			"character": 14
-		},
-		"end": {
-			"line": 6,
-			"character": 23
-		}
-	}
-]
-
 === 409 rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/0e991125b90649e6.svelte	json
 [
 	{
@@ -15980,34 +15952,6 @@
 	}
 ]
 
-=== 1230 rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/f9eb825ab25210d3.svelte	json
-[
-	{
-		"code": 2769,
-		"message": "Cannot use 'a' as a store. 'a' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.\n    Argument of type 'number' is not assignable to parameter of type 'SvelteStore<any>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'number' is not assignable to parameter of type 'SvelteStore<any>'.",
-		"start": {
-			"line": 3,
-			"character": 4
-		},
-		"end": {
-			"line": 3,
-			"character": 6
-		}
-	},
-	{
-		"code": 2769,
-		"message": "Cannot use 'b' as a store. 'b' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.\n    Argument of type 'number' is not assignable to parameter of type 'SvelteStore<any>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'number' is not assignable to parameter of type 'SvelteStore<any>'.",
-		"start": {
-			"line": 3,
-			"character": 8
-		},
-		"end": {
-			"line": 3,
-			"character": 10
-		}
-	}
-]
-
 === 206 rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/fa97586f554972ab.svelte	json
 [
 	{
@@ -16020,34 +15964,6 @@
 		"end": {
 			"line": 1,
 			"character": 30
-		}
-	}
-]
-
-=== 1230 rsvelte_projection/svelte2tsx_store_region_per_script/each_script_gets_its_own_store_subscription_region/fbb594ea963fe6f9.svelte	json
-[
-	{
-		"code": 2769,
-		"message": "Cannot use 'a' as a store. 'a' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.\n    Argument of type 'number' is not assignable to parameter of type 'SvelteStore<any>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'number' is not assignable to parameter of type 'SvelteStore<any>'.",
-		"start": {
-			"line": 4,
-			"character": 4
-		},
-		"end": {
-			"line": 4,
-			"character": 6
-		}
-	},
-	{
-		"code": 2769,
-		"message": "Cannot use 'b' as a store. 'b' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.\n    Argument of type 'number' is not assignable to parameter of type 'SvelteStore<any>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'number' is not assignable to parameter of type 'SvelteStore<any>'.",
-		"start": {
-			"line": 4,
-			"character": 8
-		},
-		"end": {
-			"line": 4,
-			"character": 10
 		}
 	}
 ]
@@ -17277,34 +17193,6 @@
 		"end": {
 			"line": 2,
 			"character": 35
-		}
-	}
-]
-
-=== 394 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/56133462a29e565e.svelte	json
-[
-	{
-		"code": 1308,
-		"message": "'await' expressions are only allowed within async functions and at the top levels of modules.",
-		"start": {
-			"line": 1,
-			"character": 7
-		},
-		"end": {
-			"line": 1,
-			"character": 12
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'f'.",
-		"start": {
-			"line": 1,
-			"character": 13
-		},
-		"end": {
-			"line": 1,
-			"character": 14
 		}
 	}
 ]
