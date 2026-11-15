@@ -377,3 +377,13 @@ fn an_ambient_initializer_fails_the_parse_only_on_a_variable() {
     let (json, _) = lint_with("svelte/no-svelte-internal", &document, |_| {});
     assert_eq!(json["findings"].as_array().map(Vec::len), Some(0), "{json}");
 }
+
+/// With no template expression after the script, TypeScript expects an open `}` at the end.
+#[test]
+fn an_open_brace_at_a_scripts_end_is_expected_at_the_documents_end() {
+    assert_parse_error(
+        "<script>\n\tlet a = {\n</script>\n\n<b>x</b>\n",
+        "Parsing error: '}' expected.",
+        (6, 0),
+    );
+}

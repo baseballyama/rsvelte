@@ -258,8 +258,14 @@ fn typescript_eslint_verdict<'a>(context: &'a DocumentContext<'_>) -> Typescript
     // what it throws at the script's end depends on that code.
     let inside = (component.module.iter().chain(&component.instance))
         .any(|script| script.content.start_offset <= at && at < script.content.end_offset);
+    if !inside {
+        return unclosed_at_the_end(context.source_text(), component, error, at)
+            .map_or(TypescriptEslint::Unknown, |end| {
+                TypescriptEslint::Throws(Cow::Borrowed("'}' expected."), end)
+            });
+    }
     // An error without TypeScript's code is one this port does not know TypeScript's verdict on.
-    if !inside || error.typescript_code.is_none() {
+    if error.typescript_code.is_none() {
         return TypescriptEslint::Unknown;
     }
     // An error it does not throw leaves the script to the rules.
@@ -267,6 +273,24 @@ fn typescript_eslint_verdict<'a>(context: &'a DocumentContext<'_>) -> Typescript
         || grammar_verdict(component),
         |message| TypescriptEslint::Throws(message, at),
     )
+}
+
+/// Where TypeScript expects the `}` that the last script leaves open: at the end of the document,
+/// when no template expression adds code after the script.
+fn unclosed_at_the_end(
+    source_text: &str,
+    component: &Component,
+    error: &rsvelte_typescript_tree::SyntaxError,
+    at: u32,
+) -> Option<u32> {
+    let last = (component.module.iter().chain(&component.instance))
+        .max_by_key(|script| script.content.end_offset)?;
+    let after = source_text.get(at as usize..)?;
+    (error.typescript_code == Some(1005)
+        && error.diagnostic.message == "Expected `}` but found `EOF`"
+        && last.content.end_offset == at
+        && !after.contains('{'))
+    .then_some(source_text.len() as u32)
 }
 
 /// What typescript-eslint throws from its own check of the scripts read as TypeScript.
