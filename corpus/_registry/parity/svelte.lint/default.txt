@@ -1,4 +1,4 @@
-# svelte.lint/default: 37174 match
+# svelte.lint/default: 37177 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -27,8 +27,6 @@ svelte/originui-svelte/src/lib/components/ui/data-table/flex-render.svelte	misma
 svelte/originui-svelte/src/lib/hooks/use-local-storage.svelte.ts	mismatch
 svelte/primo/src/lib/components/app-sidebar.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	refused
-svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/component_sequence_error_points_at_the_expression/c1314d8fdd09c86c.svelte	mismatch
-svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/element_sequence_error_points_at_the_expression/35ccaf71b9485683.svelte	mismatch
 svelte/rsvelte-tests-core-1/bind_host_axis_3264/legal_bindings_still_compile_on_every_host/e2b7a8af8920172b.svelte	mismatch
 svelte/rsvelte-tests-core-1/binding_ownership_ignore_4401/an_ignore_on_a_wrapping_block_reaches_the_binding/5634adef671c9d7a.svelte	mismatch
 svelte/rsvelte-tests-core-1/binding_ownership_ignore_4401/an_ignore_on_a_wrapping_block_reaches_the_binding/d891684fc76e80f3.svelte	mismatch
@@ -346,7 +344,6 @@ svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeat
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/every_host_accepts_what_upstream_accepts/37afe1d05a47e6a8.svelte	mismatch
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	mismatch
 svelte/rsvelte-tests-core-3/wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte	mismatch
-svelte/rsvelte-tests-formatter/directive_modifiers/a_transition_modifier_is_kept/206e112612120c7d.svelte	mismatch
 svelte/rsvelte-tests-formatter/indent/adjacent_comments_stay_glued_in_a_broken_fragment/36acd3b0cdf0bb3d.svelte	mismatch
 svelte/rsvelte-tests-formatter/indent/tab_indent_reindents_multiline_bind_getter_setter/e3470d95507b7698.svelte	mismatch
 svelte/rsvelte-tests-formatter/markup_patterns/let_directive_value_is_formatted_as_an_expression/ac7edb54ecf01f25.svelte	mismatch

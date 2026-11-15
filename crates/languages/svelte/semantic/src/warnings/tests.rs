@@ -695,3 +695,36 @@ fn an_event_directive_beside_an_event_attribute_is_mixed_syntax() {
         Vec::<String>::new()
     );
 }
+
+#[test]
+fn an_unparenthesized_sequence_attribute_is_an_error_in_runes_mode() {
+    let errors = |code: &str| compiled_with_errors(code, Some(true)).1;
+    let script = "<script>let { x, y } = $props();</script>\n";
+    for markup in ["<span foo={x, y}></span>", "<Child foo={x, y} />"] {
+        assert_eq!(
+            errors(&format!("{script}{markup}\n")),
+            ["attribute_invalid_sequence_expression"]
+        );
+    }
+    assert_eq!(
+        errors(&format!("{script}<span foo={{(x, y)}}></span>\n")),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn two_transitions_in_one_direction_conflict() {
+    let errors = |code: &str| compiled_with_errors(code, None).1;
+    assert_eq!(
+        errors("<div transition:fade in:fade>x</div>\n"),
+        ["transition_conflict"]
+    );
+    assert_eq!(
+        errors("<div in:fade in:fly>x</div>\n"),
+        ["transition_duplicate"]
+    );
+    assert_eq!(
+        errors("<div in:fade out:fly>x</div>\n"),
+        Vec::<String>::new()
+    );
+}
