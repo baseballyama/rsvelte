@@ -26,6 +26,9 @@ pub struct Project {
     pub root_files: Vec<PathBuf>,
     /// `compilerOptions.paths` after `extends`, each target an absolute path.
     pub paths: Vec<(String, Vec<PathBuf>)>,
+    /// Whether modules resolve as `node16` or `nodenext` do, where an ESM import gets no
+    /// extension appended.
+    pub node_resolution: bool,
 }
 
 /// How requests name a project: TypeScript 7.1 beta and tsrs by its `id`, later 7.1 builds by a
@@ -123,9 +126,25 @@ struct CompilerOptions {
     /// What a relative `paths` target starts from.
     #[serde(rename = "pathsBasePath")]
     paths_base: Option<PathBuf>,
+    /// `ModuleKind`, by its number.
+    module: Option<u32>,
+    /// `ModuleResolutionKind`, by its number.
+    #[serde(rename = "moduleResolution")]
+    module_resolution: Option<u32>,
 }
 
 impl CompilerOptions {
+    /// `moduleResolution` `node16` or `nodenext`, which `module` `node16` to `nodenext` implies.
+    fn node_resolution(&self) -> bool {
+        self.module_resolution.map_or_else(
+            || {
+                self.module
+                    .is_some_and(|module| (100..=199).contains(&module))
+            },
+            |resolution| matches!(resolution, 3 | 99),
+        )
+    }
+
     fn absolute_paths(&self) -> Vec<(String, Vec<PathBuf>)> {
         let base = self.paths_base.as_deref().unwrap_or_else(|| Path::new(""));
         self.paths
@@ -268,6 +287,10 @@ impl Session {
                                 .as_ref()
                                 .map(|c| c.options.absolute_paths())
                                 .unwrap_or_default(),
+                            node_resolution: p
+                                .parsed
+                                .as_ref()
+                                .is_some_and(|c| c.options.node_resolution()),
                         })
                     })
             })
