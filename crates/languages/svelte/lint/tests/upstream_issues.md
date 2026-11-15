@@ -133,7 +133,8 @@ Issue: [svelte-eslint-parser #1002](https://github.com/sveltejs/svelte-eslint-pa
 
 Issue: [eslint-plugin-svelte #1689](https://github.com/sveltejs/eslint-plugin-svelte/issues/1689).
 
-- Case: `valid-compile/invalid/invalid-svelte-ignore03-input.svelte`
+- Case: `valid-compile/invalid/invalid-svelte-ignore03-input.svelte`. The corpus skips the units
+  of this shape for `svelte.lint`.
 - Upstream reports `Empty block` (`block_empty`) at 2:30 and 14:30, on `{#await …}` blocks whose
   pending branch holds only `<!-- svelte-ignore … -->`.
 - Correct: no `block_empty`. `svelte compile` on the file does not warn, because the branch holds a
@@ -698,3 +699,35 @@ output (`corpus/**/expected/svelte.compile/client.warnings.json`).
 - Correct: the comment leads the next node only, and warns once, as in any other fragment. This
   crate reads the fragment as written.
   Test: `warnings::tests::a_comment_in_a_default_slot_warns_once`.
+
+## `svelte/valid-compile`: a literal after another one skips the bidirectional character check
+
+An issue for Svelte, not for eslint-plugin-svelte.
+
+- Case: none upstream; rsvelte's own corpus units under
+  `rsvelte-tests-core-1/bidi_every_occurrence_3344/`, such as
+  `<script>let a = "x‮y"; let b = "p‮q"; let c = "m‮n";</script>`, where upstream
+  warns only about `b`.
+- Svelte 5.57.3 tests each string literal and template element with the `test` of a global
+  regex
+  ([`patterns.js`](https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/patterns.js#L24-L25),
+  [`Literal.js`](https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/2-analyze/visitors/Literal.js#L10),
+  [`TemplateElement.js`](https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/2-analyze/visitors/TemplateElement.js#L9)).
+  `test` starts at the `lastIndex` that the call before left, even one in another file, so a
+  match moves the start of the next test and a failed test resets it.
+- Correct: warn about every literal that holds such a character, as rsvelte does. The corpus
+  skips these units for `svelte.lint` as it does for `svelte.compile`.
+
+## `svelte/valid-compile`: a dotted namespace crashes the compiler
+
+An issue for Svelte, not for eslint-plugin-svelte.
+
+- Case: none upstream; rsvelte's own corpus units such as
+  `<script lang="ts">namespace A.B { const a = 1; }</script>`, where upstream reports
+  `node.body.body.map is not a function` at 1:1.
+- Svelte 5.57.3 removes a namespace's types by mapping over `node.body.body`
+  ([`remove_typescript_nodes.js`](https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/1-parse/remove_typescript_nodes.js#L168-L178)).
+  In `namespace A.B {}` the body of `A` is the declaration of `B`, which has no `body` array.
+- Correct: walk into the inner declaration and refuse the namespace when it holds a value, as
+  rsvelte does with `typescript_invalid_feature`. The corpus skips these units for `svelte.lint`
+  as it does for `svelte.compile`.
