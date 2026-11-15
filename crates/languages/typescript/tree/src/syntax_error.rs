@@ -184,10 +184,8 @@ pub(crate) fn acorn(
     // A script is a module, so acorn reads every reserved word in a binding as an error of its own.
     let reserved = |at: u32| {
         let kind = kind_at(at)?;
-        (kind == Kind::Enum || kind.is_future_reserved_keyword()).then(|| Acorn::Fails {
-            message: Cow::Owned(format!("The keyword '{}' is reserved", kind.to_str())),
-            at,
-        })
+        (kind == Kind::Enum || kind.is_future_reserved_keyword())
+            .then(|| keyword(kind.to_str(), at))
     };
     if error.code.scope.as_deref() != Some("TS") {
         // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
@@ -241,13 +239,20 @@ pub(crate) fn acorn(
         "2452" | "8005" | "1109" | "1110" => Some(fails("Unexpected token", start)),
         // oxc labels the slash, and acorn reports the body after it.
         "1161" => Some(fails("Unterminated regular expression", start + 1)),
-        // A missing token: acorn fails at the next token from where oxc labels it.
-        "1005" => Some(fails("Unexpected token", token(start, None)?)),
+        // A missing token: acorn fails at the next token from where oxc labels it, or at the end.
+        "1005" => Some(fails(
+            "Unexpected token",
+            token(start, None).unwrap_or(text.len() as u32),
+        )),
         "1127" => unexpected_character(text, start, end),
-        "1212" => Some(Acorn::Fails {
-            message: Cow::Owned(error.message.to_string()),
-            at: start,
-        }),
+        // A word reserved in strict code, which acorn names unescaped, as its token does; the
+        // analysis passes no tokens.
+        "1212" => Some(keyword(
+            kind_at(start).map_or(text.get(start as usize..end as usize)?, |kind| {
+                kind.to_str()
+            }),
+            start,
+        )),
         "1049" => Some(fails("setter should have exactly one param", start)),
         "1473" | "1474" => Some(fails(
             "'import' and 'export' may only appear at the top level",
@@ -278,6 +283,14 @@ pub(crate) fn acorn(
             token(start, Some(Kind::Eq))?,
         )),
         _ => early_error(error, number, text, (start, end), visit),
+    }
+}
+
+/// Acorn's error at a reserved `word`.
+fn keyword(word: &str, at: u32) -> Acorn {
+    Acorn::Fails {
+        message: Cow::Owned(format!("The keyword '{word}' is reserved")),
+        at,
     }
 }
 

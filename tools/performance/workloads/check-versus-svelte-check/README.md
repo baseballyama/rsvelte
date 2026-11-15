@@ -11,6 +11,7 @@ runs it on x86_64 Linux, three jobs per project, and writes the report to the ru
 | `rsvelte-tsgo`      | `rsvelte check --task ts.check/default` with the Rust content mapper, on tsgo                               |
 | `rsvelte-tsrs`      | `rsvelte run` on `tsrs`, which has no `--showConfig`, with the files `rsvelte-tsgo` checks                  |
 | `rsvelte-tsrs-fast` | The same with `TSRS_FAST=1`                                                                                 |
+| `main-tsgo`         | `svelte_check --tsgo` of `main`, when `--main-check` names its binary                                       |
 
 The workflow pins every version. Every arm reports TypeScript diagnostics only
 (`--diagnostic-sources js`); rsvelte's check runs no compiler or CSS diagnostics either. The rsvelte
