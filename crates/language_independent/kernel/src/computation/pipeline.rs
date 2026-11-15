@@ -282,29 +282,27 @@ pub fn run(
 }
 
 /// The last requested pool is kept for the process, so repeated runs reuse its threads and those
-/// threads' buffer pools, as runs on rayon's global pool do.
+/// threads' buffer pools. Its workers have [`crate::performance::stack::WORKER`] of stack, which
+/// rayon's global pool does not give.
 #[cfg(not(target_arch = "wasm32"))]
 fn in_pool(threads: Option<usize>, work: impl FnOnce() + Send) {
-    static POOL: std::sync::Mutex<Option<(usize, std::sync::Arc<rayon::ThreadPool>)>> =
-        std::sync::Mutex::new(None);
+    type Kept = Option<(Option<usize>, std::sync::Arc<rayon::ThreadPool>)>;
+    static POOL: std::sync::Mutex<Kept> = std::sync::Mutex::new(None);
     if threads == Some(1) {
         return work();
     }
-    let Some(n) = threads else {
-        return work();
-    };
     let pool = {
         let mut cached = POOL.lock().expect("no panics under the lock");
-        if let Some((_, pool)) = cached.as_ref().filter(|(threads, _)| *threads == n) {
+        if let Some((_, pool)) = cached.as_ref().filter(|(kept, _)| *kept == threads) {
             std::sync::Arc::clone(pool)
         } else {
-            let pool = std::sync::Arc::new(
-                rayon::ThreadPoolBuilder::new()
-                    .num_threads(n)
-                    .build()
-                    .expect("thread pool"),
-            );
-            *cached = Some((n, std::sync::Arc::clone(&pool)));
+            let mut builder =
+                rayon::ThreadPoolBuilder::new().stack_size(crate::performance::stack::WORKER);
+            if let Some(n) = threads {
+                builder = builder.num_threads(n);
+            }
+            let pool = std::sync::Arc::new(builder.build().expect("thread pool"));
+            *cached = Some((threads, std::sync::Arc::clone(&pool)));
             pool
         }
     };
