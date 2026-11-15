@@ -1,13 +1,16 @@
 //! Directives of one start tag that repeat each other: the same key and the same expression, or
 //! both without one.
 
-use rsvelte_kernel::source::positions::{LineIndex, Span};
+use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, Component, Part, TemplateNode};
 
 use super::expressions::equal_tokens;
 use super::markup::parts;
 use super::nodes;
+
+#[cfg(test)]
+mod tests;
 
 /// Reports every directive that `key` selects and another directive of its start tag repeats.
 /// `key` gives a directive's key text, or `None` for an attribute that is not one;
@@ -53,7 +56,9 @@ pub(super) fn report_duplicates<'s>(
             if spans.len() < 2 {
                 continue;
             }
-            let lines = lines.get_or_insert_with(|| LineIndex::new(source));
+            // `ESLint`'s lines, which a lone CR ends too.
+            let lines =
+                lines.get_or_insert_with(|| LineIndex::with_breaks(source, LineBreaks::Ecmascript));
             for (index, &span) in spans.iter().enumerate() {
                 let other = spans[usize::from(index == 0)];
                 let line = lines.line_column(other.start_offset).line;
