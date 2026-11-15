@@ -343,3 +343,13 @@ fn a_parameter_clash_in_the_template_fails_the_parse() {
         (5, 10),
     );
 }
+
+/// tsc's parser rejects a private name in an optional chain, which acorn and oxc read.
+#[test]
+fn a_private_name_in_an_optional_chain_fails_the_parse() {
+    assert_parse_error(
+        "<script>\nclass K {\n\t#v = 1;\n\tf(o) { return o?.a.#v; }\n}\n</script>\n<p>{K}</p>\n",
+        "Parsing error: An optional chain cannot contain private identifiers.",
+        (4, 20),
+    );
+}

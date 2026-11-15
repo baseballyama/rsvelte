@@ -217,6 +217,10 @@ fn unchecked_verdict(component: &Component) -> Verdict<'static> {
     {
         return Verdict::Throws(Cow::Borrowed(message), at);
     }
+    if let Some(at) = grammar::optional_private_name(component) {
+        let message = "An optional chain cannot contain private identifiers.";
+        return Verdict::Throws(Cow::Borrowed(message), at);
+    }
     directive_names::rejection(component).map_or(Verdict::Parses, |(message, at)| {
         Verdict::Throws(Cow::Owned(message), at)
     })

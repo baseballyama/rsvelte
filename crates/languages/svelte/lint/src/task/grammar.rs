@@ -1,6 +1,6 @@
 use oxc_ast::ast::{
-    Function, ImportDeclaration, ImportPhase, NumericLiteral, PropertyDefinition, StringLiteral,
-    VariableDeclarator,
+    Expression, Function, ImportDeclaration, ImportPhase, NumericLiteral, PrivateFieldExpression,
+    PropertyDefinition, StringLiteral, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::{GetSpan, Span};
@@ -196,5 +196,44 @@ impl<'a> Visit<'a> for Scanner {
             self.reject("'=' expected.".to_owned(), at);
         }
         walk::walk_import_declaration(self, it);
+    }
+}
+
+/// Where tsc's parser rejects a private name in an optional chain, which acorn and oxc accept.
+pub(super) fn optional_private_name(component: &Component) -> Option<u32> {
+    let tree = &component.javascript;
+    let mut found = OptionalPrivateName { first: None };
+    for program in scripts(component) {
+        let program = tree.get_program(program);
+        let text = program.span.source_text(program.source_text);
+        if text.contains("?.") && text.contains('#') {
+            found.visit_program(program);
+        }
+    }
+    found.first
+}
+
+struct OptionalPrivateName {
+    first: Option<u32>,
+}
+
+impl<'a> Visit<'a> for OptionalPrivateName {
+    fn visit_private_field_expression(&mut self, it: &PrivateFieldExpression<'a>) {
+        if (it.optional || optional_chain(&it.object)) && self.first.is_none() {
+            self.first = Some(it.field.span.start);
+        }
+        walk::walk_private_field_expression(self, it);
+    }
+}
+
+/// Whether `expression` is a link of an optional chain after its `?.`.
+fn optional_chain(expression: &Expression<'_>) -> bool {
+    match expression {
+        Expression::StaticMemberExpression(it) => it.optional || optional_chain(&it.object),
+        Expression::ComputedMemberExpression(it) => it.optional || optional_chain(&it.object),
+        Expression::PrivateFieldExpression(it) => it.optional || optional_chain(&it.object),
+        Expression::CallExpression(it) => it.optional || optional_chain(&it.callee),
+        Expression::TSNonNullExpression(it) => optional_chain(&it.expression),
+        _ => false,
     }
 }
