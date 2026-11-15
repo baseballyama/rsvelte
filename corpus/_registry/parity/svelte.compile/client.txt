@@ -1,4 +1,4 @@
-# svelte.compile/client: 35120 match
+# svelte.compile/client: 35121 match
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_reject_a_nel/d17180b037ec6515.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/4e9145d6de0541b6.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/d654bef2323adbe8.svelte	mismatch
@@ -9,7 +9,6 @@ svelte/rsvelte-tests-core-3/tag_directive_parse_errors/unterminated_expression_i
 svelte/rsvelte-tests-core-3/ts_decorators_2597/a_decorator_under_a_default_export_is_not_the_reported_error/f758f4def7740efe.svelte	mismatch
 svelte/rsvelte-tests-formatter/typescript/directive_values_preserve_ts_casts/ac1e9af7e042ba08.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/completions/tests/the_component_doc_comment_is_offered/3088745555afdfa8.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_store_directive_name/a_member_access_in_a_directive_name_does_not_subscribe/04bc05a5c4a48321.svelte	unexpected
 svelte/rsvelte/lint/no-not-function-handler/04-const-chain.svelte	unexpected
 svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelte	mismatch
 svelte/rsvelte/pattern/issues/3124-slot-snippet-conflict-span.svelte	mismatch

@@ -130,8 +130,33 @@ impl<'r> Names<'r> {
                 );
             }
         }
+        if let Some((name, at)) = dotted_directive_name(input) {
+            return global_reference_invalid(name, at);
+        }
         Ok(())
     }
+}
+
+/// A `class:` directive without a value whose name is `$` and a member chain:
+/// upstream reads the whole name as one identifier, a store whose name has a dot, which nothing
+/// declares.
+fn dotted_directive_name<'a>(input: &CompileInput<'a>) -> Option<(&'a str, Span)> {
+    let tree = input.component.compiler_syntax_tree;
+    let source = input.component.source_text;
+    tree.elements().find_map(|(_, element)| {
+        tree.attributes(element.attributes).iter().find_map(|a| {
+            let AttributeValue::Class(value) = a.value else {
+                return None;
+            };
+            let name = a.name.text(source);
+            let at = span_of(input.component.javascript.get_expression(value));
+            let store = name.strip_prefix('$')?;
+            (store.contains('.')
+                && store.starts_with(|c: char| c.is_ascii_lowercase())
+                && at.text(source) == name)
+                .then_some((name, at))
+        })
+    })
 }
 
 /// Where upstream's template scope walk meets a reference, by its start. It references a
