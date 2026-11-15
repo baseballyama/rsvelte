@@ -1,5 +1,7 @@
 use oxc_ast::AstKind;
-use oxc_ast::ast::{BindingIdentifier, BindingPattern, Expression, ModuleExportName, Statement};
+use oxc_ast::ast::{
+    BindingIdentifier, BindingPattern, Expression, Ident, ModuleExportName, Statement,
+};
 use oxc_semantic::{AstNodes, NodeId, Reference, ReferenceId, ScopeId, Scoping, SymbolId};
 use oxc_span::GetSpan;
 use rsvelte_kernel::source::positions::Span;
@@ -45,10 +47,7 @@ impl SvelteRule for NoUnusedVariables {
 fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let mut skipped = FxHashSet::default();
     let runes = runes(file) != Some(false);
-    if runes {
-        bindable_props(file, &mut skipped);
-    }
-    reexported_names(file, &mut skipped);
+    virtually_read(file, runes, &mut skipped);
     let mut reads = subscribed_stores(file, runes, &mut skipped);
     script_snippets(file, &mut reads);
     component_snippets(file, &mut skipped);
@@ -191,60 +190,46 @@ fn script_snippets(file: &File<'_>, reads: &mut FxHashMap<SymbolId, Vec<Referenc
     }
 }
 
-/// `let { a = $bindable() } = $props()` at the top level gets a virtual read of the top-level
-/// `a`, found by name as upstream finds it.
-fn bindable_props(file: &File<'_>, out: &mut FxHashSet<SymbolId>) {
-    let Some(resolution) = file.resolution() else {
+/// Top-level names with a virtual read, found by name as upstream finds them:
+/// `let { a = $bindable() } = $props()` in runes mode, and `export { a } from '…'`, as a legacy
+/// prop, although the re-export does not refer to `a`.
+fn virtually_read(file: &File<'_>, runes: bool, out: &mut FxHashSet<SymbolId>) {
+    let (Some(component), Some(resolution)) = (file.component(), file.resolution()) else {
         return;
     };
     let scoping = resolution.scoping();
     let scopes = [resolution.instance_scope(), scoping.root_scope_id()];
-    let tree = file.javascript();
-    for program in file.programs() {
-        for statement in &tree.get_program(program).body {
-            let Statement::VariableDeclaration(declaration) = statement else {
-                continue;
-            };
-            for declarator in &declaration.declarations {
-                if let Some(Expression::CallExpression(call)) = &declarator.init
-                    && nodes::is_named(&call.callee, "$props")
-                    && matches!(declarator.id, BindingPattern::ObjectPattern(_))
-                {
-                    bindable_names(&declarator.id, &mut |identifier| {
-                        out.extend(
-                            scopes
-                                .iter()
-                                .find_map(|&scope| scoping.get_binding(scope, identifier.name)),
-                        );
-                    });
-                }
-            }
-        }
-    }
-}
-
-/// `export { a } from '…'` gets a virtual read of the top-level `a`, as a legacy prop does,
-/// although the re-export does not refer to it.
-fn reexported_names(file: &File<'_>, out: &mut FxHashSet<SymbolId>) {
-    let Some(resolution) = file.resolution() else {
-        return;
+    let mut read = |name: Ident<'_>| {
+        out.extend(
+            scopes
+                .iter()
+                .find_map(|&scope| scoping.get_binding(scope, name)),
+        );
     };
-    let scoping = resolution.scoping();
-    let scopes = [resolution.instance_scope(), scoping.root_scope_id()];
     let tree = file.javascript();
-    for program in file.programs() {
-        for statement in &tree.get_program(program).body {
-            let Statement::ExportFromDeclaration(export) = statement else {
-                continue;
-            };
-            for specifier in &export.specifiers {
-                if let ModuleExportName::IdentifierName(local) = &specifier.local {
-                    out.extend(
-                        scopes
-                            .iter()
-                            .find_map(|&scope| scoping.get_binding(scope, local.name)),
-                    );
+    for script in component.module.iter().chain(&component.instance) {
+        for statement in &tree.get_program(script.program).body {
+            match statement {
+                Statement::VariableDeclaration(declaration) if runes => {
+                    for declarator in &declaration.declarations {
+                        if let Some(Expression::CallExpression(call)) = &declarator.init
+                            && nodes::is_named(&call.callee, "$props")
+                            && matches!(declarator.id, BindingPattern::ObjectPattern(_))
+                        {
+                            bindable_names(&declarator.id, &mut |identifier| {
+                                read(identifier.name);
+                            });
+                        }
+                    }
                 }
+                Statement::ExportFromDeclaration(export) => {
+                    for specifier in &export.specifiers {
+                        if let ModuleExportName::IdentifierName(local) = &specifier.local {
+                            read(local.name);
+                        }
+                    }
+                }
+                _ => {}
             }
         }
     }
