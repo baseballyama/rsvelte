@@ -210,7 +210,7 @@ impl Artifact for ModuleAsTypeScript {
         let source_type = (source_type.with_jsx(source_type.is_javascript())).with_typescript(true);
         let range = Span::new(0, context.source_text().len() as u32);
         let (tree, read) = Tree::build(context.source_text(), |builder| {
-            builder.leave_unchecked(TYPESCRIPT_ESLINT_UNCHECKED);
+            builder.leave_unchecked(&TYPESCRIPT_ESLINT_UNCHECKED);
             Ok(builder
                 .program_or_errors(range, source_type)
                 .map_err(|rejected| rejected.errors))

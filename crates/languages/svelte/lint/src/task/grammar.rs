@@ -260,3 +260,6 @@ fn optional_chain(expression: &Expression<'_>) -> bool {
         _ => false,
     }
 }
+
+#[cfg(test)]
+mod tests;

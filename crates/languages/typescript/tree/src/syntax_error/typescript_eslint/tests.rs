@@ -139,7 +139,7 @@ fn a_check_typescript_eslint_makes_is_thrown_when_tsc_s_parser_finds_nothing() {
 fn a_checker_error_is_left_unchecked_for_typescript_eslint() {
     let text = "class C { static private a = 1; set x(a, b) {} }";
     let parsed = Tree::build(text, |builder| {
-        builder.leave_unchecked(crate::TYPESCRIPT_ESLINT_UNCHECKED);
+        builder.leave_unchecked(&crate::TYPESCRIPT_ESLINT_UNCHECKED);
         let range = Span::new(0, text.len() as u32);
         builder.program(range, SourceType::ts()).map_err(Into::into)
     });
