@@ -172,7 +172,7 @@ pub fn in_script_content(source_text: &str, offset: u32) -> bool {
 #[cold]
 fn javascript_error(e: Diagnostic) -> Diagnostic {
     let Diagnostic { message, span, .. } = e;
-    svelte_error("js_parse_error", acorn_message(&message), span)
+    svelte_error("js_parse_error", message, span)
 }
 
 /// Acorn reports a JavaScript syntax error at a position, not a range.
@@ -182,18 +182,6 @@ fn acorn_position(mut e: Diagnostic) -> Diagnostic {
         e.span = Span::new(e.span.start_offset, e.span.start_offset);
     }
     e
-}
-
-/// Acorn's wording of the oxc errors that mean the same thing.
-fn acorn_message(message: &str) -> std::borrow::Cow<'_, str> {
-    let unexpected = message == "Unexpected JSX expression"
-        || message.starts_with("Expected `") && message.contains("` but found `");
-    match message {
-        _ if unexpected => "Unexpected token".into(),
-        "Cannot assign to this expression" => "Assigning to rvalue".into(),
-        "Unterminated string" => "Unterminated string constant".into(),
-        _ => message.into(),
-    }
 }
 
 /// Upstream's error `code`, whose message ends with the link to its docs; an error of this
