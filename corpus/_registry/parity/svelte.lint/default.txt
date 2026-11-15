@@ -1,4 +1,4 @@
-# svelte.lint/default: 37219 match
+# svelte.lint/default: 37220 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -439,7 +439,6 @@ svelte/rsvelte/pattern/issues/3182-export-let-bindable.svelte	mismatch
 svelte/rsvelte/pattern/issues/3182-export-let-initializer-error.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	mismatch
 svelte/rsvelte/pattern/issues/3195-nth-of-selector-list.svelte	mismatch
-svelte/rsvelte/pattern/issues/3201-template-strict-param-clash.svelte	mismatch
 svelte/rsvelte/pattern/issues/3218-expected-token-point.svelte	mismatch
 svelte/rsvelte/pattern/issues/3413-optional-private-field.svelte	mismatch
 svelte/rsvelte/pattern/issues/3511-store-scoped-each-position.svelte	mismatch

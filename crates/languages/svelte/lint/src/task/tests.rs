@@ -318,3 +318,28 @@ fn an_abstract_initializer_fails_the_parse_at_the_initializer() {
         assert_eq!(finding["start"]["column"].as_u64(), Some(column), "{path}");
     }
 }
+
+/// Each of these fails the parse where `line:column` says.
+fn assert_parse_error(source: &str, message: &str, (line, column): (u64, u64)) {
+    let document =
+        Document::new("App.svelte".to_owned(), source.to_owned()).expect("a small document");
+    let (json, _) = lint_with("svelte/no-svelte-internal", &document, |_| {});
+    let finding = &json["findings"][0];
+    assert_eq!(finding["message"].as_str(), Some(message), "{source}");
+    assert_eq!(finding["start"]["line"].as_u64(), Some(line), "{source}");
+    assert_eq!(
+        finding["start"]["column"].as_u64(),
+        Some(column),
+        "{source}"
+    );
+}
+
+/// acorn rejects two parameters of the same name as it parses the template.
+#[test]
+fn a_parameter_clash_in_the_template_fails_the_parse() {
+    assert_parse_error(
+        "<script>\n\tlet c = 0;\n</script>\n\n{#if ((a, a) => a)(c, 1)}<b>y</b>{/if}\n",
+        "Parsing error: Argument name clash\nhttps://svelte.dev/e/js_parse_error",
+        (5, 10),
+    );
+}
