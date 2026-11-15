@@ -1,4 +1,4 @@
-# svelte.lint/default: 37107 match
+# svelte.lint/default: 37109 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -92,7 +92,6 @@ svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attri
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_attribute_selector_keeps_the_source_spacing/57fe13a37abdb380.svelte	unexpected
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/b8fc896b6d2ce9e7.svelte	unexpected
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/e25afc0dacd98fca.svelte	unexpected
-svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/the_column_combinator_is_read_and_a_lone_bar_is_not/9b5baa38cc0628f7.svelte	mismatch
 svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/a_type_alias_is_a_declaration_only_in_typescript/31d56272e52457e9.svelte	mismatch
 svelte/rsvelte-tests-core-2/declaration_tag_keyword_3692/a_type_alias_is_a_declaration_only_in_typescript/b275deab1b0ff83c.svelte	mismatch
 svelte/rsvelte-tests-core-2/declaration_tag_missing_initializer_3705/neighbouring_declaration_shapes_keep_their_existing_outcomes/79df455b3881d80f.svelte	mismatch
@@ -153,7 +152,6 @@ svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_accept_js_wh
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_accept_js_whitespace/c2ae954870a8aeef.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_accept_js_whitespace/f2d5ea78a7be1c90.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_reject_a_nel/d17180b037ec6515.svelte	mismatch
-svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_css_reader_does_not_treat_a_nel_as_whitespace/af5d0a6e6d8aec03.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/4e9145d6de0541b6.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/d654bef2323adbe8.svelte	mismatch
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/f1bad544504a65b6.svelte	mismatch
