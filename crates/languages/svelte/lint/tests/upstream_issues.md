@@ -860,9 +860,6 @@ finds `<script>` elements with a regular expression over the whole file, and
 adds the content of each one to the component's script code, a nested one too. Svelte reads the
 nested element as markup. The corpus skips the lint unit.
 
-<<<<<<< HEAD
-## Rules that throw (`svelte/indent`, `svelte/consistent-selector-style`, `no-unused-vars`)
-=======
 ## A comment in a tag inside a block is not a comment (svelte-eslint-parser)
 
 No issue yet. With svelte-eslint-parser 1.10.1 and `svelte/indent` at its defaults.
@@ -876,16 +873,15 @@ No issue yet. With svelte-eslint-parser 1.10.1 and `svelte/indent` at its defaul
 {/if}
 ```
 
-Upstream reports nothing. With `<div>` and `</div>` in place of the block, it reports line 4:
-`Expected indentation of 2 spaces but found 4 spaces.` To find the tag of each comment,
+Upstream reports nothing. Put `<div>` and `</div>` in place of the block, and it reports line 4
+as indented by 4 spaces where it expects 2 spaces. To find the tag of each comment,
 [the loop](https://github.com/sveltejs/svelte-eslint-parser/blob/e7e70142ca0b211ff849057e0b1d68eba460fb4b/src/parser/converts/root.ts#L186-L229)
 walks only elements whose parents are elements, so it skips a comment in a tag inside a block.
 [The fallback](https://github.com/sveltejs/svelte-eslint-parser/blob/e7e70142ca0b211ff849057e0b1d68eba460fb4b/src/parser/index.ts#L359-L360)
-then makes a token of each character of the comment, and `svelte/indent` indents them as an
-attribute. `main` (2352dd6eac) has the same loop. The corpus skips the lint unit.
+then makes a token of each character of the comment. The `svelte/indent` rule indents those
+tokens as an attribute. `main` (2352dd6eac) has the same loop. The corpus skips the lint unit.
 
-## Rules that throw (`svelte/indent`, `svelte/consistent-selector-style`)
->>>>>>> 5abb6e9f4e
+## Rules that throw (`svelte/indent`, `svelte/consistent-selector-style`, `no-unused-vars`)
 
 - `svelte/indent` throws `Cannot read properties of null (reading 'range')` on 18 components of
   `svelte-material-ui` and one of `threlte`.
