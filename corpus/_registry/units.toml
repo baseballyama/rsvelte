@@ -4350,3 +4350,6 @@
 
 ["svelte/svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-style-tag/input.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx blanks a style sheet with a regular expression that needs `</style>`, so at another closer it leaves the CSS in its TSX and TypeScript reports it as JSX"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/56133462a29e565e.svelte".skip]
+"svelte.check" = "legacy: `$:` is Svelte 4 syntax, and svelte rejects this component in runes mode (legacy_reactive_statement_invalid)"

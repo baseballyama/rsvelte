@@ -17281,34 +17281,6 @@
 	}
 ]
 
-=== 394 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/56133462a29e565e.svelte	json
-[
-	{
-		"code": 1308,
-		"message": "'await' expressions are only allowed within async functions and at the top levels of modules.",
-		"start": {
-			"line": 1,
-			"character": 7
-		},
-		"end": {
-			"line": 1,
-			"character": 12
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'f'.",
-		"start": {
-			"line": 1,
-			"character": 13
-		},
-		"end": {
-			"line": 1,
-			"character": 14
-		}
-	}
-]
-
 === 364 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/564d7001418b83c1.svelte	json
 [
 	{
