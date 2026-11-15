@@ -168,6 +168,11 @@ pub enum Node {
     QuotedText(Span),
     /// Source text without a mapping, so neither findings nor typed lint see this copy.
     UnmappedSource(Span),
+    /// `(parts) as written`, as svelte2tsx writes a type assertion `<written>parts`.
+    AsType {
+        parts: Range,
+        written: Span,
+    },
     /// A `$$Generic` alias as svelte2tsx's unmapped type parameter, `name extends constraint`.
     TypeParameter {
         name: Span,

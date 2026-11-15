@@ -15,6 +15,7 @@ mod root_snippets;
 mod script_kind;
 pub use script_kind::checked_as_typescript;
 mod tag;
+mod type_assertion;
 
 use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;

@@ -214,6 +214,14 @@ impl Printer<'_> {
                 self.output.copy(self.source, span);
                 self.output.mark(span.end_offset);
             }
+            Node::AsType { parts, written } => {
+                self.output.push("(");
+                for &part in self.tree.children(parts) {
+                    self.node(part);
+                }
+                self.output.push(") as ");
+                self.output.copy(self.source, written);
+            }
             Node::QuotedText(span) => {
                 let start = self.output.out.len() as u32;
                 for part in ["\"", span.text(self.source), "\""] {

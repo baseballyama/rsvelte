@@ -16,7 +16,7 @@ pub(super) struct Edit {
 
 impl Edit {
     /// Removes the text at `span`.
-    const fn removal(span: Span) -> Self {
+    pub(super) const fn removal(span: Span) -> Self {
         Self {
             span,
             replacement: None,
