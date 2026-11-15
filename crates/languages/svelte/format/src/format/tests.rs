@@ -503,12 +503,12 @@ fn each_script_the_plugin_s_parser_throws_on_is_kept_as_written() {
         crate::task::format(&source_text, &Options::default()).expect("prints"),
         format!("{module}\n{instance}\n<p>{{x}}</p>\n")
     );
-    // Babel throws on some of the modifier pairs tsc reports as 1243, not on this one.
-    let source_text = "<script>\n\tclass C { declare accessor a; }\n</script>\n";
-    let refused = crate::task::format(source_text, &Options::default()).expect_err("refused");
+    // Babel throws on `accessor declare`, and not on `declare accessor`, which tsc reports as 1243
+    // too.
+    let source_text = "<script>\n\tclass C { accessor declare a; }\n</script>\n";
     assert_eq!(
-        refused.message,
-        "not supported by the formatter yet: a TypeScript error the plugin's parser may throw on"
+        crate::task::format(source_text, &Options::default()).expect("prints"),
+        source_text
     );
 }
 

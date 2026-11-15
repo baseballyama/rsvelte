@@ -4,8 +4,8 @@ use oxc_ast::ast::{
     Class, ClassElement, PrivateIdentifier, Program, WithClause, WithClauseKeyword,
 };
 use oxc_ast_visit::{Visit, walk};
-use rsvelte_svelte_syntax::syntax_tree::Component;
-use rsvelte_typescript_tree::{Reader, SyntaxError};
+use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
+use rsvelte_typescript_tree::{Reader, Recorded, SyntaxError};
 
 use super::{R, Span, Unsupported, in_typescript};
 
@@ -61,9 +61,22 @@ fn thrown_scripts(c: &Component, source_text: &str) -> R<Vec<Span>> {
         };
         // oxc recovered no program from an error that stopped it, and neither parser reads on.
         let recovered = !c.javascript.get_program(script.program).span.is_empty();
+        let tokens: Vec<Recorded> = (c.tokens.iter())
+            .filter(|token| {
+                body.start_offset <= token.span.start_offset
+                    && token.span.end_offset <= body.end_offset
+            })
+            .filter_map(|token| match token.kind {
+                TokenType::JavaScript(kind) => Some(Recorded {
+                    kind: Some(kind),
+                    span: token.span,
+                }),
+                _ => None,
+            })
+            .collect();
         let rejects = !recovered
             || reader
-                .throws(&c.javascript, script.program, errors)
+                .throws(&c.javascript, script.program, errors, &tokens)
                 .ok_or_else(|| {
                     Unsupported::at(
                         "a TypeScript error the plugin's parser may throw on",
