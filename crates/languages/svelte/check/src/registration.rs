@@ -100,6 +100,7 @@ fn typescript_env(
             .chain([("svelte/elements".to_owned(), svelte.join("elements.d.ts"))])
             .collect(),
         replaced: vec![(types, without_any_component_module(text))],
+        script_modules: vec![".svelte"],
     })
 }
 
