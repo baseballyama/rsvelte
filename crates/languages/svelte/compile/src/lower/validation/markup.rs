@@ -9,11 +9,13 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::FxHashSet;
 
+mod handlers;
 mod lets;
 mod placement;
 mod slots;
 mod transitions;
 
+pub(in crate::lower) use handlers::mixed_syntaxes;
 use placement::Ancestors;
 use rsvelte_svelte_semantic::warnings::slot_name_error;
 

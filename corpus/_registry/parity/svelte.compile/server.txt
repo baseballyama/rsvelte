@@ -1,4 +1,4 @@
-# svelte.compile/server: 35121 match
+# svelte.compile/server: 35122 match
 svelte/rsvelte-tests-core-1/bind_host_axis_3264/legal_bindings_still_compile_on_every_host/e2b7a8af8920172b.svelte	refused
 svelte/rsvelte-tests-core-1/bindable_rune_default_3615/rune_identifier_defaults_are_proxied_lazily/0a4afed7c6de59de.svelte	mismatch
 svelte/rsvelte-tests-core-1/bindable_rune_default_3615/rune_identifier_defaults_are_proxied_lazily/dedb2969507c2d84.svelte	mismatch
@@ -18,6 +18,5 @@ svelte/rsvelte-tests/rsvelte_language_server/completions/tests/the_component_doc
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_style_directive_blanking/the_blanked_run_is_the_decoded_value_not_the_raw_source/df8e0908e878150f.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_style_directive_blanking/the_quote_comes_from_the_source/d4bb55ff2d386e22.svelte	mismatch
 svelte/rsvelte/lint/no-inspect/03-template.svelte	refused
-svelte/rsvelte/lint/no-not-function-handler/04-const-chain.svelte	unexpected
 svelte/rsvelte/pattern/adversarial/snippets/rejected-slot-snippet-conflict.svelte	mismatch
 svelte/rsvelte/pattern/issues/3124-slot-snippet-conflict-span.svelte	mismatch
