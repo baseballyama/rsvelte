@@ -1692,21 +1692,27 @@
 
 ["svelte/rsvelte-tests-core-2/globals_table_3617/two_shapes_stay_unfolded_on_purpose/181620c5ec25570d.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+"svelte.lint" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
 
 ["svelte/rsvelte-tests-core-3/server_global_fold_fns_3388/an_out_of_range_code_point_is_not_folded/7d852d86356c29fe.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+"svelte.lint" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
 
 ["svelte/rsvelte-tests-core-2/globals_table_3617/two_shapes_stay_unfolded_on_purpose/90b344717c29bda3.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+"svelte.lint" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
 
 ["svelte/rsvelte-tests-core-3/server_global_fold_fns_3388/an_out_of_range_code_point_is_not_folded/f4163d314d83ab72.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+"svelte.lint" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
 
 ["svelte/rsvelte-tests-core-2/globals_table_3617/two_shapes_stay_unfolded_on_purpose/f971de0d0c72cc7f.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+"svelte.lint" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
 
 ["svelte/rsvelte-tests-core-3/server_global_fold_fns_3388/an_out_of_range_code_point_is_not_folded/aff6c094f7f09b91.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
+"svelte.lint" = "upstream bug: svelte 5.57.3 folds `String.fromCodePoint` at compile time and crashes on an invalid code point, which would throw only when the component runs"
 
 ["svelte/rsvelte-tests-core-1/bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/f38d296e65efce2f.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 folds an operation that throws at run time, such as one that mixes a BigInt and a number, and crashes instead of leaving it for the component to throw"
@@ -2050,27 +2056,35 @@
 
 ["svelte/rsvelte-tests-core-1/css_empty_declaration_error_span/consecutive_semicolons_span_to_the_following_block_close/6ab50de7e6515fdc.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads the empty declaration between two semicolons, which CSS allows, as css_empty_declaration"
+"svelte.lint" = "upstream bug: svelte 5.57.3 reads the empty declaration between two semicolons, which CSS allows, as css_empty_declaration"
 
 ["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/12c6b8beaa21d52d.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+"svelte.lint" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
 
 ["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/1d52c2bf6295517c.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+"svelte.lint" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
 
 ["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/d19e82e3c15ba56b.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+"svelte.lint" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
 
 ["svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/e2a71600612d7577.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
+"svelte.lint" = "upstream bug: svelte 5.57.3 reads `An+B` with a pattern that misses spellings CSS Syntax 3 allows (`-2n-1`, `2N`, `-1`, a comment after it), so it reports css_expected_identifier"
 
 ["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/56850d42c980b1cc.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
+"svelte.lint" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
 
 ["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/d1817713cb279f42.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
+"svelte.lint" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
 
 ["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/da7b20631d49c91b.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
+"svelte.lint" = "upstream bug: svelte 5.57.3 does not read the namespace prefix of an attribute selector, which CSS allows"
 
 ["svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/6417a3f535e59cc1.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 reads a name where a comment follows the whitespace before a compound selector, which CSS allows, so it reports css_expected_identifier"
@@ -2080,9 +2094,11 @@
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ef7c2ebb965e3245.svelte".skip]
 "svelte.compile" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
+"svelte.lint" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/06a6ed83909b32c0.svelte".skip]
 "svelte.compile" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
+"svelte.lint" = "upstream bug: acorn-typescript reports an `await` in a namespace body as 'Cannot use await in class static initialization block'"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/070bec3752f0534a.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 checks the body of a `declare` namespace, module or global for values, and refuses a `const` there, though erasing the types leaves nothing"
@@ -2443,18 +2459,22 @@
 ["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+"svelte.lint" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 
 ["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/4809229d13f750f6.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+"svelte.lint" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 
 ["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/7e0bf9a55c019a47.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+"svelte.lint" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 
 ["svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/af4e901d46ddc2c3.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 "svelte.compile.warnings" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it reports no unused selector"
+"svelte.lint" = "upstream bug: svelte 5.57.3 test_attribute matches an empty value with ~= and ^= through JavaScript string methods, where Selectors 4 says such a selector represents nothing, so it keeps a rule no element matches"
 
 ["svelte/rsvelte-tests-core-2/keyframe_percentage_scoping/a_top_level_step_scopes_every_element/706368196c7e4643.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 css-prune matches a @keyframes step such as 0% as a selector that every element satisfies, so it gives every element the scoping class though no rule uses it"

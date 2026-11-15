@@ -731,3 +731,24 @@ An issue for Svelte, not for eslint-plugin-svelte.
 - Correct: walk into the inner declaration and refuse the namespace when it holds a value, as
   rsvelte does with `typescript_invalid_feature`. The corpus skips these units for `svelte.lint`
   as it does for `svelte.compile`.
+
+## `svelte/valid-compile`: compiler bugs that `svelte.compile` already skips
+
+Issues for Svelte or acorn-typescript, not for eslint-plugin-svelte. svelte/valid-compile reports
+what the compiler reports, so the corpus skips these units for `svelte.lint` with the reason
+their `svelte.compile` skip gives.
+
+- Svelte folds `String.fromCodePoint` as it analyzes and throws on an invalid code point
+  ([`scope.js`][fold]).
+- Svelte reads `An+B` with a pattern that misses `-2n-1`, `2N` and `-1` ([`style.js`][nth]).
+- Svelte reads no namespace prefix in an attribute selector such as `[svg|a]`
+  ([`style.js`][namespace]).
+- Svelte refuses the empty declaration between two semicolons ([`style.js`][empty]).
+- Svelte matches an empty `~=` or `^=` value, which selects nothing ([`css-prune.js`][prune]).
+- acorn-typescript reads an `await` in a namespace as one in a class static block.
+
+[fold]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/scope.js#L72
+[nth]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/1-parse/read/style.js#L13-L14
+[namespace]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/1-parse/read/style.js#L272-L274
+[empty]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/1-parse/read/style.js#L486-L488
+[prune]: https://github.com/sveltejs/svelte/blob/23bb146306ff02cc5041bca0c5de9f8bd086e4a3/packages/svelte/src/compiler/phases/2-analyze/css/css-prune.js#L702-L706
