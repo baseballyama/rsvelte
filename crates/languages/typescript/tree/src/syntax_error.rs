@@ -523,8 +523,10 @@ const fn fails(message: &'static str, at: u32) -> Acorn {
 }
 
 mod locator;
+mod readers;
 mod typescript_eslint;
 
+pub use readers::{Reader, babel_typescript_throws};
 pub use typescript_eslint::{
     TYPESCRIPT_ESLINT_UNCHECKED, typescript_eslint_check, typescript_eslint_error,
 };

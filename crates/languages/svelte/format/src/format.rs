@@ -277,19 +277,6 @@ fn assertion_script(c: &Component, source_text: &str) -> Option<Span> {
 /// either, so the plugin keeps that body as it is. Babel recovers from the others, and Prettier's
 /// TypeScript parser from more.
 fn unparsed_script(c: &Component, source_text: &str, rejected: &SyntaxError) -> Option<Span> {
-    // tsc's numbers for the errors Babel throws on instead of recovering from.
-    const BABEL_REJECTS: [u32; 10] = [
-        2524,  // `await` in a parameter
-        2523,  // `yield` in a parameter
-        2337,  // a `super` call outside a constructor
-        2335,  // `super` outside a derived class
-        1347,  // `'use strict'` beside non-simple parameters
-        1104,  // a misplaced `continue`
-        1105,  // a misplaced `break`
-        1107,  // a jump out of a function
-        18011, // `delete` of a private name
-        1114,  // a label declared twice
-    ];
     // A name declared twice; Babel throws only on a private one.
     const DUPLICATE_IDENTIFIER: u32 = 2300;
     let span = rejected.diagnostic.span;
@@ -301,7 +288,7 @@ fn unparsed_script(c: &Component, source_text: &str, rejected: &SyntaxError) -> 
         DUPLICATE_IDENTIFIER => {
             private_name_at(c.javascript.get_program(script.program), span.start_offset)
         }
-        code => BABEL_REJECTS.contains(&code),
+        code => rsvelte_typescript_tree::babel_typescript_throws(code) == Some(true),
     };
     (rejects && !in_typescript(script, source_text)).then_some(script.content)
 }

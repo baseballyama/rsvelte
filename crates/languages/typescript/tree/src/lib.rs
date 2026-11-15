@@ -21,8 +21,8 @@ mod builder;
 pub use builder::{Builder, Recorded, Rejected};
 mod syntax_error;
 pub use syntax_error::{
-    Acorn, Locator, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, analysis_error, syntax_error,
-    typescript_eslint_check, typescript_eslint_error,
+    Acorn, Locator, Reader, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, analysis_error,
+    babel_typescript_throws, syntax_error, typescript_eslint_check, typescript_eslint_error,
 };
 
 pub mod scratch;

@@ -153,8 +153,7 @@ pub fn typescript_eslint_error(errors: &[SyntaxError]) -> Option<&SyntaxError> {
             .filter(|error| error.typescript_code.is_some_and(keep))
             .min_by_key(at)
     };
-    let thrown = first(&|code| PARSER_CODES.contains(&code))
-        .or_else(|| first(&|code| MESSAGES.iter().any(|(number, _)| *number == code)));
+    let thrown = first(&|code| PARSER_CODES.contains(&code)).or_else(|| first(&has_message));
     let unknown = errors
         .iter()
         .filter(|error| error.typescript_code.is_none())
@@ -164,6 +163,16 @@ pub fn typescript_eslint_error(errors: &[SyntaxError]) -> Option<&SyntaxError> {
         (Some(thrown), _) => Some(thrown),
         (None, unknown) => unknown.or_else(|| errors.first()),
     }
+}
+
+/// Whether typescript-eslint throws an error of `code`: tsc's parser reports it, or
+/// typescript-eslint checks it with these words.
+pub(crate) fn thrown(code: u32) -> bool {
+    PARSER_CODES.contains(&code) || has_message(code)
+}
+
+fn has_message(code: u32) -> bool {
+    MESSAGES.iter().any(|(number, _)| *number == code)
 }
 
 /// The first part of `message` between a pair of `'` or of `` ` ``.
