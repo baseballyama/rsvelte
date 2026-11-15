@@ -335,6 +335,12 @@ impl<'a> Visit<'a> for RuneWalk<'a> {
         {
             self.error = Some(error);
         }
+        if let AstKind::ExportNamedDeclaration(export) = kind
+            && self.error.is_none()
+            && let Err(error) = self.check_specifiers(export)
+        {
+            self.error = Some(error);
+        }
         self.frames.pop();
     }
 
