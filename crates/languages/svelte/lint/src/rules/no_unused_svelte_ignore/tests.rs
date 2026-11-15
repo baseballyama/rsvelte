@@ -46,3 +46,20 @@ fn an_ignore_of_a_code_only_comments_warn_is_unused() {
                 <img src=\"a.png\">\n";
     assert_eq!(lint(code), [(2, 20), (4, 21), (7, 20)]);
 }
+
+// The oracle reports only the second: the comment before `<style>` ignores an unused selector.
+#[test]
+fn an_ignore_before_the_style_sees_its_unused_selectors() {
+    assert_eq!(
+        lint(
+            "<p></p>\n<!-- svelte-ignore css_unused_selector -->\n<style>a { color: red }</style>\n"
+        ),
+        []
+    );
+    assert_eq!(
+        lint(
+            "<p></p>\n<!-- svelte-ignore css_unused_selector -->\n<style>p { color: red }</style>\n"
+        ),
+        [(2, 20)]
+    );
+}

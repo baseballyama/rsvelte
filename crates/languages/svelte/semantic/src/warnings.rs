@@ -34,7 +34,7 @@ mod tests;
 mod updates;
 
 use exports::unused_exports;
-use found::Found;
+use found::{Found, Stage};
 pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
 pub use runes::dollar_name_errors;
 pub(crate) use runes::svelte_option;
@@ -383,15 +383,22 @@ pub fn warnings(
         };
         out.errors.push((raised, found));
     }
+    let mut selectors_ignored = false;
     if let (Some(Ok(sheet)), Some(analysis)) =
         (component.style.as_ref().map(|s| &s.sheet), analysis)
-        && !selectors::ignored(component, source, runes, &mut found)
     {
+        selectors_ignored = selectors::ignored(component, source, runes, &mut found);
         unused_selectors(&sheet.rules, analysis, source, &mut found);
     }
     let regions = ignore::regions(component, compiler_syntax_tree, source, runes, &mut found);
     let found = found.finish();
     out.ignored = ignore::ignored(&found, &regions);
+    // Kept, as every warning is, so a lint can tell the comment before `<style>` ignored them.
+    if selectors_ignored {
+        for ((stage, warning), ignored) in found.iter().zip(&mut out.ignored) {
+            *ignored |= *stage == Stage::Stylesheet && &*warning.code == "css_unused_selector";
+        }
+    }
     out.warnings = found.into_iter().map(|(_, warning)| warning).collect();
     out
 }
