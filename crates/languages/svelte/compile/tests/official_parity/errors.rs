@@ -533,6 +533,30 @@ fn a_default_export_is_refused_before_the_typescript_it_holds() {
 }
 
 #[test]
+fn a_decorated_default_export_takes_the_semicolon_after_it() {
+    for (source, end) in [
+        (
+            "<script lang=\"ts\">export default @dec class {};</script>",
+            47,
+        ),
+        (
+            "<script lang=\"ts\">export default @dec class {} ;</script>",
+            48,
+        ),
+        (
+            "<script lang=\"ts\">export default @dec class {}</script>",
+            46,
+        ),
+    ] {
+        assert_eq!(
+            compile_at(source, Target::Client).err(),
+            Some(("module_illegal_default_export".to_owned(), (18, end))),
+            "{source}"
+        );
+    }
+}
+
+#[test]
 fn a_decorator_or_an_accessor_field_in_a_plain_script_stops_where_acorn_stops() {
     // acorn stops at a decorator's `@`, and reads `accessor` as a field name and stops after it.
     for (source, at) in [
