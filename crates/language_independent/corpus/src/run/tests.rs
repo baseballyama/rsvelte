@@ -13,9 +13,9 @@ fn a_stale_entry_fails_with_the_regen_command_that_removes_it() {
     .expect_err("two stale entries");
     assert_eq!(
         message,
-        "2 expected entries belong to units that units.toml skips; remove them with:\n  mise \
-         exec -- node tools/oracle/oracle.ts regen --task svelte.lint --path \
-         'svelte/s/[slug]/+page.svelte'\n  mise exec -- node tools/oracle/oracle.ts regen --task \
-         svelte.compile --path 'svelte/t/a.svelte'"
+        "2 expected entries belong to units that units.toml skips for every task reading the \
+         pack; remove them with:\n  mise exec -- node tools/oracle/oracle.ts regen --task \
+         svelte.lint --path 'svelte/s/[slug]/+page.svelte'\n  mise exec -- node \
+         tools/oracle/oracle.ts regen --task svelte.compile --path 'svelte/t/a.svelte'"
     );
 }

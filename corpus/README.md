@@ -10,6 +10,7 @@ corpus/
 ├── _registry/
 │   ├── sources.json          source repositories: URL, commit, license (written by hand)
 │   ├── units.toml            the hand-written part of units: skips, behaviour (cross units)
+│   ├── readers.toml          tasks that compare one file of another task's output
 │   ├── tsconfig.json         the project configuration of both type checkers
 │   ├── oracles.json          versions of the official tools, and the rules the linter ran
 │   ├── parity/<task>/<variant>.txt   the recorded verdicts
@@ -33,6 +34,13 @@ output cannot be trusted on for a unit is skipped in `units.toml`:
 ["svelte/<source>/<path>".skip]
 "svelte.compile/client" = "why this task does not apply"
 ```
+
+A skip names one task. `svelte.compile.warnings` reads the `warnings.json` of the
+`svelte.compile/client` pack (`readers.toml`), so it keeps comparing a unit skipped for the
+client until `units.toml` skips `svelte.compile.warnings` as well. A pack holds a unit's entries
+while any task that reads the pack applies. After adding a skip, run
+`oracle regen --task <task> --path <unit key>`. The corpus test fails on an entry that no reader
+of its pack applies to.
 
 No task compares a legacy component, since Svelte 4 legacy mode is a non-goal: one in legacy
 mode that uses syntax runes mode rejects (`export let`, `$:`, `$$props`, `$$restProps` or
