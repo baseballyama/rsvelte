@@ -621,7 +621,7 @@ fn a_reassigned_export_const_the_template_reads_is_state_in_legacy_mode() {
 }
 
 #[test]
-fn a_spaced_html_tag_is_an_error_only_in_runes_mode() {
+fn a_spaced_raw_markup_tag_is_an_error_only_in_runes_mode() {
     let errors = |runes| compiled_with_errors("{ @html value}\n", runes).1;
     assert_eq!(errors(None), Vec::<String>::new());
     assert_eq!(errors(Some(true)), ["block_unexpected_character"]);

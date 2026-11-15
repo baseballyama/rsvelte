@@ -192,7 +192,7 @@ fn an_scss_sheet_skips_what_svelte_rejects() {
 }
 
 #[test]
-fn a_css_sheet_for_lint_skips_the_declarations_svelte_rejects() {
+fn a_stylesheet_for_lint_skips_the_declarations_svelte_rejects() {
     let source = ".a { color: ; b: calc(1;2); c: attr(x}y); { } .d {} }";
     let content = Span::new(0, source.len() as u32);
     parse(source, content).unwrap_err();
@@ -202,7 +202,7 @@ fn a_css_sheet_for_lint_skips_the_declarations_svelte_rejects() {
 }
 
 #[test]
-fn a_css_sheet_for_lint_keeps_a_rule_whose_selector_it_cannot_read() {
+fn a_stylesheet_for_lint_keeps_a_rule_whose_selector_it_cannot_read() {
     let source = ":1a { color: red } .x { > { } .b {} }";
     let content = Span::new(0, source.len() as u32);
     parse(source, content).unwrap_err();
@@ -216,7 +216,7 @@ fn a_css_sheet_for_lint_keeps_a_rule_whose_selector_it_cannot_read() {
 }
 
 #[test]
-fn a_css_sheet_for_lint_reads_selectors_as_postcss_selector_parser_does() {
+fn a_stylesheet_for_lint_reads_selectors_as_postcss_selector_parser_does() {
     let source = ".a., #1a, .b:nth-child(2e), p >, , .c\u{85} | .d { } @1a (x) { }";
     let content = Span::new(0, source.len() as u32);
     parse(source, content).unwrap_err();
