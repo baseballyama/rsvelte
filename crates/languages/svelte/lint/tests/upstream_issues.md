@@ -238,7 +238,7 @@ The rule throws `source.isSpaceBetweenTokens is not a function`, a `SourceCode` 
 ESLint 10 removed, while it builds the report. This crate reports the statement as upstream's
 tests expect.
 
-## A crash in `svelte/indent` on an enum in a script without `lang`
+## A crash in `svelte/indent` on an `enum` in a script without `lang`
 
 Input:
 
@@ -250,8 +250,8 @@ Input:
 
 The rule throws `Cannot read properties of null (reading 'range')` from `getFirstAndLastTokens`,
 which `setOffsetElementList` calls from the `TSEnumDeclaration` handler in
-`indent-helpers/ts.ts`. The same enum in `<script lang="ts">` does not throw. This crate indents
-the enum as in a TypeScript script. Test in `task/tests.rs`:
+`indent-helpers/ts.ts`. The same `enum` in `<script lang="ts">` does not throw. This crate
+indents the `enum` as in a TypeScript script. Test in `task/tests.rs`:
 `an_enum_in_a_plain_script_is_indented`.
 
 ## A parse error at a position of the generated code (svelte-eslint-parser)
@@ -262,7 +262,7 @@ Input:
 <script>x</script>
 ```
 
-svelte-eslint-parser 1.10.0 parses code it generates from the scripts and the template with
+The svelte-eslint-parser package (1.10.0) parses code it generates from the scripts and the template with
 typescript-eslint (`parseScriptWithoutAnalyzeScopeFromVCode` and `analyzeTypeScriptInSvelte`
 in `parser/script.js`). When that code fails, ESLint reports the error at its line and column in
 the generated code: `Unexpected keyword or identifier.` at 2:0 here, a line the file does not
@@ -280,7 +280,7 @@ Input:
 </Script>
 ```
 
-svelte-eslint-parser 1.10.0 finds the blocks in `context/index.js` with
+The svelte-eslint-parser package (1.10.0) finds the blocks in `context/index.js` with
 `/<!--[\s\S]*?-->|<(script|style|template)([\s>])/giu`, which ignores case. Svelte reads
 `<Script>` and `<Style>` as components and `<SCRIPT>` as an element, but the parser parses their
 content as a script or a style sheet, and ESLint reports `Unterminated regular expression
