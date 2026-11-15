@@ -749,106 +749,6 @@
 === 3 packages/svelte/tests/hydration/samples/whitespace-at-block-start/main.svelte	json
 []
 
-=== 2960 packages/svelte/tests/manual/each-stress-test/main.svelte	json
-[
-	{
-		"code": 7006,
-		"message": "Parameter 'node' implicitly has an 'any' type.",
-		"start": {
-			"line": 49,
-			"character": 15
-		},
-		"end": {
-			"line": 49,
-			"character": 19
-		}
-	},
-	{
-		"code": 7006,
-		"message": "Parameter 't' implicitly has an 'any' type.",
-		"start": {
-			"line": 54,
-			"character": 8
-		},
-		"end": {
-			"line": 54,
-			"character": 9
-		}
-	},
-	{
-		"code": 7034,
-		"message": "Variable 'record' implicitly has type 'any[]' in some locations where its type cannot be determined.",
-		"start": {
-			"line": 63,
-			"character": 7
-		},
-		"end": {
-			"line": 63,
-			"character": 13
-		}
-	},
-	{
-		"code": 2769,
-		"message": "No overload matches this call.\n  Overload 1 of 2, '(predicate: (value: Element, index: number, array: Element[]) => value is Element, thisArg?: any): Element[]', gave the following error.\n    Argument of type '(span: HTMLElement) => boolean' is not assignable to parameter of type '(value: Element, index: number, array: Element[]) => value is Element'.\n      Types of parameters 'span' and 'value' are incompatible.\n        Type 'Element' is missing the following properties from type 'HTMLElement': accessKey, accessKeyLabel, autocapitalize, autocorrect, and 131 more.\n  Overload 2 of 2, '(predicate: (value: Element, index: number, array: Element[]) => unknown, thisArg?: any): Element[]', gave the following error.\n    Argument of type '(span: HTMLElement) => boolean' is not assignable to parameter of type '(value: Element, index: number, array: Element[]) => unknown'.\n      Types of parameters 'span' and 'value' are incompatible.\n        Type 'Element' is missing the following properties from type 'HTMLElement': accessKey, accessKeyLabel, autocapitalize, autocorrect, and 131 more.",
-		"start": {
-			"line": 91,
-			"character": 35
-		},
-		"end": {
-			"line": 91,
-			"character": 75
-		}
-	},
-	{
-		"code": 7005,
-		"message": "Variable 'record' implicitly has an 'any[]' type.",
-		"start": {
-			"line": 97,
-			"character": 30
-		},
-		"end": {
-			"line": 97,
-			"character": 36
-		}
-	},
-	{
-		"code": 2322,
-		"message": "Type 'string' is not assignable to type 'null'.",
-		"start": {
-			"line": 99,
-			"character": 3
-		},
-		"end": {
-			"line": 99,
-			"character": 8
-		}
-	},
-	{
-		"code": 2769,
-		"message": "No overload matches this call.\n  Overload 1 of 2, '(message?: string | undefined, options?: ErrorOptions | undefined): Error', gave the following error.\n    Argument of type 'null' is not assignable to parameter of type 'string | undefined'.\n  Overload 2 of 2, '(message?: string | undefined): Error', gave the following error.\n    Argument of type 'null' is not assignable to parameter of type 'string | undefined'.",
-		"start": {
-			"line": 100,
-			"character": 19
-		},
-		"end": {
-			"line": 100,
-			"character": 24
-		}
-	},
-	{
-		"code": 2531,
-		"message": "Object is possibly 'null'.",
-		"start": {
-			"line": 154,
-			"character": 6
-		},
-		"end": {
-			"line": 154,
-			"character": 44
-		}
-	}
-]
-
 === 3 packages/svelte/tests/migrate/samples/$$slots-used-as-variable-$$props/output.svelte	json
 []
 
@@ -7729,22 +7629,6 @@
 
 === 3 packages/svelte/tests/server-side-rendering/samples/text-area-bind/main.svelte	json
 []
-
-=== 175 packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte	json
-[
-	{
-		"code": -1,
-		"message": "Cannot overwrite across a split point",
-		"start": {
-			"line": 0,
-			"character": 0
-		},
-		"end": {
-			"line": 0,
-			"character": 0
-		}
-	}
-]
 
 === 3 packages/svelte/tests/snapshot/samples/bind-component-snippet/index.svelte	json
 []

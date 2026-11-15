@@ -577,3 +577,23 @@ fn a_decorator_or_an_accessor_field_in_a_plain_script_stops_where_acorn_stops() 
         }
     }
 }
+
+#[test]
+fn an_unbound_bind_target_is_reported_without_its_type_cast() {
+    // From svelte 5.57.3.
+    for (markup, span) in [
+        ("<input bind:value={value as string} />", (46, 51)),
+        ("<input bind:value={(value)} />", (47, 52)),
+        ("<input bind:value={value!} />", (46, 51)),
+    ] {
+        let source = format!("<script lang=\"ts\"></script>{markup}");
+        for target in [Target::Client, Target::Server] {
+            let error = compile_at(&source, target).err();
+            assert_eq!(
+                error,
+                Some(("bind_invalid_value".to_owned(), span)),
+                "{source} on {target:?}"
+            );
+        }
+    }
+}

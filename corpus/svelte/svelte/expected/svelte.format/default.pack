@@ -732,23 +732,6 @@ bar
   }
 </style>
 
-=== 143 packages/svelte/tests/css/samples/css-vars/input.svelte	svelte
-<div></div>
-
-<style>
-  :root {
-    --root-test: 20;
-  }
-  div {
-    --test: 10;
-  }
-
-  div {
-    --foo: ;
-    --bar:  !important;
-  }
-</style>
-
 === 61 packages/svelte/tests/css/samples/custom-css-hash/input.svelte	svelte
 <div>red</div>
 
@@ -4681,68 +4664,6 @@ bar
   }
 </style>
 
-=== 744 packages/svelte/tests/css/samples/unicode-identifier/input.svelte	svelte
-<div id="123"></div>
-<div
-  id="line
-break"
-></div>
-<div class="a🙂b"></div>
-<div class="asdf"></div>
-<div class="&#97;sdf"></div>
-<div id="1"><span></span></div>
-
-<style>
-  #\31\32\33 {
-    color: green;
-  }
-  #\31 23 {
-    color: green;
-  }
-  #line\a break {
-    color: green;
-  }
-  #line\a break {
-    color: green;
-  }
-  #line\00000abreak {
-    color: green;
-  }
-  #line\00000a break {
-    color: green;
-  }
-  #line\00000a break {
-    color: green;
-  }
-  .a\1f642 b {
-    color: green;
-  }
-
-  .\61sdf {
-    color: green;
-  }
-
-  .\61 sdf {
-    color: red;
-  }
-  .\61 sdf {
-    color: red;
-  }
-  .\61 sdf {
-    color: red;
-  }
-
-  #\31span {
-    color: red;
-  }
-  #\31 span {
-    color: red;
-  }
-  #\31 span {
-    color: green;
-  }
-</style>
-
 === 56 packages/svelte/tests/css/samples/universal-selector/input.svelte	svelte
 <div></div>
 
@@ -8552,52 +8473,6 @@ Hello &amp; World
   <li>c</li>
 </ul>
 
-=== 822 packages/svelte/tests/parser-legacy/samples/javascript-comments/input.svelte	svelte
-<script>
-  // a leading comment
-  const a = 1; // a trailing comment
-  const b = 2;
-
-  /** a comment */
-  function asd() {
-    foo; // trailing
-    /* leading comment 1 */
-    /* leading comment 2 */
-    /* leading comment 3 */
-    bar;
-    /* trailing comment 1 */
-    /* trailing comment 2 */
-    /* trailing comment 3 */
-  }
-
-  const array = [
-    // leading comment 1
-    // leading comment 2
-    1, // trailing comment 1
-    /* trailing comment 2 */
-  ];
-
-  const object = {
-    // leading comment 1
-    // leading comment 2
-    a: 1, // trailing comment 1
-    /* trailing comment 2 */
-  };
-</script>
-
-<button
-  on:click={// comment
-  () => {
-    /* another comment */
-    fn(); // a trailing comment
-    /* trailing block comment */
-  }}
->
-  {/* leading block comment */ a}
-</button>
-{// leading line comment
-a + b}
-
 === 20 packages/svelte/tests/parser-legacy/samples/nbsp/input.svelte	svelte
 <span>&nbsp;</span>
 
@@ -8776,36 +8651,6 @@ a + b}
   {@const z = { a: item.a }}
   {x}{y}{z.a}
 {/each}
-
-=== 562 packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte	svelte
-<li>Foo</li>
-
-<style>
-  /* minifiers drop the whitespace after `of`, since the following token ends the identifier */
-  li:nth-child(2n of.important) {
-    background: red;
-  }
-  li:nth-child(even of#first) {
-    background: red;
-  }
-  li:nth-last-child(-n + 3 of[data-active]) {
-    background: red;
-  }
-  li:nth-child(2n of*) {
-    background: red;
-  }
-  li:nth-child(2n of:not(.excluded)) {
-    background: red;
-  }
-  li:nth-child(2n of.a, .b) {
-    background: red;
-  }
-  ul {
-    & li:nth-child(2n of&.important) {
-      background: red;
-    }
-  }
-</style>
 
 === 402 packages/svelte/tests/parser-modern/samples/css-pseudo-classes/input.svelte	svelte
 <style>
@@ -14935,16 +14780,6 @@ Foo
 
 === 34 packages/svelte/tests/runtime-legacy/samples/escaped-attr-3/main.svelte	svelte
 <div title="&amp;&lt;">blah</div>
-
-=== 269 packages/svelte/tests/runtime-legacy/samples/escaped-attr/main.svelte	error.txt
-Unexpected token
-https://svelte.dev/e/js_parse_error
-  1 | <noscript>
-> 2 | 	<a href="</noscript><script>console.log('should not run')</script>">test</a>
-    | 	                                                                            ^
-  3 | </noscript>
-  4 |
-  5 |
 
 === 36 packages/svelte/tests/runtime-legacy/samples/escaped-expression/main.svelte	svelte
 <p>{"<marquee>hello</marquee>"}</p>
@@ -33645,36 +33480,6 @@ Child: {settings.showInRgb}
 {#snippet snippet()}
   <p>hello world</p>
 {/snippet}
-
-=== 498 packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte	svelte
-<script lang="ts">
-</script>
-
-{#snippet counter1(c: number)}
-  {c}
-{/snippet}
-{#snippet counter2({ c }: { c: number })}
-  {c}
-{/snippet}
-{#snippet counter3(c?: number)}
-  {c}
-{/snippet}
-{#snippet counter4(c: number = 4)}
-  {c}
-{/snippet}
-{#snippet counter5(c?: number = 5)}
-  {c}
-{/snippet}
-{#snippet counter6(c?: number, d?: string)}
-  {c}{d}
-{/snippet}
-
-{@render counter1(1)}
-{@render counter2({ c: 2 })}
-{@render counter3(3)}
-{@render counter4()}
-{@render counter5()}
-{@render counter6(6, "a")}
 
 === 200 packages/svelte/tests/runtime-runes/samples/snippet-undefined/main.svelte	svelte
 <script>

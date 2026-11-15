@@ -11469,57 +11469,6 @@ const foo = ($$anchor) => {
 export default function _7ee69642ca295f4($$anchor) {
 	foo($$anchor);
 }
-=== 246 server_effect_pending_declarator_3213/a_declarator_initializer_is_void_0/2332f60b2ae47c8f.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<b>x</b>`);
-
-export default function _332f60b2ae47c8f($$anchor) {
-	let a = 1;
-	let c = 3;
-	var b = root();
-
-	$.append($$anchor, b);
-}
-=== 222 server_effect_pending_declarator_3213/a_declarator_initializer_is_void_0/30b02f159d759adf.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<b>x</b>`);
-
-export default function _0b02f159d759adf($$anchor) {
-	var b = root();
-
-	$.append($$anchor, b);
-}
-=== 268 server_effect_pending_declarator_3213/a_declarator_initializer_is_void_0/b5cbcfb53a526636.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<b>x</b>`);
-
-export default function B5cbcfb53a526636($$anchor) {
-	function f() {
-		return v;
-	}
-
-	let q = f();
-	var b = root();
-
-	$.append($$anchor, b);
-}
-=== 222 server_effect_pending_declarator_3213/a_declarator_initializer_is_void_0/cb83b250d1814afb.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<b>x</b>`);
-
-export default function Cb83b250d1814afb($$anchor) {
-	var b = root();
-
-	$.append($$anchor, b);
-}
 === 256 server_effect_pending_declarator_3213/an_allow_listed_rune_keeps_its_call_lowering/356c7f014f36119e.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -12618,15 +12567,6 @@ export default function D86814a826fb44a1($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 27 server_global_fold_fns_3388/an_out_of_range_code_point_is_not_folded/7d852d86356c29fe.svelte	error.txt
-Invalid code point 1114112
-
-=== 23 server_global_fold_fns_3388/an_out_of_range_code_point_is_not_folded/aff6c094f7f09b91.svelte	error.txt
-Invalid code point 1.5
-
-=== 22 server_global_fold_fns_3388/an_out_of_range_code_point_is_not_folded/f4163d314d83ab72.svelte	error.txt
-Invalid code point -1
-
 === 540 server_global_fold_fns_3388/an_unknown_argument_is_not_folded/880d36a1d28bf7c5.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -18812,30 +18752,6 @@ var root = $.from_html(`<p> </p>`);
 export default function _9bc1ca45e3a667e($$anchor) {
 	foo($$anchor, () => [{ id: 1 }, 2, 3]);
 }
-=== 812 snippet_param_destructuring/array_temporaries_precede_every_leaf_binding/c78ff7dc64c102c9.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-const foo = ($$anchor, $$arg0) => {
-	var $$array = $.derived(() => $.to_array(($$arg0?.()).xs, 1));
-	var $$array_1 = $.derived(() => $.to_array($$array[0], 1));
-	var $$array_2 = $.derived(() => $.to_array(($$arg0?.()).ys, 1));
-	let before = () => ($$arg0?.()).before;
-	let x = () => $.get($$array_1)[0];
-	let middle = () => ($$arg0?.()).middle;
-	let y = () => $.get($$array_2)[0];
-	var p = root();
-	var text = $.only_child(p);
-
-	$.template_effect(() => $.set_text(text, `${before() ?? ''}${x() ?? ''}${middle() ?? ''}${y() ?? ''}`));
-	$.append($$anchor, p);
-};
-
-var root = $.from_html(`<p> </p>`);
-
-export default function C78ff7dc64c102c9($$anchor) {
-	foo($$anchor, () => ({ before: 1, xs: [[2]], middle: 3, ys: [4] }));
-}
 === 421 snippet_param_destructuring/object_pattern_binds_alias_not_key/d37c074b0e173a3a.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -19168,27 +19084,6 @@ const s = ($$anchor, $$arg0) => {
 };
 
 export default function _dbd8e3ea93fa193($$anchor) {
-	let obj;
-	let q;
-
-	s($$anchor);
-}
-=== 434 snippet_param_ts_default_4383/the_shapes_that_already_worked_are_unmoved/8c068ffb4a63fc91.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function _c068ffb4a63fc91($$anchor) {
-	const s = ($$anchor, $$arg0) => {
-		let p = $.derived_safe_equal(() => $.fallback($$arg0?.(), () => obj.a ?? (obj.b ?? 1), true));
-
-		$.next();
-
-		var text = $.text();
-
-		$.template_effect(() => $.set_text(text, $.get(p)));
-		$.append($$anchor, text);
-	};
-
 	let obj;
 	let q;
 
@@ -29440,14 +29335,6 @@ export default function _e3401c8cba4e865($$anchor) {
 	}
 }
 
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/02b8bd4a8ab920ef.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
 === 275 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/03e676148dc5fb08.svelte	error.json
 {
 	"code": "svelte_meta_duplicate",
@@ -29558,14 +29445,6 @@ export default function _e3401c8cba4e865($$anchor) {
 		"column": 21,
 		"character": 21
 	}
-}
-
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/08ce42869b21def9.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
 }
 
 === 275 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/0c89b5f72448f4ca.svelte	error.json
@@ -29693,14 +29572,6 @@ customElements.define('my-el', $.create_custom_element(_00b80ea21e221cd, {}, [],
 		"column": 41,
 		"character": 41
 	}
-}
-
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/107eb7ce6783b87f.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
 }
 
 === 275 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/109819a439de5901.svelte	error.json
@@ -30182,14 +30053,6 @@ customElements.define('my-el', $.create_custom_element(_cb187ab506a18f3, { a: { 
 	}
 }
 
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/234dc959b53ad977.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
 === 296 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/238973be27c8b030.svelte	error.json
 {
 	"code": "svelte_options_invalid_attribute_value",
@@ -30541,14 +30404,6 @@ customElements.define('a-0._', $.create_custom_element(_99c270649f57f73, {}, [],
 	}
 }
 
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/3cf7b596d370436e.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
 === 296 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/3da0a1017f453904.svelte	error.json
 {
 	"code": "svelte_options_invalid_attribute_value",
@@ -30661,14 +30516,6 @@ customElements.define('a-0._', $.create_custom_element(_99c270649f57f73, {}, [],
 	}
 }
 
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/41672ad9acf8d9aa.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
 === 328 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/418a67e93baa559c.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -30759,14 +30606,6 @@ export default function _37f216b80bee65f($$anchor) {
 
 	$.append($$anchor, p);
 }
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/44bd7f37829919f3.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
 === 275 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/44ea7315138b1a75.svelte	error.json
 {
 	"code": "svelte_meta_duplicate",
@@ -30895,14 +30734,6 @@ export default function _37f216b80bee65f($$anchor) {
 	}
 }
 
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/4a73a43dffe334eb.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
 === 314 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/4b8577d7a0a14f69.svelte	error.json
 {
 	"code": "svelte_options_invalid_attribute_value",
@@ -31026,14 +30857,6 @@ export default function _c5159f3c548ed7d($$anchor) {
 	}
 }
 
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5002f20344e50a2e.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
 === 338 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/506af957926226ac.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -31122,22 +30945,6 @@ export default function _17f23af87fb04d6($$anchor) {
 		"column": 36,
 		"character": 36
 	}
-}
-
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5278cf1d23460451.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/55601ae2614c6b53.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
 }
 
 === 280 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/55663d535c8ee296.svelte	error.json
@@ -31250,14 +31057,6 @@ export default function _17f23af87fb04d6($$anchor) {
 		"column": 32,
 		"character": 32
 	}
-}
-
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5f9f85a4472d151b.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
 }
 
 === 465 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/5fdbfbb0e39b749c.svelte	error.json
@@ -31716,14 +31515,6 @@ export default function _186506bf9c43834($$anchor) {
 	}
 }
 
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/7f2e247324af9c81.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
 === 270 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/80ed8d13db943f4c.svelte	error.json
 {
 	"code": "svelte_meta_invalid_content",
@@ -31897,14 +31688,6 @@ customElements.define('', $.create_custom_element(_58866a3d32a18cc, {}, [], [], 
 		"column": 38,
 		"character": 38
 	}
-}
-
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/8bae3f89d57dd71c.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
 }
 
 === 275 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/8ca32cb81e73220a.svelte	error.json
@@ -32157,14 +31940,6 @@ export default function _7951cf3f26bcfbe($$anchor) {
 		"column": 25,
 		"character": 25
 	}
-}
-
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/9d297f9dc6127645.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
 }
 
 === 328 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/9e862c22335a7815.svelte	js
@@ -32951,22 +32726,6 @@ export default function C77760dfdbc4d192($$anchor) {
 	}
 }
 
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/cb80ba7928fe889b.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/cc78e710c686d5e0.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
-}
-
 === 270 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/d0af4fb96bfd850c.svelte	error.json
 {
 	"code": "svelte_meta_invalid_content",
@@ -33396,14 +33155,6 @@ customElements.define('x-y-z', $.create_custom_element(D0ca064c1cba736a, {}, [],
 		"column": 37,
 		"character": 37
 	}
-}
-
-=== 186 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/e38cd649906cd769.svelte	error.json
-{
-	"code": "svelte_options_invalid_tagname",
-	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
-	"start": null,
-	"end": null
 }
 
 === 296 svelte_options_validation_3324_3325/svelte_options_grid_matches_official/e617a8b03e834832.svelte	error.json
@@ -71728,22 +71479,6 @@ export default function _ed14b1a57af7e0c($$anchor) {
 	}
 }
 
-=== 276 ts_decorators_2597/a_decorator_under_a_default_export_is_not_the_reported_error/f758f4def7740efe.svelte	error.json
-{
-	"code": "module_illegal_default_export",
-	"message": "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export",
-	"start": {
-		"line": 2,
-		"column": 0,
-		"character": 19
-	},
-	"end": {
-		"line": 2,
-		"column": 29,
-		"character": 48
-	}
-}
-
 === 396 ts_decorators_2597/a_non_decorator_at_sign_still_compiles/0dc71d72e01a3e24.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -72483,30 +72218,6 @@ export default function _69dd52495a69976($$anchor) {
 		"character": 68
 	}
 }
-
-=== 37 ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/707b8495618a84da.svelte	error.txt
-node.body.body.map is not a function
-
-=== 37 ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/7eed68000c2fb1b7.svelte	error.txt
-node.body.body.map is not a function
-
-=== 37 ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/85c020f989bf01f9.svelte	error.txt
-node.body.body.map is not a function
-
-=== 37 ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/aaeb425f4f512192.svelte	error.txt
-node.body.body.map is not a function
-
-=== 37 ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/b573ea7718283b17.svelte	error.txt
-node.body.body.map is not a function
-
-=== 37 ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/c65113fd27c1708c.svelte	error.txt
-node.body.body.map is not a function
-
-=== 37 ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/e02cdbb999fb1470.svelte	error.txt
-node.body.body.map is not a function
-
-=== 37 ts_export_type_only_declaration/a_dotted_namespace_strips_when_its_body_is_type_only/e698f9d7b260d0bf.svelte	error.txt
-node.body.body.map is not a function
 
 === 37 ts_export_type_only_declaration/a_dotted_namespace_with_a_value_is_rejected/1f82eac595c2e251.svelte	error.txt
 node.body.body.map is not a function
@@ -73846,150 +73557,6 @@ export default function F885d612392a3a4f($$anchor) {
 	text.nodeValue = '1';
 	$.append($$anchor, text);
 }
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/006dc23b44cf5e7e.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/0121c9fe01f7e32a.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/0d48464ad8941351.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/0f774e57c9d74794.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/1448ddcb472f1c3f.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/27d3993b860f01e8.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/2825be34589c6b1b.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/2ea543ec22ab33fa.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/3411190034ac9678.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/344d1d7cf11e64d9.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/35fc36565914f3a0.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/3c8166683fae46e8.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/3d45e36d6e9603ee.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/429aee8b24691bff.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/46b8b395c46596e5.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/473da3c318ec575e.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/4e4363b2cc9ccc19.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/63303640c5809743.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/66cb7f081f9de9e0.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/6dbd34f637395da8.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/6fc94c72aa969b5e.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/7aab71439c181dff.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/7c1294900827bc06.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/7e13752c6952fa00.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/7ea6c0fb8775cdd3.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/7f66f6a90e513b41.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/9c44b42560a8c4b6.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/9ebc2f91c757cc97.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/ad284b3e20bc3023.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/af19c65462eca708.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/b308d0cfcd2d4aeb.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/b56356f71053279e.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/b81f3c5f9c3bceb0.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/ba34ca17bcf7e7b1.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/bcbe478c44406885.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/bfe574ecdabeeee4.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/c0b67e798da4f6b8.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/c3c865356a7e0d47.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/ca2a4e4ee0154d37.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/cbbb9eca79e8eeed.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/d227f247d645de8d.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/d60efcc102f2d0d4.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/d6eaba609b14c12c.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/dbdf4de0c2a5c7e5.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/dde53930efec98dd.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/e4b098035b15f26f.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/f81a0fc7d73bbcf1.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
-=== 53 ts_index_signature_3422/a_class_index_signature_is_erased/fa34ecbed01b3f10.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
 === 273 ts_index_signature_3422/the_neighbouring_members_are_unaffected/01fb83704ca3b41c.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -74181,22 +73748,6 @@ export default function Eeccd1efc7a75465($$anchor) {
 
 	$.append($$anchor, b);
 }
-=== 697 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/01bcf43fd86af194.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 2,
-		"column": 0,
-		"character": 19
-	},
-	"end": {
-		"line": 2,
-		"column": 46,
-		"character": 65
-	}
-}
-
 === 697 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/02737ca387ba77dc.svelte	error.json
 {
 	"code": "typescript_invalid_feature",
@@ -74226,22 +73777,6 @@ export default function Eeccd1efc7a75465($$anchor) {
 		"line": 2,
 		"column": 35,
 		"character": 54
-	}
-}
-
-=== 697 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/2b44b741a37c9939.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 2,
-		"column": 0,
-		"character": 26
-	},
-	"end": {
-		"line": 2,
-		"column": 39,
-		"character": 65
 	}
 }
 
@@ -74277,22 +73812,6 @@ export default function Eeccd1efc7a75465($$anchor) {
 	}
 }
 
-=== 697 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/5d6c5de6ae8b0b55.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 2,
-		"column": 0,
-		"character": 26
-	},
-	"end": {
-		"line": 2,
-		"column": 46,
-		"character": 72
-	}
-}
-
 === 697 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/6ac1549e9a237553.svelte	error.json
 {
 	"code": "typescript_invalid_feature",
@@ -74309,22 +73828,6 @@ export default function Eeccd1efc7a75465($$anchor) {
 	}
 }
 
-=== 697 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/7a5db3fcfa0a3d34.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 2,
-		"column": 0,
-		"character": 26
-	},
-	"end": {
-		"line": 2,
-		"column": 34,
-		"character": 60
-	}
-}
-
 === 697 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/99ccbdbd54485df7.svelte	error.json
 {
 	"code": "typescript_invalid_feature",
@@ -74338,38 +73841,6 @@ export default function Eeccd1efc7a75465($$anchor) {
 		"line": 2,
 		"column": 39,
 		"character": 65
-	}
-}
-
-=== 697 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/a16e6fb98c0725cd.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 2,
-		"column": 0,
-		"character": 19
-	},
-	"end": {
-		"line": 2,
-		"column": 34,
-		"character": 53
-	}
-}
-
-=== 697 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/c6bb79422a6087a7.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 2,
-		"column": 0,
-		"character": 19
-	},
-	"end": {
-		"line": 2,
-		"column": 39,
-		"character": 58
 	}
 }
 
@@ -75303,9 +74774,6 @@ export default function B60167b8e3aca408($$anchor) {
 	text.nodeValue = '1';
 	$.append($$anchor, text);
 }
-=== 53 ts_only_nodes_in_parse_ast_4195/a_class_body_index_signature_reaches_the_class_body/abcf83b10632eff3.svelte	error.txt
-Cannot read properties of undefined (reading 'type')
-
 === 191 ts_only_nodes_in_parse_ast_4195/the_controls_are_still_present/5ea2887815cf30a1.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -81117,55 +80585,6 @@ export default function Cac5edaa93e04d7d($$anchor) {
 	}
 }
 
-=== 326 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/31b9b41071bc4d80.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<p> </p>`);
-
-export default function _1b9b41071bc4d80($$anchor) {
-	let accessor;
-	var p = root();
-	var text = $.only_child(p, true);
-
-	$.template_effect(() => $.set_text(text, accessor));
-	$.append($$anchor, p);
-}
-=== 340 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ad65fdf7d6a621fb.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<p> </p>`);
-
-export default function Ad65fdf7d6a621fb($$anchor) {
-	let accessor;
-	const q = accessor;
-	var p = root();
-	var text = $.only_child(p, true);
-
-	$.template_effect(() => $.set_text(text, q));
-	$.append($$anchor, p);
-}
-=== 444 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/ba198887ad071d57.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-export default function Ba198887ad071d57($$anchor) {
-	let accessor;
-	var fragment = $.comment();
-	var node = $.first_child(fragment);
-
-	$.each(node, 17, () => accessor, $.index, ($$anchor, z) => {
-		$.next();
-
-		var text = $.text();
-
-		$.template_effect(() => $.set_text(text, $.get(z)));
-		$.append($$anchor, text);
-	});
-
-	$.append($$anchor, fragment);
-}
 === 330 wrapper_only_parse_error_4083/the_source_s_own_parenthesis_is_still_rejected/c4d11c011f319b87.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';

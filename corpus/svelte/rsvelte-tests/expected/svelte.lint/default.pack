@@ -758,9 +758,6 @@
 === 86 rsvelte_language_server/completions/tests/no_ancestor_offers_every_known_tag_with_the_bracket_in_the_filter/718377fbe5251f68.svelte	lint.txt
 1:2 - - "Parsing error: Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof"
 
-=== 40 rsvelte_language_server/completions/tests/nothing_inside_style_or_script/09f254d3ae377beb.svelte	lint.txt
-2:34 - - "Parsing error: ',' expected."
-
 === 122 rsvelte_language_server/completions/tests/nothing_inside_style_or_script/4df7f4a7dc6b3fd1.svelte	lint.txt
 1:8 1:10 svelte/valid-compile "Unused CSS selector \"h1\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
@@ -4579,28 +4576,13 @@
 1:4 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
 3:13 3:14 no-undef "'x' is not defined."
 
-=== 139 rsvelte_lint/json_api/tests/a_directive_shields_the_rule_whose_table_agrees_with_it/3891b7d6ca564454.svelte	lint.txt
-1:4 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-4:8 4:9 svelte/html-quotes "Expected to be enclosed by double quotes."
-
 === 69 rsvelte_lint/json_api/tests/a_directive_shields_the_rule_whose_table_agrees_with_it/89631fb68704931a.svelte	lint.txt
 1:53 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-
-=== 179 rsvelte_lint/json_api/tests/a_directive_shields_the_rule_whose_table_agrees_with_it/93378db89c0db423.svelte	lint.txt
-1:57 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-1:63 1:72 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
-1:70 1:71 no-undef "'x' is not defined."
 
 === 224 rsvelte_lint/json_api/tests/a_leading_bom_does_not_move_a_reported_position/c50feacec6e0ea3c.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 2:12 2:14 svelte/no-trailing-spaces "Trailing spaces not allowed."
-
-=== 249 rsvelte_lint/json_api/tests/the_json_api_reports_each_rule_on_its_own_line_table/9ef87a655e4bbf8d.svelte	lint.txt
-1:4 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-2:10 2:19 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
-2:17 2:18 no-undef "'x' is not defined."
-3:8 3:9 svelte/html-quotes "Expected to be enclosed by double quotes."
 
 === 0 rsvelte_lint/navigation_resolve_module_surface/a_module_file_is_linted/6bb51ca286621587.svelte.js	lint.txt
 
@@ -5769,40 +5751,13 @@
 === 176 rsvelte_projection/script_kind/tests/falls_back_to_the_lexical_scan_when_the_source_does_not_parse/21d071d2887165fc.svelte	lint.txt
 1:36 - - "Parsing error: A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate"
 
-=== 40 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/01f37042be9662fe.svelte	lint.txt
-1:34 - - "Parsing error: ',' expected."
-
 === 80 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/1b01c1e45a41cc15.svelte	lint.txt
 1:13 - - "Parsing error: Expected token >\nhttps://svelte.dev/e/expected_token"
 
 === 39 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/1fafd3c1f8c46730.svelte	lint.txt
 1:6 1:7 no-undef "'x' is not defined."
 
-=== 40 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/217ee586c80d65cb.svelte	lint.txt
-2:18 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/238f1ddea7872603.svelte	lint.txt
-2:18 - - "Parsing error: ',' expected."
-
-=== 39 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/2a09f694c7ed44e1.svelte	lint.txt
-1:6 1:7 no-undef "'x' is not defined."
-
-=== 40 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/2c4dc4962106f66a.svelte	lint.txt
-1:61 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/4911316afcc47df0.svelte	lint.txt
-2:28 - - "Parsing error: ',' expected."
-
 === 0 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/49df6277d87cd7f8.svelte	lint.txt
-
-=== 40 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/51c6afd81e1fd325.svelte	lint.txt
-1:36 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/795b8a2c062b64f6.svelte	lint.txt
-1:41 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/8ca3485e809a4850.svelte	lint.txt
-1:36 - - "Parsing error: ',' expected."
 
 === 317 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/94fbb10eb5568f72.svelte	lint.txt
 1:13 1:14 no-unused-vars "'a' is assigned a value but never used."
@@ -5810,21 +5765,9 @@
 2:1 2:26 svelte/valid-style-parse "Found unsupported style element language \"ts\""
 2:1 2:26 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 40 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/a20a180f5ca26356.svelte	lint.txt
-2:18 - - "Parsing error: ',' expected."
-
 === 145 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/cce8edd6ae9360e3.svelte	lint.txt
 1:13 1:14 no-unused-vars "'a' is assigned a value but never used."
 1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-
-=== 40 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/e0427473cbf99870.svelte	lint.txt
-2:18 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/e50335b95cea3d51.svelte	lint.txt
-1:44 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/script_kind/tests/matches_upstream_where_the_substring_scan_did_not/ea3a322dbf443a33.svelte	lint.txt
-1:51 - - "Parsing error: ',' expected."
 
 === 304 rsvelte_projection/style_tag_inside_a_comment/a_commented_style_tag_does_not_swallow_the_markup_after_it/3961f6adba467986.svelte	lint.txt
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6740,9 +6683,6 @@
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:9 2:14 svelte/prefer-const "'state' is never reassigned. Use 'const' instead."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-
-=== 42 rsvelte_projection/svelte2tsx/script/stores/tests/store_scan_context_preserves_instance_then_module_import_order_at_scale/aac437e8d8008b44.svelte	lint.txt
-1:1007 - - "Parsing error: ';' expected."
 
 === 77 rsvelte_projection/svelte2tsx/script/stores/tests/test_store_import_basic/30bcedd3fa7c4e69.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -8307,10 +8247,6 @@
 === 89 rsvelte_projection/svelte2tsx_bind_multibyte_boundary_4072/element_bind_value_with_multibyte_identifier/6ea5d243e4c6aaf2.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 168 rsvelte_projection/svelte2tsx_bind_multibyte_boundary_4072/element_bind_value_with_ts_assertion_on_multibyte_identifier/97c26726beb8b540.svelte	lint.txt
-1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:7 2:16 svelte/prefer-const "'値' is never reassigned. Use 'const' instead."
-
 === 337 rsvelte_projection/svelte2tsx_bind_multibyte_boundary_4072/svelte_element_bind_with_multibyte_identifier/495f647bbbf58a5a.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 5:29 5:43 svelte/max-attributes-per-line "'bind:value' should be on a new line."
@@ -8328,13 +8264,6 @@
 3:10 3:21 no-undef "'HTMLElement' is not defined."
 6:18 6:32 svelte/max-attributes-per-line "'bind:this' should be on a new line."
 6:18 6:32 svelte/sort-attributes "Attribute 'bind:this' should go before 'title'."
-
-=== 350 rsvelte_projection/svelte2tsx_bind_suffix_map_4103/a_bind_this_type_assertion_tail_carries_its_own_map_segments/0b3131ff2aa9ebdb.svelte	lint.txt
-1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:33 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
-2:10 2:21 no-undef "'HTMLElement' is not defined."
-5:23 5:34 no-undef "'HTMLElement' is not defined."
 
 === 309 rsvelte_projection/svelte2tsx_bind_suffix_map_4103/a_get_set_bind_this_setter_carries_its_own_map_segments/786e2ece1994f9f9.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -8477,26 +8406,6 @@
 1:1 1:35 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:23 1:25 no-unassigned-vars "'el' is always 'undefined' because it's never assigned."
 1:57 1:71 no-undef "'HTMLDivElement' is not defined."
-
-=== 171 rsvelte_projection/svelte2tsx_binding_ts_assertion/binding_non_null_and_satisfies_strip_from_setter/91cfc66245554c37.svelte	lint.txt
-1:1 1:42 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:23 1:28 svelte/prefer-const "'value' is never reassigned. Use 'const' instead."
-
-=== 171 rsvelte_projection/svelte2tsx_binding_ts_assertion/binding_non_null_and_satisfies_strip_from_setter/e5b5d2f7d9d0bc57.svelte	lint.txt
-1:1 1:42 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:23 1:28 svelte/prefer-const "'value' is never reassigned. Use 'const' instead."
-
-=== 171 rsvelte_projection/svelte2tsx_binding_ts_assertion/component_binding_as_expression_strips_assertion_from_setter/56b955a10d666245.svelte	lint.txt
-1:1 1:71 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:51 1:56 svelte/prefer-const "'value' is never reassigned. Use 'const' instead."
-
-=== 171 rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_as_expression_strips_assertion_from_setter/e411dff7dcde881b.svelte	lint.txt
-1:1 1:53 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:23 1:38 svelte/prefer-const "'value' is never reassigned. Use 'const' instead."
-
-=== 167 rsvelte_projection/svelte2tsx_binding_ts_assertion/element_binding_type_assertion_prefix_strips_from_setter/4407b68d90ad0482.svelte	lint.txt
-1:1 1:38 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:23 1:24 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 
 === 173 rsvelte_projection/svelte2tsx_binding_ts_assertion/nested_assertion_only_outermost_is_stripped/7b0bda86729ffdd9.svelte	lint.txt
 1:1 1:53 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -9641,9 +9550,6 @@
 
 === 0 rsvelte_projection/svelte2tsx_entry/test_runes_derived_var_decl/c07619c7264e77d5.svelte	lint.txt
 
-=== 40 rsvelte_projection/svelte2tsx_entry/test_runes_effect_expr_stmt/34c0491b27b17a07.svelte	lint.txt
-2:25 - - "Parsing error: ';' expected."
-
 === 162 rsvelte_projection/svelte2tsx_entry/test_runes_effect_nested_in_attach_tag/6fbc638416db79d3.svelte	lint.txt
 1:15 1:32 svelte/valid-compile "`$effect()` can only be used as an expression statement\nhttps://svelte.dev/e/effect_invalid_placement(effect_invalid_placement)"
 
@@ -9848,15 +9754,6 @@
 5:5 5:6 svelte/prefer-const "'k' is never reassigned. Use 'const' instead."
 
 === 562 rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_variable_function_or_class_still_loses_its_export/21fee09be88e1ba0.svelte	lint.txt
-1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
-1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-4:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-5:5 5:6 svelte/prefer-const "'k' is never reassigned. Use 'const' instead."
-
-=== 562 rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_variable_function_or_class_still_loses_its_export/40b5ca4a04084aba.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
 1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
@@ -11828,11 +11725,6 @@
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:45 2:101 svelte/valid-compile "Component has unused export property 'incomingRequestState'. If it is for external reference only, please consider using `export const incomingRequestState`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
 
-=== 743 rsvelte_projection/svelte2tsx_namespace_export_3257/nested_namespaces_and_ambient_modules_are_walked_too/2fb80e651772bf87.svelte	lint.txt
-1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:1 2:49 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-
 === 821 rsvelte_projection/svelte2tsx_namespace_export_3257/nested_namespaces_and_ambient_modules_are_walked_too/6c001a51139f5b51.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -12473,61 +12365,13 @@
 1:1 1:22 svelte/require-each-key "Each block should have a key"
 1:8 1:16 svelte/valid-compile "Cannot use rune without parentheses\nhttps://svelte.dev/e/rune_missing_parentheses(rune_missing_parentheses)"
 
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/03594e9781321e7e.svelte	lint.txt
-1:51 - - "Parsing error: ',' expected."
-
 === 310 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/1bdf5dba709c3ae0.svelte	lint.txt
 1:1 1:54 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:30 1:44 svelte/valid-compile "Component has unused export property 'answer'. If it is for external reference only, please consider using `export const answer`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
 
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/445efe92a0511426.svelte	lint.txt
-1:48 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/552590a5f9298a02/+page.svelte	lint.txt
-2:25 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/6b01b5097f75b9bc.svelte	lint.txt
-1:53 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/7f6d4e39ace923bb.svelte	lint.txt
-1:70 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/81824c329ca16375.svelte	lint.txt
-1:52 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/83485eb0ae1fb657/+page.svelte	lint.txt
-1:52 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/91a4896712918250/+page.svelte	lint.txt
-1:43 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/952618cdc656b881.svelte	lint.txt
-1:73 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/a79bd252bd343063.svelte	lint.txt
-1:53 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/ab4f5022090ee287.svelte	lint.txt
-2:26 - - "Parsing error: ',' expected."
-
 === 310 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/bee933f07114ea52.svelte	lint.txt
 1:1 1:53 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:30 1:44 svelte/valid-compile "Component has unused export property 'answer'. If it is for external reference only, please consider using `export const answer`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/c59d15693d5d0568.svelte	lint.txt
-1:57 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/dd6328b9e8c8380f.svelte	lint.txt
-1:63 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/df4c205fb383bdbb.svelte	lint.txt
-1:44 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/ebe96249761f6edb/+page.svelte	lint.txt
-2:24 - - "Parsing error: ',' expected."
-
-=== 40 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/f3254fcd9cccc8ab/+page.svelte	lint.txt
-1:42 - - "Parsing error: ',' expected."
 
 === 310 rsvelte_projection/svelte2tsx_script_end_insertion/a_widener_at_the_script_end_is_discarded/fa274d72ddc81a76.svelte	lint.txt
 1:1 2:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -14059,14 +13903,6 @@
 2:25 2:30 no-undef "'await' is not defined."
 2:25 2:25 svelte/valid-compile "Cannot use await in class static initialization block\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 2:32 2:33 no-undef "'f' is not defined."
-
-=== 930 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/070bec3752f0534a.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:1 2:42 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:7 3:8 no-unused-vars "'r' is assigned a value but never used."
-3:18 3:23 no-undef "'fetch' is not defined."
 
 === 517 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/07302dc92c421ce9.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

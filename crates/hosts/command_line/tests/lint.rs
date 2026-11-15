@@ -1,0 +1,76 @@
+use std::path::PathBuf;
+use std::process::Command;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+struct Project(PathBuf);
+
+impl Project {
+    fn new() -> Self {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "rsvelte-cli-lint-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        for (name, text) in [
+            ("src/App.svelte", "<script>\n  let unused = 1;\n</script>\n"),
+            ("src/Clean.svelte", "<p>Hi</p>\n"),
+            (
+                "node_modules/x/X.svelte",
+                "<script>let ignored = 1;</script>\n",
+            ),
+            ("notes.txt", "not a component\n"),
+        ] {
+            let file = path.join(name);
+            std::fs::create_dir_all(file.parent().expect("a parent")).expect("directory");
+            std::fs::write(file, text).expect("file");
+        }
+        Self(path)
+    }
+
+    fn lint(&self, arguments: &[&str]) -> std::process::Output {
+        Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+            .current_dir(&self.0)
+            .arg("lint")
+            .args(arguments)
+            .output()
+            .expect("run CLI")
+    }
+}
+
+impl Drop for Project {
+    fn drop(&mut self) {
+        std::fs::remove_dir_all(&self.0).expect("remove project");
+    }
+}
+
+#[test]
+fn lint_reports_the_files_below_the_directory_as_eslint_does() {
+    let project = Project::new();
+    let output = project.lint(&[]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(output.status.code(), Some(1), "{stdout}");
+    assert!(stdout.contains("App.svelte\n"), "{stdout}");
+    assert!(
+        stdout.contains("2:7  error  'unused' is assigned a value but never used."),
+        "{stdout}"
+    );
+    assert!(stdout.contains("no-unused-vars"), "{stdout}");
+    assert!(
+        !stdout.contains("ignored"),
+        "node_modules is skipped: {stdout}"
+    );
+    assert!(!stdout.contains("Clean.svelte"), "{stdout}");
+    assert!(
+        stdout.ends_with("\u{2716} 1 problem (1 error, 0 warnings)\n"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn lint_of_a_clean_file_prints_nothing() {
+    let project = Project::new();
+    let output = project.lint(&["src/Clean.svelte"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "");
+}

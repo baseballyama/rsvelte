@@ -392,6 +392,7 @@
 
 ["svelte/rsvelte-tests-core-2/module_inspect_slot_3611/the_other_server_rune_lowerings_are_unchanged/dc1e292e8acf5fe8.svelte.js".skip]
 "svelte.compileModule/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (8:7)"
+"svelte.compileModule/server" = "upstream bug: the server lowers a declarator's `$effect.pending()` to `void 0`, not the `0` it gives every other call"
 
 ["svelte/rsvelte-tests-core-2/module_inspect_slot_3611/the_server_lowers_a_module_inspect_in_dev/0faaa1e66aed13bb.svelte.js".skip]
 "svelte.compileModule/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:11)"
@@ -3330,6 +3331,7 @@
 
 ["svelte/rsvelte-tests-core-3/ts_decorators_2597/a_decorator_under_a_default_export_is_not_the_reported_error/f758f4def7740efe.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx moves the instance script into a function, so a statement allowed only at the top level (`export default`, `export import`) reports TS's error for its new place"
+"svelte.compile" = "upstream bug: acorn-typescript reads a decorated class after `export default` as a class expression, so svelte 5.57.3 ends the export at the `;` that ECMAScript and TypeScript read as an empty statement"
 
 ["svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/0681114feeabb165.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx moves the instance script into a function, so a statement allowed only at the top level (`export default`, `export import`) reports TS's error for its new place"
@@ -4559,6 +4561,21 @@
 "svelte.check" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a string, and parses them with ` => {}` appended, so it rejects a valid header, which svelte-check reports"
 "svelte.lint" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a string, and parses them with ` => {}` appended, so it rejects a valid header, which svelte/valid-compile reports"
 
+["svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/a_keyword_that_is_not_a_modifier_still_compiles/df32a9aa45fc0a00.svelte".skip]
+"svelte.compile" = "upstream bug: acorn-typescript reads `static` before a line break in a class body as a field name, so svelte 5.57.3 prints `static; a = 1;` where TypeScript and JavaScript read `static a = 1`"
+
+["svelte/rsvelte/lint/require-store-reactive-access/16-await-shadow.svelte".skip]
+"svelte.compile/client" = "upstream bug: a `{:catch}` branch shares its parent's transforms, so its error's `$.get` read leaks by name to the blocks after it"
+
+["svelte/rsvelte-tests-core-2/module_destructure_state_assign/same_named_plain_values_are_not_signals/2f896a111888b079.svelte.js".skip]
+"svelte.compileModule/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/rsvelte/pattern/issues/3180-snapshot-position.svelte.js".skip]
+"svelte.compileModule/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/rsvelte-tests-core-2/parser_hardening/declaration_tag_multibyte_type_annotation_does_not_panic/47244ebc480a595e.svelte".skip]
+"svelte.compile" = "upstream bug: without `lang=\"ts\"` svelte 5.57.3 reads a `{@const}` type annotation as `_ as T` spliced 5 bytes before the colon and takes acorn's end of `_` as its position, so `expected_token` lands inside the name"
+
 ["svelte/flowbite-svelte/src/lib/forms/tags/Tags.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
 
@@ -4699,3 +4716,33 @@
 
 ["svelte/rsvelte-tests-core-1/compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/9096b19bedcfe51e.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser finds the <script> and <style> blocks with a regular expression, so it blanks text Svelte does not read as a block and Svelte's parser fails elsewhere"
+
+["svelte/rsvelte-tests-core-1/class_field_tag_label_2021/anonymous_class_falls_back_to_the_upstream_placeholder/0860dafe2dc30de4.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap writes `;` after a default-exported class declaration (it leaves out only a function declaration), which adds an empty statement"
+
+["svelte/rsvelte/pattern/adversarial/modules/module-class-expressions.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap writes `;` after a default-exported class declaration (it leaves out only a function declaration), which adds an empty statement"
+
+["svelte/rsvelte/pattern/adversarial/modules/module-default-class-tail.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap writes `;` after a default-exported class declaration (it leaves out only a function declaration), which adds an empty statement"
+
+["svelte/rsvelte/pattern/issues/3069-export-default-class-semicolon.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap writes `;` after a default-exported class declaration (it leaves out only a function declaration), which adds an empty statement"
+
+["svelte/rsvelte-tests-core-1/bindable_rune_default_3615/rune_identifier_defaults_are_proxied_lazily/0a4afed7c6de59de.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server visits a `$bindable()` default twice, so a derived default is called twice (`s()()`) and throws"
+
+["svelte/rsvelte-tests-core-1/bindable_rune_default_3615/rune_identifier_defaults_are_proxied_lazily/dedb2969507c2d84.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server visits a `$bindable()` default twice, so a derived default is called twice (`s()()`) and throws"
+
+["svelte/rsvelte-tests-core-3/state_destructure_default_2002/a_default_is_visited_after_every_array_is_named/7fffa763303d97fe.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server leaves a rune call unlowered inside a function in a destructuring default"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_style_directive_blanking/the_blanked_run_is_the_decoded_value_not_the_raw_source/df8e0908e878150f.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server passes a `style:` value's raw text, so an entity in it is escaped twice (`a&amp;amp;b`), unlike the client"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_style_directive_blanking/the_quote_comes_from_the_source/d4bb55ff2d386e22.svelte".skip]
+"svelte.compile/server" = "upstream bug: the server passes a `style:` value's raw text, so an entity in it is escaped twice (`a&amp;amp;b`), unlike the client"
+
+["svelte/rsvelte-tests-core-2/module_server_comment_ownership_2307/a_default_parameter_initializer_comment_is_dropped/5bd0d879f6bac971.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: svelte 5.57.3 drops a comment in a default parameter's initializer"

@@ -242,3 +242,24 @@ fn the_tree_keeps_the_errors_the_host_lets_pass() {
         .collect();
     assert_eq!(codes, [Some(1263)]);
 }
+
+#[test]
+fn an_expression_records_the_parentheses_around_its_root_sequence_only() {
+    for (source, pairs) in [
+        ("(a, b)", 1),
+        ("((a, b))", 2),
+        ("a, b", 0),
+        ("(a), b", 0),
+        ("/* ( */ a, b", 0),
+    ] {
+        let mut sequence = None;
+        let (tree, ()) = Tree::build(source, |builder| {
+            let (expression, _) = builder.read_expression_at(0, SourceType::mjs())?;
+            sequence = Some(expression.span());
+            Ok(())
+        })
+        .expect("parses");
+        let span = sequence.expect("read");
+        assert_eq!(tree.parentheses(span), pairs, "{source}");
+    }
+}

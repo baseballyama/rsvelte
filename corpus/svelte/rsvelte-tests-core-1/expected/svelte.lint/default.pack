@@ -5046,15 +5046,6 @@
 4:6 4:9 no-unused-vars "'obj' is assigned a value but never used."
 4:6 4:9 svelte/prefer-const "'obj' is never reassigned. Use 'const' instead."
 
-=== 551 bind_invalid_expression_2583/typescript_assertion_bind_targets_still_compile/d90781335b5ffb93.svelte	lint.txt
-1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:7 no-unused-vars "'o' is assigned a value but never used."
-3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:9 svelte/prefer-const "'obj' is never reassigned. Use 'const' instead."
-
 === 464 bind_invalid_expression_2583/valid_bind_targets_still_compile/0e20817fd7e13551.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -8091,14 +8082,6 @@
 5:6 5:7 no-useless-assignment "The value assigned to 'x' is not used in subsequent statements."
 6:1 6:2 svelte/indent "Expected indentation of 0 spaces but found 1 whitespace."
 
-=== 475 client_shared_evaluator_3466_3636/component_let_shadowing_respects_each_slot_scope/b57d3eccdf2c4b11.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:11 no-unused-vars "'count' is assigned a value but never used."
-3:6 3:11 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
 === 104 client_shared_evaluator_3466_3636/const_tag_over_an_unfoldable_global_member_stays_reactive/1645899a227facc2.svelte	lint.txt
 1:11 1:47 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 
@@ -8718,11 +8701,6 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:6 4:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-
-=== 252 compiler/acorn_lines/tests/legacy_locs_follow_acorn_line_terminators/22662201c5a9a0b6.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:7 5:14 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-6:10 7:1 no-irregular-whitespace "Irregular whitespace not allowed."
 
 === 222 compiler/identifier_escapes/tests/only_the_script_body_of_a_component_is_rewritten/c98c957029dc367e.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12236,9 +12214,6 @@
 === 248 compiler/tests/diagnostic_locates_invalid_svelte_self/ddd277fa500214de.svelte	lint.txt
 1:1 1:16 svelte/valid-compile "`<svelte:self>` components can only exist inside `{#if}` blocks, `{#each}` blocks, `{#snippet}` blocks or slots passed to components\nhttps://svelte.dev/e/svelte_self_invalid_placement(svelte_self_invalid_placement)"
 
-=== 40 compiler/tests/diagnostic_locates_renamed_runes/00f783c761548924.svelte	lint.txt
-2:23 - - "Parsing error: ';' expected."
-
 === 337 compiler/tests/diagnostic_message_carries_the_documentation_url_like_official/eec8b7da89d95794.svelte	lint.txt
 1:20 1:21 no-unused-vars "'x' is defined but never used."
 1:28 1:37 svelte/valid-compile "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement(state_invalid_placement)"
@@ -14075,9 +14050,6 @@
 4:11 4:29 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 4:19 4:20 no-unused-vars "'c' is assigned a value but never used."
 
-=== 40 const_tag_parse_error_3691/a_valid_const_tag_still_compiles/f245e4c9da48fbbd.svelte	lint.txt
-5:24 - - "Parsing error: ')' expected."
-
 === 80 const_tag_parse_error_3691/an_unparseable_initializer_is_rejected/0dc5dd56714c83ad.svelte	lint.txt
 4:25 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
 
@@ -15439,10 +15411,6 @@ Rule: "svelte/consistent-selector-style"
 4:2 4:10 svelte/consistent-selector-style "Selector should select by element type instead of class"
 4:2 4:10 svelte/valid-compile "Unused CSS selector \".missing\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
-=== 202 css_pseudo_class_args/a_comment_between_two_kept_arguments_is_kept/4531a6f78fb39af5.svelte	lint.txt
-3:10 3:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
-3:15 3:17 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
 === 324 css_pseudo_class_args/a_compound_argument_is_pruned_too/74e5e7f89e8f5c5e.svelte	lint.txt
 3:7 3:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
 3:11 3:14 svelte/valid-compile "Unused CSS selector \"i.a\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
@@ -15499,21 +15467,9 @@ Rule: "svelte/consistent-selector-style"
 1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
 3:12 3:14 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 161 css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/76da5691786f61cb.svelte	lint.txt
-1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
-3:13 3:15 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
 === 160 css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/7c9c5ca44492ac8d.svelte	lint.txt
 1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
 3:9 3:11 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
-=== 161 css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/8bb2d3a6f27e3a83.svelte	lint.txt
-1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
-3:10 3:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
-=== 161 css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/92e5b2bc3c06fbbb.svelte	lint.txt
-1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
-3:11 3:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
 === 161 css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/ea2f640a0aa4f49e.svelte	lint.txt
 1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
@@ -15683,11 +15639,6 @@ Rule: "svelte/consistent-selector-style"
 4:1 4:1 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
 
 === 0 css_scoping_1237/multiline_global_wrapper_preserves_inner_whitespace/424a4852c5e700a0.svelte	lint.txt
-
-=== 227 css_scoping_1237/sibling_combinator_kept_when_before_element_has_dynamic_class/4978af891d9c7d0c.svelte	lint.txt
-4:5 4:13 svelte/button-has-type "Missing an explicit type attribute for button."
-6:26 6:92 svelte/no-unused-class-name "Unused class \"\"."
-6:58 6:90 svelte/prefer-class-directive "Unexpected class using the ternary operator."
 
 === 170 css_scoping_1237/style_inside_script_template_literal_is_not_picked_up/c63481b2b7a734d6.svelte	lint.txt
 2:9 2:13 no-unused-vars "'code' is assigned a value but never used."

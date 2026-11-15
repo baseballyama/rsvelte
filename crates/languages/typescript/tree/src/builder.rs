@@ -268,6 +268,15 @@ impl<'a> Builder<'a> {
             (&parsed.tokens, parsed.next_token),
             (part, source_type),
         )?;
+        // Upstream refuses a sequence as an attribute's value unless parentheses wrap it.
+        if let Expression::SequenceExpression(sequence) = &parsed.expression {
+            let pairs = (parsed.tokens.iter())
+                .take_while(|t| t.kind() == Kind::LParen && t.start() < sequence.span.start)
+                .count();
+            if pairs > 0 {
+                self.record_parentheses(sequence.span, u8::try_from(pairs).unwrap_or(u8::MAX));
+            }
+        }
         self.record(&parsed.tokens, &parsed.comments, 0);
         self.comments.extend_from_slice(&parsed.comments);
         Ok((parsed.expression, parsed.end))
