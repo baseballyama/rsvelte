@@ -2445,6 +2445,7 @@
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/single_quoted_value_with_an_expression_keeps_the_whole_value/d364396ec9b25275.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads a quoted <svelte:element> this value that holds a {...} as a static attribute that ends inside the value"
 "svelte.compile" = "upstream bug: svelte 5.57.3 keeps only the first chunk of a `this` of text and expressions, so `this=\"h{n}\"` renders an `<h>` element"
 
 ["svelte/rsvelte-tests-formatter/svelte_element_this_chunks/text_then_expression_keeps_the_whole_value/3a8bc92bcc84cfb8.svelte".skip]
@@ -2706,6 +2707,7 @@
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/85602f44f89a6d2f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser takes a } inside a comment in an {#await} head for the head's closing brace"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/c12f26de3001c722.svelte".skip]
@@ -4251,3 +4253,177 @@
 
 ["svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser places the end tag of a `<textarea>` at its last `</textarea`, where Svelte ends the content at the first"
+
+["svelte/appwrite-console/src/lib/components/billing/planSelection.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/+page.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/create-[type]/(type)/push.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/layercake/src/_components/SharedTooltip.html.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/layercake/src/_components/SharedTooltip.percent-range.html.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/primo/src/lib/components/app-sidebar.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/rsvelte/lint/prefer-destructured-store-props/03-block-scopes.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/rsvelte/lint/prefer-destructured-store-props/05-const-tag.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/rsvelte/lint/prefer-destructured-store-props/14-nested-store-member.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/rsvelte/lint/prefer-destructured-store-props/17-const-tag-and-let.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/shadcn-svelte/docs/src/lib/registry/examples/combobox-form.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/svar-grid/svelte/src/components/Layout.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's isExpressionIdentifier inverts the member test, so it reports $s[i] for a block's i and misses $s.a when a block declares a"
+
+["svelte/appwrite-console/src/lib/components/csvExportBox.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/export/+page.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/svar-core/svelte/src/components/Calendar.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/sveltekit/packages/kit/src/runtime/client/remote-functions/query-batch.svelte.js".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte 3.23.1's prefer-svelte-reactivity leaves a reassigned variable on its ReferenceTracker's stack, so it misses the variable's later constructions (eslint-plugin-svelte #1693)"
+
+["svelte/kite-public/src/lib/components/story/CitationTooltip.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser gives an {#if} branch's scope the whole {#if} block, so eslint-utils' findVariable does not find a name declared inside {:else}"
+
+["svelte/rsvelte/lint/first-attribute-linebreak/14-this-exotic-ws-first.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/html-quotes/15-this-exotic-ws-eq.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/html-self-closing/13-this-scan-failures.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/max-attributes-per-line/15-this-keytext-whitespace.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/max-attributes-per-line/16-this-exotic-ws-eq.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/max-attributes-per-line/17-crlf-this-keytext.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/no-spaces-around-equal-signs-in-attribute/07-special-this.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/no-spaces-around-equal-signs-in-attribute/11-this-exotic-ws-eq.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/no-spaces-around-equal-signs-in-attribute/12-this-scan-failures.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser ends the key of <svelte:element this={...}> at the =, so the key text holds the spaces before it and no-spaces-around-equal-signs-in-attribute misses them"
+
+["svelte/rsvelte/lint/html-quotes/13-this-string-literal-quoted.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads a quoted <svelte:element> this value that holds a {...} as a static attribute that ends inside the value"
+
+["svelte/rsvelte/lint/no-dupe-style-properties/13-case-and-custom-props.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte starts an inline style property at a hack prefix (_color, *color) but measures it without the prefix"
+
+["svelte/rsvelte/lint/no-shorthand-style-property-overrides/13-case-and-hacks.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte starts an inline style property at a hack prefix (_color, *color) but measures it without the prefix"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/style_like_component_is_not_blanked/64766c531adab110.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser 1.10.0 reads a component named Style as a <style> element (svelte-eslint-parser #1006)"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_script_like_component_names/style_like_component_with_a_close_tag_is_not_blanked/9bd55f8f0a0e78b4.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser 1.10.0 reads a component named Style as a <style> element (svelte-eslint-parser #1006)"
+
+["svelte/rsvelte/lint/no-nested-style-tag/14-component-lookalike.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser 1.10.0 reads a component named Style as a <style> element (svelte-eslint-parser #1006)"
+
+["svelte/rsvelte/lint/no-inspect/13-destructure-shorthand.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-inspect reports a shorthand { $inspect } or an import or export specifier twice, once for each Identifier over the one token"
+
+["svelte/rsvelte/lint/no-inspect/17-import-export-specifier.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-inspect reports a shorthand { $inspect } or an import or export specifier twice, once for each Identifier over the one token"
+
+["svelte/rsvelte/lint/require-stores-init/10-destructured-namespace.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-utils' ReferenceTracker follows a destructured store both through its key and its default, so require-stores-init reports one call twice"
+
+["svelte/rsvelte/lint/prefer-attribute-interpolation/13-escape-classes.svelte".skip]
+"svelte.lint" = "upstream bug: eslint-plugin-svelte's hasUsefulStringEscape misses \\0, so prefer-attribute-interpolation suggests markup that cannot hold the NUL"
+
+["svelte/rsvelte/lint/prefer-style-directive/13-comment-string-interleave.svelte".skip]
+"svelte.lint" = "upstream bug: postcss-safe-parser ends an open comment, string or escape one character past the inline style"
+
+["svelte/rsvelte/lint/prefer-style-directive/14-escape-boundaries.svelte".skip]
+"svelte.lint" = "upstream bug: postcss-safe-parser ends an open comment, string or escape one character past the inline style"
+
+["svelte/rsvelte/lint/require-optimized-style-attribute/13-comment-shapes.svelte".skip]
+"svelte.lint" = "upstream bug: postcss-safe-parser ends an open comment, string or escape one character past the inline style"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/valid/pug01-input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser does not read the markup of <template lang=\"pug\"> (svelte-eslint-parser #727)"
+
+["svelte/rsvelte/lint/html-closing-bracket-new-line/05-script-style-tags.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser drops the attributes of a <style> whose closing tag has a space before >"
+
+["svelte/layerchart/docs/src/examples/components/Partition/flame-graph.svelte".skip]
+"svelte.lint" = "upstream bug: svelte-eslint-parser reads a // comment in a start tag inside a block as tokens, not as a comment"
+
+["svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-inner-declarations hands the core rule a proxy node, so getScope skips a declaration's own scope and a top-level function outside a block counts as sloppy code"
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/4b6d95c5a21bf11f.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/cd846e6aecf8e955.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_pseudo_class_and_an_attribute_still_need_one/7f107c374b5a7473.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-1/css_identifier_required/a_pseudo_element_needs_a_name/45e2ed376d25c163.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_attribute_selector_keeps_the_source_spacing/57fe13a37abdb380.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/b8fc896b6d2ce9e7.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/e25afc0dacd98fca.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/consistent-selector-style throws on a selector postcss-selector-parser rejects."
+
+["svelte/rsvelte-tests-core-2/import_export_parser_shapes/a_quoted_enum_member_name_is_a_literal/4bfcd601713582f5.svelte".skip]
+"svelte.lint" = "upstream bug: no-unused-vars throws on an enum member with a string-literal name."
+
+["svelte/rsvelte/pattern/issues/an-enum-declaration-carries-its-members.svelte".skip]
+"svelte.lint" = "upstream bug: no-unused-vars throws on an enum member with a string-literal name."
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/26f7bc47509f509a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws Column number out of range on irregular whitespace at a line start."
+
+["svelte/rsvelte-tests-core-2/js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/802126b5a9bbd4fa.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws Column number out of range on irregular whitespace at a line start."
+
+["svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/3dc5b24e8a5754bb.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws on a null range in a mapped type."
+
+["svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/45b1a6d91ed20a95.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws on a null range in a mapped type."
+
+["svelte/rsvelte-tests-core-3/type_literal_head_comment_repeat/no_type_head_repeats_its_comment/d22c0680b437e04a.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/indent throws on a null range in a mapped type."

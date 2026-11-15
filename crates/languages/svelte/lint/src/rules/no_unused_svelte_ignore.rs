@@ -3,6 +3,9 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use super::compile_warnings::{Postcss, apply, decidable, ignores};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
+#[cfg(test)]
+mod tests;
+
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/no-unused-svelte-ignore",
     files: Files::Components,

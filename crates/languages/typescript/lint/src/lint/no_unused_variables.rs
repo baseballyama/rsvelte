@@ -1,6 +1,7 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
     AssignmentOperator, BindingPattern, Expression, FormalParameters, PropertyKind, Statement,
+    TSNamespaceDeclarationBody,
 };
 use oxc_semantic::{NodeId, ReferenceId, ScopeId, SymbolId};
 use oxc_span::GetSpan;
@@ -36,6 +37,17 @@ pub fn no_unused_variables<'r>(
             AstKind::Function(function) if function.is_expression() => continue,
             // A class expression's own name, which `ESLint` keeps in the class's scope.
             AstKind::Class(class) if class.is_expression() => continue,
+            // typescript-eslint's `A.B.C` is one qualified name, which declares nothing.
+            AstKind::TSNamespaceDeclaration(namespace)
+                if matches!(
+                    namespace.body,
+                    TSNamespaceDeclarationBody::TSNamespaceDeclaration(_)
+                ) || f.parent(declaration).is_some_and(|parent| {
+                    matches!(f.kind(parent), AstKind::TSNamespaceDeclaration(_))
+                }) =>
+            {
+                continue;
+            }
             AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_)
                 if is_setter_parameter(&f, declaration)
                     || (is_plain_parameter(&f, symbol, declaration)
