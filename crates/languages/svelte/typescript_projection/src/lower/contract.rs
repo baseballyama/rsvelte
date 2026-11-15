@@ -77,7 +77,7 @@ impl Builder<'_> {
                         props = Some(self.props(
                             &declarator.id,
                             annotation,
-                            declaration.span.start,
+                            span(declaration.span),
                             &mut bindings,
                             &mut edits,
                         )?);
@@ -307,10 +307,11 @@ impl Builder<'_> {
         &mut self,
         pattern: &BindingPattern<'_>,
         annotation: Option<(Span, bool)>,
-        statement: u32,
+        declaration: Span,
         bindings: &mut Buffer<NodeIdentifier>,
         edits: &mut Buffer<Edit>,
     ) -> Result<NodeIdentifier> {
+        let statement = declaration.start_offset;
         let BindingPattern::ObjectPattern(object) = pattern else {
             if let Some((span, reference)) = annotation {
                 return Ok(self.props_alias(span, reference, statement, edits));
@@ -323,6 +324,7 @@ impl Builder<'_> {
         let mut optional = Buffer::new(0);
         let rest = object.rest.is_some();
         let siblings = Siblings::new(pattern);
+        let mut reads = Buffer::new(0);
         for property in &object.properties {
             if property.computed {
                 return Err(refuse("computed props contracts", span(property.span)));
@@ -335,6 +337,12 @@ impl Builder<'_> {
                 && self.is_rune(default, "$bindable")
             {
                 bindings.push(self.property_string(&property.key));
+                if let BindingPattern::AssignmentPattern(assignment) = &property.value
+                    && let BindingPattern::BindingIdentifier(local) = &assignment.left
+                {
+                    let local = self.tree.push(Node::UnmappedSource(span(local.span)));
+                    reads.push(self.tree.push(Node::Statement(local)));
+                }
             }
             if annotation.is_none() {
                 let name = self.source(property.key.span(), None);
@@ -346,6 +354,15 @@ impl Builder<'_> {
                     required.push(property);
                 }
             }
+        }
+        if !reads.is_empty() {
+            // svelte2tsx reads each bindable prop, which the parent may read, so it is never
+            // unused.
+            let reads = self.tree.list(&reads);
+            edits.push(Edit {
+                span: Span::new(declaration.end_offset, declaration.end_offset),
+                replacement: Some(self.tree.push(Node::Statements(reads))),
+            });
         }
         if let Some((span, reference)) = annotation {
             return Ok(self.props_alias(span, reference, statement, edits));

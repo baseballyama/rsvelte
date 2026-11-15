@@ -1,5 +1,8 @@
 ;
 /** @type {typeof __rsvelte_public_props0} */ let { width = $bindable(), x = $bindable() } = $props();
+width;
+x;
+
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({}, {

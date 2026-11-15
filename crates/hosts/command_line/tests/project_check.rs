@@ -194,3 +194,30 @@ fn a_class_component_of_a_package_takes_the_props_of_its_instance() {
     // svelte-check reports only the prop of the wrong type, as its svelte2tsx constructs the class.
     assert_eq!(project.check(), ["src/App.svelte TS2322"]);
 }
+
+#[test]
+fn a_bindable_prop_only_written_is_not_unused() {
+    let project = Project::new(
+        "bindable-unused",
+        &[
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true,
+"skipLibCheck":true,"noEmit":true,"types":[],"noUnusedLocals":true},"include":["src"]}"#,
+            ),
+            (
+                "src/Drawer.svelte",
+                concat!(
+                    "<script lang=\"ts\">\n",
+                    "  let { open = $bindable(false), plain = 1 }: { open?: boolean; plain?: number } =\n",
+                    "    $props();\n",
+                    "  const close = () => (open = false);\n",
+                    "</script>\n",
+                    "<button onclick={close}>x</button>\n",
+                ),
+            ),
+        ],
+    );
+    // svelte-check reads each bindable prop once, so only `plain` is unused.
+    assert_eq!(project.check(), ["src/Drawer.svelte TS6133"]);
+}

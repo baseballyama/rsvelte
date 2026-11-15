@@ -1,5 +1,7 @@
 ;
 /** @type {typeof __rsvelte_public_props0} */ let { ref = $bindable(null) } = $props();
+ref;
+
 ;
 
 const __rsvelte_public_props0 = __rsvelte_props({}, {
