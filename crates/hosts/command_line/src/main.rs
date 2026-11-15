@@ -34,8 +34,7 @@ use std::process::ExitCode;
 
 use commands::corpus::corpus;
 use commands::run::{run_file, run_files, run_project};
-use commands::{benchmark, performance};
-use commands::{format, lint};
+use commands::{benchmark, format, lint, performance};
 use input::load;
 use rsvelte_kernel::computation::registry::Registry;
 
@@ -228,8 +227,8 @@ fn dispatch(
             Err(e) => usage(&e),
         },
         _ => usage(concat!(
-            "expected `corpus <dir>...`, `run <file>...`, `lint [<path>...]`, `format [<path>...]`, `check`, ",
-            "`benchmark <dir>` or `performance <dir>...`"
+            "expected `corpus <dir>...`, `run <file>...`, `lint [<path>...]`, ",
+            "`format [<path>...]`, `check`, `benchmark <dir>` or `performance <dir>...`"
         )),
     }
 }
