@@ -37,4 +37,6 @@ node tools/performance/workloads/tasks-versus-main/run.ts --main ../main --work 
 ```
 
 `run.ts` prints how long each step took. Its header lists the options: the thread counts
-(`1` and every logical CPU by default), repetitions, rounds, and the type check's project.
+(`1` and every logical CPU by default), repetitions, rounds, and the type check's project. Each
+worker thread has 64 MiB of stack, as the pipeline's workers have; `TASKS_STACK_MIB` sets
+another size.

@@ -89,6 +89,15 @@ fn number(text: &str, what: &str) -> usize {
         .unwrap_or_else(|_| panic!("{what}: expected a number, found `{text}`"))
 }
 
+/// Stack of each worker, in MiB: `TASKS_STACK_MIB`, else 64, as the pipeline of this branch gives
+/// its workers.
+fn worker_stack() -> usize {
+    std::env::var("TASKS_STACK_MIB").map_or(64, |mib| {
+        mib.parse()
+            .unwrap_or_else(|_| panic!("TASKS_STACK_MIB={mib}: expected MiB"))
+    }) << 20
+}
+
 /// One pass over every file on `threads` threads; returns the bytes of output.
 fn pass(runner: &dyn Runner, documents: usize, threads: usize) -> usize {
     let one = |index: usize| {
@@ -101,16 +110,19 @@ fn pass(runner: &dyn Runner, documents: usize, threads: usize) -> usize {
     std::thread::scope(|scope| {
         let workers: Vec<_> = (0..threads)
             .map(|_| {
-                scope.spawn(|| {
-                    let mut bytes = 0;
-                    loop {
-                        let index = next.fetch_add(1, Ordering::Relaxed);
-                        if index >= documents {
-                            return bytes;
+                std::thread::Builder::new()
+                    .stack_size(worker_stack())
+                    .spawn_scoped(scope, || {
+                        let mut bytes = 0;
+                        loop {
+                            let index = next.fetch_add(1, Ordering::Relaxed);
+                            if index >= documents {
+                                return bytes;
+                            }
+                            bytes += one(index);
                         }
-                        bytes += one(index);
-                    }
-                })
+                    })
+                    .expect("a worker starts")
             })
             .collect();
         workers
