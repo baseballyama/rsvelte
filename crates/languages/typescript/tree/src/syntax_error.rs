@@ -147,6 +147,19 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
         "1047" => optional_rest(start, end, visit) == Some(Ok(())),
         // acorn-typescript reads a class accessor without a body as a signature.
         "1005" => locate(start, end, Find::BodilessAccessor, visit).is_some(),
+        // acorn-typescript checks no interface, and a type alias only against the types before it.
+        "2300" => {
+            let Some(second) = error.labels.get(1) else {
+                return false;
+            };
+            let second = (second.offset(), second.offset() + second.len());
+            let locator = redeclared((start, end), second, visit);
+            match locator.found {
+                Some((_, AstType::TSInterfaceDeclaration)) => true,
+                Some((_, AstType::TSTypeAliasDeclaration)) => !locator.first_is_type,
+                _ => false,
+            }
+        }
         _ => false,
     }
 }
@@ -302,17 +315,7 @@ fn early_error(
         "2524" => Some(fails("Await expression cannot be a default value", start)),
         "2523" => Some(fails("Yield expression cannot be a default value", start)),
         // A second declaration: oxc labels the first one first, and acorn fails at this one.
-        "2300" => {
-            let (at, name) = second()?;
-            let end = at + name.len() as u32;
-            if locate(at, end, Find::Parameters, visit).is_some() {
-                return Some(fails("Argument name clash", at));
-            }
-            Some(Acorn::Fails {
-                message: Cow::Owned(format!("Identifier '{name}' has already been declared")),
-                at,
-            })
-        }
+        "2300" => Some(redeclaration((start, end), second()?, visit)),
         "1114" => {
             let (at, name) = second()?;
             Some(Acorn::Fails {
@@ -436,6 +439,35 @@ fn after_member_name(
         .skip_while(|token| token.start() < member)
         .skip_while(|token| token.kind() == Kind::Static);
     words.nth(1).map(|token| token.start())
+}
+
+/// What acorn reports for `name` declared again at `at`, which oxc first labels at `first`.
+/// acorn-typescript checks a type alias only against the types before it.
+fn redeclaration(
+    first: (u32, u32),
+    (at, name): (u32, &str),
+    visit: impl FnOnce(&mut Locator),
+) -> Acorn {
+    let locator = redeclared(first, (at, at + name.len() as u32), visit);
+    let message = match (locator.found, locator.first_is_type) {
+        (Some((_, AstType::FormalParameters)), _) => return fails("Argument name clash", at),
+        (Some((_, AstType::TSTypeAliasDeclaration)), true) => {
+            format!("type '{name}' has already been declared.")
+        }
+        _ => format!("Identifier '{name}' has already been declared"),
+    };
+    Acorn::Fails {
+        message: Cow::Owned(message),
+        at,
+    }
+}
+
+/// The walk for a name oxc labels at `first` and declares again at `second`.
+fn redeclared(first: (u32, u32), second: (u32, u32), visit: impl FnOnce(&mut Locator)) -> Locator {
+    let first = oxc_span::Span::new(first.0, first.1);
+    let mut locator = Locator::new(second.0, second.1, Find::Redeclared(first));
+    visit(&mut locator);
+    locator
 }
 
 const fn fails(message: &'static str, at: u32) -> Acorn {
