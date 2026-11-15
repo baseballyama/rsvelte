@@ -158,27 +158,16 @@ pub(super) fn state_exports(
     };
     let scoping = resolution.scoping();
     let body = &component.javascript.get_program(instance.program).body;
-    let reactive: Vec<oxc_span::Span> = body
-        .iter()
-        .filter_map(|statement| match statement {
-            Statement::LabeledStatement(labeled) if labeled.label.name == "$" => Some(labeled.span),
-            _ => None,
-        })
-        .collect();
-    let scripts: Vec<Span> = component
-        .module
-        .iter()
-        .chain(&component.instance)
-        .map(|script| script.span)
-        .collect();
     let promoted = |symbol: SymbolId| {
         scoping.get_resolved_reference_ids(symbol).iter().any(|&r| {
             let at = resolution.reference_span(r);
-            let inside = |s: oxc_span::Span| s.start <= at.start && at.end <= s.end;
-            let in_script = scripts
-                .iter()
-                .any(|s| s.start_offset <= at.start && at.end <= s.end_offset);
-            !in_script || reactive.iter().any(|&s| inside(s))
+            let in_script = (component.module.iter().chain(&component.instance))
+                .any(|s| s.span.start_offset <= at.start && at.end <= s.span.end_offset);
+            // The statements are in source order, so the one that may hold `at` is found by halves.
+            let statement = body.partition_point(|s| oxc_span::GetSpan::span(s).end <= at.start);
+            !in_script
+                || matches!(body.get(statement), Some(Statement::LabeledStatement(labeled))
+                    if labeled.label.name == "$" && labeled.span.start <= at.start)
         })
     };
     for statement in body {
@@ -192,12 +181,14 @@ pub(super) fn state_exports(
         if !declaration.kind.is_const() {
             continue;
         }
-        let state = declaration
-            .declarations
-            .iter()
-            .flat_map(|declarator| declarator.id.get_binding_identifiers())
-            .filter_map(|identifier| identifier.symbol_id.get())
-            .any(|symbol| resolution.reassigned(symbol) && promoted(symbol));
+        let state = declaration.declarations.iter().any(|declarator| {
+            declarator.id.any_binding_identifiers(&mut |identifier| {
+                identifier
+                    .symbol_id
+                    .get()
+                    .is_some_and(|symbol| resolution.reassigned(symbol) && promoted(symbol))
+            })
+        });
         if state {
             let raised = Raised {
                 phase: Phase::Walk,
