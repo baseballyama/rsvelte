@@ -746,3 +746,22 @@ fn an_instance_name_a_module_import_declares_is_a_duplicate() {
         Vec::<String>::new()
     );
 }
+
+#[test]
+fn a_local_let_a_re_export_names_is_an_unused_export_in_legacy_mode() {
+    let codes = |code: &str| -> Vec<String> {
+        compiled_with_errors(code, None)
+            .0
+            .into_iter()
+            .map(|(code, ..)| code)
+            .collect()
+    };
+    assert_eq!(
+        codes("<script>let x = 1; export { x as y } from './mod';</script>\n"),
+        ["export_let_unused"]
+    );
+    assert_eq!(
+        codes("<script>export { x as y } from './mod';</script>\n"),
+        Vec::<String>::new()
+    );
+}
