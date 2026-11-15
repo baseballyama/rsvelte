@@ -180,3 +180,36 @@ fn a_module_is_read_as_typescript_eslint_reads_it() {
         Some("Parsing error: ',' expected.")
     );
 }
+
+/// svelte-eslint-parser needs an identifier where Svelte reads a directive's name as one.
+#[test]
+fn a_directive_name_that_is_not_an_identifier_fails_the_parse() {
+    for (source, message, column) in [
+        (
+            "<div class:a.b>x</div>",
+            "Parsing error: Expected Identifier, but MemberExpression found.",
+            11,
+        ),
+        (
+            "<div transition:a.b>x</div>",
+            "Parsing error: Expected JS Identifier, but MemberExpression found.",
+            16,
+        ),
+        (
+            "<svelte:element this={t} bind:this>x</svelte:element>",
+            "Parsing error: Expected Identifier, but ThisExpression found.",
+            30,
+        ),
+    ] {
+        let document =
+            Document::new("App.svelte".to_owned(), source.to_owned()).expect("a small document");
+        let (json, _) = lint_with("svelte/valid-compile", &document, |_| {});
+        let finding = &json["findings"][0];
+        assert_eq!(finding["message"].as_str(), Some(message), "{source}");
+        assert_eq!(
+            finding["start"]["column"].as_u64(),
+            Some(column),
+            "{source}"
+        );
+    }
+}

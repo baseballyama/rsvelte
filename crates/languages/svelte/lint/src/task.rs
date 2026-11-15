@@ -144,6 +144,17 @@ impl Task for Lint {
             javascript_error = rsvelte_svelte_compile::javascript_error(context);
             javascript_error.as_ref()
         };
+        let directive_error = match parse_error {
+            None if rsvelte_svelte_syntax::matches(context.document) => {
+                (context.get::<rsvelte_svelte_syntax::Parsed>().as_ref().ok())
+                    .and_then(directive_names::rejection)
+            }
+            _ => None,
+        };
+        if let Some((message, at)) = directive_error {
+            rsvelte_lint_runner::output::report_parse_error(out, positions(context), &message, at);
+            return;
+        }
         if let Some(error) = parse_error {
             let thrown = if rsvelte_svelte_syntax::parse::in_script_content(
                 context.source_text(),
@@ -236,6 +247,8 @@ fn positions<'a>(context: &'a DocumentContext<'_>) -> rsvelte_lint_runner::outpu
         context.source_text(),
     )
 }
+
+mod directive_names;
 
 #[cfg(test)]
 mod tests;
