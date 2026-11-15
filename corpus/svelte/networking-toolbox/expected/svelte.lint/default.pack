@@ -424,14 +424,6 @@
 486:5 486:13 svelte/consistent-selector-style "Selector should select by ID instead of class"
 504:5 504:27 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 401 src/lib/components/global/Icon.svelte	lint.txt
-1:1 38:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-31:7 31:14 no-undef "'console' is not defined."
-40:1 40:120 svelte/no-unused-class-name "Unused class \"\"."
-40:1 40:120 svelte/no-unused-class-name "Unused class \"\"."
-40:1 40:120 svelte/no-unused-class-name "Unused class \"\"."
-45:30 45:49 svelte/max-attributes-per-line "'viewBox' should be on a new line."
-
 === 1480 src/lib/components/global/SegmentedControl.svelte	lint.txt
 1:1 69:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:46 svelte/max-attributes-per-line "'generics=\"T extends string\"' should be on a new line."
@@ -452,22 +444,6 @@
 84:36 84:45 svelte/max-attributes-per-line "'size' should be on a new line."
 87:11 87:39 svelte/no-unused-class-name "Unused class \"segment-label\"."
 94:1 167:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
-
-=== 1261 src/lib/components/global/SvgIcon.svelte	lint.txt
-1:1 27:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-26:5 26:9 svelte/valid-compile "This reference only captures the initial value of `size`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
-29:1 29:78 svelte/no-unused-class-name "Unused class \"\"."
-29:26 29:45 svelte/max-attributes-per-line "'viewBox' should be on a new line."
-29:46 29:77 svelte/sort-attributes "Attribute 'class' should go before 'fill'."
-31:31 31:50 svelte/max-attributes-per-line "'d' should be on a new line."
-31:31 31:50 svelte/sort-attributes "Attribute 'd' should go before 'fill-rule'."
-31:51 31:70 svelte/sort-attributes "Attribute 'clip-rule' should go before 'fill-rule'."
-37:31 37:50 svelte/max-attributes-per-line "'d' should be on a new line."
-37:31 37:50 svelte/sort-attributes "Attribute 'd' should go before 'fill-rule'."
-37:51 37:70 svelte/sort-attributes "Attribute 'clip-rule' should go before 'fill-rule'."
-39:31 39:48 svelte/max-attributes-per-line "'d' should be on a new line."
-39:31 39:48 svelte/sort-attributes "Attribute 'd' should go before 'fill-rule'."
-39:49 39:68 svelte/sort-attributes "Attribute 'clip-rule' should go before 'fill-rule'."
 
 === 1701 src/lib/components/global/ToolContentContainer.svelte	lint.txt
 1:1 79:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

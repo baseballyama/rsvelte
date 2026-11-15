@@ -232,6 +232,16 @@ impl Registry {
             })
     }
 
+    /// Whether a document task named in `identifiers` runs on `document`, so a host can skip
+    /// reading a file that no such task reads.
+    #[must_use]
+    pub fn applies(&self, identifiers: &[&str], document: &Document) -> bool {
+        self.selected(identifiers)
+            .0
+            .iter()
+            .any(|task| task.applies(document))
+    }
+
     /// The registered tasks named in `identifiers`; all of them when it is empty.
     pub(crate) fn selected(&self, identifiers: &[&str]) -> (Vec<&dyn Task>, Vec<&dyn FinishTask>) {
         let wanted = |identifier: &str| identifiers.is_empty() || identifiers.contains(&identifier);

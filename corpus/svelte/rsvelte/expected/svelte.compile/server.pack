@@ -44889,30 +44889,6 @@ export default function Inspect_trace_and_effect_tracking($$renderer, $$props) {
 		$$renderer.push(`<button>${$.escape(n)}${$.escape(d())}</button> <b>${$.escape(tracked())}</b>`);
 	});
 }
-=== 539 pattern/adversarial/runes/inspect-with-and-snapshot-nesting.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Inspect_with_and_snapshot_nesting($$renderer, $$props) {
-	$$renderer.component(($$renderer) => {
-		let tree = { list: [{ id: 1 }], table: { nested: { count: 0 } } };
-		let n = 0;
-
-		;;
-		;;
-		;;
-		;;
-
-		function snapshot() {
-			const outer = tree;
-			const inner = tree.table;
-			const nested = { wrapped: $.snapshot(tree.list) };
-
-			return [outer, inner, nested].length;
-		}
-
-		$$renderer.push(`<b>${$.escape(snapshot())}</b> <button>${$.escape(n)}</button>`);
-	});
-}
 === 763 pattern/adversarial/runes/lifecycle-and-context-surface.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -54754,48 +54730,6 @@ export default function _175_legacy_derived_server_fold($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
-=== 583 pattern/issues/3177-module-multi-declarator.svelte	js
-import * as $ from 'svelte/internal/server';
-
-let plain_a = 0, plain_b = 1;
-let y = 0, x = 1;
-let raw = [1], after_raw = 2;
-let p = $.derived(() => x + 1), q = 5;
-let by = $.derived(() => x), after_by = 6;
-let snap = raw, after_snap = 7;
-
-let tmp = { a: 1, b: 2 },
-	a = tmp.a,
-	b = tmp.b,
-	after_pattern = 8;
-
-export default function _177_module_multi_declarator($$renderer) {
-	let i_y = 0;
-	let i_x = 1;
-	let i_p = $.derived(() => i_x + 1);
-	let i_q = 5;
-
-	$$renderer.push(`<div>0101${$.escape(raw.length)}22516
-	${$.escape(snap.length)}7${$.escape(a)}${$.escape(b)}80125</div>`);
-}
-=== 358 pattern/issues/3177-module-multi-declarator.svelte	warnings.json
-[
-	{
-		"code": "state_referenced_locally",
-		"message": "This reference only captures the initial value of `raw`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
-		"start": {
-			"line": 7,
-			"column": 28,
-			"character": 224
-		},
-		"end": {
-			"line": 7,
-			"column": 31,
-			"character": 227
-		}
-	}
-]
-
 === 352 pattern/issues/3179-export-const-state.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -54811,38 +54745,6 @@ export default function _179_export_const_state($$renderer, $$props) {
 
 	$$renderer.push(`<div>11${$.escape(raw.length)}${$.escape(mutable)}0</div>`);
 	$.bind_props($$props, { plain, st, raw, mutable });
-}
-=== 726 pattern/issues/3180-snapshot-position.svelte	js
-import * as $ from 'svelte/internal/server';
-
-let mo = { a: 1 };
-
-class MK {
-	field = $.snapshot(mo);
-	static stat = $.snapshot(mo);
-}
-
-let m_single = mo;
-let m_y = 0, m_later = mo;
-const m_held = { p: $.snapshot(mo) };
-
-export default function _180_snapshot_position($$renderer, $$props) {
-	$$renderer.component(($$renderer) => {
-		let io = { a: 1 };
-
-		class IK {
-			field = $.snapshot(io);
-		}
-
-		let i_single = io;
-		let i_y = 0;
-		let i_later = io;
-		const ik = new IK();
-		const mk = new MK();
-
-		$$renderer.push(`<div>${$.escape(m_single.a)}0${$.escape(m_later.a)}${$.escape(m_held.p.a)}${$.escape(mk.field.a)}${$.escape(MK.stat.a)}
-	${$.escape(i_single.a)}0${$.escape(i_later.a)}${$.escape(ik.field.a)}</div>`);
-	});
 }
 === 330 pattern/issues/3181-props-id-in-module-script.svelte	error.json
 {
@@ -64365,28 +64267,6 @@ export default function Directive_value_first_line_budget($$renderer) {
 
 	$$renderer.push(`<!--]--></div></div></div></div></div></div></div>`);
 }
-=== 438 pattern/issues/dollar-function-parameter.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Dollar_function_parameter($$renderer) {
-	let work = { value: 1 };
-
-	function read($work) {
-		return $work.value;
-	}
-
-	const viewport = {
-		update(fn) {
-			fn({ width: 1 });
-		}
-	};
-
-	viewport.update(($viewport) => {
-		$.store_mutate($$store_subs ??= {}, '$viewport', viewport, $viewport.width += read(work));
-	});
-
-	$$renderer.push(`<p>${$.escape(read(work))}</p>`);
-}
 === 257 pattern/issues/dollar-props-rename-per-occurrence.svelte	error.json
 {
 	"code": "legacy_props_invalid",
@@ -67903,21 +67783,6 @@ export default function Title_memo_definedness($$renderer) {
 			$$renderer.push(`<title>${$.escape(format(value))} — ${$.escape(format('suffix'))}</title>`);
 		});
 	});
-}
-=== 53 pattern/issues/ts-bodiless-constructor-alone.svelte	error.txt
-Cannot read properties of undefined (reading 'body')
-
-=== 178 pattern/issues/ts-bodiless-method-alone.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Ts_bodiless_method_alone($$renderer) {
-	class K {
-		m(a);
-	}
-
-	const v = 1;
-
-	$$renderer.push(`<b>1</b>`);
 }
 === 249 pattern/issues/type-import-value-redeclaration.svelte	error.json
 {

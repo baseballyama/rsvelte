@@ -33467,64 +33467,6 @@ export default function _5_snippet_param_shadow($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1288 lint/require-store-reactive-access/16-await-shadow.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-import { writable } from 'svelte/store';
-
-var root = $.from_html(`<p> </p>`);
-var root_1 = $.from_html(`<p>loading</p>`);
-var root_2 = $.from_html(`<!> <!> <!>`, 1);
-
-export default function _6_await_shadow($$anchor, $$props) {
-	$.push($$props, true);
-
-	const s = writable(0);
-	const p = Promise.resolve(1);
-	var fragment = root_2();
-	var node = $.first_child(fragment);
-
-	$.await(node, () => p, null, ($$anchor, s) => {
-		var p_1 = root();
-		var text = $.only_child(p_1, true);
-
-		$.template_effect(() => $.set_text(text, $.get(s) + 1));
-		$.append($$anchor, p_1);
-	});
-
-	var node_1 = $.sibling(node, 2);
-
-	$.await(
-		node_1,
-		() => p,
-		($$anchor) => {
-			var p_3 = root_1();
-
-			$.append($$anchor, p_3);
-		},
-		void 0,
-		($$anchor, s) => {
-			var p_2 = root();
-			var text_1 = $.only_child(p_2, true);
-
-			$.template_effect(() => $.set_text(text_1, $.get(s) + 2));
-			$.append($$anchor, p_2);
-		}
-	);
-
-	var node_2 = $.sibling(node_1, 2);
-
-	$.await(node_2, () => p, null, ($$anchor, ok) => {
-		var p_4 = root();
-		var text_2 = $.only_child(p_4, true);
-
-		$.template_effect(() => $.set_text(text_2, $.get(s) + $.get(ok)));
-		$.append($$anchor, p_4);
-	});
-
-	$.append($$anchor, fragment);
-	$.pop();
-}
 === 743 lint/require-store-reactive-access/17-handler-inner-block-let.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -99087,26 +99029,6 @@ export default function Title_memo_definedness($$anchor) {
 			[() => format(value), () => format('suffix')]
 		);
 	});
-}
-=== 53 pattern/issues/ts-bodiless-constructor-alone.svelte	error.txt
-Cannot read properties of undefined (reading 'body')
-
-=== 288 pattern/issues/ts-bodiless-method-alone.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<b></b>`);
-
-export default function Ts_bodiless_method_alone($$anchor) {
-	class K {
-		m(a);
-	}
-
-	const v = 1;
-	var b = root();
-
-	b.textContent = '1';
-	$.append($$anchor, b);
 }
 === 249 pattern/issues/type-import-value-redeclaration.svelte	error.json
 {

@@ -581,11 +581,6 @@
     data-p="ppppppppppppppppppppp"
   />{/if}{value}
 
-=== 106 block_header_call_args/a_long_iterable_pushes_the_key_over_the_width/03834301bec484ba.svelte	svelte
-{#each someVeryLongCollectionNameHereOkFineYesOkLongerStill as m, id (mk( { a: 1 } ))}
-  <p>x</p>
-{/each}
-
 === 229 block_header_call_args/arrow_block_body_argument_reindents_continuation_to_header_depth/f21767e7abf9c3db.svelte	svelte
 <script>
   let depA = 1;
@@ -609,33 +604,6 @@
   <p>x</p>
 {/each}
 
-=== 100 block_header_call_args/each_header_settles_iterable_before_key/b6419b2fd1f57a4a.svelte	svelte
-{#each getRows( { limit: 20 } ) as item (wrap(inner({ a: 1, b: 2 }), { c: 3 }))}
-  <p>x</p>
-{/each}
-
-=== 106 block_header_call_args/each_key_expression_expands_too/99247f18ab44c03d.svelte	svelte
-{#each items as item, index (computeKey( { id: item.id, salt: 42, another: 12345 } ))}
-  <p>x</p>
-{/each}
-
-=== 120 block_header_call_args/else_if_header_expands_with_its_wider_opener/530ceb38d342486b.svelte	svelte
-{#if a}
-  <p>x</p>
-{:else if datePicker().getMonthsGrid( { columns: 4, format: "short12345678901" } )}
-  <p>y</p>
-{/if}
-
-=== 103 block_header_call_args/expansion_reaches_calls_inside_a_logical_operand/4660aad264210604.svelte	svelte
-{#if checkCondition( { alpha: 1, beta: 2, gamma: 3 } ) && okFlagValueHereOkayFineYes}
-  <p>x</p>
-{/if}
-
-=== 109 block_header_call_args/expansion_recurses_through_nested_calls/44ec62e6cba7464c.svelte	svelte
-{#each wrapOuter( innerCall( { a: 1, b: 2, c: 3 } ), { d: 4, e: 5 } ) as months, id (id)}
-  <p>x</p>
-{/each}
-
 === 99 block_header_call_args/fitting_each_key_stays_hugged/1c5c490eff6f922d.svelte	svelte
 {#each items as item (getKeyValueHere({ id: item.id, salt: 424242, more: 1 }))}
   <p>x</p>
@@ -648,30 +616,6 @@
 
 === 87 block_header_call_args/fitting_header_stays_hugged/08fb675da84d9c12.svelte	svelte
 {#each datePicker().getYearsGrid({ columns: 4 }) as years, id (id)}
-  <p>x</p>
-{/each}
-
-=== 148 block_header_call_args/indent_depth_counts_toward_the_trigger/f72a8d49c0b52f18.svelte	svelte
-<div>
-  <div>
-    {#each datePicker().getYearsGrid( { columns: 4, format: "short" } ) as years, id (id)}
-      <p>x</p>
-    {/each}
-  </div>
-</div>
-
-=== 102 block_header_call_args/key_and_await_headers_expand_too/23ec7d1b2a0f629b.svelte	svelte
-{#key datePicker().getMonthsGrid( { columns: 4, format: "shortest1234567890AB" } )}
-  <p>x</p>
-{/key}
-
-=== 104 block_header_call_args/key_and_await_headers_expand_too/ece768fae241ef4f.svelte	svelte
-{#await getTheGrid( { columns: 4, format: "shorter" } ) then valueHereOkayFineOkay}
-  <p>x</p>
-{/await}
-
-=== 108 block_header_call_args/overflowing_each_header_expands_grouped_call/82fea2324da313f7.svelte	svelte
-{#each datePicker().getMonthsGrid( { columns: 4, format: "short" } ) as months, id (id)}
   <p>x</p>
 {/each}
 
@@ -694,11 +638,6 @@
     {/each}
   {/if}
 {/if}
-
-=== 104 block_header_call_args/suffix_width_counts_toward_the_trigger/2633d12c10eec40b.svelte	svelte
-{#each f( { a: 1 } ) as monthsAndSomeVeryLongNameThatOverflowsTheLimitHere, id (id)}
-  <p>x</p>
-{/each}
 
 === 105 block_header_call_args/ungrouped_call_keeps_flat_parens_when_overflowing/a415a1679d8c562f.svelte	svelte
 {#each items.filter((item) => item.value > thresholdValueHereOkayFine) as m, id (id)}
@@ -1288,26 +1227,14 @@
   >{#if n}<title>t</title>{/if}</svelte:head
 >
 
-=== 39 const_tag_line_comment/a_block_comment_is_not_treated_as_a_line_comment/dfd12cb86a630e8f.svelte	svelte
-{#if a}{@const x = flag) /* c */}{/if}
-
 === 30 const_tag_line_comment/a_const_without_a_trailing_comment_is_unchanged/aa4f7828d9b3165f.svelte	svelte
 {#if a}{@const x = flag}{/if}
-
-=== 52 const_tag_line_comment/a_regex_literal_followed_by_a_real_comment_still_breaks/16da57cccecd6f20.svelte	svelte
-{#if a}{@const p = s.replace(/^\//, ""))}{/if} // c
 
 === 46 const_tag_line_comment/a_regex_literal_is_not_a_line_comment/8fb88ec9beed7075.svelte	svelte
 {#if a}{@const p = s.replace(/^\//, "")}{/if}
 
 === 32 const_tag_line_comment/a_slash_slash_inside_a_string_is_not_a_comment/738bed12292d9c6b.svelte	svelte
 {#if a}{@const x = "a//b"}{/if}
-
-=== 36 const_tag_line_comment/a_trailing_line_comment_does_not_swallow_the_closing_brace/6f41de20fb78df05.svelte	svelte
-{#if a}{@const x = flag)}{/if} // c
-
-=== 36 const_tag_line_comment/the_fix_is_idempotent/996596f05a4aac4f.svelte	svelte
-{#if a}{@const x = flag)}{/if} // c
 
 === 75 css_native/unparseable_style_body_is_spliced_without_a_blank_line/f8bd54d445626702.svelte	svelte
 <div class="a">x</div>
@@ -2978,15 +2905,6 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
 
 <button title={global.p as string}>x</button>
 
-=== 150 markup_cast_head_parens/declaration_name_head_matches_oracle/011aebbaa3dfa3f0.svelte	error.txt
-Unexpected token
-https://svelte.dev/e/js_parse_error
-  1 | <script lang="ts"></script>
-  2 |
-> 3 | <p>{async as string}</p>
-    |             ^
-  4 |
-
 === 62 markup_cast_head_parens/declaration_name_head_matches_oracle/01356af444c5f3b5.svelte	svelte
 <script lang="ts"></script>
 
@@ -3872,15 +3790,6 @@ https://svelte.dev/e/js_parse_error
 
 <button title={foo.p as string}>x</button>
 
-=== 173 markup_cast_head_parens/declaration_name_head_matches_oracle/2d77964ecb1f570d.svelte	error.txt
-Unexpected token
-https://svelte.dev/e/js_parse_error
-  1 | <script lang="ts"></script>
-  2 |
-> 3 | <button {...async as string}>x</button>
-    |                     ^
-  4 |
-
 === 76 markup_cast_head_parens/declaration_name_head_matches_oracle/2d91722675af6afa.svelte	svelte
 <script lang="ts"></script>
 
@@ -4565,15 +4474,6 @@ https://svelte.dev/e/js_parse_error
 <script lang="ts"></script>
 
 <button {...satisfies satisfies string}>x</button>
-
-=== 179 markup_cast_head_parens/declaration_name_head_matches_oracle/54557b00a714b2a9.svelte	error.txt
-Unexpected token
-https://svelte.dev/e/js_parse_error
-  1 | <script lang="ts"></script>
-  2 |
-> 3 | <button title={async as string}>x</button>
-    |                        ^
-  4 |
 
 === 82 markup_cast_head_parens/declaration_name_head_matches_oracle/54cd2474da546edb.svelte	svelte
 <script lang="ts"></script>
@@ -5779,15 +5679,6 @@ https://svelte.dev/e/js_parse_error
 <script lang="ts"></script>
 
 {#if module as string}<p>y</p>{/if}
-
-=== 161 markup_cast_head_parens/declaration_name_head_matches_oracle/8d74744ba580b1a1.svelte	error.txt
-Unexpected token
-https://svelte.dev/e/js_parse_error
-  1 | <script lang="ts"></script>
-  2 |
-> 3 | {#if async as string}<p>y</p>{/if}
-    |              ^
-  4 |
 
 === 70 markup_cast_head_parens/declaration_name_head_matches_oracle/8de5f0224cd860f3.svelte	svelte
 <script lang="ts"></script>
@@ -10960,9 +10851,6 @@ https://svelte.dev/e/js_parse_error
 === 65 markup_expressions/this_expression_with_greater_than_does_not_end_the_open_tag/95cbad9d814f60df.svelte	svelte
 <svelte:element this={n > 0 ? "p" : "span"}>{n}</svelte:element>
 
-=== 11 markup_expressions/trailing_comment_keeps_the_tag_an_expression/b287a9cb4387e49f.svelte	svelte
-<p>{n}</p>
-
 === 48 markup_expressions/transition_directive_with_argument/9b3ef75921661e5a.svelte	svelte
 <div transition:fade={{ duration: 200 }}></div>
 
@@ -12763,98 +12651,6 @@ world</pre>
   </div>
 </section>
 
-=== 487 real_world_parity/each_call_chain_accounts_for_full_header_width/0c3b36f4216117f8.svelte	svelte
-<section>
-  <div>
-    <div>
-      <div>
-        <div>
-          <div>
-            <div>
-              <div>
-                <div>
-                  {#each table
-                    .getAllColumns()
-                    .filter((column) => column.getCanHide()) as column (column)}
-                    <div>{column.id}</div>
-                  {/each}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-=== 487 real_world_parity/each_call_chain_accounts_for_full_header_width/fe4d8406e2f8a9e0.svelte	svelte
-<section>
-  <div>
-    <div>
-      <div>
-        <div>
-          <div>
-            <div>
-              <div>
-                <div>
-                  {#each table
-                    .getAllColumns()
-                    .filter((column) => column.getCanHide()) as column (column)}
-                    <div>{column.id}</div>
-                  {/each}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-=== 398 real_world_parity/each_expanded_call_accounts_for_full_header_width/cbe59922e85dae1c.svelte	svelte
-<section>
-  <div>
-    <div>
-      <div>
-        <div>
-          <div>
-            <div>
-              <div>
-                {#each options.filter( (option) => selectedValues.has(option.value) ) as option (option)}
-                  <div>{option.value}</div>
-                {/each}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-=== 398 real_world_parity/each_expanded_call_accounts_for_full_header_width/e62ad98b7234a594.svelte	svelte
-<section>
-  <div>
-    <div>
-      <div>
-        <div>
-          <div>
-            <div>
-              <div>
-                {#each options.filter( (option) => selectedValues.has(option.value) ) as option (option)}
-                  <div>{option.value}</div>
-                {/each}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
 === 260 real_world_parity/each_header_keeps_fitting_member_chain_inline/526c0a7f311c667c.svelte	svelte
 <Field label="Output" tag="fieldset" width="100%">
   <div class="flex flex-col gap-y-2">
@@ -13402,45 +13198,6 @@ world</pre>
 
 === 19 tailwind_functions/standalone_mustache_is_untouched/4f8cb88f2857b9be.svelte	svelte
 <p>{cn("b a")}</p>
-
-=== 75 trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/5b48c20575ee097e.svelte	svelte
-<script>
-  let flag = $state(true);
-</script>
-
-{#if flag}
-  <b>a</b>
-{/if}
-
-=== 74 trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/6c31a27208d4d289.svelte	svelte
-<script>
-  let flag = $state(true);
-</script>
-
-<div data-a={flag}>a</div>
-
-=== 61 trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/d15dae7c28fa60c3.svelte	svelte
-<script>
-  let flag = $state(true);
-</script>
-
-<b>{flag}</b>
-
-=== 66 trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/d9b6042991557371.svelte	svelte
-<script>
-  let flag = $state(true);
-</script>
-
-{@html "<i>x</i>"}
-
-=== 77 trailing_line_comment_3602/an_expression_ending_in_a_line_comment_formats/e89d92737973b5ce.svelte	svelte
-<script>
-  let flag = $state(true);
-</script>
-
-{#key flag}
-  <b>a</b>
-{/key}
 
 === 61 typescript/attribute_value_ts_cast_round_trips/41aadc006097321d.svelte	svelte
 <script lang="ts"></script>

@@ -18098,23 +18098,6 @@ export default function Directive_out_with_expr_input($$anchor) {
 	}
 ]
 
-=== 463 tests/fixtures/parser/error/directive-style-with-expr-input.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<div>A</div> <div>A</div>`, 1);
-
-export default function Directive_style_with_expr_input($$anchor) {
-	var fragment = root();
-	var div = $.first_child(fragment);
-
-	$.set_style(div, '', {}, { 'Number.EPSILON': Number.EPSILON });
-
-	var div_1 = $.sibling(div, 2);
-
-	$.set_style(div_1, '', {}, { 'Number(2)': Number(2) });
-	$.append($$anchor, fragment);
-}
 === 883 tests/fixtures/parser/error/directive-transition-with-expr-input.svelte	js
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -18263,22 +18246,6 @@ export default function Name01_input($$anchor) {
 
 	h1.textContent = 'Hello world!';
 	$.transition(3, h1, () => max-width);
-	$.append($$anchor, h1);
-}
-=== 369 tests/fixtures/parser/error/shorthand02-input.svelte	js
-import 'svelte/internal/disclose-version';
-import * as $ from 'svelte/internal/client';
-
-var root = $.from_html(`<h1></h1>`);
-
-export default function Shorthand02_input($$anchor) {
-	let name = 'world';
-	const max = 0;
-	const width = 0;
-	var h1 = root();
-
-	$.set_style(h1, '', {}, { 'max-width': max-width });
-	h1.textContent = 'Hello world!';
 	$.append($$anchor, h1);
 }
 === 210 tests/fixtures/parser/selector-parsing/simple-css-input.svelte	css

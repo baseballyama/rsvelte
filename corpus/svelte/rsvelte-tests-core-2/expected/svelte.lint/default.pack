@@ -1802,12 +1802,6 @@
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:2 12:30 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 288 dev_console_wrap_shadowing/an_instance_local_shadowing_a_module_export_keeps_its_own_value/8afb4023ab20179b.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:2 8:9 no-undef "'console' is not defined."
-
 === 427 dev_console_wrap_shadowing/an_unknown_argument_is_still_wrapped/a6267b41cd2efd9a.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9297,9 +9291,6 @@
 1:8 1:29 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 1:27 1:28 no-undef "'o' is not defined."
 
-=== 40 expression_slot_classification_3350/const_tag_classifies_its_failure/a4f7c4254373001b.svelte	lint.txt
-2:54 - - "Parsing error: ')' expected."
-
 === 80 expression_slot_classification_3350/const_tag_classifies_its_failure/c48c297ee1c7e790.svelte	lint.txt
 1:19 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
 
@@ -11749,13 +11740,6 @@ Rule: "no-unused-vars"
 2:6 2:7 no-unused-vars "'x' is assigned a value but never used."
 2:6 2:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 
-=== 329 js_script_irregular_whitespace_3312/a_string_or_comment_carrying_one_still_compiles/7f8e97bb8a108d3d.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
-2:7 2:8 no-undef "'b' is not defined."
-3:6 3:7 no-unused-vars "'x' is assigned a value but never used."
-3:6 3:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-
 === 222 js_script_irregular_whitespace_3312/a_string_or_comment_carrying_one_still_compiles/861423079a9641a7.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 no-unused-vars "'x' is assigned a value but never used."
@@ -11782,13 +11766,6 @@ Rule: "no-unused-vars"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 no-unused-vars "'x' is assigned a value but never used."
 2:6 2:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-
-=== 329 js_script_irregular_whitespace_3312/a_string_or_comment_carrying_one_still_compiles/ac89338ab357cb2f.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
-2:7 2:8 no-undef "'b' is not defined."
-3:6 3:7 no-unused-vars "'x' is assigned a value but never used."
-3:6 3:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 
 === 222 js_script_irregular_whitespace_3312/a_string_or_comment_carrying_one_still_compiles/bae778e7062f054d.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11865,12 +11842,6 @@ Rule: "no-unused-vars"
 2:6 2:7 no-unused-vars "'x' is assigned a value but never used."
 2:6 2:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 
-=== 290 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/1438c7339a36871a.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:5 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
-2:7 2:8 no-unused-vars "'x' is assigned a value but never used."
-2:7 2:8 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-
 === 290 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/18ff7de4f15d74de.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:5 2:6 no-irregular-whitespace "Irregular whitespace not allowed."
@@ -11914,12 +11885,6 @@ Rule: "svelte/indent"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 no-unused-vars "'x' is assigned a value but never used."
 2:6 2:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-
-=== 290 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/2c98da085a2a1c52.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 no-unused-vars "'x' is assigned a value but never used."
-2:6 2:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-2:7 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
 
 === 372 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/2fcb8e9fd853ec7d.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11972,13 +11937,6 @@ Rule: "svelte/indent"
 2:6 2:7 no-unused-vars "'x' is assigned a value but never used."
 2:6 2:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 
-=== 352 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/4910fcf38b7870b7.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:3 4:1 no-irregular-whitespace "Irregular whitespace not allowed."
-3:6 3:13 no-undef "'console' is not defined."
-
 === 290 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/4aabd181aa9fa2d3.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 no-unused-vars "'x' is assigned a value but never used."
@@ -12017,13 +11975,6 @@ Rule: "svelte/indent"
 2:17 2:18 no-unused-vars "'b' is assigned a value but never used."
 2:17 2:18 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 2:22 2:23 no-irregular-whitespace "Irregular whitespace not allowed."
-
-=== 371 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/578cddccac1ac624.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-2:17 2:18 no-unused-vars "'b' is assigned a value but never used."
-2:17 2:18 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
-2:22 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
 
 === 290 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/5c6ac7e2160c53a6.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12079,12 +12030,6 @@ Rule: "svelte/indent"
 2:6 2:7 no-unused-vars "'x' is assigned a value but never used."
 2:6 2:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 2:7 2:8 no-irregular-whitespace "Irregular whitespace not allowed."
-
-=== 290 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/6ee8d27e4a1f0ff9.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 no-unused-vars "'x' is assigned a value but never used."
-2:6 2:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-2:7 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
 
 === 290 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/6f72404e431378f7.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12251,13 +12196,6 @@ Rule: "svelte/indent"
 2:7 2:8 no-unused-vars "'x' is assigned a value but never used."
 2:7 2:8 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 
-=== 371 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/b8cf1f026f01352f.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-2:17 2:18 no-unused-vars "'b' is assigned a value but never used."
-2:17 2:18 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
-2:22 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
-
 === 372 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/b9f8b5d889b933fa.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
@@ -12323,25 +12261,12 @@ Rule: "svelte/indent"
 2:17 2:18 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 2:22 2:23 no-irregular-whitespace "Irregular whitespace not allowed."
 
-=== 352 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/f4dc5c8838d02c4c.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:3 4:1 no-irregular-whitespace "Irregular whitespace not allowed."
-3:6 3:13 no-undef "'console' is not defined."
-
 === 372 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/f6794d359631023d.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 2:17 2:18 no-unused-vars "'b' is assigned a value but never used."
 2:17 2:18 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 2:22 2:23 no-irregular-whitespace "Irregular whitespace not allowed."
-
-=== 290 js_script_irregular_whitespace_3312/real_js_whitespace_in_oxcs_irregular_set_still_compiles/ff8d3238720764ec.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:5 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
-2:7 2:8 no-unused-vars "'x' is assigned a value but never used."
-2:7 2:8 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 
 === 257 js_sourcemap_result_fields/css_map_keeps_its_file_key/9cd529b324770972.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12451,16 +12376,6 @@ Rule: "svelte/indent"
 1:26 1:29 svelte/valid-compile "Unused CSS selector \".a﻿\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 1:28 1:29 no-irregular-whitespace "Irregular whitespace not allowed."
 
-=== 212 js_whitespace_parser_2561/the_each_as_separator_accepts_a_line_separator/40bb84ced031fedd.svelte	lint.txt
-1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-1:30 1:44 svelte/require-each-key "Each block should have a key"
-1:38 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-
-=== 212 js_whitespace_parser_2561/the_each_as_separator_accepts_a_line_separator/7ab7d155180db0a5.svelte	lint.txt
-1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-1:30 1:44 svelte/require-each-key "Each block should have a key"
-1:38 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-
 === 93 js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/00128c065c26e6a6.svelte	lint.txt
 1:43 - - "Parsing error: Unexpected character '\u0015'\nhttps://svelte.dev/e/js_parse_error"
 
@@ -12503,11 +12418,6 @@ Rule: "svelte/indent"
 === 93 js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/112ff92714abdbac.svelte	lint.txt
 1:43 - - "Parsing error: Unexpected character '\u0010'\nhttps://svelte.dev/e/js_parse_error"
 
-=== 223 js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/127e9f14142b01fd.svelte	lint.txt
-1:13 1:14 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-1:43 1:45 svelte/mustache-spacing "Expected no space after '{', but found."
-1:44 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-
 === 80 js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/14d02d370bbfd36d.svelte	lint.txt
 1:45 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
 
@@ -12530,11 +12440,6 @@ Rule: "svelte/indent"
 
 === 93 js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/210ff8901c87c98e.svelte	lint.txt
 1:43 - - "Parsing error: Unexpected character '\u0016'\nhttps://svelte.dev/e/js_parse_error"
-
-=== 223 js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/21e964f0ed347120.svelte	lint.txt
-1:13 1:14 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-1:43 1:45 svelte/mustache-spacing "Expected no space after '{', but found."
-1:44 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
 
 === 80 js_whitespace_parser_2561/the_parser_whitespace_set_is_the_js_one/2352df2ef2156db0.svelte	lint.txt
 1:45 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
@@ -12965,9 +12870,6 @@ Rule: "svelte/indent"
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:6 2:6 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 68 js_whitespace_parser_2561/the_shared_members_behave_like_a_space/06f3c925986549be.svelte	lint.txt
-1:3 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-
 === 68 js_whitespace_parser_2561/the_shared_members_behave_like_a_space/111577e8179b6880.svelte	lint.txt
 1:3 1:4 no-irregular-whitespace "Irregular whitespace not allowed."
 
@@ -12979,10 +12881,6 @@ Rule: "svelte/indent"
 1:11 1:12 no-unused-vars "'s' is defined but never used."
 
 === 0 js_whitespace_parser_2561/the_shared_members_behave_like_a_space/2445b1254d2128f7.svelte	lint.txt
-
-=== 127 js_whitespace_parser_2561/the_shared_members_behave_like_a_space/2500873388a0ba2f.svelte	lint.txt
-1:10 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-1:11 1:12 no-unused-vars "'s' is defined but never used."
 
 === 68 js_whitespace_parser_2561/the_shared_members_behave_like_a_space/32b1825596d32fa6.svelte	lint.txt
 1:3 1:4 no-irregular-whitespace "Irregular whitespace not allowed."
@@ -13035,15 +12933,8 @@ Rule: "svelte/indent"
 === 68 js_whitespace_parser_2561/the_shared_members_behave_like_a_space/74623322f6d3cf95.svelte	lint.txt
 1:3 1:4 no-irregular-whitespace "Irregular whitespace not allowed."
 
-=== 68 js_whitespace_parser_2561/the_shared_members_behave_like_a_space/749aab3a75a1197a.svelte	lint.txt
-1:3 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-
 === 128 js_whitespace_parser_2561/the_shared_members_behave_like_a_space/7b96116addf07f28.svelte	lint.txt
 1:10 1:11 no-irregular-whitespace "Irregular whitespace not allowed."
-1:11 1:12 no-unused-vars "'s' is defined but never used."
-
-=== 127 js_whitespace_parser_2561/the_shared_members_behave_like_a_space/7c2e468d73d2d346.svelte	lint.txt
-1:10 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
 1:11 1:12 no-unused-vars "'s' is defined but never used."
 
 === 128 js_whitespace_parser_2561/the_shared_members_behave_like_a_space/84dbf66f602d4be0.svelte	lint.txt
@@ -13280,9 +13171,6 @@ Rule: "svelte/indent"
 
 === 81 known_value_evaluator_3437/a_direct_void_of_an_unknown_operand_folds_to_undefined/08e7bf9cd2c94009.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
-=== 41 known_value_evaluator_3437/a_sequence_expression_is_never_known/9b2db29f342c4993.svelte	lint.txt
-11:24 - - "Parsing error: ')' expected."
 
 === 146 known_value_evaluator_3437/equality_in_a_binding_initializer_folds_in_dev/071ef1db5069384e.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14110,9 +13998,6 @@ Rule: "svelte/indent"
 
 === 0 malformed_markup_positions/well_formed_markup_still_compiles/f4120cad1616bb13.svelte	lint.txt
 
-=== 79 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/2cd944404c6f582d.svelte	lint.txt
-3:5 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
-
 === 92 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/2e89c1157ec74951.svelte	lint.txt
 2:18 - - "Parsing error: Unterminated string constant\nhttps://svelte.dev/e/js_parse_error"
 
@@ -14136,12 +14021,6 @@ Rule: "svelte/indent"
 
 === 80 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/ac06de890973951c.svelte	lint.txt
 1:43 - - "Parsing error: Expected token )\nhttps://svelte.dev/e/expected_token"
-
-=== 80 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/b6bcad46807ea3c1.svelte	lint.txt
-2:32 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
-
-=== 79 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/c5bc4d862a4fa46e.svelte	lint.txt
-2:5 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
 
 === 85 malformed_snippet_header/a_paren_count_that_stops_inside_a_literal_or_comment_is_a_js_parse_error/cbcfea7d5e126f53.svelte	lint.txt
 1:19 - - "Parsing error: Unterminated template\nhttps://svelte.dev/e/js_parse_error"
@@ -16438,17 +16317,9 @@ Rule: "svelte/indent"
 === 39 named_slot_let_scope/a_default_slot_read_and_a_shadowed_name_still_are/4ca8ab9b56056aa1.svelte	lint.txt
 1:2 1:3 no-undef "'C' is not defined."
 
-=== 39 named_slot_let_scope/a_default_slot_read_and_a_shadowed_name_still_are/7190a65f576801b9.svelte	lint.txt
-4:2 4:3 no-undef "'C' is not defined."
-
 === 121 named_slot_let_scope/a_default_slot_read_and_a_shadowed_name_still_are/987edb77adf74fa1.svelte	lint.txt
 1:2 1:3 no-undef "'C' is not defined."
 2:33 2:48 svelte/max-attributes-per-line "'let:options' should be on a new line."
-
-=== 162 named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/09a477170072902c.svelte	lint.txt
-4:2 4:3 no-undef "'C' is not defined."
-4:17 4:32 svelte/max-attributes-per-line "'let:options' should be on a new line."
-5:23 5:24 no-undef "'E' is not defined."
 
 === 331 named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/17043c0c929eddd7.svelte	lint.txt
 4:2 4:3 no-undef "'S' is not defined."
@@ -16460,28 +16331,6 @@ Rule: "svelte/indent"
 === 121 named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/8fc7e7d1a3bd4e37.svelte	lint.txt
 4:2 4:3 no-undef "'C' is not defined."
 4:17 4:32 svelte/max-attributes-per-line "'let:options' should be on a new line."
-
-=== 121 named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/b1f41bda00b8d1f4.svelte	lint.txt
-4:2 4:3 no-undef "'C' is not defined."
-4:17 4:32 svelte/max-attributes-per-line "'let:options' should be on a new line."
-
-=== 121 named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/c3f0df2559482807.svelte	lint.txt
-4:2 4:3 no-undef "'C' is not defined."
-4:17 4:32 svelte/max-attributes-per-line "'let:options' should be on a new line."
-
-=== 121 named_slot_let_scope/a_named_slot_read_collects_no_legacy_reference/f0ad233ce0e1a177.svelte	lint.txt
-4:2 4:3 no-undef "'C' is not defined."
-4:17 4:32 svelte/max-attributes-per-line "'let:options' should be on a new line."
-
-=== 39 named_slot_let_scope/a_named_slot_read_is_not_reactive/054fad118a8cb2b1.svelte	lint.txt
-1:2 1:3 no-undef "'C' is not defined."
-
-=== 80 named_slot_let_scope/a_named_slot_read_is_not_reactive/1f913430bfa1de2c.svelte	lint.txt
-1:2 1:3 no-undef "'C' is not defined."
-2:23 2:24 no-undef "'E' is not defined."
-
-=== 39 named_slot_let_scope/a_named_slot_read_is_not_reactive/f4814aa53a465939.svelte	lint.txt
-1:2 1:3 no-undef "'C' is not defined."
 
 === 261 named_slot_let_scope/a_slotted_nodes_own_let_of_the_same_name_is_in_scope/72b3b8c491605bb7.svelte	lint.txt
 4:2 4:3 no-undef "'C' is not defined."
@@ -19144,11 +18993,6 @@ Rule: "svelte/indent"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:6 7:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
 
-=== 242 parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/39d68bb877c065d1.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
-
 === 242 parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/42739c1b886c475e.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -19174,11 +19018,6 @@ Rule: "svelte/indent"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:6 5:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
 
-=== 242 parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/589db3f3788fcd37.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
-
 === 242 parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/5c15b0227a55f021.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -19196,16 +19035,6 @@ Rule: "svelte/indent"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:6 5:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
 
-=== 242 parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/917f006e16515daf.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
-
-=== 242 parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/ad52f74a04ffdc17.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
-
 === 372 parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/bdb7778ae03b590f.svelte	lint.txt
 2:1 2:2 svelte/no-trailing-spaces "Trailing spaces not allowed."
 3:1 3:2 svelte/no-trailing-spaces "Trailing spaces not allowed."
@@ -19219,25 +19048,6 @@ Rule: "svelte/indent"
 5:6 5:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
 
 === 242 parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/e68bd31b8d46b56f.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
-
-=== 372 parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/e82c5a6a9eb0d8ad.svelte	lint.txt
-2:1 2:2 svelte/no-trailing-spaces "Trailing spaces not allowed."
-3:1 3:2 svelte/no-trailing-spaces "Trailing spaces not allowed."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:6 7:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
-
-=== 405 parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/efd3b6fcb554dbb4.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:4 svelte/indent "Expected indentation of 4 spaces but found 3 whitespaces."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:6 7:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
-
-=== 242 parenthesised_rune_positions_3315/parentheses_around_a_rune_do_not_change_a_module_script/f9c59de6b6a65f41.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:6 5:10 svelte/prefer-const "'base' is never reassigned. Use 'const' instead."
@@ -19823,22 +19633,6 @@ Rule: "svelte/indent"
 1:26 1:27 no-unused-vars "'N' is defined but never used."
 1:36 1:37 no-unused-vars "'a' is assigned a value but never used."
 
-=== 783 parse_ts_module_declaration/declare_and_global_are_present_only_when_true/0fa7602557ab055a.svelte	lint.txt
-1:1 1:68 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:19 1:59 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-1:37 1:38 no-unused-vars "'N' is defined but never used."
-1:47 1:56 no-unused-vars "'a' is defined but never used."
-
-=== 725 parse_ts_module_declaration/declare_and_global_are_present_only_when_true/16a0e803d134a0dd.svelte	lint.txt
-1:1 1:63 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:19 1:54 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-1:42 1:51 no-unused-vars "'a' is defined but never used."
-
-=== 725 parse_ts_module_declaration/declare_and_global_are_present_only_when_true/74d81e52718629cd.svelte	lint.txt
-1:1 1:67 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:19 1:58 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-1:46 1:55 no-unused-vars "'a' is defined but never used."
-
 === 89 parse_ts_module_declaration/declare_and_global_are_present_only_when_true/9ceb6c1444ee1a15.svelte	lint.txt
 1:1 1:47 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
@@ -19950,9 +19744,6 @@ Rule: "svelte/indent"
 2:7 2:18 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 2:21 2:22 no-undef "'y' is not defined."
 
-=== 40 parse_ts_types/async_generator_object_method_generics_emit_type_parameters_after_body/729366860cdbd3d6.svelte	lint.txt
-1:69 - - "Parsing error: ',' expected."
-
 === 205 parse_ts_types/class_method_generics_stay_off_the_inner_function/b658a89a2b6e4170.svelte	lint.txt
 1:1 1:52 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:25 1:26 no-unused-vars "'C' is defined but never used."
@@ -19996,16 +19787,10 @@ Rule: "svelte/indent"
 2:7 2:8 no-unused-vars "'x' is assigned a value but never used."
 2:7 2:8 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 
-=== 40 parse_ts_types/generic_arrow_emits_type_parameters_after_body/c7ebcde842cdf4b2.svelte	lint.txt
-1:50 - - "Parsing error: ',' expected."
-
 === 205 parse_ts_types/generic_function_declaration_emits_type_parameters/21ef51ae46fa3e27.svelte	lint.txt
 1:1 1:49 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:28 1:29 no-unused-vars "'f' is defined but never used."
 1:33 1:37 no-unused-vars "'x' is defined but never used."
-
-=== 40 parse_ts_types/generic_function_expression_emits_type_parameters/731b59de3ad5cf2b.svelte	lint.txt
-1:56 - - "Parsing error: ',' expected."
 
 === 273 parse_ts_types/no_typescript_unknown_stub_for_modelled_types/11713bac715d1be3.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -20046,12 +19831,6 @@ Rule: "svelte/indent"
 === 116 parse_ts_types/non_generic_function_omits_type_parameters/54ffa5ed43c9c147.svelte	lint.txt
 1:18 1:19 no-unused-vars "'f' is defined but never used."
 1:20 1:21 no-unused-vars "'x' is defined but never used."
-
-=== 40 parse_ts_types/object_function_value_keeps_type_parameters_before_params/931cc714a4a15c21.svelte	lint.txt
-1:73 - - "Parsing error: ',' expected."
-
-=== 40 parse_ts_types/object_method_generics_emit_type_parameters_after_body/a3579df3b6a09d5a.svelte	lint.txt
-1:63 - - "Parsing error: ',' expected."
 
 === 214 parse_ts_types/optional_parameter_marker_on_arrow/b7e4257e0717bbc6.svelte	lint.txt
 1:1 1:57 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -20218,11 +19997,6 @@ Rule: "svelte/indent"
 2:13 2:22 no-unused-vars "'a' is defined but never used."
 2:14 2:14 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 2:42 2:43 no-unused-vars "'a' is defined but never used."
-
-=== 224 plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/20d491fc9d358155.svelte	error.txt
-Cannot read properties of null (reading 'range')
-Occurred while linting plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/20d491fc9d358155.svelte:2
-Rule: "svelte/indent"
 
 === 242 plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/31199e86a6586877.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

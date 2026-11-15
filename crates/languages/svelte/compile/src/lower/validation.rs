@@ -25,6 +25,7 @@ pub(super) fn check_analysis(
     input: &CompileInput<'_>,
     res: &Resolution,
     names: &super::stores::Names<'_>,
+    unit: super::Unit,
     mut errors: Vec<(Raised, Diagnostic)>,
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
@@ -102,7 +103,7 @@ pub(super) fn check_analysis(
     if let Some((_, error)) = errors.next_if(|(raised, _)| raised.phase == Phase::Scopes) {
         return Err(error);
     }
-    names.check(input, res)?;
+    names.check(input, res, unit)?;
     check_legacy_props(input, res)?;
     errors.next().map_or(Ok(()), |(_, error)| Err(error))
 }

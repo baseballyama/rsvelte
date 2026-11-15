@@ -35,11 +35,17 @@ than one file, `run` runs the tasks over every file in one run, so one type chec
 whole project, and labels each output with its file. It does not take `--fix` then. `check`
 finds those files itself: it runs `ts.check/default`, or the given tasks, over every file the
 type checker selects from the `tsconfig` option of `typescript.check`, outside `node_modules`.
+`lint` runs the lint of every language over the files below the given paths, by default the
+current directory. It skips `node_modules` and `.git`, as ESLint does, and prints the problems
+in the `stylish` layout of ESLint. `format` formats the same files and writes the ones that
+change; with `--check`, it writes nothing, lists them, and exits with 1.
 
 | Command                                    | Purpose                                                         |
 | ------------------------------------------ | --------------------------------------------------------------- |
 | `run <file>... --task <identifier>`        | Run selected tasks on files, in one run                         |
 | `check [--task <identifier>]...`           | Type check the files of the project, in one run                 |
+| `lint [<path>...]`                         | Lint the files below the paths, in one run                      |
+| `format [<path>...] [--check]`             | Format the files below the paths, in one run                    |
 | `corpus <dir>... --task <identifier>`      | Write task outputs under each corpus unit's `actual/` directory |
 | `benchmark <dir> --task <identifier>`      | Measure pipeline time                                           |
 | `performance <dir>... --task <identifier>` | Measure performance counters                                    |

@@ -10283,23 +10283,6 @@
 5:6 5:7 svelte/prefer-const "'d' is never reassigned. Use 'const' instead."
 8:1 8:88 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 1122 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test02-output.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:7 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:7 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:7 svelte/prefer-const "'d' is never reassigned. Use 'const' instead."
-8:1 8:99 svelte/button-has-type "Missing an explicit type attribute for button."
-8:1 8:99 svelte/no-unused-class-name "Unused class \"\"."
-8:1 8:99 svelte/no-unused-class-name "Unused class \"c\"."
-8:1 8:99 svelte/no-unused-class-name "Unused class \"no-c\"."
-8:45 8:69 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-8:71 8:82 svelte/max-attributes-per-line "'class:c' should be on a new line."
-8:71 8:82 svelte/shorthand-directive "Expected shorthand directive."
-
 === 801 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test03-input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
@@ -10397,16 +10380,6 @@
 9:1 9:62 svelte/no-unused-class-name "Unused class \"c-and-d\"."
 9:1 9:62 svelte/no-unused-class-name "Unused class \"not-c-and-d\"."
 9:35 9:61 svelte/max-attributes-per-line "'class:not-c-and-d' should be on a new line."
-
-=== 640 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/trim-test01-input.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:13 svelte/prefer-const "'current' is never reassigned. Use 'const' instead."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:12 svelte/prefer-const "'active' is never reassigned. Use 'const' instead."
-6:1 6:80 svelte/button-has-type "Missing an explicit type attribute for button."
-6:1 6:80 svelte/no-unused-class-name "Unused class \"\"."
-6:16 6:40 svelte/prefer-class-directive "Unexpected class using the ternary operator."
-6:41 6:78 svelte/prefer-class-directive "Unexpected class using the ternary operator."
 
 === 783 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/trim-test01-output.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

@@ -16,8 +16,8 @@ export const guideExamples = {
 		'<script>\n  let count = $state(0);\n</script>\n\n<button type="button" onclick={() => count++}>\n  {count}\n</button>',
 	compile: './target/release/rsvelte run Counter.svelte --task svelte.compile/client',
 	server: './target/release/rsvelte run Counter.svelte --task svelte.compile/server',
-	format: './target/release/rsvelte run Counter.svelte --task svelte.format/default',
-	lint: './target/release/rsvelte run Counter.svelte --task svelte.lint/default',
+	format: './target/release/rsvelte format Counter.svelte',
+	lint: './target/release/rsvelte lint Counter.svelte',
 	combined:
 		'./target/release/rsvelte run Counter.svelte \\\n  --task svelte.format/default --task svelte.lint/default',
 	typedSource:

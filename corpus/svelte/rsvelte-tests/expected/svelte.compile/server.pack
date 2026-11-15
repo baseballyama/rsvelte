@@ -7595,118 +7595,12 @@ import * as $ from 'svelte/internal/server';
 export default function _11b1f272780b1d8($$renderer) {
 	$$renderer.push(`<img src="x" alt="y"/>`);
 }
-=== 67 rsvelte_lint/rules/no_unused_svelte_ignore/tests/non_css_style_ignore_is_treated_as_used/befdd05c4edb8a56.svelte	css
-.foo.svelte-igm1gj { & .bar:where(.svelte-igm1gj) { color: red; } }
-=== 198 rsvelte_lint/rules/no_unused_svelte_ignore/tests/non_css_style_ignore_is_treated_as_used/befdd05c4edb8a56.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Befdd05c4edb8a56($$renderer) {
-	$$renderer.push(`<div class="foo svelte-igm1gj"><div class="bar svelte-igm1gj"></div></div>`);
-}
-=== 672 rsvelte_lint/rules/no_unused_svelte_ignore/tests/non_css_style_ignore_is_treated_as_used/befdd05c4edb8a56.svelte	warnings.json
-[
-	{
-		"code": "element_invalid_self_closing_tag",
-		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
-		"start": {
-			"line": 1,
-			"column": 17,
-			"character": 17
-		},
-		"end": {
-			"line": 1,
-			"column": 36,
-			"character": 36
-		}
-	},
-	{
-		"code": "legacy_code",
-		"message": "`css-unused-selector` is no longer valid — please use `css_unused_selector` instead\nhttps://svelte.dev/e/legacy_code",
-		"start": {
-			"line": 2,
-			"column": 15,
-			"character": 58
-		},
-		"end": {
-			"line": 2,
-			"column": 34,
-			"character": 77
-		}
-	}
-]
-
 === 146 rsvelte_lint/rules/no_unused_svelte_ignore/tests/off_emits_nothing/56d7672d92034fcf.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function _6d7672d92034fcf($$renderer) {
 	$$renderer.push(`<img src="x" alt="y"/>`);
 }
-=== 34 rsvelte_lint/rules/no_unused_svelte_ignore/tests/plain_css_unused_ignore_is_still_reported/964da7c6a5553df3.svelte	css
-.bar.svelte-9o5gif { color: red; }
-=== 161 rsvelte_lint/rules/no_unused_svelte_ignore/tests/plain_css_unused_ignore_is_still_reported/964da7c6a5553df3.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _64da7c6a5553df3($$renderer) {
-	$$renderer.push(`<div class="bar svelte-9o5gif"></div>`);
-}
-=== 304 rsvelte_lint/rules/no_unused_svelte_ignore/tests/plain_css_unused_ignore_is_still_reported/964da7c6a5553df3.svelte	warnings.json
-[
-	{
-		"code": "legacy_code",
-		"message": "`css-unused-selector` is no longer valid — please use `css_unused_selector` instead\nhttps://svelte.dev/e/legacy_code",
-		"start": {
-			"line": 2,
-			"column": 15,
-			"character": 39
-		},
-		"end": {
-			"line": 2,
-			"column": 34,
-			"character": 58
-		}
-	}
-]
-
-=== 65 rsvelte_lint/rules/no_unused_svelte_ignore/tests/transformed_scss_unused_ignore_is_reported/e19fecebd6a045c3.svelte	css
-.foo.svelte-7vtpoo { .bar:where(.svelte-7vtpoo) { color: red; } }
-=== 198 rsvelte_lint/rules/no_unused_svelte_ignore/tests/transformed_scss_unused_ignore_is_reported/e19fecebd6a045c3.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function E19fecebd6a045c3($$renderer) {
-	$$renderer.push(`<div class="foo svelte-7vtpoo"><div class="bar svelte-7vtpoo"></div></div>`);
-}
-=== 672 rsvelte_lint/rules/no_unused_svelte_ignore/tests/transformed_scss_unused_ignore_is_reported/e19fecebd6a045c3.svelte	warnings.json
-[
-	{
-		"code": "element_invalid_self_closing_tag",
-		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
-		"start": {
-			"line": 1,
-			"column": 17,
-			"character": 17
-		},
-		"end": {
-			"line": 1,
-			"column": 36,
-			"character": 36
-		}
-	},
-	{
-		"code": "legacy_code",
-		"message": "`css-unused-selector` is no longer valid — please use `css_unused_selector` instead\nhttps://svelte.dev/e/legacy_code",
-		"start": {
-			"line": 2,
-			"column": 15,
-			"character": 58
-		},
-		"end": {
-			"line": 2,
-			"column": 34,
-			"character": 77
-		}
-	}
-]
-
 === 138 rsvelte_lint/rules/no_unused_svelte_ignore/tests/used_ignore_is_not_reported/17ae4a1084a7471f.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -10985,15 +10879,6 @@ export default function E25b3cdcd3d9b9d6($$renderer) {
 	}
 }
 
-=== 187 rsvelte_projection/svelte2tsx/script/stores/tests/state_snapshot_member_access_still_subscribes/94c15692a417ad7d.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _4c15692a417ad7d($$renderer) {
-	let state = [];
-	const snap = state;
-
-	$$renderer.push(`<!---->${$.escape(snap)}`);
-}
 === 12621 rsvelte_projection/svelte2tsx/script/stores/tests/store_scan_context_preserves_instance_then_module_import_order_at_scale/aac437e8d8008b44.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -23400,22 +23285,6 @@ export default function B26df51ce73034ac($$renderer, $$props) {
 	$$renderer.push(`<div></div>`);
 	$.bind_props($$props, { requestState: incomingRequestState });
 }
-=== 697 rsvelte_projection/svelte2tsx_namespace_export_3257/nested_namespaces_and_ambient_modules_are_walked_too/2fb80e651772bf87.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 2,
-		"column": 0,
-		"character": 19
-	},
-	"end": {
-		"line": 2,
-		"column": 48,
-		"character": 67
-	}
-}
-
 === 698 rsvelte_projection/svelte2tsx_namespace_export_3257/nested_namespaces_and_ambient_modules_are_walked_too/6c001a51139f5b51.svelte	error.json
 {
 	"code": "typescript_invalid_feature",
@@ -24467,37 +24336,6 @@ export default function Fdd2fa3721015c43($$renderer) {
 	}
 ]
 
-=== 173 rsvelte_projection/svelte2tsx_reexport_2113/named_reexport_is_hoisted_out_of_render_body/ef9d513487cc4903.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Ef9d513487cc4903($$renderer, $$props) {
-	$$renderer.push(`<p>hi</p>`);
-	$.bind_props($$props, { x });
-}
-=== 203 rsvelte_projection/svelte2tsx_reexport_2113/reexport_mixes_with_plain_named_exports_in_source_order/de9aaa4626a274d0.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function De9aaa4626a274d0($$renderer, $$props) {
-	let local = 1;
-
-	$$renderer.push(`<p>hi</p>`);
-	$.bind_props($$props, { local, x, z: y });
-}
-=== 158 rsvelte_projection/svelte2tsx_reexport_2113/reexport_of_a_local_let_still_widens_and_stays_a_prop/603d62102a5ffdc1.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function _03d62102a5ffdc1($$renderer, $$props) {
-	let x = 1;
-
-	$.bind_props($$props, { y: x });
-}
-=== 176 rsvelte_projection/svelte2tsx_reexport_2113/renamed_reexport_keeps_official_local_to_exported_mapping/f2186ac6a152b18e.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function F2186ac6a152b18e($$renderer, $$props) {
-	$$renderer.push(`<p>hi</p>`);
-	$.bind_props($$props, { y: x });
-}
 === 221 rsvelte_projection/svelte2tsx_reexport_2113/type_only_reexport_is_removed_like_official/eaaae7a32789e3f1.svelte	error.json
 {
 	"code": "js_parse_error",
@@ -27135,9 +26973,6 @@ export default function _cfb2b8120add6c6($$renderer, $$props) {
 	}
 }
 
-=== 53 rsvelte_projection/svelte2tsx_slot_value0_rule/dynamic_slot_attribute_on_a_slot_element_keeps_the_slot_prop/36e13c4f5dd374c9.svelte	error.txt
-Cannot read properties of undefined (reading 'data')
-
 === 250 rsvelte_projection/svelte2tsx_slot_value0_rule/empty_slot_attribute_is_still_a_named_slot/ebfe5a6374584c85.svelte	js
 import * as $ from 'svelte/internal/server';
 import Comp from './C.svelte';
@@ -27182,41 +27017,6 @@ export default function Ebfe5a6374584c85($$renderer) {
 		"character": 82
 	}
 }
-
-=== 348 rsvelte_projection/svelte2tsx_slot_value0_rule/interpolated_slot_attribute_on_a_slot_element_keeps_the_slot_prop/8562adffe2dd3415.svelte	js
-import * as $ from 'svelte/internal/server';
-import Comp from './C.svelte';
-
-export default function _562adffe2dd3415($$renderer, $$props) {
-	let b = 'x';
-
-	Comp($$renderer, {
-		$$slots: {
-			a: ($$renderer) => {
-				$$renderer.push(`<!--[-->`);
-				$.slot($$renderer, $$props, 'default', {}, null);
-				$$renderer.push(`<!--]-->`);
-			}
-		}
-	});
-}
-=== 329 rsvelte_projection/svelte2tsx_slot_value0_rule/interpolated_slot_attribute_on_a_slot_element_keeps_the_slot_prop/8562adffe2dd3415.svelte	warnings.json
-[
-	{
-		"code": "slot_element_deprecated",
-		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
-		"start": {
-			"line": 2,
-			"column": 6,
-			"character": 65
-		},
-		"end": {
-			"line": 2,
-			"column": 27,
-			"character": 86
-		}
-	}
-]
 
 === 260 rsvelte_projection/svelte2tsx_slot_value0_rule/let_bindings_of_a_dynamic_slot_child_resolve_to_nothing/a8c838f9cc899c8d.svelte	error.json
 {
@@ -29203,12 +29003,6 @@ import * as $ from 'svelte/internal/server';
 export default function C3d0b02a875b2285($$renderer) {
 	$$renderer.push(`<div${$.attr_style('', { color: 'a b' })}></div>`);
 }
-=== 176 rsvelte_projection/svelte2tsx_style_directive_blanking/the_blanked_run_is_the_decoded_value_not_the_raw_source/df8e0908e878150f.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Df8e0908e878150f($$renderer) {
-	$$renderer.push(`<div${$.attr_style('', { color: 'a&amp;b' })}></div>`);
-}
 === 174 rsvelte_projection/svelte2tsx_style_directive_blanking/the_preserved_class_is_javascripts_whitespace_not_rusts/1227b0c2a2eed479.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -29286,12 +29080,6 @@ import * as $ from 'svelte/internal/server';
 
 export default function _ef8b493047b9f67($$renderer) {
 	$$renderer.push(`<div${$.attr_style('', { color: '' })}></div>`);
-}
-=== 187 rsvelte_projection/svelte2tsx_style_directive_blanking/the_quote_comes_from_the_source/d4bb55ff2d386e22.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function D4bb55ff2d386e22($$renderer) {
-	$$renderer.push(`<div${$.attr_style('', { color: 'say &quot;hi&quot;' })}></div>`);
 }
 === 197 rsvelte_projection/svelte2tsx_style_directive_blanking/the_shapes_that_do_not_go_through_blanking_are_unchanged/53d5572aeab2fb3e.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -30543,38 +30331,6 @@ export default function _fd2e410c07c101d($$renderer) {
 		"line": 2,
 		"column": 16,
 		"character": 35
-	}
-}
-
-=== 260 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/06a6ed83909b32c0.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Cannot use await in class static initialization block\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 2,
-		"column": 24,
-		"character": 43
-	},
-	"end": {
-		"line": 2,
-		"column": 24,
-		"character": 43
-	}
-}
-
-=== 697 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/070bec3752f0534a.svelte	error.json
-{
-	"code": "typescript_invalid_feature",
-	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
-	"start": {
-		"line": 2,
-		"column": 0,
-		"character": 19
-	},
-	"end": {
-		"line": 2,
-		"column": 41,
-		"character": 60
 	}
 }
 
@@ -32247,22 +32003,6 @@ export default function _8a6d07dd145067a($$renderer) {
 		"line": 3,
 		"column": 11,
 		"character": 46
-	}
-}
-
-=== 260 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/ef7c2ebb965e3245.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Cannot use await in class static initialization block\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 3,
-		"column": 24,
-		"character": 62
-	},
-	"end": {
-		"line": 3,
-		"column": 24,
-		"character": 62
 	}
 }
 
