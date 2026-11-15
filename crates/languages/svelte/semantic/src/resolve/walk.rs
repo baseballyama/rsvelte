@@ -1,5 +1,6 @@
 use rsvelte_typescript_tree::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
+    TypeParametersIdentifier,
 };
 
 use crate::compiler_syntax_tree::{
@@ -42,6 +43,8 @@ pub trait Roots {
     fn declaration(&mut self, declaration: DeclarationIdentifier);
     fn pattern(&mut self, pattern: PatternIdentifier);
     fn parameters(&mut self, parameters: ParametersIdentifier);
+    /// The `<T>` of `{#snippet name<T>()}`, which only types read.
+    fn type_parameters(&mut self, _: TypeParametersIdentifier) {}
     fn name(&mut self, name: TemplateName);
     fn enter(&mut self, scope: TemplateScope);
     fn leave(&mut self);
@@ -58,6 +61,7 @@ enum Root {
     Declaration(DeclarationIdentifier),
     Pattern(PatternIdentifier),
     Parameters(ParametersIdentifier),
+    TypeParameters(TypeParametersIdentifier),
     Name(TemplateName),
     Enter(TemplateScope),
     Leave,
@@ -82,6 +86,10 @@ impl Roots for Vec<Root> {
 
     fn parameters(&mut self, parameters: ParametersIdentifier) {
         self.push(Root::Parameters(parameters));
+    }
+
+    fn type_parameters(&mut self, parameters: TypeParametersIdentifier) {
+        self.push(Root::TypeParameters(parameters));
     }
 
     fn name(&mut self, name: TemplateName) {
@@ -114,6 +122,7 @@ impl Recorded {
                 Root::Declaration(d) => roots.declaration(d),
                 Root::Pattern(p) => roots.pattern(p),
                 Root::Parameters(p) => roots.parameters(p),
+                Root::TypeParameters(p) => roots.type_parameters(p),
                 Root::Name(n) => roots.name(n),
                 Root::Enter(s) => roots.enter(s),
                 Root::Leave => roots.leave(),
@@ -242,6 +251,9 @@ fn node(
         NodeKind::Snippet(s) => {
             roots.name(TemplateName::Snippet(identifier));
             roots.enter(TemplateScope::Snippet(identifier));
+            if let Some(generics) = s.generics {
+                roots.type_parameters(generics);
+            }
             if let Some(parameters) = s.parameters {
                 roots.parameters(parameters);
             }

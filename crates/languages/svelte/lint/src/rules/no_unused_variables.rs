@@ -178,7 +178,15 @@ fn subscribed_stores(
         return stores;
     };
     let scoping = resolution.scoping();
-    let scopes = [resolution.instance_scope(), scoping.root_scope_id()];
+    // The root fragment's names are top-level names to `svelte-eslint-parser`.
+    let root = file
+        .normalized()
+        .and_then(|tree| resolution.template_scope(TemplateScope::Fragment(tree.root)));
+    let scopes = [
+        Some(resolution.instance_scope()),
+        Some(scoping.root_scope_id()),
+        root,
+    ];
     for (name, references) in scoping.root_unresolved_references() {
         let name = name.as_str();
         let Some(store) = name.strip_prefix('$') else {
@@ -189,6 +197,7 @@ fn subscribed_stores(
         }
         for symbol in scopes
             .iter()
+            .flatten()
             .filter_map(|&scope| scoping.get_binding(scope, store.into()))
         {
             stores.entry(symbol).or_default().extend(references);
@@ -250,38 +259,100 @@ fn component_snippets(file: &File<'_>, out: &mut FxHashSet<SymbolId>) {
     }
 }
 
-/// `svelte-eslint-parser` reads `<script module>` and `<script>` as one scope, so a top-level
-/// name both declare is one variable: unused only when neither is used, and then reported once.
+/// `svelte-eslint-parser` reads some scopes that Svelte keeps apart as one: the scripts' and the
+/// root fragment's top level, and a block's parameters with its body. A name two of them declare
+/// is one variable: unused only when neither is used, and then reported once.
 fn shared_names(file: &File<'_>, out: &mut FxHashSet<SymbolId>) {
     let Some(resolution) = file.resolution() else {
         return;
     };
     let scoping = resolution.scoping();
     let (module, instance) = (scoping.root_scope_id(), resolution.instance_scope());
-    if module == instance {
-        return;
+    let fragment = |children| resolution.template_scope(TemplateScope::Fragment(children));
+    let mut pairs = Vec::new();
+    if module != instance {
+        pairs.push((module, Some(instance)));
     }
-    for (name, &second) in scoping.get_bindings(instance) {
-        let Some(first) = scoping.get_binding(module, *name) else {
+    if let Some(tree) = file.normalized() {
+        let root = fragment(tree.root);
+        pairs.push((instance, root));
+        if module != instance {
+            pairs.push((module, root));
+        }
+        for (identifier, node) in tree.nodes.iter_enumerated() {
+            let blocks = match &node.kind {
+                NodeKind::Snippet(snippet) => [
+                    Some((TemplateScope::Snippet(identifier), snippet.body)),
+                    None,
+                ],
+                NodeKind::Each(each) => [Some((TemplateScope::Each(identifier), each.body)), None],
+                NodeKind::Await(a) => [
+                    a.then().map(|then| (TemplateScope::Then(identifier), then)),
+                    a.catch()
+                        .map(|catch| (TemplateScope::Catch(identifier), catch)),
+                ],
+                _ => continue,
+            };
+            for (scope, body) in blocks.into_iter().flatten() {
+                if let Some(scope) = resolution.template_scope(scope) {
+                    pairs.push((scope, fragment(body)));
+                }
+            }
+        }
+    }
+    for (outer, inner) in pairs {
+        let Some(inner) = inner else {
             continue;
         };
-        if is_read(scoping, first) || is_read(scoping, second) {
-            out.extend([first, second]);
-            continue;
+        for (name, &second) in scoping.get_bindings(inner) {
+            if let Some(first) = scoping.get_binding(outer, *name) {
+                share(file, scoping, first, second, out);
+            }
         }
-        let (earlier, later) =
-            if scoping.symbol_span(first).start <= scoping.symbol_span(second).start {
-                (first, second)
-            } else {
-                (second, first)
-            };
-        // `ESLint` reports at the last write, or at the first declaration when nothing writes.
-        out.insert(if is_assigned(file, scoping, later) {
-            earlier
-        } else {
-            later
-        });
     }
+}
+
+/// Marks one of two declarations of one variable used, or both when either is.
+fn share(
+    file: &File<'_>,
+    scoping: &Scoping,
+    first: SymbolId,
+    second: SymbolId,
+    out: &mut FxHashSet<SymbolId>,
+) {
+    let used = |symbol| {
+        out.contains(&symbol) || is_read(scoping, symbol) || is_exported(file, scoping, symbol)
+    };
+    if used(first) || used(second) {
+        out.extend([first, second]);
+        return;
+    }
+    let (earlier, later) = if scoping.symbol_span(first).start <= scoping.symbol_span(second).start
+    {
+        (first, second)
+    } else {
+        (second, first)
+    };
+    // `ESLint` reports at the last write, or at the first declaration when nothing writes.
+    out.insert(if is_assigned(file, scoping, later) {
+        earlier
+    } else {
+        later
+    });
+}
+
+/// Declared by an `export` declaration.
+fn is_exported(file: &File<'_>, scoping: &Scoping, symbol: SymbolId) -> bool {
+    let nodes = file.nodes();
+    let declaration = scoping.symbol_declaration(symbol);
+    let owner = match nodes.kind(declaration) {
+        AstKind::VariableDeclarator(_) => nodes.parent_id(declaration),
+        _ => declaration,
+    };
+    matches!(
+        nodes.parent_kind(owner),
+        AstKind::ExportDeclaration(_) | AstKind::ExportDefaultDeclaration(_)
+    )
 }
 
 /// A value or type reference that reads the symbol.

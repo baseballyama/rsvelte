@@ -51,7 +51,7 @@ pub fn no_unused_variables<'r>(
             AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_)
                 if is_setter_parameter(&f, declaration)
                     || (is_plain_parameter(&f, symbol, declaration)
-                        && !is_after_last_used_parameter(&f, symbol, declaration)) =>
+                        && !is_after_last_used_parameter(&f, declaration)) =>
             {
                 continue;
             }
@@ -100,10 +100,19 @@ pub fn no_unused_variables<'r>(
     }
     // A `this` parameter is a variable to typescript-eslint and never has a reference.
     for node in f.nodes.iter() {
-        if let AstKind::Function(function) = node.kind()
-            && let Some(this) = &function.this_param
-            && !(function.body.is_some() && any_parameter_used(&f, &function.params))
-        {
+        let this = match node.kind() {
+            AstKind::Function(function)
+                if !(function.body.is_some() && any_parameter_used(&f, &function.params)) =>
+            {
+                &function.this_param
+            }
+            // A signature has no body, so `after-used` never spares its parameters.
+            AstKind::TSFunctionType(signature) => &signature.this_param,
+            AstKind::TSMethodSignature(signature) => &signature.this_param,
+            AstKind::TSCallSignatureDeclaration(signature) => &signature.this_param,
+            _ => continue,
+        };
+        if let Some(this) = this {
             reporter.range("'this' is defined but never used.", span(this.span));
         }
     }
@@ -171,22 +180,28 @@ fn is_plain_parameter(f: &Facts<'_>, symbol: SymbolId, parameter: NodeId) -> boo
     }
 }
 
-/// `isAfterLastUsedArg`: no later parameter of the same function is used.
-fn is_after_last_used_parameter(f: &Facts<'_>, symbol: SymbolId, parameter: NodeId) -> bool {
-    let Some(list) = f.parent(parameter) else {
+/// `isAfterLastUsedArg`: no later parameter of the same function has a reference, where a
+/// default value is a write reference to each name its pattern declares.
+fn is_after_last_used_parameter(f: &Facts<'_>, parameter: NodeId) -> bool {
+    let Some(AstKind::FormalParameters(list)) = f.parent(parameter).map(|list| f.kind(list)) else {
         return true;
     };
     let after = f.span(parameter).end;
-    let end = f.span(list).end;
-    let scope = f.scoping.symbol_scope_id(symbol);
-    !f.scoping.symbol_ids().any(|later| {
-        let at = f.scoping.symbol_span(later);
-        later != symbol
-            && f.scoping.symbol_scope_id(later) == scope
-            && at.start >= after
-            && at.end <= end
-            && !f.scoping.get_resolved_reference_ids(later).is_empty()
-    })
+    let later = list
+        .items
+        .iter()
+        .filter(|item| item.span.start >= after)
+        .map(|item| &item.pattern)
+        .chain(list.rest.as_ref().map(|rest| &rest.rest.argument));
+    !later
+        .flat_map(BindingPattern::get_binding_identifiers)
+        .filter_map(|identifier| identifier.symbol_id.get())
+        .any(|symbol| {
+            !f.scoping.get_resolved_reference_ids(symbol).is_empty()
+                || f.identifiers[symbol.index()]
+                    .iter()
+                    .any(|&identifier| f.written_where_declared(identifier))
+        })
 }
 
 fn is_exported(f: &Facts<'_>, declaration: NodeId) -> bool {
@@ -227,13 +242,20 @@ fn function_definition(f: &Facts<'_>, declaration: NodeId) -> Option<NodeId> {
 }
 
 fn is_used(f: &Facts<'_>, symbol: SymbolId, declaration: NodeId, uses: &[Use]) -> bool {
+    // eslint-scope declares a class's name again in the class's scope, so a reference from inside
+    // the class reads that variable instead.
+    let own_class = matches!(f.kind(declaration), AstKind::Class(_)).then_some(declaration);
+    let inside_class = |node: NodeId| {
+        own_class.is_some_and(|class| f.nodes.ancestor_ids(node).any(|a| a == class))
+    };
     let typed = f
         .scoping
         .get_resolved_reference_ids(symbol)
         .iter()
         .any(|&id| {
-            let flags = f.scoping.get_reference(id).flags();
-            flags.is_type() || flags.is_value_as_type()
+            let reference = f.scoping.get_reference(id);
+            let flags = reference.flags();
+            (flags.is_type() || flags.is_value_as_type()) && !inside_class(reference.node_id())
         });
     if typed || f.qualified.contains(&symbol) {
         return true;
@@ -241,7 +263,7 @@ fn is_used(f: &Facts<'_>, symbol: SymbolId, declaration: NodeId, uses: &[Use]) -
     let function = function_definition(f, declaration);
     let declaration_scope = f.scoping.symbol_scope_id(symbol);
     let mut rhs = None;
-    uses.iter().any(|u| {
+    uses.iter().filter(|u| !inside_class(u.node)).any(|u| {
         let for_itself = is_read_for_itself(f, u, rhs);
         rhs = rhs_node(f, u, rhs, declaration_scope);
         is_for_in_of_reference(f, u)

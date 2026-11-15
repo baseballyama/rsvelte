@@ -35,3 +35,14 @@ fn an_ignore_of_a_runtime_warning_is_unused() {
                 {@html a}\n";
     assert_eq!(lint(code), [(3, 19), (6, 20)]);
 }
+
+// The oracle reports the first three: upstream strips the ignore comments before it compiles, so
+// nothing warns the codes only those comments warn.
+#[test]
+fn an_ignore_of_a_code_only_comments_warn_is_unused() {
+    let code = "<svelte:options runes={true} />\n<!-- svelte-ignore unknown_code -->\n<div>\n\t\
+                <!-- svelte-ignore zzz-yyy -->\n\t<span>x</span>\n</div>\n\
+                <!-- svelte-ignore legacy_code -->\n<!-- svelte-ignore a11y-missing-attribute -->\n\
+                <img src=\"a.png\">\n";
+    assert_eq!(lint(code), [(2, 20), (4, 21), (7, 20)]);
+}

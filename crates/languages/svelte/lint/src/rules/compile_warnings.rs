@@ -484,8 +484,14 @@ pub(super) fn decidable(item: &IgnoreItem, source: &str) -> bool {
     let named = |codes: &[&str]| {
         codes.contains(&item.code.text(source)) || codes.contains(&item.code_for_v5.as_str())
     };
-    named(CompileWarnings::CODES) || named(&RUNTIME_CODES) || !named(CompileWarnings::SVELTE_CODES)
+    named(CompileWarnings::CODES)
+        || named(&RUNTIME_CODES)
+        || named(&COMMENT_CODES)
+        || !named(CompileWarnings::SVELTE_CODES)
 }
+
+/// The codes only an ignore comment warns, which upstream strips before it compiles.
+const COMMENT_CODES: [&str; 2] = ["legacy_code", "unknown_code"];
 
 /// Svelte's `IGNORABLE_RUNTIME_WARNINGS`, which `compile` never returns.
 const RUNTIME_CODES: [&str; 8] = [
