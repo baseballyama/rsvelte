@@ -363,6 +363,7 @@ impl P<'_> {
         let element = self.eat(b':');
         let name = self.identifier()?;
         let mut selectors = Vec::new();
+        let mut nth = Vec::new();
         let arguments = if self.eat(b'(') {
             let a = self.position;
             let name = name.text(self.source_text);
@@ -375,7 +376,7 @@ impl P<'_> {
                     }
                 }
             } else if NTH.iter().any(|nth| name.eq_ignore_ascii_case(nth)) {
-                self.selector_list(true)?;
+                nth = self.selector_list(true)?;
             } else {
                 self.skip_balanced_until(b")")?;
             }
@@ -397,6 +398,7 @@ impl P<'_> {
                 name,
                 arguments,
                 selectors: selectors.into_boxed_slice(),
+                nth: nth.into_boxed_slice(),
             }
         })
     }

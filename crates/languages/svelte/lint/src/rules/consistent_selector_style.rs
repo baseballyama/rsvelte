@@ -430,10 +430,14 @@ impl<'r> Check<'r, '_, '_> {
                     Simple::NamespacedType { span, name } if name.text(source) != "*" => {
                         self.check(Selected::Type, *span, name.text(source));
                     }
-                    Simple::PseudoClass { selectors, .. }
-                    | Simple::PseudoElement { selectors, .. }
+                    Simple::PseudoClass { selectors, nth, .. }
                         if self.rule.check_global || !simple.is_pseudo(source, &["global"]) =>
                     {
+                        for selector in selectors.iter().chain(nth) {
+                            self.selector(selector);
+                        }
+                    }
+                    Simple::PseudoElement { selectors, .. } => {
                         for selector in selectors {
                             self.selector(selector);
                         }

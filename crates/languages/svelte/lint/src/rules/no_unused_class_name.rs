@@ -133,7 +133,12 @@ fn selector_classes<'a>(
                 Simple::Class { name, .. } => {
                     out.insert(sheet.text(*name, source));
                 }
-                Simple::PseudoClass { selectors, .. } | Simple::PseudoElement { selectors, .. } => {
+                Simple::PseudoClass { selectors, nth, .. } => {
+                    for selector in selectors.iter().chain(nth) {
+                        selector_classes(sheet, source, selector, out);
+                    }
+                }
+                Simple::PseudoElement { selectors, .. } => {
                     for selector in selectors {
                         selector_classes(sheet, source, selector, out);
                     }

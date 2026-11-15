@@ -1,4 +1,4 @@
-# svelte.lint/default: 37040 match
+# svelte.lint/default: 37049 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -102,7 +102,6 @@ svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_ar
 svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/d0c7745dd73fa0f6.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/d19e82e3c15ba56b.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/e2a71600612d7577.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_pseudo_class_args/of_separator_keeps_its_source_whitespace/d5dd996e64733f9b.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_scss_line_comment_position/block_item_lookahead_distinguishes_line_comment_declarations_and_rules/275ae4c764f3a8ea.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_scss_line_comment_position/line_comment_declaration_uses_the_first_word_as_its_property/e87804372b604b75.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_scss_line_comment_position/quotes_in_line_comment_values_can_span_multiple_block_items/db93a09c67157fc9.svelte	mismatch
@@ -119,10 +118,6 @@ svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_empty_selector_
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/b8fc896b6d2ce9e7.svelte	unexpected
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/e25afc0dacd98fca.svelte	unexpected
 svelte/rsvelte-tests-core-1/css_selector_parse_3404_3405_3406/the_column_combinator_is_read_and_a_lone_bar_is_not/9b5baa38cc0628f7.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_selector_syntax_5_56_10/a_scoped_pseudo_class_keeps_its_source_spelling/da31ac17065cbeab.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_selector_syntax_5_56_10/nth_of_accepts_a_selector_list/a82807863802368f.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_selector_syntax_5_56_10/nth_of_parses_without_whitespace_after_of/6ffbf7e8271d0509.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_selector_syntax_5_56_10/nth_of_parses_without_whitespace_after_of/eadb641b87965cbe.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_combinator_before_the_lists_comma_is_reported_at_the_comma/d75326b91cf774f6.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/469f9ee6fb52670c.svelte	mismatch
 svelte/rsvelte-tests-core-1/css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/63726b51828a2ed1.svelte	mismatch
@@ -628,8 +623,6 @@ svelte/rsvelte/lint/sort-attributes/06-custom-order-modifiers.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/components/component-callee-shapes.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/components/component-self-and-recursion.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/css/css-comment-positions.svelte	mismatch
-svelte/rsvelte/pattern/adversarial/css/css-scope-hostile.svelte	mismatch
-svelte/rsvelte/pattern/adversarial/css/css-selector-modern-features.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/css/rejected-global-keyframes-selector.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/expressions/rejected-snippet-rest.svelte	mismatch
 svelte/rsvelte/pattern/adversarial/legacy/legacy-export-renames-and-const.svelte	mismatch
@@ -649,7 +642,6 @@ svelte/rsvelte/pattern/issues/3194-strict-annex-b-function.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-invalid-escape.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-octal-escape.svelte	mismatch
 svelte/rsvelte/pattern/issues/3194-strict-octal-number.svelte	mismatch
-svelte/rsvelte/pattern/issues/3195-nth-of-selector-list.svelte	mismatch
 svelte/rsvelte/pattern/issues/3199-grammar-import-source.svelte	mismatch
 svelte/rsvelte/pattern/issues/3201-template-strict-param-clash.svelte	mismatch
 svelte/rsvelte/pattern/issues/3218-expected-token-point.svelte	mismatch
@@ -685,7 +677,6 @@ svelte/svelte/packages/svelte/tests/migrate/samples/is-not-where-has/output.svel
 svelte/svelte/packages/svelte/tests/migrate/samples/svelte-ignore/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/migrate/samples/svelte-ignore/output.svelte	mismatch
 svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-property-non-reactive-ignored-2/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-property-non-reactive-ignored/main.svelte	mismatch
