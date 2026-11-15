@@ -1,4 +1,4 @@
-# svelte.check/default: 34880 match
+# svelte.check/default: 34882 match
 svelte/animotion/src/lib/components/code.svelte	mismatch
 svelte/appwrite-console/src/lib/components/bottomModalAlert.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/spreadsheet.svelte	mismatch
@@ -75,7 +75,6 @@ svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_compone
 svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/a_plain_component_script_uses_the_same_diagnostic_after_its_offset/47c9312bd7216844.svelte	mismatch
 svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/696aaefc0ff5653b.svelte	mismatch
 svelte/rsvelte-tests-core-3/root_fragment_scope_3375/a_top_level_snippet_may_shadow_a_module_script_const/8f79cd7fce7f75de.svelte	mismatch
-svelte/rsvelte-tests-core-3/tag_directive_parse_errors/unterminated_expression_is_blamed_on_the_expression/47fcc67c341578b3.svelte	mismatch
 svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/a_style_closer_with_only_whitespace_is_consumed_whole/1165f809cf132996.svelte	mismatch
 svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/a_textarea_closer_keeps_taking_everything_up_to_the_bracket/8c8524746c866ada.svelte	mismatch
 svelte/rsvelte-tests-core-3/tag_scanning_3393_3395_3450/text_after_a_style_closer_survives/0088599d9714f97a.svelte	mismatch
@@ -119,7 +118,6 @@ svelte/rsvelte-tests-formatter/markup_cast_head_parens/type_operator_operand_mat
 svelte/rsvelte-tests-formatter/render_neutral_divergences/a_style_close_tag_keeps_its_internal_whitespace/f9b7f23dbe8da7ae.svelte	mismatch
 svelte/rsvelte-tests-formatter/typescript/plain_script_with_import_type_formats_as_ts/4c8f2777ba39e75b.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_content_mapper/tests/a_broken_script_body_is_left_for_typescript_to_report/33018fc5a929c17c.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_language_server/completions/tests/the_component_doc_comment_is_offered/3088745555afdfa8.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/folding/tests/a_document_being_typed_still_folds/9a8f6b5e0cd9dd2d.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/folding/tests/no_input_panics/a7896b97746ed2b6.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_language_server/hover/tests/a_css_property_name_in_a_script_is_not_a_css_hover/52402c94c98c8d94.svelte	mismatch

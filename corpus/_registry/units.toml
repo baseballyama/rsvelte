@@ -3278,6 +3278,7 @@
 
 ["svelte/rsvelte-tests-core-3/ts_decorators_2597/a_decorator_under_a_default_export_is_not_the_reported_error/f758f4def7740efe.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx moves the instance script into a function, so a statement allowed only at the top level (`export default`, `export import`) reports TS's error for its new place"
+"svelte.compile" = "upstream bug: acorn-typescript reads a decorated class after `export default` as a class expression, so svelte 5.57.3 ends the export at the `;` that ECMAScript and TypeScript read as an empty statement"
 
 ["svelte/rsvelte-tests-core-3/ts_type_import_value_redeclaration/type_imports_collide_with_value_declarations_at_the_second_name/0681114feeabb165.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx moves the instance script into a function, so a statement allowed only at the top level (`export default`, `export import`) reports TS's error for its new place"
@@ -4147,6 +4148,21 @@
 "svelte.compile" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a string, and parses them with ` => {}` appended, so it rejects a valid header"
 "svelte.check" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a string, and parses them with ` => {}` appended, so it rejects a valid header, which svelte-check reports"
 "svelte.lint" = "upstream bug: svelte 5.57.3 ends a snippet's parameters at the first `)` it counts in the raw text, here one inside a string, and parses them with ` => {}` appended, so it rejects a valid header, which svelte/valid-compile reports"
+
+["svelte/rsvelte-tests-core-2/module_ts_class_modifier_3538/a_keyword_that_is_not_a_modifier_still_compiles/df32a9aa45fc0a00.svelte".skip]
+"svelte.compile" = "upstream bug: acorn-typescript reads `static` before a line break in a class body as a field name, so svelte 5.57.3 prints `static; a = 1;` where TypeScript and JavaScript read `static a = 1`"
+
+["svelte/rsvelte/lint/require-store-reactive-access/16-await-shadow.svelte".skip]
+"svelte.compile/client" = "upstream bug: a `{:catch}` branch shares its parent's transforms, so its error's `$.get` read leaks by name to the blocks after it"
+
+["svelte/rsvelte-tests-core-2/module_destructure_state_assign/same_named_plain_values_are_not_signals/2f896a111888b079.svelte.js".skip]
+"svelte.compileModule/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/rsvelte/pattern/issues/3180-snapshot-position.svelte.js".skip]
+"svelte.compileModule/server" = "upstream bug: the server drops `$state.snapshot` from a declarator's initializer (`let a = $state.snapshot(x)` emits `let a = x`), so the copy aliases the original"
+
+["svelte/rsvelte-tests-core-2/parser_hardening/declaration_tag_multibyte_type_annotation_does_not_panic/47244ebc480a595e.svelte".skip]
+"svelte.compile" = "upstream bug: without `lang=\"ts\"` svelte 5.57.3 reads a `{@const}` type annotation as `_ as T` spliced 5 bytes before the colon and takes acorn's end of `_` as its position, so `expected_token` lands inside the name"
 
 ["svelte/flowbite-svelte/src/lib/forms/tags/Tags.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
