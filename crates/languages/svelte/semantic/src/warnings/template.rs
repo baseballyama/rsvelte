@@ -19,6 +19,8 @@ use crate::resolve::Resolution;
 mod element;
 mod opening;
 mod placement;
+#[cfg(test)]
+mod tests;
 
 /// What the walk of the template reads besides the tree.
 pub(super) struct Context<'a> {

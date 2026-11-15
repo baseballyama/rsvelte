@@ -490,3 +490,6 @@ pub(super) fn ignored(found: &[(Stage, Diagnostic)], regions: &[Region]) -> Vec<
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests;
