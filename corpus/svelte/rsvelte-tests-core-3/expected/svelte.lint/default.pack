@@ -110,20 +110,10 @@
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:6 13:13 svelte/prefer-const "'pending' is never reassigned. Use 'const' instead."
 
-=== 222 reactive_comment_attachment_3469/client_drops_the_comment_for_the_three_exotic_line_endings/161527d8f33a20ab.svelte	lint.txt
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:5 2:6 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-2:16 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
-
 === 230 reactive_comment_attachment_3469/client_drops_the_comment_for_the_three_exotic_line_endings/a23ba72ff268dc62.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:5 2:6 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-
-=== 222 reactive_comment_attachment_3469/client_drops_the_comment_for_the_three_exotic_line_endings/cb9a675d531782db.svelte	lint.txt
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:5 2:6 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-2:16 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
 
 === 230 reactive_comment_attachment_3469/client_keeps_the_lf_and_crlf_controls/481b9adbbb376555.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -1633,12 +1623,6 @@
 2:6 2:8 svelte/prefer-const "'nm' is never reassigned. Use 'const' instead."
 4:9 4:24 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 
-=== 544 root_fragment_scope_3375/a_root_const_colliding_with_an_instance_let_reports_the_placement/f20de58cd3047783.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:16 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
-4:1 4:16 svelte/valid-compile "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`\nhttps://svelte.dev/e/const_tag_invalid_placement(const_tag_invalid_placement)"
-4:9 4:11 no-unused-vars "'nm' is assigned a value but never used."
-
 === 396 root_fragment_scope_3375/a_root_const_without_a_collision_is_unchanged/a3990ecedc973088.svelte	lint.txt
 1:1 1:19 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 1:1 1:19 svelte/valid-compile "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`\nhttps://svelte.dev/e/const_tag_invalid_placement(const_tag_invalid_placement)"
@@ -1656,11 +1640,6 @@
 4:21 4:36 svelte/valid-compile "`<title>` can only contain text and {tags}\nhttps://svelte.dev/e/title_invalid_content(title_invalid_content)"
 4:29 4:31 no-unused-vars "'nm' is assigned a value but never used."
 4:36 4:41 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-
-=== 278 root_fragment_scope_3375/a_top_level_declaration_tag_collides_with_an_instance_let/d6f97735300930aa.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:6 5:9 no-unused-vars "'foo' is assigned a value but never used."
-5:6 5:9 svelte/valid-compile "`foo` has already been declared\nhttps://svelte.dev/e/declaration_duplicate(declaration_duplicate)"
 
 === 81 root_fragment_scope_3375/a_top_level_snippet_may_shadow_a_module_script_const/8f79cd7fce7f75de.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1688,12 +1667,6 @@
 4:1 4:16 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 4:1 4:16 svelte/valid-compile "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`\nhttps://svelte.dev/e/const_tag_invalid_placement(const_tag_invalid_placement)"
 4:9 4:11 no-import-assign "'nm' is read-only."
-4:9 4:11 no-unused-vars "'nm' is assigned a value but never used."
-
-=== 544 root_fragment_scope_3375/the_placement_wins_over_every_collision_kind/90c18d536656c3c9.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:1 4:16 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
-4:1 4:16 svelte/valid-compile "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`\nhttps://svelte.dev/e/const_tag_invalid_placement(const_tag_invalid_placement)"
 4:9 4:11 no-unused-vars "'nm' is assigned a value but never used."
 
 === 477 root_fragment_scope_3375/the_placement_wins_over_every_collision_kind/9e048826486160a0.svelte	lint.txt
@@ -2233,36 +2206,14 @@
 3:5 3:8 svelte/prefer-const "'out' is never reassigned. Use 'const' instead."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 145 script_line_terminators_3278/a_line_comment_ends_at_a_separator/2a7ab545a2f4f697.svelte	lint.txt
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:5 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
-
-=== 145 script_line_terminators_3278/a_line_comment_ends_at_a_separator/9bdd1b8f421ef909.svelte	lint.txt
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:5 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
-
 === 154 script_line_terminators_3278/a_line_comment_ends_at_a_separator/fdeb02f2713a52fe.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-
-=== 353 script_line_terminators_3278/a_reactive_statement_on_a_cr_or_separator_line_keeps_its_effect/366a42887f77332a.svelte	lint.txt
-1:9 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-1:14 1:15 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-2:11 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
-3:14 4:1 no-irregular-whitespace "Irregular whitespace not allowed."
-4:10 5:1 no-irregular-whitespace "Irregular whitespace not allowed."
 
 === 230 script_line_terminators_3278/a_reactive_statement_on_a_cr_or_separator_line_keeps_its_effect/9b8c07ef0bc520f1.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:5 2:6 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-
-=== 353 script_line_terminators_3278/a_reactive_statement_on_a_cr_or_separator_line_keeps_its_effect/b34b06b5d8d058cf.svelte	lint.txt
-1:9 2:1 no-irregular-whitespace "Irregular whitespace not allowed."
-1:14 1:15 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-2:11 3:1 no-irregular-whitespace "Irregular whitespace not allowed."
-3:14 4:1 no-irregular-whitespace "Irregular whitespace not allowed."
-4:10 5:1 no-irregular-whitespace "Irregular whitespace not allowed."
 
 === 154 script_line_terminators_3278/the_lf_spelling_is_unchanged/0fe78d1dc79c7546.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -3537,9 +3488,6 @@
 1:13 1:17 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
 
 === 0 server_empty_class_expression_4059/an_empty_static_class_is_still_dropped/27274dfa564cb06e.svelte	lint.txt
-
-=== 58 server_empty_class_expression_4059/an_empty_static_class_is_still_dropped/cba9a77990ec7af3.svelte	lint.txt
-1:1 1:17 svelte/no-unused-class-name "Unused class \"\"."
 
 === 81 server_fold_value_type_3653/a_const_initializer_folds_with_js_coercion/08afb8592342b74b.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5762,9 +5710,6 @@
 1:1 1:23 svelte/valid-compile "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`\nhttps://svelte.dev/e/const_tag_invalid_placement(const_tag_invalid_placement)"
 1:9 1:10 no-unused-vars "'x' is assigned a value but never used."
 1:13 1:14 no-undef "'a' is not defined."
-
-=== 40 special_tag_bracket_scan/const_tag_parenthesized_sequence_is_allowed/037fe7256f948e1d.svelte	lint.txt
-2:33 - - "Parsing error: ')' expected."
 
 === 503 special_tag_bracket_scan/const_tag_regex_comma_is_not_a_sequence/bbff3f100043a620.svelte	lint.txt
 1:1 1:27 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
@@ -9964,9 +9909,6 @@
 === 40 tag_directive_parse_errors/valid_tags_still_compile/bc59bd10f32a8aa6.svelte	lint.txt
 1:9 1:10 no-undef "'p' is not defined."
 
-=== 40 tag_directive_parse_errors/valid_tags_still_compile/ca1e7ed514ca3dc9.svelte	lint.txt
-2:67 - - "Parsing error: ')' expected."
-
 === 168 tag_directive_parse_errors/valid_tags_still_compile/dddb77e994324b80.svelte	lint.txt
 1:1 1:17 svelte/require-each-key "Each block should have a key"
 1:17 1:31 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
@@ -10077,9 +10019,6 @@
 1:9 1:29 svelte/valid-compile "This element is implicitly closed by the following `</select>`, which can cause an unexpected DOM structure. Add an explicit `</optgroup>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed(element_implicitly_closed)"
 1:29 1:37 svelte/valid-compile "This element is implicitly closed by the following `<option>`, which can cause an unexpected DOM structure. Add an explicit `</option>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed(element_implicitly_closed)"
 1:38 1:46 svelte/valid-compile "This element is implicitly closed by the following `</select>`, which can cause an unexpected DOM structure. Add an explicit `</option>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed(element_implicitly_closed)"
-
-=== 89 tag_scanning_3393_3395_3450/a_root_script_is_not_closed_by_a_closer_carrying_junk/1861257dbcd04089.svelte	lint.txt
-1:25 1:27 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
 
 === 90 tag_scanning_3393_3395_3450/a_root_script_is_not_closed_by_a_closer_carrying_junk/b1477bd7c857f350.svelte	lint.txt
 1:29 - - "Parsing error: `<script>` was left open\nhttps://svelte.dev/e/element_unclosed"
@@ -12407,32 +12346,8 @@
 1:1 2:2 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
 1:22 2:2 svelte/mustache-spacing "Expected no space before '}', but found."
 
-=== 40 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/19b64d511d2a58f9.svelte	lint.txt
-3:65 - - "Parsing error: ')' expected."
-
-=== 40 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/27c87aa51582232b.svelte	lint.txt
-3:29 - - "Parsing error: ')' expected."
-
-=== 40 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/2e3ad48ee43c8bdc.svelte	lint.txt
-7:14 - - "Parsing error: ')' expected."
-
-=== 40 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/357dfc3d4748dea5.svelte	lint.txt
-3:14 - - "Parsing error: ')' expected."
-
-=== 40 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/7774b278d017cb9c.svelte	lint.txt
-3:23 - - "Parsing error: ')' expected."
-
 === 58 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/858cc2723134379e.svelte	lint.txt
 1:11 1:12 no-unused-vars "'s' is defined but never used."
-
-=== 40 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/9b7916838f5442fb.svelte	lint.txt
-3:16 - - "Parsing error: ')' expected."
-
-=== 40 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/9e6bf0cb719e5b0d.svelte	lint.txt
-5:10 - - "Parsing error: ')' expected."
-
-=== 40 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/dcc440a866db1d34.svelte	lint.txt
-3:26 - - "Parsing error: ')' expected."
 
 === 406 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/e25c21d94a883fc2.svelte	lint.txt
 1:1 2:3 svelte/button-has-type "Missing an explicit type attribute for button."
@@ -12440,9 +12355,6 @@
 1:24 1:28 no-undef "'sink' is not defined."
 1:36 2:2 svelte/mustache-spacing "Expected no space before '}', but found."
 2:2 2:2 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
-
-=== 40 template_expr_trailing_line_comment_3287/trailing_line_comment_before_expression_terminator/e36998062761fd6b.svelte	lint.txt
-3:47 - - "Parsing error: '}' expected."
 
 === 430 template_expression_comment_3112/a_comment_written_before_the_script_is_skipped/bcfd111e5a2fa7a7.svelte	lint.txt
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -20964,24 +20876,6 @@
 7:1 7:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 41 trailing_line_comment_3602/const_tag_destructuring_initializer_survives/1bbc1da7f91ecf2f.svelte	lint.txt
-11:70 - - "Parsing error: '}' expected."
-
-=== 41 trailing_line_comment_3602/const_tag_initializer_survives/7c1cca8553798b5f.svelte	lint.txt
-11:63 - - "Parsing error: '}' expected."
-
-=== 41 trailing_line_comment_3602/every_rejecting_host_compiles/2954fb9e5fcf630f.svelte	lint.txt
-12:30 - - "Parsing error: ')' expected."
-
-=== 41 trailing_line_comment_3602/every_rejecting_host_compiles/295f6086c1ed3366.svelte	lint.txt
-10:15 - - "Parsing error: ')' expected."
-
-=== 40 trailing_line_comment_3602/every_rejecting_host_compiles/2ccd099fc932f111.svelte	lint.txt
-8:12 - - "Parsing error: ')' expected."
-
-=== 41 trailing_line_comment_3602/every_rejecting_host_compiles/44f1ee907b033ac7.svelte	lint.txt
-10:14 - - "Parsing error: ')' expected."
-
 === 619 trailing_line_comment_3602/every_rejecting_host_compiles/5b33fa9fbc93a011.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:10 no-unused-vars "'flag' is assigned a value but never used."
@@ -20991,12 +20885,6 @@
 3:6 3:10 svelte/prefer-const "'rows' is never reassigned. Use 'const' instead."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:22 11:2 svelte/mustache-spacing "Expected no space before '}', but found."
-
-=== 40 trailing_line_comment_3602/every_rejecting_host_compiles/7f6f89d2d564d872.svelte	lint.txt
-8:18 - - "Parsing error: ')' expected."
-
-=== 40 trailing_line_comment_3602/every_rejecting_host_compiles/c388dd61e1e7a2bd.svelte	lint.txt
-8:12 - - "Parsing error: ')' expected."
 
 === 324 trailing_script_comment_2727/trailing_line_comment_stays_outside_the_generated_setter/a55e99832dcd22d5.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -21212,26 +21100,6 @@
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:11 no-unused-vars "'count' is assigned a value but never used."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:14 no-unused-vars "'obj' is assigned a value but never used."
-3:6 3:14 svelte/prefer-const "'obj' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:11 4:12 no-unused-vars "'f' is defined but never used."
-
-=== 618 ts_assertion_assignment_targets/simple_assignment_lhs_preserves_the_assertion/b3a8fa26c276743a.svelte	lint.txt
-1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:11 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:14 no-unused-vars "'obj' is assigned a value but never used."
-3:6 3:14 svelte/prefer-const "'obj' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:11 4:12 no-unused-vars "'f' is defined but never used."
-
-=== 618 ts_assertion_assignment_targets/simple_assignment_lhs_preserves_the_assertion/e0f35b7937e18d75.svelte	lint.txt
-1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:11 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:14 no-unused-vars "'obj' is assigned a value but never used."
 3:6 3:14 svelte/prefer-const "'obj' is never reassigned. Use 'const' instead."
@@ -23870,12 +23738,6 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 820 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/01bcf43fd86af194.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:1 2:47 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-
 === 1032 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/02737ca387ba77dc.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
@@ -23890,16 +23752,6 @@
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:1 2:36 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
 2:11 2:12 no-unused-vars "'N' is defined but never used."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-
-=== 1090 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/2b44b741a37c9939.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
-1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:1 2:40 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-2:19 2:20 no-unused-vars "'N' is defined but never used."
-2:29 2:38 no-unused-vars "'a' is defined but never used."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
 === 1030 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/434c03c06225fed1.svelte	lint.txt
@@ -23917,27 +23769,10 @@
 2:8 2:43 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 974 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/5d6c5de6ae8b0b55.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
-1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:1 2:47 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-
 === 820 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/6ac1549e9a237553.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:8 2:40 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-
-=== 1032 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/7a5db3fcfa0a3d34.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
-1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:1 2:35 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-2:24 2:33 no-unused-vars "'g' is defined but never used."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
 === 974 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/99ccbdbd54485df7.svelte	lint.txt
@@ -23946,21 +23781,6 @@
 1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:8 2:40 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-
-=== 878 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/a16e6fb98c0725cd.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:1 2:35 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-2:24 2:33 no-unused-vars "'g' is defined but never used."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-
-=== 936 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/c6bb79422a6087a7.svelte	lint.txt
-1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:1 2:40 svelte/valid-compile "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-2:19 2:20 no-unused-vars "'N' is defined but never used."
-2:29 2:38 no-unused-vars "'a' is defined but never used."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
 === 974 ts_namespace_3244/a_namespace_with_non_type_nodes_is_rejected_through_every_modifier/c96929dc24f9565c.svelte	lint.txt

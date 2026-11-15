@@ -22215,22 +22215,6 @@ line two"
   }
 </style>
 
-=== 283 pattern/adversarial/css/css-custom-property-values.svelte	svelte
-<div class="v">vars</div>
-
-<style>
-  .v {
-    --empty: ;
-    --json: '{ "k": 1 }';
-    --arr: [1, 2];
-    --sel: a > b ~c;
-    --parens: calc((1px + 2px) * 3);
-    --semi-free: 1px 2px, 3px 4px;
-    --url: url("/x.png");
-    padding: var(--parens, var(--semi-free, 0));
-  }
-</style>
-
 === 226 pattern/adversarial/css/css-escaped-selectors.svelte	svelte
 <div class="hover:red md:w-1/2 日本語 a:b">x</div>
 
@@ -37261,33 +37245,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 </script>
 
 <b>x</b>
-
-=== 484 pattern/issues/3195-nth-of-selector-list.svelte	svelte
-<ul>
-  <li class="a">a</li>
-  <li class="b">b</li>
-  <li class="excluded">c</li>
-</ul>
-
-<style>
-  /* the `of` argument is a selector LIST, so a comma and a combinator both
-	   have to parse — with and without the whitespace after `of` */
-  li:nth-child(2n of .a, .b) {
-    color: red;
-  }
-
-  li:nth-child(2n of.a, .b) {
-    color: green;
-  }
-
-  li:nth-last-child(-n + 3 of .a.b, :not(.excluded)) {
-    color: blue;
-  }
-
-  li:nth-child(2n of *) {
-    font-weight: bold;
-  }
-</style>
 
 === 985 pattern/issues/3195-private-state-logical-assignment.svelte	svelte
 <script>

@@ -10023,53 +10023,6 @@ export default function Chat_list($$renderer, $$props) {
 		$.bind_props($$props, { ref });
 	});
 }
-=== 428 src/lib/components/ui/chat/loading-dots.svelte	css
-
-	span.svelte-k2x6sv {
-		animation-name: svelte-k2x6sv-loading-dots;
-		animation-duration: 1.4s;
-		animation-iteration-count: infinite;
-		animation-fill-mode: both;
-	}
-
-	span.svelte-k2x6sv:nth-of-type(2) {
-		animation-delay: 0.2s;
-	}
-
-	span.svelte-k2x6sv:nth-of-type(3) {
-		animation-delay: 0.4s;
-	}
-
-	@keyframes svelte-k2x6sv-loading-dots {
-		0% {
-			opacity: 0.2;
-		}
-		20% {
-			opacity: 1;
-		}
-		to {
-			opacity: 0.2;
-		}
-	}
-
-=== 611 src/lib/components/ui/chat/loading-dots.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Loading_dots($$renderer, $$props) {
-	let { size = 4 } = $$props;
-
-	$$renderer.push(`<div class="inline-flex items-center gap-1 svelte-k2x6sv"${$.attr_style('', { '--loading-dots-size': `${$.stringify(size)}px` })}><!--[-->`);
-
-	const each_array = $.ensure_array_like({ length: 3 });
-
-	for (let i = 0, $$length = each_array.length; i < $$length; i++) {
-		let _ = each_array[i];
-
-		$$renderer.push(`<span class="bg-primary inline-block size-(--loading-dots-size) rounded-full svelte-k2x6sv"></span>`);
-	}
-
-	$$renderer.push(`<!--]--></div>`);
-}
 === 2906 src/lib/components/ui/checkbox/checkbox.svelte	js
 import * as $ from 'svelte/internal/server';
 import { Checkbox as CheckboxPrimitive } from 'bits-ui';

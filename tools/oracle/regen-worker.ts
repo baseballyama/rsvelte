@@ -11,6 +11,8 @@ export interface Job {
 	variant: string;
 	family: string;
 	source: string;
+	/** The paths of the selected units, when not all of them run. */
+	paths: string[] | undefined;
 	/** The slice of the source's applicable units; a per-source task always takes all of them. */
 	from: number;
 	to: number;
@@ -32,7 +34,11 @@ async function run(job: Job): Promise<JobResult> {
 	const task = taskById(job.task);
 	const variant = task.variants.find((v) => v.id === job.variant)!;
 	const all = allUnits([job.source], [job.family]);
-	const units = all.filter((u) => applies(task, variant.id, u)).slice(job.from, job.to);
+	const chosen = job.paths && new Set(job.paths);
+	const units = all
+		.filter((u) => applies(task, variant.id, u))
+		.filter((u) => !chosen || chosen.has(u.path))
+		.slice(job.from, job.to);
 	let results: Map<string, Record<string, Artifact>>;
 	if (task.runSource && units.length) {
 		results = await task.runSource(all, variant);

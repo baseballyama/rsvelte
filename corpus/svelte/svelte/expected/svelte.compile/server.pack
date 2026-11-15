@@ -37,23 +37,6 @@ export default function App($$renderer) {
 
 	$$renderer.push(`<!--]--></div>`);
 }
-=== 282 packages/svelte/tests/compiler-errors/samples/const-tag-cyclical/main.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Main($$renderer) {
-	if (true) {
-		$$renderer.push('<!--[0-->');
-
-		const a = b;
-		const b = a;
-
-		$$renderer.push(`<h1>hello </h1>`);
-	} else {
-		$$renderer.push('<!--[-1-->');
-	}
-
-	$$renderer.push(`<!--]-->`);
-}
 === 957 packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -113,56 +96,6 @@ export default function Main($$renderer) {
 			$$renderer.push(`<!--]-->`);
 		});
 	}
-}
-=== 835 packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-2/main.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Main($$renderer) {
-	{
-		function prop($$renderer) {
-			const foo = 'bar';
-
-			$$renderer.push(`<!---->bar`);
-		}
-
-		Component($$renderer, {
-			prop,
-			children: ($$renderer) => {
-				const foo = 'bar';
-
-				$$renderer.push(`<!---->bar `);
-
-				{
-					function prop($$renderer) {
-						$$renderer.push(`<!---->bar`);
-					}
-
-					Component($$renderer, { prop, $$slots: { prop: true } });
-				}
-
-				$$renderer.push(`<!---->`);
-			},
-			$$slots: { prop: true, default: true }
-		});
-	}
-
-	$$renderer.push(`<!----> `);
-
-	{
-		function prop($$renderer) {
-			$$renderer.push(`<!---->bar`);
-		}
-
-		Component($$renderer, {
-			prop,
-			children: ($$renderer) => {
-				const foo = 'bar';
-			},
-			$$slots: { prop: true, default: true }
-		});
-	}
-
-	$$renderer.push(`<!---->`);
 }
 === 434 packages/svelte/tests/css/samples/animations/input.svelte	css
 
@@ -15279,94 +15212,6 @@ export default function Output($$renderer, $$props) {
 		$$renderer.push(`<!---->`);
 	});
 }
-=== 282 packages/svelte/tests/migrate/samples/svelte-element/input.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Input($$renderer) {
-	$.element($$renderer, 'div');
-	$$renderer.push(` `);
-	$.element($$renderer, 'div');
-	$$renderer.push(` `);
-	$.element($$renderer, "div");
-	$$renderer.push(` `);
-	$.element($$renderer, 'h');
-}
-=== 1094 packages/svelte/tests/migrate/samples/svelte-element/input.svelte	warnings.json
-[
-	{
-		"code": "svelte_element_invalid_this",
-		"message": "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this",
-		"start": {
-			"line": 1,
-			"column": 16,
-			"character": 16
-		},
-		"end": {
-			"line": 1,
-			"column": 26,
-			"character": 26
-		}
-	},
-	{
-		"code": "svelte_element_invalid_this",
-		"message": "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this",
-		"start": {
-			"line": 2,
-			"column": 16,
-			"character": 46
-		},
-		"end": {
-			"line": 2,
-			"column": 26,
-			"character": 56
-		}
-	},
-	{
-		"code": "svelte_element_invalid_this",
-		"message": "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this",
-		"start": {
-			"line": 6,
-			"column": 16,
-			"character": 171
-		},
-		"end": {
-			"line": 6,
-			"column": 27,
-			"character": 182
-		}
-	}
-]
-
-=== 283 packages/svelte/tests/migrate/samples/svelte-element/output.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Output($$renderer) {
-	$.element($$renderer, "div");
-	$$renderer.push(` `);
-	$.element($$renderer, 'div');
-	$$renderer.push(` `);
-	$.element($$renderer, "div");
-	$$renderer.push(` `);
-	$.element($$renderer, 'h');
-}
-=== 368 packages/svelte/tests/migrate/samples/svelte-element/output.svelte	warnings.json
-[
-	{
-		"code": "svelte_element_invalid_this",
-		"message": "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this",
-		"start": {
-			"line": 6,
-			"column": 16,
-			"character": 175
-		},
-		"end": {
-			"line": 6,
-			"column": 27,
-			"character": 186
-		}
-	}
-]
-
 === 224 packages/svelte/tests/migrate/samples/svelte-ignore/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -61629,47 +61474,6 @@ export default function Main($$renderer, $$props) {
 	children($$renderer);
 	$$renderer.push(`<!---->`);
 }
-=== 946 packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte	js
-import * as $ from 'svelte/internal/server';
-
-function counter1($$renderer, c) {
-	$$renderer.push(`<!---->${$.escape(c)}`);
-}
-
-function counter2($$renderer, { c }) {
-	$$renderer.push(`<!---->${$.escape(c)}`);
-}
-
-function counter3($$renderer, c) {
-	$$renderer.push(`<!---->${$.escape(c)}`);
-}
-
-function counter4($$renderer, c = 4) {
-	$$renderer.push(`<!---->${$.escape(c)}`);
-}
-
-function counter5($$renderer, c = 5) {
-	$$renderer.push(`<!---->${$.escape(c)}`);
-}
-
-function counter6($$renderer, c, d) {
-	$$renderer.push(`<!---->${$.escape(c)}${$.escape(d)}`);
-}
-
-export default function Main($$renderer) {
-	counter1($$renderer, 1);
-	$$renderer.push(`<!----> `);
-	counter2($$renderer, { c: 2 });
-	$$renderer.push(`<!----> `);
-	counter3($$renderer, 3);
-	$$renderer.push(`<!----> `);
-	counter4($$renderer);
-	$$renderer.push(`<!----> `);
-	counter5($$renderer);
-	$$renderer.push(`<!----> `);
-	counter6($$renderer, 6, 'a');
-	$$renderer.push(`<!---->`);
-}
 === 270 packages/svelte/tests/runtime-runes/samples/snippet-undefined/main.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -62105,22 +61909,6 @@ export default function Main($$renderer) {
 	state[5] = true;
 	$$renderer.push(`<div>${$.escape(2 in $.snapshot(state))}</div> <div>${$.escape(5 in $.snapshot(state))}</div>`);
 }
-=== 444 packages/svelte/tests/runtime-runes/samples/state-snapshot-date/main.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Main($$renderer, $$props) {
-	$$renderer.component(($$renderer) => {
-		let test = { a: new Date() };
-		let test2 = test;
-		let test3 = { a: new Date() };
-		let test4 = structuredClone(test3);
-
-		$$renderer.push(`<!---->${$.escape(test.a instanceof Date)}
-${$.escape(test2.a instanceof Date)}
-${$.escape(test3.a instanceof Date)}
-${$.escape(test4.a instanceof Date)}`);
-	});
-}
 === 372 packages/svelte/tests/runtime-runes/samples/state-snapshot-svelte-date/main.svelte	js
 import * as $ from 'svelte/internal/server';
 import { SvelteDate } from 'svelte/reactivity';
@@ -62144,33 +61932,6 @@ export default function Main($$renderer) {
 
 	$$renderer.push(`<div${$.attributes({ ...$.snapshot(arr) })}>a</div>`);
 }
-=== 280 packages/svelte/tests/runtime-runes/samples/state-snapshot/main.svelte	js
-import * as $ from 'svelte/internal/server';
-
-export default function Main($$renderer) {
-	let items = [{ a: 0 }];
-	let start = items;
-
-	$$renderer.push(`<!---->${$.escape(JSON.stringify(start))} <button>${$.escape(JSON.stringify(structuredClone($.snapshot(items))))}</button>`);
-}
-=== 352 packages/svelte/tests/runtime-runes/samples/state-snapshot/main.svelte	warnings.json
-[
-	{
-		"code": "event_directive_deprecated",
-		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
-		"start": {
-			"line": 7,
-			"column": 8,
-			"character": 126
-		},
-		"end": {
-			"line": 7,
-			"column": 54,
-			"character": 172
-		}
-	}
-]
-
 === 250 packages/svelte/tests/runtime-runes/samples/state-space/main.svelte	js
 import * as $ from 'svelte/internal/server';
 
