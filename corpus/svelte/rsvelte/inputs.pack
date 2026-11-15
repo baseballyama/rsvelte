@@ -47601,6 +47601,11 @@ export function unbraced(cond) {
 	}
 </script>
 
+=== 37 pattern/javascript-name-escape-of-a-space.svelte	svelte	runes	rejected
+<script>
+	let a\u0020 = 1;
+</script>
+
 === 576 pattern/leading-line-comment-destructure-init.svelte	svelte	runes	rejected
 <script>
 	export let focusIndex = -1;

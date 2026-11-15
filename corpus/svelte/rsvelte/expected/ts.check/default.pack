@@ -11198,6 +11198,22 @@ ENOSPC: no space left on device, mkdtemp '/var/folders/1t/sbjc_qrd47nfm6ggb_qz32
 	}
 ]
 
+=== 158 pattern/javascript-name-escape-of-a-space.svelte	json
+[
+	{
+		"code": 1127,
+		"message": "Invalid character.",
+		"start": {
+			"line": 1,
+			"character": 6
+		},
+		"end": {
+			"line": 1,
+			"character": 6
+		}
+	}
+]
+
 === 3 pattern/leading-line-comment-destructure-init.svelte	json
 []
 

@@ -4806,3 +4806,6 @@
 
 ["svelte/rsvelte/pattern/class-member-name.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser fails on a directive name Svelte compiles, such as `use:a.b`, `transition:a.b`, `animate:a.b`, `class:A.B`, `bind:this` or `style:max-width`"
+
+["svelte/rsvelte/pattern/javascript-name-escape-of-a-space.svelte".skip]
+"svelte.check" = "checker: TS 7 spans an invalid character in a name's escape over one character, where TS 6 gives it no length"

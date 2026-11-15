@@ -4,3 +4,4 @@ svelte/rsvelte-tests-core-2/plain_js_typescript_diagnostics_3304/compile_module_
 svelte/rsvelte-tests-formatter/markup_patterns/let_directive_value_is_formatted_as_an_expression/ac7edb54ecf01f25.svelte	mismatch
 svelte/rsvelte/lint/no-nested-style-tag/06-self-closing-top.svelte	mismatch
 svelte/rsvelte/pattern/issues/3218-expected-token-point.svelte	mismatch
+svelte/rsvelte/pattern/javascript-name-escape-of-a-space.svelte	refused
