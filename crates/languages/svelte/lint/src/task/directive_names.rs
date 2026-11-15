@@ -32,8 +32,8 @@ pub(super) fn rejection(component: &Component) -> Option<(String, u32)> {
             };
             let expression = tree.get_expression(expression);
             let found = match expression {
-                // Svelte takes a name like `a.b` or `this` as one identifier; the parser reads it as
-                // code.
+                // Svelte takes a name like `a.b` or `this` as one identifier; the parser reads it
+                // as code.
                 Expression::Identifier(name) if !reads_as_identifier(&name.name) => {
                     reread_type(&name.name)?
                 }
