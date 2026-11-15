@@ -165,7 +165,14 @@ impl Task for Lint {
                 context.source_text(),
                 error.span.start_offset,
             ) {
-                typescript_eslint_rejection(context)
+                typescript_eslint_rejection(context).or_else(|| {
+                    let component = context
+                        .get::<rsvelte_svelte_syntax::Parsed>()
+                        .as_ref()
+                        .ok()?;
+                    let (message, at) = grammar::scanner_rejection(component)?;
+                    Some((Cow::Owned(message), at))
+                })
             } else {
                 Some((
                     Cow::Borrowed(error.message.as_str()),

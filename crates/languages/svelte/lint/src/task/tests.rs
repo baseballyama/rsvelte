@@ -244,3 +244,34 @@ fn a_grammar_error_svelte_lets_pass_fails_the_parse() {
         );
     }
 }
+
+/// tsc's scanner rejects what the compiler rejects only in its analysis, in its own words.
+#[test]
+fn a_legacy_octal_or_a_source_import_fails_the_parse() {
+    for (script, message, column) in [
+        ("let e = '\\8';", "Escape sequence '\\8' is not allowed.", 9),
+        (
+            "let e = 'abc\\251def';",
+            "Octal escape sequences are not allowed. Use the syntax '\\xa9'.",
+            12,
+        ),
+        (
+            "let e = 0755;",
+            "Octal literals are not allowed. Use the syntax '0o755'.",
+            8,
+        ),
+        ("import source w from './w.js';", "'=' expected.", 14),
+    ] {
+        let source = format!("<script>\n{script}\n</script>\n<b>x</b>\n");
+        let document = Document::new("App.svelte".to_owned(), source).expect("a small document");
+        let (json, _) = lint_with("svelte/valid-compile", &document, |_| {});
+        let finding = &json["findings"][0];
+        let expected = format!("Parsing error: {message}");
+        assert_eq!(finding["message"].as_str(), Some(&*expected), "{script}");
+        assert_eq!(
+            finding["start"]["column"].as_u64(),
+            Some(column),
+            "{script}"
+        );
+    }
+}
