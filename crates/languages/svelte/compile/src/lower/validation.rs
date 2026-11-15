@@ -54,6 +54,14 @@ pub(super) fn check_analysis(
         };
         (raised, error)
     }));
+    errors.extend(markup::unparenthesized_sequence(input).map(|(at, error)| {
+        let raised = Raised {
+            phase: Phase::Walk,
+            section: Section::Template,
+            at,
+        };
+        (raised, error)
+    }));
     // The rune walk's template error, which upstream meets in the same walk as the template's.
     let script = (errors.iter())
         .any(|(raised, _)| raised.section == Section::Template)

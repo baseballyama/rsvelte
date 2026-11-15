@@ -1,6 +1,4 @@
-# svelte.compile/client: 35114 match
-svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/component_sequence_error_points_at_the_expression/c1314d8fdd09c86c.svelte	unexpected
-svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/element_sequence_error_points_at_the_expression/35ccaf71b9485683.svelte	unexpected
+# svelte.compile/client: 35116 match
 svelte/rsvelte-tests-core-2/direct_component_parent_3141/const_tag_placement_still_separates_the_two/4538b5b50e0bf370.svelte	unexpected
 svelte/rsvelte-tests-core-2/early_errors_3243/the_analyze_phase_duplicate_check_is_still_reachable/d6fd0ea8bba6d45d.svelte	unexpected
 svelte/rsvelte-tests-core-2/js_whitespace_parser_2561/block_markers_reject_a_nel/d17180b037ec6515.svelte	mismatch

@@ -1,4 +1,4 @@
-# svelte.lint/default: 37132 match
+# svelte.lint/default: 37134 match
 svelte/appwrite-console/src/lib/components/billing/planSelection.svelte	mismatch
 svelte/appwrite-console/src/lib/components/csvExportBox.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/export/+page.svelte	mismatch
@@ -36,8 +36,6 @@ svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_i
 svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/4809229d13f750f6.svelte	mismatch
 svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/7e0bf9a55c019a47.svelte	mismatch
 svelte/rsvelte-tests-core-1/attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/af4e901d46ddc2c3.svelte	mismatch
-svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/component_sequence_error_points_at_the_expression/c1314d8fdd09c86c.svelte	mismatch
-svelte/rsvelte-tests-core-1/attribute_sequence_error_spans/element_sequence_error_points_at_the_expression/35ccaf71b9485683.svelte	mismatch
 svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/the_shapes_official_already_gets_right_are_unchanged/62731713e2ae3407.svelte	mismatch
 svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/three_string_literals_in_a_script_report_three_times/afdac586527470e9.svelte	mismatch
 svelte/rsvelte-tests-core-1/bidi_every_occurrence_3344/two_quasis_of_one_template_literal_report_twice/a623ecae2f12e62a.svelte	mismatch
