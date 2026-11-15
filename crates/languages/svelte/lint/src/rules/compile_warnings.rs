@@ -471,5 +471,17 @@ pub(super) fn decidable(item: &IgnoreItem, source: &str) -> bool {
     let named = |codes: &[&str]| {
         codes.contains(&item.code.text(source)) || codes.contains(&item.code_for_v5.as_str())
     };
-    named(CompileWarnings::CODES) || !named(CompileWarnings::SVELTE_CODES)
+    named(CompileWarnings::CODES) || named(&RUNTIME_CODES) || !named(CompileWarnings::SVELTE_CODES)
 }
+
+/// Svelte's `IGNORABLE_RUNTIME_WARNINGS`, which `compile` never returns.
+const RUNTIME_CODES: [&str; 8] = [
+    "await_waterfall",
+    "await_reactivity_loss",
+    "state_snapshot_uncloneable",
+    "binding_property_non_reactive",
+    "hydration_attribute_changed",
+    "hydration_html_changed",
+    "ownership_invalid_binding",
+    "ownership_invalid_mutation",
+];
