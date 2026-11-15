@@ -2007,34 +2007,6 @@
 === 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/strictEvents.svelte	json
 []
 
-=== 485 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/style-directive/input.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type 'true' is not assignable to parameter of type 'String | Number | null | undefined'.",
-		"start": {
-			"line": 16,
-			"character": 11
-		},
-		"end": {
-			"line": 16,
-			"character": 16
-		}
-	},
-	{
-		"code": 2345,
-		"message": "Argument of type 'true' is not assignable to parameter of type 'String | Number | null | undefined'.",
-		"start": {
-			"line": 17,
-			"character": 18
-		},
-		"end": {
-			"line": 17,
-			"character": 23
-		}
-	}
-]
-
 === 560 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	json
 [
 	{
@@ -2425,22 +2397,6 @@
 	}
 ]
 
-=== 165 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-component-import.svelte	json
-[
-	{
-		"code": 2304,
-		"message": "Cannot find name 'Empty'.",
-		"start": {
-			"line": 4,
-			"character": 1
-		},
-		"end": {
-			"line": 4,
-			"character": 6
-		}
-	}
-]
-
 === 348 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component.svelte	json
 [
 	{
@@ -2533,34 +2489,6 @@
 		"end": {
 			"line": 5,
 			"character": 35
-		}
-	}
-]
-
-=== 348 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component4.svelte	json
-[
-	{
-		"code": 2304,
-		"message": "Cannot find name 'FixAllImported'.",
-		"start": {
-			"line": 4,
-			"character": 1
-		},
-		"end": {
-			"line": 4,
-			"character": 15
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'FixAllImported2'.",
-		"start": {
-			"line": 5,
-			"character": 1
-		},
-		"end": {
-			"line": 5,
-			"character": 16
 		}
 	}
 ]
@@ -2971,34 +2899,6 @@
 === 3 packages/language-server/test/plugins/typescript/testfiles/completions/emptytext-importer.svelte	json
 []
 
-=== 381 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-2nd-import.svelte	json
-[
-	{
-		"code": 2307,
-		"message": "Cannot find module './to-import' or its corresponding type declarations.",
-		"start": {
-			"line": 1,
-			"character": 31
-		},
-		"end": {
-			"line": 1,
-			"character": 44
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'ScndImpor'.",
-		"start": {
-			"line": 2,
-			"character": 4
-		},
-		"end": {
-			"line": 2,
-			"character": 13
-		}
-	}
-]
-
 === 3 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-new-line.svelte	json
 []
 
@@ -3148,22 +3048,6 @@
 		"end": {
 			"line": 10,
 			"character": 9
-		}
-	}
-]
-
-=== 234 packages/language-server/test/plugins/typescript/testfiles/completions/string-completion.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '\"@\"' is not assignable to parameter of type '\"hi\" | \"@hi\" | \"~hi\"'.",
-		"start": {
-			"line": 1,
-			"character": 8
-		},
-		"end": {
-			"line": 1,
-			"character": 11
 		}
 	}
 ]
@@ -3618,34 +3502,6 @@
 		"end": {
 			"line": 29,
 			"character": 22
-		}
-	}
-]
-
-=== 377 packages/language-server/test/plugins/typescript/testfiles/preferences/code-action-outside-root.svelte	json
-[
-	{
-		"code": 2307,
-		"message": "Cannot find module '../definitions' or its corresponding type declarations.",
-		"start": {
-			"line": 1,
-			"character": 19
-		},
-		"end": {
-			"line": 1,
-			"character": 35
-		}
-	},
-	{
-		"code": 2304,
-		"message": "Cannot find name 'blu'.",
-		"start": {
-			"line": 2,
-			"character": 4
-		},
-		"end": {
-			"line": 2,
-			"character": 7
 		}
 	}
 ]

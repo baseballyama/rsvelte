@@ -4,13 +4,13 @@ Times this branch against `main` and the official tools on every task: parse, co
 client and for the server, format, lint and type check. `run.ts` runs every task on one machine
 and writes one report.
 
-| Task           | `main`                  | This branch                             | Official                             |
-| -------------- | ----------------------- | --------------------------------------- | ------------------------------------ |
-| Parse          | `rsvelte_core::parse`   | `rsvelte_svelte_syntax::parse::parse`   | `parse` of `svelte/compiler`         |
-| Client, server | `rsvelte_core::compile` | task `svelte.compile/client`, `/server` | `compile` of `svelte/compiler`       |
-| Format         | `rsvelte_formatter`     | task `svelte.format/default`            | Prettier with prettier-plugin-svelte |
-| Lint           | `../lint-versus-main`   | `../lint-versus-main`                   | ESLint with eslint-plugin-svelte     |
-| Type check     | `svelte_check --tsgo`   | `rsvelte check` on tsgo                 | svelte-check, TypeScript 6 and tsgo  |
+| Task           | `main`                  | This branch                             | Official                                    |
+| -------------- | ----------------------- | --------------------------------------- | ------------------------------------------- |
+| Parse          | `rsvelte_core::parse`   | `rsvelte_svelte_syntax::parse::parse`   | `parse` of `svelte/compiler`                |
+| Client, server | `rsvelte_core::compile` | task `svelte.compile/client`, `/server` | `compile` of `svelte/compiler`              |
+| Format         | `rsvelte_formatter`     | task `svelte.format/default`            | Prettier with prettier-plugin-svelte        |
+| Lint           | `../lint-versus-main`   | `../lint-versus-main`                   | ESLint with eslint-plugin-svelte            |
+| Type check     | `svelte_check --tsgo`   | `rsvelte check` on `tsrs` and on tsgo   | svelte-check, TypeScript 6, tsgo and `tsrs` |
 
 - The first four use the harness of `lint-versus-main`. It reads every file first, each arm calls
   its library, and more threads take files from one shared counter. The official tools and

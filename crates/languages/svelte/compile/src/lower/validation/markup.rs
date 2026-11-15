@@ -9,10 +9,13 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree};
 use rustc_hash::FxHashSet;
 
+mod handlers;
 mod lets;
 mod placement;
 mod slots;
+mod transitions;
 
+pub(in crate::lower) use handlers::mixed_syntaxes;
 use placement::Ancestors;
 use rsvelte_svelte_semantic::warnings::slot_name_error;
 
@@ -111,6 +114,46 @@ fn walk<'a>(
         }
     }
     Ok(())
+}
+
+/// Upstream's `attribute_invalid_sequence_expression`, which it raises in runes mode only: an
+/// attribute's expression, or a component's attachment, that is a sequence without parentheses of
+/// its own. Each error comes with the start of its element, where the walk raises it.
+pub(in crate::lower) fn unparenthesized_sequence(
+    input: &CompileInput<'_>,
+) -> Option<(u32, Diagnostic)> {
+    let tree = input.component.compiler_syntax_tree;
+    let javascript = input.component.javascript;
+    (tree.elements())
+        .filter(|(_, el)| {
+            el.kind.renders_component()
+                || matches!(
+                    el.kind,
+                    ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element))
+                )
+        })
+        .filter_map(|(identifier, el)| {
+            let sequence = tree.attributes(el.attributes).iter().find_map(|a| {
+                let expression = match a.value {
+                    AttributeValue::Expression { expression, .. } => expression,
+                    AttributeValue::Attach(expression) if el.kind.renders_component() => expression,
+                    _ => return None,
+                };
+                let expression = javascript.get_expression(expression);
+                let span = oxc_span::GetSpan::span(expression);
+                (matches!(expression, Expression::SequenceExpression(_))
+                    && javascript.parentheses(span) == 0)
+                    .then_some(span)
+            })?;
+            let error = super::super::special::error(
+                "attribute_invalid_sequence_expression",
+                "Comma-separated expressions are not allowed as attribute/directive values in \
+                    runes mode, unless wrapped in parentheses",
+                Span::new(sequence.start, sequence.end),
+            );
+            Some((tree.node(identifier).span.start_offset, error))
+        })
+        .min_by_key(|&(at, _)| at)
 }
 
 /// Upstream's `EachBlock` refuses a context named `$state` or `$derived`.
@@ -236,6 +279,7 @@ fn element<'a>(
         ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element))
     ) {
         animation(input, parent, attributes)?;
+        transitions::check(attributes)?;
         event_modifiers(attributes)?;
     }
     if el.kind.renders_component() {

@@ -2768,22 +2768,6 @@
 5:13 5:22 svelte/sort-attributes "Attribute 'data-flag' should go before 'href'."
 8:2 8:18 svelte/valid-compile "Unused CSS selector \"a[data-flag~=\"\"]\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
-=== 519 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/3d8efadcd5f748d3.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 no-unused-vars "'v' is assigned a value but never used."
-2:6 2:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
-5:4 5:12 svelte/valid-compile "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute(a11y_invalid_attribute)"
-5:13 5:25 svelte/max-attributes-per-line "'data-flag' should be on a new line."
-5:13 5:25 svelte/sort-attributes "Attribute 'data-flag' should go before 'href'."
-
-=== 519 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/4809229d13f750f6.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 no-unused-vars "'v' is assigned a value but never used."
-2:6 2:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
-5:4 5:12 svelte/valid-compile "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute(a11y_invalid_attribute)"
-5:13 5:25 svelte/max-attributes-per-line "'data-flag' should be on a new line."
-5:13 5:25 svelte/sort-attributes "Attribute 'data-flag' should go before 'href'."
-
 === 622 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/626697f6a00a0255.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 no-unused-vars "'v' is assigned a value but never used."
@@ -2800,24 +2784,6 @@
 5:4 5:12 svelte/valid-compile "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute(a11y_invalid_attribute)"
 5:13 5:25 svelte/max-attributes-per-line "'data-flag' should be on a new line."
 5:13 5:25 svelte/sort-attributes "Attribute 'data-flag' should go before 'href'."
-
-=== 622 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/7e0bf9a55c019a47.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 no-unused-vars "'v' is assigned a value but never used."
-2:6 2:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
-5:4 5:12 svelte/valid-compile "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute(a11y_invalid_attribute)"
-5:13 5:27 svelte/max-attributes-per-line "'data-flag' should be on a new line."
-5:13 5:27 svelte/sort-attributes "Attribute 'data-flag' should go before 'href'."
-5:23 5:27 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-
-=== 622 attribute_selector_empty_value_3595/an_empty_value_is_matched_by_tilde_equals_empty/af4e901d46ddc2c3.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 no-unused-vars "'v' is assigned a value but never used."
-2:6 2:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
-5:4 5:12 svelte/valid-compile "'#' is not a valid href attribute\nhttps://svelte.dev/e/a11y_invalid_attribute(a11y_invalid_attribute)"
-5:13 5:27 svelte/max-attributes-per-line "'data-flag' should be on a new line."
-5:13 5:27 svelte/sort-attributes "Attribute 'data-flag' should go before 'href'."
-5:23 5:27 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
 
 === 657 attribute_selector_empty_value_3595/an_explicit_true_behaves_like_a_valueless_attribute/3676a926142bdbc4.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3442,13 +3408,6 @@
 1:14 1:21 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
 1:15 1:20 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
-=== 584 bidi_every_occurrence_3344/the_shapes_official_already_gets_right_are_unchanged/62731713e2ae3407.svelte	lint.txt
-1:13 1:14 no-unused-vars "'a' is assigned a value but never used."
-1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-1:28 1:29 no-unused-vars "'b' is assigned a value but never used."
-1:28 1:29 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
-1:32 1:46 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
-
 === 585 bidi_every_occurrence_3344/the_shapes_official_already_gets_right_are_unchanged/eeef142ad1de0f28.svelte	lint.txt
 1:5 1:6 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 1:9 1:10 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
@@ -3458,43 +3417,14 @@
 1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 1:17 1:22 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
-=== 729 bidi_every_occurrence_3344/three_string_literals_in_a_script_report_three_times/afdac586527470e9.svelte	lint.txt
-1:13 1:14 no-unused-vars "'a' is assigned a value but never used."
-1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-1:28 1:29 no-unused-vars "'b' is assigned a value but never used."
-1:28 1:29 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
-1:32 1:37 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
-1:43 1:44 no-unused-vars "'c' is assigned a value but never used."
-1:43 1:44 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
-
-=== 292 bidi_every_occurrence_3344/two_quasis_of_one_template_literal_report_twice/a623ecae2f12e62a.svelte	lint.txt
-1:6 1:9 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
-
-=== 584 bidi_every_occurrence_3344/two_string_literals_in_a_script_report_twice/f78ee2a73ae535ff.svelte	lint.txt
-1:13 1:14 no-unused-vars "'a' is assigned a value but never used."
-1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-1:17 1:22 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
-1:28 1:29 no-unused-vars "'b' is assigned a value but never used."
-1:28 1:29 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
-
-=== 498 bidi_every_occurrence_3344/two_template_expressions_report_twice/fc996b62696df7a9.svelte	lint.txt
-1:4 1:11 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-1:5 1:10 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
-1:11 1:18 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-
 === 439 bidirectional_control_characters_slots_3227/a_script_literal_still_warns/21b1231e1b124275.svelte	lint.txt
 1:20 1:21 no-unused-vars "'s' is assigned a value but never used."
 1:20 1:21 svelte/prefer-const "'s' is never reassigned. Use 'const' instead."
 1:24 1:29 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
-=== 78 bidirectional_control_characters_slots_3227/a_script_literal_still_warns/5204698638a62e55.svelte	lint.txt
-1:13 1:14 svelte/prefer-const "'s' is never reassigned. Use 'const' instead."
-
 === 395 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/1318223db50291f3.svelte	lint.txt
 1:4 1:11 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
 1:5 1:10 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
-
-=== 0 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/1b153d5fd6e74398.svelte	lint.txt
 
 === 353 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/41c8d31d26ba9ffe.svelte	lint.txt
 1:1 1:20 svelte/no-unused-class-name "Unused class \"x\"."
@@ -3503,9 +3433,6 @@
 === 361 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/af2abd9d841725d0.svelte	lint.txt
 1:1 1:14 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
 1:8 1:13 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
-
-=== 64 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/d28b687dbfce54c4.svelte	lint.txt
-1:1 1:21 svelte/require-each-key "Each block should have a key"
 
 === 397 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/d885b42f442ee74a.svelte	lint.txt
 1:10 1:17 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
@@ -3523,10 +3450,6 @@
 1:12 1:13 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 1:16 1:23 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
 1:17 1:22 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
-
-=== 396 bidirectional_control_characters_slots_3227/an_attribute_and_an_expression_both_report/81542bf877f46ecd.svelte	lint.txt
-1:4 1:11 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-1:26 1:27 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
 === 367 bidirectional_control_characters_slots_3227/an_attribute_value_is_walked/1361109f5c967664.svelte	lint.txt
 1:10 1:13 svelte/html-quotes "Expected to be enclosed by double quotes."
@@ -5044,15 +4967,6 @@
 3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:6 4:9 no-unused-vars "'obj' is assigned a value but never used."
-4:6 4:9 svelte/prefer-const "'obj' is never reassigned. Use 'const' instead."
-
-=== 551 bind_invalid_expression_2583/typescript_assertion_bind_targets_still_compile/d90781335b5ffb93.svelte	lint.txt
-1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:7 no-unused-vars "'o' is assigned a value but never used."
-3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:6 4:9 svelte/prefer-const "'obj' is never reassigned. Use 'const' instead."
 
 === 464 bind_invalid_expression_2583/valid_bind_targets_still_compile/0e20817fd7e13551.svelte	lint.txt
@@ -8091,14 +8005,6 @@
 5:6 5:7 no-useless-assignment "The value assigned to 'x' is not used in subsequent statements."
 6:1 6:2 svelte/indent "Expected indentation of 0 spaces but found 1 whitespace."
 
-=== 475 client_shared_evaluator_3466_3636/component_let_shadowing_respects_each_slot_scope/b57d3eccdf2c4b11.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:11 no-unused-vars "'count' is assigned a value but never used."
-3:6 3:11 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
-6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-
 === 104 client_shared_evaluator_3466_3636/const_tag_over_an_unfoldable_global_member_stays_reactive/1645899a227facc2.svelte	lint.txt
 1:11 1:47 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 
@@ -8718,11 +8624,6 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:6 4:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-
-=== 252 compiler/acorn_lines/tests/legacy_locs_follow_acorn_line_terminators/22662201c5a9a0b6.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:7 5:14 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
-6:10 7:1 no-irregular-whitespace "Irregular whitespace not allowed."
 
 === 222 compiler/identifier_escapes/tests/only_the_script_body_of_a_component_is_rewritten/c98c957029dc367e.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12236,9 +12137,6 @@
 === 248 compiler/tests/diagnostic_locates_invalid_svelte_self/ddd277fa500214de.svelte	lint.txt
 1:1 1:16 svelte/valid-compile "`<svelte:self>` components can only exist inside `{#if}` blocks, `{#each}` blocks, `{#snippet}` blocks or slots passed to components\nhttps://svelte.dev/e/svelte_self_invalid_placement(svelte_self_invalid_placement)"
 
-=== 40 compiler/tests/diagnostic_locates_renamed_runes/00f783c761548924.svelte	lint.txt
-2:23 - - "Parsing error: ';' expected."
-
 === 337 compiler/tests/diagnostic_message_carries_the_documentation_url_like_official/eec8b7da89d95794.svelte	lint.txt
 1:20 1:21 no-unused-vars "'x' is defined but never used."
 1:28 1:37 svelte/valid-compile "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement(state_invalid_placement)"
@@ -12343,9 +12241,6 @@
 === 334 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/35efd90757e6abdb.svelte	lint.txt
 1:9 1:23 svelte/valid-compile "Unrecognised attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it\nhttps://svelte.dev/e/script_unknown_attribute(script_unknown_attribute)"
 1:28 1:37 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-
-=== 80 compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/9096b19bedcfe51e.svelte	lint.txt
-1:65 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
 
 === 1027 component_attribute_assign_exemption/a_component_attribute_arrow_body_is_exempt/208dddb78fd72c1e.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -12871,48 +12766,27 @@
 1:13 1:14 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 1:19 1:24 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
-=== 145 computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/12839e381b7e9d66.svelte	lint.txt
-1:20 1:21 no-unused-vars "'o' is assigned a value but never used."
-1:20 1:21 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-
 === 352 computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/53a610167d17d55b.svelte	lint.txt
 1:15 1:16 no-unused-vars "'K' is defined but never used."
 1:20 1:25 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
-
-=== 145 computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/60efd40319cca749.svelte	lint.txt
-1:23 1:24 no-unused-vars "'v' is assigned a value but never used."
-1:23 1:24 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
 
 === 439 computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/9f66dcb10f9cf157.svelte	lint.txt
 1:13 1:14 no-unused-vars "'o' is assigned a value but never used."
 1:13 1:14 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 1:25 1:30 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
-=== 58 computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/ed8c0c7fe07ced23.svelte	lint.txt
-1:15 1:16 no-unused-vars "'K' is defined but never used."
-
 === 294 computed_property_key_span_3345/a_template_expression_keeps_its_positions/743e8de38eab5c63.svelte	lint.txt
 1:10 1:15 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
-
-=== 0 computed_property_key_span_3345/a_template_expression_keeps_its_positions/f9e1a8d36317a200.svelte	lint.txt
 
 === 439 computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/189c320cdfee9248.svelte	lint.txt
 1:13 1:14 no-unused-vars "'v' is assigned a value but never used."
 1:13 1:14 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
 1:22 1:27 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
-=== 145 computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/69872f6e8c224c02.svelte	lint.txt
-1:13 1:14 no-unused-vars "'o' is assigned a value but never used."
-1:13 1:14 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-
 === 439 computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/f89ba9cbae0f69c4.svelte	lint.txt
 1:13 1:14 no-unused-vars "'s' is assigned a value but never used."
 1:13 1:14 svelte/prefer-const "'s' is never reassigned. Use 'const' instead."
 1:17 1:22 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
-
-=== 145 computed_property_key_span_3345/the_whole_key_subtree_moves_with_it/4f67cefb5b0ba2e9.svelte	lint.txt
-1:13 1:14 no-unused-vars "'o' is assigned a value but never used."
-1:13 1:14 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 
 === 439 computed_property_key_span_3345/the_whole_key_subtree_moves_with_it/b6e7554f8c5692e2.svelte	lint.txt
 1:13 1:14 no-unused-vars "'o' is assigned a value but never used."
@@ -14075,9 +13949,6 @@
 4:11 4:29 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 4:19 4:20 no-unused-vars "'c' is assigned a value but never used."
 
-=== 40 const_tag_parse_error_3691/a_valid_const_tag_still_compiles/f245e4c9da48fbbd.svelte	lint.txt
-5:24 - - "Parsing error: ')' expected."
-
 === 80 const_tag_parse_error_3691/an_unparseable_initializer_is_rejected/0dc5dd56714c83ad.svelte	lint.txt
 4:25 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
 
@@ -14586,10 +14457,6 @@
 2:8 2:16 svelte/consistent-selector-style "Selector should select by element type instead of ID"
 2:8 2:16 svelte/valid-compile "Unused CSS selector \"#missing\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
-=== 227 css_empty_declaration_error_span/consecutive_semicolons_span_to_the_following_block_close/6ab50de7e6515fdc.svelte	lint.txt
-2:3 2:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
-3:23 4:3 svelte/valid-compile "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration(css_empty_declaration)"
-
 === 461 css_empty_declaration_error_span/empty_css_declaration_span_includes_following_whitespace/0aa90a07a903e4f3.svelte	lint.txt
 1:19 1:34 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
 1:26 1:33 no-undef "'content' is not defined."
@@ -15049,26 +14916,11 @@
 1:27 1:33 svelte/max-attributes-per-line "'id' should be on a new line."
 1:27 1:33 svelte/sort-attributes "Attribute 'id' should go before 'class'."
 
-=== 183 css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/4b6d95c5a21bf11f.svelte	error.txt
-Unexpected '|'.
-Occurred while linting css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/4b6d95c5a21bf11f.svelte:1
-Rule: "svelte/consistent-selector-style"
-
-=== 183 css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/cd846e6aecf8e955.svelte	error.txt
-Unexpected '|'.
-Occurred while linting css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/cd846e6aecf8e955.svelte:1
-Rule: "svelte/consistent-selector-style"
-
 === 493 css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/eabed44769bb7fe9.svelte	lint.txt
 1:27 1:33 svelte/max-attributes-per-line "'id' should be on a new line."
 1:27 1:33 svelte/sort-attributes "Attribute 'id' should go before 'class'."
 2:1 4:9 svelte/valid-style-parse "Error parsing style element. Error message: \"css_identifier_required/a_namespace_local_part_and_an_at_rule_still_need_one/eabed44769bb7fe9.svelte:2:1: At-rule without name\""
 3:2 3:2 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
-
-=== 204 css_identifier_required/a_pseudo_class_and_an_attribute_still_need_one/7f107c374b5a7473.svelte	error.txt
-Expected a pseudo-class or pseudo-element.
-Occurred while linting css_identifier_required/a_pseudo_class_and_an_attribute_still_need_one/7f107c374b5a7473.svelte:1
-Rule: "svelte/consistent-selector-style"
 
 === 583 css_identifier_required/a_pseudo_class_and_an_attribute_still_need_one/82707306ed0bcdd9.svelte	lint.txt
 1:1 1:44 svelte/no-unused-class-name "Unused class \"a\"."
@@ -15079,11 +14931,6 @@ Rule: "svelte/consistent-selector-style"
 1:27 1:33 svelte/max-attributes-per-line "'id' should be on a new line."
 1:27 1:33 svelte/sort-attributes "Attribute 'id' should go before 'class'."
 3:2 3:2 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
-
-=== 187 css_identifier_required/a_pseudo_element_needs_a_name/45e2ed376d25c163.svelte	error.txt
-Expected a pseudo-class or pseudo-element.
-Occurred while linting css_identifier_required/a_pseudo_element_needs_a_name/45e2ed376d25c163.svelte:1
-Rule: "svelte/consistent-selector-style"
 
 === 99 css_injected_minify_3226/a_comment_survives_minification/9ecf38df5f55a28b.svelte	lint.txt
 3:2 3:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
@@ -15439,10 +15286,6 @@ Rule: "svelte/consistent-selector-style"
 4:2 4:10 svelte/consistent-selector-style "Selector should select by element type instead of class"
 4:2 4:10 svelte/valid-compile "Unused CSS selector \".missing\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
-=== 202 css_pseudo_class_args/a_comment_between_two_kept_arguments_is_kept/4531a6f78fb39af5.svelte	lint.txt
-3:10 3:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
-3:15 3:17 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
 === 324 css_pseudo_class_args/a_compound_argument_is_pruned_too/74e5e7f89e8f5c5e.svelte	lint.txt
 3:7 3:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
 3:11 3:14 svelte/valid-compile "Unused CSS selector \"i.a\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
@@ -15499,21 +15342,9 @@ Rule: "svelte/consistent-selector-style"
 1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
 3:12 3:14 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 161 css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/76da5691786f61cb.svelte	lint.txt
-1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
-3:13 3:15 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
 === 160 css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/7c9c5ca44492ac8d.svelte	lint.txt
 1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
 3:9 3:11 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
-=== 161 css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/8bb2d3a6f27e3a83.svelte	lint.txt
-1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
-3:10 3:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
-
-=== 161 css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/92e5b2bc3c06fbbb.svelte	lint.txt
-1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
-3:11 3:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
 === 161 css_pseudo_class_args/comments_inside_functional_pseudo_arguments_are_kept/ea2f640a0aa4f49e.svelte	lint.txt
 1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
@@ -15561,14 +15392,6 @@ Rule: "svelte/consistent-selector-style"
 3:2 3:15 svelte/valid-compile "Unused CSS selector \".a > :has(.b)\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 3:12 3:14 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 235 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/12c6b8beaa21d52d.svelte	lint.txt
-3:2 3:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
-3:15 3:15 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
-
-=== 235 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/1d52c2bf6295517c.svelte	lint.txt
-3:2 3:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
-3:15 3:15 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
-
 === 235 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/7733d0ce2f3be523.svelte	lint.txt
 3:2 3:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
 3:15 3:15 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
@@ -15582,14 +15405,6 @@ Rule: "svelte/consistent-selector-style"
 3:15 3:15 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
 
 === 235 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/d0c7745dd73fa0f6.svelte	lint.txt
-3:2 3:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
-3:15 3:15 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
-
-=== 235 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/d19e82e3c15ba56b.svelte	lint.txt
-3:2 3:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
-3:15 3:15 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
-
-=== 235 css_pseudo_class_args/invalid_an_plus_b_spellings_are_rejected/e2a71600612d7577.svelte	lint.txt
 3:2 3:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
 3:15 3:15 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
 
@@ -15683,11 +15498,6 @@ Rule: "svelte/consistent-selector-style"
 4:1 4:1 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
 
 === 0 css_scoping_1237/multiline_global_wrapper_preserves_inner_whitespace/424a4852c5e700a0.svelte	lint.txt
-
-=== 227 css_scoping_1237/sibling_combinator_kept_when_before_element_has_dynamic_class/4978af891d9c7d0c.svelte	lint.txt
-4:5 4:13 svelte/button-has-type "Missing an explicit type attribute for button."
-6:26 6:92 svelte/no-unused-class-name "Unused class \"\"."
-6:58 6:90 svelte/prefer-class-directive "Unexpected class using the ternary operator."
 
 === 170 css_scoping_1237/style_inside_script_template_literal_is_not_picked_up/c63481b2b7a734d6.svelte	lint.txt
 2:9 2:13 no-unused-vars "'code' is assigned a value but never used."
@@ -15805,38 +15615,12 @@ Rule: "svelte/consistent-selector-style"
 3:2 3:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
 3:7 3:13 svelte/valid-compile "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration(css_empty_declaration)"
 
-=== 355 css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/56850d42c980b1cc.svelte	lint.txt
-1:1 1:19 svelte/no-unused-class-name "Unused class \"card\"."
-1:19 1:38 svelte/no-unused-class-name "Unused class \"a\"."
-1:32 1:37 svelte/max-attributes-per-line "'x' should be on a new line."
-1:38 1:51 svelte/no-unused-class-name "Unused class \"b\"."
-3:6 3:6 svelte/valid-compile "Expected token ]\nhttps://svelte.dev/e/expected_token(expected_token)"
-
-=== 388 css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/d1817713cb279f42.svelte	lint.txt
-1:1 1:19 svelte/no-unused-class-name "Unused class \"card\"."
-1:19 1:38 svelte/no-unused-class-name "Unused class \"a\"."
-1:32 1:37 svelte/max-attributes-per-line "'x' should be on a new line."
-1:38 1:51 svelte/no-unused-class-name "Unused class \"b\"."
-3:3 3:3 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
-
-=== 388 css_selector_parse_3404_3405_3406/a_namespaced_attribute_name_is_rejected_instead_of_emitting_empty_brackets/da7b20631d49c91b.svelte	lint.txt
-1:1 1:19 svelte/no-unused-class-name "Unused class \"card\"."
-1:19 1:38 svelte/no-unused-class-name "Unused class \"a\"."
-1:32 1:37 svelte/max-attributes-per-line "'x' should be on a new line."
-1:38 1:51 svelte/no-unused-class-name "Unused class \"b\"."
-3:3 3:3 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
-
 === 400 css_selector_parse_3404_3405_3406/an_attribute_selector_keeps_the_source_spacing/329d7860ce791b6c.svelte	lint.txt
 1:1 1:19 svelte/no-unused-class-name "Unused class \"card\"."
 1:19 1:38 svelte/no-unused-class-name "Unused class \"a\"."
 1:19 1:60 svelte/valid-compile "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute(a11y_missing_attribute)"
 1:32 1:37 svelte/max-attributes-per-line "'x' should be on a new line."
 1:38 1:51 svelte/no-unused-class-name "Unused class \"b\"."
-
-=== 194 css_selector_parse_3404_3405_3406/an_attribute_selector_keeps_the_source_spacing/57fe13a37abdb380.svelte	error.txt
-Expected an attribute.
-Occurred while linting css_selector_parse_3404_3405_3406/an_attribute_selector_keeps_the_source_spacing/57fe13a37abdb380.svelte:1
-Rule: "svelte/consistent-selector-style"
 
 === 400 css_selector_parse_3404_3405_3406/an_attribute_selector_keeps_the_source_spacing/787fc3e2e256da6d.svelte	lint.txt
 1:1 1:19 svelte/no-unused-class-name "Unused class \"card\"."
@@ -15891,16 +15675,6 @@ Rule: "svelte/consistent-selector-style"
 1:32 1:37 svelte/max-attributes-per-line "'x' should be on a new line."
 2:1 4:9 svelte/valid-style-parse "Error parsing style element. Error message: \"css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/77105d7f4a2dd245.svelte:2:2: Unclosed bracket\""
 3:5 3:5 svelte/valid-compile "Expected token ]\nhttps://svelte.dev/e/expected_token(expected_token)"
-
-=== 221 css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/b8fc896b6d2ce9e7.svelte	error.txt
-Cannot read properties of undefined (reading '0')
-Occurred while linting css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/b8fc896b6d2ce9e7.svelte:1
-Rule: "svelte/consistent-selector-style"
-
-=== 221 css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/e25afc0dacd98fca.svelte	error.txt
-Cannot read properties of undefined (reading '0')
-Occurred while linting css_selector_parse_3404_3405_3406/an_unterminated_attribute_selector_is_rejected/e25afc0dacd98fca.svelte:1
-Rule: "svelte/consistent-selector-style"
 
 === 479 css_selector_parse_3404_3405_3406/the_column_combinator_is_read_and_a_lone_bar_is_not/137461be352be229.svelte	lint.txt
 1:1 1:19 svelte/no-unused-class-name "Unused class \"card\"."
@@ -16176,10 +15950,6 @@ Rule: "svelte/consistent-selector-style"
 === 193 css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/63726b51828a2ed1.svelte	lint.txt
 1:4 1:17 svelte/no-unused-class-name "Unused class \"a\"."
 3:5 3:5 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
-
-=== 233 css_trailing_combinator_parse/a_comment_after_a_combinator_is_an_expected_identifier_at_the_comment/6417a3f535e59cc1.svelte	lint.txt
-3:5 3:5 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
-3:6 3:8 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
 === 212 css_trailing_combinator_parse/a_nested_rule_reports_its_own_brace/2408ae21c5f87718.svelte	lint.txt
 3:1 3:3 svelte/consistent-selector-style "Selector should select by element type instead of class"

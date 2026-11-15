@@ -335,6 +335,12 @@ impl<'a> Visit<'a> for RuneWalk<'a> {
         {
             self.error = Some(error);
         }
+        if let AstKind::ExportNamedDeclaration(export) = kind
+            && self.error.is_none()
+            && let Err(error) = self.check_specifiers(export)
+        {
+            self.error = Some(error);
+        }
         self.frames.pop();
     }
 
@@ -376,11 +382,11 @@ impl<'a> RuneWalk<'a> {
             && self.res.symbol(name).is_none()
             && !self.res.is_store_subscription(&name.name)
         {
-            // Upstream strips TypeScript wrappers first, so it points at the name.
+            // Upstream erases the types before it analyzes, so the name is the whole target.
             return crate::lower::special::invalid(
                 "bind_invalid_value",
                 "Can only bind to state or props",
-                span_of(&**name),
+                Span::new(name.span.start, name.span.end),
             );
         }
         Ok(())
