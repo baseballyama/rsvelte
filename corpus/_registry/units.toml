@@ -4281,3 +4281,6 @@
 
 ["svelte/syntaxfm-website/src/routes/(site)/admin/videos/import/+page.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
+
+["svelte/svelte/packages/svelte/tests/css/samples/css-vars/input.svelte".skip]
+"svelte.format" = "upstream bug: Prettier 3.9.10 adds a space before `!important` in a custom property with no value on every pass (`--bar: !important` prints `--bar:  !important`, then `--bar:   !important`)"

@@ -782,7 +782,6 @@ svelte/svelte-table/example/Example5.svelte	mismatch
 svelte/svelte-ux/packages/svelte-ux/src/routes/+page.svelte	mismatch
 svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/TableOfContents/+page.svelte	mismatch
 svelte/svelte/packages/svelte/tests/css/samples/comment-html/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/css/samples/css-vars/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/hydration/samples/claim-text/Layout.svelte	mismatch
 svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/input.svelte	refused
 svelte/svelte/packages/svelte/tests/migrate/samples/svelte-element/output.svelte	refused
