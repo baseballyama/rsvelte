@@ -1,7 +1,7 @@
 //! The JavaScript errors acorn throws while upstream parses a component.
 
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_typescript_tree::SyntaxError;
+use rsvelte_typescript_tree::{Acorn, SyntaxError};
 
 use crate::input::ComponentInput;
 use crate::resolve::Resolution;
@@ -28,15 +28,24 @@ pub fn first(res: &Resolution) -> Option<SyntaxError> {
 #[must_use]
 pub fn parse_error(input: &ComponentInput<'_>, res: &Resolution) -> Option<Diagnostic> {
     first(res)
-        .filter(|error| !redeclares_in_template(input, &error.diagnostic))
+        .filter(|error| !redeclares_in_template(input, error))
         .map(rsvelte_svelte_syntax::parse::javascript_failure)
 }
 
-/// Whether oxc's `error` is a name declared again outside the scripts.
-fn redeclares_in_template(input: &ComponentInput<'_>, error: &Diagnostic) -> bool {
+/// Whether oxc's `error` is a name declared again outside the scripts, other than a parameter of
+/// the same function, which acorn rejects as it parses.
+fn redeclares_in_template(input: &ComponentInput<'_>, error: &SyntaxError) -> bool {
     let javascript = input.javascript;
-    let start = error.span.start_offset;
-    error.message.ends_with("has already been declared")
+    let start = error.diagnostic.span.start_offset;
+    let clash = matches!(
+        &error.acorn,
+        Some(Acorn::Fails { message, .. }) if message == "Argument name clash"
+    );
+    !clash
+        && error
+            .diagnostic
+            .message
+            .ends_with("has already been declared")
         && !(input.module.into_iter().chain(input.instance))
             .map(|program| javascript.get_program(program).span)
             .any(|span| span.start <= start && start < span.end)

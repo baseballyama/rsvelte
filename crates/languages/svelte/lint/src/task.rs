@@ -6,6 +6,7 @@ use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineBreaks;
 use rsvelte_svelte_syntax::syntax_tree::Component;
@@ -182,6 +183,9 @@ fn parse_verdict<'a>(context: &'a DocumentContext<'_>) -> Verdict<'a> {
             Verdict::Throws(message, at)
         });
     }
+    if let Some(error) = blocks::template_error(context.source_text()) {
+        return Verdict::Throws(Cow::Owned(error.message), error.span.start_offset);
+    }
     let javascript_error;
     let (error, component) = match context.get::<rsvelte_svelte_syntax::Parsed>() {
         Err(error) => (error, None),
@@ -216,6 +220,10 @@ fn unchecked_verdict(component: &Component) -> Verdict<'static> {
     if let Some((message, at)) =
         grammar::rejection(tree, tree.unchecked_errors(), grammar::scripts(component))
     {
+        return Verdict::Throws(Cow::Borrowed(message), at);
+    }
+    if let Some(at) = grammar::optional_private_name(component) {
+        let message = "An optional chain cannot contain private identifiers.";
         return Verdict::Throws(Cow::Borrowed(message), at);
     }
     directive_names::rejection(component).map_or(Verdict::Parses, |(message, at)| {
@@ -255,8 +263,14 @@ fn typescript_eslint_verdict<'a>(context: &'a DocumentContext<'_>) -> Typescript
     // what it throws at the script's end depends on that code.
     let inside = (component.module.iter().chain(&component.instance))
         .any(|script| script.content.start_offset <= at && at < script.content.end_offset);
+    if !inside {
+        return missing_at_the_end(context.source_text(), component, error, at)
+            .map_or(TypescriptEslint::Unknown, |(message, end)| {
+                TypescriptEslint::Throws(Cow::Borrowed(message), end)
+            });
+    }
     // An error without TypeScript's code is one this port does not know TypeScript's verdict on.
-    if !inside || error.typescript_code.is_none() {
+    if error.typescript_code.is_none() {
         return TypescriptEslint::Unknown;
     }
     // An error it does not throw leaves the script to the rules.
@@ -264,6 +278,47 @@ fn typescript_eslint_verdict<'a>(context: &'a DocumentContext<'_>) -> Typescript
         || grammar_verdict(component),
         |message| TypescriptEslint::Throws(message, at),
     )
+}
+
+/// What TypeScript misses where the last script stops, and where, when no template expression
+/// adds code after the script: a `}` at the end of the document, or a name or an expression right
+/// after the last token, where tsc reports a missing node at the end of the file.
+fn missing_at_the_end(
+    source_text: &str,
+    component: &Component,
+    error: &rsvelte_typescript_tree::SyntaxError,
+    at: u32,
+) -> Option<(&'static str, u32)> {
+    let last = (component.module.iter().chain(&component.instance))
+        .max_by_key(|script| script.content.end_offset)?;
+    let after = source_text.get(at as usize..)?;
+    if last.content.end_offset != at || after.contains('{') {
+        return None;
+    }
+    if error.typescript_code == Some(1005)
+        && error.diagnostic.message == "Expected `}` but found `EOF`"
+    {
+        return Some(("'}' expected.", source_text.len() as u32));
+    }
+    let content = source_text.get(last.content.start_offset as usize..at as usize)?;
+    let code = content.trim_end_matches(is_ecmascript_whitespace);
+    let end = last.content.start_offset + code.len() as u32;
+    let before = |tail: &str| {
+        code.strip_suffix(tail)
+            .map(|rest| rest.trim_end_matches(is_ecmascript_whitespace))
+    };
+    // A `.` of a spread or of a number is not a member access.
+    if before(".").is_some_and(|rest| !rest.ends_with(|c: char| c == '.' || c.is_ascii_digit())) {
+        return Some(("Identifier expected.", end));
+    }
+    let assigned = |rest: &str| {
+        rest.strip_suffix('=')
+            .is_some_and(|rest| !rest.ends_with(['=', '!', '<', '>']))
+    };
+    if assigned(code) || before("(").is_some_and(assigned) {
+        return Some(("Expression expected.", end));
+    }
+    None
 }
 
 /// What typescript-eslint throws from its own check of the scripts read as TypeScript.
@@ -304,6 +359,7 @@ fn positions<'a>(context: &'a DocumentContext<'_>) -> rsvelte_lint_runner::outpu
     )
 }
 
+mod blocks;
 mod directive_names;
 mod grammar;
 

@@ -149,15 +149,15 @@ fn the_rules_read_a_script_the_compiler_rejects_as_typescript() {
     );
 }
 
-/// What typescript-eslint throws at a script's end depends on the template's code, so lint
-/// refuses the script rather than guess.
+/// What typescript-eslint throws at a script's end depends on the code of the template's
+/// expressions, so lint refuses the script rather than guess.
 #[test]
 fn an_error_at_a_scripts_end_is_refused() {
     let mut registry = Registry::new();
     register_with_configuration(&mut registry, Configuration::new(LintSettings::default()));
     let document = Document::new(
         "App.svelte".to_owned(),
-        "<script>const a = </script><p></p>".to_owned(),
+        "<script>const a = </script><p>{1}</p>".to_owned(),
     )
     .expect("a small document");
     let context = DocumentContext::new(&document, registry.artifacts());
@@ -317,4 +317,109 @@ fn an_abstract_initializer_fails_the_parse_at_the_initializer() {
         );
         assert_eq!(finding["start"]["column"].as_u64(), Some(column), "{path}");
     }
+}
+
+/// Each of these fails the parse where `line:column` says.
+fn assert_parse_error(source: &str, message: &str, (line, column): (u64, u64)) {
+    let document =
+        Document::new("App.svelte".to_owned(), source.to_owned()).expect("a small document");
+    let (json, _) = lint_with("svelte/no-svelte-internal", &document, |_| {});
+    let finding = &json["findings"][0];
+    assert_eq!(finding["message"].as_str(), Some(message), "{source}");
+    assert_eq!(finding["start"]["line"].as_u64(), Some(line), "{source}");
+    assert_eq!(
+        finding["start"]["column"].as_u64(),
+        Some(column),
+        "{source}"
+    );
+}
+
+/// acorn rejects two parameters of the same name as it parses the template.
+#[test]
+fn a_parameter_clash_in_the_template_fails_the_parse() {
+    assert_parse_error(
+        "<script>\n\tlet c = 0;\n</script>\n\n{#if ((a, a) => a)(c, 1)}<b>y</b>{/if}\n",
+        "Parsing error: Argument name clash\nhttps://svelte.dev/e/js_parse_error",
+        (5, 10),
+    );
+}
+
+/// tsc's parser rejects a private name in an optional chain, which acorn and oxc read.
+#[test]
+fn a_private_name_in_an_optional_chain_fails_the_parse() {
+    assert_parse_error(
+        "<script>\nclass K {\n\t#v = 1;\n\tf(o) { return o?.a.#v; }\n}\n</script>\n<p>{K}</p>\n",
+        "Parsing error: An optional chain cannot contain private identifiers.",
+        (4, 20),
+    );
+}
+
+/// typescript-eslint throws an ambient initializer of a variable, not of a class property.
+#[test]
+fn an_ambient_initializer_fails_the_parse_only_on_a_variable() {
+    let document = Document::new(
+        "a.svelte.js".to_owned(),
+        "declare let x = 1;\nclass K {\n\tdeclare a = 1;\n}\n".to_owned(),
+    )
+    .expect("a small document");
+    let (json, _) = lint_with("svelte/no-svelte-internal", &document, |_| {});
+    let finding = &json["findings"][0];
+    assert_eq!(
+        finding["message"].as_str(),
+        Some("Parsing error: Initializers are not permitted in ambient contexts.")
+    );
+    assert_eq!(finding["start"]["column"].as_u64(), Some(12));
+    let document = Document::new(
+        "a.svelte.js".to_owned(),
+        "class K {\n\tdeclare a = 1;\n}\nexport { K };\n".to_owned(),
+    )
+    .expect("a small document");
+    let (json, _) = lint_with("svelte/no-svelte-internal", &document, |_| {});
+    assert_eq!(json["findings"].as_array().map(Vec::len), Some(0), "{json}");
+}
+
+/// With no template expression after the script, TypeScript expects an open `}` at the end.
+#[test]
+fn an_open_brace_at_a_scripts_end_is_expected_at_the_documents_end() {
+    assert_parse_error(
+        "<script>\n\tlet a = {\n</script>\n\n<b>x</b>\n",
+        "Parsing error: '}' expected.",
+        (6, 0),
+    );
+}
+
+/// tsc reports a name or an expression missing at the end of the file right after the last token.
+#[test]
+fn a_missing_node_at_a_scripts_end_is_reported_after_the_last_token() {
+    assert_parse_error(
+        "<script>\n  let a = (\n</script>\n",
+        "Parsing error: Expression expected.",
+        (2, 11),
+    );
+    assert_parse_error(
+        "<script>class A { b() { return true; } } new A().</script>",
+        "Parsing error: Identifier expected.",
+        (1, 49),
+    );
+    assert_parse_error(
+        "<script>const a = </script><p></p>",
+        "Parsing error: Expression expected.",
+        (1, 17),
+    );
+}
+
+/// svelte-eslint-parser hands Svelte's parser the template with the blocks' content blanked out.
+#[test]
+fn the_template_is_parsed_with_the_blocks_blanked_out() {
+    assert_parse_error(
+        "<script>let x = 1; const s = '<script lang=\"ts\">';</script><p>{x as number}</p>\n",
+        "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token",
+        (1, 65),
+    );
+    assert_parse_error(
+        "<b class=\"host\">a</b>\n\n<style>\n\t.host { color: red; </style> }\n</style>\n",
+        "Parsing error: `</style>` attempted to close an element that was not open\n\
+         https://svelte.dev/e/element_invalid_closing_tag",
+        (5, 0),
+    );
 }

@@ -1,5 +1,6 @@
 use oxc_ast::ast::{
-    Function, ImportDeclaration, ImportPhase, NumericLiteral, PropertyDefinition, StringLiteral,
+    Expression, Function, ImportDeclaration, ImportPhase, NumericLiteral, PrivateFieldExpression,
+    PropertyDefinition, StringLiteral, VariableDeclaration, VariableDeclarationKind,
     VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
@@ -10,7 +11,8 @@ use rsvelte_typescript_tree::{ProgramIdentifier, SyntaxError, Tree};
 
 /// The grammar errors a host lets pass that typescript-eslint throws from its own check of the
 /// tree, with its words.
-const THROWN: [(u32, &str); 5] = [
+const THROWN: [(u32, &str); 6] = [
+    (1039, "Initializers are not permitted in ambient contexts."),
     (1221, "Generators are not allowed in an ambient context."),
     (
         1222,
@@ -51,6 +53,7 @@ pub(super) fn rejection<'e>(
         kind: match error.typescript_code {
             Some(1221 | 1222) => Kind::Function,
             Some(1267) => Kind::Initializer,
+            Some(1039) => Kind::AmbientVariable,
             _ => Kind::Declarator,
         },
         start: None,
@@ -71,6 +74,8 @@ enum Kind {
     Function,
     /// A class property's initializer.
     Initializer,
+    /// A `declare let` or `var`, or one with a type, that has an initializer; not a property's.
+    AmbientVariable,
 }
 
 /// The start of the innermost node of the kind an error is about that holds `at`.
@@ -89,6 +94,24 @@ impl Node {
 }
 
 impl<'a> Visit<'a> for Node {
+    fn visit_variable_declaration(&mut self, it: &VariableDeclaration<'a>) {
+        let kind = it.kind;
+        for declarator in &it.declarations {
+            let thrown = matches!(
+                kind,
+                VariableDeclarationKind::Let | VariableDeclarationKind::Var
+            ) || declarator.type_annotation.is_some();
+            if it.declare && thrown {
+                self.enter(
+                    Kind::AmbientVariable,
+                    declarator.span,
+                    declarator.span.start,
+                );
+            }
+        }
+        walk::walk_variable_declaration(self, it);
+    }
+
     fn visit_variable_declarator(&mut self, it: &VariableDeclarator<'a>) {
         self.enter(Kind::Declarator, it.span, it.span.start);
         walk::walk_variable_declarator(self, it);
@@ -196,5 +219,44 @@ impl<'a> Visit<'a> for Scanner {
             self.reject("'=' expected.".to_owned(), at);
         }
         walk::walk_import_declaration(self, it);
+    }
+}
+
+/// Where tsc's parser rejects a private name in an optional chain, which acorn and oxc accept.
+pub(super) fn optional_private_name(component: &Component) -> Option<u32> {
+    let tree = &component.javascript;
+    let mut found = OptionalPrivateName { first: None };
+    for program in scripts(component) {
+        let program = tree.get_program(program);
+        let text = program.span.source_text(program.source_text);
+        if text.contains("?.") && text.contains('#') {
+            found.visit_program(program);
+        }
+    }
+    found.first
+}
+
+struct OptionalPrivateName {
+    first: Option<u32>,
+}
+
+impl<'a> Visit<'a> for OptionalPrivateName {
+    fn visit_private_field_expression(&mut self, it: &PrivateFieldExpression<'a>) {
+        if (it.optional || optional_chain(&it.object)) && self.first.is_none() {
+            self.first = Some(it.field.span.start);
+        }
+        walk::walk_private_field_expression(self, it);
+    }
+}
+
+/// Whether `expression` is a link of an optional chain after its `?.`.
+fn optional_chain(expression: &Expression<'_>) -> bool {
+    match expression {
+        Expression::StaticMemberExpression(it) => it.optional || optional_chain(&it.object),
+        Expression::ComputedMemberExpression(it) => it.optional || optional_chain(&it.object),
+        Expression::PrivateFieldExpression(it) => it.optional || optional_chain(&it.object),
+        Expression::CallExpression(it) => it.optional || optional_chain(&it.callee),
+        Expression::TSNonNullExpression(it) => optional_chain(&it.expression),
+        _ => false,
     }
 }
