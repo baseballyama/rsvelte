@@ -72,7 +72,11 @@ impl Artifact for LintStyleSheet {
         if !matches!(context.get::<StyleSheetVerdict>(), StyleVerdict::Parsed) {
             return None;
         }
-        let style = context.get::<Parsed>().as_ref().ok()?.style.as_ref()?;
+        let style = crate::computation::Linted::of(context)
+            .ok()?
+            .component
+            .style
+            .as_ref()?;
         if style.sheet.is_ok() {
             return None;
         }
