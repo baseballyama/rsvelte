@@ -1,4 +1,4 @@
-# svelte.lint/default: 37084 match
+# svelte.lint/default: 37085 match
 svelte/bits-ui/tests/src/tests/checkbox/checkbox-group-test.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-svelte4-input.svelte	mismatch
@@ -163,7 +163,6 @@ svelte/rsvelte-tests-core-2/error_check_precedence_3262_3268/export_const_write_
 svelte/rsvelte-tests-core-2/export_specifier_error_spans/export_undefined_points_at_the_whole_export_specifier/b9cd0b02029ce8d3.svelte	mismatch
 svelte/rsvelte-tests-core-2/export_specifier_error_spans/snippet_invalid_export_points_at_the_export_specifier/9e9b2ca341bde62b.svelte	mismatch
 svelte/rsvelte-tests-core-2/exported_class_unused_warning/an_export_specifier_alone_does_not_count_as_a_use/4d1d5a84bd51a3d6.svelte	mismatch
-svelte/rsvelte-tests-core-2/function_this_param_shape/a_template_this_parameter_is_erased_from_compiled_output/0cf009fb2a2a65c0.svelte	mismatch
 svelte/rsvelte-tests-core-2/globals_table_3617/two_shapes_stay_unfolded_on_purpose/181620c5ec25570d.svelte	mismatch
 svelte/rsvelte-tests-core-2/globals_table_3617/two_shapes_stay_unfolded_on_purpose/90b344717c29bda3.svelte	mismatch
 svelte/rsvelte-tests-core-2/globals_table_3617/two_shapes_stay_unfolded_on_purpose/f971de0d0c72cc7f.svelte	mismatch

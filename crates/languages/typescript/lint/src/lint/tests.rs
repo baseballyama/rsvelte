@@ -254,6 +254,17 @@ const UNUSED: &[(&str, &[&str])] = &[
             "'this' is defined but never used.@115-122",
         ],
     ),
+    (
+        "let x = function (a = 1, b?: string, c = 2) {}; x; let y = function (b: string, { c } = \
+         {}) {}; y; let z = function (b: string, ...r) {}; z;",
+        &[
+            "'a' is assigned a value but never used.@18-19",
+            "'c' is assigned a value but never used.@37-38",
+            "'c' is assigned a value but never used.@82-83",
+            "'b' is defined but never used.@117-126",
+            "'r' is defined but never used.@131-132",
+        ],
+    ),
 ];
 
 #[test]

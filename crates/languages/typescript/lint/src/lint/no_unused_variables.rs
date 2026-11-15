@@ -51,7 +51,7 @@ pub fn no_unused_variables<'r>(
             AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_)
                 if is_setter_parameter(&f, declaration)
                     || (is_plain_parameter(&f, symbol, declaration)
-                        && !is_after_last_used_parameter(&f, symbol, declaration)) =>
+                        && !is_after_last_used_parameter(&f, declaration)) =>
             {
                 continue;
             }
@@ -180,22 +180,28 @@ fn is_plain_parameter(f: &Facts<'_>, symbol: SymbolId, parameter: NodeId) -> boo
     }
 }
 
-/// `isAfterLastUsedArg`: no later parameter of the same function is used.
-fn is_after_last_used_parameter(f: &Facts<'_>, symbol: SymbolId, parameter: NodeId) -> bool {
-    let Some(list) = f.parent(parameter) else {
+/// `isAfterLastUsedArg`: no later parameter of the same function has a reference, where a
+/// default value is a write reference to each name its pattern declares.
+fn is_after_last_used_parameter(f: &Facts<'_>, parameter: NodeId) -> bool {
+    let Some(AstKind::FormalParameters(list)) = f.parent(parameter).map(|list| f.kind(list)) else {
         return true;
     };
     let after = f.span(parameter).end;
-    let end = f.span(list).end;
-    let scope = f.scoping.symbol_scope_id(symbol);
-    !f.scoping.symbol_ids().any(|later| {
-        let at = f.scoping.symbol_span(later);
-        later != symbol
-            && f.scoping.symbol_scope_id(later) == scope
-            && at.start >= after
-            && at.end <= end
-            && !f.scoping.get_resolved_reference_ids(later).is_empty()
-    })
+    let later = list
+        .items
+        .iter()
+        .filter(|item| item.span.start >= after)
+        .map(|item| &item.pattern)
+        .chain(list.rest.as_ref().map(|rest| &rest.rest.argument));
+    !later
+        .flat_map(BindingPattern::get_binding_identifiers)
+        .filter_map(|identifier| identifier.symbol_id.get())
+        .any(|symbol| {
+            !f.scoping.get_resolved_reference_ids(symbol).is_empty()
+                || f.identifiers[symbol.index()]
+                    .iter()
+                    .any(|&identifier| f.written_where_declared(identifier))
+        })
 }
 
 fn is_exported(f: &Facts<'_>, declaration: NodeId) -> bool {
